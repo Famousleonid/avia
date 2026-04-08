@@ -17,9 +17,11 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\Workorder;
 use App\Services\PaintIndexRowsBuilder;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 
 class MobileController extends Controller
@@ -244,12 +246,46 @@ class MobileController extends Controller
         $request->validate([
             'name' => 'required',
             'phone' => 'nullable',
+            'birthday' => 'nullable|string',
             'stamp' => 'required',
             'team_id' => 'required|exists:teams,id',
             'file' => 'nullable|image',
         ]);
 
-        $user->update($request->only(['name', 'phone', 'stamp', 'team_id']));
+        $birthdayRaw = trim((string) $request->input('birthday', ''));
+        $birthdayYmd = null;
+        if ($birthdayRaw !== '') {
+            if (! preg_match('/^\d{2}\.[a-z]{3}\.\d{4}$/', $birthdayRaw)) {
+                throw ValidationException::withMessages([
+                    'birthday' => 'Birthday format must be dd.mmm.yyyy (example: 01.apr.2026).',
+                ]);
+            }
+
+            $normalized = preg_replace_callback(
+                '/\.(\w{3})\./',
+                static fn (array $m): string => '.' . ucfirst(strtolower((string) $m[1])) . '.',
+                $birthdayRaw
+            );
+
+            $birthdayDate = Carbon::createFromFormat('d.M.Y', (string) $normalized);
+            if ($birthdayDate === false) {
+                throw ValidationException::withMessages([
+                    'birthday' => 'Invalid birthday date.',
+                ]);
+            }
+
+            if ($birthdayDate->startOfDay()->gt(now()->startOfDay())) {
+                throw ValidationException::withMessages([
+                    'birthday' => 'Birthday cannot be later than today.',
+                ]);
+            }
+
+            $birthdayYmd = $birthdayDate->format('Y-m-d');
+        }
+
+        $payload = $request->only(['name', 'phone', 'stamp', 'team_id']);
+        $payload['birthday'] = $birthdayYmd;
+        $user->update($payload);
 
         if ($request->hasFile('file')) {
             $user->clearMediaCollection('avatar');

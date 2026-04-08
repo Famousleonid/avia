@@ -14,6 +14,9 @@ use Illuminate\View\View;
 
 class PaintController extends Controller
 {
+    private const QUEUE_ROLES = ['Admin', 'Manager', 'Paint'];
+    private const LOST_DELETE_ROLES = ['Admin', 'Manager', 'Paint'];
+
     public function index(): View
     {
         $workorders = Workorder::query()
@@ -58,7 +61,7 @@ class PaintController extends Controller
         return view('admin.paint.index', [
             'rows' => $rows,
             'queuedCount' => $queuedCount,
-            'canReorderPaint' => $user !== null && $user->roleIs(['Admin', 'Manager']),
+            'canReorderPaint' => $this->canManageQueue($user),
             'lostParts' => $lostParts,
         ]);
     }
@@ -100,7 +103,7 @@ class PaintController extends Controller
             abort(403);
         }
 
-        if ((int) $paint->user_id !== (int) $user->id && ! $user->roleIs('Admin')) {
+        if (! $this->canDeleteLost($user, $paint)) {
             abort(403);
         }
 
@@ -128,7 +131,7 @@ class PaintController extends Controller
     public function reorder(Request $request): JsonResponse
     {
         $user = auth()->user();
-        if ($user === null || ! $user->roleIs(['Admin', 'Manager'])) {
+        if (! $this->canManageQueue($user)) {
             abort(403);
         }
 
@@ -182,7 +185,7 @@ class PaintController extends Controller
     public function addToQueue(Request $request): JsonResponse
     {
         $user = auth()->user();
-        if ($user === null || ! $user->roleIs(['Admin', 'Manager'])) {
+        if (! $this->canManageQueue($user)) {
             abort(403);
         }
 
@@ -220,7 +223,7 @@ class PaintController extends Controller
     public function setPosition(Request $request): JsonResponse
     {
         $user = auth()->user();
-        if ($user === null || ! $user->roleIs(['Admin', 'Manager'])) {
+        if (! $this->canManageQueue($user)) {
             abort(403);
         }
 
@@ -282,6 +285,23 @@ class PaintController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    private function canManageQueue($user): bool
+    {
+        return $user !== null
+            && $user->roleIs(self::QUEUE_ROLES)
+            && $user->can('feature.paint');
+    }
+
+    private function canDeleteLost($user, Paint $paint): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return (int) $paint->user_id === (int) $user->id
+            || $user->roleIs(self::LOST_DELETE_ROLES);
     }
 
 }

@@ -5,6 +5,7 @@
         label {
             font-size: 0.85rem;
             font-weight: 500;
+            color: #9aa3af;
         }
 
         .form-control {
@@ -42,6 +43,22 @@
                 <div class="form-group mb-3">
                     <label for="phone">Phone</label>
                     <input name="phone" class="form-control" value="{{ $user->phone }}" placeholder="000 000 00 00">
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="birthday">Birthday</label>
+                    @php
+                        $birthdayFormatted = '';
+                        if ($user->birthday) {
+                            $birthdayFormatted = $user->birthday->format('d') . '.' . strtolower($user->birthday->format('M')) . '.' . $user->birthday->format('Y');
+                        }
+                    @endphp
+                    <input type="text"
+                           id="birthday"
+                           name="birthday"
+                           class="form-control"
+                           placeholder="01.apr.2026"
+                           value="{{ $birthdayFormatted }}">
                 </div>
 
                 <div class="form-group mb-3">

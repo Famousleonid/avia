@@ -316,7 +316,9 @@
     ]);
 </script>
 
-@include('admin.ai_widget')
+@if(!in_array(\Illuminate\Support\Facades\Route::currentRouteName(), ['paint.index', 'machining.index'], true))
+    @include('admin.ai_widget')
+@endif
 
 </body>
 </html>

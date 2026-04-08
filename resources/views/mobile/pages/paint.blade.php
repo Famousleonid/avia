@@ -70,28 +70,44 @@
             -webkit-touch-callout: none;
         }
         .lost-carousel-title {
-            font-size: .86rem;
-            font-weight: 600;
+            font-size: .88rem;
+            font-weight: 700;
             color: #e9ecef;
-            margin-top: .45rem;
             text-align: center;
+            letter-spacing: .01em;
+        }
+        .lost-carousel-subtitle {
+            font-size: .72rem;
+            color: #97a8b8;
+            text-align: center;
+            margin-top: .12rem;
+            min-height: 1.05rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .lost-coverflow-wrap {
             position: relative;
-            margin: 0 -0.2rem;
-            padding: 0.35rem 0 0.25rem;
+            margin: 0 -.45rem;
+            padding: .75rem 0 .45rem;
+            border-radius: .95rem;
+            background:
+                radial-gradient(120% 140% at 50% -20%, rgba(48, 119, 207, .35) 0%, rgba(12, 18, 26, 0) 55%),
+                linear-gradient(180deg, rgba(8, 12, 18, .97), rgba(9, 14, 20, .82));
+            border: 1px solid rgba(165, 197, 225, .24);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 14px 34px rgba(0,0,0,.45);
         }
         .lost-coverflow-track {
             display: flex;
             flex-direction: row;
-            gap: 0.65rem;
+            gap: .95rem;
             overflow-x: auto;
             overflow-y: hidden;
             scroll-snap-type: x mandatory;
-            scroll-padding-inline: 14%;
+            scroll-padding-inline: 9%;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
-            padding: 0.4rem 14% 1.1rem;
+            padding: .55rem 9% 1.25rem;
             touch-action: pan-x pinch-zoom;
             overscroll-behavior-x: contain;
         }
@@ -99,56 +115,64 @@
             display: none;
         }
         .lost-coverflow-slide {
-            flex: 0 0 72%;
-            max-width: 320px;
+            flex: 0 0 82%;
+            max-width: 420px;
             scroll-snap-align: center;
             scroll-snap-stop: always;
         }
         .lost-coverflow-card {
             position: relative;
-            border-radius: 0.55rem;
+            border-radius: 1rem;
             overflow: hidden;
-            background: #0d0f12;
-            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
-            transform: scale(0.92);
-            opacity: 0.55;
-            transition: transform 0.28s ease, opacity 0.28s ease, box-shadow 0.28s ease;
+            background: rgba(12, 20, 28, .95);
+            border: 1px solid rgba(173, 203, 225, .2);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            transform: scale(.86);
+            opacity: .45;
+            transition: transform .34s cubic-bezier(.22,.61,.36,1), opacity .34s ease, box-shadow .34s ease, border-color .34s ease, filter .34s ease;
+            filter: saturate(.85);
         }
         .lost-coverflow-slide.is-active .lost-coverflow-card {
             transform: scale(1);
             opacity: 1;
-            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
+            border-color: rgba(95, 173, 255, .65);
+            box-shadow: 0 22px 46px rgba(0, 0, 0, 0.72);
+            filter: none;
             z-index: 2;
+        }
+        .lost-coverflow-slide:not(.is-active) .lost-carousel-img {
+            filter: saturate(.45) brightness(.58) blur(.4px);
         }
         .lost-coverflow-nav {
             position: absolute;
-            top: 38%;
+            top: 44%;
             transform: translateY(-50%);
             z-index: 5;
-            width: 2.1rem;
-            height: 2.1rem;
+            width: 2.45rem;
+            height: 2.45rem;
             border: 0;
             border-radius: 50%;
             padding: 0;
-            background: rgba(20, 28, 36, 0.82);
-            color: #b8d4e8;
+            background: rgba(8, 14, 22, .94);
+            color: #e4f2ff;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .5);
+            border: 1px solid rgba(176, 211, 240, .3);
         }
         .lost-coverflow-nav:disabled {
             opacity: 0.25;
             pointer-events: none;
         }
         .lost-coverflow-prev {
-            left: 0.15rem;
+            left: .3rem;
         }
         .lost-coverflow-next {
-            right: 0.15rem;
+            right: .3rem;
         }
         .lost-coverflow-nav .bi {
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             line-height: 1;
         }
         .lost-del-btn {
@@ -223,7 +247,90 @@
             color: #9fb0c0;
         }
         .paint-mobile-lost-pane {
-            padding-top: 1rem;
+            padding-top: 1.45rem;
+            min-height: calc(100dvh - 145px);
+            display: flex;
+            flex-direction: column;
+            background: #323C4D;
+            border-radius: .7rem;
+            padding-left: .2rem;
+            padding-right: .2rem;
+        }
+        .paint-mobile-lost-pane .paint-mobile-card {
+            background: transparent;
+            border-color: rgba(190, 209, 228, .2);
+        }
+        .paint-mobile-lost-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .6rem;
+            margin: 0 0 .45rem;
+            padding: 0 .2rem;
+        }
+        .paint-mobile-lost-badge {
+            font-size: .74rem;
+            letter-spacing: .03em;
+            color: #a8c7e1;
+            background: rgba(10, 19, 28, .74);
+            border: 1px solid rgba(132, 175, 206, .26);
+            border-radius: 999px;
+            padding: .18rem .5rem;
+        }
+        .paint-mobile-lost-hint {
+            font-size: .7rem;
+            color: #8ea5ba;
+            white-space: nowrap;
+        }
+        .paint-mobile-lost-dots {
+            display: flex;
+            justify-content: center;
+            gap: .35rem;
+            margin-top: .25rem;
+            padding-bottom: .15rem;
+        }
+        .paint-mobile-lost-dot {
+            width: .4rem;
+            height: .4rem;
+            border-radius: 50%;
+            background: rgba(146, 175, 201, .34);
+            transition: transform .2s ease, background-color .2s ease;
+        }
+        .paint-mobile-lost-dot.is-active {
+            background: #61b2ff;
+            transform: scale(1.25);
+        }
+        .paint-mobile-lost-actions {
+            margin-top: 50px;
+            padding-top: 0;
+        }
+        .paint-mobile-lost-actionbar {
+            border-radius: .9rem;
+            border: 1px solid rgba(160, 197, 226, .24);
+            background:
+                linear-gradient(180deg, rgba(10, 16, 24, .96), rgba(9, 14, 21, .86));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 28px rgba(0,0,0,.35);
+            padding: .45rem;
+        }
+        .paint-mobile-lost-add-btn {
+            width: 100%;
+            border-radius: .68rem;
+            border: 1px solid rgba(96, 178, 255, .42);
+            background: linear-gradient(135deg, #17324a, #254f75);
+            color: #e8f4ff;
+            font-weight: 600;
+            letter-spacing: .02em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .45rem;
+            min-height: 2.2rem;
+        }
+        .paint-mobile-lost-add-btn:active,
+        .paint-mobile-lost-add-btn:focus {
+            color: #fff;
+            border-color: rgba(120, 198, 255, .62);
+            box-shadow: 0 0 0 .15rem rgba(70, 157, 235, .24);
         }
     </style>
 @endsection
@@ -361,6 +468,10 @@
                 @if($lostParts->isEmpty())
                     <div class="text-secondary small">No lost parts recorded.</div>
                 @else
+                    <div class="paint-mobile-lost-header">
+                        <span class="paint-mobile-lost-badge">{{ $lostParts->count() }} {{ $lostParts->count() === 1 ? 'item' : 'items' }}</span>
+                        <span class="paint-mobile-lost-hint">Swipe cards</span>
+                    </div>
                     <div class="lost-coverflow-wrap">
                         <div class="lost-coverflow-track js-lost-coverflow-track" id="mobileLostCoverflow">
                             @foreach($lostParts as $lost)
@@ -393,12 +504,25 @@
                                                         title="Delete">&times;</button>
                                             </form>
                                         </div>
-                                        <div class="lost-carousel-title">{{ $lost->part_number }}</div>
-                                        @if(($lost->comment ?? '') !== '')
-                                            <div class="small text-secondary px-1">{{ $lost->comment }}</div>
-                                        @endif
+                                        <div class="px-2 pt-2 pb-2">
+                                            <div class="lost-carousel-title">{{ $lost->part_number }}</div>
+                                            <div class="lost-carousel-subtitle">
+                                                @if(($lost->serial_number ?? '') !== '')
+                                                    S/N: {{ $lost->serial_number }}
+                                                @elseif(($lost->comment ?? '') !== '')
+                                                    {{ $lost->comment }}
+                                                @else
+                                                    &nbsp;
+                                                @endif
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
+                            @endforeach
+                        </div>
+                        <div class="paint-mobile-lost-dots js-lost-coverflow-dots" aria-hidden="true">
+                            @foreach($lostParts as $lost)
+                                <span class="paint-mobile-lost-dot {{ $loop->first ? 'is-active' : '' }}"></span>
                             @endforeach
                         </div>
                         <button type="button"
@@ -415,11 +539,16 @@
                 @endif
             </div>
 
-            <div class="paint-mobile-card">
-                <button type="button"
-                        class="btn btn-success btn-sm w-100"
-                        data-bs-toggle="modal"
-                        data-bs-target="#mobilePaintLostAddModal">+</button>
+            <div class="paint-mobile-lost-actions">
+                <div class="paint-mobile-lost-actionbar">
+                    <button type="button"
+                            class="paint-mobile-lost-add-btn"
+                            data-bs-toggle="modal"
+                            data-bs-target="#mobilePaintLostAddModal">
+                        <i class="bi bi-plus-circle"></i>
+                        <span>Add lost part</span>
+                    </button>
+                </div>
             </div>
 
             </div>
@@ -786,93 +915,107 @@
 
         normalizeAndSortPaintRows();
 
-        (function initLostCoverflow() {
-            const track = document.querySelector('.js-lost-coverflow-track');
-            if (!track) {
-                return;
-            }
-            const slides = track.querySelectorAll('.lost-coverflow-slide');
-            if (!slides.length) {
+        (function initLostCoverflows() {
+            const tracks = document.querySelectorAll('.js-lost-coverflow-track');
+            if (!tracks.length) {
                 return;
             }
 
-            function updateActive() {
-                const tr = track.getBoundingClientRect();
-                const mid = tr.left + tr.width / 2;
-                let best = null;
-                let bestDist = Infinity;
-                slides.forEach(function (slide) {
-                    const r = slide.getBoundingClientRect();
-                    const c = r.left + r.width / 2;
-                    const d = Math.abs(c - mid);
-                    if (d < bestDist) {
-                        bestDist = d;
-                        best = slide;
-                    }
-                });
-                slides.forEach(function (s) {
-                    s.classList.toggle('is-active', s === best);
-                });
-            }
-
-            var raf = 0;
-            function schedule() {
-                if (raf) {
-                    cancelAnimationFrame(raf);
-                }
-                raf = requestAnimationFrame(updateActive);
-            }
-
-            track.addEventListener('scroll', schedule, { passive: true });
-            window.addEventListener('resize', schedule);
-
-            function scrollByStep(dir) {
-                var maxScroll = Math.max(0, track.scrollWidth - track.clientWidth - 1);
-                var step = Math.max(120, Math.floor(track.clientWidth * 0.45));
-                if (maxScroll <= 2) {
+            tracks.forEach(function (track) {
+                const wrap = track.closest('.lost-coverflow-wrap');
+                const slides = track.querySelectorAll('.lost-coverflow-slide');
+                if (!wrap || !slides.length) {
                     return;
                 }
-                if (dir > 0) {
-                    if (track.scrollLeft >= maxScroll - 6) {
-                        track.scrollTo({ left: 0, behavior: 'smooth' });
-                    } else {
-                        track.scrollBy({ left: step, behavior: 'smooth' });
-                    }
-                } else {
-                    if (track.scrollLeft <= 6) {
-                        track.scrollTo({ left: maxScroll, behavior: 'smooth' });
-                    } else {
-                        track.scrollBy({ left: -step, behavior: 'smooth' });
+
+                function updateActive() {
+                    const tr = track.getBoundingClientRect();
+                    const mid = tr.left + tr.width / 2;
+                    let best = null;
+                    let bestDist = Infinity;
+                    let bestIndex = 0;
+                    slides.forEach(function (slide) {
+                        const r = slide.getBoundingClientRect();
+                        const c = r.left + r.width / 2;
+                        const d = Math.abs(c - mid);
+                        if (d < bestDist) {
+                            bestDist = d;
+                            best = slide;
+                            bestIndex = Array.prototype.indexOf.call(slides, slide);
+                        }
+                    });
+                    slides.forEach(function (s) {
+                        s.classList.toggle('is-active', s === best);
+                    });
+                    const dotsWrap = wrap.querySelector('.js-lost-coverflow-dots');
+                    if (dotsWrap) {
+                        const dots = dotsWrap.querySelectorAll('.paint-mobile-lost-dot');
+                        dots.forEach(function (dot, i) {
+                            dot.classList.toggle('is-active', i === bestIndex);
+                        });
                     }
                 }
-                window.setTimeout(updateActive, 450);
-            }
 
-            var prevBtn = document.querySelector('.js-lost-coverflow-prev');
-            var nextBtn = document.querySelector('.js-lost-coverflow-next');
-            if (prevBtn) {
-                prevBtn.addEventListener('click', function () {
-                    scrollByStep(-1);
-                });
-            }
-            if (nextBtn) {
-                nextBtn.addEventListener('click', function () {
-                    scrollByStep(1);
-                });
-            }
+                let raf = 0;
+                function schedule() {
+                    if (raf) {
+                        cancelAnimationFrame(raf);
+                    }
+                    raf = requestAnimationFrame(updateActive);
+                }
 
-            if (slides.length <= 1) {
+                track.addEventListener('scroll', schedule, { passive: true });
+                window.addEventListener('resize', schedule);
+
+                function scrollByStep(dir) {
+                    const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth - 1);
+                    const step = Math.max(120, Math.floor(track.clientWidth * 0.45));
+                    if (maxScroll <= 2) {
+                        return;
+                    }
+                    if (dir > 0) {
+                        if (track.scrollLeft >= maxScroll - 6) {
+                            track.scrollTo({ left: 0, behavior: 'smooth' });
+                        } else {
+                            track.scrollBy({ left: step, behavior: 'smooth' });
+                        }
+                    } else {
+                        if (track.scrollLeft <= 6) {
+                            track.scrollTo({ left: maxScroll, behavior: 'smooth' });
+                        } else {
+                            track.scrollBy({ left: -step, behavior: 'smooth' });
+                        }
+                    }
+                    window.setTimeout(updateActive, 450);
+                }
+
+                const prevBtn = wrap.querySelector('.js-lost-coverflow-prev');
+                const nextBtn = wrap.querySelector('.js-lost-coverflow-next');
                 if (prevBtn) {
-                    prevBtn.style.display = 'none';
+                    prevBtn.addEventListener('click', function () {
+                        scrollByStep(-1);
+                    });
                 }
                 if (nextBtn) {
-                    nextBtn.style.display = 'none';
+                    nextBtn.addEventListener('click', function () {
+                        scrollByStep(1);
+                    });
                 }
-            }
 
-            schedule();
-            window.setTimeout(schedule, 80);
-            window.setTimeout(schedule, 350);
+                if (slides.length <= 1) {
+                    if (prevBtn) {
+                        prevBtn.style.display = 'none';
+                    }
+                    if (nextBtn) {
+                        nextBtn.style.display = 'none';
+                    }
+                }
+
+                schedule();
+                window.setTimeout(schedule, 80);
+                window.setTimeout(schedule, 350);
+            });
         })();
+
     </script>
 @endsection

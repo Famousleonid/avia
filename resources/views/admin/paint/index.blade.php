@@ -30,6 +30,50 @@
             padding: .55rem .65rem .65rem;
             background: linear-gradient(180deg, rgba(0, 0, 0, .12), rgba(0, 0, 0, .42));
         }
+        .paint-lost-drawer-wrap {
+            position: relative;
+            margin-top: .55rem;
+        }
+        .paint-lost-drawer-toggle {
+            position: absolute;
+            right: .35rem;
+            top: -.15rem;
+            z-index: 5;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .paint-lost-drawer-wrap.is-collapsed .paint-lost-fieldset {
+            max-height: 0;
+            min-height: 0;
+            margin-top: 0;
+            margin-bottom: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            border-width: 0;
+            opacity: 0;
+            transform: translateY(14px);
+            pointer-events: none;
+        }
+        .paint-lost-fieldset {
+            max-height: 260px;
+            opacity: 1;
+            transform: translateY(0);
+            overflow: hidden;
+            transition-property: max-height, opacity, transform, margin, padding, border-width;
+            transition-duration: 1s, 1s, 1s, 1s, 1s, 1s;
+            transition-timing-function: cubic-bezier(.23,1,.32,1), cubic-bezier(.23,1,.32,1), cubic-bezier(.23,1,.32,1), cubic-bezier(.23,1,.32,1), cubic-bezier(.23,1,.32,1), cubic-bezier(.23,1,.32,1);
+        }
+        .paint-lost-drawer-wrap.is-collapsed .paint-lost-drawer-toggle i {
+            transform: rotate(180deg);
+        }
+        .paint-lost-drawer-toggle i {
+            transition: transform 1s cubic-bezier(.23,1,.32,1);
+        }
         .paint-lost-fieldset .paint-lost-legend {
             float: none;
             width: auto;
@@ -64,6 +108,18 @@
             user-select: none;
         }
         .paint-drag-handle:active { cursor: grabbing; }
+        #paint-sortable-tbody tr.sortable-chosen td {
+            background: rgba(13, 110, 253, .16) !important;
+        }
+        #paint-sortable-tbody tr.sortable-ghost td {
+            opacity: .92;
+            background: rgba(13, 110, 253, .24) !important;
+        }
+        #paint-sortable-tbody tr.sortable-drag td {
+            opacity: 1 !important;
+            background: rgba(13, 110, 253, .28) !important;
+            box-shadow: inset 0 0 0 1px rgba(13, 110, 253, .45);
+        }
         /* Ширина колонок — colgroup + table-layout:fixed; без горизонтальной прокрутки */
         .paint-table-outer {
             width: 100%;
@@ -111,13 +167,19 @@
         }
         /* Сумма ~100%: фиксированное распределение без min-width в rem → без горизонтального скролла */
         #paint-wo-table col.paint-col-drag { width: 35px;}
-        #paint-wo-table col.paint-col-num { width: 35px; }
-        #paint-wo-table col.paint-col-wo { width: 60px; }
-        #paint-wo-table col.paint-col-customer { width: 12%; }
-        #paint-wo-table col.paint-col-aircraft { width: 12%; }
-        #paint-wo-table col.paint-col-owner { width: 12%; }
-        #paint-wo-table col.paint-col-detail { width: 10%; }
-        #paint-wo-table col.paint-col-date { width: 125px; }
+        #paint-wo-table col.paint-col-num { width: 60px; }
+        #paint-wo-table col.paint-col-wo { width: 90px; }
+        #paint-wo-table col.paint-col-customer { width: auto; }
+        #paint-wo-table col.paint-col-aircraft { width: auto; }
+        #paint-wo-table col.paint-col-owner { width: auto; }
+        #paint-wo-table col.paint-col-detail { width: 140px; }
+        #paint-wo-table col.paint-col-date { width: 142px !important; min-width: 142px !important; max-width: 142px !important; }
+        #paint-wo-table th.paint-col-date-cell,
+        #paint-wo-table td.paint-col-date-cell {
+            width: 142px !important;
+            min-width: 142px !important;
+            max-width: 142px !important;
+        }
         #paint-wo-table:not(.paint-table-has-drag) col.paint-col-num { width: 125px; }
         .paint-col-priority {
             max-width: 100%;
@@ -147,6 +209,9 @@
             font-variant-numeric: tabular-nums;
             letter-spacing: 0.02em;
         }
+        .paint-wo-prefix {
+            color: #8D9197 !important;
+        }
         .paint-date-readonly.finish-input {
             cursor: default;
             pointer-events: none;
@@ -164,6 +229,7 @@
         #paint-wo-table tbody input[type="text"].paint-date-display.finish-input {
             cursor: pointer;
             padding-right: 1.65em !important;
+            padding-left: .72em !important;
             text-align: left;
             direction: ltr;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3 0a1 1 0 0 0-1 1v1H1.5A1.5 1.5 0 0 0 0 3.5v11A1.5 1.5 0 0 0 1.5 16h13a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 14.5 2H14V1a1 1 0 0 0-2 0v1H4V1a1 1 0 0 0-1-1zM1 5h14v9.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V5z'/%3E%3C/svg%3E");
@@ -179,6 +245,7 @@
             background-position: right 0.15em center;
             background-size: 1em 1em;
             padding-right: 1.65em !important;
+            padding-left: .72em !important;
         }
         /* Служебный нативный input[type=date]: скрыт визуально, но открывается через showPicker по клику на display */
         .paint-date-input-wrap .js-paint-picker-aid {
@@ -204,11 +271,18 @@
         #paint-wo-table tbody input[type="text"].paint-date-display {
             color-scheme: dark;
             min-height: calc(1.8125rem + 2px);
-            padding: 0.25em 1.65em 0.25em 0.35em !important;
+            padding: 0.25em 1.65em 0.25em .72em !important;
             font-size: 1em;
             position: relative;
             z-index: 1;
             width: 100%;
+            min-width: 0;
+            max-width: none;
+            box-sizing: border-box;
+        }
+        #paint-wo-table td.paint-col-date-cell {
+            padding-left: 2px;
+            padding-right: 2px;
         }
         .paint-date-fake-ph {
             display: none;
@@ -231,6 +305,14 @@
         }
         .paint-header-search {
             min-width: 0;
+        }
+        .paint-header-search .form-control {
+            max-width: 440px;
+        }
+        .paint-header-hide-closed {
+            white-space: nowrap;
+            font-size: .86rem;
+            color: var(--dir-muted, #adb5bd);
         }
         #paint-wo-table .paint-col-owner .btn-link {
             display: inline-block;
@@ -276,6 +358,12 @@
                                    placeholder="Search (WO, customer, P/N, owner, dates…)"
                                    autocomplete="off">
                         </div>
+                        <div class="col-auto flex-shrink-0">
+                            <label class="d-inline-flex align-items-center gap-2 m-0 paint-header-hide-closed" for="paintHideClosedRows">
+                                <input type="checkbox" id="paintHideClosedRows">
+                                <span>Hide closed</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -308,8 +396,8 @@
                                     <th>AirCraft Type</th>
                                     <th>Owner</th>
                                     <th>Detail (P/N)</th>
-                                    <th>Date start</th>
-                                    <th>Date finish</th>
+                                    <th class="paint-col-date-cell">Date start</th>
+                                    <th class="paint-col-date-cell">Date finish</th>
                                 </tr>
                             </thead>
                             <tbody id="paint-sortable-tbody">
@@ -317,6 +405,9 @@
                                 @php
                                     $wo = $row->workorder;
                                     $editTp = $row->edit_paint_process;
+                                    $woDigits = (string) ((int) $wo->number);
+                                    $woPrefix = mb_substr($woDigits, 0, 3);
+                                    $woTail = mb_substr($woDigits, 3);
                                     $fmtPaintDisp = static function ($d) {
                                         if ($d === null) {
                                             return '';
@@ -346,6 +437,7 @@
                                 @endphp
                                 <tr data-wo-id="{{ (int) $wo->id }}"
                                     data-paint-search="{{ $paintSearch }}"
+                                    data-paint-closed="{{ ($startStr !== '' && $finishStr !== '') ? '1' : '0' }}"
                                     class="{{ $wo->paint_queue_order !== null ? 'paint-row-queued' : 'paint-row-unqueued' }} {{ ($row->is_queue_master ?? false) ? 'paint-row-master' : '' }}">
                                     @if($canReorderPaint ?? false)
                                         <td class="text-center {{ $wo->paint_queue_order !== null && ($row->is_queue_master ?? false) ? 'paint-drag-handle' : '' }}"
@@ -378,20 +470,24 @@
                                                        value=""
                                                        title="Enter queue position (0 = not in queue)">
                                             @elseif($wo->paint_queue_order !== null)
-                                                {{ (int) $row->paint_queue_position }}
+                                                <span class="text-muted"> </span>
                                             @else
                                                 <span class="text-muted">—</span>
                                             @endif
                                         @else
                                             @if($wo->paint_queue_order !== null)
-                                                {{ $row->paint_queue_position }}
+                                                @if($row->is_queue_master ?? false)
+                                                    {{ $row->paint_queue_position }}
+                                                @else
+                                                    <span class="text-muted"> </span>
+                                                @endif
                                             @else
                                                 <span class="text-muted">—</span>
                                             @endif
                                         @endif
                                     </td>
                                     <td class="text-center text-light paint-wo-label paint-col-ellipsis">
-                                        w{{ $wo->number }}
+                                        <span class="text-light">w</span><span class="paint-wo-prefix">{{ $woPrefix }}</span><span class="text-light">{{ $woTail }}</span>
                                     </td>
                                     <td class="text-center small paint-col-wrap">{{ $wo->customer?->name ?? '' }}</td>
                                     <td class="text-center small paint-col-wrap">{{ $wo->unit?->manual?->plane?->type ?? '' }}</td>

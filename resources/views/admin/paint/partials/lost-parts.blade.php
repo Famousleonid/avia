@@ -4,6 +4,16 @@
     $lostTotal = $lostParts->count();
 @endphp
 
+<div class="paint-lost-drawer-wrap is-collapsed" id="paintLostDrawerWrap">
+    <button type="button"
+            class="btn btn-outline-info btn-sm paint-lost-drawer-toggle"
+            id="paintLostDrawerToggle"
+            aria-label="Show lost panel"
+            aria-expanded="false"
+            title="Hide/show lost panel">
+        <i class="bi bi-chevron-up" aria-hidden="true"></i>
+    </button>
+
 <fieldset class="paint-lost-fieldset" id="paintLostPanel">
     <legend class="paint-lost-legend text-secondary">
         <span id="paintLostCountWrap"
@@ -74,6 +84,7 @@
         </div>
     </div>
 </fieldset>
+</div>
 
 {{-- Модалка: part number / serial / photo / comment --}}
 <div class="modal fade" id="paintLostAddModal" tabindex="-1" aria-labelledby="paintLostAddModalLabel" aria-hidden="true">

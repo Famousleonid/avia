@@ -183,14 +183,41 @@
 
     function initPaintTableSearch() {
         var inp = document.getElementById('paintTableSearch');
+        var hideClosed = document.getElementById('paintHideClosedRows');
         if (!inp) return;
-        inp.addEventListener('input', function () {
+
+        var KEY = 'paint_hide_closed_rows';
+        if (hideClosed) {
+            try {
+                hideClosed.checked = localStorage.getItem(KEY) === '1';
+            } catch (_) {
+                hideClosed.checked = false;
+            }
+        }
+
+        function applyFilter() {
             var q = String(inp.value || '').trim().toLowerCase();
+            var needHideClosed = !!(hideClosed && hideClosed.checked);
             document.querySelectorAll('#paint-sortable-tbody tr[data-paint-search]').forEach(function (tr) {
                 var hay = tr.getAttribute('data-paint-search') || '';
-                tr.classList.toggle('d-none', q !== '' && hay.indexOf(q) === -1);
+                var isClosed = tr.getAttribute('data-paint-closed') === '1';
+                var hideBySearch = q !== '' && hay.indexOf(q) === -1;
+                var hideByClosed = needHideClosed && isClosed;
+                tr.classList.toggle('d-none', hideBySearch || hideByClosed);
             });
-        });
+        }
+
+        inp.addEventListener('input', applyFilter);
+        if (hideClosed) {
+            hideClosed.addEventListener('change', function () {
+                try {
+                    localStorage.setItem(KEY, hideClosed.checked ? '1' : '0');
+                } catch (_) {}
+                applyFilter();
+            });
+        }
+
+        applyFilter();
     }
 
     function initPaintLostSearch() {
@@ -353,12 +380,52 @@
         });
     }
 
+    function initPaintLostDrawer() {
+        var wrap = document.getElementById('paintLostDrawerWrap');
+        var btn = document.getElementById('paintLostDrawerToggle');
+        if (!wrap || !btn) return;
+
+        var KEY = 'paint_lost_drawer_open';
+        var isOpen = false;
+        var shouldAnimateOpen = false;
+        try {
+            var saved = sessionStorage.getItem(KEY);
+            if (saved === '1') {
+                shouldAnimateOpen = true;
+            }
+        } catch (_) {}
+
+        function render() {
+            wrap.classList.toggle('is-collapsed', !isOpen);
+            btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            btn.setAttribute('aria-label', isOpen ? 'Hide lost panel' : 'Show lost panel');
+            btn.title = isOpen ? 'Hide lost panel' : 'Show lost panel';
+        }
+
+        btn.addEventListener('click', function () {
+            isOpen = !isOpen;
+            render();
+            try {
+                sessionStorage.setItem(KEY, isOpen ? '1' : '0');
+            } catch (_) {}
+        });
+
+        render();
+        if (shouldAnimateOpen) {
+            setTimeout(function () {
+                isOpen = true;
+                render();
+            }, 90);
+        }
+    }
+
     function bootPaintPage() {
         initPaintNativeDateInputs();
         initPaintTableSearch();
         initPaintLostSearch();
         initPaintLostDelete();
         initPaintLostParts();
+        initPaintLostDrawer();
 
         @if($canReorderPaint ?? false)
         (function initPaintSortable() {
@@ -373,7 +440,9 @@
                 handle: '.paint-drag-handle',
                 draggable: 'tr.paint-row-queued.paint-row-master',
                 animation: 150,
-                ghostClass: 'table-active',
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
                 onMove: function (evt) {
                     var rel = evt.related;
                     if (rel && rel.classList.contains('paint-row-unqueued') && evt.willInsertAfter) {
