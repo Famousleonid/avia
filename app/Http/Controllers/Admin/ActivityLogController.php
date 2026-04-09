@@ -77,20 +77,48 @@ class ActivityLogController extends Controller
         if ($q !== '') {
             // защита от слишком длинных строк
             $q = Str::limit($q, 200, '');
+            $qLike = "%{$q}%";
+            $qAsInt = filter_var($q, FILTER_VALIDATE_INT);
+            $matchedWorkorderIds = Workorder::query()
+                ->where('number', 'like', $qLike)
+                ->pluck('id')
+                ->map(fn($id) => (int)$id)
+                ->all();
+            if ($qAsInt !== false) {
+                $matchedWorkorderIds[] = (int)$qAsInt;
+            }
+            $matchedWorkorderIds = array_values(array_unique(array_filter(
+                $matchedWorkorderIds,
+                fn($id) => $id > 0
+            )));
 
-            $query->where(function ($qq) use ($q) {
-                $qq->where('log_name', 'like', "%{$q}%")
-                    ->orWhere('event', 'like', "%{$q}%")
-                    ->orWhere('description', 'like', "%{$q}%")
-                    ->orWhere('subject_type', 'like', "%{$q}%")
-                    ->orWhere('subject_id', 'like', "%{$q}%")
+            $query->where(function ($qq) use ($qLike, $qAsInt, $matchedWorkorderIds) {
+                $qq->where('log_name', 'like', $qLike)
+                    ->orWhere('event', 'like', $qLike)
+                    ->orWhere('description', 'like', $qLike)
+                    ->orWhere('subject_type', 'like', $qLike)
+                    ->orWhere('subject_id', 'like', $qLike)
                     // properties (json/text) — самый полезный “поиск по всему”
-                    ->orWhere('properties', 'like', "%{$q}%")
+                    ->orWhere('properties', 'like', $qLike)
                     // causer name/email
-                    ->orWhereHas('causer', function ($u) use ($q) {
-                        $u->where('name', 'like', "%{$q}%")
-                            ->orWhere('email', 'like', "%{$q}%");
+                    ->orWhereHas('causer', function ($u) use ($qLike) {
+                        $u->where('name', 'like', $qLike)
+                            ->orWhere('email', 'like', $qLike);
                     });
+
+                if (!empty($matchedWorkorderIds)) {
+                    $qq->orWhere(function ($wq) use ($matchedWorkorderIds) {
+                        $wq->where('subject_type', Workorder::class)
+                            ->whereIn('subject_id', $matchedWorkorderIds);
+                    });
+
+                    $qq->orWhere(function ($wq) use ($matchedWorkorderIds) {
+                        foreach ($matchedWorkorderIds as $workorderId) {
+                            $wq->orWhere('properties', 'like', '%"workorder_id":'.$workorderId.'%')
+                                ->orWhere('properties', 'like', '%"workorder_id":"'.$workorderId.'"%');
+                        }
+                    });
+                }
             });
         }
 
@@ -144,6 +172,13 @@ class ActivityLogController extends Controller
                 $val = $flat[$key];
                 if (is_numeric($val) && (int)$val > 0) {
                     $idBuckets[$key][] = (int)$val;
+                }
+            }
+
+            if (isset($activity->subject) && isset($activity->subject->workorder_id)) {
+                $subjectWorkorderId = $activity->subject->workorder_id;
+                if (is_numeric($subjectWorkorderId) && (int)$subjectWorkorderId > 0) {
+                    $idBuckets['workorder_id'][] = (int)$subjectWorkorderId;
                 }
             }
         }

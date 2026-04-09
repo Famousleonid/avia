@@ -40,6 +40,6 @@ class Process extends Model
 
     public function tdrs()
     {
-        return $this->belongsToMany(Tdr::class);
+        return $this->belongsTo(Tdr::class);
     }
 }

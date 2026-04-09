@@ -23,7 +23,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'role_id', 'phone', 'stamp', 'team_id','birthday'];
     protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date'];
     protected $hidden = ['password', 'remember_token'];
-    protected static $logAttributes = ['name', 'password', 'phone', 'stamp'];
+    protected static $logAttributes = ['name',  'phone', 'stamp'];
     protected $dates = ['deleted_at'];
 
     public $mediaUrlName = 'users';
@@ -32,9 +32,17 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     {
         return LogOptions::defaults()
             ->useLogName('user')
-            ->logAll()
-            ->logOnly(['name', 'password', 'phone', 'stamp'])
-            ->logExcept(['created_at','updated_at'])
+            ->logOnly([
+                'name',
+                'phone',
+                'stamp',
+                'role_id',
+                'team_id',
+                'is_admin',
+                'email',
+                'birthday',
+            ])
+            ->logExcept(['created_at', 'updated_at'])
             ->logOnlyDirty();
     }
 
@@ -81,11 +89,6 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return $this->belongsTo(Team::class);
     }
 
-    public function log()
-    {
-        return $this->hasMany(Log::class);
-    }
-
     public function main()
     {
         return $this->hasMany(Main::class);
@@ -96,7 +99,10 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return $this->hasMany(Training::class);
     }
 
-
+    public function completedWorkorders()
+    {
+        return $this->hasMany(Workorder::class, 'done_user_id');
+    }
     public function registerAllMediaConversions(): void
     {
         $this->addMediaConversion('thumb')

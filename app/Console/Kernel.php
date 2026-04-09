@@ -22,6 +22,7 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('events:run')->dailyAt('08:00');
         $schedule->command('db:backup')->dailyAt('00:00');
+        $schedule->command('activitylog:clean')->dailyAt('01:00');
     }
 
     /**

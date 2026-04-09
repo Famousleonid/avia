@@ -26,7 +26,7 @@ return new class extends Migration
     public function down()
     {
         Schema::table('tdr_processes', function (Blueprint $table) {
-            $table->dropColumn('repair_order');
+            $table->dropColumn('notes');
         });
     }
 };

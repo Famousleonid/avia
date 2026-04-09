@@ -10,8 +10,12 @@ class Plane extends Model
     use HasFactory;
     protected $fillable = ['type'];
     public $timestamps = false;
+    public function manuals()
+    {
+        return $this->hasMany(Manual::class, 'planes_id');
+    }
     public function manual()
     {
-        return $this->hasMany(Manual::class);
+        return $this->manuals();
     }
 }

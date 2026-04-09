@@ -4,12 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class Tdr extends Model
 {
-    use HasFactory, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
+
     protected $fillable = [
         'workorder_id',
         'component_id',
@@ -68,15 +70,7 @@ class Tdr extends Model
     {
         return $this->hasMany(TdrProcess::class, 'tdrs_id')->orderBy('sort_order');
     }
-    public function processName()
-    {
-        return $this->belongsTo(ProcessName::class, 'process_names_id');
-    }
 
-    public function process()
-    {
-        return $this->belongsTo(Process::class, 'process_id'); // Предполагаем, что process_id связывает с Process
-    }
 
 }
 

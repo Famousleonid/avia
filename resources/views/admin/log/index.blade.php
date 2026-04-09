@@ -79,6 +79,7 @@
                                 <th class="text-center">Date</th>
                                 <th class="text-center">User</th>
                                 <th class="text-center">Model</th>
+                                <th class="text-start">Object</th>
                                 <th class="text-center">Event</th>
                                 <th class="text-start">Old data</th>
                                 <th class="text-start">New data</th>
@@ -271,11 +272,32 @@
 
                                     $oldText = $old ? $renderProps($old) : '—';
                                     $newText = $new ? $renderProps($new) : '—';
+
+                                    $subjectId = is_numeric($a->subject_id) ? (int)$a->subject_id : null;
+                                    $subjectName = class_basename($a->subject_type);
+                                    $objectText = $subjectId ? "{$subjectName} #{$subjectId}" : $subjectName;
+
+                                    $workorderId = null;
+                                    if (isset($new['workorder_id']) && is_numeric($new['workorder_id'])) {
+                                        $workorderId = (int)$new['workorder_id'];
+                                    } elseif (isset($old['workorder_id']) && is_numeric($old['workorder_id'])) {
+                                        $workorderId = (int)$old['workorder_id'];
+                                    } elseif (isset($a->subject) && isset($a->subject->workorder_id) && is_numeric($a->subject->workorder_id)) {
+                                        $workorderId = (int)$a->subject->workorder_id;
+                                    }
+
+                                    if ($workorderId !== null && $workorderId > 0) {
+                                        $workorderNumber = $workorderMap[$workorderId] ?? null;
+                                        $objectText .= $workorderNumber ? " | WO #{$workorderNumber}" : " | WO id {$workorderId}";
+                                    }
                                 @endphp
                                 <tr>
                                     <td class="text-center small">{{ $a->created_at?->format('d.m.Y H:i') }}</td>
                                     <td class="text-center small">{{ $a->causer?->name ?? 'system' }}</td>
                                     <td class="text-center small text-info">{{ class_basename($a->subject_type) }}</td>
+                                    <td class="props small">
+                                        <pre class="mb-0" style="white-space:pre-wrap;word-break:break-word;">{{ $objectText }}</pre>
+                                    </td>
                                     <td class="text-center">
                                     <span class="badge
                                         @if($a->event === 'created') bg-success
@@ -295,7 +317,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-3">No logs</td>
+                                    <td colspan="7" class="text-center text-muted py-3">No logs</td>
                                 </tr>
                             @endforelse
                             </tbody>

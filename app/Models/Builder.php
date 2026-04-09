@@ -10,8 +10,13 @@ class Builder extends Model
     use HasFactory;
     protected $fillable = ['name'];
 
+    public function manuals()
+    {
+        return $this->hasMany(Manual::class, 'builders_id');
+    }
+
     public function manual()
     {
-        return $this->hasMany(Manual::class);
+        return $this->manuals();
     }
 }

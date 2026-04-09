@@ -48,13 +48,17 @@ use App\Http\Controllers\Admin\DatabaseBackupController;
 Auth::routes(['verify' => true]);
 
 Route::get('/clear', function () {
+    abort_unless(auth()->user()?->roleIs('Admin'), 403);
+
     Artisan::call('cache:clear');
     Artisan::call('config:cache');
     Artisan::call('view:clear');
     Artisan::call('route:clear');
     Artisan::call('optimize:clear');
-    return "Cache cleared successfully!";
-});
+
+    return 'Cache cleared successfully';
+})->middleware('auth');
+
 
 Route::get('/front', [FrontController::class, 'index'])->name('front.index');
 Route::get('/', function (\Illuminate\Http\Request $request) {

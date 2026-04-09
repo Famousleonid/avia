@@ -17,7 +17,7 @@ class Workorder extends Model implements HasMedia
     use InteractsWithMedia, LogsActivity, SoftDeletes, HasMediaHelpers;
 
     protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
-        'preliminary_test_false','part_missing','extra_parts','new_parts', 'open_at', 'customer_id', 'approve', 'approve_at', 'description', 'manual',
+        'preliminary_test_false','part_missing','extra_parts','new_parts', 'open_at', 'customer_id', 'approve_at', 'description',
         'serial_number', 'place', 'paint_queue_order', 'machining_queue_order', 'amdt', 'rm_report', 'customer_po','modified','is_draft','storage_rack','storage_level','storage_column',];
 
     protected $casts = [
@@ -44,7 +44,10 @@ class Workorder extends Model implements HasMedia
     {
         return $this->belongsTo(\App\Models\Unit::class, 'unit_id', 'id');
     }
-
+    public function doneUser()
+    {
+        return $this->belongsTo(User::class, 'done_user_id');
+    }
 
     public function instruction()
     {

@@ -48,8 +48,12 @@ return new class extends Migration
         User::insert($dataUser);
     }
 
-    public function down()
+    public function down(): void
     {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropForeign(['team_id']);
+        });
+
         Schema::dropIfExists('teams');
     }
 };

@@ -16,8 +16,7 @@ class ExtraProcess extends Model
         'sort_order', // Поле для сортировки
         'qty',
         'serial_num',
-        'description', // Поле для описания
-        'notes' // Поле для заметок
+
     ];
 
     // Автоматическое преобразование JSON в массив

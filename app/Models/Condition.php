@@ -15,6 +15,6 @@ class Condition extends Model
 
     public function tdr()
     {
-        return $this->hasMany(Tdr::class);
+        return $this->hasMany(Tdr::class, 'conditions_id');
     }
 }

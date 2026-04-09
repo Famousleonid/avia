@@ -43,20 +43,44 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => ['string', 'max:100'],
-            'email' => ['required', 'string', 'email', 'max:155', 'unique:users'],
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'email' => ['required', 'string', 'email', 'max:155', 'unique:users,email'],
             'password' => ['required', 'string', 'min:3'],
             'birthday' => ['nullable', 'date', 'before:today'],
+            'role_id' => ['nullable', 'integer', 'exists:roles,id'],
+            'team_id' => ['nullable', 'integer', 'exists:teams,id'],
         ]);
 
-        $data = $request->all();
-        $data['is_admin'] = isset($request->is_admin) ? 1 : 0;
-        $data['password'] = Hash::make($request->password);
+        $data = $validated;
+
+        $data['password'] = Hash::make($validated['password']);
 
         $user = User::create($data);
 
+        if (auth()->user()?->roleIs('Admin')) {
+
+            $user->is_admin = $request->has('is_admin') ? 1 : 0;
+
+            if ($request->filled('role_id')) {
+                $user->role_id = $request->input('role_id');
+            }
+
+            if ($request->filled('team_id')) {
+                $user->team_id = $request->input('team_id');
+            }
+
+            $user->email_verified_at = $request->has('email_verified_at') ? now() : null;
+
+            $user->save();
+        }
+
         if ($request->hasFile('img')) {
+
+            $request->validate([
+                'img' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4048'],
+            ]);
+
             $user->addMedia($request->file('img'))->toMediaCollection('avatar');
         }
 
@@ -71,14 +95,13 @@ class UserController extends Controller
             return redirect()
                 ->route('users.index')
                 ->with('warning', 'The user was added, but the email was NOT sent (SMTP is not configured locally).');
+
         } catch (\Throwable $e) {
 
             return redirect()
                 ->route('users.index')
                 ->with('warning', 'The user was added, but the letter was NOT sent (sending error).');
         }
-
-        return redirect()->route('users.index')->with('success', 'Technik was added successfully');
     }
 
     public function edit(User $user)
@@ -99,71 +122,55 @@ class UserController extends Controller
         $auth = auth()->user();
         $user = User::findOrFail($id);
 
-        // Доступ: Admin редактирует всех, остальные только себя
+        // 1. Доступ:
+        // Admin может редактировать любого пользователя,
+        // остальные — только свой профиль
         if (! $auth->roleIs('Admin') && $auth->id !== $user->id) {
             abort(403, 'You do not have permission to edit this user.');
         }
 
         $isAdmin = $auth->roleIs('Admin');
 
-        // Нормализация phone
-        $phone = $this->removeSpace($request->input('phone'));
-
-        // Базовые правила для всех
+        // 2. Базовые правила валидации для всех
         $rules = [
-            'name'                  => ['required', 'string', 'max:255'],
-            'phone'                 => ['nullable', 'string', 'max:50'],
-            'stamp'                 => ['required', 'string', 'max:255'],
-            'team_id'               => ['required', 'integer', 'exists:teams,id'],
-            'birthday'              => ['nullable', 'date', 'before:today'],
-            'password'              => ['nullable', 'string', 'confirmed'],
-            'password_confirmation' => ['nullable', 'string'],
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'stamp' => ['required', 'string', 'max:255'],
+            'birthday' => ['nullable', 'date', 'before:today'],
+            'team_id' => ['required', 'integer', 'exists:teams,id'],
+            'password' => ['nullable', 'string', 'min:3', 'confirmed'],
+            'img' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'sign' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:4096'],
         ];
 
-        // Только Admin может менять email и role_id
         if ($isAdmin) {
             $rules['email'] = ['required', 'email', 'max:255', 'unique:users,email,' . $user->id];
             $rules['role_id'] = ['required', 'integer', 'exists:roles,id'];
         }
 
         $validated = $request->validate($rules);
+        $validated['phone'] = $this->removeSpace($validated['phone'] ?? null);
 
-        // phone после нормализации
-        $validated['phone'] = $phone;
-
-        // Не Admin не может подменять admin-only поля вручную
-        if (! $isAdmin) {
-            unset($validated['email'], $validated['role_id']);
-        }
-
-        // is_admin только для Admin
-        if ($isAdmin) {
-            $validated['is_admin'] = $request->has('is_admin') ? 1 : 0;
-
-            // email_verified_at:
-            // checked  -> текущая дата
-            // unchecked -> null
-            $validated['email_verified_at'] = $request->has('email_verified_at')
-                ? now()
-                : null;
-        } else {
-            unset($validated['is_admin'], $validated['email_verified_at']);
-        }
-
-        // Пароль обновляем только если заполнен
         if (! empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
         }
 
-        // confirmation в БД не пишем
-        unset($validated['password_confirmation']);
+        if (! $isAdmin) {
+            unset($validated['email'], $validated['role_id'], $validated['img'], $validated['sign']);
+        } else {
+            $validated['is_admin'] = $request->boolean('is_admin');
 
-        // Обновляем основные поля
+            $validated['email_verified_at'] = $request->has('email_verified_at')
+                ? now()
+                : null;
+        }
+
+        unset($validated['img'], $validated['sign']);
+
         $user->update($validated);
 
-        // Upload avatar
         if ($request->hasFile('img')) {
             if ($user->getMedia('avatar')->isNotEmpty()) {
                 $user->getMedia('avatar')->first()->delete();
@@ -172,7 +179,6 @@ class UserController extends Controller
             $user->addMedia($request->file('img'))->toMediaCollection('avatar');
         }
 
-        // Upload sign
         if ($request->hasFile('sign')) {
             if ($user->getMedia('sign')->isNotEmpty()) {
                 $user->getMedia('sign')->first()->delete();
