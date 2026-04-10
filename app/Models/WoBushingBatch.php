@@ -15,6 +15,7 @@ class WoBushingBatch extends Model
         'repair_order',
         'date_start',
         'date_finish',
+        'working_steps_count',
     ];
 
     protected $casts = [
@@ -35,5 +36,10 @@ class WoBushingBatch extends Model
     public function woBushingProcesses(): HasMany
     {
         return $this->hasMany(WoBushingProcess::class, 'batch_id');
+    }
+
+    public function machiningWorkSteps(): HasMany
+    {
+        return $this->hasMany(MachiningWorkStep::class, 'wo_bushing_batch_id')->orderBy('step_index');
     }
 }

@@ -135,6 +135,10 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/machining/reorder', [MachiningController::class, 'reorder'])->middleware('can:feature.machining')->name('machining.reorder');
     Route::post('/machining/add', [MachiningController::class, 'addToQueue'])->middleware('can:feature.machining')->name('machining.add');
     Route::post('/machining/position', [MachiningController::class, 'setPosition'])->middleware('can:feature.machining')->name('machining.position');
+    Route::patch('/machining/work-steps/{machiningWorkStep}', [MachiningController::class, 'updateMachiningWorkStep'])->middleware('can:feature.machining')->name('machining.work_steps.update');
+    Route::patch('/tdr-processes/{tdrProcess}/working-steps-count', [MachiningController::class, 'updateTdrWorkingStepsCount'])->middleware('can:feature.machining')->name('machining.tdr_working_steps_count');
+    Route::patch('/wo-bushing-batches/{woBushingBatch}/working-steps-count', [MachiningController::class, 'updateBatchWorkingStepsCount'])->middleware('can:feature.machining')->name('machining.batch_working_steps_count');
+    Route::patch('/wo-bushing-processes/{woBushingProcess}/working-steps-count', [MachiningController::class, 'updateProcessWorkingStepsCount'])->middleware('can:feature.machining')->name('machining.process_working_steps_count');
 
     Route::get('/image/show/thumb/{mediaId}/{modelId}/{mediaName}', [MediaController::class, 'showThumb'])->name('image.show.thumb');
     Route::get('/image/show/big/{mediaId}/{modelId}/{mediaName}',[MediaController::class, 'showBig'])->name('image.show.big');

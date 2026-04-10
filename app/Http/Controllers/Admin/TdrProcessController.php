@@ -9,9 +9,11 @@ use App\Models\ManualProcess;
 use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Tdr;
+use App\Models\MachiningWorkStep;
 use App\Models\TdrProcess;
 use App\Models\Vendor;
 use App\Models\Workorder;
+use App\Services\MachiningWorkorderQueueRelease;
 use App\Services\PaintIndexRowsBuilder;
 use Carbon\Carbon;
 use Illuminate\Contracts\Foundation\Application;
@@ -1626,14 +1628,27 @@ class TdrProcessController extends Controller
             // чтобы не осталось "конец без начала"
             if (empty($data['date_start'])) {
                 $tdrProcess->date_finish = null;
+                if ($fromMachiningIndex) {
+                    $tdrProcess->working_steps_count = null;
+                    MachiningWorkStep::query()->where('tdr_process_id', $tdrProcess->id)->delete();
+                }
             }
+        }
+
+        if ($fromMachiningIndex && (int) ($tdrProcess->working_steps_count ?? 0) >= 1 && array_key_exists('date_finish', $data)) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => ['date_finish' => ['Use work step rows to set finish when steps are enabled.']],
+                ], 422);
+            }
+
+            return back()->withErrors(['date_finish' => 'Use work step rows.'])->withInput();
         }
 
         if (array_key_exists('date_finish', $data)) {
             $tdrProcess->date_finish = $data['date_finish'] ?: null;
         }
-
-        $finishSetNow = array_key_exists('date_finish', $data) && ! empty($data['date_finish']);
 
         // фиксируем пользователя
         $tdrProcess->user_id = auth()->id();
@@ -1748,30 +1763,14 @@ class TdrProcessController extends Controller
             }
         }
 
-        if ($fromMachiningIndex && $finishSetNow) {
+        if ($fromMachiningIndex) {
             $tdrProcess->loadMissing('tdr');
             $workorderId = (int) ($tdrProcess->tdr?->workorder_id ?? 0);
 
             if ($workorderId > 0) {
-                $queuedWo = Workorder::query()
-                    ->select(['id', 'machining_queue_order'])
-                    ->whereKey($workorderId)
-                    ->first();
-
-                if ($queuedWo !== null && $queuedWo->machining_queue_order !== null) {
-                    $oldPosition = (int) $queuedWo->machining_queue_order;
-
-                    Workorder::query()
-                        ->whereKey($workorderId)
-                        ->update(['machining_queue_order' => null]);
-
-                    Workorder::query()
-                        ->whereNotNull('approve_at')
-                        ->whereNull('done_at')
-                        ->where('is_draft', 0)
-                        ->whereNotNull('machining_queue_order')
-                        ->where('machining_queue_order', '>', $oldPosition)
-                        ->decrement('machining_queue_order');
+                $freshWo = Workorder::query()->find($workorderId);
+                if ($freshWo !== null) {
+                    app(MachiningWorkorderQueueRelease::class)->releaseIfFullyClosed($freshWo);
                 }
             }
         }

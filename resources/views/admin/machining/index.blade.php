@@ -4,7 +4,7 @@
     @include('admin.mains.partials.styles')
     <style>
         .machining-page-root {
-            min-height: calc(100dvh - 100px);
+            min-height: calc(100dvh - 10px);
             display: flex;
             flex-direction: column;
         }
@@ -14,10 +14,10 @@
             min-width: 0;
         }
         .machining-table-scroll {
-            max-height: calc(100dvh - 220px);
+            max-height: calc(100dvh - 50px);
         }
         .machining-table-outer.machining-table-scroll {
-            max-height: calc(100dvh - 220px);
+            max-height: calc(100dvh - 50px);
         }
         /* Нижний блок lost parts — одна рамка (без вложенного .paint-page-bottom) */
         .machining-lost-fieldset {
@@ -114,10 +114,22 @@
         #machining-wo-table col.machining-col-num { width: 8%; }
         #machining-wo-table col.machining-col-wo { width: 14%; }
         #machining-wo-table col.machining-col-customer { width: 20%; }
-        #machining-wo-table col.machining-col-aircraft { width: 15%; }
+        #machining-wo-table col.machining-col-aircraft { width: 17%; }
         #machining-wo-table col.machining-col-pn { width: 18%; }
-        #machining-wo-table col.machining-col-owner { width: 10%; }
-        #machining-wo-table col.machining-col-detail { width: 10%; }
+        #machining-wo-table col.machining-col-work { width: 11%; }
+        #machining-wo-table .machining-steps-controls {
+            min-width: 0;
+            justify-content: center;
+        }
+        #machining-wo-table .machining-steps-controls .machining-steps-n-input {
+            width: 3rem;
+            min-width: 2.5rem;
+            flex: 0 0 auto;
+        }
+        #machining-wo-table .machining-step-lead-cell {
+            text-align: end;
+            vertical-align: middle;
+        }
         #machining-wo-table col.machining-col-date { width: 145px; }
         #machining-wo-table:not(.machining-table-has-drag) col.machining-col-num { width: 145px; }
         .machining-col-priority {
@@ -233,7 +245,7 @@
         .machining-header-search {
             min-width: 0;
         }
-        #machining-wo-table .machining-col-owner .btn-link {
+        #machining-wo-table .machining-wo-label .btn-link {
             display: inline-block;
             max-width: 100%;
             overflow: hidden;
@@ -254,7 +266,7 @@
 @endphp
 
 @section('content')
-    <div class="container-fluid py-2 machining-page-root">
+    <div class="container-fluid py-2 ">
         <div class="card border-0 dir-page shadow-sm">
             <div class="card-header p-0 mx-0 bg-transparent border-0 dir-topbar">
                 <div class="dir-topbar px-3 py-2">
@@ -277,12 +289,18 @@
                                    placeholder="Search (WO, customer, P/N, owner, dates…)"
                                    autocomplete="off">
                         </div>
+                        <div class="col-auto flex-shrink-0 ps-md-2">
+                            <div class="form-check form-check-inline mb-0 pt-1">
+                                <input class="form-check-input" type="checkbox" id="machiningHideClosed" value="1" autocomplete="off">
+                                <label class="form-check-label text-nowrap small" for="machiningHideClosed">Hide closed</label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="card-body pt-1 px-3 m-0 flex-grow-1 d-flex flex-column">
-                <div class="dir-panel border p-0 px-2 pb-2">
+            <div class="card-body pt-2 px-3 m-0 flex-grow-1 d-flex flex-column">
+                <div class="dir-panel border pt-2 px-2 pb-2">
                     <div class="dir-table-wrap machining-table-scroll machining-table-outer">
                         <table class="table table-sm table-hover align-middle mb-0 dir-table machining-dir-table {{ ($canReorderMachining ?? false) ? 'machining-table-has-drag' : '' }} " id="machining-wo-table">
                             <colgroup>
@@ -294,8 +312,7 @@
                                 <col class="machining-col-customer">
                                 <col class="machining-col-aircraft">
                                 <col class="machining-col-pn">
-                                <col class="machining-col-owner">
-                                <col class="machining-col-detail">
+                                <col class="machining-col-work">
                                 <col class="machining-col-date">
                                 <col class="machining-col-date">
                             </colgroup>
@@ -307,12 +324,12 @@
                                     <th class="machining-col-priority" title="Queue position (from workorder)">№</th>
                                     <th>WO #</th>
                                     <th>Customer</th>
-                                    <th>AirCraft Type</th>
-                                    <th>Part number</th>
-                                    <th>Owner</th>
-                                    <th>Detail (P/N)</th>
+                                    <th>Component PN <br> AirCraft Type</th>
+                                    <th>Part</th>
+                                    <th>Working Steps <br> Machinist</th>
                                     <th>Date start</th>
                                     <th>Date finish</th>
+                                    <th>_</th>
                                 </tr>
                             </thead>
                             <tbody id="machining-sortable-tbody">
@@ -320,19 +337,41 @@
                                 @php
                                     $wo = $row->workorder;
                                     $editTp = $row->edit_machining_process;
+                                    $rowSource = $row->row_source ?? 'tdr';
+                                    $isBushingRow = $rowSource === 'bushing';
+                                    $bushingBatch = $row->bushing_batch ?? null;
+                                    $bushingProcess = $row->bushing_process ?? null;
                                     $fmtMachiningDisp = static function ($d) {
                                         if ($d === null) {
                                             return '';
                                         }
-
                                         return $d->format('d') . '.' . strtolower($d->format('M')) . '.' . $d->format('Y');
                                     };
                                     $startStr = $fmtMachiningDisp($row->date_start);
                                     $finishStr = $fmtMachiningDisp($row->date_finish);
-                                    $tpStartYmd = $editTp?->date_start?->format('Y-m-d') ?? '';
-                                    $tpStartDisp = $fmtMachiningDisp($editTp?->date_start);
-                                    $tpFinishYmd = $editTp?->date_finish?->format('Y-m-d') ?? '';
-                                    $tpFinishDisp = $fmtMachiningDisp($editTp?->date_finish);
+                                    if ($bushingBatch) {
+                                        $tpStartYmd = $bushingBatch->date_start?->format('Y-m-d') ?? '';
+                                        $tpStartDisp = $fmtMachiningDisp($bushingBatch->date_start);
+                                        $tpFinishYmd = $bushingBatch->date_finish?->format('Y-m-d') ?? '';
+                                        $tpFinishDisp = $fmtMachiningDisp($bushingBatch->date_finish);
+                                    } elseif ($bushingProcess) {
+                                        $tpStartYmd = $bushingProcess->date_start?->format('Y-m-d') ?? '';
+                                        $tpStartDisp = $fmtMachiningDisp($bushingProcess->date_start);
+                                        $tpFinishYmd = $bushingProcess->date_finish?->format('Y-m-d') ?? '';
+                                        $tpFinishDisp = $fmtMachiningDisp($bushingProcess->date_finish);
+                                    } else {
+                                        $tpStartYmd = $editTp?->date_start?->format('Y-m-d') ?? '';
+                                        $tpStartDisp = $fmtMachiningDisp($editTp?->date_start);
+                                        $tpFinishYmd = $editTp?->date_finish?->format('Y-m-d') ?? '';
+                                        $tpFinishDisp = $fmtMachiningDisp($editTp?->date_finish);
+                                    }
+                                    $canEditMachiningDates = $editTp || $bushingBatch || $bushingProcess;
+                                    $dateStartAction = $editTp
+                                        ? route('tdrprocesses.updateDate', $editTp)
+                                        : ($bushingBatch
+                                            ? route('wo_bushing_batches.updateDate', $bushingBatch)
+                                            : ($bushingProcess ? route('wo_bushing_processes.updateDate', $bushingProcess) : ''));
+                                    $dateFinishAction = $dateStartAction;
                                     $machiningSearchBlob = implode(' ', array_filter([
                                         'w' . $wo->number,
                                         (string) ($wo->customer?->name ?? ''),
@@ -340,16 +379,39 @@
                                         (string) ($wo->unit?->part_number ?? ''),
                                         (string) ($wo->user?->name ?? ''),
                                         (string) ($row->detail_label ?? ''),
+                                        (string) ($row->detail_name ?? ''),
+                                        $isBushingRow ? 'bushing' : null,
                                         $startStr,
                                         $finishStr,
                                     ]));
                                     $machiningSearch = function_exists('mb_strtolower')
                                         ? mb_strtolower($machiningSearchBlob, 'UTF-8')
                                         : strtolower($machiningSearchBlob);
+                                    $rowFinishForQueue = $row->date_finish ?? null;
+                                    $rowHasDateFinish = $rowFinishForQueue !== null
+                                        && ($rowFinishForQueue instanceof \DateTimeInterface || trim((string) $rowFinishForQueue) !== '');
+                                    $parentForSteps = $editTp ?? $bushingBatch ?? $bushingProcess;
+                                    $stepCount = (int) ($parentForSteps?->working_steps_count ?? 0);
+                                    $machiningGroupId = '';
+                                    if ($editTp) {
+                                        $machiningGroupId = 'tdp-'.$editTp->id;
+                                    } elseif ($bushingBatch) {
+                                        $machiningGroupId = 'wbb-'.$bushingBatch->id;
+                                    } elseif ($bushingProcess) {
+                                        $machiningGroupId = 'wbp-'.$bushingProcess->id;
+                                    }
+                                    $stepsCountUrl = $editTp
+                                        ? route('machining.tdr_working_steps_count', $editTp)
+                                        : ($bushingBatch
+                                            ? route('machining.batch_working_steps_count', $bushingBatch)
+                                            : ($bushingProcess ? route('machining.process_working_steps_count', $bushingProcess) : ''));
+                                    $parentHasStart = (bool) ($parentForSteps?->date_start);
                                 @endphp
                                 <tr data-wo-id="{{ (int) $wo->id }}"
                                     data-machining-search="{{ $machiningSearch }}"
-                                    class="{{ $wo->machining_queue_order !== null ? 'machining-row-queued' : 'machining-row-unqueued' }} {{ ($row->is_queue_master ?? false) ? 'machining-row-master' : '' }}">
+                                    @if($machiningGroupId !== '') data-machining-group="{{ $machiningGroupId }}" @endif
+                                    @if($rowHasDateFinish) data-machining-closed="1" @endif
+                                    class="{{ $wo->machining_queue_order !== null ? 'machining-row-queued' : 'machining-row-unqueued' }} {{ ($row->is_queue_master ?? false) ? 'machining-row-master' : '' }} {{ $isBushingRow ? 'machining-row-bushing' : '' }}">
                                     @if($canReorderMachining ?? false)
                                         <td class="text-center {{ $wo->machining_queue_order !== null && ($row->is_queue_master ?? false) ? 'machining-drag-handle' : '' }}"
                                             @if($wo->machining_queue_order !== null && ($row->is_queue_master ?? false)) title="Drag" @endif>
@@ -360,17 +422,7 @@
                                     @endif
                                     <td class="text-center align-middle machining-col-priority">
                                         @if($canReorderMachining ?? false)
-                                            @if($wo->machining_queue_order !== null && ($row->is_queue_master ?? false))
-                                                <input type="text"
-                                                       inputmode="numeric"
-                                                       autocomplete="off"
-                                                       class="form-control js-machining-position-input dir-input"
-                                                       data-wo-id="{{ (int) $wo->id }}"
-                                                       data-in-queue="1"
-                                                       data-was="{{ (int) $row->machining_queue_position }}"
-                                                       value="{{ (int) $row->machining_queue_position }}"
-                                                       title="Position in queue (0 = remove from queue)">
-                                            @elseif($wo->machining_queue_order === null && ($row->is_queue_master ?? false))
+                                            @if($wo->machining_queue_order === null && ($row->is_queue_master ?? false))
                                                 <input type="text"
                                                        inputmode="numeric"
                                                        autocomplete="off"
@@ -380,13 +432,23 @@
                                                        data-was="0"
                                                        value=""
                                                        title="Enter queue position (0 = not in queue)">
-                                            @elseif($wo->machining_queue_order !== null)
+                                            @elseif($wo->machining_queue_order !== null && ($row->is_queue_master ?? false) && ! $rowHasDateFinish)
+                                                <input type="text"
+                                                       inputmode="numeric"
+                                                       autocomplete="off"
+                                                       class="form-control js-machining-position-input dir-input"
+                                                       data-wo-id="{{ (int) $wo->id }}"
+                                                       data-in-queue="1"
+                                                       data-was="{{ (int) $row->machining_queue_position }}"
+                                                       value="{{ (int) $row->machining_queue_position }}"
+                                                       title="Position in queue (0 = remove from queue)">
+                                            @elseif($wo->machining_queue_order !== null && ! $rowHasDateFinish)
                                                 {{ (int) $row->machining_queue_position }}
                                             @else
                                                 <span class="text-muted">—</span>
                                             @endif
                                         @else
-                                            @if($wo->machining_queue_order !== null)
+                                            @if($wo->machining_queue_order !== null && ! $rowHasDateFinish)
                                                 {{ $row->machining_queue_position }}
                                             @else
                                                 <span class="text-muted">—</span>
@@ -395,33 +457,67 @@
                                     </td>
                                     <td class="text-center text-light machining-wo-label machining-col-ellipsis">
                                         w{{ $wo->number }}
-                                    </td>
-                                    <td class="text-center small machining-col-wrap">{{ $wo->customer?->name ?? '' }}</td>
-                                    <td class="text-center small machining-col-wrap">{{ $wo->unit?->manual?->plane?->type ?? '' }}</td>
-                                    <td class="text-center machining-col-wrap">{{ $wo->unit?->part_number ?? '' }}</td>
-                                    <td class="text-center machining-col-owner">
+                                        <br>
                                         @if($wo->user_id && $wo->user)
                                             <button type="button"
-                                                    class="btn btn-link btn-sm text-light p-0 js-machining-msg-owner"
+                                                    class="btn btn-link btn-sm  p-0 js-machining-msg-owner"
                                                     data-user-id="{{ (int) $wo->user_id }}">
                                                 {{ $wo->user->name }}
                                             </button>
                                         @endif
                                     </td>
-                                    <td class="text-center small machining-col-wrap">
-                                        {{ $row->detail_label ?? 'List' }}
+                                    <td class="text-center small machining-col-wrap">{{ $wo->customer?->name ?? '' }}</td>
+                                    <td class="text-center small machining-col-wrap">{{ $wo->unit?->part_number ?? '' }} <br>
+                                        <span class=" text-secondary">{{ $wo->unit?->manual?->plane?->type ?? ''}}</span>
                                     </td>
+                                    <td class="text-center machining-col-wrap">{{ $row->detail_name ?? 'Name' }} <br>
+                                       <span class="text-secondary">{{ $row->detail_label ?? 'List' }}</span>
+
+                                    </td>
+                                    <td class="text-center machining-col-work align-middle">
+                                        <div class="d-flex align-items-center gap-1 machining-steps-controls mx-auto" style="max-width: 100%;">
+                                            @if($parentForSteps && $stepsCountUrl !== '')
+                                                <label class="visually-hidden" for="machining-steps-{{ $machiningGroupId }}">Working steps (N)</label>
+                                                <input type="number"
+                                                       min="1"
+                                                       max="50"
+                                                       step="1"
+                                                       class="form-control form-control-sm dir-input js-machining-steps-count text-center machining-steps-n-input"
+                                                       id="machining-steps-{{ $machiningGroupId }}"
+                                                       data-steps-url="{{ $stepsCountUrl }}"
+                                                       value="{{ $stepCount >= 1 ? $stepCount : '' }}"
+                                                       placeholder="N"
+                                                       title="Number of working steps (1–50); set start date first"
+                                                       @if(! $parentHasStart) disabled @endif
+                                                       autocomplete="off">
+                                            @endif
+                                            @if($stepCount >= 1 && $machiningGroupId !== '')
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary py-0 px-1 js-machining-toggle-steps flex-shrink-0"
+                                                        data-steps-group="{{ $machiningGroupId }}"
+                                                        aria-expanded="true"
+                                                        aria-controls="machining-steps-body-{{ $machiningGroupId }}"
+                                                        title="Hide step rows"
+                                                        aria-label="Hide step rows">
+                                                    <i class="bi bi-chevron-up" aria-hidden="true"></i>
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </td>
+
                                     <td class="machining-col-date-cell">
-                                        @if ($editTp)
+                                        @if ($canEditMachiningDates)
                                             <form method="POST"
-                                                  action="{{ route('tdrprocesses.updateDate', $editTp) }}"
+                                                  action="{{ $dateStartAction }}"
                                                   class="js-ajax mb-0"
                                                   data-no-spinner
                                                   data-success="Saved"
                                                   autocomplete="off">
                                                 @csrf
                                                 @method('PATCH')
-                                                <input type="hidden" name="from_machining_index" value="1">
+                                                @if($editTp || $bushingBatch || $bushingProcess)
+                                                    <input type="hidden" name="from_machining_index" value="1">
+                                                @endif
                                                 <div class="machining-date-input-wrap">
                                                     <input type="hidden"
                                                            name="date_start"
@@ -459,16 +555,26 @@
                                         @endif
                                     </td>
                                     <td class="machining-col-date-cell">
-                                        @if ($editTp)
+                                        @if ($canEditMachiningDates && $stepCount >= 1)
+                                            <input type="text"
+                                                   readonly
+                                                   tabindex="-1"
+                                                   class="form-control form-control-sm finish-input machining-date-readonly w-100 {{ $tpFinishYmd !== '' ? 'has-finish' : '' }}"
+                                                   title="Finish is driven by the last step"
+                                                   value="{{ $tpFinishDisp }}"
+                                                   placeholder="…">
+                                        @elseif ($canEditMachiningDates)
                                             <form method="POST"
-                                                  action="{{ route('tdrprocesses.updateDate', $editTp) }}"
+                                                  action="{{ $dateFinishAction }}"
                                                   class="js-ajax mb-0"
                                                   data-no-spinner
                                                   data-success="Saved"
                                                   autocomplete="off">
                                                 @csrf
                                                 @method('PATCH')
-                                                <input type="hidden" name="from_machining_index" value="1">
+                                                @if($editTp || $bushingBatch || $bushingProcess)
+                                                    <input type="hidden" name="from_machining_index" value="1">
+                                                @endif
                                                 <div class="machining-date-input-wrap">
                                                     <input type="hidden"
                                                            name="date_finish"
@@ -505,10 +611,27 @@
                                                    value="">
                                         @endif
                                     </td>
+                                        <td class="text-center small machining-col-wrap">
+{{--                                            @if($isBushingRow)--}}
+{{--                                                <span class="badge text-bg-secondary rounded-pill">Bush</span>--}}
+{{--                                            @endif--}}
+                                        </td>
                                 </tr>
+                                @if($stepCount >= 1 && $parentForSteps && $machiningGroupId !== '')
+                                    @include('admin.machining.partials.work-step-rows', [
+                                        'parentForSteps' => $parentForSteps,
+                                        'stepCount' => $stepCount,
+                                        'machiningGroupId' => $machiningGroupId,
+                                        'machiningSearch' => $machiningSearch,
+                                        'rowHasDateFinish' => $rowHasDateFinish,
+                                        'isBushingRow' => $isBushingRow,
+                                        'machiningMachinists' => $machiningMachinists,
+                                        'canReorderMachining' => $canReorderMachining ?? false,
+                                    ])
+                                @endif
                             @empty
                                 <tr>
-                                    <td colspan="{{ ($canReorderMachining ?? false) ? 10 : 9 }}" class="text-center text-muted py-4">No workorders (approved, open, not draft).</td>
+                                    <td colspan="{{ ($canReorderMachining ?? false) ? 11 : 10 }}" class="text-center text-muted py-4">No workorders (approved, open, not draft).</td>
                                 </tr>
                             @endforelse
                             </tbody>

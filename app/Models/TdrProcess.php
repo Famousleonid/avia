@@ -23,6 +23,7 @@ class TdrProcess extends Model
         'sort_order', // Поле для сортировки
         'date_start',
         'date_finish',
+        'working_steps_count',
         'ignore_row',
         'in_traveler',
         'ec',
@@ -36,6 +37,11 @@ class TdrProcess extends Model
         'in_traveler' => 'boolean',
     ];
 
+
+    public function machiningWorkSteps()
+    {
+        return $this->hasMany(MachiningWorkStep::class, 'tdr_process_id')->orderBy('step_index');
+    }
 
     // Отношение к модели Tdr
     public function tdr()

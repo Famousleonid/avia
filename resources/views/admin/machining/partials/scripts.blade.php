@@ -54,6 +54,125 @@
         aid.focus();
     }
 
+    function regroupMachiningStepRows(tbody) {
+        if (!tbody) return;
+        var parents = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-machining-group]:not(.machining-row-child)'));
+        parents.forEach(function (parentTr) {
+            var gid = parentTr.getAttribute('data-machining-group');
+            if (!gid) return;
+            var children = Array.prototype.slice.call(
+                tbody.querySelectorAll('tr.machining-row-child[data-machining-group="' + gid + '"]')
+            );
+            var insertAfter = parentTr;
+            children.forEach(function (ch) {
+                insertAfter.insertAdjacentElement('afterend', ch);
+                insertAfter = ch;
+            });
+        });
+    }
+
+    function initMachiningStepsCountInputs() {
+        document.querySelectorAll('.js-machining-steps-count').forEach(function (inp) {
+            if (inp.dataset.machiningStepsBound === '1') return;
+            inp.dataset.machiningStepsBound = '1';
+            inp.dataset.prevN = String(inp.value || '').trim();
+
+            inp.addEventListener('blur', function () {
+                if (inp.disabled) return;
+                var url = inp.getAttribute('data-steps-url');
+                if (!url) return;
+                var prev = String(inp.dataset.prevN || '').trim();
+                var raw = String(inp.value || '').trim();
+                var n = parseInt(raw, 10);
+                if (!raw || isNaN(n) || n < 1 || n > 50) {
+                    inp.value = prev;
+                    if (raw !== '' && typeof window.notifyError === 'function') {
+                        window.notifyError('Steps count must be 1–50', 2000);
+                    }
+                    return;
+                }
+                if (String(n) === prev) return;
+
+                var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                if (typeof window.safeShowSpinner === 'function') window.safeShowSpinner();
+                fetch(url, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ working_steps_count: n })
+                }).then(function (r) {
+                    return r.json().then(function (d) {
+                        if (r.ok && d && d.success) {
+                            inp.dataset.prevN = String(n);
+                            window.location.reload();
+                            return;
+                        }
+                        var msg = '';
+                        if (d && d.errors && typeof d.errors === 'object') {
+                            var k = Object.keys(d.errors)[0];
+                            if (k && d.errors[k] && d.errors[k][0]) msg = String(d.errors[k][0]);
+                        }
+                        if (!msg) msg = (d && d.message) ? String(d.message) : 'Update failed';
+                        if (typeof window.notifyError === 'function') window.notifyError(msg, 3000);
+                        inp.value = prev;
+                    });
+                }).catch(function () {
+                    if (typeof window.notifyError === 'function') window.notifyError('Network error', 2500);
+                    inp.value = prev;
+                }).finally(function () {
+                    if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+                });
+            });
+        });
+    }
+
+    function initMachiningStepMachinists() {
+        document.querySelectorAll('.js-machining-step-machinist').forEach(function (sel) {
+            if (sel.dataset.machiningMachinistBound === '1') return;
+            sel.dataset.machiningMachinistBound = '1';
+
+            sel.addEventListener('change', function () {
+                var url = sel.getAttribute('data-step-patch-url');
+                if (!url || sel.disabled) return;
+                var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                var mid = sel.value ? parseInt(sel.value, 10) : null;
+                if (typeof window.safeShowSpinner === 'function') window.safeShowSpinner();
+                fetch(url, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ machinist_user_id: mid })
+                }).then(function (r) {
+                    return r.json().then(function (d) {
+                        if (r.ok && d && d.success !== false) {
+                            window.location.reload();
+                            return;
+                        }
+                        var msg = '';
+                        if (d && d.errors && typeof d.errors === 'object') {
+                            var kk = Object.keys(d.errors)[0];
+                            if (kk && d.errors[kk] && d.errors[kk][0]) msg = String(d.errors[kk][0]);
+                        }
+                        if (!msg) msg = (d && d.message) ? String(d.message) : 'Update failed';
+                        if (typeof window.notifyError === 'function') window.notifyError(msg, 3000);
+                    });
+                }).catch(function () {
+                    if (typeof window.notifyError === 'function') window.notifyError('Network error', 2500);
+                }).finally(function () {
+                    if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+                });
+            });
+        });
+    }
+
     function initMachiningNativeDateInputs() {
         function clearMachiningDateWrap(wrap) {
             var ymd = wrap.querySelector('.js-machining-date-ymd');
@@ -131,6 +250,10 @@
                     var okText = (data && data.message) ? data.message : (form.getAttribute('data-success') || 'Saved');
                     window.showNotification(okText, 'success', 2000);
                 }
+                // Перерисовка строк (очередь при Date finish, сортировка, data-machining-search) с сервера
+                setTimeout(function () {
+                    window.location.reload();
+                }, 350);
             } catch (e) {
                 if (typeof window.notifyError === 'function') window.notifyError('Request failed', 2500);
             } finally {
@@ -181,21 +304,69 @@
         });
     }
 
-    function initMachiningTableSearch() {
+    function applyMachiningTableFilters() {
         var inp = document.getElementById('machiningTableSearch');
-        if (!inp) return;
-        inp.addEventListener('input', function () {
-            var q = String(inp.value || '').trim().toLowerCase();
-            document.querySelectorAll('#machining-sortable-tbody tr[data-machining-search]').forEach(function (tr) {
-                var hay = tr.getAttribute('data-machining-search') || '';
-                tr.classList.toggle('d-none', q !== '' && hay.indexOf(q) === -1);
-            });
+        var hideClosed = document.getElementById('machiningHideClosed');
+        var q = inp ? String(inp.value || '').trim().toLowerCase() : '';
+        var doHideClosed = hideClosed && hideClosed.checked;
+        var table = document.getElementById('machining-wo-table');
+        document.querySelectorAll('#machining-sortable-tbody tr[data-machining-search]').forEach(function (tr) {
+            var hay = tr.getAttribute('data-machining-search') || '';
+            var matchSearch = q === '' || hay.indexOf(q) !== -1;
+            var isClosed = tr.getAttribute('data-machining-closed') === '1';
+            var matchClosed = !doHideClosed || !isClosed;
+            var filterHidden = !matchSearch || !matchClosed;
+            var toggleHidden = false;
+            if (tr.classList.contains('machining-row-child') && table) {
+                var gid = tr.getAttribute('data-machining-group');
+                if (gid) {
+                    var btn = table.querySelector('.js-machining-toggle-steps[data-steps-group="' + gid + '"]');
+                    toggleHidden = !!(btn && btn.getAttribute('aria-expanded') === 'false');
+                }
+            }
+            tr.classList.toggle('d-none', filterHidden || toggleHidden);
         });
+    }
+
+    function initMachiningStepsToggle() {
+        var table = document.getElementById('machining-wo-table');
+        if (!table || table.dataset.machiningStepsToggleBound === '1') return;
+        table.dataset.machiningStepsToggleBound = '1';
+        table.addEventListener('click', function (e) {
+            var btn = e.target.closest('.js-machining-toggle-steps');
+            if (!btn || !table.contains(btn)) return;
+            e.preventDefault();
+            var gid = btn.getAttribute('data-steps-group');
+            if (!gid) return;
+            var expanded = btn.getAttribute('aria-expanded') !== 'false';
+            var next = !expanded;
+            btn.setAttribute('aria-expanded', next ? 'true' : 'false');
+            var icon = btn.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('bi-chevron-up', next);
+                icon.classList.toggle('bi-chevron-down', !next);
+            }
+            var hideLabel = 'Hide step rows';
+            var showLabel = 'Show step rows';
+            btn.setAttribute('title', next ? hideLabel : showLabel);
+            btn.setAttribute('aria-label', next ? hideLabel : showLabel);
+            applyMachiningTableFilters();
+        });
+    }
+
+    function initMachiningTableFilters() {
+        var inp = document.getElementById('machiningTableSearch');
+        var hideClosed = document.getElementById('machiningHideClosed');
+        if (inp) inp.addEventListener('input', applyMachiningTableFilters);
+        if (hideClosed) hideClosed.addEventListener('change', applyMachiningTableFilters);
     }
 
     function bootMachiningPage() {
         initMachiningNativeDateInputs();
-        initMachiningTableSearch();
+        initMachiningStepsCountInputs();
+        initMachiningStepMachinists();
+        initMachiningTableFilters();
+        initMachiningStepsToggle();
 
         @if($canReorderMachining ?? false)
         (function initMachiningSortable() {
@@ -213,12 +384,16 @@
                 ghostClass: 'table-active',
                 onMove: function (evt) {
                     var rel = evt.related;
+                    if (rel && rel.classList.contains('machining-row-child')) {
+                        return false;
+                    }
                     if (rel && rel.classList.contains('machining-row-unqueued') && evt.willInsertAfter) {
                         return false;
                     }
                     return true;
                 },
                 onEnd: function () {
+                    regroupMachiningStepRows(tbody);
                     if (typeof window.safeShowSpinner === 'function') window.safeShowSpinner();
                     var ids = Array.from(tbody.querySelectorAll('tr.machining-row-queued.machining-row-master')).map(function (tr) {
                         return parseInt(tr.getAttribute('data-wo-id'), 10);
