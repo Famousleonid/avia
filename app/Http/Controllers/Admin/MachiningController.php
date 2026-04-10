@@ -3,8 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\MachiningWorkStep;
 use App\Models\TdrProcess;
+use App\Models\User;
+use App\Models\WoBushingBatch;
+use App\Models\WoBushingProcess;
 use App\Models\Workorder;
+use App\Services\MachiningBushingRowsBuilder;
+use App\Services\MachiningWorkorderQueueRelease;
+use App\Services\MachiningWorkStepsService;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -30,6 +39,15 @@ class MachiningController extends Controller
                     $q->with([
                         'component:id,part_number,name,ipl_num',
                         'tdrProcesses.processName',
+                        'tdrProcesses.machiningWorkSteps.machinist:id,name',
+                    ]);
+                },
+                'woBushingProcesses' => function ($q) {
+                    $q->with([
+                        'line.component',
+                        'process.process_name',
+                        'batch.machiningWorkSteps.machinist:id,name',
+                        'machiningWorkSteps.machinist:id,name',
                     ]);
                 },
             ])
@@ -45,6 +63,15 @@ class MachiningController extends Controller
                     $q->with([
                         'component:id,part_number,name,ipl_num',
                         'tdrProcesses.processName',
+                        'tdrProcesses.machiningWorkSteps.machinist:id,name',
+                    ]);
+                },
+                'woBushingProcesses' => function ($q) {
+                    $q->with([
+                        'line.component',
+                        'process.process_name',
+                        'batch.machiningWorkSteps.machinist:id,name',
+                        'machiningWorkSteps.machinist:id,name',
                     ]);
                 },
             ]);
@@ -53,29 +80,45 @@ class MachiningController extends Controller
 
             $active = $machiningProcesses->filter(fn (TdrProcess $tp) => ! ($tp->ignore_row ?? false))->values();
 
-            return $active
+            $tdrRows = $active
                 ->filter(static fn (TdrProcess $tp) => trim((string) ($tp->tdr?->component?->part_number ?? '')) !== '')
                 ->map(static function (TdrProcess $tp) use ($wo) {
                     $detailPn = trim((string) ($tp->tdr?->component?->part_number ?? ''));
+                    $detailNm = trim((string) ($tp->tdr?->component?->name ?? ''));
 
                     return (object) [
                         'workorder' => $wo,
+                        'row_source' => 'tdr',
                         'detail_label' => $detailPn,
+                        'detail_name' => $detailNm,
                         'date_start' => $tp->date_start,
                         'date_finish' => $tp->date_finish,
                         'edit_machining_process' => $tp,
                         'machining_queue_position' => null,
                         'is_queue_master' => false,
+                        'bushing_batch' => null,
+                        'bushing_process' => null,
                     ];
                 })
                 ->values();
+
+            $bushingRows = MachiningBushingRowsBuilder::forWorkorder($wo);
+
+            return $tdrRows->concat($bushingRows);
         })->values();
+
+        $rows->each(fn (object $row) => $this->applyMachiningParentDatesToRow($row));
+
+        $this->syncMachiningQueueReleaseForFullyClosedWorkorders($rows);
 
         $withQueue = $rows->filter(static fn ($r) => $r->workorder->machining_queue_order !== null)->values();
         $withoutQueue = $rows
             ->filter(static fn ($r) => $r->workorder->machining_queue_order === null)
             ->sortBy(static fn ($r) => (int) $r->workorder->number)
             ->values();
+
+        $withQueue = $this->sortMachiningRowsBucket($withQueue, true);
+        $withoutQueue = $this->sortMachiningRowsBucket($withoutQueue, false);
 
         $pos = 0;
         $seenWo = [];
@@ -104,11 +147,110 @@ class MachiningController extends Controller
 
         $user = auth()->user();
 
+        $machiningMachinists = User::query()
+            ->whereHas('role', static fn ($q) => $q->where('name', 'Machining'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return view('admin.machining.index', [
             'rows' => $rows,
             'queuedCount' => $queuedCount,
             'canReorderMachining' => $user !== null && $user->roleIs(['Admin', 'Manager']),
+            'machiningMachinists' => $machiningMachinists,
         ]);
+    }
+
+    public function updateMachiningWorkStep(Request $request, MachiningWorkStep $machiningWorkStep): JsonResponse
+    {
+        $v = Validator::make($request->all(), [
+            'machinist_user_id' => 'sometimes|nullable|integer|exists:users,id',
+            'date_finish' => 'sometimes|nullable|date',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+        }
+
+        try {
+            app(MachiningWorkStepsService::class)->updateStepFromRequest(
+                $machiningWorkStep,
+                $request->exists('machinist_user_id'),
+                $request->input('machinist_user_id'),
+                $request->exists('date_finish'),
+                $request->input('date_finish'),
+            );
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors()], 422);
+        }
+
+        $machiningWorkStep->refresh();
+        $parent = app(MachiningWorkStepsService::class)->resolveParent($machiningWorkStep);
+
+        return response()->json([
+            'success' => true,
+            'date_finish' => $machiningWorkStep->date_finish?->format('Y-m-d'),
+            'machinist_user_id' => $machiningWorkStep->machinist_user_id,
+            'parent_date_finish' => $parent?->date_finish?->format('Y-m-d'),
+        ]);
+    }
+
+    public function updateTdrWorkingStepsCount(Request $request, TdrProcess $tdrProcess): JsonResponse
+    {
+        $v = Validator::make($request->all(), [
+            'working_steps_count' => 'required|integer|min:1|max:50',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+        }
+
+        try {
+            app(MachiningWorkStepsService::class)->syncWorkingStepsCount($tdrProcess, (int) $request->input('working_steps_count'));
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors()], 422);
+        }
+
+        $tdrProcess->refresh();
+
+        return response()->json(['success' => true, 'working_steps_count' => $tdrProcess->working_steps_count]);
+    }
+
+    public function updateBatchWorkingStepsCount(Request $request, WoBushingBatch $woBushingBatch): JsonResponse
+    {
+        $v = Validator::make($request->all(), [
+            'working_steps_count' => 'required|integer|min:1|max:50',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+        }
+
+        try {
+            app(MachiningWorkStepsService::class)->syncWorkingStepsCount($woBushingBatch, (int) $request->input('working_steps_count'));
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors()], 422);
+        }
+
+        $woBushingBatch->refresh();
+
+        return response()->json(['success' => true, 'working_steps_count' => $woBushingBatch->working_steps_count]);
+    }
+
+    public function updateProcessWorkingStepsCount(Request $request, WoBushingProcess $woBushingProcess): JsonResponse
+    {
+        $v = Validator::make($request->all(), [
+            'working_steps_count' => 'required|integer|min:1|max:50',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+        }
+
+        try {
+            app(MachiningWorkStepsService::class)->syncWorkingStepsCount($woBushingProcess, (int) $request->input('working_steps_count'));
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors()], 422);
+        }
+
+        $woBushingProcess->refresh();
+
+        return response()->json(['success' => true, 'working_steps_count' => $woBushingProcess->working_steps_count]);
     }
 
     public function reorder(Request $request): JsonResponse
@@ -258,6 +400,191 @@ class MachiningController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Полностью закрытый по machining WO не должен оставаться в machining_queue_order: иначе строки
+     * попадают в блок «в очереди» и висят под w105380, а в колонке № для закрытого показывается «—».
+     * Чиним БД и in-memory workorder при открытии индекса (если снятие не произошло при сохранении дат).
+     *
+     * @param  Collection<int, object>  $rows
+     */
+    private function syncMachiningQueueReleaseForFullyClosedWorkorders(Collection $rows): void
+    {
+        if ($rows->isEmpty()) {
+            return;
+        }
+
+        $release = app(MachiningWorkorderQueueRelease::class);
+        foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $woId => $_) {
+            $woModel = Workorder::query()->find((int) $woId);
+            if ($woModel === null || ! $release->machiningFullyClosed($woModel)) {
+                continue;
+            }
+            $release->releaseIfFullyClosed($woModel);
+        }
+
+        foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $group) {
+            $wo = $group->first()?->workorder;
+            if ($wo !== null) {
+                $wo->refresh();
+            }
+        }
+    }
+
+    /**
+     * Закрытые WO (у каждой machining-строки есть финиш) — внизу, по возрастанию number WO.
+     * Открытые: в очереди — сначала с датой старта, без даты — ниже; внутри группы с датой
+     * сортировка по machining_queue_order (№), затем по date_start. Вне очереди — с датой /
+     * без даты, затем date_start и number.
+     *
+     * @param  Collection<int, object>  $rows
+     * @return Collection<int, object>
+     */
+    private function sortMachiningRowsBucket(Collection $rows, bool $queuedBucket): Collection
+    {
+        if ($rows->isEmpty()) {
+            return $rows;
+        }
+
+        $rows = $rows->values();
+        $woFullyDone = [];
+        $queueRelease = app(MachiningWorkorderQueueRelease::class);
+        foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $woId => $_) {
+            $woModel = Workorder::query()->find((int) $woId);
+            $woFullyDone[(int) $woId] = $woModel !== null && $queueRelease->machiningFullyClosed($woModel);
+        }
+
+        $open = $rows->filter(fn ($r) => ! $woFullyDone[(int) $r->workorder->id])->values();
+        $done = $rows->filter(fn ($r) => $woFullyDone[(int) $r->workorder->id])->values();
+
+        $openSorted = $open->sort(function (object $a, object $b) use ($queuedBucket): int {
+            $byStart = ($this->rowHasMachiningDateStart($a) ? 0 : 1) <=> ($this->rowHasMachiningDateStart($b) ? 0 : 1);
+            if ($byStart !== 0) {
+                return $byStart;
+            }
+
+            if ($queuedBucket) {
+                $qa = (int) ($a->workorder->machining_queue_order ?? PHP_INT_MAX);
+                $qb = (int) ($b->workorder->machining_queue_order ?? PHP_INT_MAX);
+                $byQ = $qa <=> $qb;
+                if ($byQ !== 0) {
+                    return $byQ;
+                }
+            }
+
+            $byTs = $this->rowMachiningStartTimestamp($a) <=> $this->rowMachiningStartTimestamp($b);
+            if ($byTs !== 0) {
+                return $byTs;
+            }
+
+            if (! $queuedBucket) {
+                $byNum = ((int) $a->workorder->number) <=> ((int) $b->workorder->number);
+                if ($byNum !== 0) {
+                    return $byNum;
+                }
+            }
+
+            return ((int) $a->workorder->number) <=> ((int) $b->workorder->number);
+        })->values();
+
+        $doneSorted = $done->sortBy(fn ($r) => (int) $r->workorder->number)->values();
+
+        return $openSorted->concat($doneSorted);
+    }
+
+    private function rowHasMachiningDateStart(object $row): bool
+    {
+        $s = $row->date_start ?? null;
+        if ($s === null) {
+            return false;
+        }
+        if ($s instanceof \DateTimeInterface) {
+            return true;
+        }
+
+        return trim((string) $s) !== '';
+    }
+
+    private function rowMachiningStartTimestamp(object $row): int
+    {
+        $s = $row->date_start ?? null;
+        if ($s === null) {
+            return PHP_INT_MAX;
+        }
+        if ($s instanceof \DateTimeInterface) {
+            return (int) $s->format('U');
+        }
+
+        return PHP_INT_MAX;
+    }
+
+    /**
+     * Выровнять date_start / date_finish строки с родителем; при шагах — подтянуть финиш с последнего шага,
+     * если у родителя в памяти ещё пусто (иначе сортировка «закрытых» вниз ломается).
+     */
+    private function applyMachiningParentDatesToRow(object $row): void
+    {
+        $parent = $row->edit_machining_process ?? $row->bushing_batch ?? $row->bushing_process ?? null;
+        if ($parent === null) {
+            return;
+        }
+
+        if ($parent->date_start) {
+            $row->date_start = $parent->date_start;
+        }
+
+        $finish = $parent->date_finish;
+        $n = (int) ($parent->working_steps_count ?? 0);
+        if ($n >= 1) {
+            $parent->loadMissing('machiningWorkSteps');
+            if (! $this->machiningDateValuePresent($finish)) {
+                $last = $parent->machiningWorkSteps->firstWhere('step_index', $n);
+                $finish = $last?->date_finish;
+            }
+        }
+
+        if ($this->machiningDateValuePresent($finish)) {
+            $row->date_finish = $finish;
+        }
+    }
+
+    private function rowHasMachiningDateFinish(object $row): bool
+    {
+        if ($this->machiningDateValuePresent($row->date_finish ?? null)) {
+            return true;
+        }
+
+        $parent = $row->edit_machining_process ?? $row->bushing_batch ?? $row->bushing_process ?? null;
+        if ($parent === null) {
+            return false;
+        }
+
+        if ($this->machiningDateValuePresent($parent->date_finish ?? null)) {
+            return true;
+        }
+
+        $n = (int) ($parent->working_steps_count ?? 0);
+        if ($n < 1) {
+            return false;
+        }
+
+        $parent->loadMissing('machiningWorkSteps');
+        $last = $parent->machiningWorkSteps->firstWhere('step_index', $n);
+
+        return $last !== null && $this->machiningDateValuePresent($last->date_finish ?? null);
+    }
+
+    private function machiningDateValuePresent(mixed $d): bool
+    {
+        if ($d === null) {
+            return false;
+        }
+        if ($d instanceof \DateTimeInterface) {
+            return true;
+        }
+
+        return trim((string) $d) !== '';
     }
 
     /**

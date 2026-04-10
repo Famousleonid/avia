@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WoBushingProcess extends Model
 {
@@ -14,6 +15,7 @@ class WoBushingProcess extends Model
         'qty',
         'date_start',
         'date_finish',
+        'working_steps_count',
         'repair_order',
     ];
 
@@ -36,5 +38,10 @@ class WoBushingProcess extends Model
     public function batch(): BelongsTo
     {
         return $this->belongsTo(WoBushingBatch::class, 'batch_id');
+    }
+
+    public function machiningWorkSteps(): HasMany
+    {
+        return $this->hasMany(MachiningWorkStep::class, 'wo_bushing_process_id')->orderBy('step_index');
     }
 }

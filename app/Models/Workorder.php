@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Traits\HasMediaHelpers;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\QueryException;
 use Spatie\Activitylog\LogOptions;
@@ -33,6 +35,23 @@ class Workorder extends Model implements HasMedia
     public function tdrs()
     {
         return $this->hasMany(Tdr::class,'workorder_id');
+    }
+
+    public function woBushingLines(): HasMany
+    {
+        return $this->hasMany(WoBushingLine::class);
+    }
+
+    public function woBushingProcesses(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            WoBushingProcess::class,
+            WoBushingLine::class,
+            'workorder_id',
+            'wo_bushing_line_id',
+            'id',
+            'id'
+        );
     }
 
     public function user()

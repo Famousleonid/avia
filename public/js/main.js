@@ -772,6 +772,11 @@ window.hapticTap = function (pattern = 10) {
                 window.showNotification(okText, 'success', 2000);
             }
 
+            // Machining index: даты через js-ajax — перерисовка очереди / сортировки / поиска с сервера
+            if (form.closest('#machining-wo-table') && form.querySelector('.machining-date-input-wrap')) {
+                setTimeout(() => window.location.reload(), 350);
+            }
+
         } catch (e) {
             console.error(e);
             if (typeof window.notifyError === 'function') window.notifyError('Request failed', 2500);

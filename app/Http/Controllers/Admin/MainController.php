@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Code;
 use App\Models\Component;
 use App\Models\GeneralTask;
+use App\Models\MachiningWorkStep;
 use App\Models\Main;
 use App\Models\Necessary;
 use App\Models\Process;
@@ -17,6 +18,7 @@ use App\Models\User;
 use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
 use App\Models\Workorder;
+use App\Services\MachiningWorkorderQueueRelease;
 use App\Services\WorkorderStdListProcessesService;
 use App\Support\WoBushingProcessColumnKey;
 use Illuminate\Http\Request;
@@ -870,7 +872,23 @@ class MainController extends Controller
             $woBushingProcess->date_start = $data['date_start'] ?: null;
             if (empty($data['date_start'])) {
                 $woBushingProcess->date_finish = null;
+                if ((int) $request->input('from_machining_index', 0) === 1) {
+                    $woBushingProcess->working_steps_count = null;
+                    MachiningWorkStep::query()->where('wo_bushing_process_id', $woBushingProcess->id)->delete();
+                }
             }
+        }
+
+        $fromMachiningIndex = (int) $request->input('from_machining_index', 0) === 1;
+        if ($fromMachiningIndex && (int) ($woBushingProcess->working_steps_count ?? 0) >= 1 && array_key_exists('date_finish', $data)) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => ['date_finish' => ['Use work step rows to set finish when steps are enabled.']],
+                ], 422);
+            }
+
+            return back()->withErrors(['date_finish' => 'Use work step rows.'])->withInput();
         }
 
         if (array_key_exists('date_finish', $data)) {
@@ -878,6 +896,14 @@ class MainController extends Controller
         }
 
         $woBushingProcess->save();
+
+        if ($fromMachiningIndex) {
+            $woBushingProcess->loadMissing('line.workorder');
+            $machiningWo = $woBushingProcess->line?->workorder;
+            if ($machiningWo !== null) {
+                app(MachiningWorkorderQueueRelease::class)->releaseIfFullyClosed($machiningWo);
+            }
+        }
 
         if ($isAjax) {
             $woBushingProcess->refresh();
@@ -958,12 +984,37 @@ class MainController extends Controller
             $woBushingBatch->date_start = $data['date_start'] ?: null;
             if (empty($data['date_start'])) {
                 $woBushingBatch->date_finish = null;
+                if ((int) $request->input('from_machining_index', 0) === 1) {
+                    $woBushingBatch->working_steps_count = null;
+                    MachiningWorkStep::query()->where('wo_bushing_batch_id', $woBushingBatch->id)->delete();
+                }
             }
         }
+
+        $fromMachiningBatchIndex = (int) $request->input('from_machining_index', 0) === 1;
+        if ($fromMachiningBatchIndex && (int) ($woBushingBatch->working_steps_count ?? 0) >= 1 && array_key_exists('date_finish', $data)) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => ['date_finish' => ['Use work step rows to set finish when steps are enabled.']],
+                ], 422);
+            }
+
+            return back()->withErrors(['date_finish' => 'Use work step rows.'])->withInput();
+        }
+
         if (array_key_exists('date_finish', $data)) {
             $woBushingBatch->date_finish = $data['date_finish'] ?: null;
         }
         $woBushingBatch->save();
+
+        if ($fromMachiningBatchIndex) {
+            $woBushingBatch->loadMissing('workorder');
+            $machiningWoBatch = $woBushingBatch->workorder;
+            if ($machiningWoBatch !== null) {
+                app(MachiningWorkorderQueueRelease::class)->releaseIfFullyClosed($machiningWoBatch);
+            }
+        }
 
         if ($isAjax) {
             $woBushingBatch->refresh();
