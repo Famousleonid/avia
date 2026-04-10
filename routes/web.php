@@ -423,6 +423,8 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/ai-agent/history', [AiAgentController::class, 'history'])->name('admin.ai.history');
     Route::post('/ai-agent/chat', [AiAgentController::class, 'chat'])->name('admin.ai.chat');
     Route::post('/ai-agent/reset', [AiAgentController::class, 'reset'])->name('admin.ai.reset');
+    Route::get('/tests', [\App\Http\Controllers\Admin\TestDashboardController::class, 'index'])->name('admin.tests.index');
+    Route::post('/tests/{suite}/run', [\App\Http\Controllers\Admin\TestDashboardController::class, 'run'])->name('admin.tests.run');
 });
 
 

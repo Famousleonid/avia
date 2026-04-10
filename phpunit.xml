@@ -27,5 +27,6 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="VIEW_COMPILED_PATH" value="C:/OSPanel/domains/avia.loc/codex-test-runtime/views"/>
     </php>
 </phpunit>

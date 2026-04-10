@@ -301,13 +301,25 @@
             font-size: .8rem;
         }
 
+        .load-status {
+            font-size: .85rem;
+            min-height: 38px;
+        }
+
+        .load-status.is-loading {
+            color: var(--bs-info);
+        }
+
+        .load-status.is-finished {
+            color: var(--bs-secondary);
+        }
+
     </style>
 
 @endsection
 
 @section('content')
 
-    {{-- Сразу при разборе HTML (ещё до DOMContentLoaded): спиннер на F5/перезагрузке, пока тянется разметка таблицы и фильтры --}}
     <script>
         (function () {
             try {
@@ -325,10 +337,9 @@
                 <h5 class="text-primary mb-0">
                     {{ __('Workorders') }}
 
-                    <span class="text-info" id="woVisible">{{ $workorders->count() }}</span>
+                    <span class="text-info" id="woVisible">{{ count($workorders) }}</span>
                     <span class="text-muted" style="font-size: 16px;">of</span>
-                    <span class="text-info" id="woTotal">{{ $workorders->count() }}</span>
-
+                    <span class="text-info" id="woTotal">{{ $totalCount }}</span>
                 </h5>
 
                 <a id="admin_new_firm_create" href="{{ route('workorders.create') }}">
@@ -352,7 +363,7 @@
                         Print
                     </button>
 
-                    <button type="button" class="btn btn-sm btn-success"  onclick="openPdfVisible('landscape')">
+                    <button type="button" class="btn btn-sm btn-success" onclick="openPdfVisible('landscape')">
                         PDF
                     </button>
 
@@ -363,7 +374,6 @@
                 @endrole
             </div>
 
-            {{-- Search --}}
             <div class="clearable-input">
                 <input id="searchInput" type="text" class="form-control" placeholder="Search...">
                 <button id="clearSearch" type="button" class="btn-clear">
@@ -374,11 +384,10 @@
             <div class="d-flex flex-wrap align-items-center gap-5">
 
                 @roles("Admin|Manager")
-                {{-- Customer filter --}}
-                <div class="d-flex align-items-end  filter-select-wrapper">
+                <div class="d-flex align-items-end filter-select-wrapper">
                     <div class="flex-grow-1">
                         <select id="customerFilter" class="form-control form-control-sm">
-                            <option value="">— All customers —</option>
+                            <option value="">- All customers -</option>
                             @foreach($customers as $customer)
                                 <option value="{{ $customer->id }}">{{ $customer->name }}</option>
                             @endforeach
@@ -391,11 +400,10 @@
                     </button>
                 </div>
 
-                {{-- Technician filter --}}
                 <div class="d-flex align-items-end filter-select-wrapper">
                     <div class="flex-grow-1">
                         <select id="technikFilter" class="form-control form-control-sm">
-                            <option value="">— All technicians —</option>
+                            <option value="">- All technicians -</option>
                             @foreach($users as $user)
                                 <option value="{{ $user->id }}">{{ $user->name }}</option>
                             @endforeach
@@ -436,265 +444,80 @@
 
             </div>
 
-
         </div>
 
-        @if(count($workorders))
+        <div
+            class="table-wrapper p-2 pt-0 ready"
+            id="printArea"
+            data-endpoint="{{ route('workorders.index') }}"
+            data-next-cursor="{{ $nextCursor }}"
+            data-has-more="{{ $hasMore ? '1' : '0' }}"
+            data-total-count="{{ $totalCount }}"
+            data-overall-total="{{ $overallTotal }}"
+            data-initial-q="{{ request('q', '') }}"
+            data-initial-customer="{{ request('customer_id', '') }}"
+            data-initial-technik="{{ request('technik_id', '') }}"
+            data-initial-only-my="{{ request()->boolean('only_my', false) ? '1' : '0' }}"
+            data-initial-only-active="{{ request()->boolean('only_active', false) ? '1' : '0' }}"
+            data-initial-only-approved="{{ request()->boolean('only_approved', false) ? '1' : '0' }}"
+            data-initial-show-drafts="{{ request()->boolean('show_drafts', false) ? '1' : '0' }}"
+            data-initial-sort="{{ $initialSort }}"
+            data-initial-direction="{{ $initialDirection }}"
+        >
+            <table id="show-workorder" class="table table-sm table-bordered table-hover w-100 table-panel" style="font-size: 14px;">
+                <thead class="bg-gradient">
+                <tr>
+                    <th class="text-center text-primary sortable col-number" data-sort-key="number">
+                        Number <i class="bi bi-chevron-expand ms-1"></i>
+                    </th>
+                    <th class="text-center text-primary col-approve no-print">Approve</th>
+                    <th class="text-center text-primary col-ec no-print sortable" data-sort-key="ec">
+                        EC <i class="bi bi-chevron-expand ms-1"></i>
+                    </th>
+                    @hasanyrole('Admin|Manager')
+                    <th class="text-center text-primary col-stages no-print">Stages</th>
+                    @endhasanyrole
+                    <th class="text-center text-primary">Component</th>
+                    <th class="text-center text-primary">Description</th>
+                    <th class="text-center text-primary col-SN">Serial No.</th>
+                    <th class="text-center text-primary no-print">Manual</th>
+                    <th class="text-center text-primary sortable" data-sort-key="customer">
+                        Customer <i class="bi bi-chevron-expand ms-1"></i>
+                    </th>
+                    <th class="text-center text-primary sortable" data-sort-key="instruction">
+                        Instruction <i class="bi bi-chevron-expand ms-1"></i>
+                    </th>
+                    <th class="text-center text-primary col-date">Open Date</th>
+                    <th class="text-center text-primary col-PO">Customer PO</th>
+                    <th class="text-center text-primary col-edit no-print">Edit</th>
+                    <th class="text-center text-primary sortable no-print" data-sort-key="technik">
+                        Technik <i class="bi bi-chevron-expand ms-1"></i>
+                    </th>
+                    @role('Admin')
+                    <th class="text-center text-primary col-delete no-print">Del</th>
+                    @endrole
+                </tr>
+                </thead>
+                <tbody id="workordersTbody">
+                    @include('admin.workorders.partials.rows', [
+                        'workorders' => $workorders,
+                        'ecStatuses' => $ecStatuses,
+                        'generalTasks' => $generalTasks,
+                        'tasksByGeneral' => $tasksByGeneral,
+                    ])
+                </tbody>
+            </table>
 
-            <div class="table-wrapper p-2 pt-0 " id="printArea">
-                <table id="show-workorder" class="table table-sm table-bordered table-hover w-100 table-panel " style="font-size: 14px;">
-                    <thead class="bg-gradient">
-                    <tr>
-                        <th class="text-center text-primary sortable col-number">
-                            Number <i class="bi bi-chevron-expand ms-1"></i>
-                        </th>
-                        <th class="text-center text-primary col-approve no-print">Approve</th>
-                        <th class="text-center text-primary col-ec no-print sortable">EC</th>
-                        @hasanyrole('Admin|Manager')
-                        <th class="text-center text-primary col-stages no-print">Stages</th>
-                        @endhasanyrole
-                        <th class="text-center text-primary">Component</th>
-                        <th class="text-center text-primary">Description</th>
-                        <th class="text-center text-primary col-SN">Serial №</th>
-                        <th class="text-center text-primary no-print">Manual</th>
-                        <th class="text-center text-primary sortable">Customer <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary sortable">Instruction <i class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-center text-primary col-date">Open Date</th>
-                        <th class="text-center text-primary col-PO">Customer PO</th>
-                        <th class="text-center text-primary col-edit no-print">Edit</th>
-                        <th class="text-center text-primary sortable no-print">Technik <i class="bi bi-chevron-expand ms-1"></i></th>
-
-                        @role('Admin')
-                        <th class="text-center text-primary col-delete no-print">Del</th>
-                        @endrole
-                    </tr>
-                    </thead>
-                    <tbody>
-                    @foreach ($workorders as $workorder)
-
-                        <tr class=""
-                            data-id="{{ $workorder->id }}"
-                            data-tech-id="{{ $workorder->user_id }}"
-                            data-customer-id="{{ $workorder->customer_id }}"
-                            data-status="{{ $workorder->isDone() ? 'Completed' : 'active' }}"
-                            data-approved="{{ $workorder->approve_at ? '1' : '0' }}"
-                            data-draft="{{ $workorder->is_draft ? '1' : '0' }}"
-                        >
-                            <td class="text-center">
-                                @if($workorder->isDone())
-                                    <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none" data-spinner>
-                                        <span class="text-muted">{{ $workorder->number }}</span>
-                                    </a>
-                                @elseif($workorder->is_draft)
-                                    <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none" data-spinner>
-                                        <span style="font-size: 16px; color: yellowgreen;">
-                                            Draft&nbsp;{{ $workorder->number }}
-                                        </span>
-                                    </a>
-                                @else
-                                    <a href="{{ route('mains.show', $workorder->id) }}" class="text-decoration-none" data-spinner>
-                                        <span style="font-size: 16px; color: #0DDDFD;">
-                                            w&nbsp;{{ $workorder->number }}
-                                        </span>
-                                    </a>
-                                @endif
-                            </td>
-
-                            <td class="text-center no-print">
-                                @hasanyrole('Admin|Manager')
-                                <a href="#"
-                                   class="approve-btn"
-                                   data-id="{{ $workorder->id }}"
-                                   data-approve-at="{{ $workorder->approve_at ? $workorder->approve_at->format('Y-m-d') : '' }}"
-                                   data-approve-title="{{ $workorder->approve_at ? ($workorder->approve_at->format('d.m.Y') . ' ' . $workorder->approve_name) : '' }}"
-                                   onclick="return false;">
-                                    @if($workorder->approve_at)
-                                        <img class="approve-icon"
-                                             src="{{ asset('img/ok.png') }}" width="20"
-                                             title="{{ $workorder->approve_at->format('d.m.Y') }} {{ $workorder->approve_name }}">
-                                    @else
-                                        <img class="approve-icon" src="{{ asset('img/icon_no.png') }}" width="12">
-                                    @endif
-                                </a>
-                                @else
-                                    @if($workorder->approve_at)
-                                        <img src="{{ asset('img/ok.png') }}" width="20"
-                                             title="{{ $workorder->approve_at->format('d.m.Y') }} {{ $workorder->approve_name }}">
-                                    @else
-                                        <img src="{{ asset('img/icon_no.png') }}" width="12">
-                                    @endif
-                                    @endhasanyrole
-                            </td>
-
-                            @php
-                                $ec = $ecStatuses[$workorder->id] ?? null;
-                                $ecState = $ec['state'] ?? 'none';
-
-                                $startDate = optional($ec['date_start'] ?? null)->format('d.m.Y');
-                                $finishDate = optional($ec['date_finish'] ?? null)->format('d.m.Y');
-
-                                $startBy = $ec['date_start_user'] ?? ($ec['user_name'] ?? '');
-                                $finishBy = $ec['date_finish_user'] ?? ($ec['user_name'] ?? '');
-
-                                $startDateText = $startDate ?: '—';
-                                $finishDateText = $finishDate ?: '—';
-
-                                $ecTitle = '';
-                                if ($ecState === 'none') {
-                                    $ecTitle = 'There is no EC process';
-                                } elseif ($ecState === 'exists') {
-                                    $who = $startBy ?: ' ';
-                                    $ecTitle = "EC: open: {$who}";
-                                } elseif ($ecState === 'started') {
-                                    $who = $startBy ?: '—';
-                                    $ecTitle = "EC: start {$startDateText} ({$who}).";
-                                } elseif ($ecState === 'finished') {
-                                    $whoStart = $startBy ?: '—';
-                                    $whoFinish = $finishBy ?: '—';
-                                    $ecTitle = "EC: start {$startDateText} ({$whoStart}); finish {$finishDateText} ({$whoFinish}).";
-                                } else {
-                                    $ecTitle = 'EC: —';
-                                }
-                            @endphp
-                            <td class="text-center no-print" title="{{ $ecTitle }}">
-                                @if($ecState === 'none')
-                                    <img
-                                        class="ec-icon-img"
-                                        src="{{ asset('img/icon_no.png') }}"
-                                        alt="EC none"
-                                    >
-                                @elseif($ecState === 'exists')
-                                    <i class=" ec-open-arrow">EC</i>
-                                @elseif($ecState === 'started')
-                                    <i class="bi bi-arrow-right ec-arrow"></i>
-                                @elseif($ecState === 'finished')
-                                    <i class="bi bi-box-arrow-in-left ec-arrow-finish"></i>
-                                @else
-                                    <img
-                                        class="ec-icon-img"
-                                        src="{{ asset('img/icon_no.png') }}"
-                                        alt="EC unknown"
-                                    >
-                                @endif
-                            </td>
-                            @hasanyrole('Admin|Manager')
-                            <td class="text-center no-print">
-                                @php
-                                    $byGt = $workorder->generalTaskStatuses->keyBy('general_task_id');
-                                    $mainsByTask = $workorder->main
-                                        ? $workorder->main->whereNotNull('task_id')->keyBy('task_id')
-                                        : collect();
-                                @endphp
-
-                                <div class="stage-strip">
-                                    <span class="stage-strip-segments" aria-hidden="true">
-                                    @foreach($generalTasks as $gt)
-                                        @php
-                                            $st = $byGt->get($gt->id);
-
-                                            // ✅ started = есть хотя бы один main по задачам этого general_task
-                                            $gtTasks = $tasksByGeneral->get($gt->id, collect());
-                                            $started = $gtTasks->pluck('id')->contains(fn($tid) => $mainsByTask->has($tid));
-
-                                            if (!$started) {
-                                                $class = 'empty'; // серый
-                                            } elseif ($st && $st->is_done) {
-                                                $class = 'done'; // зелёный
-                                            } else {
-                                                $class = 'todo'; // amber
-                                            }
-                                        @endphp
-
-                                        <span class="stage-seg {{ $class }}"></span>
-                                    @endforeach
-                                    </span>
-                                </div>
-                            </td>
-                            @endhasanyrole
-
-                            <td class="text-center">{{ data_get($workorder, 'unit.part_number', '-') }}</td>
-
-                            <td class="text-center"
-                                data-bs-toggle="tooltip"
-                                title="{{ $workorder->description }}">{{ $workorder->description }}
-                            </td>
-
-                            <td class="text-center">
-                                {{ $workorder->serial_number }}
-                                @if($workorder->amdt > 0)
-                                    Amdt {{ $workorder->amdt }}
-                                @endif
-                            </td>
-
-                            <td class="text-center no-print">
-                                {{ data_get($workorder, 'unit.manuals.number', '-') }}
-                                @if(data_get($workorder, 'unit.manuals.lib'))
-                                    <span class="text-white-50">({{ data_get($workorder, 'unit.manuals.lib') }})</span>
-                                @endif
-                            </td>
-
-                            <td class="text-center"
-                                data-bs-toggle="tooltip"
-                                title="{{ $workorder->customer->name }}">{{ $workorder->customer->name }}
-                            </td>
-
-                            <td class="text-center">
-                                {{ $workorder->instruction->name }}
-                            </td>
-
-                            <td class="text-center">
-                                @if($workorder->open_at)
-                                    <span style="display: none">
-                                        {{ $workorder->open_at->format('Ymd') }}
-                                    </span>
-                                    {{ $workorder->open_at->format('d.m.Y') }}
-                                @else
-                                    <span style="display: none">{{ $workorder->open_at }}</span>
-                                    {{ $workorder->open_at }}
-                                @endif
-                            </td>
-
-                            <td class="text-center td-customer_po">
-                                {{ $workorder->customer_po }}
-                            </td>
-
-                            <td class="text-center no-print">
-                                <a href="{{ route('workorders.edit', $workorder->id) }}">
-                                    <img src="{{ asset('img/set.png') }}" width="25" alt="Edit">
-                                </a>
-                            </td>
-
-                            <td class="text-center td-technik no-print">
-                                {{ $workorder->user->name }}
-                            </td>
-
-                            @role('Admin')
-                            <td class="text-center no-print">
-                                <form id="deleteForm_{{ $workorder->id }}"
-                                      action="{{ route('workorders.destroy', $workorder->id) }}"
-                                      method="POST" style="display:inline;">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="btn btn-sm btn-outline-danger"
-                                            type="button" name="btn_delete"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#useConfirmDelete"
-                                            data-form-id="deleteForm_{{ $workorder->id }}"
-                                            data-title="Delete Confirmation WO {{ $workorder->number }}">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
-                            </td>
-                            @endrole
-                        </tr>
-                    @endforeach
-                    </tbody>
-                </table>
+            <div id="workordersLoadStatus" class="load-status d-flex align-items-center justify-content-center py-2 text-muted">
+                @if($hasMore)
+                    Scroll down to load more workorders...
+                @elseif($totalCount > 0)
+                    All matching workorders are loaded.
+                @else
+                    No workorders found.
+                @endif
             </div>
-
-        @else
-            <p class="ms-2">Workorders not created</p>
-        @endif
+        </div>
     </div>
 
     @include('components.delete')
@@ -703,11 +526,18 @@
 
 @section('scripts')
     <script>
-        const currentUserId = {{ auth()->id() }};
-        const currentUserName = @json(trim(auth()->user()->name));
-        const currentUserNameLC = currentUserName.toLowerCase();
+        const workordersIndexUrl = @json(route('workorders.index'));
+        const workordersApproveBaseUrl = @json(url('/workorders'));
+        const workordersPdfUrl = @json(route('reports.table.pdf'));
+        const workordersCsrfToken = @json(csrf_token());
 
         document.addEventListener('DOMContentLoaded', function () {
+            const tableWrapper = document.getElementById('printArea');
+            const tbody = document.getElementById('workordersTbody');
+            const loadStatus = document.getElementById('workordersLoadStatus');
+            const visibleCounter = document.getElementById('woVisible');
+            const totalCounter = document.getElementById('woTotal');
+
             const searchInput = document.getElementById('searchInput');
             const clearSearchBtn = document.getElementById('clearSearch');
 
@@ -720,47 +550,54 @@
             const technikFilter = document.getElementById('technikFilter');
             const clearCustomerBtn = document.getElementById('clearCustomerFilter');
             const clearTechnikBtn = document.getElementById('clearTechnikFilter');
+            const headers = Array.from(document.querySelectorAll('.sortable[data-sort-key]'));
 
-            const table = document.getElementById('show-workorder');
-            const tableWrapper = document.querySelector('.table-wrapper');
-            const headers = document.querySelectorAll('.sortable');
+            const deleteModal = document.getElementById('useConfirmDelete');
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
 
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-            });
+            let currentFormId = null;
+            let searchDebounce = null;
+            let approvePopover = null;
+            let approveInput = null;
 
-            // показать/скрыть крестик у search
-            searchInput.addEventListener('input', function () {
-                clearSearchBtn.style.display = this.value ? 'block' : 'none';
-            });
-            clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
+            const state = {
+                q: '',
+                customerId: '',
+                technikId: '',
+                onlyMy: true,
+                onlyActive: false,
+                onlyApproved: false,
+                showDrafts: false,
+                sort: tableWrapper.dataset.initialSort || 'number',
+                direction: tableWrapper.dataset.initialDirection || 'desc',
+                cursor: tableWrapper.dataset.nextCursor || '',
+                hasMore: tableWrapper.dataset.hasMore === '1',
+                loading: false,
+                loadedCount: tbody.querySelectorAll('tr[data-id]').length,
+                totalCount: Number(tableWrapper.dataset.totalCount || 0),
+                overallTotal: Number(tableWrapper.dataset.overallTotal || 0),
+                activeRequest: 0,
+            };
 
-            // --- восстановление состояний чекбоксов из localStorage ---
-            const savedMy = localStorage.getItem('myWorkordersCheckbox');
-            const savedDone = localStorage.getItem('doneCheckbox');
-            const savedApproved = localStorage.getItem('approvedCheckbox');
-            const savedDraft = localStorage.getItem('draftCheckbox');
+            const serverState = {
+                q: tableWrapper.dataset.initialQ || '',
+                customerId: tableWrapper.dataset.initialCustomer || '',
+                technikId: tableWrapper.dataset.initialTechnik || '',
+                onlyMy: tableWrapper.dataset.initialOnlyMy === '1',
+                onlyActive: tableWrapper.dataset.initialOnlyActive === '1',
+                onlyApproved: tableWrapper.dataset.initialOnlyApproved === '1',
+                showDrafts: tableWrapper.dataset.initialShowDrafts === '1',
+                sort: tableWrapper.dataset.initialSort || 'number',
+                direction: tableWrapper.dataset.initialDirection || 'desc',
+            };
 
-            checkboxMy.checked = savedMy !== null ? savedMy === 'true' : true;
-            checkboxDone.checked = savedDone !== null ? savedDone === 'true' : false;
-            checkboxApproved.checked = savedApproved !== null ? savedApproved === 'true' : false;
-            checkboxDraft.checked = savedDraft !== null ? savedDraft === 'true' : false;
-
-            localStorage.setItem('myWorkordersCheckbox', checkboxMy.checked);
-            localStorage.setItem('doneCheckbox', checkboxDone.checked);
-            localStorage.setItem('approvedCheckbox', checkboxApproved.checked);
-            localStorage.setItem('draftCheckbox', checkboxDraft.checked);
-
-            // восстановление фильтров select из localStorage
-            const savedCustomer = localStorage.getItem('woCustomerFilter') || '';
-            const savedTechnik = localStorage.getItem('woTechnikFilter') || '';
-
-            if (customerFilter) customerFilter.value = savedCustomer;
-            if (technikFilter) technikFilter.value = savedTechnik;
+            function initializeTooltips(root = document) {
+                root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => bootstrap.Tooltip.getOrCreateInstance(el));
+            }
 
             function updateSelectClearButton(selectEl, buttonEl) {
                 if (!selectEl || !buttonEl) return;
+
                 if (selectEl.value) {
                     buttonEl.classList.remove('btn-outline-secondary');
                     buttonEl.classList.add('btn-primary', 'text-white');
@@ -770,206 +607,133 @@
                 }
             }
 
-            updateSelectClearButton(customerFilter, clearCustomerBtn);
-            updateSelectClearButton(technikFilter, clearTechnikBtn);
-            let firstFilterDone = false;
-
-            function updateVisibleCounter() {
-                const tableEl = document.getElementById('show-workorder');
-                const counter = document.getElementById('woVisible');
-                if (!tableEl || !counter) return;
-
-                const rows = tableEl.querySelectorAll('tbody tr');
-                let visible = 0;
-
-                rows.forEach(r => {
-                    if (r.style.display !== 'none') visible++;
-                });
-
-                counter.textContent = visible;
+            function updateSearchClearButton() {
+                clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
             }
 
-
-            function filterTable() {
-                if (!table) {
-                    if (!firstFilterDone) {
-                        firstFilterDone = true;
-                        if (typeof window.safeHideSpinner === 'function') {
-                            window.safeHideSpinner();
-                        }
-                    }
-                    return;
-                }
-
-                const filterText = searchInput.value.toLowerCase();
-                const onlyMy = checkboxMy.checked;
-                const onlyActive = checkboxDone.checked;
-                const onlyApproved = checkboxApproved.checked;
-                const onlyDraft = checkboxDraft.checked;
-
-                const selectedCustomer = customerFilter ? customerFilter.value : '';
-                const selectedTechnik = technikFilter ? technikFilter.value : '';
-
-                const rows = table.querySelectorAll('tbody tr');
-
-                rows.forEach(row => {
-                    const rowText = row.innerText.toLowerCase();
-                    const rowTechId = row.getAttribute('data-tech-id');
-                    const rowCustomerId = row.getAttribute('data-customer-id');
-                    const rowStatus = (row.dataset.status || 'active').toLowerCase();
-                    const rowApproved = row.getAttribute('data-approved') === '1';
-                    const rowDraft = row.getAttribute('data-draft') === '1';
-
-                    const matchesSearch = !filterText || rowText.includes(filterText);
-                    const matchesUser = onlyMy ? String(rowTechId) === String(currentUserId) : true;
-                    const matchesStatus = onlyActive ? rowStatus === 'active' : true;
-                    const matchesApproved = onlyApproved ? rowApproved : true;
-                    const matchesDraft = onlyDraft ? rowDraft : !rowDraft;
-                    const matchesCustomer = selectedCustomer ? String(rowCustomerId) === String(selectedCustomer) : true;
-                    const matchesTechnik = selectedTechnik ? String(rowTechId) === String(selectedTechnik) : true;
-
-                    row.style.display =
-                        (matchesSearch && matchesUser && matchesStatus &&
-                            matchesApproved && matchesCustomer && matchesTechnik && matchesDraft)
-                            ? ''
-                            : 'none';
-                });
-
-                updateVisibleCounter();
-
-                if (!firstFilterDone) {
-                    firstFilterDone = true;
-                    tableWrapper.classList.add('ready');
-                    if (typeof window.safeHideSpinner === 'function') {
-                        window.safeHideSpinner();
-                    }
-                }
-
+            function getUrlValue(params, key, fallback = '') {
+                return params.has(key) ? (params.get(key) || '') : fallback;
             }
 
-            // сортировка по клику на заголовок
-            headers.forEach(header => {
-                header.addEventListener('click', () => {
-                    const columnIndex = Array.from(header.parentNode.children).indexOf(header) + 1;
-                    const direction = header.dataset.direction === 'asc' ? 'desc' : 'asc';
-                    header.dataset.direction = direction;
-
-                    headers.forEach(h => {
-                        const icon = h.querySelector('i');
-                        if (icon) icon.className = 'bi bi-chevron-expand';
-                    });
-                    const currentIcon = header.querySelector('i');
-                    if (currentIcon) {
-                        currentIcon.className = direction === 'asc'
-                            ? 'bi bi-arrow-up'
-                            : 'bi bi-arrow-down';
-                    }
-
-                    const rows = Array.from(table.querySelectorAll('tbody tr'));
-                    rows.sort((a, b) => {
-                        const aText = a.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
-                        const bText = b.querySelector(`td:nth-child(${columnIndex})`).innerText.trim();
-                        return direction === 'asc'
-                            ? aText.localeCompare(bText)
-                            : bText.localeCompare(aText);
-                    });
-                    rows.forEach(row => table.querySelector('tbody').appendChild(row));
-                    filterTable();
-                });
-            });
-
-            // события
-            searchInput.addEventListener('input', filterTable);
-
-            checkboxMy.addEventListener('change', () => {
-                localStorage.setItem('myWorkordersCheckbox', checkboxMy.checked);
-                filterTable();
-            });
-
-            checkboxDone.addEventListener('change', () => {
-                localStorage.setItem('doneCheckbox', checkboxDone.checked);
-                filterTable();
-            });
-
-            checkboxApproved.addEventListener('change', () => {
-                localStorage.setItem('approvedCheckbox', checkboxApproved.checked);
-                filterTable();
-            });
-
-            checkboxDraft.addEventListener('change', () => {
-                localStorage.setItem('draftCheckbox', checkboxDraft.checked);
-                filterTable();
-            });
-
-            customerFilter?.addEventListener('change', () => {
-                localStorage.setItem('woCustomerFilter', customerFilter.value);
-                updateSelectClearButton(customerFilter, clearCustomerBtn);
-                filterTable();
-            });
-
-            technikFilter?.addEventListener('change', () => {
-                localStorage.setItem('woTechnikFilter', technikFilter.value);
-                updateSelectClearButton(technikFilter, clearTechnikBtn);
-                filterTable();
-            });
-
-            clearCustomerBtn?.addEventListener('click', () => {
-                if (!customerFilter) return;
-                customerFilter.value = '';
-                localStorage.setItem('woCustomerFilter', '');
-                updateSelectClearButton(customerFilter, clearCustomerBtn);
-                filterTable();
-            });
-
-            clearTechnikBtn?.addEventListener('click', () => {
-                if (!technikFilter) return;
-                technikFilter.value = '';
-                localStorage.setItem('woTechnikFilter', '');
-                updateSelectClearButton(technikFilter, clearTechnikBtn);
-                filterTable();
-            });
-
-            clearSearchBtn.addEventListener('click', function () {
-                searchInput.value = '';
-                searchInput.dispatchEvent(new Event('input'));
-            });
-
-            // ?q= из URL — подставить в поиск (например ссылка из AI: открыть таблицу с фильтром)
-            try {
+            function getUrlBool(params, key, fallback) {
+                if (!params.has(key)) return fallback;
+                const value = params.get(key);
+                return value === '1' || value === 'true';
+            }
+            function readStoredState() {
                 const params = new URLSearchParams(window.location.search);
-                const q = params.get('q');
-                if (q !== null && searchInput) {
-                    searchInput.value = q;
-                    if (clearSearchBtn) clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
+
+                state.q = getUrlValue(params, 'q', localStorage.getItem('woSearchInput') || serverState.q);
+                state.customerId = getUrlValue(params, 'customer_id', localStorage.getItem('woCustomerFilter') || serverState.customerId);
+                state.technikId = getUrlValue(params, 'technik_id', localStorage.getItem('woTechnikFilter') || serverState.technikId);
+                state.onlyMy = getUrlBool(params, 'only_my', localStorage.getItem('myWorkordersCheckbox') !== null ? localStorage.getItem('myWorkordersCheckbox') === 'true' : serverState.onlyMy);
+                state.onlyActive = getUrlBool(params, 'only_active', localStorage.getItem('doneCheckbox') !== null ? localStorage.getItem('doneCheckbox') === 'true' : serverState.onlyActive);
+                state.onlyApproved = getUrlBool(params, 'only_approved', localStorage.getItem('approvedCheckbox') !== null ? localStorage.getItem('approvedCheckbox') === 'true' : serverState.onlyApproved);
+                state.showDrafts = getUrlBool(params, 'show_drafts', localStorage.getItem('draftCheckbox') !== null ? localStorage.getItem('draftCheckbox') === 'true' : serverState.showDrafts);
+                state.sort = getUrlValue(params, 'sort', serverState.sort);
+                state.direction = getUrlValue(params, 'direction', serverState.direction);
+            }
+
+            function applyStateToControls() {
+                searchInput.value = state.q;
+                checkboxMy.checked = state.onlyMy;
+                checkboxDone.checked = state.onlyActive;
+                checkboxApproved.checked = state.onlyApproved;
+
+                if (checkboxDraft) {
+                    checkboxDraft.checked = state.showDrafts;
                 }
-            } catch (e) {}
 
-            // delete workorder (модалка)
-            let currentFormId = null;
-            const deleteModal = document.getElementById('useConfirmDelete');
-            const confirmBtn = document.getElementById('confirmDeleteBtn');
+                if (customerFilter) {
+                    customerFilter.value = state.customerId;
+                }
 
-            deleteModal.addEventListener('show.bs.modal', event => {
-                const button = event.relatedTarget;
-                currentFormId = button.getAttribute('data-form-id');
+                if (technikFilter) {
+                    technikFilter.value = state.technikId;
+                }
 
-                const title = button.getAttribute('data-title') || 'Delete Confirmation';
-                document.getElementById('confirmDeleteLabel').textContent = title;
-            });
+                updateSearchClearButton();
+                updateSelectClearButton(customerFilter, clearCustomerBtn);
+                updateSelectClearButton(technikFilter, clearTechnikBtn);
+                updateSortIcons();
+            }
 
-            confirmBtn.addEventListener('click', () => {
-                if (!currentFormId) return;
-                const form = document.getElementById(currentFormId);
-                if (!form) return;
-                if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
-                form.submit();
-            });
+            function persistState() {
+                localStorage.setItem('woSearchInput', state.q);
+                localStorage.setItem('woCustomerFilter', state.customerId);
+                localStorage.setItem('woTechnikFilter', state.technikId);
+                localStorage.setItem('myWorkordersCheckbox', String(state.onlyMy));
+                localStorage.setItem('doneCheckbox', String(state.onlyActive));
+                localStorage.setItem('approvedCheckbox', String(state.onlyApproved));
+                localStorage.setItem('draftCheckbox', String(state.showDrafts));
+            }
 
-            filterTable();
+            function syncUrl() {
+                const params = new URLSearchParams();
 
-            // --- Inline approve date picker рядом с кликом ---
-            let approvePopover = null; // текущий поповер
-            let approveInput = null;
+                if (state.q) params.set('q', state.q);
+                if (state.customerId) params.set('customer_id', state.customerId);
+                if (state.technikId) params.set('technik_id', state.technikId);
+                params.set('only_my', state.onlyMy ? '1' : '0');
+                if (state.onlyActive) params.set('only_active', '1');
+                if (state.onlyApproved) params.set('only_approved', '1');
+                if (state.showDrafts) params.set('show_drafts', '1');
+                if (state.sort && state.sort !== 'number') params.set('sort', state.sort);
+                if (state.direction && state.direction !== 'desc') params.set('direction', state.direction);
+
+                const query = params.toString();
+                const nextUrl = query ? `${workordersIndexUrl}?${query}` : workordersIndexUrl;
+                window.history.replaceState({}, '', nextUrl);
+            }
+
+            function buildQuery(includeCursor = true) {
+                const params = new URLSearchParams();
+                params.set('fragment', '1');
+                params.set('per_page', '50');
+
+                if (state.q) params.set('q', state.q);
+                if (state.customerId) params.set('customer_id', state.customerId);
+                if (state.technikId) params.set('technik_id', state.technikId);
+                params.set('only_my', state.onlyMy ? '1' : '0');
+                if (state.onlyActive) params.set('only_active', '1');
+                if (state.onlyApproved) params.set('only_approved', '1');
+                if (state.showDrafts) params.set('show_drafts', '1');
+                if (state.sort) params.set('sort', state.sort);
+                if (state.direction) params.set('direction', state.direction);
+                if (includeCursor && state.cursor) params.set('cursor', state.cursor);
+
+                return params.toString();
+            }
+
+            function setLoadStatus(text, mode = '') {
+                loadStatus.textContent = text;
+                loadStatus.classList.toggle('is-loading', mode === 'loading');
+                loadStatus.classList.toggle('is-finished', mode === 'finished');
+            }
+
+            function updateCounters() {
+                state.loadedCount = tbody.querySelectorAll('tr[data-id]').length;
+                visibleCounter.textContent = state.loadedCount;
+                totalCounter.textContent = state.totalCount;
+            }
+
+            function updateSortIcons() {
+                headers.forEach(header => {
+                    const icon = header.querySelector('i');
+                    const isCurrent = header.dataset.sortKey === state.sort;
+
+                    if (!icon) return;
+
+                    if (!isCurrent) {
+                        icon.className = 'bi bi-chevron-expand ms-1';
+                        return;
+                    }
+
+                    icon.className = state.direction === 'asc'
+                        ? 'bi bi-arrow-up ms-1'
+                        : 'bi bi-arrow-down ms-1';
+                });
+            }
 
             function closeApprovePopover() {
                 if (approvePopover) {
@@ -979,364 +743,539 @@
                 }
             }
 
-            async function saveApprove(workorderId, approveDate) {
-                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            function shouldReloadInitialData() {
+                return state.q !== serverState.q
+                    || state.customerId !== serverState.customerId
+                    || state.technikId !== serverState.technikId
+                    || state.onlyMy !== serverState.onlyMy
+                    || state.onlyActive !== serverState.onlyActive
+                    || state.onlyApproved !== serverState.onlyApproved
+                    || state.showDrafts !== serverState.showDrafts
+                    || state.sort !== serverState.sort
+                    || state.direction !== serverState.direction;
+            }
 
-                const res = await fetch(`{{ url('/workorders') }}/${workorderId}/approve`, {
+            async function fetchChunk({ reset = false } = {}) {
+                if (state.loading) return;
+
+                if (reset) {
+                    state.cursor = '';
+                    state.hasMore = true;
+                    tbody.innerHTML = '';
+                    updateCounters();
+                } else if (!state.hasMore) {
+                    return;
+                }
+
+                state.loading = true;
+                state.activeRequest += 1;
+                const requestId = state.activeRequest;
+                setLoadStatus('Loading workorders...', 'loading');
+
+                try {
+                    const response = await fetch(`${workordersIndexUrl}?${buildQuery(!reset)}`, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data?.message || 'Failed to load workorders');
+                    }
+
+                    if (requestId !== state.activeRequest) {
+                        return;
+                    }
+
+                    if (reset) {
+                        tbody.innerHTML = data.html || '';
+                    } else if ((data.html || '').trim() !== '') {
+                        tbody.insertAdjacentHTML('beforeend', data.html);
+                    }
+
+                    const emptyRow = tbody.querySelector('.wo-empty-row');
+                    if (emptyRow && tbody.querySelectorAll('tr[data-id]').length > 0) {
+                        emptyRow.remove();
+                    }
+
+                    state.cursor = data.next_cursor || '';
+                    state.hasMore = Boolean(data.has_more);
+                    state.totalCount = Number(data.total_count || 0);
+                    state.overallTotal = Number(data.overall_total || 0);
+
+                    initializeTooltips(tbody);
+                    updateCounters();
+
+                    if (state.hasMore) {
+                        setLoadStatus(`Loaded ${state.loadedCount} of ${state.totalCount}. Scroll down to load more...`);
+                    } else if (state.totalCount > 0) {
+                        setLoadStatus(`All ${state.totalCount} matching workorders are loaded.`, 'finished');
+                    } else {
+                        setLoadStatus('No workorders found.', 'finished');
+                    }
+                } catch (error) {
+                    console.error(error);
+                    setLoadStatus(error.message || 'Failed to load workorders.');
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(error.message || 'Failed to load workorders.', 'error');
+                    }
+                } finally {
+                    state.loading = false;
+                    if (typeof window.safeHideSpinner === 'function') {
+                        window.safeHideSpinner();
+                    }
+                }
+            }
+            async function resetAndReload() {
+                persistState();
+                syncUrl();
+                closeApprovePopover();
+
+                if (typeof window.showLoadingSpinner === 'function') {
+                    window.showLoadingSpinner();
+                }
+
+                await fetchChunk({ reset: true });
+            }
+
+            async function maybeLoadMoreOnScroll() {
+                if (!state.hasMore || state.loading) return;
+
+                const threshold = 180;
+                const remaining = tableWrapper.scrollHeight - tableWrapper.scrollTop - tableWrapper.clientHeight;
+                if (remaining <= threshold) {
+                    await fetchChunk();
+                }
+            }
+
+            async function ensureAllLoaded() {
+                while (state.hasMore && !state.loading) {
+                    await fetchChunk();
+                }
+            }
+
+            async function saveApprove(workorderId, approveDate) {
+                const response = await fetch(`${workordersApproveBaseUrl}/${workorderId}/approve`, {
                     method: 'POST',
                     headers: {
-                        'X-CSRF-TOKEN': csrf,
+                        'X-CSRF-TOKEN': workordersCsrfToken,
                         'Accept': 'application/json',
                         'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
                     body: JSON.stringify({ approve_date: approveDate || null }),
                 });
 
-                const data = await res.json();
-                if (!res.ok || !data.ok) throw data;
+                const data = await response.json();
+                if (!response.ok || !data.ok) {
+                    throw new Error(data?.message || 'Approve save failed');
+                }
 
-                // --- обновляем UI ---
-                const link = document.querySelector(`.approve-btn[data-id="${workorderId}"]`);
+                const link = tbody.querySelector(`.approve-btn[data-id="${workorderId}"]`);
                 if (link) {
                     const img = link.querySelector('.approve-icon');
+
                     if (data.approved) {
                         link.dataset.approveAt = data.approve_at_iso || '';
+                        link.dataset.approveTitle = `${data.approve_at_human || ''} ${data.approve_name || ''}`.trim();
                         if (img) {
-                            img.src = `{{ asset('img/ok.png') }}`;
+                            img.src = @json(asset('img/ok.png'));
                             img.width = 20;
-                            img.title = `${data.approve_at_human} ${data.approve_name}`;
+                            img.title = `${data.approve_at_human || ''} ${data.approve_name || ''}`.trim();
                         }
                     } else {
                         link.dataset.approveAt = '';
+                        link.dataset.approveTitle = '';
                         if (img) {
-                            img.src = `{{ asset('img/icon_no.png') }}`;
+                            img.src = @json(asset('img/icon_no.png'));
                             img.width = 12;
                             img.removeAttribute('title');
                         }
                     }
 
                     const row = link.closest('tr');
-                    if (row) row.setAttribute('data-approved', data.approved ? '1' : '0');
+                    if (row) {
+                        row.dataset.approved = data.approved ? '1' : '0';
+                    }
                 }
 
-                // применить текущие фильтры
-                document.getElementById('searchInput')?.dispatchEvent(new Event('input'));
+                if (state.onlyApproved && !data.approved) {
+                    await resetAndReload();
+                }
+
                 return data;
             }
 
-            // показать поповер рядом с кнопкой (по координатам клика)
-            document.querySelectorAll('.approve-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
+            function openApprovePopover(button, event) {
+                event.preventDefault();
 
-                    // если уже открыт на этом же месте — просто закрыть
-                    if (approvePopover) {
+                if (approvePopover && approvePopover.dataset.ownerId === button.dataset.id) {
+                    closeApprovePopover();
+                    return;
+                }
+
+                closeApprovePopover();
+
+                approvePopover = document.createElement('div');
+                approvePopover.className = 'approve-inline';
+                approvePopover.dataset.ownerId = button.dataset.id;
+                approvePopover.innerHTML = `<input type="date" class="form-control form-control-sm" value="${button.dataset.approveAt || ''}">`;
+
+                document.body.appendChild(approvePopover);
+                approveInput = approvePopover.querySelector('input[type="date"]');
+
+                const pad = 8;
+                const rect = approvePopover.getBoundingClientRect();
+                let left = event.clientX + pad;
+                let top = event.clientY + pad;
+
+                if (left + rect.width > window.innerWidth - 6) left = window.innerWidth - rect.width - 6;
+                if (top + rect.height > window.innerHeight - 6) top = window.innerHeight - rect.height - 6;
+
+                approvePopover.style.left = `${left}px`;
+                approvePopover.style.top = `${top}px`;
+
+                setTimeout(() => {
+                    try { approveInput?.focus(); } catch (_) {}
+                    try { approveInput?.showPicker?.(); } catch (_) {}
+                }, 0);
+
+                approveInput.addEventListener('change', async () => {
+                    try {
+                        if (typeof window.showLoadingSpinner === 'function') window.showLoadingSpinner();
+                        await saveApprove(button.dataset.id, approveInput.value || null);
                         closeApprovePopover();
-                        return;
+                    } catch (error) {
+                        console.error(error);
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(error.message || 'Approve save failed', 'error');
+                        }
+                    } finally {
+                        if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+                    }
+                });
+
+                approveInput.addEventListener('keydown', async (evt) => {
+                    if (evt.key !== 'Enter' || approveInput.value) return;
+
+                    evt.preventDefault();
+
+                    try {
+                        if (typeof window.showLoadingSpinner === 'function') window.showLoadingSpinner();
+                        await saveApprove(button.dataset.id, null);
+                        closeApprovePopover();
+                    } catch (error) {
+                        console.error(error);
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(error.message || 'Approve remove failed', 'error');
+                        }
+                    } finally {
+                        if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+                    }
+                });
+            }
+
+            function getLoadedWorkorderIds() {
+                return Array.from(tbody.querySelectorAll('tr[data-id]'))
+                    .map(row => row.dataset.id)
+                    .filter(Boolean);
+            }
+
+            readStoredState();
+            applyStateToControls();
+            initializeTooltips(document);
+            updateCounters();
+
+            tableWrapper.addEventListener('scroll', maybeLoadMoreOnScroll);
+
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const key = header.dataset.sortKey;
+                    if (!key) return;
+
+                    if (state.sort === key) {
+                        state.direction = state.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        state.sort = key;
+                        state.direction = key === 'number' ? 'desc' : 'asc';
                     }
 
-                    const id = btn.dataset.id;
-                    const current = btn.dataset.approveAt || '';
-
-                    approvePopover = document.createElement('div');
-                    approvePopover.className = 'approve-inline';
-                    approvePopover.innerHTML = `
-            <input type="date" class="form-control form-control-sm" value="${current}">
-<!--            <div class="text-muted small mt-1" style="line-height:1.1">-->
-<!--                pick date → save<br>clear → Enter to save-->
-<!--            </div>-->
-        `;
-
-                    document.body.appendChild(approvePopover);
-                    approveInput = approvePopover.querySelector('input[type="date"]');
-
-                    // позиционирование рядом с местом клика
-                    const pad = 8;
-                    const rect = approvePopover.getBoundingClientRect();
-                    let left = e.clientX + pad;
-                    let top  = e.clientY + pad;
-
-                    // чтобы не вылезало за экран
-                    const vw = window.innerWidth;
-                    const vh = window.innerHeight;
-                    if (left + rect.width > vw - 6) left = vw - rect.width - 6;
-                    if (top + rect.height > vh - 6) top = vh - rect.height - 6;
-
-                    approvePopover.style.left = `${left}px`;
-                    approvePopover.style.top  = `${top}px`;
-
-                    // открыть календарь (где поддерживается showPicker)
-                    setTimeout(() => {
-                        try { approveInput?.focus(); } catch(_) {}
-                        try { approveInput?.showPicker?.(); } catch(_) {}
-                    }, 0);
-
-                    // 1) выбрал дату -> сразу сохранить
-                    approveInput.addEventListener('change', async () => {
-                        const val = approveInput.value; // YYYY-MM-DD
-                        try {
-                            if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
-                            await saveApprove(id, val);
-                            closeApprovePopover();
-                        } catch (err) {
-                            console.error(err);
-                            showNotification(err?.message || 'Approve save failed', 'error');
-                        } finally {
-                            if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
-                        }
-                    });
-
-                    // 2) стер дату -> сохранить ТОЛЬКО по Enter
-                    approveInput.addEventListener('keydown', async (evt) => {
-                        if (evt.key !== 'Enter') return;
-
-                        // если дата есть — Enter ничего не делает (сохраняем только change)
-                        if (approveInput.value) return;
-
-                        evt.preventDefault();
-
-                        try {
-                            if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
-                            await saveApprove(id, null);
-                            closeApprovePopover();
-                        } catch (err) {
-                            console.error(err);
-                            showNotification(err?.message || 'Approve remove failed', 'error');
-                        } finally {
-                            if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
-                        }
-                    });
+                    updateSortIcons();
+                    resetAndReload();
                 });
             });
 
-// клик вне поповера — закрыть
-            document.addEventListener('mousedown', (e) => {
-                if (!approvePopover) return;
-                const inside = approvePopover.contains(e.target) || e.target.closest('.approve-btn');
-                if (!inside) closeApprovePopover();
+            searchInput.addEventListener('input', () => {
+                state.q = searchInput.value.trim();
+                updateSearchClearButton();
+
+                window.clearTimeout(searchDebounce);
+                searchDebounce = window.setTimeout(() => {
+                    resetAndReload();
+                }, 250);
             });
 
-// Esc — закрыть
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') closeApprovePopover();
+            clearSearchBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                state.q = '';
+                updateSearchClearButton();
+                resetAndReload();
             });
 
-
-        });
-
-        const approveModalEl = document.getElementById('approveModal');
-        const approveModal = approveModalEl ? new bootstrap.Modal(approveModalEl) : null;
-
-        const approveWoId = document.getElementById('approveWoId');
-        const approveDateInput = document.getElementById('approveDateInput');
-        const approveSaveBtn = document.getElementById('approveSaveBtn');
-        const approveHint = document.getElementById('approveHint');
-
-        document.querySelectorAll('.approve-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.dataset.id;
-                const approveAt = btn.dataset.approveAt || '';
-                const title = btn.dataset.approveTitle || '';
-
-                approveWoId.value = id;
-                approveDateInput.value = approveAt; // покажет текущую если есть
-                approveHint.textContent = title ? `Current: ${title}` : 'Not approved yet';
-
-                approveModal?.show();
+            checkboxMy.addEventListener('change', () => {
+                state.onlyMy = checkboxMy.checked;
+                resetAndReload();
             });
-        });
+            checkboxDone.addEventListener('change', () => {
+                state.onlyActive = checkboxDone.checked;
+                resetAndReload();
+            });
 
+            checkboxApproved.addEventListener('change', () => {
+                state.onlyApproved = checkboxApproved.checked;
+                resetAndReload();
+            });
 
-    </script>
+            checkboxDraft?.addEventListener('change', () => {
+                state.showDrafts = checkboxDraft.checked;
+                resetAndReload();
+            });
 
-    <script>
-        function printSection(elementId) {
-            const el = document.getElementById(elementId);
-            if (!el) return;
+            customerFilter?.addEventListener('change', () => {
+                state.customerId = customerFilter.value;
+                updateSelectClearButton(customerFilter, clearCustomerBtn);
+                resetAndReload();
+            });
 
-            const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
-                .map(l => `<link rel="stylesheet" href="${l.href}">`)
-                .join('');
+            technikFilter?.addEventListener('change', () => {
+                state.technikId = technikFilter.value;
+                updateSelectClearButton(technikFilter, clearTechnikBtn);
+                resetAndReload();
+            });
 
-            const style = `
+            clearCustomerBtn?.addEventListener('click', () => {
+                if (!customerFilter) return;
+                customerFilter.value = '';
+                state.customerId = '';
+                updateSelectClearButton(customerFilter, clearCustomerBtn);
+                resetAndReload();
+            });
+
+            clearTechnikBtn?.addEventListener('click', () => {
+                if (!technikFilter) return;
+                technikFilter.value = '';
+                state.technikId = '';
+                updateSelectClearButton(technikFilter, clearTechnikBtn);
+                resetAndReload();
+            });
+
+            deleteModal.addEventListener('show.bs.modal', event => {
+                const button = event.relatedTarget;
+                currentFormId = button?.getAttribute('data-form-id') || null;
+
+                const title = button?.getAttribute('data-title') || 'Delete Confirmation';
+                document.getElementById('confirmDeleteLabel').textContent = title;
+            });
+
+            confirmBtn.addEventListener('click', () => {
+                if (!currentFormId) return;
+                const form = document.getElementById(currentFormId);
+                if (!form) return;
+                if (typeof window.showLoadingSpinner === 'function') window.showLoadingSpinner();
+                form.submit();
+            });
+
+            document.addEventListener('click', event => {
+                const approveBtn = event.target.closest('.approve-btn');
+                if (approveBtn) {
+                    openApprovePopover(approveBtn, event);
+                    return;
+                }
+
+                if (approvePopover && !approvePopover.contains(event.target)) {
+                    closeApprovePopover();
+                }
+            });
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    closeApprovePopover();
+                }
+            });
+
+            window.printSection = async function printSection(elementId) {
+                await ensureAllLoaded();
+
+                const element = document.getElementById(elementId);
+                if (!element) return;
+
+                const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+                    .map(link => `<link rel="stylesheet" href="${link.href}">`)
+                    .join('');
+
+                const style = `
 <style>
   body { font-family: Arial, sans-serif; padding: 16px; }
   table { width: 100%; border-collapse: collapse; }
   th, td { border: 1px solid #000; padding: 6px; font-size: 12px; }
-
   .no-print, .no-print * { display: none !important; }
+  th.sortable i, th.sortable .bi { display: none !important; }
+</style>`;
 
-  /* убрать стрелки сортировки */
-  th.sortable i,
-  th.sortable .bi {
-      display: none !important;
-  }
-</style>
-`;
+                const win = window.open('', '', 'height=800,width=1100');
+                if (!win) return;
 
-            const win = window.open('', '', 'height=800,width=1100');
-            win.document.open();
-            win.document.write(`
-        <html>
-        <head>
-            <title>Print</title>
-            ${cssLinks}
-            ${style}
-        </head>
-        <body>
-            ${el.outerHTML}
-        </body>
-        </html>
-    `);
-            win.document.close();
-            win.focus();
-            win.print();
-        }
+                win.document.open();
+                win.document.write(`
+                    <html>
+                    <head>
+                        <title>Print</title>
+                        ${cssLinks}
+                        ${style}
+                    </head>
+                    <body>
+                        ${element.outerHTML}
+                    </body>
+                    </html>
+                `);
+                win.document.close();
+                win.focus();
+                win.print();
+            };
 
+            window.copyHtmlToClipboard = async function copyHtmlToClipboard(elementId) {
+                await ensureAllLoaded();
 
+                const original = document.getElementById(elementId);
+                if (!original) return;
 
-    </script>
-    <script>
-        async function copyHtmlToClipboard(elementId) {
-            const original = document.getElementById(elementId);
-            if (!original) return;
-
-            const keepCols = [1, 4, 6, 8, 9, 10];
-            const useKeepCols = Array.isArray(keepCols) && keepCols.length > 0;
-
-            const clone = original.cloneNode(true);
-            const table = clone.querySelector('table');
-            if (!table) return;
-
-            table.querySelectorAll('a').forEach(a => a.replaceWith(document.createTextNode(a.textContent ?? '')));
-
-            if (useKeepCols) {
+                const keepCols = [1, 4, 6, 8, 9, 10];
                 const keepSet = new Set(keepCols.map(Number));
+                const clone = original.cloneNode(true);
+                const table = clone.querySelector('table');
+                if (!table) return;
+
+                table.querySelectorAll('a').forEach(link => {
+                    link.replaceWith(document.createTextNode(link.textContent ?? ''));
+                });
+
                 table.querySelectorAll('tr').forEach(tr => {
                     Array.from(tr.children).forEach((cell, idx) => {
-                        if (!keepSet.has(idx + 1)) cell.remove();
+                        if (!keepSet.has(idx + 1)) {
+                            cell.remove();
+                        }
                     });
                 });
-            }
 
-            clone.querySelectorAll('[class]').forEach(el => el.removeAttribute('class'));
+                clone.querySelectorAll('[class]').forEach(el => el.removeAttribute('class'));
+                table.setAttribute('border', '1');
+                table.style.borderCollapse = 'collapse';
+                table.style.width = '100%';
+                table.style.background = '#fff';
+                table.style.color = '#000';
+                table.style.fontFamily = 'Arial, sans-serif';
+                table.style.fontSize = '12px';
+                table.querySelectorAll('th,td').forEach(cell => {
+                    cell.style.border = '1px solid #000';
+                    cell.style.padding = '6px';
+                    cell.style.background = '#fff';
+                    cell.style.color = '#000';
+                    cell.style.verticalAlign = 'top';
+                    cell.style.whiteSpace = 'nowrap';
+                });
 
-            table.setAttribute('border', '1');
-            table.style.borderCollapse = 'collapse';
-            table.style.width = '100%';
-            table.style.background = '#fff';
-            table.style.color = '#000';
-            table.style.fontFamily = 'Arial, sans-serif';
-            table.style.fontSize = '12px';
-            table.querySelectorAll('th,td').forEach(cell => {
-                cell.style.border = '1px solid #000';
-                cell.style.padding = '6px';
-                cell.style.background = '#fff';
-                cell.style.color = '#000';
-                cell.style.verticalAlign = 'top';
-                cell.style.whiteSpace = 'nowrap';
-            });
+                const html = table.outerHTML;
+                const text = table.innerText;
 
-            const html = table.outerHTML;
-            const text = table.innerText;
+                try {
+                    if (navigator.clipboard && window.ClipboardItem) {
+                        const item = new ClipboardItem({
+                            'text/html': new Blob([html], { type: 'text/html' }),
+                            'text/plain': new Blob([text], { type: 'text/plain' }),
+                        });
+                        await navigator.clipboard.write([item]);
+                        if (typeof window.notifySuccess === 'function') window.notifySuccess('Copied', 3500);
+                        return;
+                    }
+                } catch (_) {}
 
-            // ✅ сначала пробуем современный API, но если упал — идём в fallback
-            try {
-                if (navigator.clipboard && window.ClipboardItem) {
-                    const item = new ClipboardItem({
-                        'text/html': new Blob([html], { type: 'text/html' }),
-                        'text/plain': new Blob([text], { type: 'text/plain' }),
-                    });
-                    await navigator.clipboard.write([item]);
-                    notifySuccess('Copied', 3500);
+                const temp = document.createElement('div');
+                temp.style.position = 'fixed';
+                temp.style.left = '-9999px';
+                temp.innerHTML = html;
+                document.body.appendChild(temp);
+
+                const range = document.createRange();
+                range.selectNodeContents(temp);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+
+                const ok = document.execCommand('copy');
+                selection.removeAllRanges();
+                document.body.removeChild(temp);
+
+                if (typeof window.notifySuccess === 'function') {
+                    window.notifySuccess(ok ? 'Copied!' : 'Copy blocked by browser', 3500);
+                }
+            };
+
+            window.openPdfVisible = async function openPdfVisible(orientation = 'portrait') {
+                await ensureAllLoaded();
+
+                const ids = getLoadedWorkorderIds();
+                if (!ids.length) {
+                    window.alert('No visible rows to export.');
                     return;
                 }
-            } catch (e) {
-                // упали — пойдём в fallback ниже
-            }
 
-            // fallback
-            const temp = document.createElement('div');
-            temp.style.position = 'fixed';
-            temp.style.left = '-9999px';
-            temp.innerHTML = html;
-            document.body.appendChild(temp);
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = workordersPdfUrl;
+                form.target = '_blank';
 
-            const range = document.createRange();
-            range.selectNodeContents(temp);
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
+                const csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = '_token';
+                csrf.value = workordersCsrfToken;
+                form.appendChild(csrf);
 
-            const ok = document.execCommand('copy');
-            sel.removeAllRanges();
-            document.body.removeChild(temp);
+                const ori = document.createElement('input');
+                ori.type = 'hidden';
+                ori.name = 'orientation';
+                ori.value = orientation;
+                form.appendChild(ori);
 
-            if (ok) notifySuccess('Copied!', 3500);
-            else notifySuccess('Copy blocked by browser', 3500);
-        }
-    </script>
+                ids.forEach(id => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'ids[]';
+                    input.value = id;
+                    form.appendChild(input);
+                });
 
-    <script>
-        function getVisibleWorkorderIds() {
-            const rows = document.querySelectorAll('#show-workorder tbody tr');
-            const ids = [];
+                document.body.appendChild(form);
+                form.submit();
+                form.remove();
+            };
 
-            rows.forEach(tr => {
-                // если фильтры прячут строки через display:none — это работает
-                const isHidden = tr.offsetParent === null || getComputedStyle(tr).display === 'none';
-                if (!isHidden) {
-                    const id = tr.getAttribute('data-id');
-                    if (id) ids.push(id);
+            if (shouldReloadInitialData()) {
+                resetAndReload();
+            } else {
+                setLoadStatus(
+                    state.hasMore
+                        ? `Loaded ${state.loadedCount} of ${state.totalCount}. Scroll down to load more...`
+                        : (state.totalCount > 0 ? `All ${state.totalCount} matching workorders are loaded.` : 'No workorders found.'),
+                    state.hasMore ? '' : 'finished'
+                );
+
+                if (typeof window.safeHideSpinner === 'function') {
+                    window.safeHideSpinner();
                 }
-            });
-
-            return ids;
-        }
-
-        function openPdfVisible(orientation = 'portrait') {
-            const ids = getVisibleWorkorderIds();
-
-            if (!ids.length) {
-                alert('No visible rows to export.');
-                return;
             }
-
-            // создаём скрытую POST-форму, чтобы не упереться в лимит длины URL
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = "{{ route('reports.table.pdf') }}";
-            form.target = '_blank';
-
-            // CSRF
-            const csrf = document.createElement('input');
-            csrf.type = 'hidden';
-            csrf.name = '_token';
-            csrf.value = "{{ csrf_token() }}";
-            form.appendChild(csrf);
-
-            // orientation
-            const ori = document.createElement('input');
-            ori.type = 'hidden';
-            ori.name = 'orientation';
-            ori.value = orientation;
-            form.appendChild(ori);
-
-            // ids[]
-            ids.forEach(id => {
-                const inp = document.createElement('input');
-                inp.type = 'hidden';
-                inp.name = 'ids[]';
-                inp.value = id;
-                form.appendChild(inp);
-            });
-
-            document.body.appendChild(form);
-            form.submit();
-            form.remove();
-        }
+        });
     </script>
-
-
-
 @endsection
+

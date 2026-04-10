@@ -193,6 +193,13 @@
             @endif
 
             <div class="p-3 mt-auto border-top border-bottom border-1">
+                @if(Auth::user()?->roleIs('Admin'))
+                    <a class="nav-link" href="{{ route('admin.tests.index') }}">
+                        <i class="bi bi-clipboard2-pulse me-2"></i>
+                        <span>Tests</span>
+                    </a>
+                @endif
+
                 <a class="nav-link" href="{{ route('logout') }}"
                    onclick="event.preventDefault(); document.getElementById('logout-form-menu').submit();">
                     <i class="bi bi-box-arrow-right me-2"></i>
@@ -244,6 +251,13 @@
     </div>
 
     <div class="p-3 mt-auto border-top border-bottom border-1">
+        @if(Auth::user()?->roleIs('Admin'))
+            <a class="nav-link" href="{{ route('admin.tests.index') }}">
+                <i class="bi bi-clipboard2-pulse me-2"></i>
+                <span>Tests</span>
+            </a>
+        @endif
+
         <a class="nav-link" href="{{ route('logout') }}"
            onclick="event.preventDefault(); document.getElementById('logout-form-menu-mobile').submit();">
             <i class="bi bi-box-arrow-right me-2"></i>

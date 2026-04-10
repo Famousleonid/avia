@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
+use Throwable;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -49,7 +50,7 @@ class AppServiceProvider extends ServiceProvider
                 return false;
             }
 
-            // 'Admin|Manager' → ['Admin', 'Manager']
+            // 'Admin|Manager' -> ['Admin', 'Manager']
             $rolesArray = explode('|', $roles);
 
             return auth()->user()->roleIs($rolesArray);
@@ -61,28 +62,33 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Blade::if('notrole', function (string $role) {
-            return auth()->check() && !auth()->user()->roleIs($role);
+            return auth()->check() && ! auth()->user()->roleIs($role);
         });
 
         Blade::if('notroles', function (string $roles) {
-            if (!auth()->check()) return false;
+            if (! auth()->check()) {
+                return false;
+            }
 
             $rolesArray = explode('|', $roles);
 
-            return !auth()->user()->roleIs($rolesArray);
+            return ! auth()->user()->roleIs($rolesArray);
         });
 
         Workorder::observe(WorkorderObserver::class);
 
         DB::listen(function ($query) {
-            // время в миллисекундах
             if ($query->time > 500) {
-                Log::channel('avia')->warning('SLOW SQL', [
-                    'time_ms'  => $query->time,
-                    'sql'      => $query->sql,
-                    'bindings' => $query->bindings,
-                    // 'connection' => $query->connectionName, // если нужно
-                ]);
+                try {
+                    Log::channel('avia')->warning('SLOW SQL', [
+                        'time_ms' => $query->time,
+                        'sql' => $query->sql,
+                        'bindings' => $query->bindings,
+                        // 'connection' => $query->connectionName,
+                    ]);
+                } catch (Throwable $e) {
+                    // Logging must never break the request lifecycle.
+                }
             }
         });
     }

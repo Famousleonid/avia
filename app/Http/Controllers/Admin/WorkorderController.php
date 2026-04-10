@@ -15,6 +15,8 @@ use App\Models\User;
 use App\Models\Workorder;
 use App\Models\TdrProcess;
 use App\Services\WorkorderStdListProcessesService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -241,113 +243,356 @@ class WorkorderController extends Controller
 
     public function index()
     {
-        $query = Workorder::withDrafts()
-            ->with(['main.task', 'unit.manuals', 'customer', 'instruction', 'user', 'generalTaskStatuses'])
-            ->orderByDesc('number');
+        $payload = $this->buildWorkorderIndexPayload(request());
 
-        if (auth()->check() && auth()->user()->roleIs('Technician')) {
-            $query->where('is_draft', 0); // <-- явно 0
+        if (request()->boolean('fragment') || request()->expectsJson()) {
+            return response()->json([
+                'html' => view('admin.workorders.partials.rows', [
+                    'workorders' => $payload['workorders']->items(),
+                    'ecStatuses' => $payload['ecStatuses'],
+                    'generalTasks' => $payload['generalTasks'],
+                    'tasksByGeneral' => $payload['tasksByGeneral'],
+                ])->render(),
+                'next_cursor' => $payload['nextCursor'],
+                'has_more' => $payload['hasMore'],
+                'loaded_count' => count($payload['workorders']->items()),
+                'total_count' => $payload['totalCount'],
+                'overall_total' => $payload['overallTotal'],
+            ]);
         }
 
-        $workorders = $query->get();
+        $customers = Customer::query()->orderBy('name')->get(['id', 'name']);
+        $users = User::query()->orderBy('name')->get(['id', 'name']);
 
-        // --- EC status column (after Approve) ---
-        $ecStatuses = [];
-        $ecProcessNameId = ProcessName::where('name', 'EC')->value('id');
-        if ($ecProcessNameId) {
-            $workorderIds = $workorders->pluck('id')->values()->all();
+        return view('admin.workorders.index', [
+            'workorders' => $payload['workorders']->items(),
+            'customers' => $customers,
+            'users' => $users,
+            'generalTasks' => $payload['generalTasks'],
+            'tasksByGeneral' => $payload['tasksByGeneral'],
+            'ecStatuses' => $payload['ecStatuses'],
+            'nextCursor' => $payload['nextCursor'],
+            'hasMore' => $payload['hasMore'],
+            'totalCount' => $payload['totalCount'],
+            'overallTotal' => $payload['overallTotal'],
+            'initialSort' => $payload['filters']['sort'],
+            'initialDirection' => $payload['filters']['direction'],
+        ]);
 
-            $ecRows = TdrProcess::query()
-                ->where('process_names_id', $ecProcessNameId)
-                ->whereHas('tdr', function ($q) use ($workorderIds) {
-                    $q->whereIn('workorder_id', $workorderIds);
-                })
-                ->with([
-                    'tdr:id,workorder_id',
-                    // кто менял/вводил даты (у записи один user_id; показываем его и для start/finish)
-                    'updatedBy:id,name'
-                ])
-                ->get();
+    }
 
-            foreach ($ecRows as $row) {
-                $woId = (int)($row->tdr?->workorder_id ?? 0);
-                if ($woId <= 0) continue;
+    private function buildWorkorderIndexPayload(Request $request): array
+    {
+        $filters = $this->normalizeWorkorderIndexFilters($request);
 
-                $current = $ecStatuses[$woId] ?? [
-                    'state' => 'none', // none | exists | started | finished
-                    'date_start' => null,
-                    'date_finish' => null,
-                    'date_start_user' => null,
-                    'date_finish_user' => null,
-                    'user_name' => null,
-                ];
+        $overallQuery = Workorder::query()->withDrafts();
+        $this->applyWorkorderRoleVisibility($overallQuery);
+        $overallTotal = (clone $overallQuery)->count();
 
-                $userName = optional($row->updatedBy)->name;
+        $filteredCountQuery = Workorder::query()->withDrafts();
+        $this->applyWorkorderRoleVisibility($filteredCountQuery);
+        $this->applyWorkorderIndexFilters($filteredCountQuery, $filters);
+        $totalCount = (clone $filteredCountQuery)->count();
 
-                // precedence: finished > started > exists > none
-                if (!empty($row->date_finish)) {
-                    $current['state'] = 'finished';
-                    $current['date_finish'] = $current['date_finish'] ?? $row->date_finish;
-                    $current['date_finish_user'] = $current['date_finish_user'] ?? $userName;
+        $query = Workorder::query()
+            ->withDrafts()
+            ->with([
+                'main.task',
+                'unit.manual',
+                'customer',
+                'instruction',
+                'user',
+                'generalTaskStatuses',
+            ]);
 
-                    // если start ещё не записан — запишем из текущей строки (если есть)
-                    if (!empty($row->date_start)) {
-                        $current['date_start'] = $current['date_start'] ?? $row->date_start;
-                        $current['date_start_user'] = $current['date_start_user'] ?? $userName;
-                    }
-                } elseif (!empty($row->date_start)) {
-                    // если date_start появился — апгрейдим в started (если не finished)
-                    if ($current['state'] !== 'finished') {
-                        $current['state'] = 'started';
-                    }
-                    $current['date_start'] = $current['date_start'] ?? $row->date_start;
-                    $current['date_start_user'] = $current['date_start_user'] ?? $userName;
-                } else {
-                    if ($current['state'] === 'none') {
-                        $current['state'] = 'exists'; // has EC row, but no dates
-                        $current['user_name'] = $current['user_name'] ?? $userName;
-                    }
-                }
+        $this->applyWorkorderRoleVisibility($query);
+        $this->applyWorkorderIndexFilters($query, $filters);
+        $this->applyWorkorderIndexSorting($query, $filters);
 
-                $ecStatuses[$woId] = $current;
-            }
+        $workorders = $query->cursorPaginate(
+            $filters['per_page'],
+            ['workorders.*'],
+            'cursor',
+            $filters['cursor']
+        );
 
-            // ensure started/finished contain proper fields
-            foreach ($ecStatuses as $woId => $st) {
-                $ecStatuses[$woId] = [
-                    'state' => $st['state'] ?? 'none',
-                    'date_start' => $st['date_start'] ?? null,
-                    'date_finish' => $st['date_finish'] ?? null,
-                    'date_start_user' => $st['date_start_user'] ?? null,
-                    'date_finish_user' => $st['date_finish_user'] ?? null,
-                    'user_name' => $st['user_name'] ?? null,
-                ];
-            }
-        }
+        $generalTasks = GeneralTask::query()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
 
-        $generalTasks = GeneralTask::orderBy('sort_order')->orderBy('id')->get();
-        $tasksByGeneral = \App\Models\Task::select('id','name','general_task_id')
+        $tasksByGeneral = Task::query()
+            ->select('id', 'name', 'general_task_id')
             ->orderBy('general_task_id')
             ->orderBy('name')
             ->get()
             ->groupBy('general_task_id');
 
-        $manuals = Manual::all();
-        $units = Unit::with('manuals')->get();
-        $customers = Customer::orderBy('name')->get();
-        $users     = User::orderBy('name')->get();
+        return [
+            'workorders' => $workorders,
+            'ecStatuses' => $this->buildEcStatuses(collect($workorders->items())),
+            'generalTasks' => $generalTasks,
+            'tasksByGeneral' => $tasksByGeneral,
+            'nextCursor' => $workorders->nextCursor()?->encode(),
+            'hasMore' => $workorders->hasMorePages(),
+            'totalCount' => $totalCount,
+            'overallTotal' => $overallTotal,
+            'filters' => $filters,
+        ];
+    }
 
+    private function normalizeWorkorderIndexFilters(Request $request): array
+    {
+        $allowedSorts = ['number', 'ec', 'customer', 'instruction', 'technik'];
+        $sort = (string) $request->get('sort', 'number');
+        $direction = strtolower((string) $request->get('direction', 'desc'));
 
-        return view('admin.workorders.index', compact(
-            'workorders',
-            'units',
-            'manuals',
-            'customers',
-            'users',
-            'generalTasks',
-            'tasksByGeneral',
-            'ecStatuses'
-        ));
+        if (!in_array($sort, $allowedSorts, true)) {
+            $sort = 'number';
+        }
+
+        if (!in_array($direction, ['asc', 'desc'], true)) {
+            $direction = $sort === 'number' ? 'desc' : 'asc';
+        }
+
+        return [
+            'q' => trim((string) $request->get('q', '')),
+            'customer_id' => (string) $request->get('customer_id', ''),
+            'technik_id' => (string) $request->get('technik_id', ''),
+            'only_my' => $request->boolean('only_my', false),
+            'only_active' => $request->boolean('only_active', false),
+            'only_approved' => $request->boolean('only_approved', false),
+            'show_drafts' => $request->boolean('show_drafts', false),
+            'sort' => $sort,
+            'direction' => $direction,
+            'cursor' => $request->get('cursor'),
+            'per_page' => max(10, min(100, (int) $request->get('per_page', 50))),
+        ];
+    }
+
+    private function applyWorkorderRoleVisibility(Builder $query): void
+    {
+        if (auth()->check() && auth()->user()->roleIs('Technician')) {
+            $query->where('workorders.is_draft', 0);
+        }
+    }
+
+    private function applyWorkorderIndexFilters(Builder $query, array $filters): void
+    {
+        if ($filters['q'] !== '') {
+            $like = '%' . $filters['q'] . '%';
+
+            $query->where(function (Builder $q) use ($like) {
+                $q->where('workorders.number', 'like', $like)
+                    ->orWhere('workorders.description', 'like', $like)
+                    ->orWhere('workorders.serial_number', 'like', $like)
+                    ->orWhere('workorders.customer_po', 'like', $like)
+                    ->orWhere('workorders.amdt', 'like', $like)
+                    ->orWhereHas('customer', function (Builder $customer) use ($like) {
+                        $customer->where('name', 'like', $like);
+                    })
+                    ->orWhereHas('instruction', function (Builder $instruction) use ($like) {
+                        $instruction->where('name', 'like', $like);
+                    })
+                    ->orWhereHas('user', function (Builder $user) use ($like) {
+                        $user->where('name', 'like', $like);
+                    })
+                    ->orWhereHas('unit', function (Builder $unit) use ($like) {
+                        $unit->where('part_number', 'like', $like)
+                            ->orWhere('name', 'like', $like)
+                            ->orWhere('description', 'like', $like)
+                            ->orWhere('eff_code', 'like', $like)
+                            ->orWhereHas('manual', function (Builder $manual) use ($like) {
+                                $manual->where('number', 'like', $like)
+                                    ->orWhere('lib', 'like', $like);
+                            });
+                    });
+            });
+        }
+
+        if ($filters['only_my'] && auth()->check()) {
+            $query->where('workorders.user_id', auth()->id());
+        }
+
+        if ($filters['customer_id'] !== '') {
+            $query->where('workorders.customer_id', (int) $filters['customer_id']);
+        }
+
+        if ($filters['technik_id'] !== '') {
+            $query->where('workorders.user_id', (int) $filters['technik_id']);
+        }
+
+        if ($filters['only_approved']) {
+            $query->whereNotNull('workorders.approve_at');
+        }
+
+        if ($filters['show_drafts']) {
+            $query->where('workorders.is_draft', true);
+        } else {
+            $query->where('workorders.is_draft', false);
+        }
+
+        if ($filters['only_active']) {
+            $query->whereDoesntHave('main', function (Builder $main) {
+                $main->whereNotNull('task_id')
+                    ->where('ignore_row', false)
+                    ->whereNotNull('date_finish')
+                    ->whereHas('task', function (Builder $task) {
+                        $task->where('name', 'Completed');
+                    });
+            });
+        }
+    }
+
+    private function applyWorkorderIndexSorting(Builder $query, array $filters): void
+    {
+        $direction = $filters['direction'];
+
+        switch ($filters['sort']) {
+            case 'customer':
+                $query->addSelect([
+                    'customer_sort' => Customer::query()
+                        ->select('name')
+                        ->whereColumn('customers.id', 'workorders.customer_id')
+                        ->limit(1),
+                ])->orderBy('customer_sort', $direction);
+                break;
+
+            case 'instruction':
+                $query->addSelect([
+                    'instruction_sort' => Instruction::query()
+                        ->select('name')
+                        ->whereColumn('instructions.id', 'workorders.instruction_id')
+                        ->limit(1),
+                ])->orderBy('instruction_sort', $direction);
+                break;
+
+            case 'technik':
+                $query->addSelect([
+                    'technik_sort' => User::query()
+                        ->select('name')
+                        ->whereColumn('users.id', 'workorders.user_id')
+                        ->limit(1),
+                ])->orderBy('technik_sort', $direction);
+                break;
+
+            case 'ec':
+                $ecProcessNameId = $this->getEcProcessNameId();
+
+                if ($ecProcessNameId) {
+                    $query->addSelect([
+                        'ec_sort' => TdrProcess::query()
+                            ->join('tdrs', 'tdrs.id', '=', 'tdr_processes.tdrs_id')
+                            ->selectRaw("
+                                CASE
+                                    WHEN MAX(CASE WHEN tdr_processes.date_finish IS NOT NULL THEN 1 ELSE 0 END) = 1 THEN 3
+                                    WHEN MAX(CASE WHEN tdr_processes.date_start IS NOT NULL THEN 1 ELSE 0 END) = 1 THEN 2
+                                    WHEN COUNT(*) > 0 THEN 1
+                                    ELSE 0
+                                END
+                            ")
+                            ->where('tdr_processes.process_names_id', $ecProcessNameId)
+                            ->whereColumn('tdrs.workorder_id', 'workorders.id'),
+                    ])->orderBy('ec_sort', $direction);
+                }
+                break;
+
+            case 'number':
+            default:
+                $query->orderBy('workorders.number', $direction);
+                break;
+        }
+
+        $query->orderBy('workorders.id', $direction);
+    }
+
+    private function buildEcStatuses(Collection $workorders): array
+    {
+        $ecStatuses = [];
+        $ecProcessNameId = $this->getEcProcessNameId();
+
+        if (!$ecProcessNameId || $workorders->isEmpty()) {
+            return $ecStatuses;
+        }
+
+        $workorderIds = $workorders->pluck('id')->values()->all();
+
+        $ecRows = TdrProcess::query()
+            ->where('process_names_id', $ecProcessNameId)
+            ->whereHas('tdr', function (Builder $q) use ($workorderIds) {
+                $q->whereIn('workorder_id', $workorderIds);
+            })
+            ->with([
+                'tdr:id,workorder_id',
+                'updatedBy:id,name',
+            ])
+            ->get();
+
+        foreach ($ecRows as $row) {
+            $woId = (int) ($row->tdr?->workorder_id ?? 0);
+            if ($woId <= 0) {
+                continue;
+            }
+
+            $current = $ecStatuses[$woId] ?? [
+                'state' => 'none',
+                'date_start' => null,
+                'date_finish' => null,
+                'date_start_user' => null,
+                'date_finish_user' => null,
+                'user_name' => null,
+            ];
+
+            $userName = optional($row->updatedBy)->name;
+
+            if (!empty($row->date_finish)) {
+                $current['state'] = 'finished';
+                $current['date_finish'] = $current['date_finish'] ?? $row->date_finish;
+                $current['date_finish_user'] = $current['date_finish_user'] ?? $userName;
+
+                if (!empty($row->date_start)) {
+                    $current['date_start'] = $current['date_start'] ?? $row->date_start;
+                    $current['date_start_user'] = $current['date_start_user'] ?? $userName;
+                }
+            } elseif (!empty($row->date_start)) {
+                if ($current['state'] !== 'finished') {
+                    $current['state'] = 'started';
+                }
+                $current['date_start'] = $current['date_start'] ?? $row->date_start;
+                $current['date_start_user'] = $current['date_start_user'] ?? $userName;
+            } elseif ($current['state'] === 'none') {
+                $current['state'] = 'exists';
+                $current['user_name'] = $current['user_name'] ?? $userName;
+            }
+
+            $ecStatuses[$woId] = $current;
+        }
+
+        foreach ($ecStatuses as $woId => $state) {
+            $ecStatuses[$woId] = [
+                'state' => $state['state'] ?? 'none',
+                'date_start' => $state['date_start'] ?? null,
+                'date_finish' => $state['date_finish'] ?? null,
+                'date_start_user' => $state['date_start_user'] ?? null,
+                'date_finish_user' => $state['date_finish_user'] ?? null,
+                'user_name' => $state['user_name'] ?? null,
+            ];
+        }
+
+        return $ecStatuses;
+    }
+
+    private function getEcProcessNameId(): ?int
+    {
+        static $ecProcessNameId;
+        static $resolved = false;
+
+        if (!$resolved) {
+            $ecProcessNameId = ProcessName::query()->where('name', 'EC')->value('id');
+            $resolved = true;
+        }
+
+        return $ecProcessNameId ? (int) $ecProcessNameId : null;
     }
 
     public function create()

@@ -48,6 +48,12 @@
         }
     },
     "scripts": {
+        "test:feature": [
+            "@php vendor/bin/phpunit tests/Feature"
+        ],
+        "test:smoke": [
+            "@php vendor/bin/phpunit tests/Feature --group smoke"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
