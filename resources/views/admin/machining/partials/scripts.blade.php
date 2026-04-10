@@ -367,6 +367,7 @@
         initMachiningStepMachinists();
         initMachiningTableFilters();
         initMachiningStepsToggle();
+        applyMachiningTableFilters();
 
         @if($canReorderMachining ?? false)
         (function initMachiningSortable() {

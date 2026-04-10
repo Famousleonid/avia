@@ -433,7 +433,9 @@ class MachiningController extends Controller
     }
 
     /**
-     * Закрытые WO (у каждой machining-строки есть финиш) — внизу, по возрастанию number WO.
+     * В очереди: закрытый WO = machiningFullyClosed (внизу по number WO).
+     * Без очереди: внизу каждая строка, у которой есть старт и финиш (несколько линий одного WO могут
+     * быть вверху и внизу независимо); порядок по number WO, затем detail_label.
      * Открытые: в очереди — сначала с датой старта, без даты — ниже; внутри группы с датой
      * сортировка по machining_queue_order (№), затем по date_start. Вне очереди — с датой /
      * без даты, затем date_start и number.
@@ -448,15 +450,20 @@ class MachiningController extends Controller
         }
 
         $rows = $rows->values();
-        $woFullyDone = [];
         $queueRelease = app(MachiningWorkorderQueueRelease::class);
-        foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $woId => $_) {
-            $woModel = Workorder::query()->find((int) $woId);
-            $woFullyDone[(int) $woId] = $woModel !== null && $queueRelease->machiningFullyClosed($woModel);
-        }
 
-        $open = $rows->filter(fn ($r) => ! $woFullyDone[(int) $r->workorder->id])->values();
-        $done = $rows->filter(fn ($r) => $woFullyDone[(int) $r->workorder->id])->values();
+        if ($queuedBucket) {
+            $woFullyDone = [];
+            foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $woId => $_) {
+                $woModel = Workorder::query()->find((int) $woId);
+                $woFullyDone[(int) $woId] = $woModel !== null && $queueRelease->machiningFullyClosed($woModel);
+            }
+            $open = $rows->filter(fn ($r) => ! $woFullyDone[(int) $r->workorder->id])->values();
+            $done = $rows->filter(fn ($r) => $woFullyDone[(int) $r->workorder->id])->values();
+        } else {
+            $open = $rows->filter(fn ($r) => ! ($this->rowHasMachiningDateStart($r) && $this->rowHasMachiningDateFinish($r)))->values();
+            $done = $rows->filter(fn ($r) => $this->rowHasMachiningDateStart($r) && $this->rowHasMachiningDateFinish($r))->values();
+        }
 
         $openSorted = $open->sort(function (object $a, object $b) use ($queuedBucket): int {
             $byStart = ($this->rowHasMachiningDateStart($a) ? 0 : 1) <=> ($this->rowHasMachiningDateStart($b) ? 0 : 1);
@@ -488,7 +495,14 @@ class MachiningController extends Controller
             return ((int) $a->workorder->number) <=> ((int) $b->workorder->number);
         })->values();
 
-        $doneSorted = $done->sortBy(fn ($r) => (int) $r->workorder->number)->values();
+        $doneSorted = $done->sort(function (object $a, object $b): int {
+            $byWo = ((int) $a->workorder->number) <=> ((int) $b->workorder->number);
+            if ($byWo !== 0) {
+                return $byWo;
+            }
+
+            return strcmp((string) ($a->detail_label ?? ''), (string) ($b->detail_label ?? ''));
+        })->values();
 
         return $openSorted->concat($doneSorted);
     }

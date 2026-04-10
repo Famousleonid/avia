@@ -291,7 +291,7 @@
                         </div>
                         <div class="col-auto flex-shrink-0 ps-md-2">
                             <div class="form-check form-check-inline mb-0 pt-1">
-                                <input class="form-check-input" type="checkbox" id="machiningHideClosed" value="1" autocomplete="off">
+                                <input class="form-check-input" type="checkbox" id="machiningHideClosed" value="1" autocomplete="off" checked>
                                 <label class="form-check-label text-nowrap small" for="machiningHideClosed">Hide closed</label>
                             </div>
                         </div>
@@ -390,6 +390,8 @@
                                     $rowFinishForQueue = $row->date_finish ?? null;
                                     $rowHasDateFinish = $rowFinishForQueue !== null
                                         && ($rowFinishForQueue instanceof \DateTimeInterface || trim((string) $rowFinishForQueue) !== '');
+                                    /** Скрывать step-строки по умолчанию у всех завершённых линий (есть дата финиша). */
+                                    $collapseMachiningStepRows = $rowHasDateFinish;
                                     $parentForSteps = $editTp ?? $bushingBatch ?? $bushingProcess;
                                     $stepCount = (int) ($parentForSteps?->working_steps_count ?? 0);
                                     $machiningGroupId = '';
@@ -467,7 +469,8 @@
                                         @endif
                                     </td>
                                     <td class="text-center small machining-col-wrap">{{ $wo->customer?->name ?? '' }}</td>
-                                    <td class="text-center small machining-col-wrap">{{ $wo->unit?->part_number ?? '' }} <br>
+                                    <td class="text-center small machining-col-wrap">{{ $wo->unit?->part_number ?? '' }}
+                                        <span class=" text-secondary ms-1"> ({{$wo->unit?->manual?->lib ?? ''}}) </span> <br>
                                         <span class=" text-secondary">{{ $wo->unit?->manual?->plane?->type ?? ''}}</span>
                                     </td>
                                     <td class="text-center machining-col-wrap">{{ $row->detail_name ?? 'Name' }} <br>
@@ -495,11 +498,11 @@
                                                 <button type="button"
                                                         class="btn btn-sm btn-outline-secondary py-0 px-1 js-machining-toggle-steps flex-shrink-0"
                                                         data-steps-group="{{ $machiningGroupId }}"
-                                                        aria-expanded="true"
+                                                        aria-expanded="{{ $collapseMachiningStepRows ? 'false' : 'true' }}"
                                                         aria-controls="machining-steps-body-{{ $machiningGroupId }}"
-                                                        title="Hide step rows"
-                                                        aria-label="Hide step rows">
-                                                    <i class="bi bi-chevron-up" aria-hidden="true"></i>
+                                                        title="{{ $collapseMachiningStepRows ? 'Show step rows' : 'Hide step rows' }}"
+                                                        aria-label="{{ $collapseMachiningStepRows ? 'Show step rows' : 'Hide step rows' }}">
+                                                    <i class="bi {{ $collapseMachiningStepRows ? 'bi-chevron-down' : 'bi-chevron-up' }}" aria-hidden="true"></i>
                                                 </button>
                                             @endif
                                         </div>
@@ -624,6 +627,7 @@
                                         'machiningGroupId' => $machiningGroupId,
                                         'machiningSearch' => $machiningSearch,
                                         'rowHasDateFinish' => $rowHasDateFinish,
+                                        'collapseStepRowsDefault' => $collapseMachiningStepRows,
                                         'isBushingRow' => $isBushingRow,
                                         'machiningMachinists' => $machiningMachinists,
                                         'canReorderMachining' => $canReorderMachining ?? false,
