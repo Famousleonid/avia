@@ -106,6 +106,9 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     Route::delete('/paint/lost/{paint}', [MobileController::class, 'destroyPaintLost'])->name('paint.lost.destroy');
 
     Route::get('/machining', [MobileController::class, 'machining'])->name('machining');
+    Route::get('/machining/{workorder}', [MobileController::class, 'machiningWorkorder'])->name('machining.workorder');
+    Route::patch('/machining/steps/{machiningWorkStep}', [MobileController::class, 'updateMachiningWorkStepMobile'])
+        ->name('machining.steps.update');
 
     // --- media ---
     Route::post('/workorders/photo/{workorder}', [MediaController::class, 'store_photo_workorders'])->name('workorders.media.store');

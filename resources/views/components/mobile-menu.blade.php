@@ -8,7 +8,7 @@
     $isPaintUser = auth()->check() && auth()->user()->roleIs('Paint');
     $isPaintRoute = request()->routeIs('mobile.paint');
     $isMachiningUser = auth()->check() && auth()->user()->roleIs('Machining');
-    $isMachiningRoute = request()->routeIs('mobile.machining');
+    $isMachiningRoute = request()->routeIs('mobile.machining', 'mobile.machining.workorder');
     $usePaintMenu = $isPaintUser || $isPaintRoute;
     $useMachiningMenu = $isMachiningUser || $isMachiningRoute;
     $useShopDeptMenu = $usePaintMenu || $useMachiningMenu;
@@ -18,7 +18,7 @@
         $deptLostUrl = route('mobile.paint', ['tab' => 'lost']);
         $deptActive = 'paint';
     } elseif ($isMachiningRoute) {
-        $deptWoUrl = route('mobile.machining', ['tab' => 'wo']);
+        $deptWoUrl = route('mobile.machining', ['toggle_my_wo' => 1]);
         $deptLostUrl = route('mobile.index');
         $deptActive = 'machining';
     } elseif ($isPaintUser) {
@@ -26,7 +26,7 @@
         $deptLostUrl = route('mobile.paint', ['tab' => 'lost']);
         $deptActive = 'paint';
     } elseif ($isMachiningUser) {
-        $deptWoUrl = route('mobile.machining', ['tab' => 'wo']);
+        $deptWoUrl = route('mobile.machining');
         $deptLostUrl = route('mobile.index');
         $deptActive = 'machining';
     } else {
@@ -35,6 +35,7 @@
         $deptActive = null;
     }
     $paintTab = request()->query('tab', 'wo');
+    $machiningMyWoOnly = (bool) session('mobile_machining_my_wo', false);
 @endphp
 
 <style>
@@ -88,6 +89,13 @@
         font-size: 0.75rem;
         line-height: 1;
     }
+
+    .menu-label-machining-scope-inline {
+        font-size: 0.62rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+    }
 </style>
 
 <div class="{{ $borderClass }} bg-primary d-flex justify-content-between align-items-center" style="height: 60px;">
@@ -100,7 +108,13 @@
                 <circle cx="18" cy="18" r="18"/>
             </svg>
         </div>
-        <span class="menu-label">{{ $useShopDeptMenu ? 'WO' : 'WO List' }}</span>
+        <span class="menu-label text-nowrap">
+            WO
+            @if($deptActive === 'machining')
+                <span class="menu-label-machining-scope-inline {{ $machiningMyWoOnly ? 'text-warning' : 'text-white-50' }}"
+                      title="{{ $machiningMyWoOnly ? 'Only workorders assigned to you' : 'All open machining workorders' }}"> · {{ $machiningMyWoOnly ? 'My' : 'All' }}</span>
+            @endif
+        </span>
     </a>
 
     @if($showDeptLost)
