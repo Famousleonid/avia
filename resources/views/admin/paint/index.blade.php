@@ -195,6 +195,10 @@
             border-color: var(--dir-input-border) !important;
             color: var(--dir-text) !important;
         }
+        .paint-queue-position-input,
+        .paint-queue-position-value {
+            color: var(--bs-info) !important;
+        }
         .js-paint-msg-owner {
             cursor: pointer;
             text-decoration: underline dotted;
@@ -453,7 +457,7 @@
                                                 <input type="text"
                                                        inputmode="numeric"
                                                        autocomplete="off"
-                                                       class="form-control js-paint-position-input dir-input"
+                                                       class="form-control js-paint-position-input dir-input paint-queue-position-input text-info"
                                                        data-wo-id="{{ (int) $wo->id }}"
                                                        data-in-queue="1"
                                                        data-was="{{ (int) $row->paint_queue_position }}"
@@ -463,7 +467,7 @@
                                                 <input type="text"
                                                        inputmode="numeric"
                                                        autocomplete="off"
-                                                       class="form-control js-paint-position-input dir-input"
+                                                       class="form-control js-paint-position-input dir-input paint-queue-position-input text-info"
                                                        data-wo-id="{{ (int) $wo->id }}"
                                                        data-in-queue="0"
                                                        data-was="0"
@@ -477,7 +481,7 @@
                                         @else
                                             @if($wo->paint_queue_order !== null)
                                                 @if($row->is_queue_master ?? false)
-                                                    {{ $row->paint_queue_position }}
+                                                    <span class="paint-queue-position-value text-info">{{ $row->paint_queue_position }}</span>
                                                 @else
                                                     <span class="text-muted"> </span>
                                                 @endif
