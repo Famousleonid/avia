@@ -114,15 +114,24 @@
 
                         <div class="col-12 col-md-6">
                             <label class="form-label" id="team_label">Team</label>
-                            <select name="team_id" id="team_id" class="form-select" required>
-                                <option value="">Select Team</option>
-                                @foreach($teams as $team)
-                                    <option value="{{ $team->id }}"
-                                        {{ (string)old('team_id', $user->team_id) === (string)$team->id ? 'selected' : '' }}>
-                                        {{ $team->name }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            @if(auth()->user()?->roleIs('Admin'))
+                                <select name="team_id" id="team_id" class="form-select" required>
+                                    <option value="">Select Team</option>
+                                    @foreach($teams as $team)
+                                        <option value="{{ $team->id }}"
+                                            {{ (string)old('team_id', $user->team_id) === (string)$team->id ? 'selected' : '' }}>
+                                            {{ $team->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            @else
+                                <input type="text"
+                                       id="team_id"
+                                       class="form-control"
+                                       value="{{ $user->team?->name ?? 'Unknown team' }}"
+                                       readonly
+                                       data-tippy-content="Only Admin can edit team">
+                            @endif
                         </div>
                     </div>
 
@@ -231,6 +240,10 @@
         function validateForm() {
             const teamSelect = document.getElementById('team_id');
             const teamLabel  = document.getElementById('team_label');
+
+            if (!teamSelect || teamSelect.tagName !== 'SELECT') {
+                return true;
+            }
 
             if (!teamSelect.value) {
                 hideLoadingSpinner();

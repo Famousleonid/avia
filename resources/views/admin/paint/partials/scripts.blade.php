@@ -1,6 +1,8 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
 (function () {
+    var canManagePaintQueue = @json($canReorderPaint ?? false);
+
     window.paintOpenMessageToOwner = function (userId) {
         var id = parseInt(userId, 10);
         if (!id) return;
@@ -42,6 +44,85 @@
         var empty = !String(display.value || '').trim();
         display.classList.toggle('paint-date-empty', empty);
         display.classList.toggle('has-finish', !empty);
+    }
+
+    function paintDateTitle(kind, userName) {
+        var label = kind === 'date_finish' ? 'Finish date' : 'Start date';
+        return userName ? (label + ' last edited by ' + userName) : label;
+    }
+
+    function syncPaintRowClosedState(row) {
+        if (!row) return;
+        var start = row.querySelector('input[name="date_start"].js-paint-date-ymd');
+        var finish = row.querySelector('input[name="date_finish"].js-paint-date-ymd');
+        var closed = !!(start && start.value && finish && finish.value);
+        row.setAttribute('data-paint-closed', closed ? '1' : '0');
+        row.classList.toggle('paint-row-closed', closed);
+        row.classList.toggle('paint-row-open', !closed);
+    }
+
+    function syncPaintQueueAddControl(row) {
+        if (!canManagePaintQueue) return;
+        if (!row || row.classList.contains('paint-row-queued')) return;
+        var woId = row.getAttribute('data-wo-id') || '';
+        if (!woId) return;
+
+        var rows = Array.from(document.querySelectorAll('#paint-sortable-tbody tr[data-wo-id="' + woId + '"]'));
+        var masterRow = rows.find(function (r) { return r.classList.contains('paint-row-master'); }) || row;
+        if (masterRow.classList.contains('paint-row-queued')) return;
+
+        var cell = masterRow.querySelector('.paint-col-priority');
+        if (!cell) return;
+
+        var fullyClosed = rows.length > 0 && rows.every(function (r) {
+            var finish = r.querySelector('input[name="date_finish"].js-paint-date-ymd');
+            if (finish) return !!finish.value;
+            return r.getAttribute('data-paint-closed') === '1';
+        });
+
+        if (fullyClosed) {
+            cell.innerHTML = '<span class="text-muted small" title="Clear finish date before returning to queue">&mdash;</span>';
+            return;
+        }
+
+        if (cell.querySelector('.js-paint-position-input')) return;
+
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.inputMode = 'numeric';
+        input.autocomplete = 'off';
+        input.className = 'form-control js-paint-position-input dir-input paint-queue-position-input is-unqueued text-info';
+        input.dataset.woId = woId;
+        input.dataset.inQueue = '0';
+        input.dataset.was = '0';
+        input.value = '';
+        input.placeholder = '+';
+        input.title = 'Enter queue position (0 = not in queue)';
+        cell.replaceChildren(input);
+
+        if (typeof window.paintBindPositionInput === 'function') {
+            window.paintBindPositionInput(input);
+        }
+    }
+
+    function syncPaintDateFieldFromPayload(row, fieldName, ymd, userName) {
+        if (!row) return;
+        var hidden = row.querySelector('input[name="' + fieldName + '"].js-paint-date-ymd');
+        if (!hidden) return;
+
+        var wrap = hidden.closest('.paint-date-input-wrap');
+        var display = wrap ? wrap.querySelector('.paint-date-display') : null;
+        var aid = wrap ? wrap.querySelector('.js-paint-picker-aid') : null;
+        var normalized = ymd || '';
+
+        hidden.value = normalized;
+        hidden.dataset.original = normalized;
+        if (aid) aid.value = normalized;
+        if (display) {
+            display.value = normalized ? formatPaintDateFromYmd(normalized) : '';
+            syncPaintDateDisplayState(display);
+            display.title = paintDateTitle(fieldName, userName || '');
+        }
     }
 
     function openPaintDatePicker(aid) {
@@ -132,6 +213,20 @@
 
                 var okYmd = wrap.querySelector('.js-paint-date-ymd');
                 if (okYmd) okYmd.dataset.original = okYmd.value || '';
+                var display = wrap.querySelector('.paint-date-display');
+                if (display && okYmd) {
+                    var userName = okYmd.name === 'date_finish' ? data.date_finish_user : data.date_start_user;
+                    display.title = paintDateTitle(okYmd.name, userName || data.user || '');
+                }
+                var row = wrap.closest('tr[data-wo-id]');
+                if (row && Object.prototype.hasOwnProperty.call(data, 'date_start')) {
+                    syncPaintDateFieldFromPayload(row, 'date_start', data.date_start, data.date_start_user || data.user || '');
+                }
+                if (row && Object.prototype.hasOwnProperty.call(data, 'date_finish')) {
+                    syncPaintDateFieldFromPayload(row, 'date_finish', data.date_finish, data.date_finish_user || data.user || '');
+                }
+                syncPaintRowClosedState(row);
+                syncPaintQueueAddControl(row);
                 if (typeof window.showNotification === 'function') {
                     var okText = (data && data.message) ? data.message : (form.getAttribute('data-success') || 'Saved');
                     window.showNotification(okText, 'success', 2000);
@@ -553,7 +648,9 @@
                 });
             }
 
-            document.querySelectorAll('.js-paint-position-input').forEach(function (inp) {
+            window.paintBindPositionInput = function (inp) {
+                if (!inp || inp.dataset.paintPositionBound === '1') return;
+                inp.dataset.paintPositionBound = '1';
                 inp.addEventListener('input', function () {
                     var cur = inp.selectionStart;
                     var filtered = String(inp.value || '').replace(/\D/g, '');
@@ -571,7 +668,9 @@
                         inp.blur();
                     }
                 });
-            });
+            };
+
+            document.querySelectorAll('.js-paint-position-input').forEach(window.paintBindPositionInput);
         })();
         @endif
     }

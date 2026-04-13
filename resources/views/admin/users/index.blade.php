@@ -8,31 +8,32 @@
             flex: 1 1 auto;
             min-height: 0;
             overflow-y: auto;
+            overflow-x: hidden;
         }
 
-        .table th, .table td {
+        #userTable {
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        #userTable th, #userTable td {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            min-width: 80px;
-            max-width: 190px;
-            padding-left: 10px;
+            min-width: 0;
+            padding-left: 5px;
+            padding-right: 6px;
+
         }
 
-        .table th:nth-child(1), .table td:nth-child(1) {
-            min-width: 50px;
-            max-width: 150px;
-        }
-
-        .table th:nth-child(2), .table td:nth-child(2) {
-            min-width: 50px;
-            max-width: 150px;
-        }
-
-        .table th:nth-child(3), .table td:nth-child(3) {
-            min-width: 50px;
-            max-width: 150px;
-        }
+        #userTable .user-col-name {width: 18%;}
+        #userTable .user-col-email {width: 23%;}
+        #userTable .user-col-team {width: 14%;}
+        #userTable .user-col-avatar {width: 70px;}
+        #userTable .user-col-role {width: 17%;}
+        #userTable .user-col-stamp {width: 60px;}
+        #userTable .user-col-birthday {width: 11%;}
+        #userTable .user-col-action {width: 85px;}
 
         .table thead th {
             position: sticky;
@@ -40,14 +41,14 @@
             top: 0;
             vertical-align: middle;
             border-top: 1px;
+            font-size: 14px;
+            font-weight: 400;
             /*z-index: 1020;*/
         }
 
         @media (max-width: 1200px) {
-            .table th:nth-child(2), .table td:nth-child(2),
-            .table th:nth-child(4), .table td:nth-child(4),
-            .table th:nth-child(6), .table td:nth-child(6),
-            .table th:nth-child(7), .table td:nth-child(7) {
+            #userTable .user-col-avatar,
+            #userTable .user-col-birthday {
                 display: none;
             }
         }
@@ -58,7 +59,7 @@
 
         .clearable-input {
             position: relative;
-            width: 400px;
+            width: 100%;
         }
 
         .clearable-input .form-control {
@@ -131,47 +132,43 @@
         @endrole
 
         @if(count($users))
-            <div class="table-wrapper me-3 p-2 pt-0 mb-3">
+            <div class="table-wrapper p-2 pt-0 mb-3">
                 <table id="userTable"
                        class="display table table-sm table-hover  align-middle table-bordered dir-table">
                     <thead class="bg-gradient">
                     <tr>
-                        <th class="text-primary bg-gradient sortable">{{__('Name') }}<i
+                        <th class="text-primary bg-gradient sortable user-col-name">{{__('Name') }}<i
                                 class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary bg-gradient ">{{__('Email') }}</th>
-                        <th class="text-primary bg-gradient sortable text-center">{{__('Team') }}<i
+                        <th class="text-primary bg-gradient user-col-email">{{__('Email') }}</th>
+                        <th class="text-primary bg-gradient sortable text-center user-col-team">{{__('Team') }}<i
                                 class="bi bi-chevron-expand ms-1"></i></th>
-                        <th class="text-primary bg-gradient text-center">{{__('Avatar') }}</th>
-                        <th class="text-primary bg-gradient text-center">{{__('Role') }}</th>
-                        <th class="text-primary bg-gradient text-center">{{__('Stamp') }}</th>
-                        <th class="text-primary bg-gradient text-center">{{__('Birthday')}}</th>
-                        <th class="text-primary bg-gradient text-center">{{__('Create Date')}}</th>
-                        <th class="text-primary bg-gradient text-center">{{__('Action') }}</th>
+                        <th class="text-primary bg-gradient text-center user-col-avatar">{{__('Avatar') }}</th>
+                        <th class="text-primary bg-gradient text-center user-col-role">{{__('Role') }}</th>
+                        <th class="text-primary bg-gradient text-center user-col-stamp">{{__('Stamp') }}</th>
+                        <th class="text-primary bg-gradient text-center user-col-birthday">{{__('Birthday')}}</th>
+                        <th class="text-primary bg-gradient text-center user-col-action">{{__('Action') }}</th>
 
                     </tr>
                     </thead>
                     <tbody>
                     @foreach($users as $user)
                         <tr>
-                            <td @if(is_null($user->email_verified_at)) style="color:red !important;" @endif>{{$user->name}}</td>
-                            <td class="">{{$user->email}}</td>
-                            <td class="text-center"
+                            <td class="user-col-name" @if(is_null($user->email_verified_at)) style="color:red !important;" @endif>{{$user->name}}</td>
+                            <td class="user-col-email">{{$user->email}}</td>
+                            <td class="text-center user-col-team"
                                 style="color: {{ $user->team ? '#ffffff' : '#808080' }};">{{ $user->team->name ?? 'Unknown team' }}</td>
-                            <td class="text-center">
+                            <td class="text-center user-col-avatar">
                                 <a href="{{ $user->getFirstMediaBigUrl('avatar') }}" data-fancybox="gallery">
                                     <img class="rounded-circle" src="{{ $user->getFirstMediaThumbnailUrl('avatar') }}"
                                          width="40" height="40" alt="Image"/>
                                 </a>
                             </td>
-                            <td class="text-center" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->role->name ?? 'Unknown role' }}</td>
-                            <td class="text-center" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->stamp }}</td>
-                            <td class="text-center"><span
+                            <td class="text-center user-col-role" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->role->name ?? 'Unknown role' }}</td>
+                            <td class="text-center user-col-stamp" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->stamp }}</td>
+                            <td class="text-center user-col-birthday"><span
                                     style="display: none">{{$user->Birthday}}</span>{{ $user->birthday?->format('d.M.Y') }}
                             </td>
-                            <td class="text-center"><span
-                                    style="display: none">{{$user->created_at}}</span>{{$user->created_at->format('d.m.Y')}}
-                            </td>
-                            <td class="text-center">
+                            <td class="text-center user-col-action">
                                 @if(auth()->user()->roleIs('Admin'))
                                     {{-- Admin: edit + delete everyone --}}
                                     <a href="{{ route('users.edit', ['user' => $user->id]) }}"

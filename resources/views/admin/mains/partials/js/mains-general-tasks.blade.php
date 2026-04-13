@@ -290,6 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 onReady(selectedDates, dateStr, instance) {
                     instance.altInput.classList.add('form-control', 'form-control-sm', 'w-100', 'fp-alt');
+                    if (src.title) instance.altInput.title = src.title;
 
                     if (src.classList.contains('finish-input')) instance.altInput.classList.add('finish-input');
                     if (src.value) instance.altInput.classList.add('has-finish');

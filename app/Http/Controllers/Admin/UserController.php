@@ -137,7 +137,6 @@ class UserController extends Controller
             'phone' => ['nullable', 'string', 'max:50'],
             'stamp' => ['required', 'string', 'max:255'],
             'birthday' => ['nullable', 'date', 'before:today'],
-            'team_id' => ['required', 'integer', 'exists:teams,id'],
             'password' => ['nullable', 'string', 'min:3', 'confirmed'],
             'img' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'sign' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:4096'],
@@ -146,6 +145,7 @@ class UserController extends Controller
         if ($isAdmin) {
             $rules['email'] = ['required', 'email', 'max:255', 'unique:users,email,' . $user->id];
             $rules['role_id'] = ['required', 'integer', 'exists:roles,id'];
+            $rules['team_id'] = ['required', 'integer', 'exists:teams,id'];
         }
 
         $validated = $request->validate($rules);
@@ -158,7 +158,7 @@ class UserController extends Controller
         }
 
         if (! $isAdmin) {
-            unset($validated['email'], $validated['role_id'], $validated['img'], $validated['sign']);
+            unset($validated['email'], $validated['role_id'], $validated['team_id'], $validated['img'], $validated['sign']);
         } else {
             $validated['is_admin'] = $request->boolean('is_admin');
 

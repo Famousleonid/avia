@@ -14,10 +14,10 @@
             min-width: 0;
         }
         .paint-table-scroll {
-            max-height: calc(100dvh - 220px);
+            max-height: calc(100dvh - 130px);
         }
         .paint-table-outer.paint-table-scroll {
-            max-height: calc(100dvh - 220px);
+            max-height: calc(100dvh - 130px);
         }
         /* Нижний блок lost parts — одна рамка (без вложенного .paint-page-bottom) */
         .paint-lost-fieldset {
@@ -104,8 +104,11 @@
         }
         .paint-drag-handle {
             cursor: grab;
-            color: var(--dir-muted, #adb5bd);
+            color: rgba(148, 163, 184, .42);
             user-select: none;
+        }
+        .paint-row-master:hover .paint-drag-handle {
+            color: var(--bs-info);
         }
         .paint-drag-handle:active { cursor: grabbing; }
         #paint-sortable-tbody tr.sortable-chosen td {
@@ -148,13 +151,31 @@
         }
         @media (max-width: 1280px) {
             #paint-wo-table tbody {
-                font-size: 12px;
+                font-size: 13px;
             }
         }
         #paint-wo-table th,
         #paint-wo-table td {
             overflow: hidden;
             vertical-align: middle;
+        }
+        #paint-wo-table tbody tr {
+            transition: background-color .18s ease, box-shadow .18s ease, opacity .18s ease;
+        }
+        #paint-wo-table tbody tr.paint-row-master td {
+            border-top-color: rgba(13, 202, 240, .18);
+        }
+        #paint-wo-table tbody tr.paint-row-master:hover td {
+            background: rgba(13, 202, 240, .045) !important;
+        }
+        #paint-wo-table tbody tr.paint-row-closed {
+            opacity: .72;
+        }
+        #paint-wo-table tbody tr.paint-row-closed:hover {
+            opacity: .92;
+        }
+        #paint-wo-table tbody tr.paint-row-unqueued td {
+            color: rgba(226, 232, 240, .78);
         }
         #paint-wo-table .paint-col-wrap {
             white-space: normal;
@@ -168,11 +189,11 @@
         /* Сумма ~100%: фиксированное распределение без min-width в rem → без горизонтального скролла */
         #paint-wo-table col.paint-col-drag { width: 35px;}
         #paint-wo-table col.paint-col-num { width: 60px; }
-        #paint-wo-table col.paint-col-wo { width: 90px; }
+        #paint-wo-table col.paint-col-wo { width: 95px; }
         #paint-wo-table col.paint-col-customer { width: auto; }
         #paint-wo-table col.paint-col-aircraft { width: auto; }
         #paint-wo-table col.paint-col-owner { width: auto; }
-        #paint-wo-table col.paint-col-detail { width: 140px; }
+        #paint-wo-table col.paint-col-detail { width: 170px; }
         #paint-wo-table col.paint-col-date { width: 142px !important; min-width: 142px !important; max-width: 142px !important; }
         #paint-wo-table th.paint-col-date-cell,
         #paint-wo-table td.paint-col-date-cell {
@@ -195,16 +216,54 @@
             border-color: var(--dir-input-border) !important;
             color: var(--dir-text) !important;
         }
-        .paint-queue-position-input,
-        .paint-queue-position-value {
+        .paint-queue-position-input {
+            border-radius: 999px;
+            font-weight: 700;
+            letter-spacing: .03em;
+            box-shadow: inset 0 0 0 1px rgba(13, 202, 240, .18);
+            transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+        .paint-queue-position-input.is-queued {
+            background: rgba(13, 202, 240, .12) !important;
+            border-color: rgba(13, 202, 240, .42) !important;
             color: var(--bs-info) !important;
+        }
+        .paint-queue-position-input.is-unqueued {
+            background: rgba(148, 163, 184, .06) !important;
+            border-color: rgba(148, 163, 184, .18) !important;
+            color: rgba(148, 163, 184, .72) !important;
+        }
+        .paint-queue-position-input:focus {
+            border-color: var(--bs-info) !important;
+            box-shadow: 0 0 0 .16rem rgba(13, 202, 240, .18), inset 0 0 0 1px rgba(13, 202, 240, .38);
+            transform: translateY(-1px);
+        }
+        .paint-queue-position-value {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2.35rem;
+            min-height: 1.55rem;
+            border-radius: 999px;
+            border: 1px solid rgba(13, 202, 240, .42);
+            background: rgba(13, 202, 240, .12);
+            color: var(--bs-info) !important;
+            font-weight: 700;
+            letter-spacing: .03em;
         }
         .js-paint-msg-owner {
             cursor: pointer;
-            text-decoration: underline dotted;
-            text-underline-offset: 2px;
+            text-decoration: none;
         }
-        .js-paint-msg-owner:hover { color: #0dcaf0 !important; }
+        .paint-owner-action {
+            color: rgba(226, 232, 240, .82) !important;
+            border-radius: 999px;
+            max-width: 100%;
+        }
+        .paint-owner-action:hover {
+            color: var(--bs-info) !important;
+            background: rgba(13, 202, 240, .08);
+        }
         .paint-dir-table thead th {
             color: var(--bs-info) !important;
             background: var(--dir-thead-bg, #343A40) !important;
@@ -215,6 +274,25 @@
         }
         .paint-wo-prefix {
             color: #8D9197 !important;
+        }
+        .paint-wo-label {
+            font-weight: 700;
+        }
+        .paint-detail-pill {
+            display: inline-flex;
+            max-width: 100%;
+            min-height: 1.45rem;
+            align-items: center;
+            justify-content: center;
+            padding: .05rem .45rem;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, .08);
+            color: rgba(226, 232, 240, .9);
+            border: 1px solid rgba(148, 163, 184, .12);
+        }
+        .paint-row-master .paint-detail-pill {
+            background: rgba(13, 202, 240, .08);
+            border-color: rgba(13, 202, 240, .14);
         }
         .paint-date-readonly.finish-input {
             cursor: default;
@@ -283,6 +361,32 @@
             min-width: 0;
             max-width: none;
             box-sizing: border-box;
+        }
+        #paint-wo-table tbody .paint-date-display,
+        #paint-wo-table tbody .paint-date-readonly {
+            border-radius: 999px;
+            border-color: rgba(148, 163, 184, .24) !important;
+            background-color: rgba(15, 23, 42, .48) !important;
+            color: rgba(226, 232, 240, .88) !important;
+            box-shadow: inset 0 0 0 1px rgba(148, 163, 184, .06);
+            transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease, transform .18s ease;
+        }
+        #paint-wo-table tbody .paint-date-display:hover,
+        #paint-wo-table tbody .paint-date-display:focus {
+            border-color: rgba(13, 202, 240, .52) !important;
+            box-shadow: 0 0 0 .12rem rgba(13, 202, 240, .12), inset 0 0 0 1px rgba(13, 202, 240, .24);
+            transform: translateY(-1px);
+        }
+        #paint-wo-table tbody .paint-date-display.has-finish,
+        #paint-wo-table tbody .paint-date-readonly.has-finish {
+            border-color: rgba(25, 135, 84, .42) !important;
+            background-color: rgba(25, 135, 84, .12) !important;
+            color: rgba(229, 255, 239, .95) !important;
+        }
+        #paint-wo-table tbody .paint-date-display.paint-date-empty {
+            border-style: dashed;
+            background-color: rgba(13, 202, 240, .035) !important;
+            color: rgba(148, 163, 184, .76) !important;
         }
         #paint-wo-table td.paint-col-date-cell {
             padding-left: 2px;
@@ -438,49 +542,61 @@
                                     $paintSearch = function_exists('mb_strtolower')
                                         ? mb_strtolower($paintSearchBlob, 'UTF-8')
                                         : strtolower($paintSearchBlob);
+                                    $isClosed = $startStr !== '' && $finishStr !== '';
+                                    $hasFinish = $finishStr !== '';
+                                    $isQueued = $wo->paint_queue_order !== null;
+                                    $isMaster = (bool) ($row->is_queue_master ?? false);
+                                    $canAddToPaintQueue = ! $isQueued && $isMaster && ! $hasFinish;
+                                    $startEditedBy = $editTp?->dateStartUpdatedBy?->name;
+                                    $finishEditedBy = $editTp?->dateFinishUpdatedBy?->name;
+                                    $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date';
+                                    $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date';
                                 @endphp
                                 <tr data-wo-id="{{ (int) $wo->id }}"
                                     data-paint-search="{{ $paintSearch }}"
-                                    data-paint-closed="{{ ($startStr !== '' && $finishStr !== '') ? '1' : '0' }}"
-                                    class="{{ $wo->paint_queue_order !== null ? 'paint-row-queued' : 'paint-row-unqueued' }} {{ ($row->is_queue_master ?? false) ? 'paint-row-master' : '' }}">
+                                    data-paint-closed="{{ $isClosed ? '1' : '0' }}"
+                                    class="{{ $isQueued ? 'paint-row-queued' : 'paint-row-unqueued' }} {{ $isMaster ? 'paint-row-master' : '' }} {{ $isClosed ? 'paint-row-closed' : 'paint-row-open' }}">
                                     @if($canReorderPaint ?? false)
-                                        <td class="text-center {{ $wo->paint_queue_order !== null && ($row->is_queue_master ?? false) ? 'paint-drag-handle' : '' }}"
-                                            @if($wo->paint_queue_order !== null && ($row->is_queue_master ?? false)) title="Drag" @endif>
-                                            @if($wo->paint_queue_order !== null && ($row->is_queue_master ?? false))
+                                        <td class="text-center {{ $isQueued && $isMaster ? 'paint-drag-handle' : '' }}"
+                                            @if($isQueued && $isMaster) title="Drag" @endif>
+                                            @if($isQueued && $isMaster)
                                                 <i class="bi bi-three-dots-vertical " aria-hidden="true"></i>
                                             @endif
                                         </td>
                                     @endif
                                     <td class="text-center align-middle paint-col-priority">
                                         @if($canReorderPaint ?? false)
-                                            @if($wo->paint_queue_order !== null && ($row->is_queue_master ?? false))
+                                            @if($isQueued && $isMaster)
                                                 <input type="text"
                                                        inputmode="numeric"
                                                        autocomplete="off"
-                                                       class="form-control js-paint-position-input dir-input paint-queue-position-input text-info"
+                                                       class="form-control js-paint-position-input dir-input paint-queue-position-input is-queued text-info"
                                                        data-wo-id="{{ (int) $wo->id }}"
                                                        data-in-queue="1"
                                                        data-was="{{ (int) $row->paint_queue_position }}"
                                                        value="{{ (int) $row->paint_queue_position }}"
                                                        title="Position in queue (0 = remove from queue)">
-                                            @elseif($wo->paint_queue_order === null && ($row->is_queue_master ?? false))
+                                            @elseif($canAddToPaintQueue)
                                                 <input type="text"
                                                        inputmode="numeric"
                                                        autocomplete="off"
-                                                       class="form-control js-paint-position-input dir-input paint-queue-position-input text-info"
+                                                       class="form-control js-paint-position-input dir-input paint-queue-position-input is-unqueued text-info"
                                                        data-wo-id="{{ (int) $wo->id }}"
                                                        data-in-queue="0"
                                                        data-was="0"
                                                        value=""
+                                                       placeholder="+"
                                                        title="Enter queue position (0 = not in queue)">
-                                            @elseif($wo->paint_queue_order !== null)
+                                            @elseif(! $isQueued && $isMaster && $hasFinish)
+                                                <span class="text-muted small" title="Clear finish date before returning to queue">—</span>
+                                            @elseif($isQueued)
                                                 <span class="text-muted"> </span>
                                             @else
                                                 <span class="text-muted">—</span>
                                             @endif
                                         @else
-                                            @if($wo->paint_queue_order !== null)
-                                                @if($row->is_queue_master ?? false)
+                                            @if($isQueued)
+                                                @if($isMaster)
                                                     <span class="paint-queue-position-value text-info">{{ $row->paint_queue_position }}</span>
                                                 @else
                                                     <span class="text-muted"> </span>
@@ -498,14 +614,14 @@
                                     <td class="text-center paint-col-owner">
                                         @if($wo->user_id && $wo->user)
                                             <button type="button"
-                                                    class="btn btn-link btn-sm text-light p-0 js-paint-msg-owner"
+                                                    class="btn btn-link btn-sm p-0 px-1 js-paint-msg-owner paint-owner-action"
                                                     data-user-id="{{ (int) $wo->user_id }}">
                                                 {{ $wo->user->name }}
                                             </button>
                                         @endif
                                     </td>
                                     <td class="text-center small paint-col-wrap">
-                                        {{ $row->detail_label ?? 'List' }}
+                                        <span class="paint-detail-pill">{{ $row->detail_label ?? 'List' }}</span>
                                     </td>
                                     <td class="paint-col-date-cell">
                                         @if ($editTp)
@@ -528,6 +644,8 @@
                                                            readonly
                                                            value="{{ $tpStartDisp }}"
                                                            class="form-control form-control-sm finish-input paint-native-date paint-date-display {{ $tpStartYmd !== '' ? 'has-finish' : '' }} {{ $tpStartYmd !== '' ? '' : 'paint-date-empty' }}"
+                                                           data-date-kind="date_start"
+                                                           title="{{ $startDateTitle }}"
                                                            tabindex="0"
                                                            inputmode="none"
                                                            autocomplete="off">
@@ -544,6 +662,7 @@
                                                    readonly
                                                    tabindex="-1"
                                                    class="form-control form-control-sm finish-input has-finish paint-date-readonly w-100"
+                                                   title="{{ $startDateTitle }}"
                                                    value="{{ $startStr }}">
                                         @else
                                             <span class="text-muted small d-block py-1">—</span>
@@ -570,6 +689,8 @@
                                                            readonly
                                                            value="{{ $tpFinishDisp }}"
                                                            class="form-control form-control-sm finish-input paint-native-date paint-date-display {{ $tpFinishYmd !== '' ? 'has-finish' : '' }} {{ $tpFinishYmd !== '' ? '' : 'paint-date-empty' }}"
+                                                           data-date-kind="date_finish"
+                                                           title="{{ $finishDateTitle }}"
                                                            tabindex="0"
                                                            inputmode="none"
                                                            autocomplete="off">
@@ -586,6 +707,7 @@
                                                    readonly
                                                    tabindex="-1"
                                                    class="form-control form-control-sm finish-input has-finish paint-date-readonly w-100"
+                                                   title="{{ $finishDateTitle }}"
                                                    value="{{ $finishStr }}">
                                         @else
                                             <span class="text-muted small d-block py-1">—</span>

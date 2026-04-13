@@ -1619,15 +1619,23 @@ class TdrProcessController extends Controller
         $fromMachiningIndex = (int) $request->input('from_machining_index', 0) === 1;
         $oldStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
         $oldFinish = $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null;
+        $authId = auth()->id();
 
         // 4) Обновляем только те поля, которые реально пришли в запросе
         if (array_key_exists('date_start', $data)) {
-            $tdrProcess->date_start = $data['date_start'] ?: null;
+            $nextStart = $data['date_start'] ?: null;
+            $tdrProcess->date_start = $nextStart;
+            if ($oldStart !== $nextStart) {
+                $tdrProcess->date_start_user_id = $authId;
+            }
 
             // если старт очистили — логично очистить и finish,
             // чтобы не осталось "конец без начала"
             if (empty($data['date_start'])) {
                 $tdrProcess->date_finish = null;
+                if ($oldFinish !== null) {
+                    $tdrProcess->date_finish_user_id = $authId;
+                }
                 if ($fromMachiningIndex) {
                     $tdrProcess->working_steps_count = null;
                     MachiningWorkStep::query()->where('tdr_process_id', $tdrProcess->id)->delete();
@@ -1647,11 +1655,15 @@ class TdrProcessController extends Controller
         }
 
         if (array_key_exists('date_finish', $data)) {
-            $tdrProcess->date_finish = $data['date_finish'] ?: null;
+            $nextFinish = $data['date_finish'] ?: null;
+            $tdrProcess->date_finish = $nextFinish;
+            if ($oldFinish !== $nextFinish) {
+                $tdrProcess->date_finish_user_id = $authId;
+            }
         }
 
         // фиксируем пользователя
-        $tdrProcess->user_id = auth()->id();
+        $tdrProcess->user_id = $authId;
 
         $tdrProcess->save();
 
@@ -1776,9 +1788,15 @@ class TdrProcessController extends Controller
         }
 
         if ($isAjax) {
+            $tdrProcess->loadMissing(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name']);
+
             return response()->json([
                 'success'               => true,
                 'user'                  => auth()->user()->name ?? 'system',
+                'date_start'            => $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null,
+                'date_finish'           => $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null,
+                'date_start_user'       => $tdrProcess->dateStartUpdatedBy?->name,
+                'date_finish_user'      => $tdrProcess->dateFinishUpdatedBy?->name,
                 'paint_queue_changed'   => $paintQueueDequeued,
             ], 200);
         }
@@ -1850,9 +1868,17 @@ class TdrProcessController extends Controller
                     ->get();
 
                 foreach ($fresh as $p) {
+                    $oldStart = $p->date_start ? $p->date_start->format('Y-m-d') : null;
+                    $oldFinish = $p->date_finish ? $p->date_finish->format('Y-m-d') : null;
                     $p->date_start = $newStart;
+                    if ($oldStart !== $newStart) {
+                        $p->date_start_user_id = $uid;
+                    }
                     if ($newStart === null) {
                         $p->date_finish = null;
+                        if ($oldFinish !== null) {
+                            $p->date_finish_user_id = $uid;
+                        }
                     }
                     $p->user_id = $uid;
                     $p->save();
@@ -1901,16 +1927,32 @@ class TdrProcessController extends Controller
                 }
 
                 foreach ($fresh as $p) {
-                    $p->date_finish = ($finishVal === null || $finishVal === '') ? null : $finishVal;
+                    $oldFinish = $p->date_finish ? $p->date_finish->format('Y-m-d') : null;
+                    $nextFinish = ($finishVal === null || $finishVal === '') ? null : $finishVal;
+                    $p->date_finish = $nextFinish;
+                    if ($oldFinish !== $nextFinish) {
+                        $p->date_finish_user_id = $uid;
+                    }
                     $p->user_id = $uid;
                     $p->save();
                 }
             }
 
             if ($isAjax) {
+                $leader = TdrProcess::query()
+                    ->where('tdrs_id', (int) $tdr->id)
+                    ->where('in_traveler', true)
+                    ->with(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name'])
+                    ->orderBy('id')
+                    ->first();
+
                 return response()->json([
-                    'success' => true,
-                    'user'    => auth()->user()->name ?? 'system',
+                    'success'          => true,
+                    'user'             => auth()->user()->name ?? 'system',
+                    'date_start'       => $leader?->date_start ? $leader->date_start->format('Y-m-d') : null,
+                    'date_finish'      => $leader?->date_finish ? $leader->date_finish->format('Y-m-d') : null,
+                    'date_start_user'  => $leader?->dateStartUpdatedBy?->name,
+                    'date_finish_user' => $leader?->dateFinishUpdatedBy?->name,
                 ], 200);
             }
 

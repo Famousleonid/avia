@@ -75,7 +75,7 @@ class WorkorderStdListProcessesService
                 ],
                 []
             );
-            $tp->load(['processName', 'updatedBy']);
+            $tp->load(['processName', 'updatedBy', 'dateStartUpdatedBy', 'dateFinishUpdatedBy']);
             $out->put($key, $tp);
         }
 

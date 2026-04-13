@@ -48,6 +48,51 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             max-width: 0;
+            padding-left: .42rem !important;
+        }
+        .paint-mobile-wo-label {
+            display: inline-flex;
+            max-width: 100%;
+            align-items: baseline;
+            font-weight: 700;
+            letter-spacing: .02em;
+            white-space: nowrap;
+        }
+        .paint-mobile-wo-label.paint-mobile-wo-open-details {
+            cursor: pointer;
+            border-radius: .35rem;
+            padding: .02rem .12rem;
+            margin-left: -.12rem;
+        }
+        .paint-mobile-wo-label.paint-mobile-wo-open-details:active {
+            background: rgba(13, 202, 240, .12);
+        }
+        .paint-mobile-wo-prefix {
+            color: #8D9197;
+        }
+        .paint-mobile-wo-tail {
+            color: #f8f9fa;
+        }
+        .paint-mobile-detail-row {
+            display: flex;
+            justify-content: space-between;
+            gap: .75rem;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            padding: .35rem 0;
+            font-size: .85rem;
+        }
+        .paint-mobile-detail-row:last-child {
+            border-bottom: 0;
+        }
+        .paint-mobile-detail-label {
+            color: #94a3b8;
+            flex: 0 0 auto;
+        }
+        .paint-mobile-detail-value {
+            color: #e2e8f0;
+            min-width: 0;
+            text-align: right;
+            overflow-wrap: anywhere;
         }
         .paint-mobile-table td, .paint-mobile-table th {
             vertical-align: middle;
@@ -395,16 +440,28 @@
                                 $dataFinishYmd = $lineFinish ? $lineFinish->format('Y-m-d') : '';
                                 $qp = $wo->paint_queue_order !== null ? $row->paint_queue_position : null;
                                 $isMaster = (bool) ($row->is_queue_master ?? false);
+                                $queueDisplay = ($qp !== null && $isMaster) ? str_pad((string) $qp, 2, '0', STR_PAD_LEFT) : ($qp !== null ? '' : '—');
+                                $woDigits = (string) ((int) $wo->number);
+                                $woPrefix = mb_substr($woDigits, 0, 3);
+                                $woTail = mb_substr($woDigits, 3);
                             @endphp
                             <tr class="js-paint-row {{ $isMaster ? 'paint-mobile-group-start' : 'paint-mobile-group-follow' }}"
                                 data-wo-number="{{ (int) $wo->number }}"
                                 data-wo-id="{{ (int) $wo->id }}"
+                                data-is-master="{{ $isMaster ? 1 : 0 }}"
+                                data-owner-user-id="{{ $isMaster && $wo->user_id ? (int) $wo->user_id : '' }}"
+                                data-owner-name="{{ $isMaster && $wo->user ? e($wo->user->name) : '' }}"
+                                data-detail-label="{{ e($row->detail_label ?? '') }}"
                                 data-sort-order="{{ (int) $loop->index }}"
                                 data-queue-pos="{{ $qp !== null ? (int) $qp : '' }}"
                                 data-start-ymd="{{ $dataStartYmd }}"
                                 data-finish-ymd="{{ $dataFinishYmd }}">
-                                <td class="paint-mobile-col-queue text-info js-queue-cell">{{ $qp !== null ? str_pad((string) $qp, 2, '0', STR_PAD_LEFT) : '—' }}</td>
-                                <td>{{ $wo->number }}</td>
+                                <td class="paint-mobile-col-queue text-info js-queue-cell">{{ $queueDisplay }}</td>
+                                <td>
+                                    <span class="paint-mobile-wo-label {{ $isMaster ? 'paint-mobile-wo-open-details js-mobile-paint-open-details' : '' }}">
+                                        <span class="paint-mobile-wo-tail">w</span><span class="paint-mobile-wo-prefix">{{ $woPrefix }}</span><span class="paint-mobile-wo-tail">{{ $woTail }}</span>
+                                    </span>
+                                </td>
                                 <td class="paint-mobile-col-detail text-secondary" title="{{ $row->detail_label ?? '' }}">{{ $row->detail_label ?? '—' }}</td>
                                 <td class="paint-mobile-date">
                                     @if($editTp)
@@ -468,6 +525,42 @@
                         @endforelse
                         </tbody>
                     </table>
+                </div>
+            </div>
+            <div class="modal fade" id="mobilePaintDetailsModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content bg-dark text-light border-secondary">
+                        <div class="modal-header border-secondary py-2">
+                            <h6 class="modal-title">
+                                WO <span class="js-mobile-details-wo text-info"></span>
+                            </h6>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" id="mobilePaintOwnerUserId">
+                            <div class="mb-3">
+                                <div class="paint-mobile-detail-row">
+                                    <span class="paint-mobile-detail-label">Owner</span>
+                                    <span class="paint-mobile-detail-value js-mobile-details-owner">—</span>
+                                </div>
+                                <div class="paint-mobile-detail-row">
+                                    <span class="paint-mobile-detail-label">Detail</span>
+                                    <span class="paint-mobile-detail-value js-mobile-details-detail">—</span>
+                                </div>
+                            </div>
+                            <textarea id="mobilePaintOwnerMessage"
+                                      class="form-control bg-dark text-light border-secondary"
+                                      rows="4"
+                                      maxlength="1000"
+                                      placeholder="Message to owner..."></textarea>
+                            <div class="small text-danger mt-2 d-none js-mobile-owner-msg-error"></div>
+                            <div class="small text-success mt-2 d-none js-mobile-owner-msg-ok">Sent</div>
+                        </div>
+                        <div class="modal-footer border-secondary py-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-info btn-sm js-mobile-owner-msg-send">Send</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         @else
@@ -787,7 +880,7 @@
                             r.dataset.queuePos = '';
                             const queueCell = r.querySelector('.js-queue-cell');
                             if (queueCell) {
-                                queueCell.textContent = '—';
+                                queueCell.textContent = r.dataset.isMaster === '1' ? '—' : '';
                             }
                         });
                     }
@@ -822,6 +915,90 @@
                 }
             }
         });
+
+        (function initMobilePaintDetailsModal() {
+            const modalEl = document.getElementById('mobilePaintDetailsModal');
+            if (!modalEl || typeof bootstrap === 'undefined') return;
+
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            const userIdEl = document.getElementById('mobilePaintOwnerUserId');
+            const textEl = document.getElementById('mobilePaintOwnerMessage');
+            const woEl = modalEl.querySelector('.js-mobile-details-wo');
+            const ownerEl = modalEl.querySelector('.js-mobile-details-owner');
+            const detailEl = modalEl.querySelector('.js-mobile-details-detail');
+            const errEl = modalEl.querySelector('.js-mobile-owner-msg-error');
+            const okEl = modalEl.querySelector('.js-mobile-owner-msg-ok');
+            const sendBtn = modalEl.querySelector('.js-mobile-owner-msg-send');
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+            function showError(message) {
+                if (!errEl) return;
+                errEl.textContent = message || 'Send failed';
+                errEl.classList.remove('d-none');
+                okEl?.classList.add('d-none');
+            }
+
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('.js-mobile-paint-open-details');
+                if (!btn) return;
+                e.preventDefault();
+
+                const row = btn.closest('.js-paint-row');
+                if (!row) return;
+
+                const ownerId = row.getAttribute('data-owner-user-id') || '';
+                const ownerName = row.getAttribute('data-owner-name') || '—';
+                const detail = row.getAttribute('data-detail-label') || '—';
+
+                if (userIdEl) userIdEl.value = ownerId;
+                if (textEl) textEl.value = '';
+                if (woEl) woEl.textContent = row.getAttribute('data-wo-number') || '';
+                if (ownerEl) ownerEl.textContent = ownerName;
+                if (detailEl) detailEl.textContent = detail;
+                if (sendBtn) sendBtn.disabled = !ownerId;
+                errEl?.classList.add('d-none');
+                okEl?.classList.add('d-none');
+                modal.show();
+            }, true);
+
+            sendBtn?.addEventListener('click', async function () {
+                const userId = userIdEl?.value || '';
+                const message = (textEl?.value || '').trim();
+                if (!userId) return showError('Owner is missing');
+                if (!message) return showError('Type a message');
+
+                sendBtn.disabled = true;
+                errEl?.classList.add('d-none');
+                okEl?.classList.add('d-none');
+
+                try {
+                    const res = await fetch('/admin/messages/send', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({user_ids: [userId], message})
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.ok) {
+                        return showError(data.message || 'Send failed');
+                    }
+
+                    okEl?.classList.remove('d-none');
+                    if (textEl) textEl.value = '';
+                    setTimeout(function () {
+                        modal.hide();
+                    }, 650);
+                } catch (_) {
+                    showError('Send failed');
+                } finally {
+                    sendBtn.disabled = false;
+                }
+            });
+        })();
 
         function normalizeAndSortPaintRows() {
             const tbody = document.querySelector('#js-mobile-paint-table tbody');
@@ -869,14 +1046,14 @@
                 r.dataset.queuePos = String(queueSlot);
                 const queueCell = r.querySelector('.js-queue-cell');
                 if (queueCell) {
-                    queueCell.textContent = String(queueSlot).padStart(2, '0');
+                    queueCell.textContent = r.dataset.isMaster === '1' ? String(queueSlot).padStart(2, '0') : '';
                 }
             });
 
             unqueued.forEach((r) => {
                 r.dataset.queuePos = '';
                 const queueCell = r.querySelector('.js-queue-cell');
-                if (queueCell) queueCell.textContent = '—';
+                if (queueCell) queueCell.textContent = r.dataset.isMaster === '1' ? '—' : '';
             });
 
             const ordered = queued.concat(unqueued);

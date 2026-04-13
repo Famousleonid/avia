@@ -917,6 +917,10 @@
                                             @php
                                                 $isClosed = !empty($pr->date_finish);
                                                 $isIgnoredStd = (bool) ($pr->ignore_row ?? false);
+                                                $startEditedBy = $pr->dateStartUpdatedBy?->name;
+                                                $finishEditedBy = $pr->dateFinishUpdatedBy?->name;
+                                                $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
+                                                $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
                                             @endphp
                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}" data-std-row="1"
                                                 class="{{ $isIgnoredStd ? 'text-muted std-ignored-row' : '' }}">
@@ -991,6 +995,7 @@
                                                                class="form-control form-control-sm finish-input js-std-editable {{ $isIgnoredStd ? 'is-ignored' : '' }}"
                                                                value="{{ $pr->date_start?->format('Y-m-d') }}"
                                                                data-original="{{ $pr->date_start?->format('Y-m-d') ?? '' }}"
+                                                               title="{{ $startDateTitle }}"
                                                                placeholder="..."
                                                                @if($isIgnoredStd) disabled @endif>
                                                     </form>
@@ -1006,6 +1011,7 @@
                                                                class="form-control form-control-sm finish-input js-std-editable {{ $isIgnoredStd ? 'is-ignored' : '' }}"
                                                                value="{{ $pr->date_finish?->format('Y-m-d') }}"
                                                                data-original="{{ $pr->date_finish?->format('Y-m-d') ?? '' }}"
+                                                               title="{{ $finishDateTitle }}"
                                                                placeholder="..."
                                                                @if($isIgnoredStd) disabled @endif>
                                                     </form>
@@ -1078,6 +1084,10 @@
                                                                     return ! empty($p->date_finish);
                                                                 });
                                                                 $trUserRow = $travelerUpdatedByRow ?? $travelerLeader;
+                                                                $trStartEditedBy = $travelerLeader->dateStartUpdatedBy?->name;
+                                                                $trFinishEditedBy = $travelerLeader->dateFinishUpdatedBy?->name;
+                                                                $trStartDateTitle = $trStartEditedBy ? ('Start date last edited by ' . $trStartEditedBy) : 'Start date editor: not recorded';
+                                                                $trFinishDateTitle = $trFinishEditedBy ? ('Finish date last edited by ' . $trFinishEditedBy) : 'Finish date editor: not recorded';
                                                             @endphp
                                                             <tr data-closed="{{ $trClosed ? 1 : 0 }}"
                                                                 data-traveler-row="1">
@@ -1134,6 +1144,7 @@
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $travelerLeader->date_start?->format('Y-m-d') }}"
                                                                                data-original="{{ $travelerLeader->date_start?->format('Y-m-d') ?? '' }}"
+                                                                               title="{{ $trStartDateTitle }}"
                                                                                placeholder="...">
                                                                     </form>
                                                                 </td>
@@ -1148,6 +1159,7 @@
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $travelerLeader->date_finish?->format('Y-m-d') }}"
                                                                                data-original="{{ $travelerLeader->date_finish?->format('Y-m-d') ?? '' }}"
+                                                                               title="{{ $trFinishDateTitle }}"
                                                                                placeholder="...">
                                                                     </form>
                                                                 </td>
@@ -1156,6 +1168,10 @@
                                                         @foreach($nonTravelerProcesses as $pr)
                                                             @php
                                                                 $isClosed = !empty($pr->date_finish);
+                                                                $startEditedBy = $pr->dateStartUpdatedBy?->name;
+                                                                $finishEditedBy = $pr->dateFinishUpdatedBy?->name;
+                                                                $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
+                                                                $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
                                                             @endphp
 
                                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}">
@@ -1214,6 +1230,7 @@
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $pr->date_start?->format('Y-m-d') }}"
                                                                                data-original="{{ $pr->date_start?->format('Y-m-d') ?? '' }}"
+                                                                               title="{{ $startDateTitle }}"
                                                                                placeholder="...">
                                                                     </form>
                                                                 </td>
@@ -1228,6 +1245,7 @@
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $pr->date_finish?->format('Y-m-d') }}"
                                                                                data-original="{{ $pr->date_finish?->format('Y-m-d') ?? '' }}"
+                                                                               title="{{ $finishDateTitle }}"
                                                                                placeholder="...">
                                                                     </form>
                                                                 </td>

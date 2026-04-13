@@ -26,6 +26,8 @@ final class PaintIndexRowsBuilder
                     $q->with([
                         'component:id,part_number,name,ipl_num',
                         'tdrProcesses.processName',
+                        'tdrProcesses.dateStartUpdatedBy:id,name',
+                        'tdrProcesses.dateFinishUpdatedBy:id,name',
                     ]);
                 },
             ]);

@@ -23,6 +23,8 @@ class TdrProcess extends Model
         'sort_order', // Поле для сортировки
         'date_start',
         'date_finish',
+        'date_start_user_id',
+        'date_finish_user_id',
         'working_steps_count',
         'ignore_row',
         'in_traveler',
@@ -76,5 +78,15 @@ class TdrProcess extends Model
     public function updatedBy()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function dateStartUpdatedBy()
+    {
+        return $this->belongsTo(User::class, 'date_start_user_id');
+    }
+
+    public function dateFinishUpdatedBy()
+    {
+        return $this->belongsTo(User::class, 'date_finish_user_id');
     }
 }

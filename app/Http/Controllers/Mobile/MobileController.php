@@ -64,6 +64,7 @@ class MobileController extends Controller
             ->whereNull('done_at')
             ->where('is_draft', 0)
             ->with([
+                'user:id,name',
                 'unit.manual.plane:id,type',
                 'tdrs' => function ($q) {
                     $q->with([

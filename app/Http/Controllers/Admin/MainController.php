@@ -170,7 +170,12 @@ class MainController extends Controller
                 ->with(['tdrs' => function ($q) use ($current_workorder) {
                     $q->where('workorder_id', $current_workorder->id)
                         ->with(['tdrProcesses' => function ($qq) {
-                            $qq->with(['processName', 'updatedBy'])->orderBy('id');
+                            $qq->with([
+                                'processName',
+                                'updatedBy',
+                                'dateStartUpdatedBy:id,name',
+                                'dateFinishUpdatedBy:id,name',
+                            ])->orderBy('id');
                         }])
                         ->orderBy('id');
                 }])

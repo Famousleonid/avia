@@ -207,6 +207,10 @@ class PaintController extends Controller
             return response()->json(['success' => false, 'message' => 'Already in paint queue'], 422);
         }
 
+        if ($this->isPaintWorkorderFullyClosed($wo)) {
+            return response()->json(['success' => false, 'message' => 'Clear paint finish date before returning to queue'], 422);
+        }
+
         $max = Workorder::query()
             ->whereNotNull('approve_at')
             ->whereNull('done_at')
@@ -273,6 +277,10 @@ class PaintController extends Controller
         }
 
         // $pos >= 1: встать в очередь (новая строка) или сменить место
+        if (! $inQueue && $this->isPaintWorkorderFullyClosed($wo)) {
+            return response()->json(['success' => false, 'message' => 'Clear paint finish date before returning to queue'], 422);
+        }
+
         $list = $inQueue
             ? array_values(array_filter($queuedIds, static fn (int $id) => $id !== $wid))
             : $queuedIds;
@@ -292,6 +300,11 @@ class PaintController extends Controller
         return $user !== null
             && $user->roleIs(self::QUEUE_ROLES)
             && $user->can('feature.paint');
+    }
+
+    private function isPaintWorkorderFullyClosed(Workorder $workorder): bool
+    {
+        return app(PaintIndexRowsBuilder::class)->isWorkorderPaintFullyClosed($workorder);
     }
 
     private function canDeleteLost($user, Paint $paint): bool

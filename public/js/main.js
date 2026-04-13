@@ -636,6 +636,7 @@ window.hapticTap = function (pattern = 10) {
         form.querySelectorAll('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]').forEach(inp => {
             const field = inp.name;
             const fpInst = inp._flatpickr;
+            const userField = field === 'date_start' ? 'date_start_user' : 'date_finish_user';
             if (data && Object.prototype.hasOwnProperty.call(data, field)) {
                 const v = data[field] ?? '';
                 inp.value = v;
@@ -646,6 +647,15 @@ window.hapticTap = function (pattern = 10) {
                         fpInst.clear();
                     }
                 }
+            }
+            if (data && Object.prototype.hasOwnProperty.call(data, userField)) {
+                const label = field === 'date_start' ? 'Start date' : 'Finish date';
+                const userName = data[userField] || '';
+                const title = userName
+                    ? `${label} last edited by ${userName}`
+                    : `${label} editor: not recorded`;
+                inp.title = title;
+                if (fpInst?.altInput) fpInst.altInput.title = title;
             }
 
             const hasValue = String(inp.value ?? '').trim() !== '';
