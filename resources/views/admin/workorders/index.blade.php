@@ -359,15 +359,15 @@
 
                 @roles('Admin|Manager')
                 <div class="d-flex gap-2 ms-3">
-                    <button type="button" class="btn btn-sm btn-primary" onclick="printSection('printArea')">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="printSection('printArea')">
                         Print
                     </button>
 
-                    <button type="button" class="btn btn-sm btn-success" onclick="openPdfVisible('landscape')">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openPdfVisible('landscape')">
                         PDF
                     </button>
 
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="copyHtmlToClipboard('printArea')">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="copyHtmlToClipboard('printArea')">
                         Copy Table
                     </button>
                 </div>
