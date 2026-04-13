@@ -23,57 +23,6 @@
             color: #ADB1B5; /* фон стрелки под тёмный */
         }
 
-        /* default: dropzones look normal */
-        .group-dropzone {
-            border: 0;
-            background: transparent;
-            min-height: 90px; /* чтобы было куда дропать даже если пусто */
-        }
-
-        /* show zones only while dragging */
-        #photoModal.dnd-active .group-dropzone {
-            border: 2px dashed rgba(255, 255, 255, .28);
-            background: rgba(255, 255, 255, .04);
-            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .45);
-        }
-
-        /* hovered zone stronger */
-        #photoModal.dnd-active .group-dropzone.drop-hover {
-            border-color: rgba(13, 202, 240, .95);
-            background: rgba(13, 202, 240, .12);
-        }
-
-        .group-dropzone.drop-hover {
-            border-color: rgba(13, 202, 240, .95);
-            background: rgba(13, 202, 240, .12);
-        }
-
-        /* Optional "Drop here" hint */
-        .group-dropzone::before {
-            content: "Drop here";
-            display: block;
-            font-size: 11px;
-            letter-spacing: .06em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, .35);
-            margin-bottom: 6px;
-        }
-
-        .group-dropzone.drop-hover::before {
-            color: rgba(13, 202, 240, .95);
-        }
-
-        /* dragging style */
-        .photo-item.dragging {
-            opacity: .55;
-        }
-
-        .group-hr {
-            border: 0;
-            border-top: 1px solid rgba(255, 255, 255, .10);
-            opacity: 1;
-        }
-
         .finish-input.fp-locked {
             background-image: none !important;
             padding-right: 2rem !important;
@@ -213,10 +162,10 @@
                                                     <i class="bi bi-hammer"></i>
                                                 </a>
 
-                                                <a class="btn btn-outline-info dir-top-square-btn open-photo-modal position-relative ms-2"
+                                                <a href="{{ route('mains.photos', $current_workorder->id) }}"
+                                                   class="btn btn-outline-info dir-top-square-btn position-relative ms-2"
                                                    data-tippy-content="{{ __('Pictures') }}"
-                                                   data-id="{{ $current_workorder->id }}"
-                                                   data-number="{{ $current_workorder->number }}">
+                                                   onclick="showLoadingSpinner()">
                                                     <i class="bi bi-images text-decoration-none"></i>
                                                     @if($photoTotalCount)
                                                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-info"

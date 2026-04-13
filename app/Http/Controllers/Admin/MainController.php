@@ -35,6 +35,15 @@ class MainController extends Controller
         return 1;
     }
 
+    public function photos(Workorder $workorder)
+    {
+        $workorder = Workorder::withDrafts()->findOrFail($workorder->id);
+
+        return view('admin.mains.photos', [
+            'workorder' => $workorder,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([

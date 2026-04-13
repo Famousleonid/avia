@@ -98,64 +98,6 @@
     </div>
 </div>
 
-{{-- Photo modal --}}
-<div class="modal fade" id="photoModal" tabindex="-1"
-     aria-labelledby="photoModalLabel" aria-hidden="true">
-
-    <div class="modal-dialog modal-xl modal-dialog-scrollable photo-modal-shift">
-        <div class="modal-content" style="background-color: #343A40">
-            <div class="modal-header p-1 px-3">
-                <h5 class="modal-title" id="photoModalLabel">Photos</h5>
-                <button type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="photoModalContent" class="row g-3"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button class="btn btn-primary" id="saveAllPhotos">Download All</button>
-            </div>
-        </div>
-    </div>
-
-</div>
-
-{{-- Confirm delete photo --}}
-<div class="modal fade" id="confirmDeletePhotoModal" tabindex="-1"
-     aria-labelledby="confirmDeletePhotoLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content text-center">
-            <div class="modal-header">
-                <h5 class="modal-title" id="confirmDeletePhotoLabel">Confirm Deletion</h5>
-            </div>
-            <div class="modal-body">
-                Are you sure you want to delete this photo?
-            </div>
-            <div class="modal-footer justify-content-center">
-                <button type="button"
-                        class="btn btn-secondary"
-                        data-bs-dismiss="modal">Cancel
-                </button>
-                <button id="confirmPhotoDeleteBtn" class="btn btn-danger">Delete</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-{{-- Toast --}}
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055">
-    <div id="photoDeletedToast"
-         class="toast bg-success text-white" role="alert"
-         aria-live="assertive" aria-atomic="true">
-        <div class="toast-body">
-            Photo deleted successfully.
-        </div>
-    </div>
-</div>
-
 {{-- LOG MODAL --}}
 <div class="modal fade" id="logModal" tabindex="-1"
      aria-labelledby="logModalLabel" aria-hidden="true">

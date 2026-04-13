@@ -158,6 +158,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class)->except(['show']);
     Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
+    Route::get('/mains/{workorder}/photos', [MainController::class, 'photos'])->name('mains.photos');
     Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/repair-order', [MainController::class, 'updateWoBushingProcessGroupRepairOrder'])->name('mains.wo_bushing_group.repair_order');
     Route::patch('/mains/{workorder}/wo-bushing-process-group/{process}/dates', [MainController::class, 'updateWoBushingProcessGroupDates'])->name('mains.wo_bushing_group.dates');
 
