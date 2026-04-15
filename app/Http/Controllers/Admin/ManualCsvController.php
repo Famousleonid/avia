@@ -61,7 +61,7 @@ class ManualCsvController extends Controller
             'process_type' => $processType
         ]);
 
-        return redirect()->back()->with('success', 'CSV файл успешно загружен' . ($processType ? ' (тип: ' . strtoupper($processType) . ')' : ''));
+        return redirect()->back()->with('success', 'CSV file uploaded successfully' . ($processType ? ' (type: ' . strtoupper($processType) . ')' : ''));
     }
 
     public function download(Manual $manual)
@@ -69,7 +69,7 @@ class ManualCsvController extends Controller
         $media = $manual->getMedia('csv_files')->first();
 
         if (!$media) {
-            return redirect()->back()->with('error', 'CSV файл не найден');
+            return redirect()->back()->with('error', 'CSV file not found');
         }
 
         return response()->download($media->getPath(), $media->file_name);
@@ -81,7 +81,7 @@ class ManualCsvController extends Controller
             $media = $manual->getMedia('csv_files')->firstWhere('id', $file);
 
             if (!$media) {
-                return redirect()->back()->with('error', 'CSV файл не найден');
+            return redirect()->back()->with('error', 'CSV file not found');
             }
 
             $path = $media->getPath();
@@ -104,7 +104,7 @@ class ManualCsvController extends Controller
             return view('admin.manuals.csv-view', compact('manual', 'records', 'headers', 'media'));
         } catch (\Exception $e) {
             \Log::error('Error viewing CSV file: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Ошибка при просмотре файла: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error while previewing file: ' . $e->getMessage());
         }
     }
 
@@ -145,7 +145,7 @@ class ManualCsvController extends Controller
             \Log::error('Error reading CSV file: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'error' => 'Ошибка при чтении файла: ' . $e->getMessage(),
+                'error' => 'Error while reading file: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -171,14 +171,14 @@ class ManualCsvController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'CSV файл успешно удален'
+            'message' => 'CSV file deleted successfully'
             ]);
 
         } catch (\Exception $e) {
             \Log::error('Error deleting CSV file: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'error' => 'Ошибка при удалении файла: ' . $e->getMessage()
+                'error' => 'Error while deleting file: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -243,13 +243,13 @@ class ManualCsvController extends Controller
 
                 return response()->json([
                     'success' => false,
-                    'error' => 'Ошибка импорта в STD Processes: '.$e->getMessage(),
+            'error' => 'STD Processes import error: '.$e->getMessage(),
                 ], 500);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'CSV файл успешно загружен',
+                'message' => 'CSV file uploaded successfully',
                 'file' => [
                     'id' => $media->id,
                     'name' => $media->file_name,
@@ -261,7 +261,7 @@ class ManualCsvController extends Controller
             \Log::error('Error uploading CSV file: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'error' => 'Ошибка при загрузке файла: ' . $e->getMessage()
+                'error' => 'Error while uploading file: ' . $e->getMessage()
             ], 500);
         }
     }

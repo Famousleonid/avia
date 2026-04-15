@@ -246,11 +246,11 @@ class UnitController extends Controller
             Unit::where('manual_id', $manual->id)->delete();
 
             // Перенаправляем на индекс с сообщением об успешном удалении
-            return redirect()->route('units.index')->with('success', 'Все юниты успешно удалены.');
+        return redirect()->route('units.index')->with('success', 'All units deleted successfully.');
         }
 
         // Если мануал не найден, возвращаем ошибку
-        return redirect()->route('units.index')->with('error', 'Мануал не найден.');
+            return redirect()->route('units.index')->with('error', 'Manual not found.');
     }
 
     /**
@@ -261,7 +261,7 @@ class UnitController extends Controller
         // Если есть связанные workorders, запрещаем удаление, чтобы не ломать целостность
         $workorderCount = $unit->workorders()->count();
         if ($workorderCount > 0) {
-            return back()->with('error', "Нельзя удалить компонент: к нему привязано {$workorderCount} workorder(ов).");
+            return back()->with('error', "Cannot delete component: {$workorderCount} workorder(s) are linked to it.");
         }
 
         $unit->delete();

@@ -311,7 +311,7 @@
                     })
                     .catch(err => {
                         const msg = err.message || 'Error saving processes.';
-                        showNotification('Ошибка: ' + msg, 'error');
+            showNotification('Error: ' + msg, 'error');
                     });
             });
         },

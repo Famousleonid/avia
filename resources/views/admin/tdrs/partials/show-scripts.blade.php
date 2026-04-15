@@ -7,6 +7,7 @@
 <script src="{{ asset('js/tdr-processes/vendor-handler.js') }}"></script>
 <script src="{{ asset('js/tdr-processes/form-link-handler.js') }}"></script>
 <script src="{{ asset('js/tdr-processes/edit-process/edit-process.js') }}"></script>
+<script src="{{ asset('js/delete-confirm-handler.js') }}"></script>
 <script>
     window.ProcessesConfig = window.ProcessesConfig || {};
     ProcessesConfig.updateOrderUrl = '{{ route("tdr-processes.update-order") }}';
@@ -52,6 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var editFormUrl = '{{ route("tdr-processes.editForm", ["id" => "__ID__"]) }}';
     var updateOrderUrl = '{{ route("tdr-processes.update-order") }}';
     var body = document.getElementById('componentProcessesTabBody');
+    var activeProcessesContainer = body;
     var tabLi = document.getElementById('tab-part-processes-li');
     var tabBtn = document.getElementById('tab-part-processes');
     var woNum = document.getElementById('compProcessesWoNumber');
@@ -518,19 +520,20 @@ document.addEventListener('DOMContentLoaded', function() {
         groupFormButtons.forEach(function(b){ var pid = b.getAttribute('data-process-name-id'); if (pid) { updateLinkUrl(pid); updateQuantityBadge(pid); } });
     }
 
-    function initTravelerGroupHandlers() {
-        if (!body) return;
-        var wrapper = body.querySelector('.processes-modal-body');
+    function initTravelerGroupHandlers(container) {
+        var target = container || body;
+        if (!target) return;
+        var wrapper = target.querySelector('.processes-modal-body');
         if (!wrapper) return;
         var tdrId = wrapper.dataset.tdrId;
         var groupUrl = wrapper.dataset.travelerGroupUrl;
         var ungroupUrl = wrapper.dataset.travelerUngroupUrl;
-        var createBtn = body.querySelector('#btnCreateTraveler');
-        var ungroupBtn = body.querySelector('#btnUngroupTraveler');
+        var createBtn = target.querySelector('#btnCreateTraveler');
+        var ungroupBtn = target.querySelector('#btnUngroupTraveler');
         function uniqueSelectedIds() {
             var ids = [];
             var seen = new Set();
-            body.querySelectorAll('.traveler-select-cb:checked').forEach(function(cb) {
+            target.querySelectorAll('.traveler-select-cb:checked').forEach(function(cb) {
                 var id = cb.getAttribute('data-tdr-process-id');
                 if (id && !seen.has(id)) {
                     seen.add(id);
@@ -543,7 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!createBtn) return;
             createBtn.disabled = uniqueSelectedIds().length < 1;
         }
-        body.querySelectorAll('.traveler-select-cb').forEach(function(cb) {
+        target.querySelectorAll('.traveler-select-cb').forEach(function(cb) {
             cb.addEventListener('change', syncCreateBtn);
         });
         syncCreateBtn();
@@ -563,7 +566,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
                     .then(function(res) {
                         if (res.ok && res.data.success) {
-                            loadProcessesAndBind(tdrId);
+                            loadProcessesAndBind(tdrId, target);
                             if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
                         } else {
                             var msg = (res.data && res.data.message) ? res.data.message : '{{ __("Request failed.") }}';
@@ -589,7 +592,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
                     .then(function(res) {
                         if (res.ok && res.data.success) {
-                            loadProcessesAndBind(tdrId);
+                            loadProcessesAndBind(tdrId, target);
                             if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
                         } else {
                             var msg2 = (res.data && res.data.message) ? res.data.message : '{{ __("Request failed.") }}';
@@ -603,7 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
             });
         }
-        body.querySelectorAll('.travel-form-link').forEach(function(link) {
+        target.querySelectorAll('.travel-form-link').forEach(function(link) {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
                 var row = link.closest('tr');
@@ -619,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 u.searchParams.set('vendor_id', vendorSel.value);
                 if (repInp && repInp.value.trim()) u.searchParams.set('repair_num', repInp.value.trim());
                 var seenEx = {};
-                body.querySelectorAll('.omit-traveler-form-cb:not(:checked)').forEach(function(cb) {
+                target.querySelectorAll('.omit-traveler-form-cb:not(:checked)').forEach(function(cb) {
                     var pid = cb.getAttribute('data-tdr-process-id');
                     if (pid && !seenEx[pid]) {
                         seenEx[pid] = true;
@@ -631,38 +634,63 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function loadProcessesAndBind(tdrId) {
-        if (!body) return;
-        body.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
-        if (woNum) woNum.textContent = '-';
-        if (itemName) itemName.textContent = '-';
-        if (itemIpl) itemIpl.textContent = '-';
-        if (itemPn) itemPn.textContent = '-';
-        if (itemSn) itemSn.textContent = '-';
-        if (addProcessBtn) { addProcessBtn.dataset.tdrId = tdrId; addProcessBtn.disabled = true; }
+    function loadProcessesAndBind(tdrId, container) {
+        var target = container || body;
+        var isTabTarget = target === body;
+        if (!target) return;
+        activeProcessesContainer = target;
+        target.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
+        if (isTabTarget) {
+            if (woNum) woNum.textContent = '-';
+            if (itemName) itemName.textContent = '-';
+            if (itemIpl) itemIpl.textContent = '-';
+            if (itemPn) itemPn.textContent = '-';
+            if (itemSn) itemSn.textContent = '-';
+            if (addProcessBtn) { addProcessBtn.dataset.tdrId = tdrId; addProcessBtn.disabled = true; }
+        }
         fetch(processesBodyUrl.replace('__ID__', tdrId), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
             .then(function(r) { return r.text(); })
             .then(function(html) {
-                body.innerHTML = html;
-                var wrapper = body.querySelector('.processes-modal-body');
-                if (wrapper) {
+                target.innerHTML = html;
+                var wrapper = target.querySelector('.processes-modal-body');
+                if (isTabTarget && wrapper) {
                     if (woNum) woNum.textContent = wrapper.dataset.woNumber || '-';
                     if (itemName) itemName.textContent = wrapper.dataset.componentName || 'N/A';
                     if (itemIpl) itemIpl.textContent = wrapper.dataset.componentIpl || 'N/A';
                     if (itemPn) itemPn.textContent = wrapper.dataset.componentPn || 'N/A';
                     if (itemSn) itemSn.textContent = wrapper.dataset.serialNumber || 'N/A';
                 }
-                var processesWrapper = body.querySelector('.processes-modal-body');
+                var processesWrapper = target.querySelector('.processes-modal-body');
                 if (typeof Sortable !== 'undefined' && typeof SortableHandler !== 'undefined') {
                     if (!processesWrapper || processesWrapper.dataset.travelerBlock !== '1') {
-                        SortableHandler.init(updateOrderUrl);
+                        if (isTabTarget) {
+                            SortableHandler.init(updateOrderUrl);
+                        } else {
+                            var modalSortableBody = target.querySelector('#sortable-tbody');
+                            if (modalSortableBody) {
+                                Sortable.create(modalSortableBody, {
+                                    animation: 150,
+                                    ghostClass: 'dragging',
+                                    dragClass: 'dragging',
+                                    filter: '.disabled',
+                                    onEnd: function(evt) {
+                                        var newOrder = Array.from(evt.to.children)
+                                            .filter(function(row) { return !row.querySelector('.disabled') || !row.querySelector('[aria-disabled="true"]'); })
+                                            .map(function(row, index) {
+                                                return { id: row.getAttribute('data-id'), sort_order: index + 1 };
+                                            });
+                                        SortableHandler.updateProcessOrder(newOrder, updateOrderUrl);
+                                    }
+                                });
+                            }
+                        }
                     }
                 }
                 if (typeof VendorHandler !== 'undefined' && ProcessesConfig.storeVendorUrl) VendorHandler.init(ProcessesConfig.storeVendorUrl);
-                bindProcessHandlers(wrapper);
-                if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(body);
-                initTravelerGroupHandlers();
-                if (addProcessBtn) {
+                bindProcessHandlers(wrapper, target);
+                if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(target);
+                initTravelerGroupHandlers(target);
+                if (isTabTarget && addProcessBtn) {
                     addProcessBtn.disabled = false;
                     addProcessBtn.onclick = function() {
                         var tdrId = this.dataset.tdrId || (wrapper && wrapper.dataset.tdrId);
@@ -675,14 +703,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(function() {
-                body.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load processes.") }}</div>';
-                if (addProcessBtn) addProcessBtn.disabled = false;
+                target.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load processes.") }}</div>';
+                if (isTabTarget && addProcessBtn) addProcessBtn.disabled = false;
             });
     }
 
-    function bindProcessHandlers(wrapper) {
-        if (!body) return;
-        body.querySelectorAll('.load-edit-process').forEach(function(b) {
+    function bindProcessHandlers(wrapper, container) {
+        var target = container || body;
+        if (!target) return;
+        target.querySelectorAll('.load-edit-process').forEach(function(b) {
             b.addEventListener('click', function() {
                 var tdrProcessId = this.dataset.tdrProcessId;
                 var editModal = document.getElementById('editTdrProcessModal');
@@ -698,7 +727,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, { once: true });
             });
         });
-        body.querySelectorAll('.ajax-delete-process').forEach(function(b) {
+        target.querySelectorAll('.ajax-delete-process').forEach(function(b) {
             b.addEventListener('click', function() {
                 if (!confirm('{{ __("Are you sure you want to delete this process?") }}')) return;
                 var tdrProcessId = this.dataset.tdrProcessId;
@@ -713,7 +742,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function(r) { return r.json().catch(function() { return {}; }).then(function(data) { return { ok: r.ok, data: data }; }); })
                     .then(function(res) {
                         if (res.ok && res.data.success !== false) {
-                            loadProcessesAndBind(tdrId);
+                            loadProcessesAndBind(tdrId, target);
                             if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
                         } else {
                             var dm = (res.data && res.data.message) ? res.data.message : '{{ __("Delete failed.") }}';
@@ -725,15 +754,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    document.querySelectorAll('.open-part-processes-tab').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var tdrId = this.dataset.tdrId;
+    var tdrProcessTable = document.getElementById('tdr_process_Table');
+    if (tdrProcessTable) {
+        tdrProcessTable.addEventListener('click', function(e) {
+            var btn = e.target.closest('.open-part-processes-tab');
+            if (!btn || !tdrProcessTable.contains(btn)) return;
+            e.preventDefault();
+            var tdrId = btn.dataset.tdrId;
             if (!tdrId) return;
             if (tabLi) tabLi.classList.remove('d-none');
             loadProcessesAndBind(tdrId);
-            if (tabBtn) { var tab = new bootstrap.Tab(tabBtn); tab.show(); }
+            if (tabBtn) {
+                var tab = new bootstrap.Tab(tabBtn);
+                tab.show();
+            }
         });
-    });
+    }
     function openAddProcessModal(tdrId) {
         var iframe = document.getElementById('addPartProcessesIframe');
         var modal = document.getElementById('addPartProcessesModal');
@@ -1448,7 +1484,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (m) m.hide();
             var ifr = document.getElementById('addPartProcessesIframe');
             if (ifr) ifr.src = 'about:blank';
-            loadProcessesAndBind(e.data.tdrId);
+            loadProcessesAndBind(e.data.tdrId, activeProcessesContainer || body);
             if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
         } else if (e.data && e.data.type === 'createProcessCancel') {
             var m = bootstrap.Modal.getInstance(document.getElementById('addPartProcessesModal'));
@@ -1460,7 +1496,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (m) m.hide();
             var ifr = document.getElementById('editTdrProcessIframe');
             if (ifr) ifr.src = 'about:blank';
-            loadProcessesAndBind(e.data.tdrId);
+            loadProcessesAndBind(e.data.tdrId, activeProcessesContainer || body);
             if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
         } else if (e.data && e.data.type === 'editProcessCancel') {
             var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));

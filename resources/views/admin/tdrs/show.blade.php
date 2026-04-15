@@ -52,6 +52,36 @@
         }
         .tdr-show-back-text .t1{ font-size: 1rem; opacity: .95; }
         .tdr-show-back-text .t2{ font-size: 1.3rem; font-weight: 700; }
+        #tdrShowTabList {
+            --tdr-tabs-bg: #212529;
+            border-bottom: 0 !important;
+            align-items: flex-end;
+        }
+        #tdrShowTabList .nav-link {
+            border-radius: 6px 6px 0 0;
+            border-color: transparent;
+            margin-bottom: 0;
+            padding-bottom: .55rem;
+            padding-top: .55rem;
+            position: relative;
+        }
+        #tdrShowTabList .nav-link:not(.active)::after {
+            background: rgba(13, 202, 240, .55);
+            bottom: 0;
+            content: "";
+            height: 1px;
+            left: 0;
+            position: absolute;
+            right: 0;
+        }
+        #tdrShowTabList .nav-link.active {
+            background-color: transparent;
+            border-color: rgba(13, 202, 240, .8) rgba(13, 202, 240, .8) var(--tdr-tabs-bg);
+            color: #5ee3ff;
+            isolation: isolate;
+            margin-bottom: -1px;
+            z-index: 3;
+        }
         /* Select2 in modals - ensure dropdown appears above modal (Bootstrap modal z-index: 1055) */
         #componentInspectionModal .select2-container--open,
         .select2-container--open { z-index: 1065 !important; }

@@ -179,7 +179,7 @@
                     if (processNameId) {
                         fetch(`/get-processes?processNameId=${processNameId}&manualId=${manualId}`)
                             .then(response => {
-                                if (!response.ok) throw new Error('Ошибка загрузки данных');
+                if (!response.ok) throw new Error('Error while loading data');
                                 return response.json();
                             })
                             .then(data => {

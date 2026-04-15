@@ -30,13 +30,13 @@ function initTdrProcesses() {
         if (!ProcessesConfig.updateOrderUrl) {
             console.error('ProcessesConfig.updateOrderUrl is not set. Please check that the route is defined in the Blade template.');
             if (window.NotificationHandler) {
-                window.NotificationHandler.error('Ошибка конфигурации: URL для обновления порядка не установлен');
+            window.NotificationHandler.error('Configuration error: order update URL is not set');
             }
         } else {
             SortableHandler.init(
                 ProcessesConfig.updateOrderUrl,
                 function(data) {
-                    NotificationHandler.success('Порядок процессов обновлен');
+                    NotificationHandler.success('Process order updated');
                 }
             );
         }

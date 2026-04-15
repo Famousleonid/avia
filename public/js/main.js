@@ -206,6 +206,11 @@
  *   showNotification('Warning message', 'warning')
  */
 function showNotification(message, type = 'info', duration = 4000) {
+    if (typeof window.notify === 'function') {
+        window.notify(message, type, duration);
+        return;
+    }
+
     // Удаляем предыдущие уведомления, если есть
     const existingNotifications = document.querySelectorAll('.custom-notification');
     existingNotifications.forEach(notif => {

@@ -787,7 +787,7 @@
             const selectedRadio = document.querySelector('#existingProcessContainer input[type="radio"]:checked');
 
             if (newProcess === '' && !selectedRadio) {
-                alert("Введите новый процесс или выберите существующий.");
+                alert("Enter a new process or select an existing one.");
                 return;
             }
 
@@ -843,7 +843,7 @@
 
                                 document.getElementById('newProcessInput').value = '';
                             } else {
-                                alert(data.message || "Ошибка при добавлении нового процесса.");
+                alert(data.message || "Error while adding a new process.");
                             }
                         })
                         .catch(error => {

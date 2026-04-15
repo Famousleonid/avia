@@ -417,6 +417,11 @@
 
             // Alert function
             function showAlert(type, message) {
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(message, type === 'danger' ? 'error' : type);
+                    return;
+                }
+
                 const alertDiv = document.createElement('div');
                 alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
                 alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';

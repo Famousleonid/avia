@@ -38,7 +38,7 @@ class ManualStdProcessController extends Controller
             if ($allowed === []) {
                 return redirect()->back()
                     ->withInput()
-                    ->with('error', 'Для этого типа STD нет процессов на вкладке Processes текущего CMM. Добавьте процесс (Cad plate / Stress / Paint) в Processes, затем повторите добавление строки.');
+            ->with('error', 'There are no processes for this STD type on the current CMM Processes tab. Add a process (Cad plate / Stress / Paint) in Processes, then try adding the row again.');
             }
             $processRules = ['required', 'string', 'max:255', Rule::in($allowed)];
         }
@@ -62,14 +62,14 @@ class ManualStdProcessController extends Controller
         if ($ipl === '') {
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'У выбранной детали не заполнен IPL. Укажите IPL на вкладке Parts.');
+            ->with('error', 'The selected part has no IPL. Set the IPL on the Parts tab.');
         }
 
         $partNum = trim((string) ($component->part_number ?? ''));
         if (StdProcess::rowExistsForManualStdPart($manual->id, $std, $ipl, $partNum)) {
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Эта деталь (IPL и Part №) уже есть в таблице для выбранного типа STD. Добавление отменено.');
+            ->with('error', 'This part (IPL and Part No.) already exists in the table for the selected STD type. Adding was canceled.');
         }
 
         $manual->stdProcesses()->create([
@@ -87,7 +87,7 @@ class ManualStdProcessController extends Controller
             'manual' => $manual->id,
             'tab' => 'std',
             'std_inner' => $std,
-        ])->with('success', 'Строка STD добавлена');
+        ])->with('success', 'STD row added');
     }
 
     public function componentsForAdd(Request $request, Manual $manual): JsonResponse
@@ -150,7 +150,7 @@ class ManualStdProcessController extends Controller
             'manual' => $manual->id,
             'tab' => 'std',
             'std_inner' => $stdProcess->std,
-        ])->with('success', 'Строка STD обновлена');
+        ])->with('success', 'STD row updated');
     }
 
     public function destroy(Manual $manual, StdProcess $stdProcess): RedirectResponse
@@ -160,7 +160,7 @@ class ManualStdProcessController extends Controller
         $stdProcess->delete();
 
         return redirect()->route('manuals.show', ['manual' => $manual->id, 'tab' => 'std'])
-            ->with('success', 'Строка STD удалена');
+            ->with('success', 'STD row deleted');
     }
 
     public function reimportFromCsv(Manual $manual): RedirectResponse
@@ -178,14 +178,14 @@ class ManualStdProcessController extends Controller
                 'manual' => $manual->id,
                 'tab' => 'std',
                 'std_inner' => 'csv',
-            ])->with('error', 'Не удалось импортировать из CSV: '.$e->getMessage());
+        ])->with('error', 'Failed to import from CSV: '.$e->getMessage());
         }
 
         return redirect()->route('manuals.show', [
             'manual' => $manual->id,
             'tab' => 'std',
             'std_inner' => 'csv',
-        ])->with('success', 'Таблицы NDT / CAD / Stress / Paint обновлены из загруженных CSV-файлов.');
+        ])->with('success', 'NDT / CAD / Stress / Paint tables were updated from uploaded CSV files.');
     }
 
     protected function ensureManualAccess(Manual $manual): void

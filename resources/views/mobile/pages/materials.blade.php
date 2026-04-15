@@ -197,7 +197,7 @@
                             setTimeout(() => this.style.backgroundColor = '#1e1e1e', 500);
                         })
                         .catch(err => {
-                            alert('Ошибка при сохранении');
+                    alert('Error while saving');
                             console.error(err);
                         });
                 });

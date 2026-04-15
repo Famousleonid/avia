@@ -372,7 +372,7 @@ class TrainingController extends Controller
                 'skipped' => $skippedCount
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 
@@ -445,7 +445,7 @@ class TrainingController extends Controller
                 'skipped' => $skippedCount
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 

@@ -50,7 +50,7 @@ class SortableHandler {
         if (!updateOrderUrl) {
             console.error('Update order URL is not defined');
             if (window.NotificationHandler) {
-                window.NotificationHandler.error('Ошибка: URL для обновления порядка не найден. Проверьте конфигурацию роутов.');
+            window.NotificationHandler.error('Error: order update URL was not found. Check route configuration.');
             }
             location.reload();
             return;
@@ -62,7 +62,7 @@ class SortableHandler {
         if (!csrfToken) {
             console.error('CSRF token not found');
             if (window.NotificationHandler) {
-                window.NotificationHandler.error('Ошибка: CSRF токен не найден');
+            window.NotificationHandler.error('Error: CSRF token was not found');
             }
             return;
         }
@@ -87,7 +87,7 @@ class SortableHandler {
                 } else if (response.status === 419) {
                     throw new Error('Сессия истекла. Пожалуйста, обновите страницу.');
                 } else {
-                    throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
+            throw new Error(`Server error: ${response.status} ${response.statusText}`);
                 }
             }
             return response.json();
@@ -101,7 +101,7 @@ class SortableHandler {
             } else {
                 console.error('Error updating order:', data.message);
                 if (window.NotificationHandler) {
-                    window.NotificationHandler.error('Ошибка обновления порядка: ' + (data.message || 'Неизвестная ошибка'));
+                window.NotificationHandler.error('Order update error: ' + (data.message || 'Unknown error'));
                 }
                 // Восстанавливаем предыдущий порядок
                 location.reload();
@@ -110,9 +110,9 @@ class SortableHandler {
         .catch(error => {
             console.error('Error:', error);
             if (window.NotificationHandler) {
-                window.NotificationHandler.error(error.message || 'Ошибка сети при обновлении порядка');
+                window.NotificationHandler.error(error.message || 'Network error while updating order');
             } else {
-                showNotification('Ошибка при обновлении порядка: ' + (error.message || 'Неизвестная ошибка'), 'error');
+                showNotification('Error while updating order: ' + (error.message || 'Unknown error'), 'error');
             }
             location.reload();
         });

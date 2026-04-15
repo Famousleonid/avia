@@ -140,7 +140,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'NDT компоненты успешно обновлены'
+                'message' => 'NDT components updated successfully'
         ]);
     }
 
@@ -174,7 +174,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'CAD компоненты успешно обновлены'
+                'message' => 'CAD components updated successfully'
         ]);
     }
 
@@ -208,7 +208,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Stress компоненты успешно обновлены'
+                'message' => 'Stress components updated successfully'
         ]);
     }
 
@@ -252,7 +252,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'NDT компонент успешно добавлен'
+                'message' => 'NDT component added successfully'
         ]);
     }
 
@@ -297,7 +297,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'CAD компонент успешно добавлен'
+                'message' => 'CAD component added successfully'
         ]);
     }
 
@@ -342,7 +342,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Stress компонент успешно добавлен'
+                'message' => 'Stress component added successfully'
         ]);
     }
 
@@ -388,7 +388,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Paint компонент успешно добавлен'
+                'message' => 'Paint component added successfully'
         ]);
     }
 
@@ -406,7 +406,7 @@ class NdtCadCsvController extends Controller
         if (!$ndtCadCsv) {
             return response()->json([
                 'success' => false,
-                'message' => 'Запись не найдена'
+                'message' => 'Record not found'
             ], 404);
         }
 
@@ -428,7 +428,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'NDT компонент успешно удален'
+                'message' => 'NDT component deleted successfully'
         ]);
     }
 
@@ -446,7 +446,7 @@ class NdtCadCsvController extends Controller
         if (!$ndtCadCsv) {
             return response()->json([
                 'success' => false,
-                'message' => 'Запись не найдена'
+                'message' => 'Record not found'
             ], 404);
         }
 
@@ -468,7 +468,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'CAD компонент успешно удален'
+                'message' => 'CAD component deleted successfully'
         ]);
     }
 
@@ -486,7 +486,7 @@ class NdtCadCsvController extends Controller
         if (!$ndtCadCsv) {
             return response()->json([
                 'success' => false,
-                'message' => 'Запись не найдена'
+                'message' => 'Record not found'
             ], 404);
         }
 
@@ -508,7 +508,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Stress компонент успешно удален'
+                'message' => 'Stress component deleted successfully'
         ]);
     }
 
@@ -526,7 +526,7 @@ class NdtCadCsvController extends Controller
         if (!$ndtCadCsv) {
             return response()->json([
                 'success' => false,
-                'message' => 'Запись не найдена'
+                'message' => 'Record not found'
             ], 404);
         }
 
@@ -548,7 +548,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Paint компонент успешно удален'
+                'message' => 'Paint component deleted successfully'
         ]);
     }
 
@@ -559,7 +559,7 @@ class NdtCadCsvController extends Controller
     {
         return response()->json([
             'success' => false,
-            'message' => 'Импорт CSV для workorder отключён. Загрузите CSV в CMM → вкладка STD Processes.',
+            'message' => 'CSV import for workorder is disabled. Upload CSV in CMM -> STD Processes tab.',
         ], 422);
     }
 
@@ -578,7 +578,7 @@ class NdtCadCsvController extends Controller
             if (! $ndtCadCsv) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Запись NdtCadCsv не найдена',
+            'message' => 'NdtCadCsv record not found',
                 ], 404);
             }
 
@@ -587,7 +587,7 @@ class NdtCadCsvController extends Controller
             if (! $manual) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Manual не найден для данного workorder',
+            'message' => 'Manual was not found for this workorder',
                 ], 404);
             }
 
@@ -598,7 +598,7 @@ class NdtCadCsvController extends Controller
             if (count($components) === 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Нет данных STD для этого типа в мануале. Заполните STD Processes или загрузите CSV в CMM.',
+            'message' => 'There is no STD data for this type in the manual. Fill STD Processes or upload CSV in CMM.',
                 ], 404);
             }
 
@@ -616,13 +616,13 @@ class NdtCadCsvController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => strtoupper($type).' компоненты заменены из STD мануала',
+                'message' => strtoupper($type).' components were replaced from the STD manual',
                 'count' => count($components),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Ошибка при перезагрузке: '.$e->getMessage(),
+            'message' => 'Reload error: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -638,7 +638,7 @@ class NdtCadCsvController extends Controller
             if (!$manual) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Manual не найден для данного workorder'
+                'message' => 'Manual was not found for this workorder'
                 ], 404);
             }
 
@@ -655,7 +655,7 @@ class NdtCadCsvController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Ошибка при получении компонентов: ' . $e->getMessage()
+                'message' => 'Error while loading components: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -671,7 +671,7 @@ class NdtCadCsvController extends Controller
             if (!$manual) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Manual не найден для данного workorder'
+                'message' => 'Manual was not found for this workorder'
                 ], 404);
             }
 
@@ -694,7 +694,7 @@ class NdtCadCsvController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Ошибка при получении CAD процессов: ' . $e->getMessage()
+                'message' => 'Error while loading CAD processes: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -710,7 +710,7 @@ class NdtCadCsvController extends Controller
             if (!$manual) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Manual не найден для данного workorder'
+                'message' => 'Manual was not found for this workorder'
                 ], 404);
             }
 
@@ -733,7 +733,7 @@ class NdtCadCsvController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Ошибка при получении Stress процессов: ' . $e->getMessage()
+                'message' => 'Error while loading Stress processes: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -749,7 +749,7 @@ class NdtCadCsvController extends Controller
             if (!$manual) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Manual не найден для данного workorder'
+                'message' => 'Manual was not found for this workorder'
                 ], 404);
             }
 
@@ -772,7 +772,7 @@ class NdtCadCsvController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Ошибка при получении Paint процессов: ' . $e->getMessage()
+                'message' => 'Error while loading Paint processes: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -796,7 +796,7 @@ class NdtCadCsvController extends Controller
         if (!$ndtCadCsv) {
             return response()->json([
                 'success' => false,
-                'message' => 'Запись не найдена'
+                'message' => 'Record not found'
             ], 404);
         }
 
@@ -805,7 +805,7 @@ class NdtCadCsvController extends Controller
         if (!isset($components[$request->index])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Компонент не найден'
+                'message' => 'Component not found'
             ], 404);
         }
 
@@ -821,7 +821,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'NDT компонент успешно обновлен'
+                'message' => 'NDT component updated successfully'
         ]);
     }
 
@@ -844,7 +844,7 @@ class NdtCadCsvController extends Controller
         if (!$ndtCadCsv) {
             return response()->json([
                 'success' => false,
-                'message' => 'Запись не найдена'
+                'message' => 'Record not found'
             ], 404);
         }
 
@@ -853,7 +853,7 @@ class NdtCadCsvController extends Controller
         if (!isset($components[$request->index])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Компонент не найден'
+                'message' => 'Component not found'
             ], 404);
         }
 
@@ -869,7 +869,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'CAD компонент успешно обновлен'
+                'message' => 'CAD component updated successfully'
         ]);
     }
 
@@ -892,7 +892,7 @@ class NdtCadCsvController extends Controller
         if (!$ndtCadCsv) {
             return response()->json([
                 'success' => false,
-                'message' => 'Запись не найдена'
+                'message' => 'Record not found'
             ], 404);
         }
 
@@ -901,7 +901,7 @@ class NdtCadCsvController extends Controller
         if (!isset($components[$request->index])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Компонент не найден'
+                'message' => 'Component not found'
             ], 404);
         }
 
@@ -917,7 +917,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Stress компонент успешно обновлен'
+                'message' => 'Stress component updated successfully'
         ]);
     }
 
@@ -940,7 +940,7 @@ class NdtCadCsvController extends Controller
         if (!$ndtCadCsv) {
             return response()->json([
                 'success' => false,
-                'message' => 'Запись не найдена'
+                'message' => 'Record not found'
             ], 404);
         }
 
@@ -948,7 +948,7 @@ class NdtCadCsvController extends Controller
         if (!isset($components[$request->index])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Компонент не найден'
+                'message' => 'Component not found'
             ], 404);
         }
 
@@ -964,7 +964,7 @@ class NdtCadCsvController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Paint компонент успешно обновлен'
+                'message' => 'Paint component updated successfully'
         ]);
     }
 
@@ -993,7 +993,7 @@ class NdtCadCsvController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'NdtCadCsv создан и заполнен из STD мануала',
+                'message' => 'NdtCadCsv was created and filled from the STD manual',
                     'count' => is_array($snapshot) ? count($snapshot) : 0,
                 ]);
             }
@@ -1002,7 +1002,7 @@ class NdtCadCsvController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Ошибка при принудительной загрузке: '.$e->getMessage(),
+                'message' => 'Forced load error: '.$e->getMessage(),
             ], 500);
         }
     }

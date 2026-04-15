@@ -632,23 +632,28 @@
                             row.setAttribute('data-process-index', index);
                         });
                         // Показываем уведомление пользователю
-                        showNotification('Порядок процессов обновлен', 'success');
+                        showNotification('Process order updated', 'success');
                     } else {
                         console.error('Error updating order:', data.message);
-                        showNotification('Ошибка обновления порядка: ' + data.message, 'error');
+                        showNotification('Order update error: ' + data.message, 'error');
                         // Восстанавливаем предыдущий порядок
                         location.reload();
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showNotification('Ошибка сети при обновлении порядка', 'error');
+                    showNotification('Network error while updating order', 'error');
                     location.reload();
                 });
             }
 
             // Функция для показа уведомлений
             function showNotification(message, type) {
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(message, type);
+                    return;
+                }
+
                 // Создаем уведомление
                 const notification = document.createElement('div');
                 notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;

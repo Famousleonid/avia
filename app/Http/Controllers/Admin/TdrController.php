@@ -403,6 +403,14 @@ class TdrController extends Controller
                     $workorder->save();
                 }
 
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => __('TDR records created successfully'),
+                        'workorder_id' => $workorder->id,
+                    ]);
+                }
+
                 return redirect()
                     ->route('tdrs.show', ['id' => $workorder->id])
                     ->with('success', __('TDR records created successfully'));
@@ -580,6 +588,14 @@ class TdrController extends Controller
                 //     'order_new_count' => $orderNewCount
                 // ]);
             }
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'TDR record created successfully',
+                'workorder_id' => $workorder->id,
+            ]);
         }
 
         return redirect()
@@ -3979,7 +3995,7 @@ class TdrController extends Controller
         }
 
         return redirect()->route('tdrs.show', ['id' => $workorderId])
-            ->with('success', 'Запись успешно удалена.');
+            ->with('success', 'Record deleted successfully.');
     }
 
 

@@ -636,7 +636,7 @@
                 })
                 .catch(error => {
                     const errorMessage = error.message || 'Error saving processes.';
-                    showNotification('Ошибка при сохранении процессов: ' + errorMessage, 'error');
+                    showNotification('Error while saving processes: ' + errorMessage, 'error');
                 });
         });
 
@@ -757,7 +757,7 @@
                 .catch(error => {
                     processOptionsContainer.innerHTML = `<div class="text-danger">Error loading processes: ${error.message}</div>`;
                     saveButton.disabled = true;
-                    showNotification('Ошибка при загрузке процессов: ' + error.message, 'error');
+                showNotification('Error while loading processes: ' + error.message, 'error');
                 });
         }
 
@@ -1532,7 +1532,7 @@
                                 // Очищаем поле ввода нового процесса
                                 document.getElementById('newProcessInput').value = '';
 
-                                showNotification('Процесс успешно добавлен!', 'success');
+            showNotification('Process added successfully!', 'success');
 
                                 // Закрываем модальное окно
                                 const modalEl = document.getElementById('addProcessModal');
@@ -1541,7 +1541,7 @@
                                     modalInstance.hide();
                                 }
                             } else {
-                                showNotification(data.message || "Ошибка при добавлении нового процесса.", 'error');
+            showNotification(data.message || "Error while adding a new process.", 'error');
                             }
                         })
                         .catch(error => {

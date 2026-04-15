@@ -209,7 +209,7 @@
                 .catch(err => {
                     processOptionsContainer.innerHTML = `<div class="text-danger">Error: ${err.message}</div>`;
                     saveButton.disabled = true;
-                    (window.NotificationHandler?.error || alert)('Ошибка при загрузке процессов');
+            (window.NotificationHandler?.error || alert)('Error while loading processes');
                 });
         },
 

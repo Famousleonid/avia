@@ -382,11 +382,11 @@ class LogCardController extends Controller
         ]);
 
         if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['success' => true, 'message' => 'Log Card успешно создан!', 'log_card_id' => $logCard->id]);
+            return response()->json(['success' => true, 'message' => 'Log Card created successfully!', 'log_card_id' => $logCard->id]);
         }
 
         return redirect()->route('log_card.show', $workorder_id)
-            ->with('success', 'Log Card успешно создан!');
+                ->with('success', 'Log Card created successfully!');
     }
 
     /**
@@ -630,11 +630,11 @@ class LogCardController extends Controller
         $log_card->save();
 
         if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['success' => true, 'message' => 'Log Card успешно обновлён!']);
+            return response()->json(['success' => true, 'message' => 'Log Card updated successfully!']);
         }
 
         return redirect()->route('log_card.show', $log_card->workorder_id)
-            ->with('success', 'Log Card успешно обновлён!');
+                ->with('success', 'Log Card updated successfully!');
     }
 
     /**

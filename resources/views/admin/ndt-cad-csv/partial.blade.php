@@ -63,6 +63,26 @@
 .ndt-cad-csv-partial .modal .select2-container {
     z-index: 9999 !important;
 }
+
+.ndt-cad-csv-partial #componentTabs {
+    --std-inner-tabs-bg: #2b3035;
+    align-items: flex-end;
+    border-bottom: 1px solid rgba(13, 202, 240, .55);
+}
+
+.ndt-cad-csv-partial #componentTabs .nav-link {
+    border-color: transparent;
+    border-radius: 6px 6px 0 0;
+    margin-bottom: -1px;
+    position: relative;
+}
+
+.ndt-cad-csv-partial #componentTabs .nav-link.active {
+    background-color: var(--std-inner-tabs-bg);
+    border-color: rgba(13, 202, 240, .8) rgba(13, 202, 240, .8) var(--std-inner-tabs-bg);
+    color: #5ee3ff;
+    z-index: 3;
+}
 </style>
 
 <!-- Навигация по вкладкам -->

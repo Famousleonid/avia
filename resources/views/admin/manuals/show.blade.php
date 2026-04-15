@@ -1234,7 +1234,7 @@
                     const partNumber = document.getElementById('edit-part-part-number').value.trim();
                     const name = document.getElementById('edit-part-name').value.trim();
                     if (!iplNum || !partNumber || !name) {
-                        showNotification('Заполните обязательные поля: IPL Number, Part Number, Name', 'warning');
+                        showNotification('Fill in the required fields: IPL Number, Part Number, Name', 'warning');
                         return;
                     }
                     const formData = new FormData(editPartForm);
@@ -1255,11 +1255,11 @@
                                 if (modalInstance) modalInstance.hide();
                                 window.location.href = @json($manualUrlParts) + '&part_id=' + encodeURIComponent(partId);
                             } else {
-                                showNotification(data && data.message ? data.message : 'Ошибка при обновлении запчасти', 'error');
+                    showNotification(data && data.message ? data.message : 'Error while updating part', 'error');
                             }
                         })
                         .catch(function (err) {
-                            showNotification('Ошибка при обновлении запчасти', 'error');
+                showNotification('Error while updating part', 'error');
                         });
                 });
             }

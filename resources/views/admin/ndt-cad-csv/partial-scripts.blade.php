@@ -120,6 +120,11 @@ function updatePaintTable(components) {
 }
 
 function showNotification(message, type = 'info') {
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(message, type);
+        return;
+    }
+
     const notification = $(`<div class="alert alert-${type} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`);
     $('body').append(notification);
     setTimeout(() => notification.alert('close'), 3000);

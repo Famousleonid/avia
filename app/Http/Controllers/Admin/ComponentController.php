@@ -136,7 +136,14 @@ class ComponentController extends Controller
             }
 
 
-            return redirect()->route('tdrs.inspection.component',['workorder_id' => $current_wo])->with('success', 'Component created successfully.');
+            $fallbackRedirect = route('tdrs.inspection.component', ['workorder_id' => $current_wo]);
+            $redirect = $request->input('redirect', $fallbackRedirect);
+            if (!str_starts_with($redirect, url('/'))) {
+                $redirect = $fallbackRedirect;
+            }
+
+            return redirect($redirect)
+                ->with('success', 'Component created successfully.');
 
         } catch (\Exception $e) {
 
@@ -456,7 +463,7 @@ class ComponentController extends Controller
         }
 
         return redirect()->route('components.index')
-            ->with('success', 'Компонент успешно удален.');
+            ->with('success', 'Component deleted successfully.');
     }
     public function uploadCsv(Request $request)
     {

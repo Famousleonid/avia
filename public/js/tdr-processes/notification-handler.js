@@ -9,6 +9,11 @@ class NotificationHandler {
      * @param {string} type - Тип уведомления: 'success' или 'error'
      */
     static show(message, type = 'success') {
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, type);
+            return;
+        }
+
         // Создаем уведомление
         const notification = document.createElement('div');
         notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
@@ -42,6 +47,14 @@ class NotificationHandler {
      */
     static error(message) {
         this.show(message, 'error');
+    }
+
+    static warning(message) {
+        this.show(message, 'warning');
+    }
+
+    static info(message) {
+        this.show(message, 'info');
     }
 }
 
