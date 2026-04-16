@@ -133,6 +133,20 @@
         pointer-events: auto;
     }
 
+    #tdrInlineAddBtn {
+        align-items: center;
+        align-self: flex-start;
+        display: inline-flex;
+        flex: 0 0 58px;
+        height: 28px;
+        justify-content: center;
+        margin-left: auto !important;
+        min-width: 58px;
+        padding-left: .35rem;
+        padding-right: .35rem;
+        width: 58px;
+    }
+
     .tdr-inline-manual-picker {
         width: min(320px, 36vw);
         min-width: 240px;
@@ -156,6 +170,15 @@
 
     .select2-dropdown.tdr-inline-select-dropdown {
         min-width: min(520px, 90vw) !important;
+    }
+
+    .select2-dropdown.tdr-inline-select-dropdown .select2-search--dropdown {
+        display: block !important;
+    }
+
+    .select2-dropdown.tdr-inline-select-dropdown .select2-search__field {
+        display: block !important;
+        width: 100% !important;
     }
 
     #tdr_process_Table .tdr-action-cell {
@@ -225,10 +248,25 @@
     }
 
     #tdrInlineCreateRow .tdr-inline-field .form-control,
-    #tdrInlineCreateRow .tdr-inline-field .form-select,
-    #tdrInlineCreateRow .tdr-inline-field .select2-selection__rendered {
+    #tdrInlineCreateRow .tdr-inline-field .form-select {
         font-size: 11px !important;
         line-height: 1.25 !important;
+    }
+
+    body.tdr-inline-select2-dropdown-open .select2-container--open .select2-search__field,
+    body.tdr-inline-select2-dropdown-open .select2-container--open .select2-results__option {
+        font-size: 11px !important;
+        line-height: 1.25 !important;
+    }
+
+    body.tdr-inline-component-select2-open .select2-container--open {
+        width: min(460px, 90vw) !important;
+        min-width: min(460px, 90vw) !important;
+    }
+
+    body.tdr-inline-component-select2-open .select2-container--open .select2-dropdown {
+        width: 100% !important;
+        min-width: min(460px, 90vw) !important;
     }
 
     #tdrInlineCreateRow .tdr-inline-field .select2-selection {

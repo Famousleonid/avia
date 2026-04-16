@@ -466,9 +466,14 @@ class TdrController extends Controller
             }
         }
 
+        $validatedCodesId = $validated['codes_id'] ? (int) $validated['codes_id'] : null;
+        $validatedNecessaryId = $validated['necessaries_id'] ? (int) $validated['necessaries_id'] : null;
+        $codeIdInt = $code ? (int) $code->id : null;
+        $necessaryIdInt = $necessary ? (int) $necessary->id : null;
+
         // Проверяем наличие записей с Missing до создания (для оптимизации)
         $hasExistingMissing = false;
-        if ($code && $validated['codes_id'] === $code->id) {
+        if ($codeIdInt !== null && $validatedCodesId === $codeIdInt) {
             $hasExistingMissing = Tdr::where('workorder_id', $workorder->id)
                 ->where('codes_id', $code->id)
                 ->exists();
@@ -476,7 +481,7 @@ class TdrController extends Controller
 
         // Если codes_id равно Missing, автоматически устанавливаем conditions_id=1 (PARTS MISSING UPON ARRIVAL)
         $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
-        if ($code && $validated['codes_id'] === $code->id && $missingCondition) {
+        if ($codeIdInt !== null && $validatedCodesId === $codeIdInt && $missingCondition) {
             // Если conditions_id не установлен или равен null, устанавливаем его в missingCondition->id
             if (empty($validated['conditions_id']) || $validated['conditions_id'] === null) {
                 $validated['conditions_id'] = $missingCondition->id;
@@ -524,8 +529,7 @@ class TdrController extends Controller
 
         // Если codes_id равно Missing, обновляем поле part_missing в workorders
         // Используем приведение типов для сравнения, т.к. codes_id может быть строкой из формы
-        $codesIdInt = $validated['codes_id'] ? (int)$validated['codes_id'] : null;
-        $codeIdInt = $code ? (int)$code->id : null;
+        $codesIdInt = $validatedCodesId;
 
         // \Log::info('Checking if codes_id is Missing', [
         //     'workorder_id' => $workorder->id,
@@ -572,7 +576,7 @@ class TdrController extends Controller
         // new_parts=true устанавливается только когда у workorder есть компоненты (tdr записи) с necessary = Order New
         if ($code && $necessary &&
             $codesIdInt !== $codeIdInt &&
-            $validated['necessaries_id'] === $necessary->id) {
+            $validatedNecessaryId === $necessaryIdInt) {
 
             // Проверяем количество записей с Order New после создания (включая только что созданную)
             $orderNewCount = Tdr::where('workorder_id', $workorder->id)

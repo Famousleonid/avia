@@ -32,7 +32,7 @@
         $titleText = implode(' / ', $ndtNames);
     }
 @endphp
-<td class="bushing-subcol-batch align-middle text-center" @if($titleText !== '') title="{{ $titleText }}" @endif>
+<td class="bushing-subcol-batch bushing-process-{{ $processKey }} align-middle text-center" @if($titleText !== '') title="{{ $titleText }}" @endif>
     @if($hasProcess)
         @if(!$inBatch && !empty($woPid) && !$locked)
             <div class="bushing-batch-inner d-flex align-items-center justify-content-center gap-1 flex-wrap">

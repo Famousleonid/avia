@@ -131,6 +131,18 @@
 <script src="{{asset('assets/jquery/jquery371min.js')}}"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
+<script>
+    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+        window.jQuery.fn.select2.defaults.set('minimumResultsForSearch', 0);
+
+        window.jQuery(document).on('select2:open', function () {
+            const searchField = document.querySelector('.select2-container--open .select2-search__field');
+            if (searchField) {
+                searchField.focus();
+            }
+        });
+    }
+</script>
 <script src="{{ asset('assets/jquery/jquery.fancybox.min.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://unpkg.com/@popperjs/core@2"></script>

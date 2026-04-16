@@ -51,21 +51,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 theme: 'bootstrap-5',
                 allowClear: true,
                 dropdownParent: $dropdownParent,
-                width: '100%'
+                width: '100%',
+                minimumResultsForSearch: 0
             });
             $('#i_manual_id').select2({
                 placeholder: '---',
                 theme: 'bootstrap-5',
                 allowClear: true,
                 dropdownParent: $dropdownParent,
-                width: '100%'
+                width: '100%',
+                minimumResultsForSearch: 0
             });
             $('#order_component_id').select2({
                 placeholder: '---',
                 theme: 'bootstrap-5',
                 allowClear: true,
                 dropdownParent: $dropdownParent,
-                width: '100%'
+                width: '100%',
+                minimumResultsForSearch: 0
             });
 
             function hideAllGroups() {
@@ -129,10 +132,10 @@ document.addEventListener('DOMContentLoaded', function() {
             $('#editComponentBtn').on('click', function(e) {
                 e.preventDefault();
                 const componentId = $('#i_component_id').val();
-                if (!componentId) { (typeof showNotification === 'function' ? (m) => showNotification(m, 'warning') : (window.NotificationHandler?.warning || alert))('Select part first.'); return; }
+                if (!componentId) { (window.tdrShowNotify || function(m) { console.log(m); })('Select part first.', 'warning'); return; }
                 const url = '{{ route("components.showJson", ["component" => "__ID__"]) }}'.replace('__ID__', componentId);
                 $.get(url, function(response) {
-                    if (!response.success) { (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))('Failed to load part data.'); return; }
+                    if (!response.success) { (window.tdrShowNotify || function(m) { console.error(m); })('Failed to load part data.', 'error'); return; }
                     const c = response.component;
                     $('#edit_name').val(c.name);
                     $('#edit_ipl_num').val(c.ipl_num);
@@ -153,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     $('#editComponentForm').attr('action', '{{ route("components.updateFromInspection", ["component" => "__ID__"]) }}'.replace('__ID__', componentId));
                     $('#editComponentModal').modal('show');
-                }).fail(function() { (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))('Error loading part.'); });
+                }).fail(function() { (window.tdrShowNotify || function(m) { console.error(m); })('Error loading part.', 'error'); });
             });
 
             $('#is_bush').on('change', function() {
@@ -252,12 +255,15 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
+function initTdrInlineCreate() {
     const row = document.getElementById('tdrInlineCreateRow');
     const addBtn = document.getElementById('tdrInlineAddBtn');
     const form = document.getElementById('tdrInlineCreateForm');
     const manualPicker = document.getElementById('tdrInlineManualPicker');
     if (!row || !addBtn || !form) return;
+    if (row.dataset.inlineCreateInitialized === '1') return;
+    row.dataset.inlineCreateInitialized = '1';
 
     const $ = window.$ || null;
     const defaultManualId = {{ $manual_id }};
@@ -314,8 +320,9 @@ document.addEventListener('DOMContentLoaded', function() {
         return [ipl, partNumber].filter(Boolean).join(' : ') + (title ? ' - ' + title : '');
     }
 
-    function renderComponentSelectionText() {
-        const partNumber = selectedPartNumber(componentSelect);
+    function renderComponentSelectionText(option) {
+        const selectedOption = option || componentSelect?.options[componentSelect.selectedIndex] || null;
+        const partNumber = selectedOption && selectedOption.value ? partNumberFromOption(selectedOption) : '';
         const rendered = document.querySelector('#tdrInlineComponentPicker .select2-selection__rendered');
         if (rendered) {
             rendered.dataset.partNumber = partNumber;
@@ -417,24 +424,40 @@ document.addEventListener('DOMContentLoaded', function() {
         cell.querySelector('.tdr-inline-field')?.classList.remove('d-none');
     }
 
+    function setInlinePlaceholderVisible(step, visible) {
+        const cell = inlineCell(step);
+        if (!cell) return;
+        cell.classList.toggle('tdr-inline-cell-disabled', !visible);
+        cell.querySelector('.tdr-inline-placeholder')?.classList.toggle('d-none', !visible);
+        cell.querySelector('.tdr-inline-field')?.classList.add('d-none');
+    }
+
     function initInlineSelects() {
-        if (!$ || !$.fn.select2 || row.dataset.select2Ready === '1') return;
+        if (!$ || !$.fn.select2) return false;
         const dropdownParent = $(document.body);
-        $('#tdr_inline_manual_id, #tdr_inline_codes_id, #tdr_inline_necessaries_id, #tdr_inline_order_component_id').select2({
-            placeholder: '---',
-            theme: 'bootstrap-5',
-            allowClear: true,
-            dropdownParent: dropdownParent,
-            dropdownCssClass: 'tdr-inline-select-dropdown',
-            width: '100%'
+
+        function initSelect(select, options) {
+            if (!select) return;
+            const $select = $(select);
+            if ($select.hasClass('select2-hidden-accessible')) return;
+            $select.select2(Object.assign({
+                placeholder: '---',
+                theme: 'bootstrap-5',
+                allowClear: true,
+                minimumResultsForSearch: 0,
+                dropdownParent: dropdownParent,
+                width: '100%'
+            }, options || {}));
+        }
+
+        [
+            manualSelect,
+            orderComponentSelect
+        ].forEach(function(select) {
+            initSelect(select);
         });
-        $('#tdr_inline_component_id').select2({
-            placeholder: '---',
-            theme: 'bootstrap-5',
-            allowClear: true,
-            dropdownParent: dropdownParent,
-            dropdownCssClass: 'tdr-inline-select-dropdown',
-            width: '100%',
+
+        initSelect(componentSelect, {
             templateResult: function(data) {
                 return componentOptionText(data.element);
             },
@@ -443,9 +466,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 return partNumberFromOption(data.element) || data.text;
             }
         });
-        row.dataset.select2Ready = '1';
+
         scheduleRenderComponentSelectionText();
         updateOrderComponentWidth();
+        return true;
     }
 
     function updatePlaceholders() {
@@ -477,6 +501,21 @@ document.addEventListener('DOMContentLoaded', function() {
         setPlaceholder('necessary', necessary);
         setPlaceholder('serial', serial || '{{ __("S/N") }}');
         setPlaceholder('description', description);
+    }
+
+    function applyComponentSelection(option) {
+        const selectedOption = option || componentSelect?.options[componentSelect.selectedIndex] || null;
+        if (selectedOption && selectedOption.value && componentSelect.value !== selectedOption.value) {
+            componentSelect.value = selectedOption.value;
+        }
+        if (iplDisplay) {
+            iplDisplay.textContent = selectedOption && selectedOption.value
+                ? (selectedOption.dataset.ipl || '')
+                : '';
+        }
+        renderComponentSelectionText(selectedOption);
+        updateFieldVisibility();
+        updatePlaceholders();
     }
 
     function resetInlineRow() {
@@ -511,6 +550,14 @@ document.addEventListener('DOMContentLoaded', function() {
         addBtn.classList.toggle('btn-outline-secondary', isOpen);
     }
 
+    function closeInlineRow() {
+        resetInlineRow();
+        row.classList.add('d-none');
+        form.classList.add('d-none');
+        manualPicker?.classList.add('d-none');
+        setAddButtonOpenState(false);
+    }
+
     function findConditionIdForCode(codeName) {
         let conditionId = '39';
         const options = @json($component_conditions->map(fn($condition) => ['id' => $condition->id, 'name' => $condition->name])->values());
@@ -535,16 +582,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const isOrderNew = necessaryName === 'order new';
         const showNecessary = hasComponent && codeName && !isMissing && !isManufacture;
         const hasNecessary = showNecessary && necessaryName;
-        const showDescription = hasComponent && (isManufacture || hasNecessary);
+        const showDescriptionInput = hasComponent && (isManufacture || hasNecessary);
         const showQty = hasComponent && (isManufacture || isMissing || isOrderNew);
         const showSerial = hasNecessary && !isOrderNew;
 
         setInlineCellVisible('code', hasComponent);
         setInlineCellVisible('necessary', !!showNecessary);
-        setInlineCellVisible('description', !!showDescription);
+        setInlinePlaceholderVisible('description', hasComponent);
         setInlineCellVisible('serial', !!showSerial);
 
-        descriptionInput?.classList.toggle('d-none', !showDescription);
+        if (showDescriptionInput) {
+            revealField(inlineCell('description'));
+        }
+        descriptionInput?.classList.toggle('d-none', !showDescriptionInput);
         qtyInput?.classList.toggle('d-none', !showQty);
         orderComponentGroup?.classList.toggle('d-none', !isOrderNew);
         moveQtyInputToOrderGroup(isOrderNew);
@@ -605,10 +655,31 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(function(html) {
                 const doc = new DOMParser().parseFromString(html, 'text/html');
+                const freshInspectRows = Array.from(doc.querySelectorAll('#tdr_inspect_Table tbody tr'));
+                const currentInspectBody = document.querySelector('#tdr_inspect_Table tbody');
                 const freshRows = Array.from(doc.querySelectorAll('#tdr_process_Table tbody tr'))
                     .filter(function(tableRow) { return tableRow.id !== 'tdrInlineCreateRow'; });
                 const currentBody = document.querySelector('#tdr_process_Table tbody');
                 const currentInlineRow = document.getElementById('tdrInlineCreateRow');
+
+                function replaceModalFromFreshDocument(modalId) {
+                    const freshModal = doc.getElementById(modalId);
+                    const currentModal = document.getElementById(modalId);
+                    if (!freshModal || !currentModal) return;
+                    const instance = window.bootstrap?.Modal?.getInstance(currentModal);
+                    if (instance) instance.dispose();
+                    currentModal.replaceWith(document.importNode(freshModal, true));
+                }
+
+                replaceModalFromFreshDocument('missingModal{{ $current_wo->number }}');
+                replaceModalFromFreshDocument('orderModal{{ $current_wo->number }}');
+
+                if (currentInspectBody) {
+                    currentInspectBody.replaceChildren();
+                    freshInspectRows.forEach(function(tableRow) {
+                        currentInspectBody.appendChild(document.importNode(tableRow, true));
+                    });
+                }
 
                 if (!currentBody || !currentInlineRow) return;
 
@@ -624,11 +695,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     addBtn.addEventListener('click', function() {
         if (!row.classList.contains('d-none')) {
-            resetInlineRow();
-            row.classList.add('d-none');
-            form.classList.add('d-none');
-            manualPicker?.classList.add('d-none');
-            setAddButtonOpenState(false);
+            closeInlineRow();
             return;
         }
 
@@ -636,8 +703,11 @@ document.addEventListener('DOMContentLoaded', function() {
         form.classList.remove('d-none');
         manualPicker?.classList.remove('d-none');
         setAddButtonOpenState(true);
-        initInlineSelects();
+        if (!initInlineSelects()) {
+            setTimeout(initInlineSelects, 50);
+        }
         resetInlineRow();
+        initInlineSelects();
         row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
 
@@ -652,18 +722,46 @@ document.addEventListener('DOMContentLoaded', function() {
         setSelectValue(codeSelect, '');
         setSelectValue(necessarySelect, '');
         setSelectValue(orderComponentSelect, '');
-        updateFieldVisibility();
-        scheduleRenderComponentSelectionText();
+        applyComponentSelection();
     });
 
     if ($ && $.fn.select2 && componentSelect) {
-        $(componentSelect).on('select2:select select2:clear', scheduleRenderComponentSelectionText);
+        $(componentSelect).on('select2:select', function(event) {
+            applyComponentSelection(event.params?.data?.element || null);
+        });
+        $(componentSelect).on('select2:clear', function() {
+            applyComponentSelection(null);
+        });
     }
 
-    codeSelect?.addEventListener('change', function() {
+    if ($ && $.fn.select2) {
+        $(manualSelect)
+            .add(componentSelect)
+            .add(orderComponentSelect)
+            .on('select2:open', function() {
+                document.body.classList.add('tdr-inline-select2-dropdown-open');
+                document.body.classList.toggle('tdr-inline-component-select2-open', this === componentSelect);
+                const searchContainer = document.querySelector('.select2-container--open .select2-search--dropdown');
+                const searchField = document.querySelector('.select2-container--open .select2-search__field');
+                searchContainer?.classList.remove('select2-search--hide');
+                if (searchContainer) searchContainer.style.display = 'block';
+                if (searchField) {
+                    searchField.style.display = 'block';
+                    searchField.focus();
+                }
+            })
+            .on('select2:close', function() {
+                document.body.classList.remove('tdr-inline-select2-dropdown-open');
+                document.body.classList.remove('tdr-inline-component-select2-open');
+            });
+    }
+
+    function handleCodeChange() {
         setSelectValue(necessarySelect, '');
         updateFieldVisibility();
-    });
+    }
+
+    codeSelect?.addEventListener('change', handleCodeChange);
 
     necessarySelect?.addEventListener('change', updateFieldVisibility);
     orderComponentSelect?.addEventListener('change', updateOrderComponentWidth);
@@ -681,14 +779,14 @@ document.addEventListener('DOMContentLoaded', function() {
         event.preventDefault();
         const componentId = componentSelect?.value;
         if (!componentId) {
-            (typeof showNotification === 'function' ? function(m) { showNotification(m, 'warning'); } : (window.NotificationHandler?.warning || alert))('Select part first.');
+            (window.tdrShowNotify || function(m) { console.log(m); })('Select part first.', 'warning');
             return;
         }
         if (!$) return;
         const url = '{{ route("components.showJson", ["component" => "__ID__"]) }}'.replace('__ID__', componentId);
         $.get(url, function(response) {
             if (!response.success) {
-                (typeof showNotification === 'function' ? function(m) { showNotification(m, 'error'); } : (window.NotificationHandler?.error || alert))('Failed to load part data.');
+                (window.tdrShowNotify || function(m) { console.error(m); })('Failed to load part data.', 'error');
                 return;
             }
             const c = response.component;
@@ -712,7 +810,7 @@ document.addEventListener('DOMContentLoaded', function() {
             $('#editComponentForm').attr('action', '{{ route("components.updateFromInspection", ["component" => "__ID__"]) }}'.replace('__ID__', componentId));
             $('#editComponentModal').modal('show');
         }).fail(function() {
-            (typeof showNotification === 'function' ? function(m) { showNotification(m, 'error'); } : (window.NotificationHandler?.error || alert))('Error loading part.');
+            (window.tdrShowNotify || function(m) { console.error(m); })('Error loading part.', 'error');
         });
     });
 
@@ -801,22 +899,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 return refreshInlineTdrTableRows().then(function() {
-                    resetInlineRow();
-                    row.classList.add('d-none');
-                    form.classList.add('d-none');
-                    manualPicker?.classList.add('d-none');
-                    setAddButtonOpenState(false);
-                    if (typeof showNotification === 'function') {
-                        showNotification(result.data.message || '{{ __("Saved.") }}', 'success');
-                    }
+                    closeInlineRow();
+                    (window.tdrShowNotify || function(m) { console.log(m); })(result.data.message || '{{ __("Saved.") }}', 'success');
                 });
             })
             .catch(function(error) {
-                if (typeof showNotification === 'function') {
-                    showNotification(error.message || '{{ __("Failed to save.") }}', 'error');
-                } else {
-                    alert(error.message || '{{ __("Failed to save.") }}');
-                }
+                (window.tdrShowNotify || function(m) { console.error(m); })(error.message || '{{ __("Failed to save.") }}', 'error');
             })
             .finally(function() {
                 if (typeof window.safeHideSpinner === 'function') {
@@ -831,7 +919,17 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     });
 
+    document.getElementById('tab-tdr')?.addEventListener('hide.bs.tab', closeInlineRow);
+
+    initInlineSelects();
     resetInlineRow();
     setAddButtonOpenState(false);
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTdrInlineCreate);
+} else {
+    initTdrInlineCreate();
+}
+})();
 </script>

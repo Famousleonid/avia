@@ -66,5 +66,6 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'isAdmin' => \App\Http\Middleware\CheckIsAdmin::class,
         'mobile.redirect' => \App\Http\Middleware\RedirectToMobile::class,
+        'archive.token' => \App\Http\Middleware\EnsureArchiveToken::class,
     ];
 }

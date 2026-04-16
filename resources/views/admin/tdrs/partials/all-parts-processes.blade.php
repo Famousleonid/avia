@@ -11,11 +11,11 @@
 
 <div class="all-parts-processes ">
     <div class="table-wrapper all-parts-table-wrapper ">
-        <table class="table table-hover align-middle dir-table table-bordered bg-gradient">
+        <table class="table-sm table-hover align-middle dir-table table-bordered bg-gradient" style="font-size: 12px;">
             <thead>
                 <tr>
-                    <th class="text-primary text-center"  style="width: 10%">IPL</th>
-                    <th class="text-primary text-center" style="width: 10%">Name</th>
+                    <th class="text-primary text-center"  style="width: 8%">IPL</th>
+                    <th class="text-primary text-center" style="width: 23%">Name</th>
                     <th class="text-primary text-center" style="width: 65%">Processes</th>
                     <th class="text-primary text-center" style="width: 15%">Action</th>
                 </tr>

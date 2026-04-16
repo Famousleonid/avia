@@ -1,36 +1,44 @@
 {{-- Missing Modal --}}
-<div class="modal fade" id="missingModal{{$current_wo->number}}" tabindex="-1" role="dialog" aria-labelledby="missingModalLabel{{$current_wo->number}}" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content bg-gradient" style="width: 1000px">
+<div class="modal fade " id="missingModal{{$current_wo->number}}" tabindex="-1" role="dialog" aria-labelledby="missingModalLabel{{$current_wo->number}}" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document" style="max-width: min(1100px, calc(100vw - 2rem));">
+        <div class="modal-content bg-gradient" style="width: 90%; margin: 0 auto;">
             <div class="modal-header">
-                <h4 class="modal-title">{{__('Work order ')}}{{$current_wo->number}} - {{__('Parts Missing ')}}</h4>
+                <h6 class="modal-title text-info">{{__('Work order ')}}{{$current_wo->number}} - {{__('Parts Missing ')}}</h6>
                 <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="table-wrapper">
-                <table class="display table table-cm table-hover table-striped align-middle table-bordered dir-table">
+                <table class="display table table-cm table-hover table-striped align-middle table-bordered dir-table" style="font-size: 0.9rem">
                     <thead class="bg-gradient">
                     <tr>
-                        <th class="text-primary bg-gradient">{{__('IPL')}}</th>
-                        <th class="text-primary bg-gradient">{{__('Part Description')}}</th>
-                        <th class="text-primary bg-gradient">{{__('Part Number')}}</th>
-                        <th class="text-primary bg-gradient">{{__('QTY')}}</th>
-                        <th class="text-primary bg-gradient">{{__('Delete')}}</th>
+                        <th class="text-primary ">{{__('IPL')}}</th>
+                        <th class="text-primary ">{{__('Part Description')}}</th>
+                        <th class="text-primary ">{{__('Part Number')}}</th>
+                        <th class="text-primary  text-center" style="width: 5%">{{__('QTY')}}</th>
+                        <th class="text-primary  text-center" style="width: 5%">{{__('Delete')}}</th>
                     </tr>
                     </thead>
                     <tbody>
                     @foreach($missingParts as $part)
                         @php $currentComponent = $part->orderComponent ?? $part->component; @endphp
                         <tr>
-                            <td class="p-3">{{ $currentComponent->ipl_num ?? '' }}</td>
-                            <td class="p-3">{{ $currentComponent->name ?? '' }}</td>
-                            <td class="p-3">{{ $currentComponent->part_number ?? '' }}</td>
-                            <td class="p-3">{{ $part->qty }}</td>
-                            <td class="p-3">
-                                <form action="{{ route('tdrs.destroy', $part->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this item?');">
+                            <td class="p-2">{{ $currentComponent->ipl_num ?? '' }}</td>
+                            <td class="p-2">{{ $currentComponent->name ?? '' }}</td>
+                            <td class="p-2">{{ $currentComponent->part_number ?? '' }}</td>
+                            <td class="p-2 text-center">{{ $part->qty }}</td>
+                            <td class="p-2 text-center">
+                                <form action="{{ route('tdrs.destroy', $part->id) }}" method="POST">
                                     @csrf
                                     @method('DELETE')
                                     <input type="hidden" name="return_to" value="show">
-                                    <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
+                                    <button type="button"
+                                            class="btn btn-link btn-sm p-0 border-0 bg-transparent text-danger"
+                                            title="{{ __('Delete') }}"
+                                            aria-label="{{ __('Delete') }}"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#useConfirmDelete"
+                                            data-title="{{ __('Delete Confirmation') }}">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
                                 </form>
                             </td>
                         </tr>
@@ -45,10 +53,10 @@
 {{-- Order Modal --}}
 <div class="modal fade order-modal" id="orderModal{{$current_wo->number}}" tabindex="-1" role="dialog"
      aria-labelledby="orderModalLabel{{$current_wo->number}}" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered" role="document" style="max-width: min(1200px, 98vw); width: 98%;">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document" style="max-width: min(1100px, calc(100vw - 2rem));">
         <div class="modal-content bg-gradient" style="width: 100%">
             <div class="modal-header">
-                <h4 class="modal-title">{{__('Work order W')}}{{$current_wo->number}} - {{__('Ordered Parts')}}</h4>
+                <h6 class="modal-title text-info">{{__('Work order W')}}{{$current_wo->number}} - {{__('Ordered Parts')}}</h6>
                 <button type="button" class="btn-close pb-2" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             @if(count($ordersPartsNew))
@@ -61,23 +69,23 @@
                             <th class="text-primary bg-gradient" style="width: 20%">{{__('Part Description')}}</th>
                             <th class="text-primary bg-gradient" style="width: 15%">{{__('Part Number')}}</th>
                             <th class="text-primary bg-gradient" style="min-width: 30%;">{{ __('Description') }}</th>
-                            <th class="text-primary bg-gradient" style="width: 5%">{{__('QTY')}}</th>
+                            <th class="text-primary bg-gradient text-center" style="width: 4%">{{__('QTY')}}</th>
                             <th class="text-primary bg-gradient" style="width: 7%">{{__('Conditions')}}</th>
-                            <th class="text-primary bg-gradient " style="width: 13%">{{__('Actions')}}</th>
+                            <th class="text-primary bg-gradient " style="width: 5%">{{__('Actions')}}</th>
                         </tr>
                         </thead>
                         <tbody>
                         @foreach($ordersPartsNew as $part)
                             @php $orderPartFormId = 'orderPartForm'.$part->id; @endphp
                             <tr>
-                                <td class="p-3">{{ $part->orderComponent->ipl_num ?? '' }}</td>
-                                <td class="p-3">{{ $part->orderComponent->name ?? '' }}</td>
-                                <td class="p-3">{{ $part->orderComponent->part_number ?? '' }}</td>
+                                <td class="p-2">{{ $part->orderComponent->ipl_num ?? '' }}</td>
+                                <td class="p-2">{{ $part->orderComponent->name ?? '' }}</td>
+                                <td class="p-2">{{ $part->orderComponent->part_number ?? '' }}</td>
                                 <td class="p-2 align-middle" style="min-width: 10rem;">
-                                    <textarea name="description" rows="2" class="form-control form-control-sm" form="{{ $orderPartFormId }}"
+                                    <textarea name="description" rows="1" class="form-control form-control-sm" form="{{ $orderPartFormId }}"
                                               placeholder="{{ __('Description') }}">{{ $part->description ?? '' }}</textarea>
                                 </td>
-                                <td class="p-2 align-middle" style="min-width: 5.5rem;">
+                                <td class="p-2 align-middle text-center" style="min-width: 5.0rem;">
                                     <input type="number" name="qty" value="{{ $part->qty }}" min="1" max="999999"
                                            class="form-control form-control-sm" form="{{ $orderPartFormId }}">
                                 </td>
@@ -89,18 +97,28 @@
                                     </select>
                                 </td>
                                 <td class="p-2 align-middle">
-                                    <div class="d-flex flex-wrap gap-1 text-center">
+                                    <div class="d-flex justify-content-evenly align-items-center w-100 text-center">
                                         <form id="{{ $orderPartFormId }}" method="POST" action="{{ route('tdrs.update', $part->id) }}" class="d-inline">
                                             @csrf
                                             @method('PUT')
                                             <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
-                                            <button type="submit" class="btn btn-outline-primary btn-sm">{{ __('Save') }}</button>
+                                            <button type="submit" class="btn btn-link btn-sm p-0 border-0 bg-transparent text-primary" title="{{ __('Save') }}" aria-label="{{ __('Save') }}">
+                                                <i class="bi bi-floppy"></i>
+                                            </button>
                                         </form>
-                                        <form action="{{ route('tdrs.destroy', $part->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                        <form action="{{ route('tdrs.destroy', $part->id) }}" method="POST" class="d-inline">
                                             @csrf
                                             @method('DELETE')
                                             <input type="hidden" name="return_to" value="show">
-                                            <button type="submit" class="btn btn-danger btn-sm">{{__('Delete')}}</button>
+                                            <button type="button"
+                                                    class="btn btn-link btn-sm p-0 border-0 bg-transparent text-danger"
+                                                    title="{{ __('Delete') }}"
+                                                    aria-label="{{ __('Delete') }}"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#useConfirmDelete"
+                                                    data-title="{{ __('Delete Confirmation') }}">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
                                         </form>
                                     </div>
                                 </td>
@@ -121,7 +139,7 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content" style="background-color: #343A40">
             <div class="modal-header">
-                <h5 class="modal-title" id="pdfModalLabel">PDF Library - Workorder W<span id="pdfModalWorkorderNumber"></span></h5>
+                <h6 class="modal-title text-info" id="pdfModalLabel">PDF Library - Workorder W<span id="pdfModalWorkorderNumber"></span></h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -150,7 +168,7 @@
                     <div class="modal-dialog modal-xl">
                         <div class="modal-content bg-dark">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="pdfViewerModalLabel">PDF Viewer</h5>
+                                <h6 class="modal-title text-info" id="pdfViewerModalLabel">PDF Viewer</h6>
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body p-0" style="min-height: 600px;">
@@ -175,7 +193,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content text-center">
             <div class="modal-header">
-                <h5 class="modal-title" id="confirmDeletePdfLabel">Confirm Deletion</h5>
+                <h6 class="modal-title text-info" id="confirmDeletePdfLabel">Confirm Deletion</h6>
             </div>
             <div class="modal-body">Are you sure you want to delete this PDF file?</div>
             <div class="modal-footer justify-content-center">
@@ -197,9 +215,9 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content bg-gradient">
             <div class="modal-header">
-                <h5 class="modal-title" id="unitInspectionModalLabel">
+                <h6 class="modal-title text-info" id="unitInspectionModalLabel">
                     <i class="fas fa-clipboard-check"></i> {{ __('Teardown Inspection') }} - {{ __('Work Order') }} {{ $current_wo->number }}
-                </h5>
+                </h6>
                 <div class="ms-auto me-2">
                     @admin
                     <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#manageConditionModal" data-bs-dismiss="modal">
@@ -274,7 +292,7 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content bg-gradient">
             <div class="modal-header">
-                <h5 class="modal-title" id="manageConditionModalLabel"><i class="fas fa-cog"></i> {{ __('Manage Condition') }} - {{ __('Unit Conditions') }}</h5>
+                <h6 class="modal-title text-info" id="manageConditionModalLabel"><i class="fas fa-cog"></i> {{ __('Manage Condition') }} - {{ __('Unit Conditions') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -328,7 +346,7 @@
     <div class="modal-dialog">
         <div class="modal-content bg-gradient">
             <div class="modal-header">
-                <h5 class="modal-title" id="addConditionModalFromManageLabel">{{ __('Add Condition') }}</h5>
+                <h6 class="modal-title text-info" id="addConditionModalFromManageLabel">{{ __('Add Condition') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="addConditionFormFromManage">
@@ -355,9 +373,9 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content bg-gradient">
             <div class="modal-header">
-                <h5 class="modal-title" id="componentInspectionModalLabel">
+                <h6 class="modal-title text-info" id="componentInspectionModalLabel">
                     <i class="fas fa-clipboard-list"></i> {{ __('Add Part Inspection') }} - {{ __('Work Order') }} {{ $current_wo->number }}
-                </h5>
+                </h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" style="background-color: #232525">
@@ -374,7 +392,7 @@
     <div class="modal-dialog" style="max-width: 880px; width: 95%; height: 80vh;">
         <div class="modal-content bg-gradient" style="height: 80vh;">
             <div class="modal-header">
-                <h5 class="modal-title" id="addPartProcessesModalLabel">{{ __('Add Part Process') }}</h5>
+                <h6 class="modal-title text-info" id="addPartProcessesModalLabel">{{ __('Add Part Process') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 overflow-hidden" style="height: calc(80vh - 60px);">
@@ -389,7 +407,7 @@
     <div class="modal-dialog modal-lg" style="max-width: 880px; width: 95%; height: 80vh;">
         <div class="modal-content bg-gradient" style="height: 80vh;">
             <div class="modal-header">
-                <h5 class="modal-title" id="editTdrProcessModalLabel">{{ __('Edit Part Process') }}</h5>
+                <h6 class="modal-title text-info" id="editTdrProcessModalLabel">{{ __('Edit Part Process') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 overflow-hidden" style="height: calc(80vh - 60px);">
@@ -404,7 +422,7 @@
     <div class="modal-dialog modal-lg" style="max-width: 880px; width: 95%; height: 80vh;">
         <div class="modal-content bg-gradient" style="height: 80vh;">
             <div class="modal-header">
-                <h5 class="modal-title" id="editExtraProcessModalLabel">{{ __('Edit Extra Component') }}</h5>
+                <h6 class="modal-title text-info" id="editExtraProcessModalLabel">{{ __('Edit Extra Component') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 overflow-hidden" style="height: calc(80vh - 60px);">
@@ -419,7 +437,7 @@
     <div class="modal-dialog" style="max-width: 1100px; width: 95%; height: 90vh;">
         <div class="modal-content bg-gradient" style="height: 90vh;">
             <div class="modal-header">
-                <h5 class="modal-title" id="createLogCardModalLabel">{{ __('Create Log Card') }}</h5>
+                <h6 class="modal-title text-info" id="createLogCardModalLabel">{{ __('Create Log Card') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 overflow-hidden" style="height: calc(90vh - 60px);">
@@ -434,7 +452,7 @@
     <div class="modal-dialog" style="max-width: 1400px; width: 95%; height: 90vh;">
         <div class="modal-content bg-gradient" style="height: 90vh;">
             <div class="modal-header">
-                <h5 class="modal-title" id="editBushingModalLabel">{{ __('Update Bushings List') }}</h5>
+                <h6 class="modal-title text-info" id="editBushingModalLabel">{{ __('Update Bushings List') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 overflow-hidden" style="height: calc(90vh - 60px);">
@@ -449,7 +467,7 @@
     <div class="modal-dialog" style="max-width: 900px; width: 95%; height: 85vh;">
         <div class="modal-content bg-gradient" style="height: 85vh;">
             <div class="modal-header">
-                <h5 class="modal-title" id="addProcessesModalLabel">{{ __('Add Processes') }}</h5>
+                <h6 class="modal-title text-info" id="addProcessesModalLabel">{{ __('Add Processes') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 overflow-hidden" style="height: calc(85vh - 60px);">
@@ -464,7 +482,7 @@
     <div class="modal-dialog" style="max-width: 900px; width: 95%; height: 85vh;">
         <div class="modal-content bg-gradient" style="height: 85vh;">
             <div class="modal-header">
-                <h5 class="modal-title" id="addPartModalLabel">{{ __('Add Part') }}</h5>
+                <h6 class="modal-title text-info" id="addPartModalLabel">{{ __('Add Part') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 overflow-hidden" style="height: calc(85vh - 60px);">
@@ -483,7 +501,7 @@
     <div class="modal-dialog" style="max-width: 1100px; width: 95%; height: 90vh;">
         <div class="modal-content bg-gradient" style="height: 90vh;">
             <div class="modal-header">
-                <h5 class="modal-title" id="editLogCardModalLabel">{{ __('Edit Log Card') }}</h5>
+                <h6 class="modal-title text-info" id="editLogCardModalLabel">{{ __('Edit Log Card') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 overflow-hidden" style="height: calc(90vh - 60px);">
@@ -498,7 +516,7 @@
     <div class="modal-dialog" style="max-width: 900px; width: 95%; height: 85vh;">
         <div class="modal-content bg-gradient" style="height: 85vh;">
             <div class="modal-header">
-                <h5 class="modal-title" id="addExtraPartModalLabel">{{ __('Add Extra Part') }}</h5>
+                <h6 class="modal-title text-info" id="addExtraPartModalLabel">{{ __('Add Extra Part') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 overflow-hidden" style="height: calc(85vh - 60px);">
@@ -513,7 +531,7 @@
     <div class="modal-dialog" style="max-width: 880px; width: 95%; height: 80vh;">
         <div class="modal-content bg-gradient" style="height: 80vh;">
             <div class="modal-header">
-                <h5 class="modal-title" id="addExtraProcessModalLabel">{{ __('Add Extra Process') }}</h5>
+                <h6 class="modal-title text-info" id="addExtraProcessModalLabel">{{ __('Add Extra Process') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 overflow-hidden" style="height: calc(80vh - 60px);">
@@ -528,7 +546,7 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content bg-gradient">
             <div class="modal-header">
-                <h5 class="modal-title" id="editTdrModalLabel">{{ __('Component Inspection Edit') }}</h5>
+                <h6 class="modal-title text-info" id="editTdrModalLabel">{{ __('Component Inspection Edit') }}</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="editTdrModalBody" style="min-height: 200px;">

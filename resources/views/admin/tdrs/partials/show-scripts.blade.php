@@ -12,10 +12,93 @@
     window.ProcessesConfig = window.ProcessesConfig || {};
     ProcessesConfig.updateOrderUrl = '{{ route("tdr-processes.update-order") }}';
     ProcessesConfig.storeVendorUrl = '{{ route("vendors.store") }}';
+
+    window.tdrShowNotify = window.tdrShowNotify || function(message, type, duration) {
+        const level = type || 'info';
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, level, duration);
+            return;
+        }
+        const handler = window.NotificationHandler;
+        if (handler && typeof handler[level] === 'function') {
+            handler[level](message);
+            return;
+        }
+        console[level === 'error' ? 'error' : 'log'](message);
+    };
+
+    window.tdrShowConfirm = window.tdrShowConfirm || function(message, title) {
+        return new Promise(function(resolve) {
+            let modal = document.getElementById('tdrShowConfirmModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.id = 'tdrShowConfirmModal';
+                modal.tabIndex = -1;
+                modal.innerHTML =
+                    '<div class="modal-dialog modal-dialog-centered">' +
+                        '<div class="modal-content bg-gradient">' +
+                            '<div class="modal-header">' +
+                                '<h5 class="modal-title"></h5>' +
+                                '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+                            '</div>' +
+                            '<div class="modal-body"></div>' +
+                            '<div class="modal-footer">' +
+                                '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __("Cancel") }}</button>' +
+                                '<button type="button" class="btn btn-danger" data-confirm-action>{{ __("Delete") }}</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>';
+                document.body.appendChild(modal);
+            }
+
+            if (!window.bootstrap || !bootstrap.Modal) {
+                window.tdrShowNotify(message, 'warning');
+                resolve(false);
+                return;
+            }
+
+            modal.querySelector('.modal-title').textContent = title || '{{ __("Delete Confirmation") }}';
+            modal.querySelector('.modal-body').textContent = message;
+            const confirmBtn = modal.querySelector('[data-confirm-action]');
+            let confirmed = false;
+            const instance = bootstrap.Modal.getOrCreateInstance(modal);
+
+            function cleanup() {
+                confirmBtn.removeEventListener('click', onConfirm);
+                modal.removeEventListener('hidden.bs.modal', onHidden);
+            }
+
+            function onConfirm() {
+                confirmed = true;
+                cleanup();
+                instance.hide();
+                resolve(true);
+            }
+
+            function onHidden() {
+                cleanup();
+                resolve(confirmed);
+            }
+
+            confirmBtn.addEventListener('click', onConfirm, { once: true });
+            modal.addEventListener('hidden.bs.modal', onHidden, { once: true });
+            instance.show();
+        });
+    };
 </script>
 @include('admin.tdrs.partials.component-inspection-scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var pendingTdrNotification = null;
+    try {
+        pendingTdrNotification = window.sessionStorage.getItem('tdrShowPendingNotification');
+        if (pendingTdrNotification) {
+            window.sessionStorage.removeItem('tdrShowPendingNotification');
+            window.tdrShowNotify(pendingTdrNotification, 'success', 2500);
+        }
+    } catch (e) {}
+
     var tdrShowTabListEl = document.getElementById('tdrShowTabList');
     var tdrShowTabsHeaderEl = document.getElementById('tdrShowTabsHeader');
     var tdrShowTabsLoadingEl = document.getElementById('tdrShowTabsLoading');
@@ -162,11 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (looksLikeLoginUrl || looksLikeLoginHtml) {
                     bushingTabBody.innerHTML = '<div class="alert alert-warning mb-0">{{ __("Session expired. Please log in again.") }}</div>';
-                    if (typeof showNotification === 'function') {
-                        showNotification('{{ __("Session expired. Please log in again.") }}', 'warning', 5000);
-                    } else {
-                        alert('{{ __("Session expired. Please log in again.") }}');
-                    }
+                    window.tdrShowNotify('{{ __("Session expired. Please log in again.") }}', 'warning', 5000);
                     return;
                 }
 
@@ -402,10 +481,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (woId && compId) loadExtraProcesses(woId, compId);
                             if (extraPartsBody && extraPartsBody.dataset.loaded) loadExtraPartProcesses();
                         } else {
-                            alert(data.message || '{{ __("Failed to delete.") }}');
+                            window.tdrShowNotify(data.message || '{{ __("Failed to delete.") }}', 'error');
                         }
                     })
-                    .catch(function() { alert('{{ __("Failed to delete.") }}'); });
+                    .catch(function() { window.tdrShowNotify('{{ __("Failed to delete.") }}', 'error'); });
             });
         });
         var addVendorBtn = container.querySelector('#saveVendorButtonExtra');
@@ -570,13 +649,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
                         } else {
                             var msg = (res.data && res.data.message) ? res.data.message : '{{ __("Request failed.") }}';
-                            if (typeof showNotification === 'function') showNotification(msg, 'warning');
-                            else alert(msg);
+                            window.tdrShowNotify(msg, 'warning');
                         }
                     })
                     .catch(function() {
-                        if (typeof showNotification === 'function') showNotification('{{ __("Request failed.") }}', 'error');
-                        else alert('{{ __("Request failed.") }}');
+                        window.tdrShowNotify('{{ __("Request failed.") }}', 'error');
                     });
             });
         }
@@ -596,13 +673,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
                         } else {
                             var msg2 = (res.data && res.data.message) ? res.data.message : '{{ __("Request failed.") }}';
-                            if (typeof showNotification === 'function') showNotification(msg2, 'warning');
-                            else alert(msg2);
+                            window.tdrShowNotify(msg2, 'warning');
                         }
                     })
                     .catch(function() {
-                        if (typeof showNotification === 'function') showNotification('{{ __("Request failed.") }}', 'error');
-                        else alert('{{ __("Request failed.") }}');
+                        window.tdrShowNotify('{{ __("Request failed.") }}', 'error');
                     });
             });
         }
@@ -614,8 +689,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var repInp = row ? row.querySelector('.travel-repair-num') : null;
                 if (!vendorSel || !vendorSel.value) {
                     var m = '{{ __("Please select a vendor.") }}';
-                    if (typeof showNotification === 'function') showNotification(m, 'warning');
-                    else alert(m);
+                    window.tdrShowNotify(m, 'warning');
                     return;
                 }
                 var u = new URL(link.getAttribute('href'), window.location.origin);
@@ -729,27 +803,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         target.querySelectorAll('.ajax-delete-process').forEach(function(b) {
             b.addEventListener('click', function() {
-                if (!confirm('{{ __("Are you sure you want to delete this process?") }}')) return;
-                var tdrProcessId = this.dataset.tdrProcessId;
-                var tdrId = this.dataset.tdrId || (wrapper && wrapper.dataset.tdrId);
-                var process = this.dataset.process || '';
-                var formData = new FormData();
-                formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
-                formData.append('_method', 'DELETE');
-                formData.append('tdrId', tdrId);
-                if (process) formData.append('process', process);
-                fetch('{{ route("tdr-processes.destroy", ["tdr_process" => "__ID__"]) }}'.replace('__ID__', tdrProcessId), { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
-                    .then(function(r) { return r.json().catch(function() { return {}; }).then(function(data) { return { ok: r.ok, data: data }; }); })
-                    .then(function(res) {
-                        if (res.ok && res.data.success !== false) {
-                            loadProcessesAndBind(tdrId, target);
-                            if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
-                        } else {
-                            var dm = (res.data && res.data.message) ? res.data.message : '{{ __("Delete failed.") }}';
-                            if (typeof showNotification === 'function') showNotification(dm, 'warning');
-                            else alert(dm);
-                        }
-                    });
+                var button = this;
+                window.tdrShowConfirm('{{ __("Are you sure you want to delete this process?") }}').then(function(confirmed) {
+                    if (!confirmed) return;
+                    var tdrProcessId = button.dataset.tdrProcessId;
+                    var tdrId = button.dataset.tdrId || (wrapper && wrapper.dataset.tdrId);
+                    var process = button.dataset.process || '';
+                    var formData = new FormData();
+                    formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
+                    formData.append('_method', 'DELETE');
+                    formData.append('tdrId', tdrId);
+                    if (process) formData.append('process', process);
+                    fetch('{{ route("tdr-processes.destroy", ["tdr_process" => "__ID__"]) }}'.replace('__ID__', tdrProcessId), { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+                        .then(function(r) { return r.json().catch(function() { return {}; }).then(function(data) { return { ok: r.ok, data: data }; }); })
+                        .then(function(res) {
+                            if (res.ok && res.data.success !== false) {
+                                loadProcessesAndBind(tdrId, target);
+                                if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
+                            } else {
+                                var dm = (res.data && res.data.message) ? res.data.message : '{{ __("Delete failed.") }}';
+                                window.tdrShowNotify(dm, 'warning');
+                            }
+                        })
+                        .catch(function() {
+                            window.tdrShowNotify('{{ __("Delete failed.") }}', 'error');
+                        });
+                });
             });
         });
     }
@@ -828,14 +907,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof window.notifyWarn === 'function') {
                 window.notifyWarn(m);
             } else {
-                alert(m);
+                window.tdrShowNotify(m, 'warning');
             }
         }
         function bushingToastErr(m) {
             if (typeof window.notifyError === 'function') {
                 window.notifyError(m);
             } else {
-                alert(m);
+                window.tdrShowNotify(m, 'error');
             }
         }
         bushingTabBody.addEventListener('click', function(e) {
@@ -1002,7 +1081,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             var selected = form.querySelectorAll('.component-checkbox:checked');
             if (selected.length === 0) {
-                alert('{{ __("Please select at least one component before submitting.") }}');
+                window.tdrShowNotify('{{ __("Please select at least one component before submitting.") }}', 'warning');
                 hideGlobalSpinner();
                 return;
             }
@@ -1015,7 +1094,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 else if (q) q.style.borderColor = '';
             });
             if (hasErr) {
-                alert('{{ __("Please enter quantity for all groups with selected components.") }}');
+                window.tdrShowNotify('{{ __("Please enter quantity for all groups with selected components.") }}', 'warning');
                 hideGlobalSpinner();
                 return;
             }
@@ -1041,14 +1120,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (result.json.success) {
                         if (typeof loadBushingPartial === 'function') loadBushingPartial();
                     } else {
-                        alert(result.json.message || (result.json.errors ? JSON.stringify(result.json.errors) : '') || '{{ __("Error creating bushings data.") }}');
+                        window.tdrShowNotify(result.json.message || (result.json.errors ? JSON.stringify(result.json.errors) : '') || '{{ __("Error creating bushings data.") }}', 'error');
                     }
                 } else {
-                    alert('{{ __("Failed to submit.") }} (HTTP ' + result.status + ')');
+                    window.tdrShowNotify('{{ __("Failed to submit.") }} (HTTP ' + result.status + ')', 'error');
                 }
             })
             .catch(function(err) {
-                alert(err.name === 'AbortError' ? '{{ __("Request timed out. Please try again.") }}' : ('{{ __("Failed to submit.") }}' + (err.message ? ': ' + err.message : '')));
+                window.tdrShowNotify(err.name === 'AbortError' ? '{{ __("Request timed out. Please try again.") }}' : ('{{ __("Failed to submit.") }}' + (err.message ? ': ' + err.message : '')), 'error');
             })
             .finally(function() {
                 clearTimeout(timeoutId);
@@ -1458,11 +1537,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 var editIfr = document.getElementById('editBushingIframe');
                                 if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
                             } else {
-                                alert(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Error.") }}');
+                                window.tdrShowNotify(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Error.") }}', 'error');
                             }
                         })
                         .catch(function() {
-                            alert('{{ __("Failed to submit.") }}');
+                            window.tdrShowNotify('{{ __("Failed to submit.") }}', 'error');
                         })
                         .finally(function() {
                             if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
@@ -1681,12 +1760,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                         if (data.redirect || !data.errors) {
                                             var m = bootstrap.Modal.getInstance(editTdrModal);
                                             if (m) m.hide();
+                                            try {
+                                                window.sessionStorage.setItem('tdrShowPendingNotification', data.message || '{{ __("Updated.") }}');
+                                            } catch (e) {}
                                             window.location.reload();
                                         } else {
+                                            window.tdrShowNotify(data.message || '{{ __("Failed to update.") }}', 'error');
                                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origText; }
                                         }
                                     })
                                     .catch(function() {
+                                        window.tdrShowNotify('{{ __("Failed to update.") }}', 'error');
                                         if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origText; }
                                     });
                             });
@@ -1868,43 +1952,46 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.addEventListener('click', function () {
                 const conditionId = this.getAttribute('data-condition-id');
                 const conditionName = this.getAttribute('data-condition-name');
-                if (!confirm(`{{ __("Are you sure you want to delete condition") }} "${conditionName}"?`)) return;
-                this.disabled = true;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Deleting...") }}';
-                const workorderId = document.querySelector('#unitInspectionForm input[name="workorder_id"]')?.value || document.querySelector('#addConditionFormFromManage input[name="workorder_id"]')?.value || window.currentWorkorderId;
-                const deleteUrl = workorderId ? `/admin/conditions/${conditionId}?workorder_id=${workorderId}` : `/admin/conditions/${conditionId}`;
-                fetch(deleteUrl, {
-                    method: 'DELETE',
-                    headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-                })
-                .then(response => {
-                    if (response.redirected && (response.url.includes('/show2/') || response.url.includes('/tdrs/show/'))) {
-                        window.top.location.href = response.url;
-                        return null;
-                    }
-                    if (response.redirected && window.tdrShowUrl) {
-                        window.top.location.href = window.tdrShowUrl;
-                        return null;
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (!data) return;
-                    if (data.success) {
-                        const redirectUrl = data.redirect || window.tdrShowUrl;
-                        delete manageConditionModal.dataset.returnToModal;
-                        window.top.location.href = redirectUrl;
-                    } else {
-                        (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))(data.message || '{{ __("An error occurred while deleting.") }}');
-                        this.disabled = false;
-                        this.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))('{{ __("An error occurred while deleting.") }}');
-                    this.disabled = false;
-                    this.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
+                const button = this;
+                window.tdrShowConfirm(`{{ __("Are you sure you want to delete condition") }} "${conditionName}"?`).then(function(confirmed) {
+                    if (!confirmed) return;
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Deleting...") }}';
+                    const workorderId = document.querySelector('#unitInspectionForm input[name="workorder_id"]')?.value || document.querySelector('#addConditionFormFromManage input[name="workorder_id"]')?.value || window.currentWorkorderId;
+                    const deleteUrl = workorderId ? `/admin/conditions/${conditionId}?workorder_id=${workorderId}` : `/admin/conditions/${conditionId}`;
+                    fetch(deleteUrl, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+                    })
+                    .then(response => {
+                        if (response.redirected && (response.url.includes('/show2/') || response.url.includes('/tdrs/show/'))) {
+                            window.top.location.href = response.url;
+                            return null;
+                        }
+                        if (response.redirected && window.tdrShowUrl) {
+                            window.top.location.href = window.tdrShowUrl;
+                            return null;
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (!data) return;
+                        if (data.success) {
+                            const redirectUrl = data.redirect || window.tdrShowUrl;
+                            delete manageConditionModal.dataset.returnToModal;
+                            window.top.location.href = redirectUrl;
+                        } else {
+                            window.tdrShowNotify(data.message || '{{ __("An error occurred while deleting.") }}', 'error');
+                            button.disabled = false;
+                            button.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        window.tdrShowNotify('{{ __("An error occurred while deleting.") }}', 'error');
+                        button.disabled = false;
+                        button.innerHTML = '<i class="fas fa-trash"></i> {{ __("Delete") }}';
+                    });
                 });
             });
         });

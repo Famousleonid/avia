@@ -1,6 +1,70 @@
 @php
     $embed = $embed ?? false;
+    $bushingTableColumnWidths = $bushingTableColumnWidths ?? [
+        'bushing' => '28%',
+        'select' => '70px',
+        'qty' => '15px',
+        'machining' => '10%',
+        'stress_relief' => '10%',
+        'ndt' => '20px',
+        'passivation' => '10%',
+        'cad' => '10%',
+        'anodizing' => '10%',
+        'xylan' => '10%',
+    ];
 @endphp
+<style>
+    .bushing-create-table {
+        table-layout: fixed;
+        width: 100%;
+        min-width: 100%;
+    }
+    table.bushing-create-table th,
+    table.bushing-create-table td {
+        box-sizing: border-box;
+        padding: .12rem .16rem !important;
+        vertical-align: middle;
+    }
+    table.bushing-create-table col.bushing-col-qty,
+    table.bushing-create-table th.bushing-col-qty,
+    table.bushing-create-table td.bushing-col-qty {
+        width: {{ $bushingTableColumnWidths['qty'] }} !important;
+        min-width: {{ $bushingTableColumnWidths['qty'] }} !important;
+        max-width: {{ $bushingTableColumnWidths['qty'] }} !important;
+    }
+    table.bushing-create-table col.bushing-col-ndt,
+    table.bushing-create-table th.bushing-col-ndt,
+    table.bushing-create-table td.bushing-col-ndt {
+        width: {{ $bushingTableColumnWidths['ndt'] }} !important;
+        min-width: {{ $bushingTableColumnWidths['ndt'] }} !important;
+        max-width: {{ $bushingTableColumnWidths['ndt'] }} !important;
+    }
+    table.bushing-create-table th.bushing-col-qty,
+    table.bushing-create-table td.bushing-col-qty,
+    table.bushing-create-table th.bushing-col-ndt,
+    table.bushing-create-table td.bushing-col-ndt {
+        box-sizing: border-box;
+        overflow: hidden;
+        text-overflow: clip;
+        white-space: nowrap;
+    }
+    .bushing-create-table .qty-input {
+        max-width: 100% !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        padding-left: 1px !important;
+        padding-right: 1px !important;
+    }
+    .bushing-create-table .bushing-ipl {
+        display: inline-block;
+        font-size: 10px !important;
+        font-weight: 400 !important;
+        line-height: 1.05 !important;
+    }
+    .bushing-create-table .bushing-part-number {
+        font-size: 12px !important;
+    }
+</style>
 <form id="bushings-form" method="POST" action="{{ route('wo_bushings.store') }}" class="bushing-create-form" data-embed="{{ $embed ? '1' : '0' }}">
     @csrf
     <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
@@ -28,21 +92,33 @@
         </a>
         @endif
     </div>
-    <div class="table-wrapper me-3" style="max-height: 65vh; overflow: auto;">
-        <table class="display table shadow table-hover align-middle table-bordered dir-table">
+    <div class="table-wrapper" style="max-height: 65vh; overflow: auto; margin-right: 0; padding-right: 0;">
+        <table class="display table shadow table-hover align-middle table-bordered dir-table mb-0 bushing-create-table">
+            <colgroup>
+                <col style="width: {{ $bushingTableColumnWidths['bushing'] }};">
+                <col style="width: {{ $bushingTableColumnWidths['select'] }};">
+                <col class="bushing-col-qty" style="width: {{ $bushingTableColumnWidths['qty'] }};">
+                <col style="width: {{ $bushingTableColumnWidths['machining'] }};">
+                <col style="width: {{ $bushingTableColumnWidths['stress_relief'] }};">
+                <col class="bushing-col-ndt" style="width: {{ $bushingTableColumnWidths['ndt'] }};">
+                <col style="width: {{ $bushingTableColumnWidths['passivation'] }};">
+                <col style="width: {{ $bushingTableColumnWidths['cad'] }};">
+                <col style="width: {{ $bushingTableColumnWidths['anodizing'] }};">
+                <col style="width: {{ $bushingTableColumnWidths['xylan'] }};">
+            </colgroup>
             <thead class="header-row bg-gradient">
                 <tr>
-                    <th class="text-primary text-center" style="width: 14%">Bushings</th>
-                    <th class="text-primary text-center" style="width: 10%"
+                    <th class="text-primary text-center">Bushings</th>
+                    <th class="text-primary text-center"
                         title="{{ __("Check or uncheck to include or exclude each bushing from this row's group. Processes apply to all selected bushings in the row.") }}">Select</th>
-                    <th class="text-primary text-center" style="width: 7%">QTY</th>
-                    <th class="text-primary text-center" style="width: 10%">Machining</th>
-                    <th class="text-primary text-center" style="width: 10%">Stress Relief</th>
-                    <th class="text-primary text-center" style="width: 9%">NDT</th>
-                    <th class="text-primary text-center" style="width: 10%">Passivation</th>
-                    <th class="text-primary text-center" style="width: 10%">CAD</th>
-                    <th class="text-primary text-center" style="width: 10%">Anodizing</th>
-                    <th class="text-primary text-center" style="width: 10%">Xylan</th>
+                    <th class="text-primary text-center bushing-col-qty">QTY</th>
+                    <th class="text-primary text-center">Machining</th>
+                    <th class="text-primary text-center">Stress Relief</th>
+                    <th class="text-primary text-center bushing-col-ndt">NDT</th>
+                    <th class="text-primary text-center">Passivation</th>
+                    <th class="text-primary text-center">CAD</th>
+                    <th class="text-primary text-center">Anodizing</th>
+                    <th class="text-primary text-center">Xylan</th>
                 </tr>
             </thead>
             <tbody>
@@ -50,7 +126,7 @@
                 <tr>
                     <td class="ps-2">
                         @foreach($bushingGroup as $bushing)
-                            <div class="mb-1"><span><strong>{{ $bushing->ipl_num }}</strong> - {{ $bushing->part_number }}</span></div>
+                            <div class="mb-1"><span><span class="bushing-ipl" style="font-size: 10px !important; font-weight: 400 !important; line-height: 1.05 !important;">{{ $bushing->ipl_num }}</span> - <span class="bushing-part-number" style="font-size: 12px !important;">{{ $bushing->part_number }}</span></span></div>
                         @endforeach
                     </td>
                     <td class="text-center">
@@ -67,15 +143,15 @@
                             @endforeach
                         </div>
                     </td>
-                    <td class="text-center">
+                    <td class="text-center bushing-col-qty">
                         <input type="number" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][qty]"
                                class="form-control qty-input" min="0" value="1"
-                               data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled style="width: 70px;">
+                               data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
                     </td>
                     <td>
                         <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][machining]"
                                 class="form-select form-select-sm" data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
-                            <option value="">-- Select --</option>
+                            <option value="">---</option>
                             @foreach($machiningProcesses as $process)
                                 <option value="{{ $process->id }}">{{ Str::limit($process->process, 50) }}</option>
                             @endforeach
@@ -84,13 +160,13 @@
                     <td>
                         <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][stress_relief]"
                                 class="form-select form-select-sm" data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
-                            <option value="">-- Select --</option>
+                            <option value="">---</option>
                             @foreach($stressReliefProcesses as $process)
                                 <option value="{{ $process->id }}">{{ Str::limit($process->process, 50) }}</option>
                             @endforeach
                         </select>
                     </td>
-                    <td>
+                    <td class="bushing-col-ndt">
                         <div class="ndt-checkboxes" data-group="{{ $bushIplNum ?: 'no_ipl' }}" style="max-height: 120px; overflow-y: auto;">
                             @foreach($ndtProcesses as $process)
                                 <div class="form-check">
@@ -105,7 +181,7 @@
                     <td>
                         <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][passivation]"
                                 class="form-select form-select-sm" data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
-                            <option value="">-- Select --</option>
+                            <option value="">---</option>
                             @foreach($passivationProcesses as $process)
                                 <option value="{{ $process->id }}">{{ Str::limit($process->process, 50) }}</option>
                             @endforeach
@@ -114,7 +190,7 @@
                     <td>
                         <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][cad]"
                                 class="form-select form-select-sm" data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
-                            <option value="">-- Select --</option>
+                            <option value="">---</option>
                             @foreach($cadProcesses as $process)
                                 <option value="{{ $process->id }}">{{ Str::limit($process->process, 50) }}</option>
                             @endforeach
@@ -123,7 +199,7 @@
                     <td>
                         <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][anodizing]"
                                 class="form-select form-select-sm" data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
-                            <option value="">-- Select --</option>
+                            <option value="">---</option>
                             @foreach($anodizingProcesses as $process)
                                 <option value="{{ $process->id }}">{{ Str::limit($process->process, 50) }}</option>
                             @endforeach
@@ -132,7 +208,7 @@
                     <td>
                         <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][xylan]"
                                 class="form-select form-select-sm" data-group="{{ $bushIplNum ?: 'no_ipl' }}" disabled>
-                            <option value="">-- Select --</option>
+                            <option value="">---</option>
                             @foreach($xylanProcesses as $process)
                                 <option value="{{ $process->id }}">{{ Str::limit($process->process, 50) }}</option>
                             @endforeach

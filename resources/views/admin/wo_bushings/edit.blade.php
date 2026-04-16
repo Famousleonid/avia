@@ -100,6 +100,17 @@
             margin-bottom: 0.25rem;
         }
 
+        .bushing-ipl {
+            display: inline-block;
+            font-size: 10px !important;
+            font-weight: 400 !important;
+            line-height: 1.05 !important;
+        }
+
+        .bushing-part-number {
+            font-size: 12px !important;
+        }
+
         /* Стили для чекбоксов NDT */
         .ndt-checkboxes {
             display: flex;
@@ -271,8 +282,8 @@
                                         <td class="ps-2">
                                             @foreach($bushingGroup as $bushing)
                                                 <div class="mb-1">
-                                                    <span><strong>{{ $bushing->ipl_num }}</strong> - {{ $bushing->part_number
-                                                    }}</span>
+                                                    <span><span class="bushing-ipl" style="font-size: 10px !important; font-weight: 400 !important; line-height: 1.05 !important;">{{ $bushing->ipl_num }}</span> - <span class="bushing-part-number" style="font-size: 12px !important;">{{ $bushing->part_number
+                                                    }}</span></span>
                                                 </div>
                                             @endforeach
                                         </td>

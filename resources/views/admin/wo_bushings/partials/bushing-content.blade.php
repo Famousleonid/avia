@@ -1,5 +1,19 @@
 @php
     $processAssignments = $processAssignments ?? [];
+    // Bushing table column widths: edit values here when you need to rebalance the table.
+    // Mixed units are OK: %, px, rem, etc. This is used by both saved view and create form.
+    $bushingTableColumnWidths = $bushingTableColumnWidths ?? [
+        'bushing' => '30%',
+        'select' => '100px',
+        'qty' => '90px',
+        'machining' => '10%',
+        'stress_relief' => '10%',
+        'ndt' => '110px',
+        'passivation' => '10%',
+        'cad' => '10%',
+        'anodizing' => '10%',
+        'xylan' => '10%',
+    ];
 @endphp
 @if($woBushing && ($linesExist ?? !empty($bushData)))
     @php
@@ -49,44 +63,153 @@
     @endphp
     {{-- Показ сохраненных данных в режиме просмотра --}}
     <style>
-        .bushing-view-table { table-layout: fixed; width: 100%; }
-        .bushing-view-table .bushing-col { white-space: nowrap; }
-        .bushing-view-table .vendor-select-sm { min-width: 56px; max-width: 76px; font-size: 0.85rem; padding: 0.12rem 0.2rem; }
+        .bushing-view-table {
+            table-layout: fixed;
+            width: 100%;
+            min-width: 100%;
+            font-size: 10px;
+            line-height: 1.15;
+        }
+        table.bushing-view-table th,
+        table.bushing-view-table td {
+            box-sizing: border-box;
+            font-weight: 400 !important;
+            padding: .12rem .16rem !important;
+            vertical-align: middle;
+        }
+        table.bushing-view-table thead.wo-bush-thead th {
+            font-size: 10px !important;
+            font-weight: 400 !important;
+            height: 20px;
+            line-height: 1.05;
+            padding: .1rem .14rem !important;
+            white-space: normal;
+        }
+        .bushing-view-table tbody td {
+            height: 24px;
+        }
+        table.bushing-view-table col.bushing-col-qty,
+        table.bushing-view-table th.bushing-col-qty,
+        table.bushing-view-table td.bushing-col-qty {
+            width: {{ $bushingTableColumnWidths['qty'] }} !important;
+            min-width: {{ $bushingTableColumnWidths['qty'] }} !important;
+            max-width: {{ $bushingTableColumnWidths['qty'] }} !important;
+        }
+        table.bushing-view-table col.bushing-col-ndt,
+        table.bushing-view-table th.bushing-col-ndt,
+        table.bushing-view-table .bushing-process-ndt {
+            width: {{ $bushingTableColumnWidths['ndt'] }} !important;
+            min-width: {{ $bushingTableColumnWidths['ndt'] }} !important;
+            max-width: {{ $bushingTableColumnWidths['ndt'] }} !important;
+        }
+        table.bushing-view-table th.bushing-col-qty,
+        table.bushing-view-table td.bushing-col-qty,
+        table.bushing-view-table th.bushing-col-ndt,
+        table.bushing-view-table .bushing-process-ndt {
+            box-sizing: border-box;
+            overflow: hidden;
+            text-overflow: clip;
+            white-space: nowrap;
+        }
+        table.bushing-view-table th.bushing-col-ndt .vendor-select-sm {
+            max-width: 100% !important;
+            min-width: 0 !important;
+            width: 100% !important;
+        }
+        .bushing-view-table .bushing-col {
+            white-space: nowrap;
+        }
+        table.bushing-view-table .bushing-ipl {
+            display: inline-block;
+            font-size: 10px !important;
+            font-weight: 400 !important;
+            line-height: 1.05 !important;
+        }
+        table.bushing-view-table .bushing-part-number {
+            font-size: 12px !important;
+        }
+        .bushing-view-table .vendor-select-sm {
+            min-width: 42px;
+            max-width: 58px;
+            height: 20px;
+            font-size: 9px;
+            line-height: 1;
+            padding: .05rem .1rem;
+        }
+        .bushing-view-table .form-btn,
+        .bushing-view-table .js-bushing-create-batch,
+        .bushing-view-table .js-bushing-ungroup-batch,
+        .bushing-view-table .js-bushing-batch-label {
+            font-size: 9px !important;
+            line-height: 1.05;
+            min-height: 18px;
+            padding: .08rem .18rem !important;
+        }
         .bushing-subcol-batch, .bushing-subcol-form { vertical-align: middle; }
         .bushing-view-table thead.wo-bush-thead tr:first-child th {
             position: sticky; top: 0; z-index: 12; background: #031e3a;
         }
         .bushing-view-table thead.wo-bush-thead tr:nth-child(2) th {
-            position: sticky; top: 2.6rem; z-index: 11; background: #031e3a;
+            position: sticky; top: 20px; z-index: 11; background: #031e3a;
             box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
         }
         .bushing-view-table .bushing-batch-group-checkbox,
-        .bushing-view-table .bushing-batch-ungroup-checkbox { cursor: pointer; flex-shrink: 0; }
+        .bushing-view-table .bushing-batch-ungroup-checkbox {
+            cursor: pointer;
+            flex-shrink: 0;
+            height: 13px;
+            width: 13px;
+        }
         .bushing-view-table th.bushing-subcol-form > .d-flex { overflow: hidden; max-width: 100%; }
+        .bushing-view-table .bushing-batch-inner,
+        .bushing-view-table thead .d-flex {
+            gap: .15rem !important;
+        }
+        .bushing-table-outer {
+            margin-left: -5px;
+            margin-right: -5px;
+            margin-top: 0;
+            max-width: none;
+            width: calc(100% + 10px);
+        }
+        .bushing-table-wrapper {
+            display: contents;
+            max-height: none !important;
+            overflow: visible !important;
+            padding-right: 0 !important;
+            width: 100%;
+        }
         @media (max-width: 1280px) {
-            .bushing-view-table thead th { font-size: .8rem; padding: .24rem .18rem; }
-            .bushing-view-table .vendor-select-sm { min-width: 50px; max-width: 64px; font-size: .7rem; }
-            .bushing-view-table .form-btn { font-size: .7rem; padding: .15rem .28rem; }
-            .bushing-view-table thead.wo-bush-thead tr:nth-child(2) th { top: 2.35rem; }
+            .bushing-view-table { font-size: 9px; }
+            table.bushing-view-table thead.wo-bush-thead th { font-size: 10px !important; font-weight: 400 !important; }
+            .bushing-view-table .vendor-select-sm { min-width: 40px; max-width: 54px; font-size: 8px; }
+            .bushing-view-table .form-btn,
+            .bushing-view-table .js-bushing-create-batch,
+            .bushing-view-table .js-bushing-ungroup-batch,
+            .bushing-view-table .js-bushing-batch-label { font-size: 8px !important; }
         }
     </style>
-    <div class="w-100 mt-3">
-        <div class="table-wrapper table-scroll-container w-100" style="max-height: calc(100vh - 280px); overflow: auto;">
-            <table class="display table shadow table-hover align-middle table-bordered bg-gradient dir-table bushing-view-table w-100">
+    <div class="w-100 bushing-table-outer">
+        <div class="table-wrapper table-scroll-container w-100 bushing-table-wrapper">
+            <table class="table-sm table-hover align-middle table-bordered bg-gradient dir-table bushing-view-table w-100">
                 <colgroup>
-                    <col style="width: 14%;">
-                    <col style="width: 4%;">
-                    @for($i = 0; $i < 7; $i++)
-                        <col style="width: 11%;">
-                    @endfor
+                    <col class="bushing-col-bushing" style="width: {{ $bushingTableColumnWidths['bushing'] }};">
+                    <col class="bushing-col-qty" style="width: {{ $bushingTableColumnWidths['qty'] }};">
+                    <col style="width: {{ $bushingTableColumnWidths['machining'] }};">
+                    <col style="width: {{ $bushingTableColumnWidths['stress_relief'] }};">
+                    <col class="bushing-col-ndt" style="width: {{ $bushingTableColumnWidths['ndt'] }};">
+                    <col style="width: {{ $bushingTableColumnWidths['passivation'] }};">
+                    <col style="width: {{ $bushingTableColumnWidths['cad'] }};">
+                    <col style="width: {{ $bushingTableColumnWidths['anodizing'] }};">
+                    <col style="width: {{ $bushingTableColumnWidths['xylan'] }};">
                 </colgroup>
                 <thead class="wo-bush-thead" style="background: #031e3a;">
                     <tr class="header-row">
                         <th rowspan="2" class="text-primary text-center align-middle bushing-col">{{ __('Bushings') }}</th>
-                        <th rowspan="2" class="text-primary text-center align-middle">{{ __('QTY') }}</th>
+                        <th rowspan="2" class="text-primary text-center align-middle bushing-col-qty">{{ __('QTY') }}</th>
                         <th class="text-primary text-center">{{ __('Machining') }}</th>
                         <th class="text-primary text-center">{{ __('Stress Relief') }}</th>
-                        <th class="text-primary text-center">{{ __('NDT') }}</th>
+                        <th class="text-primary text-center bushing-col-ndt">{{ __('NDT') }}</th>
                         <th class="text-primary text-center">{{ __('Passivation') }}</th>
                         <th class="text-primary text-center">{{ __('CAD') }}</th>
                         <th class="text-primary text-center">{{ __('Anodizing') }}</th>
@@ -105,12 +228,12 @@
                             ];
                         @endphp
                         @foreach($headerCells as $hc)
-                            <th class="bushing-subcol-batch text-center p-1">
+                            <th class="bushing-subcol-batch bushing-col-{{ $hc['key'] }} text-center p-1">
                                 @if($woBushing)
                                     <div class="d-flex flex-column gap-1 align-items-stretch">
                                         <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap mt-1">
                                             <select class="form-select form-select-sm vendor-select-sm" name="vendor_id" id="{{ $hc['vendor'] }}">
-                                                <option value="">{{ __('Vendor') }}</option>
+                                                <option value="">---</option>
                                                 @foreach($vendors as $vendor)
                                                     <option style="font-size: 10px;" value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                                 @endforeach
@@ -236,9 +359,9 @@
                                 $xylanProcess = $xylanProcesses->firstWhere('id', $data['xylan'] ?? null);
                             @endphp
                             <tr>
-                                <td class="ps-4 bushing-col"><strong>{{ $component->ipl_num }}</strong> —
-                                    <span class="text-muted">{{ $component->part_number }}</span></td>
-                                <td class="text-center">{{ $data['qty'] ?? '-' }}</td>
+                                <td class="bushing-col"><span class="bushing-ipl" style="font-size: 10px !important; font-weight: 400 !important; line-height: 1.05 !important;">{{ $component->ipl_num }}</span> —
+                                    <span class="text-muted bushing-part-number" style="font-size: 12px !important;">{{ $component->part_number }}</span></td>
+                                <td class="text-center bushing-col-qty">{{ $data['qty'] ?? '-' }}</td>
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,
                                     'processKey' => 'machining',
@@ -318,7 +441,10 @@
         </div>
     </div>
 @elseif($bushings->flatten()->count() > 0)
-    @include('admin.wo_bushings.partials.create-form', ['embed' => true])
+    @include('admin.wo_bushings.partials.create-form', [
+        'embed' => true,
+        'bushingTableColumnWidths' => $bushingTableColumnWidths,
+    ])
 
 @else
     <div class="text-center mt-5">

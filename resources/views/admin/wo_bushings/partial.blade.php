@@ -1,4 +1,4 @@
-<div class="bushing-partial"
+<div class="bushing-partial w-100"
      data-has-wo-bushing="{{ $woBushing ? '1' : '0' }}"
      data-has-bushings="{{ $bushings->flatten()->count() > 0 ? '1' : '0' }}"
      data-wo-bushing-id="{{ $woBushing ? $woBushing->id : '' }}"

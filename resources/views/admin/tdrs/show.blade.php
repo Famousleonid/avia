@@ -280,7 +280,7 @@
             </div>
 
             {{-- Body: tabs (header links as tabs), TDR tab = main content --}}
-            <div class="card-body">
+            <div class="card-body p-1">
                 <style>
                     .tdr-tabs-loading {
                         min-height: 34px;
@@ -465,8 +465,8 @@
 
                     <div class="tab-pane fade" id="content-all-parts-processes" role="tabpanel">
                         <div class="card bg-gradient h-100">
-                            <div class="card-body p-2 overflow-auto" id="allPartsProcessesTabBody"
-                                 style="height: calc(100vh - 280px); min-height: 400px;">
+                            <div class="card-body p-1 overflow-auto" id="allPartsProcessesTabBody"
+                                 style="height: calc(100vh - 280px); min-height: 600px;">
                                 <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
                             </div>
                         </div>
@@ -491,8 +491,8 @@
                     @endif
                     <div class="tab-pane fade" id="content-bushing" role="tabpanel">
                         <div class="card bg-gradient h-100">
-                            <div class="card-body p-2 overflow-auto" id="bushingTabBody"
-                                 style="height: calc(100vh - 280px); min-height: 400px;">
+                            <div class="card-body p-0 w-100" id="bushingTabBody"
+                                 style="min-height: 400px; overflow: visible; padding: 0 !important; max-width: none;">
                                 <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
                             </div>
                         </div>

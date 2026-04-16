@@ -104,6 +104,17 @@
             margin-bottom: 0.25rem;
         }
 
+        .bushing-ipl {
+            display: inline-block;
+            font-size: 10px !important;
+            font-weight: 400 !important;
+            line-height: 1.05 !important;
+        }
+
+        .bushing-part-number {
+            font-size: 12px !important;
+        }
+
         /* Стили для чекбоксов NDT */
         .ndt-checkboxes {
             display: flex;
@@ -332,8 +343,8 @@
                                         <td class="ps-2">
                                             @foreach($bushingGroup as $bushing)
                                                 <div class="mb-1">
-                                                    <span><strong>{{ $bushing->ipl_num }}</strong> - {{ $bushing->part_number
-                                                    }}</span>
+                                                    <span><span class="bushing-ipl" style="font-size: 10px !important; font-weight: 400 !important; line-height: 1.05 !important;">{{ $bushing->ipl_num }}</span> - <span class="bushing-part-number" style="font-size: 12px !important;">{{ $bushing->part_number
+                                                    }}</span></span>
                                                 </div>
                                             @endforeach
                                         </td>
@@ -713,7 +724,7 @@
                         html += `<div class="form-check ms-4 mb-1">`;
                         html += `<input class="form-check-input component-checkbox" type="checkbox" id="${checkboxId}" value="${component.id}" data-group="${groupKey}" data-group-index="${groupIndex}">`;
                         html += `<label class="form-check-label" for="${checkboxId}">`;
-                        html += `<strong>${component.ipl_num}</strong> - ${component.part_number}`;
+                        html += `<span class="bushing-ipl" style="font-size: 10px !important; font-weight: 400 !important; line-height: 1.05 !important;">${component.ipl_num}</span> - <span class="bushing-part-number" style="font-size: 12px !important;">${component.part_number}</span>`;
                         html += `</label>`;
                         html += `</div>`;
                     });
@@ -797,7 +808,7 @@
                     // First column - Bushings list
                     rowHtml += '<td class="ps-2">';
                     components.forEach(function(comp) {
-                        rowHtml += `<div class="mb-1"><span><strong>${comp.ipl_num}</strong> - ${comp.part_number}</span></div>`;
+                        rowHtml += `<div class="mb-1"><span><span class="bushing-ipl" style="font-size: 10px !important; font-weight: 400 !important; line-height: 1.05 !important;">${comp.ipl_num}</span> - <span class="bushing-part-number" style="font-size: 12px !important;">${comp.part_number}</span></span></div>`;
                     });
                     rowHtml += '</td>';
 
