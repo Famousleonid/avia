@@ -626,6 +626,7 @@ class WorkorderController extends Controller
             'customer_id' => ['required', 'exists:customers,id'],
             'instruction_id' => ['required', 'exists:instructions,id'],
             'number' => ['nullable'],
+            'open_at' => ['nullable', 'string'],
             'storage_rack'   => ['nullable','integer','min:1','max:999'],
             'storage_level'  => ['nullable','integer','min:1','max:999'],
             'storage_column' => ['nullable','integer','min:1','max:999'],
@@ -634,14 +635,31 @@ class WorkorderController extends Controller
         // ✅ Если НЕ draft — номер обязателен и уникален
         if (!$isDraft) {
             // Колонка workorders.number — INTEGER; значения вида 190-70500-405 дают SQL 1265 / 500
-            $rules['number'] = ['required', 'integer', 'unique:workorders,number'];
+            $rules['number'] = ['required', 'integer', 'min:100000', 'max:999999', 'unique:workorders,number'];
         }
 
         $data = $request->validate($rules, [
             'number.integer' => __('The workorder number must be a whole number (digits only, no dashes or letters).'),
+            'number.min' => __('The workorder number must be 100000 or greater.'),
+            'number.max' => __('The workorder number must be 999999 or less.'),
         ]);
 
+        try {
+            $data['open_at'] = parse_project_date($request->input('open_at'));
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['open_at' => $e->getMessage()])->withInput();
+        }
+
         // ✅ Чекбоксы (как у тебя)
+        if (!$isDraft) {
+            $unit = Unit::find($data['unit_id']);
+            if (!$unit || !$unit->manual_id) {
+                return back()
+                    ->withErrors(['unit_id' => 'Select a unit with assigned Manual before creating Workorder.'])
+                    ->withInput();
+            }
+        }
+
         $data = array_merge($data, [
             'part_missing' => $request->has('part_missing') ? 1 : 0,
             'external_damage' => $request->has('external_damage') ? 1 : 0,
@@ -668,7 +686,6 @@ class WorkorderController extends Controller
         $data['description'] = $request->input('description');
         $data['amdt'] = $request->input('amdt');
         $data['place'] = $request->input('place');
-        $data['open_at'] = $request->input('open_at');
         $data['customer_po'] = $request->input('customer_po');
         $data['modified'] = $request->input('modified');
 
@@ -718,7 +735,7 @@ class WorkorderController extends Controller
         $units = Unit::with('manual')->get();
         $manuals = Manual::all();
         $users = User::all();
-        $open_at = Carbon::parse($current_wo->open_at)->format('Y-m-d');
+        $open_at = format_project_date($current_wo->open_at);
         $hasTdrs = $workorder->tdrs()->exists();
 
         return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs'));
@@ -733,9 +750,10 @@ class WorkorderController extends Controller
 
         // Базовая валидация
         $rules = [
-            'unit_id' => ['required'],
+            'unit_id' => ['required', 'exists:units,id'],
             'customer_id' => ['required'],
             'instruction_id' => ['required'],
+            'open_at' => ['nullable', 'string'],
             'storage_rack'   => ['nullable','integer','min:1','max:999'],
             'storage_level'  => ['nullable','integer','min:1','max:999'],
             'storage_column' => ['nullable','integer','min:1','max:999'],
@@ -748,15 +766,34 @@ class WorkorderController extends Controller
             $rules['number'] = [
                 'required',
                 'integer',
+                'min:100000',
+                'max:999999',
                 Rule::unique('workorders', 'number')->ignore($workorder->id),
             ];
         }
 
         $request->validate($rules, [
             'number.integer' => __('The workorder number must be a whole number (digits only, no dashes or letters).'),
+            'number.min' => __('The workorder number must be 100000 or greater.'),
+            'number.max' => __('The workorder number must be 999999 or less.'),
         ]);
 
+        try {
+            $request->merge(['open_at' => parse_project_date($request->input('open_at'))]);
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['open_at' => $e->getMessage()])->withInput();
+        }
+
         // Чекбоксы
+        if ($wasDraft && !$newIsDraft) {
+            $unit = Unit::find($request->input('unit_id'));
+            if (!$unit || !$unit->manual_id) {
+                return back()
+                    ->withErrors(['unit_id' => 'Assign Manual to this Unit before releasing Draft.'])
+                    ->withInput();
+            }
+        }
+
         $request->merge([
             'part_missing' => $request->has('part_missing') ? 1 : 0,
             'external_damage' => $request->has('external_damage') ? 1 : 0,
@@ -1154,6 +1191,20 @@ class WorkorderController extends Controller
             return response()->json([
                 'ok' => false,
                 'message' => __('The workorder number must be a whole number (digits only, no dashes or letters).'),
+            ]);
+        }
+
+        if ((int) $number < 100000) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('The workorder number must be 100000 or greater.'),
+            ]);
+        }
+
+        if ((int) $number > 999999) {
+            return response()->json([
+                'ok' => false,
+                'message' => __('The workorder number must be 999999 or less.'),
             ]);
         }
 

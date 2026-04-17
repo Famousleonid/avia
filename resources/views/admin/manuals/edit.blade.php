@@ -224,7 +224,10 @@
                                     <div style="height: 100%; overflow-y: auto; border: 1px solid rgba(0,0,0,.08); border-radius: 10px; padding: 10px;">
                                         @foreach(($users ?? collect()) as $u)
                                             @php
-                                                $checked = in_array($u->id, $permittedUserIds ?? [], true);
+                                                $selectedUserIds = collect(old('permitted_user_ids', $permittedUserIds ?? []))
+                                                    ->map(fn ($id) => (int) $id)
+                                                    ->all();
+                                                $checked = in_array((int) $u->id, $selectedUserIds, true);
                                             @endphp
                                             <label class="d-flex align-items-center gap-2" style="white-space: nowrap; cursor: pointer; margin-bottom: 6px;">
                                                 <input

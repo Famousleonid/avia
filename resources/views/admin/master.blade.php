@@ -149,7 +149,57 @@
 <script src="https://unpkg.com/tippy.js@6"></script>
 <script src="{{ asset('js/main.js') }}"></script>
 
+<script>
+    (function () {
+        const projectDateMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
+        function parseProjectDate(value) {
+            const match = String(value || '').trim().match(/^(\d{1,2})\.([a-z]{3})\.(\d{4})$/i);
+            if (!match) return null;
+
+            const day = Number(match[1]);
+            const month = projectDateMonths.indexOf(match[2].toLowerCase());
+            const year = Number(match[3]);
+            if (!day || month < 0 || !year) return null;
+
+            const date = new Date(year, month, day);
+            return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day ? date : null;
+        }
+
+        function formatProjectDate(date) {
+            if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+            return String(date.getDate()).padStart(2, '0') + '.' + projectDateMonths[date.getMonth()] + '.' + date.getFullYear();
+        }
+
+        window.initProjectDatePickers = function (root = document) {
+            if (typeof flatpickr === 'undefined') return;
+
+            root.querySelectorAll('input[data-project-date]').forEach(input => {
+                if (input._projectDatePicker) return;
+
+                input._projectDatePicker = flatpickr(input, {
+                    allowInput: true,
+                    dateFormat: 'd.M.Y',
+                    defaultDate: parseProjectDate(input.value) || null,
+                    disableMobile: true,
+                    formatDate: formatProjectDate,
+                    parseDate: parseProjectDate,
+                    onChange(selectedDates, dateStr, instance) {
+                        input.value = selectedDates[0] ? formatProjectDate(selectedDates[0]) : '';
+                    },
+                    onClose(selectedDates) {
+                        const parsed = parseProjectDate(input.value);
+                        if (parsed) {
+                            input.value = formatProjectDate(parsed);
+                        }
+                    },
+                });
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', () => window.initProjectDatePickers());
+    })();
+</script>
 
 <script>
     window.addEventListener('load', function () {

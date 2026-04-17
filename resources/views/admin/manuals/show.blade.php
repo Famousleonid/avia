@@ -72,6 +72,21 @@
         #nav-parts .table th:nth-child(8),
         #nav-parts .table td:nth-child(8) { width: 8%; }
 
+        #nav-parts .table th,
+        #nav-parts .table td {
+            padding: 5px 7px;
+            line-height: 1.25;
+            vertical-align: middle;
+        }
+        #nav-parts .table .btn-sm {
+            padding: 2px 6px;
+            line-height: 1.2;
+        }
+        #nav-parts .table img {
+            width: 32px;
+            height: 32px;
+        }
+
         #nav-processes .table {
             width: 100%;
         }
@@ -260,8 +275,19 @@
                 (function () {
                     var allowedTabs = ['components', 'parts', 'processes', 'std'];
                     var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std'};
-                    var q = new URLSearchParams(location.search).get('tab');
-                    var desiredKey = (q && allowedTabs.indexOf(q) !== -1) ? q : (hashToTab[location.hash] || null);
+                    var storageKey = 'manual.show.activeTab.' + @json((int) $cmm->id);
+                    var params = new URLSearchParams(location.search);
+                    var q = params.get('tab');
+                    var fromStorage = null;
+                    try {
+                        fromStorage = localStorage.getItem(storageKey);
+                    } catch (e) {}
+                    var desiredKey = (q && allowedTabs.indexOf(q) !== -1)
+                        ? q
+                        : (params.get('part_id') ? 'parts' : (params.get('std_inner') ? 'std' : (hashToTab[location.hash] || null)));
+                    if (!desiredKey && fromStorage && allowedTabs.indexOf(fromStorage) !== -1) {
+                        desiredKey = fromStorage;
+                    }
                     var server = @json($manualShowTab);
                     if (desiredKey && desiredKey !== server) {
                         document.documentElement.classList.add('manual-show-tabs-pending');
@@ -933,13 +959,39 @@
             const initialParams = new URLSearchParams(window.location.search);
             const partIdToScroll = initialParams.get('part_id');
             const serverTab = @json($manualShowTab);
+            const manualActiveTabStorageKey = 'manual.show.activeTab.' + @json((int) $cmm->id);
+            let storedTab = null;
+            try {
+                storedTab = localStorage.getItem(manualActiveTabStorageKey);
+            } catch (e) {}
+
+            function rememberManualShowTab(target) {
+                const key = Object.keys(tabKeyToPane).find(function (name) {
+                    return tabKeyToPane[name] === target;
+                });
+                if (key) {
+                    try {
+                        localStorage.setItem(manualActiveTabStorageKey, key);
+                    } catch (e) {}
+                }
+            }
 
             let hash = window.location.hash;
             const tabFromQuery = initialParams.get('tab');
             if (!hash && tabFromQuery && tabKeyToPane[tabFromQuery]) {
                 hash = tabKeyToPane[tabFromQuery];
             }
+            if (!hash && !tabFromQuery && partIdToScroll) {
+                hash = tabKeyToPane.parts;
+            }
+            if (!hash && !tabFromQuery && !partIdToScroll && initialParams.get('std_inner')) {
+                hash = tabKeyToPane.std;
+            }
             let desiredPane = hash || '';
+            const desiredFromLocalStorage = !desiredPane && !tabFromQuery && storedTab && tabKeyToPane[storedTab];
+            if (desiredFromLocalStorage) {
+                desiredPane = tabKeyToPane[storedTab];
+            }
             if (!desiredPane && serverTab && tabKeyToPane[serverTab]) {
                 desiredPane = tabKeyToPane[serverTab];
             }
@@ -956,7 +1008,7 @@
                 u.searchParams.delete('tab');
                 u.searchParams.delete('part_id');
                 u.searchParams.delete('std_inner');
-                if (desiredPane) {
+                if (desiredPane && !desiredFromLocalStorage) {
                     u.hash = desiredPane;
                 }
                 window.history.replaceState(null, '', u.pathname + u.search + u.hash);
@@ -1000,7 +1052,9 @@
                 document.documentElement.classList.remove('manual-show-tabs-pending');
                 activeTab = document.querySelector('#nav-tab .nav-link.active');
                 if (activeTab) {
-                    updateTabActions(activeTab.getAttribute('data-bs-target'));
+                    var target = activeTab.getAttribute('data-bs-target');
+                    updateTabActions(target);
+                    rememberManualShowTab(target);
                 }
                 scrollToEditedPartRow();
                 activateStdInnerTabIfRequested();
@@ -1030,6 +1084,7 @@
                 tab.addEventListener('shown.bs.tab', function (event) {
                     const target = event.target.getAttribute('data-bs-target');
                     updateTabActions(target);
+                    rememberManualShowTab(target);
                 });
             });
 

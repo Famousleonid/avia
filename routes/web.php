@@ -24,12 +24,14 @@ use App\Http\Controllers\Admin\MainController;
 use App\Http\Controllers\Admin\TrainingController;
 use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\VendorController;
+use App\Http\Controllers\Admin\VendorTrackingController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\NdtCadCsvController;
 use App\Http\Controllers\Admin\MachiningController;
 use App\Http\Controllers\Admin\PaintController;
 use App\Http\Controllers\Admin\ManualStdProcessController;
+use App\Http\Controllers\Admin\NotificationEventRuleController;
 use App\Http\Controllers\Front\FrontController;
 use App\Http\Controllers\General\MediaController;
 use App\Http\Controllers\General\NotificationController;
@@ -76,6 +78,7 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     Route::get('/show/{workorder}', [MobileController::class, 'show'])->name('show');
     Route::get('/draft', [MobileController::class, 'createDraft'])->name('draft');
     Route::post('/workorders/draft', [MobileController::class, 'storeDraft'])->name('draft.store');
+    Route::post('/draft/units/pending', [MobileController::class, 'storePendingDraftUnit'])->name('draft.units.pending.store');
 
     // --- tasks ---
     Route::get('/tasks/{workorder}', [MobileTaskController::class, 'tasks'])->name('tasks');
@@ -283,6 +286,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/units/{manualId}', [UnitController::class, 'update'])->name('units.update');
     Route::delete('/units/{unit}/single', [UnitController::class, 'destroySingle'])->name('units.destroySingle');
     Route::patch('/units/{unit}/single', [UnitController::class, 'updateSingle'])->name('units.updateSingle');
+    Route::patch('/units/{unit}/assign-manual', [UnitController::class, 'assignManual'])->name('units.assignManual');
 
     Route::get('wo_bushings/partial/{workorder_id}', [WoBushingController::class, 'partial'])->name('wo_bushings.partial');
     Route::resource('/wo_bushings', WoBushingController::class)->except(['create']);
@@ -326,6 +330,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('log_card/show/{id}', [LogCardController::class, 'show'])->name('log_card.show');
 
     Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
+    Route::get('/vendor-tracking', [VendorTrackingController::class, 'index'])->name('vendor-tracking.index');
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
     Route::post('/components/store_from_extra', [ComponentController::class, 'storeFromExtra'])->name('components.storeFromExtra');
@@ -427,6 +432,9 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/ai-agent/history', [AiAgentController::class, 'history'])->name('admin.ai.history');
     Route::post('/ai-agent/chat', [AiAgentController::class, 'chat'])->name('admin.ai.chat');
     Route::post('/ai-agent/reset', [AiAgentController::class, 'reset'])->name('admin.ai.reset');
+    Route::resource('/notification-rules', NotificationEventRuleController::class)
+        ->except(['show', 'create', 'edit'])
+        ->names('admin.notification-rules');
     Route::get('/tests', [\App\Http\Controllers\Admin\TestDashboardController::class, 'index'])->name('admin.tests.index');
     Route::post('/tests/{suite}/run', [\App\Http\Controllers\Admin\TestDashboardController::class, 'run'])->name('admin.tests.run');
 });

@@ -121,6 +121,7 @@
                                         <div class="form-group col-lg-4 mb-1">
                                             <label for="number_id">Workorder № <span style="color:red; font-size: x-small">(required)</span></label>
                                             <input type="text" name="number" id="number_id" value="{{ old('number') }}" class="form-control  @error('number') is-invalid @enderror" placeholder="Enter workorder number ">
+                                            <div class="invalid-feedback" id="numberError">@error('number'){{ $message }}@enderror</div>
                                         </div>
 
                                         <div class="form-group col-lg-4 mb-1">
@@ -191,7 +192,10 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_open_at">Open date</label>
-                                            <input type="date" name="open_at" id="open_at" maxlength="30" value="" class="form-control @error('open_at') is-invalid @enderror" placeholder="date opened">
+                                            <input type="text" name="open_at" id="open_at" maxlength="11" value="{{ old('open_at') }}" class="form-control @error('open_at') is-invalid @enderror" placeholder="10.aug.2026" data-project-date autocomplete="off">
+                                            @error('open_at')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                            @enderror
                                         </div>
                                     </div>
                                     <div class="row ">
@@ -349,7 +353,9 @@
                     numberInput.value = '';
                     numberInput.setAttribute('readonly', 'readonly');
                     numberInput.setAttribute('placeholder', 'Auto number for Draft');
-                    numberInput.classList.remove('is-invalid-shadow');
+                    numberInput.classList.remove('is-invalid-shadow', 'is-invalid');
+                    const numberError = document.getElementById('numberError');
+                    if (numberError) numberError.textContent = '';
                 } else {
                     numberInput.removeAttribute('readonly');
                     numberInput.setAttribute('placeholder', 'Enter workorder number');
@@ -372,8 +378,32 @@
                 if (isDraftSelected()) return true; // ✅ draft — номер не обязателен
 
                 const el = $('#number_id');
-                if (!el.val()) {
+                const numberError = document.getElementById('numberError');
+                const val = (el.val() || '').trim();
+                numberError.textContent = '';
+                el.removeClass('is-invalid');
+
+                if (!val) {
                     el.addClass('is-invalid-shadow');
+                    numberError.textContent = 'Number is required.';
+                    setTimeout(() => el.removeClass('is-invalid-shadow'), 3000);
+                    return false;
+                }
+                if (!/^\d+$/.test(val)) {
+                    el.addClass('is-invalid is-invalid-shadow');
+                    numberError.textContent = 'Workorder number must contain digits only.';
+                    setTimeout(() => el.removeClass('is-invalid-shadow'), 3000);
+                    return false;
+                }
+                if (Number(val) < 100000) {
+                    el.addClass('is-invalid is-invalid-shadow');
+                    numberError.textContent = 'Workorder number must be 100000 or greater.';
+                    setTimeout(() => el.removeClass('is-invalid-shadow'), 3000);
+                    return false;
+                }
+                if (Number(val) > 999999) {
+                    el.addClass('is-invalid is-invalid-shadow');
+                    numberError.textContent = 'Workorder number must be 999999 or less.';
                     setTimeout(() => el.removeClass('is-invalid-shadow'), 3000);
                     return false;
                 }

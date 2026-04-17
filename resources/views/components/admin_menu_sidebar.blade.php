@@ -231,12 +231,26 @@
         </li>
     @endcan
 
+    @hasanyrole('Admin|Manager')
+        <li class="nav-item press-spinner">
+            <a href="{{ route('vendor-tracking.index') }}" class="nav-link">
+                <i class="bi bi-truck me-2"></i> <span>Vendor tracking</span>
+            </a>
+        </li>
+    @endhasanyrole
+
     @if (auth()->user()->roleIs('Admin'))
 
         @if(is_admin())
             <li class="nav-item press-spinner">
                 <a href="{{route('admin.activity.index')}}" class="nav-link">
                     <i class="bi bi-stickies me-2"></i> <span>Log</span>
+                </a>
+            </li>
+
+            <li class="nav-item press-spinner">
+                <a href="{{ route('admin.notification-rules.index') }}" class="nav-link">
+                    <i class="bi bi-bell me-2"></i> <span>Notification rules</span>
                 </a>
             </li>
 

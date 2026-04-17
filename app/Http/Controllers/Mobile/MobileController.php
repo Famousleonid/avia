@@ -23,6 +23,7 @@ use App\Models\User;
 use App\Models\Workorder;
 use App\Services\MachiningListingRowsBuilder;
 use App\Services\PaintIndexRowsBuilder;
+use App\Services\WorkorderNotifyService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -495,7 +496,7 @@ class MobileController extends Controller
             'instruction_id' => ['nullable','integer'],
             'serial_number'  => ['nullable','string','max:255'],
             'description'    => ['nullable','string','max:255'],
-            'open_at'        => ['nullable','date'],
+            'open_at'        => ['nullable','string'],
             'customer_po'    => ['nullable','string','max:255'],
 
             'external_damage'        => ['nullable'],
@@ -513,6 +514,12 @@ class MobileController extends Controller
             $data[$k] = $request->boolean($k);
         }
 
+        try {
+            $data['open_at'] = parse_project_date($request->input('open_at'));
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['open_at' => $e->getMessage()]);
+        }
+
         $data['user_id'] = auth()->id();
         $data['instruction_id'] = 6 ;
 
@@ -520,7 +527,49 @@ class MobileController extends Controller
         // createDraft сам присвоит number и is_draft=true
         $wo = Workorder::createDraft($data);
 
+        app(WorkorderNotifyService::class)->draftCreated(
+            $wo,
+            (int) auth()->id(),
+            (string) auth()->user()?->name
+        );
+
         return redirect()->route('mobile.show', $wo->id);
+    }
+
+    public function storePendingDraftUnit(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'part_number' => ['required', 'string', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $partNumber = trim($data['part_number']);
+
+        $unit = Unit::query()
+            ->whereNull('manual_id')
+            ->where('part_number', $partNumber)
+            ->first();
+
+        if (!$unit) {
+            $unit = Unit::query()->create([
+                'part_number' => $partNumber,
+                'manual_id' => null,
+                'verified' => false,
+                'name' => $data['name'] ?? null,
+                'description' => $data['description'] ?? null,
+            ]);
+        }
+
+        return response()->json([
+            'id' => $unit->id,
+            'part_number' => $unit->part_number,
+            'name' => $unit->name,
+            'description' => $unit->description,
+            'manual_number' => null,
+            'manual_id' => null,
+            'verified' => (bool) $unit->verified,
+        ], $unit->wasRecentlyCreated ? 201 : 200);
     }
 
     /**

@@ -25,6 +25,11 @@
         padding: .12rem .16rem !important;
         vertical-align: middle;
     }
+    table.bushing-create-table thead th,
+    table.bushing-create-table thead th.text-primary,
+    table.bushing-create-table thead tr.header-row th {
+        font-weight: 400 !important;
+    }
     table.bushing-create-table col.bushing-col-qty,
     table.bushing-create-table th.bushing-col-qty,
     table.bushing-create-table td.bushing-col-qty {
@@ -52,8 +57,30 @@
         max-width: 100% !important;
         width: 100% !important;
         min-width: 0 !important;
-        padding-left: 1px !important;
-        padding-right: 1px !important;
+        padding: 2px 4px !important;
+        text-align: center !important;
+        line-height: 1.2 !important;
+    }
+    .bushing-create-table .bushing-select-list,
+    .bushing-create-table .ndt-checkboxes {
+        align-items: center;
+    }
+    .bushing-create-table .bushing-select-list > div,
+    .bushing-create-table .ndt-checkboxes .form-check {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 4px;
+        width: max-content;
+        max-width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: 0;
+    }
+    .bushing-create-table .bushing-select-list .form-check-input,
+    .bushing-create-table .ndt-checkboxes .form-check-input {
+        margin-left: 0 !important;
+        margin-top: 0 !important;
     }
     .bushing-create-table .bushing-ipl {
         display: inline-block;
@@ -130,7 +157,7 @@
                         @endforeach
                     </td>
                     <td class="text-center">
-                        <div class="text-start">
+                        <div class="bushing-select-list d-flex flex-column">
                             @foreach($bushingGroup as $bushing)
                                 <div class="mb-1">
                                     <input type="checkbox" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][components][]"

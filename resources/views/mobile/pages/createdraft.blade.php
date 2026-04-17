@@ -124,9 +124,13 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label small text-white-50 mb-1">Open date</label>
-                            <input type="date" name="open_at"
+                            <input type="text" name="open_at"
                                    class="form-control bg-black text-light border-secondary @error('open_at') is-invalid @enderror"
-                                   value="{{ old('open_at') }}">
+                                   maxlength="11"
+                                   value="{{ old('open_at') }}"
+                                   placeholder="10.aug.2026"
+                                   data-project-date
+                                   autocomplete="off">
                             @error('open_at') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
@@ -218,19 +222,19 @@
         </div>
     </div>
 
-    {{-- MODAL: Add Unit (manual_id required) --}}
+    {{-- MODAL: Add pending Unit for Draft --}}
     <div class="modal fade" id="addUnitModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content bg-dark text-light border-secondary">
                 <div class="modal-header border-secondary">
-                    <h6 class="modal-title">Add Unit</h6>
+                    <h6 class="modal-title">Add Pending Unit</h6>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
 
                 <div class="modal-body">
-                    <div class="mb-2">
-                        <label class="form-label small text-white-50 mb-1">Manual (CMM) <span class="text-danger">*</span></label>
-                        <select id="manual_id" class="form-select bg-black text-light border-secondary" required>
+                    <div class="mb-2 d-none">
+                        <label class="form-label small text-white-50 mb-1 d-none">Manual (CMM)</label>
+                        <select id="manual_id" class="form-select bg-black text-light border-secondary d-none">
                             <option value="" selected disabled>— Select Manual —</option>
                             @foreach($manuals as $m)
                                 <option value="{{ $m->id }}">
@@ -243,6 +247,10 @@
                     <div class="mb-2">
                         <label class="form-label small text-white-50 mb-1">Part Number <span class="text-danger">*</span></label>
                         <input id="unitPn" class="form-control bg-black text-light border-secondary" placeholder="Enter PN">
+                    </div>
+
+                    <div class="small text-warning">
+                        Manual will be assigned by manager before the Draft is released.
                     </div>
                 </div>
 
@@ -276,7 +284,7 @@
             }
 
             // --- Manual select2 inside modal (search)
-            if (hasSelect2 && document.getElementById('manual_id')) {
+            if (hasSelect2 && document.getElementById('manual_id')?.offsetParent) {
                 const $manual = $('#manual_id');
                 if (!$manual.data('select2')) {
                     $manual.select2({
@@ -299,19 +307,17 @@
                 });
             }
 
-            // --- Create Unit (manual_id + part_number required)
+            // --- Create pending Unit (part_number only; manager assigns manual later)
             const btnCreateUnit = document.getElementById('btnCreateUnit');
             btnCreateUnit?.addEventListener('click', async () => {
-                const manualId = (document.getElementById('manual_id').value || '').trim();
                 const pn = (document.getElementById('unitPn').value || '').trim();
 
-                if (!manualId) { alert('Manual is required'); return; }
                 if (!pn) { alert('Part Number is required'); return; }
 
                 try {
                     if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
 
-                    const res = await fetch("{{ route('units.store') }}", {
+                    const res = await fetch("{{ route('mobile.draft.units.pending.store') }}", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
@@ -319,10 +325,7 @@
                             "X-Requested-With": "XMLHttpRequest",
                             "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
                         },
-                        body: JSON.stringify({
-                            manual_id: manualId,
-                            part_number: pn
-                        })
+                        body: JSON.stringify({ part_number: pn })
                     });
 
                     const data = await res.json();
@@ -332,9 +335,7 @@
                     }
 
                     // add new option to Unit select & select it (PN + manual для различения одинаковых PN в разных manuals)
-                    const label = data.manual_number
-                        ? `${data.part_number} (${data.manual_number})`
-                        : data.part_number;
+                    const label = `${data.part_number} (Manual pending)`;
                     const option = new Option(label, data.id, true, true);
                     option.setAttribute('data-name', data.name || '');
 
@@ -350,8 +351,6 @@
 
                     // clear modal inputs
                     document.getElementById('unitPn').value = '';
-                    if (hasSelect2) $('#manual_id').val('').trigger('change');
-                    else document.getElementById('manual_id').value = '';
 
                 } catch (e) {
                     alert('Error: ' + e.message);

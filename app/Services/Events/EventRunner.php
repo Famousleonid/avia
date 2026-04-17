@@ -3,11 +3,17 @@
 namespace App\Services\Events;
 
 use App\Models\EventLog;
+use App\Models\NotificationEventRule;
+use App\Models\User;
 use App\Notifications\NewMessageNotification;
-use Illuminate\Support\Facades\Log;
+use App\Services\NotificationEventRuleResolver;
 
 class EventRunner
 {
+    public function __construct(
+        protected NotificationEventRuleResolver $ruleResolver,
+    ) {}
+
     /** @param EventDefinition[] $events */
     public function run(array $events): void
     {
@@ -21,76 +27,96 @@ class EventRunner
                     continue;
                 }
 
-                $recipients = $event->recipients($subject) ?? [];
-
-                if (empty($recipients)) {
-                    continue;
-                }
-
                 $msg = $event->message($subject);
 
                 if (!$msg || !is_array($msg)) {
                     continue;
                 }
 
-                foreach ($recipients as $recipient) {
-                    if (!$recipient) {
-                        continue;
-                    }
+                $rules = $this->ruleResolver->activeRules($event->key());
 
-                    if (!$this->canReceiveEventNotification($recipient, $msg)) {
-                        continue;
-                    }
+                if ($rules->isNotEmpty()) {
+                    foreach ($rules as $rule) {
+                        $ruleMsg = $this->ruleResolver->renderMessage($rule, $msg);
+                        $recipients = $this->ruleResolver->recipients($rule, $subject, $ruleMsg);
+                        $repeatMin = $rule->repeatEveryMinutes((int)($event->repeatEveryMinutes() ?? 0));
 
-                    $log = EventLog::query()->firstOrNew([
-                        'event_key'         => $event->key(),
-                        'subject_type'      => get_class($subject),
-                        'subject_id'        => $subject->getKey(),
-                        'recipient_user_id' => $recipient->id,
-                    ]);
-
-                    if ($log->exists && $log->last_sent_at) {
-                        if (method_exists($event, 'oncePerDay') && $event->oncePerDay()) {
-                            if ($log->last_sent_at->isToday()) {
-                                continue;
-                            }
-                        } else {
-                            $repeatMin = (int)($event->repeatEveryMinutes() ?? 0);
-
-                            if ($repeatMin === 0) {
-                                continue;
-                            }
-
-                            if ($log->last_sent_at->copy()->addMinutes($repeatMin)->isFuture()) {
-                                continue;
-                            }
+                        foreach ($recipients as $recipient) {
+                            $this->sendToRecipient($event, $subject, $recipient, $ruleMsg, $repeatMin, $rule);
                         }
                     }
 
-                    $recipient->notify(new NewMessageNotification(
-                        fromUserId: (int)($msg['fromUserId'] ?? $msg['from_user_id'] ?? 0),
-                        fromName: (string)($msg['fromName'] ?? $msg['from_name'] ?? 'System'),
-                        text: (string)($msg['text'] ?? ''),
-                        url: $msg['url'] ?? null,
+                    continue;
+                }
 
-                        type: $msg['type'] ?? null,
-                        event: $msg['event'] ?? null,
-                        ui: $msg['ui'] ?? [],
-                        severity: $msg['severity'] ?? null,
-                        title: $msg['title'] ?? null,
-                        payload: $msg['payload'] ?? [],
-                    ));
+                $recipients = $event->recipients($subject) ?? [];
 
-                    $now = now();
-                    if (!$log->first_sent_at) {
-                        $log->first_sent_at = $now;
-                    }
-                    $log->last_sent_at = $now;
-                    $log->sent_count = (int)($log->sent_count ?? 0) + 1;
-                    $log->save();
+                foreach ($recipients as $recipient) {
+                    $repeatMin = method_exists($event, 'oncePerDay') && $event->oncePerDay()
+                        ? 60 * 24
+                        : (int)($event->repeatEveryMinutes() ?? 0);
+
+                    $this->sendToRecipient($event, $subject, $recipient, $msg, $repeatMin);
                 }
             }
         }
+    }
+
+    protected function sendToRecipient(
+        EventDefinition $event,
+        mixed $subject,
+        mixed $recipient,
+        array $msg,
+        int $repeatMin,
+        ?NotificationEventRule $rule = null
+    ): void {
+        if (!$recipient instanceof User) {
+            return;
+        }
+
+        if (($rule?->respect_user_preferences ?? true) && !$this->canReceiveEventNotification($recipient, $msg)) {
+            return;
+        }
+
+        $log = EventLog::query()->firstOrNew([
+            'event_key' => $event->key(),
+            'notification_event_rule_id' => $rule?->id,
+            'subject_type' => get_class($subject),
+            'subject_id' => $subject->getKey(),
+            'recipient_user_id' => $recipient->id,
+        ]);
+
+        if ($log->exists && $log->last_sent_at) {
+            if ($repeatMin === 0) {
+                return;
+            }
+
+            if ($log->last_sent_at->copy()->addMinutes($repeatMin)->isFuture()) {
+                return;
+            }
+        }
+
+        $recipient->notify(new NewMessageNotification(
+            fromUserId: (int)($msg['fromUserId'] ?? $msg['from_user_id'] ?? 0),
+            fromName: (string)($msg['fromName'] ?? $msg['from_name'] ?? 'System'),
+            text: (string)($msg['text'] ?? ''),
+            url: $msg['url'] ?? null,
+
+            type: $msg['type'] ?? null,
+            event: $msg['event'] ?? null,
+            ui: $msg['ui'] ?? [],
+            severity: $msg['severity'] ?? null,
+            title: $msg['title'] ?? null,
+            payload: $msg['payload'] ?? [],
+        ));
+
+        $now = now();
+        if (!$log->first_sent_at) {
+            $log->first_sent_at = $now;
+        }
+        $log->last_sent_at = $now;
+        $log->sent_count = (int)($log->sent_count ?? 0) + 1;
+        $log->save();
     }
 
     protected function canReceiveEventNotification($recipient, array $msg): bool

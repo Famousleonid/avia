@@ -1,0 +1,1344 @@
+﻿diff --git a/app/Http/Controllers/Admin/ManualController.php b/app/Http/Controllers/Admin/ManualController.php
+index 7239089..5c97d6c 100644
+--- a/app/Http/Controllers/Admin/ManualController.php
++++ b/app/Http/Controllers/Admin/ManualController.php
+@@ -206,20 +206,22 @@ public function show(string $id)
+             $ipl = $part->ipl_num ?? '';
+ 
+             // Ожидаемый формат: "1-10", "1-20A" и т.п.
+-            if (!preg_match('/^(\d+)-(\d+)([A-Za-z]?)$/', $ipl, $m)) {
++            if (!preg_match('/^(\d+)([A-Za-z\s]*)-(\d+)([A-Za-z\s0-9]*)$/', trim($ipl), $m)) {
+                 // Неизвестный формат отправляем в конец
+                 return PHP_INT_MAX;
+             }
+ 
+             $section = (int)$m[1];      // число до дефиса (1)
+-            $number = (int)$m[2];       // число после дефиса (10, 20, 100)
+-            $suffix = strtoupper($m[3] ?? ''); // суффикс A, B и т.п.
++            $sectionSuffix = strtoupper(trim($m[2] ?? ''));
++            $number = (int)$m[3];       // число после дефиса (10, 20, 100)
++            $suffix = strtoupper(trim($m[4] ?? '')); // суффикс A, B и т.п.
+ 
+             // Без суффикса должны идти раньше, чем с суффиксом
+-            $suffixVal = $suffix === '' ? 0 : (ord($suffix) - 64); // A=1, B=2...
++            $sectionSuffixVal = $sectionSuffix === '' ? 0 : ord($sectionSuffix[0]);
++            $suffixVal = $suffix === '' ? 0 : ord($suffix[0]); // A=65, B=66...
+ 
+-            // Строим общее числовое значение для сортировки
+-            return $section * 1_000_000 + $number * 100 + $suffixVal;
++            // Keep the full suffix so 6-70RS sorts before 6-70RS20.
++            return sprintf('%06d-%04d-%06d-%04d-%s', $section, $sectionSuffixVal, $number, $suffixVal, $suffix);
+         })->values();
+ 
+ 
+@@ -286,7 +288,10 @@ public function edit($id)
+         $builders = Builder::all();
+         $scopes = Scope::all();
+         $users = User::orderBy('name')->get(['id', 'name', 'email']);
+-        $permittedUserIds = $cmm->permittedUsers()->pluck('users.id')->all();
++        $permittedUserIds = $cmm->permittedUsers()
++            ->pluck('users.id')
++            ->map(fn ($id) => (int) $id)
++            ->all();
+ 
+         return view('admin.manuals.edit', compact('cmm', 'planes', 'builders', 'scopes', 'users', 'permittedUserIds'));
+     }
+diff --git a/app/Http/Controllers/Admin/UnitController.php b/app/Http/Controllers/Admin/UnitController.php
+index 31e7e1e..9f4edff 100644
+--- a/app/Http/Controllers/Admin/UnitController.php
++++ b/app/Http/Controllers/Admin/UnitController.php
+@@ -24,7 +24,7 @@ public function __construct()
+         $this->middleware('can:units.viewAny')->only('index');
+         $this->middleware('can:units.view')->only('show');
+         $this->middleware('can:units.create')->only(['create', 'store']);
+-        $this->middleware('can:units.update')->only(['edit', 'update']);
++        $this->middleware('can:units.update')->only(['edit', 'update', 'assignManual']);
+         $this->middleware('can:units.delete')->only('destroy');
+     }
+ 
+@@ -300,6 +300,41 @@ public function updateSingle(Unit $unit, Request $request)
+         ]);
+     }
+ 
++    public function assignManual(Unit $unit, Request $request): JsonResponse
++    {
++        $data = $request->validate([
++            'manual_id' => ['required', 'exists:manuals,id'],
++        ]);
++
++        $duplicate = Unit::query()
++            ->where('manual_id', $data['manual_id'])
++            ->where('part_number', $unit->part_number)
++            ->whereKeyNot($unit->id)
++            ->exists();
++
++        if ($duplicate) {
++            throw ValidationException::withMessages([
++                'manual_id' => ['This manual already has a unit with this part number.'],
++            ]);
++        }
++
++        $unit->update([
++            'manual_id' => $data['manual_id'],
++            'verified' => true,
++        ]);
++
++        $unit->load('manual');
++
++        return response()->json([
++            'success' => true,
++            'id' => $unit->id,
++            'part_number' => $unit->part_number,
++            'manual_id' => $unit->manual_id,
++            'manual_number' => optional($unit->manual)->number,
++            'verified' => (bool) $unit->verified,
++        ]);
++    }
++
+ 
+ 
+ }
+diff --git a/app/Http/Controllers/Admin/WorkorderController.php b/app/Http/Controllers/Admin/WorkorderController.php
+index 6b3d415..f4c6b46 100644
+--- a/app/Http/Controllers/Admin/WorkorderController.php
++++ b/app/Http/Controllers/Admin/WorkorderController.php
+@@ -626,6 +626,7 @@ public function store(Request $request)
+             'customer_id' => ['required', 'exists:customers,id'],
+             'instruction_id' => ['required', 'exists:instructions,id'],
+             'number' => ['nullable'],
++            'open_at' => ['nullable', 'string'],
+             'storage_rack'   => ['nullable','integer','min:1','max:999'],
+             'storage_level'  => ['nullable','integer','min:1','max:999'],
+             'storage_column' => ['nullable','integer','min:1','max:999'],
+@@ -634,14 +635,31 @@ public function store(Request $request)
+         // ✅ Если НЕ draft — номер обязателен и уникален
+         if (!$isDraft) {
+             // Колонка workorders.number — INTEGER; значения вида 190-70500-405 дают SQL 1265 / 500
+-            $rules['number'] = ['required', 'integer', 'unique:workorders,number'];
++            $rules['number'] = ['required', 'integer', 'min:100000', 'max:999999', 'unique:workorders,number'];
+         }
+ 
+         $data = $request->validate($rules, [
+             'number.integer' => __('The workorder number must be a whole number (digits only, no dashes or letters).'),
++            'number.min' => __('The workorder number must be 100000 or greater.'),
++            'number.max' => __('The workorder number must be 999999 or less.'),
+         ]);
+ 
++        try {
++            $data['open_at'] = parse_project_date($request->input('open_at'));
++        } catch (\InvalidArgumentException $e) {
++            return back()->withErrors(['open_at' => $e->getMessage()])->withInput();
++        }
++
+         // ✅ Чекбоксы (как у тебя)
++        if (!$isDraft) {
++            $unit = Unit::find($data['unit_id']);
++            if (!$unit || !$unit->manual_id) {
++                return back()
++                    ->withErrors(['unit_id' => 'Select a unit with assigned Manual before creating Workorder.'])
++                    ->withInput();
++            }
++        }
++
+         $data = array_merge($data, [
+             'part_missing' => $request->has('part_missing') ? 1 : 0,
+             'external_damage' => $request->has('external_damage') ? 1 : 0,
+@@ -668,7 +686,6 @@ public function store(Request $request)
+         $data['description'] = $request->input('description');
+         $data['amdt'] = $request->input('amdt');
+         $data['place'] = $request->input('place');
+-        $data['open_at'] = $request->input('open_at');
+         $data['customer_po'] = $request->input('customer_po');
+         $data['modified'] = $request->input('modified');
+ 
+@@ -718,7 +735,7 @@ public function edit(Workorder $workorder)
+         $units = Unit::with('manual')->get();
+         $manuals = Manual::all();
+         $users = User::all();
+-        $open_at = Carbon::parse($current_wo->open_at)->format('Y-m-d');
++        $open_at = format_project_date($current_wo->open_at);
+         $hasTdrs = $workorder->tdrs()->exists();
+ 
+         return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs'));
+@@ -733,9 +750,10 @@ public function update(Request $request, Workorder $workorder)
+ 
+         // Базовая валидация
+         $rules = [
+-            'unit_id' => ['required'],
++            'unit_id' => ['required', 'exists:units,id'],
+             'customer_id' => ['required'],
+             'instruction_id' => ['required'],
++            'open_at' => ['nullable', 'string'],
+             'storage_rack'   => ['nullable','integer','min:1','max:999'],
+             'storage_level'  => ['nullable','integer','min:1','max:999'],
+             'storage_column' => ['nullable','integer','min:1','max:999'],
+@@ -748,15 +766,34 @@ public function update(Request $request, Workorder $workorder)
+             $rules['number'] = [
+                 'required',
+                 'integer',
++                'min:100000',
++                'max:999999',
+                 Rule::unique('workorders', 'number')->ignore($workorder->id),
+             ];
+         }
+ 
+         $request->validate($rules, [
+             'number.integer' => __('The workorder number must be a whole number (digits only, no dashes or letters).'),
++            'number.min' => __('The workorder number must be 100000 or greater.'),
++            'number.max' => __('The workorder number must be 999999 or less.'),
+         ]);
+ 
++        try {
++            $request->merge(['open_at' => parse_project_date($request->input('open_at'))]);
++        } catch (\InvalidArgumentException $e) {
++            return back()->withErrors(['open_at' => $e->getMessage()])->withInput();
++        }
++
+         // Чекбоксы
++        if ($wasDraft && !$newIsDraft) {
++            $unit = Unit::find($request->input('unit_id'));
++            if (!$unit || !$unit->manual_id) {
++                return back()
++                    ->withErrors(['unit_id' => 'Assign Manual to this Unit before releasing Draft.'])
++                    ->withInput();
++            }
++        }
++
+         $request->merge([
+             'part_missing' => $request->has('part_missing') ? 1 : 0,
+             'external_damage' => $request->has('external_damage') ? 1 : 0,
+@@ -1157,6 +1194,20 @@ public function checkNumber(Request $request)
+             ]);
+         }
+ 
++        if ((int) $number < 100000) {
++            return response()->json([
++                'ok' => false,
++                'message' => __('The workorder number must be 100000 or greater.'),
++            ]);
++        }
++
++        if ((int) $number > 999999) {
++            return response()->json([
++                'ok' => false,
++                'message' => __('The workorder number must be 999999 or less.'),
++            ]);
++        }
++
+         $exists = Workorder::query()
+             ->where('number', $number)
+             ->when($ignoreId > 0, fn($q) => $q->where('id', '!=', $ignoreId))
+diff --git a/app/Http/Controllers/Mobile/MobileController.php b/app/Http/Controllers/Mobile/MobileController.php
+index 85e99c5..8cd4f57 100644
+--- a/app/Http/Controllers/Mobile/MobileController.php
++++ b/app/Http/Controllers/Mobile/MobileController.php
+@@ -495,7 +495,7 @@ public function storeDraft(\Illuminate\Http\Request $request)
+             'instruction_id' => ['nullable','integer'],
+             'serial_number'  => ['nullable','string','max:255'],
+             'description'    => ['nullable','string','max:255'],
+-            'open_at'        => ['nullable','date'],
++            'open_at'        => ['nullable','string'],
+             'customer_po'    => ['nullable','string','max:255'],
+ 
+             'external_damage'        => ['nullable'],
+@@ -513,6 +513,12 @@ public function storeDraft(\Illuminate\Http\Request $request)
+             $data[$k] = $request->boolean($k);
+         }
+ 
++        try {
++            $data['open_at'] = parse_project_date($request->input('open_at'));
++        } catch (\InvalidArgumentException $e) {
++            throw ValidationException::withMessages(['open_at' => $e->getMessage()]);
++        }
++
+         $data['user_id'] = auth()->id();
+         $data['instruction_id'] = 6 ;
+ 
+@@ -523,6 +529,42 @@ public function storeDraft(\Illuminate\Http\Request $request)
+         return redirect()->route('mobile.show', $wo->id);
+     }
+ 
++    public function storePendingDraftUnit(Request $request): JsonResponse
++    {
++        $data = $request->validate([
++            'part_number' => ['required', 'string', 'max:255'],
++            'name' => ['nullable', 'string', 'max:255'],
++            'description' => ['nullable', 'string', 'max:255'],
++        ]);
++
++        $partNumber = trim($data['part_number']);
++
++        $unit = Unit::query()
++            ->whereNull('manual_id')
++            ->where('part_number', $partNumber)
++            ->first();
++
++        if (!$unit) {
++            $unit = Unit::query()->create([
++                'part_number' => $partNumber,
++                'manual_id' => null,
++                'verified' => false,
++                'name' => $data['name'] ?? null,
++                'description' => $data['description'] ?? null,
++            ]);
++        }
++
++        return response()->json([
++            'id' => $unit->id,
++            'part_number' => $unit->part_number,
++            'name' => $unit->name,
++            'description' => $unit->description,
++            'manual_number' => null,
++            'manual_id' => null,
++            'verified' => (bool) $unit->verified,
++        ], $unit->wasRecentlyCreated ? 201 : 200);
++    }
++
+     /**
+      * Строка со стартом и финишем (в т.ч. финиш с последнего шага после build) — не показываем на mobile machining.
+      */
+diff --git a/app/helpers.php b/app/helpers.php
+index 2f8b8dc..b313863 100644
+--- a/app/helpers.php
++++ b/app/helpers.php
+@@ -8,3 +8,40 @@ function is_admin(): bool
+         return Auth::check() && Auth::user()->is_admin;
+     }
+ }
++
++if (!function_exists('format_project_date')) {
++    function format_project_date($date): ?string
++    {
++        if ($date === null || trim((string) $date) === '') {
++            return null;
++        }
++
++        return strtolower(\Carbon\Carbon::parse($date)->format('d.M.Y'));
++    }
++}
++
++if (!function_exists('parse_project_date')) {
++    function parse_project_date($value): ?string
++    {
++        $raw = trim((string) $value);
++        if ($raw === '') {
++            return null;
++        }
++
++        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
++            return \Carbon\Carbon::createFromFormat('Y-m-d', $raw)->format('Y-m-d');
++        }
++
++        if (!preg_match('/^\d{2}\.[a-z]{3}\.\d{4}$/i', $raw)) {
++            throw new \InvalidArgumentException('Date format must be dd.mmm.yyyy (example: 10.aug.2026).');
++        }
++
++        $normalized = preg_replace_callback(
++            '/\.(\w{3})\./',
++            static fn (array $m): string => '.' . ucfirst(strtolower((string) $m[1])) . '.',
++            $raw
++        );
++
++        return \Carbon\Carbon::createFromFormat('d.M.Y', (string) $normalized)->format('Y-m-d');
++    }
++}
+diff --git a/resources/views/admin/manuals/edit.blade.php b/resources/views/admin/manuals/edit.blade.php
+index 3187bf9..f6ddd91 100644
+--- a/resources/views/admin/manuals/edit.blade.php
++++ b/resources/views/admin/manuals/edit.blade.php
+@@ -224,7 +224,10 @@ class="form-control"
+                                     <div style="height: 100%; overflow-y: auto; border: 1px solid rgba(0,0,0,.08); border-radius: 10px; padding: 10px;">
+                                         @foreach(($users ?? collect()) as $u)
+                                             @php
+-                                                $checked = in_array($u->id, $permittedUserIds ?? [], true);
++                                                $selectedUserIds = collect(old('permitted_user_ids', $permittedUserIds ?? []))
++                                                    ->map(fn ($id) => (int) $id)
++                                                    ->all();
++                                                $checked = in_array((int) $u->id, $selectedUserIds, true);
+                                             @endphp
+                                             <label class="d-flex align-items-center gap-2" style="white-space: nowrap; cursor: pointer; margin-bottom: 6px;">
+                                                 <input
+diff --git a/resources/views/admin/manuals/show.blade.php b/resources/views/admin/manuals/show.blade.php
+index 4e8c6e4..5e0013a 100644
+--- a/resources/views/admin/manuals/show.blade.php
++++ b/resources/views/admin/manuals/show.blade.php
+@@ -72,6 +72,21 @@
+         #nav-parts .table th:nth-child(8),
+         #nav-parts .table td:nth-child(8) { width: 8%; }
+ 
++        #nav-parts .table th,
++        #nav-parts .table td {
++            padding: 5px 7px;
++            line-height: 1.25;
++            vertical-align: middle;
++        }
++        #nav-parts .table .btn-sm {
++            padding: 2px 6px;
++            line-height: 1.2;
++        }
++        #nav-parts .table img {
++            width: 32px;
++            height: 32px;
++        }
++
+         #nav-processes .table {
+             width: 100%;
+         }
+@@ -260,8 +275,19 @@
+                 (function () {
+                     var allowedTabs = ['components', 'parts', 'processes', 'std'];
+                     var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std'};
+-                    var q = new URLSearchParams(location.search).get('tab');
+-                    var desiredKey = (q && allowedTabs.indexOf(q) !== -1) ? q : (hashToTab[location.hash] || null);
++                    var storageKey = 'manual.show.activeTab.' + @json((int) $cmm->id);
++                    var params = new URLSearchParams(location.search);
++                    var q = params.get('tab');
++                    var fromStorage = null;
++                    try {
++                        fromStorage = localStorage.getItem(storageKey);
++                    } catch (e) {}
++                    var desiredKey = (q && allowedTabs.indexOf(q) !== -1)
++                        ? q
++                        : (params.get('part_id') ? 'parts' : (params.get('std_inner') ? 'std' : (hashToTab[location.hash] || null)));
++                    if (!desiredKey && fromStorage && allowedTabs.indexOf(fromStorage) !== -1) {
++                        desiredKey = fromStorage;
++                    }
+                     var server = @json($manualShowTab);
+                     if (desiredKey && desiredKey !== server) {
+                         document.documentElement.classList.add('manual-show-tabs-pending');
+@@ -933,13 +959,39 @@ function updateTabActions(activeTarget) {
+             const initialParams = new URLSearchParams(window.location.search);
+             const partIdToScroll = initialParams.get('part_id');
+             const serverTab = @json($manualShowTab);
++            const manualActiveTabStorageKey = 'manual.show.activeTab.' + @json((int) $cmm->id);
++            let storedTab = null;
++            try {
++                storedTab = localStorage.getItem(manualActiveTabStorageKey);
++            } catch (e) {}
++
++            function rememberManualShowTab(target) {
++                const key = Object.keys(tabKeyToPane).find(function (name) {
++                    return tabKeyToPane[name] === target;
++                });
++                if (key) {
++                    try {
++                        localStorage.setItem(manualActiveTabStorageKey, key);
++                    } catch (e) {}
++                }
++            }
+ 
+             let hash = window.location.hash;
+             const tabFromQuery = initialParams.get('tab');
+             if (!hash && tabFromQuery && tabKeyToPane[tabFromQuery]) {
+                 hash = tabKeyToPane[tabFromQuery];
+             }
++            if (!hash && !tabFromQuery && partIdToScroll) {
++                hash = tabKeyToPane.parts;
++            }
++            if (!hash && !tabFromQuery && !partIdToScroll && initialParams.get('std_inner')) {
++                hash = tabKeyToPane.std;
++            }
+             let desiredPane = hash || '';
++            const desiredFromLocalStorage = !desiredPane && !tabFromQuery && storedTab && tabKeyToPane[storedTab];
++            if (desiredFromLocalStorage) {
++                desiredPane = tabKeyToPane[storedTab];
++            }
+             if (!desiredPane && serverTab && tabKeyToPane[serverTab]) {
+                 desiredPane = tabKeyToPane[serverTab];
+             }
+@@ -956,7 +1008,7 @@ function applyManualShowUrlCleanup() {
+                 u.searchParams.delete('tab');
+                 u.searchParams.delete('part_id');
+                 u.searchParams.delete('std_inner');
+-                if (desiredPane) {
++                if (desiredPane && !desiredFromLocalStorage) {
+                     u.hash = desiredPane;
+                 }
+                 window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+@@ -1000,7 +1052,9 @@ function finishManualShowTabsBoot() {
+                 document.documentElement.classList.remove('manual-show-tabs-pending');
+                 activeTab = document.querySelector('#nav-tab .nav-link.active');
+                 if (activeTab) {
+-                    updateTabActions(activeTab.getAttribute('data-bs-target'));
++                    var target = activeTab.getAttribute('data-bs-target');
++                    updateTabActions(target);
++                    rememberManualShowTab(target);
+                 }
+                 scrollToEditedPartRow();
+                 activateStdInnerTabIfRequested();
+@@ -1030,6 +1084,7 @@ function onTabShown() {
+                 tab.addEventListener('shown.bs.tab', function (event) {
+                     const target = event.target.getAttribute('data-bs-target');
+                     updateTabActions(target);
++                    rememberManualShowTab(target);
+                 });
+             });
+ 
+diff --git a/resources/views/admin/wo_bushings/partials/bushing-content.blade.php b/resources/views/admin/wo_bushings/partials/bushing-content.blade.php
+index 90d035a..e5f93fe 100644
+--- a/resources/views/admin/wo_bushings/partials/bushing-content.blade.php
++++ b/resources/views/admin/wo_bushings/partials/bushing-content.blade.php
+@@ -4,15 +4,15 @@
+     // Mixed units are OK: %, px, rem, etc. This is used by both saved view and create form.
+     $bushingTableColumnWidths = $bushingTableColumnWidths ?? [
+         'bushing' => '30%',
+-        'select' => '100px',
++        'select' => '120px',
+         'qty' => '90px',
+-        'machining' => '10%',
+-        'stress_relief' => '10%',
++        'machining' => '15%',
++        'stress_relief' => '15%',
+         'ndt' => '110px',
+-        'passivation' => '10%',
+-        'cad' => '10%',
+-        'anodizing' => '10%',
+-        'xylan' => '10%',
++        'passivation' => '15%',
++        'cad' => '13%',
++        'anodizing' => '15%',
++        'xylan' => '12%',
+     ];
+ @endphp
+ @if($woBushing && ($linesExist ?? !empty($bushData)))
+@@ -85,6 +85,11 @@
+             padding: .1rem .14rem !important;
+             white-space: normal;
+         }
++        table.bushing-view-table thead th,
++        table.bushing-view-table thead th.text-primary,
++        table.bushing-view-table thead tr.header-row th {
++            font-weight: 400 !important;
++        }
+         .bushing-view-table tbody td {
+             height: 24px;
+         }
+diff --git a/resources/views/admin/wo_bushings/partials/create-form.blade.php b/resources/views/admin/wo_bushings/partials/create-form.blade.php
+index 914cf02..0a855f3 100644
+--- a/resources/views/admin/wo_bushings/partials/create-form.blade.php
++++ b/resources/views/admin/wo_bushings/partials/create-form.blade.php
+@@ -25,6 +25,11 @@
+         padding: .12rem .16rem !important;
+         vertical-align: middle;
+     }
++    table.bushing-create-table thead th,
++    table.bushing-create-table thead th.text-primary,
++    table.bushing-create-table thead tr.header-row th {
++        font-weight: 400 !important;
++    }
+     table.bushing-create-table col.bushing-col-qty,
+     table.bushing-create-table th.bushing-col-qty,
+     table.bushing-create-table td.bushing-col-qty {
+@@ -52,8 +57,30 @@
+         max-width: 100% !important;
+         width: 100% !important;
+         min-width: 0 !important;
+-        padding-left: 1px !important;
+-        padding-right: 1px !important;
++        padding: 2px 4px !important;
++        text-align: center !important;
++        line-height: 1.2 !important;
++    }
++    .bushing-create-table .bushing-select-list,
++    .bushing-create-table .ndt-checkboxes {
++        align-items: center;
++    }
++    .bushing-create-table .bushing-select-list > div,
++    .bushing-create-table .ndt-checkboxes .form-check {
++        display: flex;
++        align-items: center;
++        justify-content: flex-start;
++        gap: 4px;
++        width: max-content;
++        max-width: 100%;
++        margin-left: auto;
++        margin-right: auto;
++        padding-left: 0;
++    }
++    .bushing-create-table .bushing-select-list .form-check-input,
++    .bushing-create-table .ndt-checkboxes .form-check-input {
++        margin-left: 0 !important;
++        margin-top: 0 !important;
+     }
+     .bushing-create-table .bushing-ipl {
+         display: inline-block;
+@@ -130,7 +157,7 @@ class="btn btn-outline-primary btn-sm">
+                         @endforeach
+                     </td>
+                     <td class="text-center">
+-                        <div class="text-start">
++                        <div class="bushing-select-list d-flex flex-column">
+                             @foreach($bushingGroup as $bushing)
+                                 <div class="mb-1">
+                                     <input type="checkbox" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][components][]"
+diff --git a/resources/views/admin/workorders/create.blade.php b/resources/views/admin/workorders/create.blade.php
+index 140a28f..117eb68 100644
+--- a/resources/views/admin/workorders/create.blade.php
++++ b/resources/views/admin/workorders/create.blade.php
+@@ -121,6 +121,7 @@
+                                         <div class="form-group col-lg-4 mb-1">
+                                             <label for="number_id">Workorder № <span style="color:red; font-size: x-small">(required)</span></label>
+                                             <input type="text" name="number" id="number_id" value="{{ old('number') }}" class="form-control  @error('number') is-invalid @enderror" placeholder="Enter workorder number ">
++                                            <div class="invalid-feedback" id="numberError">@error('number'){{ $message }}@enderror</div>
+                                         </div>
+ 
+                                         <div class="form-group col-lg-4 mb-1">
+@@ -191,7 +192,10 @@
+ 
+                                         <div class="form-group col-lg-4 mt-2">
+                                             <label for="unit_open_at">Open date</label>
+-                                            <input type="date" name="open_at" id="open_at" maxlength="30" value="" class="form-control @error('open_at') is-invalid @enderror" placeholder="date opened">
++                                            <input type="text" name="open_at" id="open_at" maxlength="11" value="{{ old('open_at') }}" class="form-control @error('open_at') is-invalid @enderror" placeholder="10.aug.2026">
++                                            @error('open_at')
++                                            <div class="invalid-feedback">{{ $message }}</div>
++                                            @enderror
+                                         </div>
+                                     </div>
+                                     <div class="row ">
+@@ -349,7 +353,9 @@ function toggleNumberField() {
+                     numberInput.value = '';
+                     numberInput.setAttribute('readonly', 'readonly');
+                     numberInput.setAttribute('placeholder', 'Auto number for Draft');
+-                    numberInput.classList.remove('is-invalid-shadow');
++                    numberInput.classList.remove('is-invalid-shadow', 'is-invalid');
++                    const numberError = document.getElementById('numberError');
++                    if (numberError) numberError.textContent = '';
+                 } else {
+                     numberInput.removeAttribute('readonly');
+                     numberInput.setAttribute('placeholder', 'Enter workorder number');
+@@ -372,8 +378,32 @@ function check1() {
+                 if (isDraftSelected()) return true; // ✅ draft — номер не обязателен
+ 
+                 const el = $('#number_id');
+-                if (!el.val()) {
++                const numberError = document.getElementById('numberError');
++                const val = (el.val() || '').trim();
++                numberError.textContent = '';
++                el.removeClass('is-invalid');
++
++                if (!val) {
+                     el.addClass('is-invalid-shadow');
++                    numberError.textContent = 'Number is required.';
++                    setTimeout(() => el.removeClass('is-invalid-shadow'), 3000);
++                    return false;
++                }
++                if (!/^\d+$/.test(val)) {
++                    el.addClass('is-invalid is-invalid-shadow');
++                    numberError.textContent = 'Workorder number must contain digits only.';
++                    setTimeout(() => el.removeClass('is-invalid-shadow'), 3000);
++                    return false;
++                }
++                if (Number(val) < 100000) {
++                    el.addClass('is-invalid is-invalid-shadow');
++                    numberError.textContent = 'Workorder number must be 100000 or greater.';
++                    setTimeout(() => el.removeClass('is-invalid-shadow'), 3000);
++                    return false;
++                }
++                if (Number(val) > 999999) {
++                    el.addClass('is-invalid is-invalid-shadow');
++                    numberError.textContent = 'Workorder number must be 999999 or less.';
+                     setTimeout(() => el.removeClass('is-invalid-shadow'), 3000);
+                     return false;
+                 }
+diff --git a/resources/views/admin/workorders/edit.blade.php b/resources/views/admin/workorders/edit.blade.php
+index 2153f79..42723c7 100644
+--- a/resources/views/admin/workorders/edit.blade.php
++++ b/resources/views/admin/workorders/edit.blade.php
+@@ -129,8 +129,6 @@ class="position-absolute top-50 end-0 translate-middle-y me-2 text-warning d-non
+                                             </div>
+                                         </div>
+ 
+-                                        <div class="invalid-feedback" id="numberError"></div>
+-
+                                         <div class="form-group col-lg-4 mb-1">
+                                             <label for="unit_id">Unit
+                                                 <a id="new_unit_create" class="ms-3" data-bs-toggle="modal" data-bs-target="#addUnitModal">
+@@ -138,9 +136,9 @@ class="position-absolute top-50 end-0 translate-middle-y me-2 text-warning d-non
+                                                 </a>
+                                             </label>
+                                             <select name="unit_id" id="unit_id" class="form-control">
+-                                                <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $current_wo->unit->name) }}">{{ old('part_number', $current_wo->unit->part_number) }}@if($current_wo->unit->manual) ({{ $current_wo->unit->manual->number }})@endif</option>
++                                                <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $current_wo->unit->name) }}" data-manual-id="{{ $current_wo->unit?->manual_id ?? '' }}" data-verified="{{ $current_wo->unit?->verified ? 1 : 0 }}">{{ old('part_number', $current_wo->unit->part_number) }}@if($current_wo->unit->manual) ({{ $current_wo->unit->manual->number }})@else (Manual pending)@endif</option>
+                                                 @foreach ($units as $unit)
+-                                                    <option value="{{$unit->id}}" data-name="{{ $unit->name }}">{{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@endif</option>
++                                                    <option value="{{$unit->id}}" data-name="{{ $unit->name }}" data-manual-id="{{ $unit->manual_id ?? '' }}" data-verified="{{ $unit->verified ? 1 : 0 }}">{{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@else (Manual pending)@endif</option>
+                                                 @endforeach
+                                             </select>
+                                         </div>
+@@ -190,7 +188,7 @@ class="position-absolute top-50 end-0 translate-middle-y me-2 text-warning d-non
+ 
+                                         <div class="form-group col-lg-4 mt-2">
+                                             <label for="unit_open_at">Open date</label>
+-                                            <input type="date" name="open_at" id="open_at" value="{{ old('open_at', $open_at) }}" class="form-control @error('open_at') is-invalid @enderror">
++                                            <input type="text" name="open_at" id="open_at" maxlength="11" value="{{ old('open_at', $open_at) }}" class="form-control @error('open_at') is-invalid @enderror" placeholder="10.aug.2026">
+                                             @error('open_at')
+                                             <div class="invalid-feedback">{{ $message }}</div>
+                                             @enderror
+@@ -325,6 +323,46 @@ class="position-absolute top-50 end-0 translate-middle-y me-2 text-warning d-non
+         </div>
+     </div>
+ 
++    <div class="modal fade" id="assignManualModal" tabindex="-1" aria-labelledby="assignManualLabel" aria-hidden="true">
++        <div class="modal-dialog">
++            <div class="modal-content">
++                <div class="modal-header">
++                    <h5 class="modal-title" id="assignManualLabel">Assign Manual to Unit</h5>
++                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
++                </div>
++                <div class="modal-body">
++                    <p class="text-warning small mb-3">
++                        This Draft uses a pending Unit. Assign CMM before releasing the Workorder.
++                    </p>
++                    <div class="mb-3">
++                        <label for="assignManualPartNumber" class="form-label">Part Number</label>
++                        <input type="text" class="form-control" id="assignManualPartNumber" readonly>
++                    </div>
++                    <div class="mb-3">
++                        <label for="assignManualCustomer" class="form-label">Customer</label>
++                        <input type="text" class="form-control" id="assignManualCustomer" readonly>
++                    </div>
++                    <div class="mb-3">
++                        <label for="assignManualSelect" class="form-label">CMM</label>
++                        <select class="form-select" id="assignManualSelect">
++                            <option value="">{{ __('Select CMM') }}</option>
++                            @foreach($manuals as $manual)
++                                <option value="{{ $manual->id }}">
++                                    {{ $manual->number }} {{ $manual->title }} @if($manual->lib) ({{ $manual->lib }}) @endif
++                                </option>
++                            @endforeach
++                        </select>
++                        <div class="invalid-feedback" id="assignManualError"></div>
++                    </div>
++                </div>
++                <div class="modal-footer">
++                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
++                    <button type="button" id="assignManualBtn" class="btn btn-outline-primary">Assign Manual</button>
++                </div>
++            </div>
++        </div>
++    </div>
++
+ @endsection()
+ 
+ @section('scripts')
+@@ -449,6 +487,8 @@ function applyTheme() {
+                             : data.part_number;
+                         const option = new Option(label, data.id, true, true);
+                         option.setAttribute('data-name', data.name || '');
++                        option.setAttribute('data-manual-id', data.manual_id || manualId);
++                        option.setAttribute('data-verified', '0');
+                         $('#unit_id').append(option).trigger('change');
+ 
+                         // Подставить name в description workorder, если name заполнено
+@@ -475,6 +515,7 @@ function applyTheme() {
+             const instructionSelect = document.getElementById('instruction_id');
+             const numberInput = document.getElementById('number');
+             const submitBtn = document.getElementById('ntSaveFormsSubmit');
++            const customerSelect = document.getElementById('customer_id');
+ 
+             const DRAFT_ID = {{ (int)$draftInstructionId }};
+             const WAS_DRAFT = {{ $wasDraft ? 'true' : 'false' }};
+@@ -482,6 +523,15 @@ function applyTheme() {
+             const CURRENT_WO_ID = {{ (int)$current_wo->id }};
+             const INITIAL_UNIT_ID = {{ (int)($current_wo->unit_id ?? 0) }};
+             const HAS_TDRS = {{ ($hasTdrs ?? false) ? 'true' : 'false' }};
++            const ASSIGN_MANUAL_URL = "{{ route('units.assignManual', ['unit' => '__unit__']) }}";
++            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
++            const assignManualModalEl = document.getElementById('assignManualModal');
++            const assignManualModal = assignManualModalEl ? bootstrap.Modal.getOrCreateInstance(assignManualModalEl) : null;
++            const assignManualSelect = document.getElementById('assignManualSelect');
++            const assignManualBtn = document.getElementById('assignManualBtn');
++            const assignManualError = document.getElementById('assignManualError');
++            const assignManualPartNumber = document.getElementById('assignManualPartNumber');
++            const assignManualCustomer = document.getElementById('assignManualCustomer');
+ 
+             function shouldAllowEditNumber() {
+                 const selectedInstructionId = parseInt(instructionSelect.value || '0', 10);
+@@ -489,6 +539,84 @@ function shouldAllowEditNumber() {
+                 return WAS_DRAFT && selectedInstructionId !== DRAFT_ID;
+             }
+ 
++            function selectedUnitOption() {
++                return unitSelect.options[unitSelect.selectedIndex] || null;
++            }
++
++            function selectedUnitNeedsManual() {
++                if (!shouldAllowEditNumber()) return false;
++                const opt = selectedUnitOption();
++                return !opt || !String(opt.getAttribute('data-manual-id') || '').trim();
++            }
++
++            function selectedUnitPartNumber() {
++                const opt = selectedUnitOption();
++                return (opt?.textContent || '').replace(/\s*\(Manual pending\)\s*$/, '').trim();
++            }
++
++            function selectedCustomerText() {
++                const opt = customerSelect?.options[customerSelect.selectedIndex] || null;
++                return (opt?.textContent || '').trim();
++            }
++
++            async function assignManualToSelectedUnit() {
++                const opt = selectedUnitOption();
++                const unitId = opt?.value || '';
++                const manualId = assignManualSelect?.value || '';
++
++                assignManualError.textContent = '';
++                assignManualSelect.classList.remove('is-invalid');
++
++                if (!unitId || !manualId) {
++                    assignManualError.textContent = 'Select CMM.';
++                    assignManualSelect.classList.add('is-invalid');
++                    return false;
++                }
++
++                assignManualBtn.disabled = true;
++
++                try {
++                    const res = await fetch(ASSIGN_MANUAL_URL.replace('__unit__', encodeURIComponent(unitId)), {
++                        method: 'PATCH',
++                        headers: {
++                            'Content-Type': 'application/json',
++                            'Accept': 'application/json',
++                            'X-Requested-With': 'XMLHttpRequest',
++                            'X-CSRF-TOKEN': csrfToken,
++                        },
++                        body: JSON.stringify({ manual_id: manualId }),
++                    });
++
++                    const data = await res.json().catch(() => ({}));
++                    if (!res.ok || !data?.success) {
++                        const msg = data?.errors?.manual_id?.[0] || data?.message || 'Manual assignment failed.';
++                        throw new Error(msg);
++                    }
++
++                    opt.setAttribute('data-manual-id', data.manual_id || manualId);
++                    opt.setAttribute('data-verified', data.verified ? '1' : '0');
++                    opt.textContent = data.manual_number
++                        ? `${data.part_number} (${data.manual_number})`
++                        : data.part_number;
++                    $('#unit_id').trigger('change.select2');
++
++                    assignManualModal?.hide();
++                    document.getElementById('createForm').requestSubmit();
++                    return true;
++                } catch (err) {
++                    assignManualError.textContent = err?.message || 'Manual assignment failed.';
++                    assignManualSelect.classList.add('is-invalid');
++                    return false;
++                } finally {
++                    assignManualBtn.disabled = false;
++                }
++            }
++
++            assignManualBtn?.addEventListener('click', assignManualToSelectedUnit);
++            assignManualModalEl?.addEventListener('hidden.bs.modal', () => {
++                if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
++            });
++
+             function applyNumberState() {
+                 const allow = shouldAllowEditNumber();
+ 
+@@ -502,6 +630,8 @@ function applyNumberState() {
+                 if (!allow) {
+                     numberInput.value = ORIGINAL_NUMBER;
+                     numberInput.classList.remove('is-invalid');
++                    const numberError = document.getElementById('numberError');
++                    if (numberError) numberError.textContent = '';
+                     submitBtn.disabled = false;
+                 }
+             }
+@@ -515,9 +645,28 @@ function applyNumberState() {
+                 if (numberInput.readOnly) return true;
+ 
+                 const val = (numberInput.value || '').trim();
++                const numberError = document.getElementById('numberError');
+                 if (!val) {
+                     numberInput.classList.add('is-invalid');
+-                    document.getElementById('numberError').textContent = 'Number is required.';
++                    numberError.textContent = 'Number is required.';
++                    return false;
++                }
++
++                if (!/^\d+$/.test(val)) {
++                    numberInput.classList.add('is-invalid');
++                    numberError.textContent = 'Workorder number must contain digits only.';
++                    return false;
++                }
++
++                if (Number(val) < 100000) {
++                    numberInput.classList.add('is-invalid');
++                    numberError.textContent = 'Workorder number must be 100000 or greater.';
++                    return false;
++                }
++
++                if (Number(val) > 999999) {
++                    numberInput.classList.add('is-invalid');
++                    numberError.textContent = 'Workorder number must be 999999 or less.';
+                     return false;
+                 }
+ 
+@@ -530,20 +679,55 @@ function applyNumberState() {
+ 
+                 if (!data.ok || data.unique === false) {
+                     numberInput.classList.add('is-invalid');
+-                    document.getElementById('numberError').textContent = 'Workorder number already exists.';
++                    numberError.textContent = data.message || 'Workorder number already exists.';
+                     return false;
+                 }
+ 
+                 numberInput.classList.remove('is-invalid');
++                numberError.textContent = '';
+                 return true;
+             }
+ 
+             numberInput.addEventListener('blur', async () => {
+-                const ok = await checkNumberUnique();
+-                submitBtn.disabled = !ok;
++                await checkNumberUnique();
++                submitBtn.disabled = false;
++            });
++
++            numberInput.addEventListener('input', () => {
++                submitBtn.disabled = false;
+             });
+ 
+-            document.getElementById('createForm').addEventListener('submit', async (e) => {
++            const workorderForm = document.getElementById('createForm');
++            workorderForm.addEventListener('submit', async (e) => {
++                if (workorderForm.dataset.readyToSubmit === '1') {
++                    workorderForm.dataset.readyToSubmit = '';
++                    return;
++                }
++
++                const releaseDraft = shouldAllowEditNumber();
++
++                if (releaseDraft) {
++                    e.preventDefault();
++                    e.stopPropagation();
++
++                    const ok = await checkNumberUnique();
++                    if (!ok) {
++                        if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
++                        return;
++                    }
++
++                    if (selectedUnitNeedsManual()) {
++                        if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
++                        assignManualError.textContent = '';
++                        assignManualSelect.classList.remove('is-invalid');
++                        if (assignManualSelect) assignManualSelect.value = '';
++                        if (assignManualPartNumber) assignManualPartNumber.value = selectedUnitPartNumber();
++                        if (assignManualCustomer) assignManualCustomer.value = selectedCustomerText();
++                        assignManualModal?.show();
++                        return;
++                    }
++                }
++
+                 // Предупреждение при смене unit, если есть TDR
+                 const newUnitId = parseInt(document.getElementById('unit_id').value || '0', 10);
+                 if (HAS_TDRS && newUnitId !== INITIAL_UNIT_ID) {
+@@ -551,14 +735,14 @@ function applyNumberState() {
+                     if (!confirm(msg)) {
+                         e.preventDefault();
+                         e.stopPropagation();
++                        if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+                         return;
+                     }
+                 }
+ 
+-                const ok = await checkNumberUnique();
+-                if (!ok) {
+-                    e.preventDefault();
+-                    e.stopPropagation();
++                if (releaseDraft) {
++                    workorderForm.dataset.readyToSubmit = '1';
++                    workorderForm.requestSubmit();
+                 }
+             });
+ 
+diff --git a/resources/views/mobile/master.blade.php b/resources/views/mobile/master.blade.php
+index 6e903ee..7200a80 100644
+--- a/resources/views/mobile/master.blade.php
++++ b/resources/views/mobile/master.blade.php
+@@ -177,13 +177,19 @@ function initDatePickers() {
+ 
+             flatpickr(src, {
+                 altInput: true,
+-                altFormat: "d.m.Y",
++                altFormat: "d.M.Y",
+                 dateFormat: "Y-m-d",
+                 allowInput: false,
+                 disableMobile: true,
+ 
++                onReady(selectedDates, dateStr, instance) {
++                    if (instance.altInput) instance.altInput.value = instance.altInput.value.toLowerCase();
++                },
++
+ 
+                 onChange(selectedDates, dateStr, instance) {
++                    if (instance.altInput) instance.altInput.value = instance.altInput.value.toLowerCase();
++
+                     const alt  = instance.altInput;
+                     const wrap = alt ? alt.closest('.date-field') : null;
+ 
+diff --git a/resources/views/mobile/pages/createdraft.blade.php b/resources/views/mobile/pages/createdraft.blade.php
+index 3ebb189..8cea4c0 100644
+--- a/resources/views/mobile/pages/createdraft.blade.php
++++ b/resources/views/mobile/pages/createdraft.blade.php
+@@ -124,9 +124,11 @@ class="form-control bg-black text-light border-secondary @error('serial_number')
+                         </div>
+                         <div class="col-6">
+                             <label class="form-label small text-white-50 mb-1">Open date</label>
+-                            <input type="date" name="open_at"
++                            <input type="text" name="open_at"
+                                    class="form-control bg-black text-light border-secondary @error('open_at') is-invalid @enderror"
+-                                   value="{{ old('open_at') }}">
++                                   maxlength="11"
++                                   value="{{ old('open_at') }}"
++                                   placeholder="10.aug.2026">
+                             @error('open_at') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                         </div>
+                     </div>
+@@ -218,19 +220,19 @@ class="form-control bg-black text-light border-secondary @error('storage_column'
+         </div>
+     </div>
+ 
+-    {{-- MODAL: Add Unit (manual_id required) --}}
++    {{-- MODAL: Add pending Unit for Draft --}}
+     <div class="modal fade" id="addUnitModal" tabindex="-1" aria-hidden="true">
+         <div class="modal-dialog modal-dialog-centered">
+             <div class="modal-content bg-dark text-light border-secondary">
+                 <div class="modal-header border-secondary">
+-                    <h6 class="modal-title">Add Unit</h6>
++                    <h6 class="modal-title">Add Pending Unit</h6>
+                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                 </div>
+ 
+                 <div class="modal-body">
+-                    <div class="mb-2">
+-                        <label class="form-label small text-white-50 mb-1">Manual (CMM) <span class="text-danger">*</span></label>
+-                        <select id="manual_id" class="form-select bg-black text-light border-secondary" required>
++                    <div class="mb-2 d-none">
++                        <label class="form-label small text-white-50 mb-1 d-none">Manual (CMM)</label>
++                        <select id="manual_id" class="form-select bg-black text-light border-secondary d-none">
+                             <option value="" selected disabled>— Select Manual —</option>
+                             @foreach($manuals as $m)
+                                 <option value="{{ $m->id }}">
+@@ -244,6 +246,10 @@ class="form-control bg-black text-light border-secondary @error('storage_column'
+                         <label class="form-label small text-white-50 mb-1">Part Number <span class="text-danger">*</span></label>
+                         <input id="unitPn" class="form-control bg-black text-light border-secondary" placeholder="Enter PN">
+                     </div>
++
++                    <div class="small text-warning">
++                        Manual will be assigned by manager before the Draft is released.
++                    </div>
+                 </div>
+ 
+                 <div class="modal-footer border-secondary">
+@@ -276,7 +282,7 @@ class="form-control bg-black text-light border-secondary @error('storage_column'
+             }
+ 
+             // --- Manual select2 inside modal (search)
+-            if (hasSelect2 && document.getElementById('manual_id')) {
++            if (hasSelect2 && document.getElementById('manual_id')?.offsetParent) {
+                 const $manual = $('#manual_id');
+                 if (!$manual.data('select2')) {
+                     $manual.select2({
+@@ -299,19 +305,17 @@ class="form-control bg-black text-light border-secondary @error('storage_column'
+                 });
+             }
+ 
+-            // --- Create Unit (manual_id + part_number required)
++            // --- Create pending Unit (part_number only; manager assigns manual later)
+             const btnCreateUnit = document.getElementById('btnCreateUnit');
+             btnCreateUnit?.addEventListener('click', async () => {
+-                const manualId = (document.getElementById('manual_id').value || '').trim();
+                 const pn = (document.getElementById('unitPn').value || '').trim();
+ 
+-                if (!manualId) { alert('Manual is required'); return; }
+                 if (!pn) { alert('Part Number is required'); return; }
+ 
+                 try {
+                     if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
+ 
+-                    const res = await fetch("{{ route('units.store') }}", {
++                    const res = await fetch("{{ route('mobile.draft.units.pending.store') }}", {
+                         method: "POST",
+                         headers: {
+                             "Content-Type": "application/json",
+@@ -319,10 +323,7 @@ class="form-control bg-black text-light border-secondary @error('storage_column'
+                             "X-Requested-With": "XMLHttpRequest",
+                             "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
+                         },
+-                        body: JSON.stringify({
+-                            manual_id: manualId,
+-                            part_number: pn
+-                        })
++                        body: JSON.stringify({ part_number: pn })
+                     });
+ 
+                     const data = await res.json();
+@@ -332,9 +333,7 @@ class="form-control bg-black text-light border-secondary @error('storage_column'
+                     }
+ 
+                     // add new option to Unit select & select it (PN + manual для различения одинаковых PN в разных manuals)
+-                    const label = data.manual_number
+-                        ? `${data.part_number} (${data.manual_number})`
+-                        : data.part_number;
++                    const label = `${data.part_number} (Manual pending)`;
+                     const option = new Option(label, data.id, true, true);
+                     option.setAttribute('data-name', data.name || '');
+ 
+@@ -350,8 +349,6 @@ class="form-control bg-black text-light border-secondary @error('storage_column'
+ 
+                     // clear modal inputs
+                     document.getElementById('unitPn').value = '';
+-                    if (hasSelect2) $('#manual_id').val('').trigger('change');
+-                    else document.getElementById('manual_id').value = '';
+ 
+                 } catch (e) {
+                     alert('Error: ' + e.message);
+diff --git a/routes/web.php b/routes/web.php
+index 7318971..a5ffabd 100644
+--- a/routes/web.php
++++ b/routes/web.php
+@@ -76,6 +76,7 @@
+     Route::get('/show/{workorder}', [MobileController::class, 'show'])->name('show');
+     Route::get('/draft', [MobileController::class, 'createDraft'])->name('draft');
+     Route::post('/workorders/draft', [MobileController::class, 'storeDraft'])->name('draft.store');
++    Route::post('/draft/units/pending', [MobileController::class, 'storePendingDraftUnit'])->name('draft.units.pending.store');
+ 
+     // --- tasks ---
+     Route::get('/tasks/{workorder}', [MobileTaskController::class, 'tasks'])->name('tasks');
+@@ -283,6 +284,7 @@
+     Route::post('/units/{manualId}', [UnitController::class, 'update'])->name('units.update');
+     Route::delete('/units/{unit}/single', [UnitController::class, 'destroySingle'])->name('units.destroySingle');
+     Route::patch('/units/{unit}/single', [UnitController::class, 'updateSingle'])->name('units.updateSingle');
++    Route::patch('/units/{unit}/assign-manual', [UnitController::class, 'assignManual'])->name('units.assignManual');
+ 
+     Route::get('wo_bushings/partial/{workorder_id}', [WoBushingController::class, 'partial'])->name('wo_bushings.partial');
+     Route::resource('/wo_bushings', WoBushingController::class)->except(['create']);
+diff --git a/tests/Feature/WorkordersWriteTest.php b/tests/Feature/WorkordersWriteTest.php
+index 07a8862..e317f96 100644
+--- a/tests/Feature/WorkordersWriteTest.php
++++ b/tests/Feature/WorkordersWriteTest.php
+@@ -3,6 +3,7 @@
+ namespace Tests\Feature;
+ 
+ use App\Models\Workorder;
++use App\Models\Unit;
+ use Illuminate\Foundation\Testing\DatabaseTransactions;
+ use Tests\BuildsDomainData;
+ use Tests\TestCase;
+@@ -78,6 +79,63 @@ public function test_draft_creation_assigns_generated_number_and_draft_flag(): v
+         $this->assertLessThan(100000, (int) $workorder->number);
+     }
+ 
++    public function test_mobile_can_create_pending_unit_for_draft_without_manual(): void
++    {
++        $shipper = $this->createUserWithRole('Admin');
++
++        $response = $this->actingAs($shipper)->postJson(route('mobile.draft.units.pending.store'), [
++            'part_number' => 'PENDING-' . uniqid(),
++        ]);
++
++        $response->assertCreated();
++        $response->assertJsonPath('manual_id', null);
++        $response->assertJsonPath('verified', false);
++
++        $this->assertDatabaseHas('units', [
++            'id' => $response->json('id'),
++            'manual_id' => null,
++            'verified' => 0,
++        ]);
++    }
++
++    public function test_draft_release_requires_unit_manual(): void
++    {
++        $admin = $this->createUserWithRole('Admin');
++        $draftInstruction = $this->createDraftInstruction();
++        $releasedInstruction = $this->createInstruction(['name' => 'Released ' . uniqid()]);
++        $customer = $this->createCustomer();
++        $pendingUnit = Unit::query()->create([
++            'part_number' => 'PENDING-' . uniqid(),
++            'manual_id' => null,
++            'verified' => false,
++        ]);
++        $workorder = $this->createWorkorder([
++            'number' => 123,
++            'instruction_id' => $draftInstruction->id,
++            'customer_id' => $customer->id,
++            'unit_id' => $pendingUnit->id,
++            'user_id' => $admin->id,
++            'is_draft' => true,
++        ]);
++
++        $response = $this->from(route('workorders.edit', $workorder))
++            ->actingAs($admin)
++            ->put(route('workorders.update', $workorder), [
++                'number' => 700123,
++                'unit_id' => $pendingUnit->id,
++                'customer_id' => $customer->id,
++                'instruction_id' => $releasedInstruction->id,
++                'user_id' => $admin->id,
++            ]);
++
++        $response->assertRedirect(route('workorders.edit', $workorder));
++        $response->assertSessionHasErrors(['unit_id']);
++
++        $workorder->refresh();
++        $this->assertTrue((bool) $workorder->is_draft);
++        $this->assertSame(123, (int) $workorder->number);
++    }
++
+     public function test_regular_creation_rejects_non_integer_number(): void
+     {
+         $admin = $this->createUserWithRole('Admin');
+@@ -100,6 +158,146 @@ public function test_regular_creation_rejects_non_integer_number(): void
+         $response->assertSessionHasErrors(['number']);
+     }
+ 
++    public function test_regular_creation_rejects_number_larger_than_six_digits(): void
++    {
++        $admin = $this->createUserWithRole('Admin');
++        $this->createDraftInstruction();
++        $instruction = $this->createInstruction(['name' => 'Repair ' . uniqid()]);
++        $customer = $this->createCustomer();
++        $unit = $this->createUnit();
++
++        $response = $this->from(route('workorders.create'))
++            ->actingAs($admin)
++            ->post(route('workorders.store'), [
++                'number' => '1000000',
++                'unit_id' => $unit->id,
++                'customer_id' => $customer->id,
++                'instruction_id' => $instruction->id,
++                'user_id' => $admin->id,
++            ]);
++
++        $response->assertRedirect(route('workorders.create'));
++        $response->assertSessionHasErrors(['number']);
++    }
++
++    public function test_regular_creation_rejects_number_less_than_six_digits(): void
++    {
++        $admin = $this->createUserWithRole('Admin');
++        $this->createDraftInstruction();
++        $instruction = $this->createInstruction(['name' => 'Repair ' . uniqid()]);
++        $customer = $this->createCustomer();
++        $unit = $this->createUnit();
++
++        $response = $this->from(route('workorders.create'))
++            ->actingAs($admin)
++            ->post(route('workorders.store'), [
++                'number' => '99999',
++                'unit_id' => $unit->id,
++                'customer_id' => $customer->id,
++                'instruction_id' => $instruction->id,
++                'user_id' => $admin->id,
++            ]);
++
++        $response->assertRedirect(route('workorders.create'));
++        $response->assertSessionHasErrors(['number']);
++    }
++
++    public function test_regular_creation_accepts_project_open_date_format(): void
++    {
++        $admin = $this->createUserWithRole('Admin');
++        $this->createDraftInstruction();
++        $instruction = $this->createInstruction(['name' => 'Repair ' . uniqid()]);
++        $customer = $this->createCustomer();
++        $unit = $this->createUnit();
++
++        $response = $this->actingAs($admin)->post(route('workorders.store'), [
++            'number' => 700002,
++            'unit_id' => $unit->id,
++            'customer_id' => $customer->id,
++            'instruction_id' => $instruction->id,
++            'user_id' => $admin->id,
++            'open_at' => '10.aug.2026',
++        ]);
++
++        $response->assertRedirect(route('workorders.index'));
++        $response->assertSessionHasNoErrors();
++
++        $workorder = Workorder::query()
++            ->withoutGlobalScope('exclude_drafts')
++            ->where('number', 700002)
++            ->firstOrFail();
++
++        $this->assertSame('2026-08-10', $workorder->open_at->format('Y-m-d'));
++    }
++
++    public function test_draft_release_rejects_number_larger_than_six_digits(): void
++    {
++        $admin = $this->createUserWithRole('Admin');
++        $draftInstruction = $this->createDraftInstruction();
++        $releasedInstruction = $this->createInstruction(['name' => 'Released ' . uniqid()]);
++        $customer = $this->createCustomer();
++        $unit = $this->createUnit();
++        $workorder = $this->createWorkorder([
++            'number' => 124,
++            'instruction_id' => $draftInstruction->id,
++            'customer_id' => $customer->id,
++            'unit_id' => $unit->id,
++            'user_id' => $admin->id,
++            'is_draft' => true,
++        ]);
++
++        $response = $this->from(route('workorders.edit', $workorder))
++            ->actingAs($admin)
++            ->put(route('workorders.update', $workorder), [
++                'number' => '1000000',
++                'unit_id' => $unit->id,
++                'customer_id' => $customer->id,
++                'instruction_id' => $releasedInstruction->id,
++                'user_id' => $admin->id,
++            ]);
++
++        $response->assertRedirect(route('workorders.edit', $workorder));
++        $response->assertSessionHasErrors(['number']);
++
++        $workorder->refresh();
++        $this->assertTrue((bool) $workorder->is_draft);
++        $this->assertSame(124, (int) $workorder->number);
++    }
++
++    public function test_draft_release_rejects_number_less_than_six_digits(): void
++    {
++        $admin = $this->createUserWithRole('Admin');
++        $draftInstruction = $this->createDraftInstruction();
++        $releasedInstruction = $this->createInstruction(['name' => 'Released ' . uniqid()]);
++        $customer = $this->createCustomer();
++        $unit = $this->createUnit();
++        $workorder = $this->createWorkorder([
++            'number' => 125,
++            'instruction_id' => $draftInstruction->id,
++            'customer_id' => $customer->id,
++            'unit_id' => $unit->id,
++            'user_id' => $admin->id,
++            'is_draft' => true,
++        ]);
++
++        $response = $this->from(route('workorders.edit', $workorder))
++            ->actingAs($admin)
++            ->put(route('workorders.update', $workorder), [
++                'number' => '99999',
++                'unit_id' => $unit->id,
++                'customer_id' => $customer->id,
++                'instruction_id' => $releasedInstruction->id,
++                'user_id' => $admin->id,
++            ]);
++
++        $response->assertRedirect(route('workorders.edit', $workorder));
++        $response->assertSessionHasErrors(['number']);
++
++        $workorder->refresh();
++        $this->assertTrue((bool) $workorder->is_draft);
++        $this->assertSame(125, (int) $workorder->number);
++    }
++
+     public function test_non_draft_update_keeps_original_number_even_if_new_number_is_posted(): void
+     {
+         $admin = $this->createUserWithRole('Admin');

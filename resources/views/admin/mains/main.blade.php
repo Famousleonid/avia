@@ -87,6 +87,10 @@
 @endsection
 
 @section('content')
+    @php
+        $canManageVendorTracking = auth()->check() && auth()->user()->hasAnyRole('Admin|Manager');
+        $vendors = $vendors ?? collect();
+    @endphp
 
     <div class="card dir-page">
         <div class="card-body p-0 shadow-lg">
@@ -890,14 +894,19 @@
                                     <tr>
                                         <th style="width:6%; text-align:center" class="fw-normal text-muted small">I</th>
                                         <th style="width:12%; text-align:center" class="fw-normal text-muted small">Technik</th>
-                                        <th style="width:18%;" class="fw-normal text-muted small">List</th>
-                                        <th style="width:22%; text-align: center"
-                                            class="fw-normal text-muted small">Repair Order
-                                        </th>
-                                        <th style="width:21%; text-align: center"
+                                        <th style="width:{{ $canManageVendorTracking ? '18%' : '30%' }};" class="fw-normal text-muted small">List</th>
+                                        @if($canManageVendorTracking)
+                                            <th style="width:15%; text-align: center"
+                                                class="fw-normal text-muted small">Repair Order
+                                            </th>
+                                            <th style="width:15%; text-align: center"
+                                                class="fw-normal text-muted small">Vendor
+                                            </th>
+                                        @endif
+                                        <th style="width:{{ $canManageVendorTracking ? '17%' : '25%' }}; text-align: center"
                                             class="fw-normal text-muted small">Sent (edit)
                                         </th>
-                                        <th style="width:21%; text-align: center"
+                                        <th style="width:{{ $canManageVendorTracking ? '17%' : '25%' }}; text-align: center"
                                             class="fw-normal text-muted small">Returned (edit)
                                         </th>
                                     </tr>
@@ -959,8 +968,8 @@
                                                 <td>
                                                     <span class="text-info">{{ $label }}</span>
                                                 </td>
+                                                @if($canManageVendorTracking)
                                                 <td>
-                                                    @hasanyrole('Admin|Manager')
                                                     <form method="POST"
                                                           action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
                                                           class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
@@ -975,15 +984,27 @@
                                                                autocomplete="off"
                                                                data-original="{{ $pr->repair_order ?? '' }}"
                                                                @if($isIgnoredStd) disabled @endif>
-                                                        <i class="bi bi-save save-indicator d-none"></i>
+                                                       <i class="bi bi-save save-indicator d-none"></i>
                                                     </form>
-                                                    @else
-                                                    <input type="text"
-                                                           class="form-control form-control-sm pe-4 bg-dark"
-                                                           value="{{ $pr->repair_order ?? '' }}"
-                                                           readonly>
-                                                    @endhasanyrole
                                                 </td>
+                                                <td>
+                                                    <form method="POST"
+                                                          action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
+                                                          class="auto-submit-form js-ajax"
+                                                          data-no-spinner>
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <select name="vendor_id"
+                                                                class="form-select form-select-sm js-std-editable {{ $isIgnoredStd ? 'bg-dark text-secondary' : '' }}"
+                                                                @if($isIgnoredStd) disabled @endif>
+                                                            <option value="">...</option>
+                                                            @foreach($vendors as $vendor)
+                                                                <option value="{{ $vendor->id }}" @selected((int) ($pr->vendor_id ?? 0) === (int) $vendor->id)>{{ $vendor->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </form>
+                                                </td>
+                                                @endif
                                                 <td>
                                                     <form method="POST"
                                                           action="{{ route('tdrprocesses.updateDate', $pr) }}"
@@ -1058,7 +1079,7 @@
                                                             <th style="width:10%; text-align:center"
                                                                 class="fw-normal text-muted">Technik
                                                             </th>
-                                                            <th style="width:30%;">
+                                                            <th style="width:{{ $canManageVendorTracking ? '30%' : '40%' }};">
                                                                 <div class=" text-info">
                                                                     {{ $cmp->name ?? ('#'.$cmp->id) }}&nbsp;&nbsp;
                                                                     <span class="text-muted" style="font-size: 12px;">
@@ -1066,13 +1087,18 @@
                                                                         </span>
                                                                 </div>
                                                             </th>
-                                                            <th style="width:20%; text-align: center"
-                                                                class="fw-normal text-muted">Repair Order
-                                                            </th>
-                                                            <th style="width:20%; text-align: center"
+                                                            @if($canManageVendorTracking)
+                                                                <th style="width:15%; text-align: center"
+                                                                    class="fw-normal text-muted">Repair Order
+                                                                </th>
+                                                                <th style="width:15%; text-align: center"
+                                                                    class="fw-normal text-muted">Vendor
+                                                                </th>
+                                                            @endif
+                                                            <th style="width:{{ $canManageVendorTracking ? '15%' : '25%' }}; text-align: center"
                                                                 class="fw-normal text-muted">Sent (edit)
                                                             </th>
-                                                            <th style="width:20%; text-align: center"
+                                                            <th style="width:{{ $canManageVendorTracking ? '15%' : '25%' }}; text-align: center"
                                                                 class="fw-normal text-muted">Returned (edit)
                                                             </th>
                                                         </tr>
@@ -1106,8 +1132,8 @@
                                                                 </td>
                                                                 <td><span class="text-info">Traveler</span></td>
 
+                                                                @if($canManageVendorTracking)
                                                                 <td>
-                                                                    @hasanyrole('Admin|Manager')
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateTravelerGroupRepairOrder', $tdr) }}"
                                                                           class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
@@ -1125,13 +1151,23 @@
 
                                                                         <i class="bi bi-save save-indicator d-none"></i>
                                                                     </form>
-                                                                    @else
-                                                                        <input type="text"
-                                                                               class="form-control form-control-sm pe-4 bg-dark"
-                                                                               value="{{ $travelerLeader->repair_order ?? '' }}"
-                                                                               readonly>
-                                                                        @endhasanyrole
                                                                 </td>
+                                                                <td>
+                                                                    <form method="POST"
+                                                                          action="{{ route('tdrprocesses.updateTravelerGroupRepairOrder', $tdr) }}"
+                                                                          class="auto-submit-form js-ajax"
+                                                                          data-no-spinner>
+                                                                        @csrf
+                                                                        @method('PATCH')
+                                                                        <select name="vendor_id" class="form-select form-select-sm">
+                                                                            <option value="">...</option>
+                                                                            @foreach($vendors as $vendor)
+                                                                                <option value="{{ $vendor->id }}" @selected((int) ($travelerLeader->vendor_id ?? 0) === (int) $vendor->id)>{{ $vendor->name }}</option>
+                                                                            @endforeach
+                                                                        </select>
+                                                                    </form>
+                                                                </td>
+                                                                @endif
 
                                                                 <td>
                                                                     <form method="POST"
@@ -1190,8 +1226,8 @@
                                                                 </td>
                                                                 <td>{{ $pr->processName->name ?? '—' }}</td>
 
+                                                                @if($canManageVendorTracking)
                                                                 <td>
-                                                                    @hasanyrole('Admin|Manager')
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
                                                                           class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
@@ -1210,14 +1246,32 @@
                                                                         {{-- 💾 индикатор несохранённого --}}
                                                                         <i class="bi bi-save save-indicator d-none"></i>
                                                                     </form>
-                                                                    @else
+                                                                    {{-- removed readonly repair order for non manager --}}
+                                                                    @if(false)
                                                                         {{-- только просмотр --}}
                                                                         <input type="text"
                                                                                class="form-control form-control-sm pe-4 bg-dark"
                                                                                value="{{ $pr->repair_order ?? '' }}"
                                                                                readonly>
-                                                                        @endhasanyrole
+                                                                        @endif
                                                                 </td>
+
+                                                                <td>
+                                                                    <form method="POST"
+                                                                          action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
+                                                                          class="auto-submit-form js-ajax"
+                                                                          data-no-spinner>
+                                                                        @csrf
+                                                                        @method('PATCH')
+                                                                        <select name="vendor_id" class="form-select form-select-sm">
+                                                                            <option value="">...</option>
+                                                                            @foreach($vendors as $vendor)
+                                                                                <option value="{{ $vendor->id }}" @selected((int) ($pr->vendor_id ?? 0) === (int) $vendor->id)>{{ $vendor->name }}</option>
+                                                                            @endforeach
+                                                                        </select>
+                                                                    </form>
+                                                                </td>
+                                                                @endif
 
                                                                 <td>
                                                                     <form method="POST"

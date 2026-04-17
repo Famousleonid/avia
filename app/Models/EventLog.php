@@ -8,6 +8,7 @@ class EventLog extends Model
 {
     protected $fillable = [
         'event_key',
+        'notification_event_rule_id',
         'subject_type',
         'subject_id',
         'recipient_user_id',

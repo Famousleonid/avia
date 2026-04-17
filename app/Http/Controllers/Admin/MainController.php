@@ -15,6 +15,7 @@ use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Training;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
 use App\Models\Workorder;
@@ -175,6 +176,7 @@ class MainController extends Controller
                                 'updatedBy',
                                 'dateStartUpdatedBy:id,name',
                                 'dateFinishUpdatedBy:id,name',
+                                'vendor:id,name',
                             ])->orderBy('id');
                         }])
                         ->orderBy('id');
@@ -328,6 +330,8 @@ class MainController extends Controller
 
         $stdListTdrProcesses = app(WorkorderStdListProcessesService::class)
             ->resolveForWorkorder($current_workorder);
+
+        $vendors = Vendor::query()->orderBy('name')->get(['id', 'name']);
 
         $wpCollection = WoBushingProcess::query()
             ->whereHas('line', fn ($q) => $q->where('workorder_id', $current_workorder->id))
@@ -524,6 +528,7 @@ class MainController extends Controller
             'trainingWoLatest',
             'trainingHistoryWo',
             'stdListTdrProcesses',
+            'vendors',
             'bushingTotalPcs',
             'bushingProcessGroupedRows',
             'bushingProcessSections',
@@ -1162,17 +1167,26 @@ class MainController extends Controller
 
     public function updateRepairOrder(Request $request, \App\Models\TdrProcess $tdrProcess)
     {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
         $request->validate([
             'repair_order' => 'nullable|string|max:255',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
         ]);
 
-        $tdrProcess->repair_order = $request->repair_order;
+        if ($request->has('repair_order')) {
+            $tdrProcess->repair_order = $request->repair_order;
+        }
+        $tdrProcess->vendor_id = $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null;
         $tdrProcess->user_id = auth()->id();
         $tdrProcess->save();
+        $tdrProcess->load('vendor:id,name');
 
         return response()->json([
             'success' => true,
             'user' => auth()->user()?->name ?? 'system',
+            'vendor_id' => $tdrProcess->vendor_id,
+            'vendor_name' => $tdrProcess->vendor?->name,
             'updated_at' => now()->format('d.m.Y H:i'),
         ]);
     }
@@ -1182,8 +1196,11 @@ class MainController extends Controller
      */
     public function updateTravelerGroupRepairOrder(Request $request, Tdr $tdr)
     {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
         $request->validate([
             'repair_order' => 'nullable|string|max:255',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
         ]);
 
         $processes = TdrProcess::query()
@@ -1196,7 +1213,10 @@ class MainController extends Controller
         }
 
         foreach ($processes as $tdrProcess) {
-            $tdrProcess->repair_order = $request->repair_order;
+            if ($request->has('repair_order')) {
+                $tdrProcess->repair_order = $request->repair_order;
+            }
+            $tdrProcess->vendor_id = $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null;
             $tdrProcess->user_id = auth()->id();
             $tdrProcess->save();
         }
@@ -1204,6 +1224,7 @@ class MainController extends Controller
         return response()->json([
             'success' => true,
             'user' => auth()->user()?->name ?? 'system',
+            'vendor_id' => $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null,
             'updated_at' => now()->format('d.m.Y H:i'),
         ]);
     }

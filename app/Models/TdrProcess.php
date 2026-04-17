@@ -20,6 +20,7 @@ class TdrProcess extends Model
         'description',
         'notes',
         'repair_order',
+        'vendor_id',
         'sort_order', // Поле для сортировки
         'date_start',
         'date_finish',
@@ -57,6 +58,11 @@ class TdrProcess extends Model
         return $this->belongsTo(ProcessName::class, 'process_names_id');
     }
 
+    public function vendor()
+    {
+        return $this->belongsTo(Vendor::class, 'vendor_id');
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -64,6 +70,8 @@ class TdrProcess extends Model
             ->logOnly([
                 'date_start',
                 'date_finish',
+                'repair_order',
+                'vendor_id',
             ])
             ->logOnlyDirty()                // логировать ТОЛЬКО изменившиеся поля
             ->dontSubmitEmptyLogs();        // не создавать пустые записи

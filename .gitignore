@@ -16,3 +16,5 @@ yarn-error.log
 /.vscode
 /storage/media-library/temp/
 /codex-test-runtime/
+/sync_media.log
+/sync_media.php

@@ -206,20 +206,22 @@ class ManualController extends Controller
             $ipl = $part->ipl_num ?? '';
 
             // Ожидаемый формат: "1-10", "1-20A" и т.п.
-            if (!preg_match('/^(\d+)-(\d+)([A-Za-z]?)$/', $ipl, $m)) {
+            if (!preg_match('/^(\d+)([A-Za-z\s]*)-(\d+)([A-Za-z\s0-9]*)$/', trim($ipl), $m)) {
                 // Неизвестный формат отправляем в конец
                 return PHP_INT_MAX;
             }
 
             $section = (int)$m[1];      // число до дефиса (1)
-            $number = (int)$m[2];       // число после дефиса (10, 20, 100)
-            $suffix = strtoupper($m[3] ?? ''); // суффикс A, B и т.п.
+            $sectionSuffix = strtoupper(trim($m[2] ?? ''));
+            $number = (int)$m[3];       // число после дефиса (10, 20, 100)
+            $suffix = strtoupper(trim($m[4] ?? '')); // суффикс A, B и т.п.
 
             // Без суффикса должны идти раньше, чем с суффиксом
-            $suffixVal = $suffix === '' ? 0 : (ord($suffix) - 64); // A=1, B=2...
+            $sectionSuffixVal = $sectionSuffix === '' ? 0 : ord($sectionSuffix[0]);
+            $suffixVal = $suffix === '' ? 0 : ord($suffix[0]); // A=65, B=66...
 
-            // Строим общее числовое значение для сортировки
-            return $section * 1_000_000 + $number * 100 + $suffixVal;
+            // Keep the full suffix so 6-70RS sorts before 6-70RS20.
+            return sprintf('%06d-%04d-%06d-%04d-%s', $section, $sectionSuffixVal, $number, $suffixVal, $suffix);
         })->values();
 
 
@@ -286,7 +288,10 @@ class ManualController extends Controller
         $builders = Builder::all();
         $scopes = Scope::all();
         $users = User::orderBy('name')->get(['id', 'name', 'email']);
-        $permittedUserIds = $cmm->permittedUsers()->pluck('users.id')->all();
+        $permittedUserIds = $cmm->permittedUsers()
+            ->pluck('users.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
         return view('admin.manuals.edit', compact('cmm', 'planes', 'builders', 'scopes', 'users', 'permittedUserIds'));
     }

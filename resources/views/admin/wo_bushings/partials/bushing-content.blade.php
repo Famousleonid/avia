@@ -4,15 +4,15 @@
     // Mixed units are OK: %, px, rem, etc. This is used by both saved view and create form.
     $bushingTableColumnWidths = $bushingTableColumnWidths ?? [
         'bushing' => '30%',
-        'select' => '100px',
+        'select' => '120px',
         'qty' => '90px',
-        'machining' => '10%',
-        'stress_relief' => '10%',
+        'machining' => '15%',
+        'stress_relief' => '15%',
         'ndt' => '110px',
-        'passivation' => '10%',
-        'cad' => '10%',
-        'anodizing' => '10%',
-        'xylan' => '10%',
+        'passivation' => '15%',
+        'cad' => '13%',
+        'anodizing' => '15%',
+        'xylan' => '12%',
     ];
 @endphp
 @if($woBushing && ($linesExist ?? !empty($bushData)))
@@ -84,6 +84,11 @@
             line-height: 1.05;
             padding: .1rem .14rem !important;
             white-space: normal;
+        }
+        table.bushing-view-table thead th,
+        table.bushing-view-table thead th.text-primary,
+        table.bushing-view-table thead tr.header-row th {
+            font-weight: 400 !important;
         }
         .bushing-view-table tbody td {
             height: 24px;

@@ -24,7 +24,7 @@ class UnitController extends Controller
         $this->middleware('can:units.viewAny')->only('index');
         $this->middleware('can:units.view')->only('show');
         $this->middleware('can:units.create')->only(['create', 'store']);
-        $this->middleware('can:units.update')->only(['edit', 'update']);
+        $this->middleware('can:units.update')->only(['edit', 'update', 'assignManual']);
         $this->middleware('can:units.delete')->only('destroy');
     }
 
@@ -297,6 +297,41 @@ class UnitController extends Controller
             'part_number' => $unit->part_number,
             'eff_code' => $unit->eff_code,
             'verified' => $unit->verified,
+        ]);
+    }
+
+    public function assignManual(Unit $unit, Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'manual_id' => ['required', 'exists:manuals,id'],
+        ]);
+
+        $duplicate = Unit::query()
+            ->where('manual_id', $data['manual_id'])
+            ->where('part_number', $unit->part_number)
+            ->whereKeyNot($unit->id)
+            ->exists();
+
+        if ($duplicate) {
+            throw ValidationException::withMessages([
+                'manual_id' => ['This manual already has a unit with this part number.'],
+            ]);
+        }
+
+        $unit->update([
+            'manual_id' => $data['manual_id'],
+            'verified' => true,
+        ]);
+
+        $unit->load('manual');
+
+        return response()->json([
+            'success' => true,
+            'id' => $unit->id,
+            'part_number' => $unit->part_number,
+            'manual_id' => $unit->manual_id,
+            'manual_number' => optional($unit->manual)->number,
+            'verified' => (bool) $unit->verified,
         ]);
     }
 
