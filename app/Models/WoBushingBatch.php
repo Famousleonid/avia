@@ -13,6 +13,7 @@ class WoBushingBatch extends Model
         'process_id',
         'process_column_key',
         'repair_order',
+        'vendor_id',
         'date_start',
         'date_finish',
         'working_steps_count',
@@ -31,6 +32,11 @@ class WoBushingBatch extends Model
     public function process(): BelongsTo
     {
         return $this->belongsTo(Process::class);
+    }
+
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class);
     }
 
     public function woBushingProcesses(): HasMany

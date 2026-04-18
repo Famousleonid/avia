@@ -17,6 +17,7 @@ class WoBushingProcess extends Model
         'date_finish',
         'working_steps_count',
         'repair_order',
+        'vendor_id',
     ];
 
     protected $casts = [
@@ -38,6 +39,11 @@ class WoBushingProcess extends Model
     public function batch(): BelongsTo
     {
         return $this->belongsTo(WoBushingBatch::class, 'batch_id');
+    }
+
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class);
     }
 
     public function machiningWorkSteps(): HasMany

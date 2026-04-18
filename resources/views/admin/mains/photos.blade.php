@@ -109,6 +109,46 @@
             object-fit: cover;
         }
 
+        .delete-photo-btn {
+            top: -8px;
+            right: -7px;
+            width: 20px;
+            height: 20px;
+            z-index: 10;
+            border: 1px solid rgba(var(--bs-primary-rgb), var(--bs-border-opacity, 1));
+            border-radius: 50%;
+            background: transparent;
+            color: var(--bs-danger);
+            line-height: 1;
+            box-shadow: none;
+        }
+
+        .delete-photo-btn:hover,
+        .delete-photo-btn:focus {
+            border-color: rgba(var(--bs-primary-rgb), var(--bs-border-opacity, 1));
+            background: transparent;
+            color: var(--bs-danger);
+            box-shadow: none;
+        }
+
+        .delete-photo-btn i {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 1280px) {
+            .delete-photo-btn {
+                top: -6px;
+                right: -5px;
+                width: 16px;
+                height: 16px;
+            }
+
+            .delete-photo-btn i {
+                font-size: 11px;
+            }
+        }
+
         .group-hr {
             border: 0;
             border-top: 1px solid rgba(255, 255, 255, .10);

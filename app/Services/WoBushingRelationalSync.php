@@ -47,6 +47,7 @@ class WoBushingRelationalSync
                     $preserveByComponent[$cid][$col] = [
                         'batch_id' => $wp->batch_id,
                         'repair_order' => $wp->repair_order,
+                        'vendor_id' => $wp->vendor_id,
                         'date_start' => $wp->date_start,
                         'date_finish' => $wp->date_finish,
                     ];
@@ -117,6 +118,7 @@ class WoBushingRelationalSync
 
                         $batchId = null;
                         $repairOrder = null;
+                        $vendorId = null;
                         $dateStart = null;
                         $dateFinish = null;
                         if ($col !== 'other' && isset($preserveByComponent[$cid][$col])) {
@@ -131,6 +133,7 @@ class WoBushingRelationalSync
                                 }
                             }
                             $repairOrder = $snap['repair_order'];
+                            $vendorId = $snap['vendor_id'];
                             $dateStart = $snap['date_start'];
                             $dateFinish = $snap['date_finish'];
                         }
@@ -141,6 +144,7 @@ class WoBushingRelationalSync
                             'qty' => $row['qty'],
                             'batch_id' => $batchId,
                             'repair_order' => $repairOrder,
+                            'vendor_id' => $vendorId,
                             'date_start' => $dateStart,
                             'date_finish' => $dateFinish,
                         ]);

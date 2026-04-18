@@ -156,6 +156,208 @@
         overflow: hidden;
     }
 
+    .main-tabs-shell {
+        --main-tab-panel-width: 100%;
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        margin-top: 5px;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        overflow: hidden;
+    }
+
+    .main-tabs-shell > .bottom-row {
+        margin-top: 0;
+    }
+
+    .main-tabs-nav {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: flex-end;
+        gap: .25rem;
+        min-width: 0;
+        padding-top: .35rem;
+        padding-left: .45rem;
+        margin-bottom: -1px;
+        background: transparent;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .main-tab-btn {
+        flex: 0 0 auto;
+        min-height: 2rem;
+        padding: .32rem .7rem;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-top: 1px solid transparent;
+        border-radius: 6px 6px 0 0;
+        background: transparent;
+        color: #adb5bd;
+        font-size: .84rem;
+        line-height: 1.15;
+        white-space: nowrap;
+    }
+
+    .main-tab-btn:hover {
+        color: #f8f9fa;
+        border-top-color: rgba(13, 202, 240, .45);
+    }
+
+    html[data-main-tab="overview"] .main-tab-btn[data-main-tab="overview"],
+    html[data-main-tab="tasks"] .main-tab-btn[data-main-tab="tasks"],
+    html[data-main-tab="std"] .main-tab-btn[data-main-tab="std"],
+    html[data-main-tab="parts"] .main-tab-btn[data-main-tab="parts"],
+    html[data-main-tab="bushings"] .main-tab-btn[data-main-tab="bushings"] {
+        position: relative;
+        z-index: 2;
+        margin-bottom: -1px;
+        color: #f8f9fa;
+        border-color: rgba(13, 202, 240, .75);
+        border-bottom-color: transparent;
+        background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, .45), 0 0 12px rgba(0, 0, 0, .35);
+    }
+
+    html[data-main-tab="overview"] .main-tab-btn[data-main-tab="overview"]::after,
+    html[data-main-tab="tasks"] .main-tab-btn[data-main-tab="tasks"]::after,
+    html[data-main-tab="std"] .main-tab-btn[data-main-tab="std"]::after,
+    html[data-main-tab="parts"] .main-tab-btn[data-main-tab="parts"]::after,
+    html[data-main-tab="bushings"] .main-tab-btn[data-main-tab="bushings"]::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 2px;
+        background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
+    }
+
+    .main-right-title-std,
+    .main-right-title-parts {
+        display: none;
+    }
+
+    html[data-main-tab="tasks"] .main-tabs-shell .bottom-col.right,
+    html[data-main-tab="bushings"] .main-tabs-shell .bottom-col.right,
+    html[data-main-tab="std"] .main-tabs-shell .bottom-col.left,
+    html[data-main-tab="parts"] .main-tabs-shell .bottom-col.left {
+        display: none !important;
+    }
+
+    html[data-main-tab="tasks"] .main-tabs-shell .bottom-col.left,
+    html[data-main-tab="bushings"] .main-tabs-shell .bottom-col.left,
+    html[data-main-tab="std"] .main-tabs-shell .bottom-col.right,
+    html[data-main-tab="parts"] .main-tabs-shell .bottom-col.right {
+        flex: 0 0 var(--main-tab-panel-width) !important;
+        width: var(--main-tab-panel-width);
+        max-width: 100%;
+    }
+
+    html[data-main-tab="tasks"] .main-tabs-shell .wo-bushings-box {
+        display: none !important;
+    }
+
+    html[data-main-tab="bushings"] .main-tabs-shell .main-tasks-block,
+    html[data-main-tab="bushings"] .main-tabs-shell .main-notes-block,
+    html[data-main-tab="bushings"] .main-tabs-shell .main-gt-buttons {
+        display: none !important;
+    }
+
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-box {
+        border: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    html[data-main-tab="bushings"] .main-tabs-shell .main-gt-scroll-area,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bush-strip-accordion {
+        border: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    html[data-main-tab="std"] .main-tabs-shell .main-parts-processes-block,
+    html[data-main-tab="parts"] .main-tabs-shell .main-std-processes-block {
+        display: none !important;
+    }
+
+    html[data-main-tab="std"] .main-tabs-shell .main-right-title-overview,
+    html[data-main-tab="parts"] .main-tabs-shell .main-right-title-overview {
+        display: none !important;
+    }
+
+    html[data-main-tab="std"] .main-tabs-shell .main-right-title-std,
+    html[data-main-tab="parts"] .main-tabs-shell .main-right-title-parts {
+        display: inline-flex;
+    }
+
+    html[data-main-tab="tasks"] .main-tabs-shell .bottom-row,
+    html[data-main-tab="bushings"] .main-tabs-shell .bottom-row,
+    html[data-main-tab="std"] .main-tabs-shell .bottom-row,
+    html[data-main-tab="parts"] .main-tabs-shell .bottom-row {
+        gap: 0;
+    }
+
+    .main-parts-processes-block {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .main-parts-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+    }
+
+    .main-tab-resize-handle {
+        display: none;
+        position: absolute;
+        top: 2.35rem;
+        bottom: .35rem;
+        left: calc(min(var(--main-tab-panel-width), 100%) - 18px);
+        width: 16px;
+        z-index: 20;
+        cursor: ew-resize;
+        touch-action: none;
+    }
+
+    html:not([data-main-tab="overview"]) .main-tabs-shell .main-tab-resize-handle {
+        display: block;
+    }
+
+    .main-tab-resize-handle::before,
+    .main-tab-resize-handle::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        width: 2px;
+        height: 34px;
+        border-radius: 2px;
+        background: rgba(13, 202, 240, .9);
+        transform: translateY(-50%);
+        box-shadow: 0 0 4px rgba(0, 0, 0, .65);
+    }
+
+    .main-tab-resize-handle::before {
+        left: 4px;
+    }
+
+    .main-tab-resize-handle::after {
+        right: 4px;
+    }
+
+    .main-tab-resize-handle:hover::before,
+    .main-tab-resize-handle:hover::after,
+    .main-tabs-shell.is-resizing-main-tab .main-tab-resize-handle::before,
+    .main-tabs-shell.is-resizing-main-tab .main-tab-resize-handle::after {
+        background: #9eeaf9;
+    }
+
     .bottom-col {
         border: 1px solid rgba(0, 0, 0, .125);
         border-radius: .5rem;
@@ -618,6 +820,11 @@
         font-size: .85rem;
     }
 
+    html:not([data-main-tab="overview"]) .main-tabs-shell .bottom-col.left,
+    html:not([data-main-tab="overview"]) .main-tabs-shell .bottom-col.right {
+        font-size: 1rem;
+    }
+
     .tasks-table td,
     .tasks-table th {
         padding: 3px 6px !important;
@@ -663,8 +870,8 @@
 
     .wo-notes-textarea{
         font-size: .85rem;
-        min-height: 70px;
-        resize: none;
+        min-height: 8.5rem;
+        resize: vertical;
     }
 
     /* Левая колонка: один скролл здесь (таблица + заметки + бушинги). flex-basis 0% обязателен для сжатия. */
@@ -820,7 +1027,7 @@
     .wo-bushings-table .wo-bush-col-part{ width: 11%; }
     .wo-bushings-table .wo-bush-col-ipl{ width: 7%; }
     .wo-bushings-table .wo-bush-col-process{
-        width: 22%;
+        width: 21%;
         white-space: normal;
         word-wrap: break-word;
         overflow-wrap: anywhere;
@@ -831,13 +1038,16 @@
         text-align: center;
     }
     .wo-bushings-table .wo-bush-col-ro{
-        width: 17%;
+        width: 13%;
         white-space: normal;
         word-wrap: break-word;
         overflow-wrap: anywhere;
     }
+    .wo-bushings-table .wo-bush-col-vendor{
+        width: 13%;
+    }
     .wo-bushings-table .wo-bush-col-dt{
-        width: 19%;
+        width: 15%;
     }
 
     .wo-bushings-table .wo-bush-col-part,
@@ -850,7 +1060,8 @@
         white-space: normal;
         word-break: break-word;
     }
-    .wo-bushings-table .wo-bush-col-ro .form-control{
+    .wo-bushings-table .wo-bush-col-ro .form-control,
+    .wo-bushings-table .wo-bush-col-vendor .form-select{
         max-width: 100%;
         min-width: 0;
     }
@@ -961,6 +1172,29 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+    }
+
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bush-batch-nested {
+        font-size: .95rem !important;
+    }
+
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table thead th {
+        font-size: .85rem !important;
+    }
+
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table tbody td,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table tbody th,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bush-batch-nested tbody td,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .small {
+        font-size: .9rem !important;
+    }
+
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .form-control-sm,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .form-select-sm,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .finish-input,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .fp-alt {
+        font-size: .875rem !important;
     }
 
 </style>

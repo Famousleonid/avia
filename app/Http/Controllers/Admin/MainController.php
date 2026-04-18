@@ -335,7 +335,7 @@ class MainController extends Controller
 
         $wpCollection = WoBushingProcess::query()
             ->whereHas('line', fn ($q) => $q->where('workorder_id', $current_workorder->id))
-            ->with(['line.component', 'process.process_name', 'batch'])
+            ->with(['line.component', 'process.process_name', 'batch', 'vendor'])
             ->get();
 
         $bushingTotalPcs = (int) $wpCollection->groupBy(function (WoBushingProcess $wp) {
@@ -414,6 +414,7 @@ class MainController extends Controller
                         return [
                             'id' => (int) $wp->id,
                             'repair_order' => (string) ($wp->repair_order ?? ''),
+                            'vendor_id' => $wp->vendor_id ? (int) $wp->vendor_id : null,
                             'date_start' => $wp->date_start,
                             'date_finish' => $wp->date_finish,
                         ];
@@ -430,6 +431,9 @@ class MainController extends Controller
                     'id' => $isBatch ? (int) $firstWp->batch_id : (int) $firstWp->id,
                     'qty' => $batchQty,
                     'repair_order' => $isBatch ? (string) ($batch?->repair_order ?? '') : (string) ($firstWp->repair_order ?? ''),
+                    'vendor_id' => $isBatch
+                        ? ($batch?->vendor_id ? (int) $batch->vendor_id : null)
+                        : ($firstWp->vendor_id ? (int) $firstWp->vendor_id : null),
                     'date_start' => $isBatch ? $batch?->date_start : $firstWp->date_start,
                     'date_finish' => $isBatch ? $batch?->date_finish : $firstWp->date_finish,
                     'line_items' => $lineItems,
@@ -827,14 +831,23 @@ class MainController extends Controller
 
         $request->validate([
             'repair_order' => 'nullable|string|max:255',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
         ]);
 
-        $woBushingProcess->repair_order = $request->repair_order;
+        if ($request->has('repair_order')) {
+            $woBushingProcess->repair_order = $request->repair_order;
+        }
+        if ($request->has('vendor_id')) {
+            $woBushingProcess->vendor_id = $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null;
+        }
         $woBushingProcess->save();
+        $woBushingProcess->load('vendor:id,name');
 
         return response()->json([
             'success' => true,
             'user' => auth()->user()?->name ?? 'system',
+            'vendor_id' => $woBushingProcess->vendor_id,
+            'vendor_name' => $woBushingProcess->vendor?->name,
             'updated_at' => now()->format('d.m.Y H:i'),
         ]);
     }
@@ -944,14 +957,23 @@ class MainController extends Controller
 
         $request->validate([
             'repair_order' => 'nullable|string|max:255',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
         ]);
 
-        $woBushingBatch->repair_order = $request->repair_order;
+        if ($request->has('repair_order')) {
+            $woBushingBatch->repair_order = $request->repair_order;
+        }
+        if ($request->has('vendor_id')) {
+            $woBushingBatch->vendor_id = $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null;
+        }
         $woBushingBatch->save();
+        $woBushingBatch->load('vendor:id,name');
 
         return response()->json([
             'success' => true,
             'user' => auth()->user()?->name ?? 'system',
+            'vendor_id' => $woBushingBatch->vendor_id,
+            'vendor_name' => $woBushingBatch->vendor?->name,
             'updated_at' => now()->format('d.m.Y H:i'),
         ]);
     }
@@ -1071,17 +1093,23 @@ class MainController extends Controller
 
         $request->validate([
             'repair_order' => 'nullable|string|max:255',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
         ]);
 
-        $val = $request->repair_order;
         foreach ($rows as $wp) {
-            $wp->repair_order = $val;
+            if ($request->has('repair_order')) {
+                $wp->repair_order = $request->repair_order;
+            }
+            if ($request->has('vendor_id')) {
+                $wp->vendor_id = $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null;
+            }
             $wp->save();
         }
 
         return response()->json([
             'success' => true,
             'user' => auth()->user()?->name ?? 'system',
+            'vendor_id' => $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null,
             'updated_at' => now()->format('d.m.Y H:i'),
         ]);
     }

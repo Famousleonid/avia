@@ -160,10 +160,10 @@
                                         <img src="${escapeAttr(media.thumb)}" class="photo-thumbnail border border-primary rounded" alt="${safeLabel}" />
                                     </a>
 
-                                    <button class="btn btn-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center position-absolute delete-photo-btn"
-                                            style="top:-6px;right:-6px;width:20px;height:20px;z-index:10;"
+                                    <button type="button"
+                                            class="p-0 d-flex align-items-center justify-content-center position-absolute delete-photo-btn"
                                             data-id="${escapeAttr(media.id)}" title="Delete">
-                                        <i class="bi bi-x" style="font-size:12px;"></i>
+                                        <i class="bi bi-x-lg"></i>
                                     </button>
                                 </div>
                             </div>

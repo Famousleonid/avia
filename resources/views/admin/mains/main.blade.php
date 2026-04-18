@@ -271,15 +271,38 @@
                     </div>
                 </div>
 
+                <script>
+                    (function () {
+                        const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
+                        const woId = '{{ (int)($current_workorder->id ?? 0) }}';
+                        const key = woId ? `avia_main_tab_wo_${woId}` : 'avia_main_tab_default';
+                        let tab = 'overview';
+                        try {
+                            tab = localStorage.getItem(key) || tab;
+                        } catch (e) {}
+                        if (!allowedTabs.includes(tab)) tab = 'overview';
+                        document.documentElement.setAttribute('data-main-tab', tab);
+                    })();
+                </script>
+
                 {{-- Bottom --}}
-                <div class="bottom-row d-flex align-items-stretch">
+                <div class="main-tabs-shell gradient-pane border-info" data-main-tabs data-wo-id="{{ (int)($current_workorder->id ?? 0) }}">
+                    <div class="main-tabs-nav" role="tablist" aria-label="Main workorder sections">
+                        <button type="button" class="main-tab-btn" data-main-tab="overview" role="tab">All</button>
+                        <button type="button" class="main-tab-btn" data-main-tab="tasks" role="tab">Tasks / Notes</button>
+                        <button type="button" class="main-tab-btn" data-main-tab="std" role="tab">STD Processes</button>
+                        <button type="button" class="main-tab-btn" data-main-tab="parts" role="tab">Parts / Processes</button>
+                        <button type="button" class="main-tab-btn" data-main-tab="bushings" role="tab">Bushing / Processes</button>
+                    </div>
+
+                    <div class="bottom-row d-flex align-items-stretch">
 
                     {{-- Left panel --}}
                     <div class="bottom-col left gradient-pane border-info p-1" >
                         <div class="left-pane d-flex flex-column gap-2 h-100">
 
                             {{-- GeneralTask buttons --}}
-                            <div class="d-flex gap-2">
+                            <div class="d-flex gap-2 main-gt-buttons">
                                 @foreach($general_tasks as $i => $gt)
                                     <button type="button"
                                             class="btn btn-sm flex-fill js-gt-btn {{ ($gtAllFinished[$gt->id] ?? false) ? 'btn-outline-success' : 'btn-outline-danger' }}"
@@ -313,7 +336,7 @@
                                                 $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
                                             @endphp
 
-                                            <div class="table-responsive flex-shrink-0">
+                                            <div class="table-responsive flex-shrink-0 main-tasks-block">
                                             <table
                                                 class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table dir-table mt-1">
                                                 <colgroup>
@@ -532,7 +555,7 @@
                                             </div>
                                             {{-- Workorder Notes --}}
 
-                                            <div class="border border-secondary rounded wo-notes-box flex-shrink-0">
+                                            <div class="border border-secondary rounded wo-notes-box main-notes-block flex-shrink-0">
                                                 {{-- Header --}}
                                                 <div class="wo-notes-head">
                                                     <div class="wo-notes-title">Workorder Notes</div>
@@ -570,7 +593,7 @@
 
                                                         <textarea name="notes"
                                                                   class="form-control form-control-sm bg-dark text-light border-secondary wo-notes-textarea"
-                                                                  rows="2"
+                                                                  rows="5"
                                                                   placeholder="Type notes..."
                                                                   data-original="{{ $current_workorder->notes ?? '' }}">{{ $current_workorder->notes ?? '' }}</textarea>
                                                     </form>
@@ -645,7 +668,10 @@
                                                                                                 <th class="wo-bush-col-ipl text-center">IPL</th>
                                                                                                 <th class="wo-bush-col-process">{{ __('Process') }}</th>
                                                                                                 <th class="text-center wo-bush-col-qty">Qty</th>
-                                                                                                <th class="wo-bush-col-ro">Rep order</th>
+                                                                                                @if($canManageVendorTracking)
+                                                                                                    <th class="wo-bush-col-ro">Rep order</th>
+                                                                                                    <th class="wo-bush-col-vendor">Vendor</th>
+                                                                                                @endif
                                                                                                 <th class="text-center wo-bush-col-dt">Sent</th>
                                                                                                 <th class="text-center wo-bush-col-dt">Return</th>
                                                                                             </tr>
@@ -690,8 +716,8 @@
                                                                                                         </td>
                                                                                                         <td class="text-center small wo-bush-col-qty align-middle fw-semibold text-info"
                                                                                                             title="{{ __('Sum of quantities in this batch') }}">{{ $batchQtySum }}</td>
+                                                                                                        @if($canManageVendorTracking)
                                                                                                         <td class="align-middle wo-bush-col-ro px-1" onclick="event.stopPropagation();">
-                                                                                                            @hasanyrole('Admin|Manager')
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_batches.updateRepairOrder', $batch['id']) }}"
                                                                                                                   class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
@@ -707,10 +733,23 @@
                                                                                                                        data-original="{{ $batch['repair_order'] ?? '' }}">
                                                                                                                 <i class="bi bi-save save-indicator d-none"></i>
                                                                                                             </form>
-                                                                                                            @else
-                                                                                                            <input type="text" class="form-control form-control-sm bg-dark" value="{{ $batch['repair_order'] ?? '' }}" readonly>
-                                                                                                            @endhasanyrole
                                                                                                         </td>
+                                                                                                        <td class="align-middle wo-bush-col-vendor px-1" onclick="event.stopPropagation();">
+                                                                                                            <form method="POST"
+                                                                                                                  action="{{ route('wo_bushing_batches.updateRepairOrder', $batch['id']) }}"
+                                                                                                                  class="auto-submit-form js-ajax"
+                                                                                                                  data-no-spinner>
+                                                                                                                @csrf
+                                                                                                                @method('PATCH')
+                                                                                                                <select name="vendor_id" class="form-select form-select-sm">
+                                                                                                                    <option value="">...</option>
+                                                                                                                    @foreach($vendors as $vendor)
+                                                                                                                        <option value="{{ $vendor->id }}" @selected((int) ($batch['vendor_id'] ?? 0) === (int) $vendor->id)>{{ $vendor->name }}</option>
+                                                                                                                    @endforeach
+                                                                                                                </select>
+                                                                                                            </form>
+                                                                                                        </td>
+                                                                                                        @endif
                                                                                                         <td class="align-middle text-center wo-bush-col-dt px-1" onclick="event.stopPropagation();">
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_batches.updateDate', $batch['id']) }}"
@@ -739,7 +778,7 @@
                                                                                                         </td>
                                                                                                     </tr>
                                                                                                     <tr class="collapse" id="{{ $batchCollapseId }}">
-                                                                                                        <td colspan="7" class="p-0 border-secondary bg-opacity-10" style="background: rgba(0,0,0,.15);">
+                                                                                                        <td colspan="{{ $canManageVendorTracking ? 8 : 6 }}" class="p-0 border-secondary bg-opacity-10" style="background: rgba(0,0,0,.15);">
                                                                                                             <div class="wo-bush-batch-nested-wrap">
                                                                                                                 <table class="table table-sm table-dark table-bordered mb-0 wo-bush-batch-nested">
                                                                                                                     <tbody>
@@ -768,9 +807,10 @@
                                                                                                         $__ipl = $item ? (string) ($item['ipl_num'] ?? '') : '';
                                                                                                         $__pd = $item ? (string) ($item['process_detail'] ?? '') : '';
                                                                                                         $woBushProcRows = $batch['process_rows'] ?? [[
-                                                                                                            'id' => (int) ($batch['id'] ?? 0),
-                                                                                                            'repair_order' => (string) ($batch['repair_order'] ?? ''),
-                                                                                                            'date_start' => $batch['date_start'] ?? null,
+                                                                                                             'id' => (int) ($batch['id'] ?? 0),
+                                                                                                             'repair_order' => (string) ($batch['repair_order'] ?? ''),
+                                                                                                             'vendor_id' => $batch['vendor_id'] ?? null,
+                                                                                                             'date_start' => $batch['date_start'] ?? null,
                                                                                                             'date_finish' => $batch['date_finish'] ?? null,
                                                                                                         ]];
                                                                                                         $wbr = $woBushProcRows[0] ?? [];
@@ -780,8 +820,8 @@
                                                                                                         <td class="small wo-bush-col-ipl" @if($__ipl !== '') title="{{ e($__ipl) }}" @endif>{{ $__ipl !== '' ? $__ipl : '—' }}</td>
                                                                                                         <td class="small text-info wo-bush-col-process" @if($__pd !== '') title="{{ e($__pd) }}" @endif>{{ $__pd !== '' ? $__pd : '—' }}</td>
                                                                                                         <td class="text-center wo-bush-col-qty">{{ $item['qty'] ?? 0 }}</td>
+                                                                                                        @if($canManageVendorTracking)
                                                                                                         <td class="wo-bush-col-ro">
-                                                                                                            @hasanyrole('Admin|Manager')
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_processes.updateRepairOrder', $wbr['id']) }}"
                                                                                                                   class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
@@ -797,10 +837,23 @@
                                                                                                                        data-original="{{ $wbr['repair_order'] ?? '' }}">
                                                                                                                 <i class="bi bi-save save-indicator d-none"></i>
                                                                                                             </form>
-                                                                                                            @else
-                                                                                                            <input type="text" class="form-control form-control-sm bg-dark" value="{{ $wbr['repair_order'] ?? '' }}" readonly>
-                                                                                                            @endhasanyrole
                                                                                                         </td>
+                                                                                                        <td class="wo-bush-col-vendor">
+                                                                                                            <form method="POST"
+                                                                                                                  action="{{ route('wo_bushing_processes.updateRepairOrder', $wbr['id']) }}"
+                                                                                                                  class="auto-submit-form js-ajax"
+                                                                                                                  data-no-spinner>
+                                                                                                                @csrf
+                                                                                                                @method('PATCH')
+                                                                                                                <select name="vendor_id" class="form-select form-select-sm">
+                                                                                                                    <option value="">...</option>
+                                                                                                                    @foreach($vendors as $vendor)
+                                                                                                                        <option value="{{ $vendor->id }}" @selected((int) ($wbr['vendor_id'] ?? 0) === (int) $vendor->id)>{{ $vendor->name }}</option>
+                                                                                                                    @endforeach
+                                                                                                                </select>
+                                                                                                            </form>
+                                                                                                        </td>
+                                                                                                        @endif
                                                                                                         <td class="text-center wo-bush-col-dt">
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_processes.updateDate', $wbr['id']) }}"
@@ -861,12 +914,15 @@
                     {{-- Right panel: Components / Processes --}}
                     <div class="bottom-col right border-info gradient-pane p-1">
 
-                        <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center justify-content-between mb-2 main-right-head">
 
                             <div class="d-flex align-items-center gap-2">
-                                <h6 class="mb-0 text-primary">Parts</h6>
-                                <span class="text-info">({{ $components->count() }})</span>
-                                <h6 class="mb-0 text-primary">&nbsp;& Repair Processes</h6>
+                                <h6 class="mb-0 text-primary main-right-title main-right-title-overview">Parts</h6>
+                                <span class="text-info main-right-title-overview">({{ $components->count() }})</span>
+                                <h6 class="mb-0 text-primary main-right-title main-right-title-overview">&nbsp;& Repair Processes</h6>
+                                <h6 class="mb-0 text-primary main-right-title main-right-title-std">STD Processes</h6>
+                                <h6 class="mb-0 text-primary main-right-title main-right-title-parts">Parts & Repair Processes</h6>
+                                <span class="text-info main-right-title-parts">({{ $components->count() }})</span>
                             </div>
 
 
@@ -888,7 +944,7 @@
                         </div>
 
                         @if($stdListTdrProcesses && $stdListTdrProcesses->isNotEmpty())
-                            <div class="req_standart mb-2 w-100">
+                            <div class="req_standart main-std-processes-block mb-2 w-100">
                                 <table class="table table-sm table-dark table-bordered table-hover mb-0 align-middle dir-table">
                                     <thead>
                                     <tr>
@@ -1045,13 +1101,14 @@
                             </div>
                         @endif
 
-                        @if($components->isEmpty())
-                            <div class="text-muted small">
-                                No components with processes.
-                            </div>
-                        @else
-                            <div class="list-group list-group-flush" style="overflow:auto;">
-                                @foreach($components as $cmp)
+                        <div class="main-parts-processes-block">
+                            @if($components->isEmpty())
+                                <div class="text-muted small">
+                                    No components with processes.
+                                </div>
+                            @else
+                                <div class="list-group list-group-flush main-parts-scroll">
+                                    @foreach($components as $cmp)
                                     <div class="list-group-item bg-transparent text-light border-secondary p-0">
                                         @forelse($cmp->tdrs as $tdr)
                                             @php
@@ -1315,11 +1372,14 @@
                                             </div>
                                         @endforelse
                                     </div>
-                                @endforeach
-                            </div>
-                        @endif
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
                     </div>
 
+                    </div>
+                    <div class="main-tab-resize-handle" data-main-tab-resize title="Drag to resize"></div>
                 </div>
 
             </div>
@@ -1398,6 +1458,112 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            (function initMainTabs() {
+                const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
+                const shell = document.querySelector('[data-main-tabs]');
+                if (!shell) return;
+
+                const woId = shell.dataset.woId || '';
+                const key = woId ? `avia_main_tab_wo_${woId}` : 'avia_main_tab_default';
+                const sizeKeyPrefix = woId ? `avia_main_tab_width_wo_${woId}_` : 'avia_main_tab_width_default_';
+                const resizeHandle = shell.querySelector('[data-main-tab-resize]');
+                let activeTab = readTab();
+
+                function readTab() {
+                    let tab = document.documentElement.getAttribute('data-main-tab') || 'overview';
+                    try {
+                        tab = localStorage.getItem(key) || tab;
+                    } catch (e) {}
+                    return allowedTabs.includes(tab) ? tab : 'overview';
+                }
+
+                function activateMainTab(tab, { save = true } = {}) {
+                    if (!allowedTabs.includes(tab)) tab = 'overview';
+                    activeTab = tab;
+                    document.documentElement.setAttribute('data-main-tab', tab);
+                    shell.dataset.activeMainTab = tab;
+                    applySavedWidth(tab);
+
+                    shell.querySelectorAll('.main-tab-btn').forEach((btn) => {
+                        const active = btn.dataset.mainTab === tab;
+                        btn.classList.toggle('active', active);
+                        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+                    });
+
+                    if (typeof initDatePickers === 'function') initDatePickers();
+                    if (typeof window.__mainsInitDatePickers === 'function') window.__mainsInitDatePickers();
+
+                    if (save) {
+                        try { localStorage.setItem(key, tab); } catch (e) {}
+                    }
+                }
+
+                function clampWidth(width, shellWidth) {
+                    const min = Math.min(520, shellWidth);
+                    const max = shellWidth;
+                    return Math.max(min, Math.min(max, width));
+                }
+
+                function widthKey(tab) {
+                    return `${sizeKeyPrefix}${tab}`;
+                }
+
+                function applySavedWidth(tab) {
+                    if (tab === 'overview') {
+                        shell.style.removeProperty('--main-tab-panel-width');
+                        return;
+                    }
+
+                    let width = '';
+                    try {
+                        width = localStorage.getItem(widthKey(tab)) || '';
+                    } catch (e) {}
+
+                    if (width) {
+                        shell.style.setProperty('--main-tab-panel-width', `${parseInt(width, 10)}px`);
+                    } else {
+                        shell.style.setProperty('--main-tab-panel-width', '100%');
+                    }
+                }
+
+                shell.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.main-tab-btn');
+                    if (!btn) return;
+                    activateMainTab(btn.dataset.mainTab);
+                });
+
+                resizeHandle?.addEventListener('pointerdown', (e) => {
+                    if (activeTab === 'overview') return;
+                    e.preventDefault();
+
+                    const rect = shell.getBoundingClientRect();
+                    resizeHandle.setPointerCapture?.(e.pointerId);
+                    shell.classList.add('is-resizing-main-tab');
+
+                    const onMove = (moveEvent) => {
+                        const width = clampWidth(moveEvent.clientX - rect.left, rect.width);
+                        shell.style.setProperty('--main-tab-panel-width', `${Math.round(width)}px`);
+                    };
+
+                    const onUp = (upEvent) => {
+                        const width = clampWidth(upEvent.clientX - rect.left, rect.width);
+                        shell.style.setProperty('--main-tab-panel-width', `${Math.round(width)}px`);
+                        try { localStorage.setItem(widthKey(activeTab), String(Math.round(width))); } catch (e) {}
+                        shell.classList.remove('is-resizing-main-tab');
+                        resizeHandle.releasePointerCapture?.(upEvent.pointerId);
+                        document.removeEventListener('pointermove', onMove);
+                        document.removeEventListener('pointerup', onUp);
+                        document.removeEventListener('pointercancel', onUp);
+                    };
+
+                    document.addEventListener('pointermove', onMove);
+                    document.addEventListener('pointerup', onUp);
+                    document.addEventListener('pointercancel', onUp);
+                });
+
+                activateMainTab(readTab(), { save: false });
+            })();
+
             window.applyStdIgnoreState = function (checkbox) {
                 const tr = checkbox?.closest?.('tr');
                 if (!tr) return;

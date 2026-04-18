@@ -19,7 +19,7 @@ final class MachiningBushingRowsBuilder
     {
         $wpCollection = $wo->relationLoaded('woBushingProcesses')
             ? $wo->woBushingProcesses
-            : $wo->woBushingProcesses()->with(['line.component', 'process.process_name', 'batch'])->get();
+            : $wo->woBushingProcesses()->with(['line.component', 'process.process_name', 'batch', 'vendor'])->get();
 
         $machining = $wpCollection->filter(static function (WoBushingProcess $wp) {
             return WoBushingProcessColumnKey::fromProcess($wp->process) === 'machining';
@@ -164,6 +164,7 @@ final class MachiningBushingRowsBuilder
                     return [
                         'id' => (int) $wp->id,
                         'repair_order' => (string) ($wp->repair_order ?? ''),
+                        'vendor_id' => $wp->vendor_id ? (int) $wp->vendor_id : null,
                         'date_start' => $wp->date_start,
                         'date_finish' => $wp->date_finish,
                     ];
@@ -180,6 +181,9 @@ final class MachiningBushingRowsBuilder
                 'id' => $isBatch ? (int) $firstWp->batch_id : (int) $firstWp->id,
                 'qty' => $batchQty,
                 'repair_order' => $isBatch ? (string) ($batch?->repair_order ?? '') : (string) ($firstWp->repair_order ?? ''),
+                'vendor_id' => $isBatch
+                    ? ($batch?->vendor_id ? (int) $batch->vendor_id : null)
+                    : ($firstWp->vendor_id ? (int) $firstWp->vendor_id : null),
                 'date_start' => $isBatch ? $batch?->date_start : $firstWp->date_start,
                 'date_finish' => $isBatch ? $batch?->date_finish : $firstWp->date_finish,
                 'line_items' => $lineItems,
