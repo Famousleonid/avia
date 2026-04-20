@@ -1,4 +1,4 @@
-@extends('front.master)
+@extends('front.master')
 
 @section('content')
     <div class="container">
@@ -8,10 +8,7 @@
                     <div class="card-header">
                         {{ __('Verify Your Email Address') }}
                     </div>
-                    {{--                <div class="card-header d-flex justify-content-between align-items-center">
-                                        {{ __('Verify Your Email Address') }}
-                                        <a href="{{ url('/') }}" class="btn-close">x</a>
-                                    </div>--}}
+
                     <div class="card-body">
                         @if (session('resent'))
                             <div class="alert alert-success" role="alert">
@@ -19,15 +16,19 @@
                             </div>
                         @endif
 
-                        {{ __('Before proceeding, please check your email for a verification link.') }}
-                        {{ __('If you did not receive the email') }},
-                        <form class="d-inline" method="POST" action="{{ route('verification.resend') }}">
-                            @csrf
-                            <button type="submit" class="btn btn-link p-0 m-0 align-baseline">{{ __('click here to request another') }}</button>
-                            .
-                        </form>
+                        <p>{{ __('Before proceeding, please check your email for a verification link.') }}</p>
+                        <p class="mb-0">
+                            {{ __('If you did not receive the email') }},
+                            <form class="d-inline" method="POST" action="{{ route('verification.resend') }}">
+                                @csrf
+                                <button type="submit" class="btn btn-link p-0 m-0 align-baseline">
+                                    {{ __('click here to request another') }}
+                                </button>.
+                            </form>
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 @endsection

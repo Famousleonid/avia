@@ -17,4 +17,9 @@ class Device
         $agent = new Agent();
         return $agent->isMobile() || $agent->isTablet();
     }
+
+    public static function homePath(Request $request): string
+    {
+        return self::isMobile($request) ? '/mobile' : '/cabinet';
+    }
 }

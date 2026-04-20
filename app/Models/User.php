@@ -52,6 +52,11 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return $this->is_admin == 1;
     }
 
+    public function isSystemAdmin(): bool
+    {
+        return $this->isAdmin() && $this->roleIs('Admin');
+    }
+
     public function roleName(): ?string
     {
         return $this->role?->name;

@@ -31,7 +31,7 @@
                 <p class="text-danger text-center mb-3">No team selected</p>
             @endif
 
-            <form action="{{ route('mobile.update.profile', ['id' => $user->id]) }}" class="createForm" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('mobile.update.profile') }}" class="createForm" method="POST" enctype="multipart/form-data">
                 @method('PUT')
                 @csrf
 
@@ -121,7 +121,7 @@
     </div>
     </div>
 
-    <form id="changePassForm" method="POST" action="{{ route('mobile.profile.changePassword', ['id' => $user->id]) }}">
+    <form id="changePassForm" method="POST" action="{{ route('mobile.profile.changePassword') }}">
         @csrf
         <div class="modal fade" id="updatePasswordModal" tabindex="-1" role="dialog">
             <div class="modal-dialog modal-sm" role="document">

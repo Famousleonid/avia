@@ -3,12 +3,9 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Providers\RouteServiceProvider;
 use App\Support\Device;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Jenssegers\Agent\Agent;
 
 class LoginController extends Controller
 {
@@ -24,9 +21,7 @@ class LoginController extends Controller
 
     protected function authenticated(Request $request, $user)
     {
-        return Device::isMobile($request)
-            ? redirect()->intended('/mobile')
-            : redirect()->intended('/cabinet');
+        return redirect()->intended(Device::homePath($request));
     }
 
 

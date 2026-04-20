@@ -11,12 +11,12 @@ class AdminAccessTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
-    public function test_technician_can_open_users_page_per_current_permissions(): void
+    public function test_technician_cannot_open_users_page(): void
     {
         $technician = $this->createUserWithRole('Technician');
 
         $response = $this->actingAs($technician)->get(route('users.index'));
 
-        $response->assertOk();
+        $response->assertForbidden();
     }
 }

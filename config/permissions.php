@@ -35,10 +35,10 @@ return [
     ],
 
     'users' => [
-        'viewAny' => ['Admin','Manager', 'Team Leader', 'Technician', 'Paint', 'Machining'],
-        'view'    => ['Admin','Manager', 'Team Leader', 'Technician', 'Paint', 'Machining'],
-        'create'  => ['Admin','Manager', 'Team Leader', 'Technician', 'Paint', 'Machining'],
-        'update'  => ['Admin','Manager', 'Team Leader', 'Technician', 'Paint', 'Machining'],
+        'viewAny' => ['Admin'],
+        'view'    => ['Admin'],
+        'create'  => ['Admin'],
+        'update'  => ['Admin'],
         'delete'  => ['Admin'],
 
     ],

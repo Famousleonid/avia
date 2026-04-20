@@ -35,6 +35,10 @@ class AuthServiceProvider extends ServiceProvider
 
                 Gate::define("{$model}.{$action}", function ($user, $item = null) use ($rolesAllowed, $model, $action) {
 
+                    if ($model === 'users' && ! $user->isSystemAdmin()) {
+                        return false;
+                    }
+
                     // 1. Проверяем роль
                     if (! $user->roleIs($rolesAllowed)) {
                         return false;

@@ -51,6 +51,26 @@ class UsersTest extends TestCase
         $this->assertNotNull(User::query()->where('email', 'created.user@example.test')->value('email_verified_at'));
     }
 
+    public function test_public_registration_is_closed(): void
+    {
+        $this->get('/register')->assertNotFound();
+        $this->post('/register', [
+            'name' => 'Public User',
+            'email' => 'public.user@example.test',
+            'password' => '123',
+            'password_confirmation' => '123',
+        ])->assertNotFound();
+    }
+
+    public function test_admin_role_without_is_admin_flag_cannot_manage_users(): void
+    {
+        $roleOnlyAdmin = $this->createUserWithRole('Admin', ['is_admin' => 0]);
+
+        $response = $this->actingAs($roleOnlyAdmin)->get(route('users.index'));
+
+        $response->assertForbidden();
+    }
+
     /**
      * @group smoke
      */

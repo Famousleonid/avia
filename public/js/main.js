@@ -73,6 +73,10 @@
         }
         try { hideNow(); } catch (e) { /* ignore */ }
     };
+
+    window.addEventListener('pageshow', function () {
+        window.safeHideSpinner();
+    });
 })();
 
 

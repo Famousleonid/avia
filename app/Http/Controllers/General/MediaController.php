@@ -12,17 +12,19 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class MediaController extends Controller
 {
 
-    protected function store_avatar(Request $request, $id)
+    public function store_avatar(Request $request, $id)
     {
-        $user = User::find($id);
-        $file = $request->File('avatar');
+        abort_unless($request->user()?->isSystemAdmin() || (int) $request->user()?->id === (int) $id, 403);
 
-        if ($request->hasFile('avatar')) {
-            $user->clearMediaCollection('avatar');
-            $user->addMedia($file)->toMediaCollection('avatar');
-        }
+        $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ]);
 
-        return redirect()->route('cabinet.profile');
+        $user = User::findOrFail($id);
+        $user->clearMediaCollection('avatar');
+        $user->addMedia($request->file('avatar'))->toMediaCollection('avatar');
+
+        return redirect()->route('profile.edit');
     }
 
     public function store_photo_workorders(Request $request, Workorder $workorder)

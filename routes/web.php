@@ -39,6 +39,7 @@ use App\Http\Controllers\Mobile\MobileComponentController;
 use App\Http\Controllers\Mobile\MobileController;
 use App\Http\Controllers\Mobile\MobileProcessController;
 use App\Http\Controllers\Mobile\MobileTaskController;
+use App\Http\Controllers\ProfileController;
 use App\Support\Device;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
@@ -47,7 +48,7 @@ use App\Http\Controllers\Admin\ManualCsvController;
 use App\Http\Controllers\Admin\AiAgentController;
 use App\Http\Controllers\Admin\DatabaseBackupController;
 
-Auth::routes(['verify' => true]);
+Auth::routes(['verify' => true, 'register' => false]);
 
 Route::get('/clear', function () {
     abort_unless(auth()->user()?->roleIs('Admin'), 403);
@@ -59,7 +60,7 @@ Route::get('/clear', function () {
     Artisan::call('optimize:clear');
 
     return 'Cache cleared successfully';
-})->middleware('auth');
+})->middleware(['auth', 'verified', 'desktop']);
 
 
 Route::get('/front', [FrontController::class, 'index'])->name('front.index');
@@ -67,8 +68,15 @@ Route::get('/', function (\Illuminate\Http\Request $request) {
     if (!Auth::check()) {
         return view('front.index');
     }
-    return Device::isMobile($request) ? redirect('/mobile') : redirect('/cabinet');
+    return redirect(Device::homePath($request));
 })->name('home');
+
+Route::middleware(['auth', 'verified', 'desktop'])->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::get('/cabinet/profile', [ProfileController::class, 'edit'])->name('cabinet.profile');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/password', [ProfileController::class, 'changePassword'])->name('profile.password');
+});
 
 // ----------------------- Mobile route -----------------------------------------------------------------
 Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group(function () {
@@ -119,15 +127,15 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     Route::get('/workorders/photos/{id}', [MediaController::class, 'get_photos'])->name('workorders.photos');
 
 
-    // --- profile (оставляем в MobileController) ---
-    Route::get('/profile', [MobileController::class, 'profile'])->name('profile');
-    Route::put('/profile/{id}', [MobileController::class, 'update_profile'])->name('update.profile');
-    Route::post('/change_password/user/{id}', [MobileController::class, 'changePassword'])->name('profile.changePassword');
+    // --- profile ---
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('update.profile');
+    Route::post('/change_password/user', [ProfileController::class, 'changePassword'])->name('profile.changePassword');
 });
 
 // ----------------------Auth route ------------------------------------------------------------------------
 
-Route::group(['middleware' => ['auth']], function () {
+Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     Route::get('/cabinet', [CabinetController::class, 'index'])->name('cabinet.index');
     Route::get('/paint', [PaintController::class, 'index'])->middleware('can:feature.paint')->name('paint.index');
@@ -158,7 +166,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/workorders/{workorder}/logs-json', [WorkorderController::class, 'logsForWorkorder'])->name('workorders.logs-json');
     Route::get('/workorders/check-number', [WorkorderController::class, 'checkNumber'])->name('workorders.checkNumber');
 
-    Route::resource('/users', UserController::class);
+    Route::resource('/users', UserController::class)->middleware('systemAdmin');
     Route::resource('/mains',  MainController::class)->except(['show']);
     Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
     Route::get('/mains/{workorder}/photos', [MainController::class, 'photos'])->name('mains.photos');
@@ -428,7 +436,7 @@ Route::group(['middleware' => ['auth']], function () {
 
 });
 
-Route::middleware(['auth'])->prefix('admin')->group(function () {
+Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin')->group(function () {
     Route::get('/ai-agent/history', [AiAgentController::class, 'history'])->name('admin.ai.history');
     Route::post('/ai-agent/chat', [AiAgentController::class, 'chat'])->name('admin.ai.chat');
     Route::post('/ai-agent/reset', [AiAgentController::class, 'reset'])->name('admin.ai.reset');
@@ -442,7 +450,7 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
 
 
 
-Route::middleware(['auth'])->prefix('admin/messages')->group(function () {
+Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin/messages')->group(function () {
 
     Route::get('/users', [\App\Http\Controllers\Admin\MessageController::class, 'users'])->name('admin.messages.users');
     Route::post('/send', [\App\Http\Controllers\Admin\MessageController::class, 'send'])->name('admin.messages.send');
@@ -451,7 +459,7 @@ Route::middleware(['auth'])->prefix('admin/messages')->group(function () {
 });
 
 
-Route::middleware(['auth'])
+Route::middleware(['auth', 'verified', 'desktop'])
     ->prefix('admin')
     ->group(function () {
 

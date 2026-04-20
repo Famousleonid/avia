@@ -16,6 +16,7 @@ class UserController extends Controller
 {
     public function __construct()
     {
+        $this->middleware('systemAdmin');
         $this->middleware('can:users.viewAny')->only('index');
         $this->middleware('can:users.view')->only('show');
         $this->middleware('can:users.create')->only(['create', 'store']);
@@ -46,7 +47,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'string', 'email', 'max:155', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:3'],
+            'password' => ['required', 'string', 'min:' . config('security.user_password_min')],
             'birthday' => ['nullable', 'date', 'before:today'],
             'role_id' => ['nullable', 'integer', 'exists:roles,id'],
             'team_id' => ['nullable', 'integer', 'exists:teams,id'],
@@ -58,7 +59,7 @@ class UserController extends Controller
 
         $user = User::create($data);
 
-        if (auth()->user()?->roleIs('Admin')) {
+        if (auth()->user()?->isSystemAdmin()) {
 
             $user->is_admin = $request->has('is_admin') ? 1 : 0;
 
@@ -108,9 +109,6 @@ class UserController extends Controller
     {
         $auth = auth()->user();
 
-        if (! $auth->roleIs('Admin') && $auth->id !== $user->id) {
-            abort(403, 'You do not have permission to edit this user.');
-        }
         $teams = Team::all();
         $roles = Role::all();
 
@@ -122,14 +120,7 @@ class UserController extends Controller
         $auth = auth()->user();
         $user = User::findOrFail($id);
 
-        // 1. Доступ:
-        // Admin может редактировать любого пользователя,
-        // остальные — только свой профиль
-        if (! $auth->roleIs('Admin') && $auth->id !== $user->id) {
-            abort(403, 'You do not have permission to edit this user.');
-        }
-
-        $isAdmin = $auth->roleIs('Admin');
+        $isAdmin = $auth->isSystemAdmin();
 
         // 2. Базовые правила валидации для всех
         $rules = [
@@ -137,7 +128,7 @@ class UserController extends Controller
             'phone' => ['nullable', 'string', 'max:50'],
             'stamp' => ['required', 'string', 'max:255'],
             'birthday' => ['nullable', 'date', 'before:today'],
-            'password' => ['nullable', 'string', 'min:3', 'confirmed'],
+            'password' => ['nullable', 'string', 'min:' . config('security.user_password_min'), 'confirmed'],
             'img' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'sign' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:4096'],
         ];
@@ -211,8 +202,10 @@ class UserController extends Controller
 
     public function changePassword(Request $request, $id)
     {
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
+
         $this->validate($request, [
-            'password' => 'required|confirmed|min:3',
+            'password' => 'required|confirmed|min:' . config('security.user_password_min'),
         ]);
 
         $user = User::findOrFail($id);

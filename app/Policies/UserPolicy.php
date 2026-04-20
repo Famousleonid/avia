@@ -11,22 +11,22 @@ class UserPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->roleIs(config('permissions.users.viewAny'));
+        return $user->isSystemAdmin() && $user->roleIs(config('permissions.users.viewAny'));
     }
 
     public function view(User $user, User $target): bool
     {
-        return $user->roleIs(config('permissions.users.view'));
+        return $user->isSystemAdmin() && $user->roleIs(config('permissions.users.view'));
     }
 
     public function create(User $user): bool
     {
-        return $user->roleIs(config('permissions.users.create'));
+        return $user->isSystemAdmin() && $user->roleIs(config('permissions.users.create'));
     }
 
     public function update(User $user, User $target): bool
     {
-        return $user->roleIs(config('permissions.users.update'));
+        return $user->isSystemAdmin() && $user->roleIs(config('permissions.users.update'));
     }
 
     public function delete(User $user, User $target): bool
@@ -36,7 +36,7 @@ class UserPolicy
             return false;
         }
 
-        return $user->roleIs(config('permissions.users.delete'));
+        return $user->isSystemAdmin() && $user->roleIs(config('permissions.users.delete'));
     }
 
 //    public function before(User $user, string $ability)

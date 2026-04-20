@@ -15,7 +15,6 @@ use App\Models\Paint;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
-use App\Models\Team;
 use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
 use App\Models\Unit;
@@ -24,12 +23,10 @@ use App\Models\Workorder;
 use App\Services\MachiningListingRowsBuilder;
 use App\Services\PaintIndexRowsBuilder;
 use App\Services\WorkorderNotifyService;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 
@@ -376,70 +373,6 @@ class MobileController extends Controller
         return view('mobile.pages.show', compact('workorder'));
     }
 
-    public function profile()
-    {
-        $user = Auth::user();
-        $teams = Team::all();
-
-        return view('mobile.pages.profile', compact('user', 'teams'));
-    }
-
-    public function update_profile(Request $request, $id)
-    {
-        $user = User::findOrFail($id);
-
-        $request->validate([
-            'name' => 'required',
-            'phone' => 'nullable',
-            'birthday' => 'nullable|string',
-            'stamp' => 'required',
-            'team_id' => 'required|exists:teams,id',
-            'file' => 'nullable|image',
-        ]);
-
-        $birthdayRaw = trim((string) $request->input('birthday', ''));
-        $birthdayYmd = null;
-        if ($birthdayRaw !== '') {
-            if (! preg_match('/^\d{2}\.[a-z]{3}\.\d{4}$/', $birthdayRaw)) {
-                throw ValidationException::withMessages([
-                    'birthday' => 'Birthday format must be dd.mmm.yyyy (example: 01.apr.2026).',
-                ]);
-            }
-
-            $normalized = preg_replace_callback(
-                '/\.(\w{3})\./',
-                static fn (array $m): string => '.' . ucfirst(strtolower((string) $m[1])) . '.',
-                $birthdayRaw
-            );
-
-            $birthdayDate = Carbon::createFromFormat('d.M.Y', (string) $normalized);
-            if ($birthdayDate === false) {
-                throw ValidationException::withMessages([
-                    'birthday' => 'Invalid birthday date.',
-                ]);
-            }
-
-            if ($birthdayDate->startOfDay()->gt(now()->startOfDay())) {
-                throw ValidationException::withMessages([
-                    'birthday' => 'Birthday cannot be later than today.',
-                ]);
-            }
-
-            $birthdayYmd = $birthdayDate->format('Y-m-d');
-        }
-
-        $payload = $request->only(['name', 'phone', 'stamp', 'team_id']);
-        $payload['birthday'] = $birthdayYmd;
-        $user->update($payload);
-
-        if ($request->hasFile('file')) {
-            $user->clearMediaCollection('avatar');
-            $user->addMedia($request->file('file'))->toMediaCollection('avatar');
-        }
-
-        return redirect()->route('mobile.profile')->with('success', 'Changes saved');
-    }
-
     public function materials()
     {
         $user = Auth::user();
@@ -455,25 +388,6 @@ class MobileController extends Controller
         $material->save();
 
         return response()->json(['success' => true]);
-    }
-
-    public function changePassword(Request $request, $id)
-    {
-        $request->validate([
-            'old_pass' => 'required',
-            'password' => 'required|confirmed|min:3',
-        ]);
-
-        $user = User::findOrFail($id);
-
-        if (!Hash::check($request->old_pass, $user->password)) {
-            return redirect()->back()->with('error', 'The current password is incorrect');
-        }
-
-        $user->password = Hash::make($request->password);
-        $user->save();
-
-        return redirect()->back()->with('success', 'New password saved');
     }
 
     public function createDraft()

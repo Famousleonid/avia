@@ -8,7 +8,7 @@ use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvi
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
-use Jenssegers\Agent\Agent;
+use App\Support\Device;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -63,21 +63,11 @@ class RouteServiceProvider extends ServiceProvider
     {
         $request = $request ?? request(); // на всякий случай
         $user = auth()->user();
-        $agent = new Agent();
-
         if (!$user) {
             return '/login';
         }
 
-        if ($agent->isMobile()) {
-            return '/mobile';
-        }
-
-        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
-            return '/admin';
-        }
-
-        return self::HOME; // '/cabinet'
+        return Device::homePath($request);
     }
 
 
