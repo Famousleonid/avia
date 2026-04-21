@@ -780,13 +780,6 @@ class TdrController extends Controller
                             'use_process_forms' => false,
                         ]);
 
-                        \Log::info("Created TDR for condition", [
-                            'tdr_id' => $newTdr->id,
-                            'condition_id' => $conditionId,
-                            'condition_name' => $condition->name,
-                            'notes' => $notes,
-                            'workorder_id' => $workorderId
-                        ]);
                     } catch (\Exception $e) {
                         \Log::error("Failed to create TDR for condition", [
                             'condition_id' => $conditionId,
@@ -3616,25 +3609,10 @@ class TdrController extends Controller
         $necessaryComponents = []; // Для строк, где component_id !== null и necessaries_id !== Order New
         $hasMissingComponents = false; // Флаг наличия компонентов с кодом Missing
 
-        \Log::info("Starting tdrForm processing", [
-            'workorder_id' => $current_wo->id,
-            'total_tdrs' => $current_wo->tdrs->count()
-        ]);
-
         foreach ($current_wo->tdrs as $tdr) {
-            \Log::info("Processing TDR", [
-                'tdr_id' => $tdr->id,
-                'component_id' => $tdr->component_id,
-                'conditions_id' => $tdr->conditions_id,
-                'codes_id' => $tdr->codes_id,
-                'use_tdr' => $tdr->use_tdr,
-                'use_process_forms' => $tdr->use_process_forms
-            ]);
-
             // Проверяем наличие компонентов с кодом Missing
             if ($tdr->codes_id == $code->id) {
                 $hasMissingComponents = true;
-                \Log::info("Skipping TDR with Missing code");
                 continue; // Пропускаем обработку этих строк, но запоминаем их наличие
             }
 
@@ -3647,26 +3625,13 @@ class TdrController extends Controller
                     // Проверяем, является ли имя condition одним из "note 1", "note 2" и т.д.
                     $isNoteCondition = preg_match('/^note\s+\d+$/i', $conditions->name);
 
-                    \Log::info("Processing TDR in tdrForm", [
-                        'tdr_id' => $tdr->id,
-                        'condition_id' => $conditions->id,
-                        'condition_name' => $conditions->name,
-                        'is_note_condition' => $isNoteCondition,
-                        'description' => $description,
-                        'description_empty' => ($description === '')
-                    ]);
-
                     if ($isNoteCondition) {
                         // Для conditions с именами "note 1", "note 2" и т.д. добавляем только description
                         // Если description пустой, не добавляем ничего (чтобы не показывать пустые строки)
                         if ($description !== '') {
                             $nullComponentConditions[] = $description;
-                            \Log::info("Added note condition with description to nullComponentConditions", [
-                                'description' => $description
-                            ]);
                         } else {
                             // Не добавляем пустую строку - если нет notes, то и нечего показывать
-                            \Log::info("Skipping note condition with empty description");
                         }
                     } else {
                         // Для обычных conditions добавляем имя и description
@@ -3675,9 +3640,6 @@ class TdrController extends Controller
                             $conditionString .= ' ' . $description;
                         }
                         $nullComponentConditions[] = $conditionString;
-                        \Log::info("Added regular condition to nullComponentConditions", [
-                            'condition_string' => $conditionString
-                        ]);
                     }
                 } else {
                     \Log::warning("TDR has null component_id but no conditions relation", [

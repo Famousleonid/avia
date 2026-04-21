@@ -582,7 +582,8 @@
         console.log('Ограничения строк применены. Всего страниц:', totalPages);
     };
 </script>
-<script src="{{ asset('js/main.js') }}"></script>
+@include('components.session-heartbeat-config')
+<script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 @include('shared.tdr-forms._scripts', ['formType' => 'paintFormStd', 'formConfig' => $tdrFormConfig])
 
 <!-- Общие модули -->

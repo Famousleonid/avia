@@ -128,17 +128,12 @@
         }
     </style>
 
-    <div class="container">
+    <div class="container-fluid px-4 px-xl-5">
         <div class="card shadow">
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="mb-0">PART NUMBER APPROVED PERSONNEL</h5>
-                    </div>
-                    <div>
-                        <a href="#" class="btn btn-primary">
-                            CSV Trainings
-                        </a>
+                        <h6 class="mb-0">PART NUMBER APPROVED PERSONNEL</h6>
                     </div>
                 </div>
             </div>

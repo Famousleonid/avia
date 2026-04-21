@@ -5,7 +5,7 @@
     $bushingTableColumnWidths = $bushingTableColumnWidths ?? [
         'bushing' => '30%',
         'select' => '120px',
-        'qty' => '90px',
+        'qty' => 'calc(3ch + .75rem)',
         'machining' => '15%',
         'stress_relief' => '15%',
         'ndt' => '110px',
@@ -91,7 +91,7 @@
             font-weight: 400 !important;
         }
         .bushing-view-table tbody td {
-            height: 24px;
+            height: 34px;
         }
         table.bushing-view-table col.bushing-col-qty,
         table.bushing-view-table th.bushing-col-qty,
@@ -116,6 +116,10 @@
             text-overflow: clip;
             white-space: nowrap;
         }
+        table.bushing-view-table tbody td.bushing-col {
+            font-size: 13px !important;
+            line-height: 1.15 !important;
+        }
         table.bushing-view-table th.bushing-col-ndt .vendor-select-sm {
             max-width: 100% !important;
             min-width: 0 !important;
@@ -126,12 +130,12 @@
         }
         table.bushing-view-table .bushing-ipl {
             display: inline-block;
-            font-size: 10px !important;
+            font-size: 12px !important;
             font-weight: 400 !important;
             line-height: 1.05 !important;
         }
         table.bushing-view-table .bushing-part-number {
-            font-size: 12px !important;
+            font-size: 14px !important;
         }
         .bushing-view-table .vendor-select-sm {
             min-width: 42px;
@@ -364,8 +368,8 @@
                                 $xylanProcess = $xylanProcesses->firstWhere('id', $data['xylan'] ?? null);
                             @endphp
                             <tr>
-                                <td class="bushing-col"><span class="bushing-ipl" style="font-size: 10px !important; font-weight: 400 !important; line-height: 1.05 !important;">{{ $component->ipl_num }}</span> —
-                                    <span class="text-muted bushing-part-number" style="font-size: 12px !important;">{{ $component->part_number }}</span></td>
+                                <td class="bushing-col"><span class="bushing-ipl">{{ $component->ipl_num }}</span> —
+                                    <span class="text-muted bushing-part-number">{{ $component->part_number }}</span></td>
                                 <td class="text-center bushing-col-qty">{{ $data['qty'] ?? '-' }}</td>
                                 @include('admin.wo_bushings.partials.bushing-process-cells', [
                                     'component' => $component,

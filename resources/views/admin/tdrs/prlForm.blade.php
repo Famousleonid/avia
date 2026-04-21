@@ -1418,7 +1418,8 @@
     });
 </script>
 
-<script src="{{ asset('js/main.js') }}"></script>
+@include('components.session-heartbeat-config')
+<script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 <!-- Общие модули -->
 <script src="{{ asset('js/tdrs/forms/common/multi-page-handler.js') }}"></script>
 

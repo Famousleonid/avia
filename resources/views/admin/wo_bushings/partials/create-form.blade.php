@@ -3,7 +3,7 @@
     $bushingTableColumnWidths = $bushingTableColumnWidths ?? [
         'bushing' => '28%',
         'select' => '70px',
-        'qty' => '15px',
+        'qty' => 'calc(3ch + .75rem)',
         'machining' => '10%',
         'stress_relief' => '10%',
         'ndt' => '20px',
@@ -24,6 +24,9 @@
         box-sizing: border-box;
         padding: .12rem .16rem !important;
         vertical-align: middle;
+    }
+    table.bushing-create-table tbody td {
+        height: 34px;
     }
     table.bushing-create-table thead th,
     table.bushing-create-table thead th.text-primary,
@@ -52,6 +55,10 @@
         overflow: hidden;
         text-overflow: clip;
         white-space: nowrap;
+    }
+    table.bushing-create-table tbody td:first-child {
+        font-size: 13px !important;
+        line-height: 1.15 !important;
     }
     .bushing-create-table .qty-input {
         max-width: 100% !important;
@@ -84,12 +91,12 @@
     }
     .bushing-create-table .bushing-ipl {
         display: inline-block;
-        font-size: 10px !important;
+        font-size: 12px !important;
         font-weight: 400 !important;
         line-height: 1.05 !important;
     }
     .bushing-create-table .bushing-part-number {
-        font-size: 12px !important;
+        font-size: 14px !important;
     }
 </style>
 <form id="bushings-form" method="POST" action="{{ route('wo_bushings.store') }}" class="bushing-create-form" data-embed="{{ $embed ? '1' : '0' }}">
@@ -153,7 +160,7 @@
                 <tr>
                     <td class="ps-2">
                         @foreach($bushingGroup as $bushing)
-                            <div class="mb-1"><span><span class="bushing-ipl" style="font-size: 10px !important; font-weight: 400 !important; line-height: 1.05 !important;">{{ $bushing->ipl_num }}</span> - <span class="bushing-part-number" style="font-size: 12px !important;">{{ $bushing->part_number }}</span></span></div>
+                            <div class="mb-1"><span><span class="bushing-ipl">{{ $bushing->ipl_num }}</span> - <span class="bushing-part-number">{{ $bushing->part_number }}</span></span></div>
                         @endforeach
                     </td>
                     <td class="text-center">

@@ -6,6 +6,7 @@ use App\Models\AiChatMessage;
 use App\Models\Manual;
 use App\Models\User;
 use App\Services\Ai\Tools\AnalyzeWorkorderTool;
+use App\Services\Ai\Tools\CountWorkorderImagesTool;
 use App\Services\Ai\Tools\CreateWorkorderNoteTool;
 use App\Services\Ai\Tools\FindWorkorderTool;
 use App\Services\Ai\Tools\LookupManualEditPermissionsTool;
@@ -27,6 +28,7 @@ class AiAgentService
         protected SearchMyWorkordersByOpenProcessTool $searchMyWorkordersByOpenProcessTool,
         protected SearchWorkordersByOpenProcessTool $searchWorkordersByOpenProcessTool,
         protected LookupManualEditPermissionsTool $lookupManualEditPermissionsTool,
+        protected CountWorkorderImagesTool $countWorkorderImagesTool,
     ) {
     }
 
@@ -59,6 +61,7 @@ class AiAgentService
             $this->createWorkorderNoteTool->schema(),
             $this->lookupWorkorderPartsTool->schema(),
             $this->lookupManualEditPermissionsTool->schema(),
+            $this->countWorkorderImagesTool->schema(),
         ];
 
         $systemPrompt = $this->systemPrompt($user, $pageContext, $userMessage);
@@ -171,7 +174,7 @@ class AiAgentService
         // convenience defaults: if user asks about "current workorder",
         // model can omit workorder_id and we will provide it from page context
         if ($ctxWorkorderId > 0 && empty($arguments['workorder_id'])) {
-            if (in_array($toolName, ['analyzeWorkorder', 'createWorkorderNote', 'lookupWorkorderParts'], true)) {
+            if (in_array($toolName, ['analyzeWorkorder', 'createWorkorderNote', 'lookupWorkorderParts', 'countWorkorderImages'], true)) {
                 $arguments['workorder_id'] = $ctxWorkorderId;
             }
         }
@@ -185,6 +188,7 @@ class AiAgentService
             'createWorkorderNote' => $this->createWorkorderNoteTool->run($user, $arguments),
             'lookupWorkorderParts' => $this->lookupWorkorderPartsTool->run($user, $arguments),
             'lookupManualEditPermissions' => $this->lookupManualEditPermissionsTool->run($user, $arguments),
+            'countWorkorderImages' => $this->countWorkorderImagesTool->run($user, $arguments),
             default => [
                 'ok' => false,
                 'message' => "Unknown tool: {$toolName}",
@@ -398,7 +402,7 @@ class AiAgentService
     {
         $t = trim($userMessage);
         if ($t === '') {
-            return 'Language for this reply: default to **English**. If the visible conversation history is clearly in Russian, you may continue in Russian for consistency.';
+            return 'Language for this reply: default to **English**.';
         }
 
         $cyr = 0;
@@ -420,7 +424,20 @@ class AiAgentService
             return 'Language for this reply: the user message is **Russian** (or mixed with dominant Cyrillic) — answer **fully in Russian**.';
         }
 
-        return 'Language for this reply: default to **English** (short or ambiguous input).';
+        return 'Language for this reply: default to **English** (short or ambiguous input). Use another language only when the latest user message is clearly in that language.';
+    }
+
+    protected function assistantDisplayName(string $name): string
+    {
+        $name = trim($name);
+        if ($name === '' || preg_match('/\p{Cyrillic}/u', $name)) {
+            return 'Avi';
+        }
+
+        $name = preg_replace('/[^A-Za-z0-9 ._-]/', '', $name) ?? '';
+        $name = trim($name);
+
+        return $name !== '' ? $name : 'Avi';
     }
 
     protected function systemPrompt(User $user, array $pageContext = [], string $latestUserMessage = ''): string
@@ -447,10 +464,7 @@ class AiAgentService
             ? "The logged-in user's name is «{$fullName}». Address them by first name «{$firstName}» in every reply (use it naturally: greeting, transitions, closing — not in every single sentence)."
             : 'The user has no name on file; address them neutrally (e.g. «коллега» / «colleague»).';
 
-        $agentName = trim((string)config('services.openai.agent_name', 'Assistant'));
-        if ($agentName === '') {
-            $agentName = 'Assistant';
-        }
+        $agentName = $this->assistantDisplayName((string) config('services.openai.agent_name', 'Assistant'));
 
         $languageInstruction = $this->buildReplyLanguageInstruction($latestUserMessage);
 
@@ -486,6 +500,7 @@ What you can actually do in THIS app (strict — if the user asks «what can you
 - createWorkorderNote: propose appending a note to a workorder — only after explicit user intent and UI confirmation (not instant).
 - lookupWorkorderParts: look up manual/parts lines for a workorder (read-only).
 - lookupManualEditPermissions: from manual_user_permissions — which CMM manuals a user may edit, who may edit a manual, list all manuals with responsible users, and map manual number ↔ LIB (by manual number or LIB fragments); read-only.
+- countWorkorderImages: count images/photos for one workorder, or list top workorders with the most images/photos; return links to open the main page (read-only).
 - UI navigation help: explain where to click in the admin interface using ONLY the «UI NAVIGATION MAP» block below (no tools; no invented menus).
 - Plus: plain-language conversation without accessing the database when no tool is needed.
 
@@ -503,6 +518,7 @@ Important behavior:
 - If the question is general, answer directly without tools.
 - If the question needs real data from the system, use tools.
 - If the user wants a list of workorders matching text, use searchWorkorders (all WO fields + related customer/unit/instruction/user). Format each line as: `[WO <number>](open_url) — description…` (link text = WO number only). Optionally add a second markdown link to open the Workorder table with search pre-filled if origin is in context (`…/workorders?q=…`). Missing photos does not affect workorder status or whether it is closed.
+- If the user asks about number of pictures/photos/images on workorders, use countWorkorderImages. For "top 10 with most pictures", call it with limit 10 and format each result as `[WO <number>](url) — <N> images`.
 - If the user asks to create or modify something, first confirm details.
 - If a tool returns an error, explain it plainly in human language.
 - For write actions, request explicit UI confirmation first. Never execute write action immediately after tool proposal.

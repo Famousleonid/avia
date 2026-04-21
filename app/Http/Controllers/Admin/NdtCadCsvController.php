@@ -23,59 +23,29 @@ class NdtCadCsvController extends Controller
 
         // Отладочная информация
         $manual = $workorder->unit->manuals;
-        \Log::info('Debug NDT/CAD CSV loading', [
-            'workorder_id' => $workorder->id,
-            'has_manual' => $manual ? true : false,
-            'manual_id' => $manual ? $manual->id : null,
-            'has_ndtCadCsv' => $ndtCadCsv ? true : false
-        ]);
-
         if ($manual) {
             $csvFiles = $manual->getMedia('csv_files');
-            \Log::info('CSV files in manual', [
-                'count' => $csvFiles->count(),
-                'files' => $csvFiles->map(function($file) {
-                    return [
-                        'name' => $file->name,
-                        'process_type' => $file->getCustomProperty('process_type'),
-                        'path' => $file->getPath()
-                    ];
-                })->toArray()
-            ]);
         }
 
         // Если записи нет или она пустая, создаем/обновляем с автоматической загрузкой из Manual CSV
         $shouldAutoLoad = false;
         if (!$ndtCadCsv) {
             $shouldAutoLoad = true;
-            \Log::info('No NdtCadCsv record found, will create with auto-loading');
         } else {
             $ndtEmpty = empty($ndtCadCsv->ndt_components) || (is_array($ndtCadCsv->ndt_components) && count($ndtCadCsv->ndt_components) == 0);
             $cadEmpty = empty($ndtCadCsv->cad_components) || (is_array($ndtCadCsv->cad_components) && count($ndtCadCsv->cad_components) == 0);
             $stressEmpty = empty($ndtCadCsv->stress_components) || (is_array($ndtCadCsv->stress_components) && count($ndtCadCsv->stress_components) == 0);
             $paintEmpty = empty($ndtCadCsv->paint_components) || (is_array($ndtCadCsv->paint_components) && count($ndtCadCsv->paint_components) == 0);
 
-            \Log::info('Checking if NdtCadCsv needs auto-loading', [
-                'has_ndtCadCsv' => true,
-                'ndt_empty' => $ndtEmpty,
-                'cad_empty' => $cadEmpty,
-                'stress_empty' => $stressEmpty,
-                'paint_empty' => $paintEmpty,
-                'should_auto_load' => $ndtEmpty && $cadEmpty && $stressEmpty && $paintEmpty,
-            ]);
-
             if ($ndtEmpty && $cadEmpty && $stressEmpty && $paintEmpty) {
                 $shouldAutoLoad = true;
-                \Log::info('NdtCadCsv is empty, will auto-load from manual');
             }
         }
 
         if ($shouldAutoLoad) {
             if (! $ndtCadCsv) {
-                \Log::info('Creating new NdtCadCsv with auto-loading');
                 $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder->id);
             } else {
-                \Log::info('Updating existing empty NdtCadCsv with auto-loading');
                 $ndtCadCsv = NdtCadCsv::loadComponentsFromManual($workorder->id, $ndtCadCsv);
             }
         }
@@ -410,21 +380,8 @@ class NdtCadCsvController extends Controller
             ], 404);
         }
 
-        // Логирование для отладки
-        \Log::info('Удаление NDT компонента', [
-            'workorder_id' => $workorder->id,
-            'index' => $request->index,
-            'components_before' => $ndtCadCsv->ndt_components,
-            'count_before' => count($ndtCadCsv->ndt_components ?? [])
-        ]);
-
         $ndtCadCsv->removeNdtComponent($request->index);
         $ndtCadCsv->save();
-
-        \Log::info('NDT компонент удален', [
-            'components_after' => $ndtCadCsv->ndt_components,
-            'count_after' => count($ndtCadCsv->ndt_components ?? [])
-        ]);
 
         return response()->json([
             'success' => true,
@@ -450,21 +407,8 @@ class NdtCadCsvController extends Controller
             ], 404);
         }
 
-        // Логирование для отладки
-        \Log::info('Удаление CAD компонента', [
-            'workorder_id' => $workorder->id,
-            'index' => $request->index,
-            'components_before' => $ndtCadCsv->cad_components,
-            'count_before' => count($ndtCadCsv->cad_components ?? [])
-        ]);
-
         $ndtCadCsv->removeCadComponent($request->index);
         $ndtCadCsv->save();
-
-        \Log::info('CAD компонент удален', [
-            'components_after' => $ndtCadCsv->cad_components,
-            'count_after' => count($ndtCadCsv->cad_components ?? [])
-        ]);
 
         return response()->json([
             'success' => true,
@@ -490,21 +434,8 @@ class NdtCadCsvController extends Controller
             ], 404);
         }
 
-        // Логирование для отладки
-        \Log::info('Удаление Stress компонента', [
-            'workorder_id' => $workorder->id,
-            'index' => $request->index,
-            'components_before' => $ndtCadCsv->stress_components,
-            'count_before' => count($ndtCadCsv->stress_components ?? [])
-        ]);
-
         $ndtCadCsv->removeStressComponent($request->index);
         $ndtCadCsv->save();
-
-        \Log::info('Stress компонент удален', [
-            'components_after' => $ndtCadCsv->stress_components,
-            'count_after' => count($ndtCadCsv->stress_components ?? [])
-        ]);
 
         return response()->json([
             'success' => true,
@@ -530,21 +461,8 @@ class NdtCadCsvController extends Controller
             ], 404);
         }
 
-        // Логирование для отладки
-        \Log::info('Удаление Paint компонента', [
-            'workorder_id' => $workorder->id,
-            'index' => $request->index,
-            'components_before' => $ndtCadCsv->paint_components,
-            'count_before' => count($ndtCadCsv->paint_components ?? [])
-        ]);
-
         $ndtCadCsv->removePaintComponent($request->index);
         $ndtCadCsv->save();
-
-        \Log::info('Paint компонент удален', [
-            'components_after' => $ndtCadCsv->paint_components,
-            'count_after' => count($ndtCadCsv->paint_components ?? [])
-        ]);
 
         return response()->json([
             'success' => true,

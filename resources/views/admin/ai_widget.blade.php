@@ -2,7 +2,11 @@
 {{-- AI Assistant Floating Widget --}}
 @auth
 @php
-    $aiAgentName = trim((string) config('services.openai.agent_name', 'Assistant')) ?: 'Assistant';
+    $aiAgentName = trim((string) config('services.openai.agent_name', 'Avi'));
+    if ($aiAgentName === '' || preg_match('/\p{Cyrillic}/u', $aiAgentName)) {
+        $aiAgentName = 'Avi';
+    }
+    $aiAgentName = trim((string) preg_replace('/[^A-Za-z0-9 ._-]/', '', $aiAgentName)) ?: 'Avi';
 @endphp
 <style>
     .ai-widget {

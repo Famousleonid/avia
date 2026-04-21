@@ -448,7 +448,8 @@
     {{-- Страницы таблицы — из PHP ($cad_table_pages). Лимит: ?cad_table_rows=19 --}}
     window.tdrFormApplyTableRowLimits = function () {};
 </script>
-<script src="{{ asset('js/main.js') }}"></script>
+@include('components.session-heartbeat-config')
+<script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 @include('shared.tdr-forms._scripts', ['formType' => 'cadFormStd', 'formConfig' => $tdrFormConfig])
 
 <!-- Общие модули -->

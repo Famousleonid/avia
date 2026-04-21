@@ -142,22 +142,10 @@ class NdtCadCsv extends Model
     public function removeNdtComponent(int $index): void
     {
         $components = $this->ndt_components;
-        \Log::info('NdtCadCsv::removeNdtComponent', [
-            'index' => $index,
-            'components_before' => $components,
-            'count_before' => count($components ?? [])
-        ]);
-
         if (isset($components[$index])) {
             $removedComponent = $components[$index];
             unset($components[$index]);
             $this->ndt_components = array_values($components);
-
-            \Log::info('NDT компонент удален из модели', [
-                'removed_component' => $removedComponent,
-                'components_after' => $this->ndt_components,
-                'count_after' => count($this->ndt_components ?? [])
-            ]);
         } else {
             \Log::warning('NDT компонент не найден по индексу', [
                 'index' => $index,
@@ -172,22 +160,10 @@ class NdtCadCsv extends Model
     public function removeCadComponent(int $index): void
     {
         $components = $this->cad_components;
-        \Log::info('NdtCadCsv::removeCadComponent', [
-            'index' => $index,
-            'components_before' => $components,
-            'count_before' => count($components ?? [])
-        ]);
-
         if (isset($components[$index])) {
             $removedComponent = $components[$index];
             unset($components[$index]);
             $this->cad_components = array_values($components);
-
-            \Log::info('CAD компонент удален из модели', [
-                'removed_component' => $removedComponent,
-                'components_after' => $this->cad_components,
-                'count_after' => count($this->cad_components ?? [])
-            ]);
         } else {
             \Log::warning('CAD компонент не найден по индексу', [
                 'index' => $index,
@@ -202,22 +178,10 @@ class NdtCadCsv extends Model
     public function removeStressComponent(int $index): void
     {
         $components = $this->stress_components;
-        \Log::info('NdtCadCsv::removeStressComponent', [
-            'index' => $index,
-            'components_before' => $components,
-            'count_before' => count($components ?? [])
-        ]);
-
         if (isset($components[$index])) {
             $removedComponent = $components[$index];
             unset($components[$index]);
             $this->stress_components = array_values($components);
-
-            \Log::info('Stress компонент удален из модели', [
-                'removed_component' => $removedComponent,
-                'components_after' => $this->stress_components,
-                'count_after' => count($this->stress_components ?? [])
-            ]);
         } else {
             \Log::warning('Stress компонент не найден по индексу', [
                 'index' => $index,
@@ -232,22 +196,10 @@ class NdtCadCsv extends Model
     public function removePaintComponent(int $index): void
     {
         $components = $this->paint_components;
-        \Log::info('NdtCadCsv::removePaintComponent', [
-            'index' => $index,
-            'components_before' => $components,
-            'count_before' => count($components ?? [])
-        ]);
-
         if (isset($components[$index])) {
             $removedComponent = $components[$index];
             unset($components[$index]);
             $this->paint_components = array_values($components);
-
-            \Log::info('Paint компонент удален из модели', [
-                'removed_component' => $removedComponent,
-                'components_after' => $this->paint_components,
-                'count_after' => count($this->paint_components ?? [])
-            ]);
         } else {
             \Log::warning('Paint компонент не найден по индексу', [
                 'index' => $index,
@@ -312,12 +264,6 @@ class NdtCadCsv extends Model
         $workorder = Workorder::findOrFail($workorderId);
         $manual = $workorder->unit->manuals;
 
-        \Log::info('Creating NdtCadCsv for workorder', [
-            'workorder_id' => $workorderId,
-            'has_manual' => $manual ? true : false,
-            'manual_id' => $manual ? $manual->id : null
-        ]);
-
         $ndtCadCsv = new self([
             'workorder_id' => $workorderId,
             'ndt_components' => [],
@@ -337,13 +283,6 @@ class NdtCadCsv extends Model
 
         $ndtCadCsv->save();
 
-        \Log::info('NdtCadCsv created', [
-            'ndt_components_count' => count($ndtCadCsv->ndt_components),
-            'cad_components_count' => count($ndtCadCsv->cad_components),
-            'stress_components_count' => count($ndtCadCsv->stress_components),
-            'paint_components_count' => count($ndtCadCsv->paint_components)
-        ]);
-
         return $ndtCadCsv;
     }
 
@@ -355,12 +294,6 @@ class NdtCadCsv extends Model
         $workorder = Workorder::findOrFail($workorderId);
         $manual = $workorder->unit->manuals;
 
-        \Log::info('Loading components from manual for existing NdtCadCsv', [
-            'workorder_id' => $workorderId,
-            'has_manual' => $manual ? true : false,
-            'manual_id' => $manual ? $manual->id : null
-        ]);
-
         if ($manual) {
             $ndtCadCsv->ndt_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
             $ndtCadCsv->cad_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_CAD);
@@ -369,13 +302,6 @@ class NdtCadCsv extends Model
         }
 
         $ndtCadCsv->save();
-
-        \Log::info('NdtCadCsv updated with components', [
-            'ndt_components_count' => count($ndtCadCsv->ndt_components),
-            'cad_components_count' => count($ndtCadCsv->cad_components),
-            'stress_components_count' => count($ndtCadCsv->stress_components),
-            'paint_components_count' => count($ndtCadCsv->paint_components)
-        ]);
 
         return $ndtCadCsv;
     }
@@ -446,11 +372,6 @@ class NdtCadCsv extends Model
                     $components[] = $component;
                 }
             }
-
-            \Log::info("Loaded {$type} components from CSV", [
-                'file' => $csvPath,
-                'count' => count($components),
-            ]);
 
             return $components;
         } catch (\Exception $e) {

@@ -594,7 +594,8 @@
     };
 </script>
 <script src="{{ asset('js/tdrs/forms/ndt-std/chartjs-patcher.js') }}"></script>
-<script src="{{ asset('js/main.js') }}"></script>
+@include('components.session-heartbeat-config')
+<script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 @include('shared.tdr-forms._scripts', ['formType' => 'ndtFormStd', 'formConfig' => $tdrFormConfig])
 
 <!-- Общие модули -->

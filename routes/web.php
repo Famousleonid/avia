@@ -78,6 +78,14 @@ Route::middleware(['auth', 'verified', 'desktop'])->group(function () {
     Route::post('/profile/password', [ProfileController::class, 'changePassword'])->name('profile.password');
 });
 
+Route::middleware(['auth'])->get('/session/heartbeat', function (\Illuminate\Http\Request $request) {
+    return response()->json([
+        'ok' => true,
+        'user_id' => $request->user()?->id,
+        'server_time' => now()->toIso8601String(),
+    ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+})->name('session.heartbeat');
+
 // ----------------------- Mobile route -----------------------------------------------------------------
 Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group(function () {
 
@@ -166,7 +174,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/workorders/{workorder}/logs-json', [WorkorderController::class, 'logsForWorkorder'])->name('workorders.logs-json');
     Route::get('/workorders/check-number', [WorkorderController::class, 'checkNumber'])->name('workorders.checkNumber');
 
-    Route::resource('/users', UserController::class)->middleware('systemAdmin');
+    Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class)->except(['show']);
     Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
     Route::get('/mains/{workorder}/photos', [MainController::class, 'photos'])->name('mains.photos');

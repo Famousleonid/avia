@@ -28,7 +28,8 @@
 <script src="{{asset('assets/jquery/jquery371min.js')}}"></script>
 <script src="{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}"></script>
 <script src="{{asset('assets/select2/js/select2.min.js')}}"></script>
-<script src="{{ asset('js/main.js') }}"></script>
+@include('components.session-heartbeat-config')
+<script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 @yield('scripts')
 </body>
 </html>

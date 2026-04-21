@@ -58,11 +58,6 @@ class ExtraProcessController extends Controller
      */
     public function createProcesses($workorderId, $componentId)
     {
-        \Log::info('ExtraProcess createProcesses method called', [
-            'workorderId' => $workorderId,
-            'componentId' => $componentId
-        ]);
-
         $current_wo = Workorder::findOrFail($workorderId);
         $component = Component::findOrFail($componentId);
         $manual_id = $current_wo->unit->manual_id;
@@ -80,16 +75,6 @@ class ExtraProcessController extends Controller
 
         // Получаем все NDT process names для дополнительного селекта
         $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->orderBy('name')->get();
-
-        \Log::info('ExtraProcess createProcesses data', [
-            'current_wo_id' => $current_wo->id,
-            'component_id' => $component->id,
-            'component_name' => $component->name,
-            'manual_id' => $manual_id,
-            'processNames_count' => $processNames->count(),
-            'processes_count' => $processes->count(),
-            'existingExtraProcess' => $existingExtraProcess ? $existingExtraProcess->id : null
-        ]);
 
         return view('admin.extra_processes.create_processes', compact(
             'current_wo',
@@ -111,15 +96,6 @@ class ExtraProcessController extends Controller
     public function store(Request $request)
     {
         try {
-            // Отладочная информация
-            \Log::info('ExtraProcess store request received', [
-                'headers' => $request->headers->all(),
-                'content_type' => $request->header('Content-Type'),
-                'is_json' => $request->isJson(),
-                'all_data' => $request->all(),
-                'raw_body' => $request->getContent()
-            ]);
-
             // Проверяем, приходят ли данные как JSON
             if ($request->isJson()) {
                 $data = $request->json()->all();
@@ -129,13 +105,6 @@ class ExtraProcessController extends Controller
                 $qty = (int)($data['qty'] ?? 1);
                 $processesData = json_decode($data['processes'], true);
 
-                \Log::info('JSON data parsed', [
-                    'workorderId' => $workorderId,
-                    'componentId' => $componentId,
-                    'qty' => $qty,
-                    'serial_num' => $serial_num,
-                    'processesData' => $processesData
-                ]);
             } else {
                 $workorderId = (int)($request->input('workorder_id'));
                 $componentId = (int)($request->input('component_id'));
@@ -143,13 +112,6 @@ class ExtraProcessController extends Controller
                 $qty = (int)($request->input('qty', 1));
                 $processesData = $request->input('processes');
 
-                \Log::info('Form data parsed', [
-                    'workorderId' => $workorderId,
-                    'componentId' => $componentId,
-                    'qty' => $qty,
-                    'serial_num'=>$serial_num,
-                    'processesData' => $processesData
-                ]);
             }
 
             // Валидация
@@ -257,12 +219,6 @@ class ExtraProcessController extends Controller
                 ], 422);
             }
 
-            \Log::info('Final processes JSON to save', [
-                'workorderId' => $workorderId,
-                'componentId' => $componentId,
-                'processesJson' => $processesJson
-            ]);
-
             // Получаем максимальный sort_order для данного workorder_id и component_id
             $maxSortOrder = ExtraProcess::where('workorder_id', $workorderId)
                 ->where('component_id', $componentId)
@@ -343,21 +299,13 @@ class ExtraProcessController extends Controller
 
             // Проверяем и исправляем структуру существующих данных
             if (!empty($existingProcesses)) {
-                \Log::info('Existing processes structure check', [
-                    'existingProcesses' => $existingProcesses,
-                    'isArray' => is_array($existingProcesses),
-                    'keys' => is_array($existingProcesses) ? array_keys($existingProcesses) : 'not array'
-                ]);
-
                 // Если данные имеют неправильную структуру, исправляем их
                 if (is_array($existingProcesses) && !empty($existingProcesses)) {
                     $firstItem = reset($existingProcesses);
                     if (is_array($firstItem) && isset($firstItem['process_name_id']) && isset($firstItem['process_id'])) {
                         // Данные уже в правильном формате
-                        \Log::info('Existing data is in correct format');
                     } else {
                         // Данные в старом формате, конвертируем в новый
-                        \Log::info('Converting existing data from old format to new format');
                         $convertedProcesses = [];
                         foreach ($existingProcesses as $processNameId => $processId) {
                             if (is_numeric($processNameId) && is_numeric($processId)) {
@@ -373,7 +321,6 @@ class ExtraProcessController extends Controller
 
                         // Обновляем запись с исправленными данными
                         $existingExtraProcess->update(['processes' => $existingProcesses]);
-                        \Log::info('Updated existing data with correct format', ['convertedProcesses' => $convertedProcesses]);
                     }
                 }
             }
@@ -388,25 +335,11 @@ class ExtraProcessController extends Controller
                 }
             }
 
-            \Log::info('Debug storeProcesses data', [
-                'workorderId' => $workorderId,
-                'componentId' => $componentId,
-                'processesData' => $processesData,
-                'existingProcesses' => $existingProcesses,
-                'processesDataType' => gettype($processesData),
-                'processesDataCount' => is_array($processesData) ? count($processesData) : 'not array'
-            ]);
-
             // Создаем финальный массив процессов
             $finalProcesses = $existingProcessesArray;
 
             // Добавляем новые процессы в порядке их выбора
             foreach ($processesData as $index => $processData) {
-                \Log::info("Processing item {$index}", [
-                    'processData' => $processData,
-                    'processDataType' => gettype($processData)
-                ]);
-
                 if (!isset($processData['process_names_id']) || !isset($processData['processes'])) {
                     \Log::warning("Missing required fields in processData", ['processData' => $processData]);
                     continue;
@@ -414,12 +347,6 @@ class ExtraProcessController extends Controller
 
                 $processNameId = $processData['process_names_id'];
                 $processIds = $processData['processes'];
-
-                \Log::info("Extracted values", [
-                    'processNameId' => $processNameId,
-                    'processIds' => $processIds,
-                    'processIdsType' => gettype($processIds)
-                ]);
 
                 // Проверяем, что process_name_id существует
                 $processName = ProcessName::find($processNameId);
@@ -431,11 +358,6 @@ class ExtraProcessController extends Controller
                 // Берем только первый process_id для каждого process_name_id
                 if (!empty($processIds) && is_array($processIds)) {
                     $processId = (int)$processIds[0];
-
-                    \Log::info("Process ID extracted", [
-                        'processId' => $processId,
-                        'processIdType' => gettype($processId)
-                    ]);
 
                     // Проверяем, что process_id существует
                     $process = Process::find($processId);
@@ -468,42 +390,13 @@ class ExtraProcessController extends Controller
                             }
 
                             $finalProcesses[] = $processObject;
-                            \Log::info("Added new process to finalProcesses", [
-                                'processNameId' => $processNameId,
-                                'processId' => $processId,
-                                'hasPlusProcess' => isset($processObject['plus_process_names'])
-                            ]);
                         } else {
-                            \Log::info("Process name already exists, skipping", ['processNameId' => $processNameId]);
                         }
                     } else {
                         \Log::warning("Process not found", ['processId' => $processId]);
                     }
                 }
             }
-
-            \Log::info('Final processes JSON to save', [
-                'workorderId' => $workorderId,
-                'componentId' => $componentId,
-                'finalProcesses' => $finalProcesses
-            ]);
-
-            \Log::info('Processes order tracking', [
-                'originalOrder' => array_map(function($item, $index) {
-                    return [
-                        'order' => $index + 1,
-                        'process_name_id' => $item['process_names_id'],
-                        'process_id' => $item['processes'][0]
-                    ];
-                }, $processesData, array_keys($processesData)),
-                'finalOrder' => array_map(function($process, $index) {
-                    return [
-                        'order' => $index + 1,
-                        'process_name_id' => $process['process_name_id'],
-                        'process_id' => $process['process_id']
-                    ];
-                }, $finalProcesses, array_keys($finalProcesses))
-            ]);
 
             // Обновляем запись с финальными процессами
             $updateData = [
@@ -549,33 +442,17 @@ class ExtraProcessController extends Controller
         $processGroups = [];
         $totalQty = 0;
 
-        \Log::info('Starting process grouping', [
-            'extra_components_count' => $extra_components->count()
-        ]);
-
         foreach ($extra_components as $extra_component) {
             if (!$extra_component->processes || !$extra_component->component) {
-                \Log::info('Skipping component', [
-                    'component_id' => $extra_component->component_id,
-                    'has_processes' => !is_null($extra_component->processes),
-                    'has_component' => !is_null($extra_component->component)
-                ]);
                 continue;
             }
 
             // Суммируем общее количество по всем компонентам
             $totalQty += (int)($extra_component->qty ?? 0);
 
-            \Log::info('Processing component', [
-                'component_id' => $extra_component->component->id,
-                'component_name' => $extra_component->component->name,
-                'processes' => $extra_component->processes
-            ]);
-
             // Проверяем старую и новую структуру данных
             if (is_array($extra_component->processes) && array_keys($extra_component->processes) !== range(0, count($extra_component->processes) - 1)) {
                 // Старая структура: ассоциативный массив
-                \Log::info('Using old structure (associative array)');
                 foreach ($extra_component->processes as $processNameId => $processId) {
                     $processName = ProcessName::find($processNameId);
                     if ($processName) {
@@ -620,17 +497,10 @@ class ExtraProcessController extends Controller
                                 'qty' => (int)($extra_component->qty ?? 0)
                             ];
                         }
-                        \Log::info('Added component to process group', [
-                            'group_key' => $groupKey,
-                            'process_name_id' => $processNameId,
-                            'process_name' => $processName->name,
-                            'component_id' => $extra_component->component->id
-                        ]);
                     }
                 }
             } else {
                 // Новая структура: массив объектов
-                \Log::info('Using new structure (array of objects)');
                 foreach ($extra_component->processes as $processItem) {
                     $processName = ProcessName::find($processItem['process_name_id']);
                     if ($processName) {
@@ -676,12 +546,6 @@ class ExtraProcessController extends Controller
                                 'qty' => (int)($extra_component->qty ?? 0)
                             ];
                         }
-                        \Log::info('Added component to process group', [
-                            'group_key' => $groupKey,
-                            'process_name_id' => $processNameId,
-                            'process_name' => $processName->name,
-                            'component_id' => $extra_component->component->id
-                        ]);
                     }
                 }
             }
@@ -695,35 +559,8 @@ class ExtraProcessController extends Controller
             $group['qty'] = array_sum($componentsQty);
             // Преобразуем массив компонентов в обычный массив для удобства в представлении
             $group['components'] = array_values($group['components']);
-            \Log::info('Process group count', [
-                'process_name_id' => $processNameId,
-                'process_name' => $group['process_name']->name,
-                'unique_components' => $uniqueComponents,
-                'count' => $group['count'],
-                'qty' => $group['qty']
-            ]);
             unset($group['components_qty']); // Удаляем техническое поле
         }
-
-        // Отладочная информация
-        \Log::info('ExtraProcess showAll method - Process Groups Count', [
-            'workorder_id' => $id,
-            'extra_components_count' => $extra_components->count(),
-            'process_groups_count' => count($processGroups),
-            'process_groups' => $processGroups,
-            'extra_components_data' => $extra_components->map(function($item) {
-                return [
-                    'id' => $item->id,
-                    'component_id' => $item->component_id,
-                    'component_relation' => $item->component ? [
-                        'id' => $item->component->id,
-                        'name' => $item->component->name,
-                        'ipl_num' => $item->component->ipl_num
-                    ] : null,
-                    'processes' => $item->processes
-                ];
-            })
-        ]);
 
         // Получаем всех поставщиков
         $vendors = Vendor::all();
@@ -967,15 +804,6 @@ class ExtraProcessController extends Controller
             $groupedComponents = array_values($groupedComponents);
         }
 
-        \Log::info('ExtraProcess showGroupForms groupedComponents before NDT processing', [
-            'count' => count($groupedComponents),
-            'isNdtGroup' => $isNdtGroup,
-            'sample' => !empty($groupedComponents) ? [
-                'component_id' => $groupedComponents[0]['component']->id ?? null,
-                'process_name' => $groupedComponents[0]['process_name']->name ?? null
-            ] : null
-        ]);
-
         // Базовые данные для представления
         $viewData = [
             'current_wo' => $current_wo,
@@ -1036,16 +864,6 @@ class ExtraProcessController extends Controller
 
             // Группируем NDT процессы по компонентам для объединения номеров
             $componentNdtMap = [];
-            \Log::info('ExtraProcess NDT grouping start', [
-                'groupedComponents_count' => count($groupedComponents),
-                'groupedComponents_sample' => !empty($groupedComponents) ? array_map(function($item) {
-                    return [
-                        'component_id' => $item['component']->id ?? null,
-                        'process_name' => $item['process_name']->name ?? null,
-                        'has_process' => isset($item['process'])
-                    ];
-                }, array_slice($groupedComponents, 0, 5)) : []
-            ]);
 
             foreach ($groupedComponents as $index => $item) {
                 if (!isset($item['component']) || !$item['component']) {
@@ -1065,36 +883,18 @@ class ExtraProcessController extends Controller
                         'processes' => [],
                         'process_names' => []
                     ];
-                    \Log::info('ExtraProcess NDT: new component added to map', [
-                        'component_id' => $componentId
-                    ]);
                 }
 
                 // Добавляем номер NDT процесса
                 if (isset($item['process_name']) && $item['process_name'] && isset($item['process']) && $item['process']) {
                     $ndtNumber = $getNdtNumber($item['process_name']);
-                    \Log::info('ExtraProcess NDT number extracted', [
-                        'component_id' => $componentId,
-                        'process_name' => $item['process_name']->name,
-                        'ndt_number' => $ndtNumber,
-                        'existing_numbers' => $componentNdtMap[$componentId]['ndt_numbers']
-                    ]);
 
                     // Добавляем номер, если его еще нет (используем строгое сравнение)
                     if (!in_array($ndtNumber, $componentNdtMap[$componentId]['ndt_numbers'], true)) {
                         $componentNdtMap[$componentId]['ndt_numbers'][] = $ndtNumber;
                         $componentNdtMap[$componentId]['processes'][] = $item['process'];
                         $componentNdtMap[$componentId]['process_names'][] = $item['process_name'];
-                        \Log::info('ExtraProcess NDT number added', [
-                            'component_id' => $componentId,
-                            'ndt_number' => $ndtNumber,
-                            'all_numbers' => $componentNdtMap[$componentId]['ndt_numbers']
-                        ]);
                     } else {
-                        \Log::info('ExtraProcess NDT number already exists, skipping', [
-                            'component_id' => $componentId,
-                            'ndt_number' => $ndtNumber
-                        ]);
                     }
                 } else {
                     \Log::warning('ExtraProcess NDT: item missing process_name or process', [
@@ -1104,16 +904,6 @@ class ExtraProcessController extends Controller
                     ]);
                 }
             }
-
-            \Log::info('ExtraProcess NDT grouping complete', [
-                'componentNdtMap_count' => count($componentNdtMap),
-                'componentNdtMap' => array_map(function($item) {
-                    return [
-                        'component_id' => $item['component']->id,
-                        'ndt_numbers' => $item['ndt_numbers']
-                    ];
-                }, $componentNdtMap)
-            ]);
 
             // Преобразуем карту в массив tableData с объединенными номерами
             $tableData = [];
@@ -1134,12 +924,6 @@ class ExtraProcessController extends Controller
                 // Объединяем номера через " / "
                 $combinedNdtNumber = implode(' / ', $ndtNumbers);
 
-                \Log::info('ExtraProcess NDT: creating tableData entry', [
-                    'component_id' => $componentId,
-                    'ndt_numbers' => $ndtNumbers,
-                    'combined_ndt_number' => $combinedNdtNumber
-                ]);
-
                 // Используем первый процесс для совместимости с шаблоном
                 $firstProcess = !empty($componentData['processes']) ? $componentData['processes'][0] : null;
                 $firstProcessName = !empty($componentData['process_names']) ? $componentData['process_names'][0] : null;
@@ -1153,16 +937,6 @@ class ExtraProcessController extends Controller
                     'process_name' => $firstProcessName
                 ];
             }
-
-            \Log::info('ExtraProcess NDT: final tableData', [
-                'count' => count($tableData),
-                'entries' => array_map(function($item) {
-                    return [
-                        'component_id' => $item['component']->id ?? null,
-                        'combined_ndt_number' => $item['combined_ndt_number'] ?? 'NOT SET'
-                    ];
-                }, $tableData)
-            ]);
 
             // Собираем все уникальные номера manual из компонентов
             $manualNumbers = [];
@@ -1179,16 +953,6 @@ class ExtraProcessController extends Controller
             // Обновляем table_data в viewData - ВАЖНО: перезаписываем groupedComponents на tableData с объединенными номерами
             $viewData['table_data'] = $tableData;
 
-            // Отладочная информация (можно удалить после проверки)
-            \Log::info('ExtraProcess NDT tableData', [
-                'count' => count($tableData),
-                'sample' => !empty($tableData) ? [
-                    'component_id' => $tableData[0]['component']->id ?? null,
-                    'combined_ndt_number' => $tableData[0]['combined_ndt_number'] ?? null,
-                    'ndt_numbers_count' => count($componentNdtMap[$tableData[0]['component']->id]['ndt_numbers'] ?? [])
-                ] : null
-            ]);
-
             // Явно устанавливаем table_data с объединенными номерами
             $finalViewData = array_merge($viewData, [
                 'ndt_processes' => $ndt_processes,
@@ -1198,15 +962,6 @@ class ExtraProcessController extends Controller
 
             // ВАЖНО: Перезаписываем table_data на tableData с объединенными номерами
             $finalViewData['table_data'] = $tableData;
-
-            \Log::info('ExtraProcess NDT: final viewData', [
-                'table_data_count' => count($finalViewData['table_data'] ?? []),
-                'has_table_data' => isset($finalViewData['table_data']),
-                'first_entry' => !empty($finalViewData['table_data']) ? [
-                    'component_id' => $finalViewData['table_data'][0]['component']->id ?? null,
-                    'combined_ndt_number' => $finalViewData['table_data'][0]['combined_ndt_number'] ?? 'NOT SET'
-                ] : null
-            ]);
 
             return view('admin.extra_processes.processesForm', $finalViewData);
         }
@@ -2042,12 +1797,6 @@ class ExtraProcessController extends Controller
                     // Обновляем запись с переупорядоченными процессами
                     $extraProcess->update([
                         'processes' => $reorderedProcesses
-                    ]);
-
-                    \Log::info('ExtraProcess processes order updated', [
-                        'id' => $extraProcessId,
-                        'old_count' => count($currentProcesses),
-                        'new_count' => count($reorderedProcesses)
                     ]);
                 }
             });

@@ -135,10 +135,7 @@ class AiAgentController extends Controller
 
     protected function randomOpenAiUnavailableMessage(): string
     {
-        $nick = trim((string) config('services.openai.agent_nickname', 'Aviosha'));
-        if ($nick === '') {
-            $nick = 'Assistant';
-        }
+        $nick = $this->latinAssistantName((string) config('services.openai.agent_nickname', 'Avi'));
 
         $lines = config('services.openai.unavailable_messages');
         if (! is_array($lines) || $lines === []) {
@@ -148,6 +145,19 @@ class AiAgentController extends Controller
         $line = $lines[array_rand($lines)];
 
         return sprintf($line, $nick);
+    }
+
+    protected function latinAssistantName(string $name): string
+    {
+        $name = trim($name);
+        if ($name === '' || preg_match('/\p{Cyrillic}/u', $name)) {
+            return 'Avi';
+        }
+
+        $name = preg_replace('/[^A-Za-z0-9 ._-]/', '', $name) ?? '';
+        $name = trim($name);
+
+        return $name !== '' ? $name : 'Avi';
     }
 
     public function reset(Request $request): JsonResponse

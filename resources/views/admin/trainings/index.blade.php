@@ -8,7 +8,6 @@
             .table th:nth-child(5), .table td:nth-child(5) {
                 display: none;
             }
-        }
 
         @media (max-width: 770px) {
             .table th:nth-child(2), .table td:nth-child(2),
@@ -89,7 +88,7 @@
             <div class="card-header">
                 <div class="d-flex justify-content-between flex-wrap align-items-center gap-2">
                     <div class="d-flex align-items-center gap-3 flex-wrap">
-                        <h3 class="mb-0">{{ __('Trainings') }}</h3>
+                        <h5 class="mb-0">{{ __('Trainings') }}</h5>
 
                         @roles("Admin|Manager")
                         @if($canViewAllUsers && $users->isNotEmpty())
@@ -164,7 +163,7 @@
 
                     <tbody>
                     @foreach($formattedTrainingLists as $trainingList)
-                        <tr>
+                        <tr data-is-due="{{ $trainingList['is_due_for_update'] ? '1' : '0' }}">
                             <td class="text-center">
                                 <button type="button"
                                         class="btn btn-link p-0 m-0 align-baseline text-decoration-none training-modal-link"
@@ -183,14 +182,14 @@
                             </td>
 
                             <td class="text-center"
-                                @if(isset($trainingList['last_training']) && Carbon::parse($trainingList['last_training']->date_training)->diffInDays(Carbon::now()) > 340)
+                                @if($trainingList['is_due_for_update'])
                                     style="color: red"
                                 @endif>
-                                {{ isset($trainingList['last_training']) ? Carbon::parse($trainingList['last_training']->date_training)->format('M-d-Y') : 'N/A' }}
+                                {{ $trainingList['last_training_112'] ? Carbon::parse($trainingList['last_training_112']->date_training)->format('M-d-Y') : 'N/A' }}
                             </td>
 
                             <td class="text-center">
-                                @if(isset($trainingList['first_training']) && $trainingList['first_training']->form_type == 132)
+                                @if($trainingList['form_132'])
                                     <label>OK</label>
                                 @else
                                     <label>No</label>
@@ -199,24 +198,12 @@
 
                             <td class="text-center">
                                 <div class="actions-cell d-inline-flex align-items-center justify-content-center gap-2 flex-nowrap">
-                                    <span data-tippy-content="{{ __('Update') }}">
-                                        <button class="btn btn-success btn-sm d-inline-flex align-items-center gap-1 update-training-btn"
-                                                data-manuals-id="{{ $trainingList['first_training']->manuals_id }}"
-                                                data-date-training="{{ $trainingList['last_training']->date_training ?? $trainingList['first_training']->date_training }}"
-                                                data-manuals-title="{{ $trainingList['first_training']->manual->title ?? 'N/A' }}"
-                                                @if(isset($trainingList['last_training']) && Carbon::parse($trainingList['last_training']->date_training)->diffInDays(Carbon::now()) < 340)
-                                                    disabled
-                                                @endif>
-                                            <i class="bi bi-check-circle"></i>
-                                        </button>
-                                    </span>
-
                                     <button class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1"
                                             data-bs-toggle="modal"
                                             data-bs-target="#trainingModal{{ $trainingList['first_training']->manuals_id }}"
-                                            data-tippy-content="{{ __('View Training Reports') }}"
+                                            data-tippy-content="{{ __('Update') }}"
                                             data-tippy-placement="top">
-                                        <i class="bi bi-journal-text"></i>
+                                        <i class="bi bi-arrow-repeat"></i>
                                     </button>
 
                                     <button class="btn btn-warning btn-sm d-inline-flex align-items-center gap-1"
@@ -250,7 +237,7 @@
     {{-- Все модалки вынесены из <tr> / <table> --}}
     @foreach($formattedTrainingLists as $trainingList)
 
-        <!-- Modal: Training history -->
+        <!-- Modal: Update training -->
         <div class="modal fade"
              id="trainingModal{{ $trainingList['first_training']->manuals_id }}"
              tabindex="-1"
@@ -261,7 +248,7 @@
                     <div class="modal-header justify-content-between">
                         <h5 class="modal-title"
                             id="trainingModalLabel{{ $trainingList['first_training']->manuals_id }}">
-                            Training for {{ $trainingList['first_training']->manual->title }}
+                            {{ __('Update training') }}: {{ $trainingList['first_training']->manual->title }}
                             <br>
                             PN {{ $trainingList['first_training']->manual->unit_name_training }}
                         </h5>
@@ -269,6 +256,11 @@
                     </div>
 
                     <div class="modal-body">
+                        <p class="text-muted small mb-3">
+                            {{ __('Last Form 112') }}:
+                            {{ $trainingList['last_training_112'] ? Carbon::parse($trainingList['last_training_112']->date_training)->format('M-d-Y') : __('No Form 112 yet') }}
+                        </p>
+
                         @foreach($trainingList['trainings'] as $training)
                             <div class="form-group">
                                 <div class="row d-flex">
@@ -299,6 +291,35 @@
                                 </div>
                             </div>
                         @endforeach
+
+                        <hr class="my-3">
+
+                        <div class="row mb-2 align-items-center add-training-row"
+                             data-manuals-id="{{ $trainingList['first_training']->manuals_id }}">
+                            <div class="col-auto">
+                                <span class="text-muted">{{ __('Add training') }}</span>
+                            </div>
+
+                            <div class="col">
+                                <input type="date"
+                                       class="form-control form-control-sm add-training-date-input"
+                                       @disabled(!$trainingList['is_due_for_update'])>
+                            </div>
+
+                            <div class="col-auto">
+                                <button type="button"
+                                        class="btn btn-outline-success btn-sm add-training-in-edit-btn"
+                                        @disabled(!$trainingList['is_due_for_update'])>
+                                    <i class="bi bi-plus-lg"></i> {{ __('Add') }}
+                                </button>
+                            </div>
+                        </div>
+
+                        @if(!$trainingList['is_due_for_update'])
+                            <p class="text-muted small mb-0">
+                                {{ __('Update becomes available after :days days since the last Form 112.', ['days' => $renewalThresholdDays]) }}
+                            </p>
+                        @endif
                     </div>
 
                     <div class="modal-footer">
@@ -349,9 +370,16 @@
                                 </div>
 
                                 <div class="col">
-                                    <input type="date"
-                                           class="form-control form-control-sm edit-training-date-input"
-                                           value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
+                                    @if((string) $training->form_type === '132')
+                                        <input type="date"
+                                               class="form-control form-control-sm"
+                                               value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}"
+                                               disabled>
+                                    @else
+                                        <input type="date"
+                                               class="form-control form-control-sm edit-training-date-input"
+                                               value="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
+                                    @endif
                                 </div>
 
                                 <div class="col-auto">
@@ -500,108 +528,14 @@
         </div>
     </div>
 
-    <!-- Modal: Update training -->
-    <div class="modal fade" id="updateTrainingModal" tabindex="-1" aria-labelledby="updateTrainingModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="updateTrainingModalLabel">{{ __('Update training') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-
-                <div class="modal-body">
-                    <p class="text-muted small mb-2" id="updateTrainingModalSubtitle"></p>
-                    <label class="form-label">{{ __('Training date') }}</label>
-                    <input type="date" id="updateTrainingDateInput" class="form-control">
-                </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        {{ __('Cancel') }}
-                    </button>
-                    <button type="button" class="btn btn-primary" id="updateTrainingConfirmBtn">
-                        {{ __('Add training') }}
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
         const selectedUserId = {{ $selectedUserId }};
         const authUserId = {{ auth()->id() }};
         const canEditOtherUser = {{ $canViewAllUsers ? 'true' : 'false' }};
+        /*
 
-        function handleUpdateTraining(manualsId, dateTraining, manualsTitle) {
-            document.getElementById('updateTrainingModalLabel').textContent =
-                '{{ __("Update training") }}: ' + manualsTitle;
-
-            document.getElementById('updateTrainingModalSubtitle').textContent = '';
-
-            const inputEl = document.getElementById('updateTrainingDateInput');
-            const today = new Date();
-
-            inputEl.value =
-                today.getFullYear() + '-' +
-                String(today.getMonth() + 1).padStart(2, '0') + '-' +
-                String(today.getDate()).padStart(2, '0');
-
-            const modal = new bootstrap.Modal(document.getElementById('updateTrainingModal'));
-            modal.show();
-
-            document.getElementById('updateTrainingConfirmBtn').onclick = function () {
-                const dateYmd = inputEl.value;
-
-                if (!dateYmd) {
-                    showNotification('{{ __("Please select a date.") }}', 'warning');
-                    return;
-                }
-
-                const trainingData = {
-                    manuals_id: [manualsId],
-                    date_training: [dateYmd],
-                    form_type: ['112']
-                };
-
-                if (canEditOtherUser && selectedUserId !== authUserId) {
-                    trainingData.user_id = selectedUserId;
-                }
-
-                fetch('{{ route('trainings.createTraining') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify(trainingData)
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            let message = '{{ __("Training added.") }}';
-
-                            if (data.created !== undefined && data.created > 0) {
-                                message = '{{ __("Created") }}: ' + data.created;
-                            }
-
-                            if (data.skipped > 0) {
-                                message += ' ({{ __("already exists") }})';
-                            }
-
-                            showNotification(message, 'success');
-                            modal.hide();
-                            location.reload();
-                        } else {
-                            showNotification('{{ __("Error") }}: ' + (data.message || ''), 'error');
-                        }
-                    })
-                    .catch(error => {
                         console.error('Ошибка:', error);
-                        showNotification('{{ __("An error occurred") }}: ' + error.message, 'error');
-                    });
-            };
-        }
-
+        */
         function getWeekNumber(d) {
             const oneJan = new Date(d.getFullYear(), 0, 1);
             const numberOfDays = Math.floor((d - oneJan) / (24 * 60 * 60 * 1000));
@@ -647,17 +581,6 @@
             }
 
             // Обработчик Update
-            document.querySelectorAll('.update-training-btn').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    if (this.disabled) return;
-
-                    const manualsId = this.getAttribute('data-manuals-id');
-                    const dateTraining = this.getAttribute('data-date-training');
-                    const manualsTitle = this.getAttribute('data-manuals-title');
-
-                    handleUpdateTraining(manualsId, dateTraining, manualsTitle);
-                });
-            });
 
             const baseUrl = '{{ url("trainings") }}';
             const csrfToken = '{{ csrf_token() }}';
@@ -859,18 +782,8 @@
                     const isChecked = this.checked;
 
                     Array.from(trainingsTableBody.rows).forEach(function (row) {
-                        const lastTrainingDateCell = row.cells[3];
-                        if (!lastTrainingDateCell) return;
-
                         if (isChecked) {
-                            const lastTrainingDate = new Date(lastTrainingDateCell.textContent.trim());
-                            const daysDiff = Math.floor((new Date() - lastTrainingDate) / (1000 * 60 * 60 * 24));
-
-                            if (daysDiff <= 340) {
-                                row.style.display = 'none';
-                            } else {
-                                row.style.display = '';
-                            }
+                            row.style.display = row.dataset.isDue === '1' ? '' : 'none';
                         } else {
                             row.style.display = '';
                         }

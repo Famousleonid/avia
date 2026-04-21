@@ -16,7 +16,6 @@ class UserController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('systemAdmin');
         $this->middleware('can:users.viewAny')->only('index');
         $this->middleware('can:users.view')->only('show');
         $this->middleware('can:users.create')->only(['create', 'store']);
@@ -108,6 +107,7 @@ class UserController extends Controller
     public function edit(User $user)
     {
         $auth = auth()->user();
+        abort_unless($auth?->isSystemAdmin() || (int) $auth?->id === (int) $user->id, 403);
 
         $teams = Team::all();
         $roles = Role::all();
@@ -119,6 +119,7 @@ class UserController extends Controller
     {
         $auth = auth()->user();
         $user = User::findOrFail($id);
+        abort_unless($auth?->isSystemAdmin() || (int) $auth?->id === (int) $user->id, 403);
 
         $isAdmin = $auth->isSystemAdmin();
 

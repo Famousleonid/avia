@@ -198,6 +198,150 @@
 
 
 // =====================================================
+// SESSION EXPIRY TRACKER + SERVER CHECK
+// =====================================================
+(function () {
+    if (window.__sessionHeartbeatBound) return;
+    window.__sessionHeartbeatBound = true;
+
+    const config = window.appSessionConfig || {};
+    if (!config.enabled || typeof window.fetch !== 'function') return;
+
+    const heartbeatUrl = config.heartbeatUrl || '/session/heartbeat';
+    const loginUrl = config.loginUrl || '/login';
+    const lifetimeMinutes = Math.max(1, Number(config.lifetimeMinutes || 120));
+    const lifetimeMs = lifetimeMinutes * 60 * 1000;
+    const graceMs = 1500;
+
+    let redirecting = false;
+    let expiryTimer = null;
+    let expiryCheckInFlight = false;
+    let expectedExpiryAt = Date.now() + lifetimeMs;
+
+    function isSessionExpiredResponse(response) {
+        return !!response && (response.status === 401 || response.status === 419);
+    }
+
+    function buildRequestUrl(input) {
+        if (typeof input === 'string') return input;
+        if (input && typeof input.url === 'string') return input.url;
+        return '';
+    }
+
+    function isHeartbeatRequest(input) {
+        const url = buildRequestUrl(input);
+        return !!url && url.indexOf(heartbeatUrl) !== -1;
+    }
+
+    function redirectToLogin(reason) {
+        if (redirecting) return;
+        redirecting = true;
+
+        try {
+            if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+        } catch (e) { /* ignore */ }
+
+        if (typeof window.showNotification === 'function') {
+            const message = reason === 'expired'
+                ? 'Session expired. Redirecting to login...'
+                : 'Authentication required. Redirecting to login...';
+            try { window.showNotification(message, 'warning', 2500); } catch (e) { /* ignore */ }
+        }
+
+        const target = window.location.href || loginUrl;
+        window.setTimeout(() => {
+            const nextUrl = loginUrl + (loginUrl.indexOf('?') === -1 ? '?' : '&') + 'next=' + encodeURIComponent(target);
+            window.location.assign(nextUrl);
+        }, 150);
+    }
+
+    function scheduleExpiryCheck() {
+        if (expiryTimer) {
+            window.clearTimeout(expiryTimer);
+            expiryTimer = null;
+        }
+
+        const delay = Math.max(0, expectedExpiryAt - Date.now() + graceMs);
+        expiryTimer = window.setTimeout(runExpiryCheck, delay);
+    }
+
+    function bumpExpectedExpiry() {
+        expectedExpiryAt = Date.now() + lifetimeMs;
+        scheduleExpiryCheck();
+    }
+
+    function runExpiryCheck() {
+        if (redirecting || expiryCheckInFlight) return;
+
+        // If the page came back into activity and expiry moved, just reschedule.
+        if (Date.now() + 250 < expectedExpiryAt) {
+            scheduleExpiryCheck();
+            return;
+        }
+
+        expiryCheckInFlight = true;
+
+        window.fetch(heartbeatUrl, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            cache: 'no-store',
+            ignoreSessionExpiry: true,
+        })
+            .then((response) => {
+                if (isSessionExpiredResponse(response)) {
+                    redirectToLogin(response.status === 419 ? 'expired' : 'unauthenticated');
+                    return;
+                }
+
+                // Session is still alive, likely because another request refreshed it.
+                bumpExpectedExpiry();
+            })
+            .catch(() => {
+                // Network glitch: try again a bit later without forcing logout.
+                expectedExpiryAt = Date.now() + 30000;
+                scheduleExpiryCheck();
+            })
+            .finally(() => {
+                expiryCheckInFlight = false;
+            });
+    }
+
+    window.handleExpiredSession = redirectToLogin;
+
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = function (input, init = {}) {
+        return originalFetch(input, init).then((response) => {
+            const ignoreSessionExpiry = !!(init && init.ignoreSessionExpiry);
+            const heartbeatRequest = isHeartbeatRequest(input);
+
+            if (!ignoreSessionExpiry && !heartbeatRequest && isSessionExpiredResponse(response)) {
+                redirectToLogin(response.status === 419 ? 'expired' : 'unauthenticated');
+                return response;
+            }
+
+            if (!heartbeatRequest && response && response.ok) {
+                bumpExpectedExpiry();
+            }
+
+            return response;
+        });
+    };
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible' && Date.now() >= expectedExpiryAt) {
+            runExpiryCheck();
+        }
+    });
+
+    scheduleExpiryCheck();
+})();
+
+
+// =====================================================
 // NOTIFICATIONS
 // =====================================================
 

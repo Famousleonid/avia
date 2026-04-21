@@ -39,21 +39,32 @@ class TrainingController extends Controller
         $planes = Plane::pluck('type', 'id');
         $builders = Builder::pluck('name', 'id');
         $scopes = Scope::pluck('scope', 'id');
+        $renewalThresholdDays = (int) config('trainings.renewal_threshold_days', 340);
 
         foreach ($trainingLists as $manualId => $trainings) {
-            // Сортируем тренировки по дате
             $sortedTrainings = $trainings->sortBy('date_training');
-
-            // Получаем самую раннюю и самую позднюю даты
             $firstTraining = $sortedTrainings->first();
-            $lastTraining = $sortedTrainings->last();
+            $form132 = $sortedTrainings->firstWhere('form_type', '132')
+                ?? $sortedTrainings->firstWhere('form_type', 132);
+            $trainings112 = $sortedTrainings->filter(function ($training) {
+                return (string) $training->form_type === '112';
+            })->values();
+            $lastTraining112 = $trainings112->last();
+            $daysSinceLastTraining112 = $lastTraining112
+                ? \Carbon\Carbon::parse($lastTraining112->date_training)->diffInDays(\Carbon\Carbon::now())
+                : null;
+            $isDueForUpdate = $lastTraining112
+                ? $daysSinceLastTraining112 >= $renewalThresholdDays
+                : true;
 
-            // Добавляем данные в массив
             $formattedTrainingLists[] = [
                 'manuals_id' => $manualId,
                 'first_training' => $firstTraining,
-                'last_training' => $lastTraining,
-                'trainings' => $sortedTrainings, // Добавляем все тренировки в группу
+                'form_132' => $form132,
+                'last_training_112' => $lastTraining112,
+                'days_since_last_training_112' => $daysSinceLastTraining112,
+                'is_due_for_update' => $isDueForUpdate,
+                'trainings' => $sortedTrainings,
             ];
         }
 
@@ -80,7 +91,8 @@ class TrainingController extends Controller
             'scopes',
             'users',
             'selectedUserId',
-            'canViewAllUsers'
+            'canViewAllUsers',
+            'renewalThresholdDays'
         ));
     }
 
@@ -488,6 +500,13 @@ class TrainingController extends Controller
 
         if (!$canEdit) {
             return response()->json(['success' => false, 'message' => __('Unauthorized')], 403);
+        }
+
+        if ((string) $training->form_type === '132') {
+            return response()->json([
+                'success' => false,
+                'message' => __('Form 132 cannot be edited.'),
+            ], 422);
         }
 
         $validated = $request->validate([

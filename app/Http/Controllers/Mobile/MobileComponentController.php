@@ -11,7 +11,6 @@ use App\Models\Necessary;
 use App\Models\Tdr;
 use App\Models\Workorder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class MobileComponentController extends Controller
 {
@@ -115,8 +114,6 @@ class MobileComponentController extends Controller
 
     public function quickStore(Request $request)
     {
-
-        Log::info('quickStore request', $request->all());
 
         $validated = $request->validate([
             'workorder_id' => ['required', 'exists:workorders,id'],

@@ -16,7 +16,6 @@ use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class ManualController extends Controller
 {
@@ -142,12 +141,6 @@ class ManualController extends Controller
 
             // Если есть юниты, добавляем их
             if ($request->has('units') && is_array($request->units)) {
-                \Log::info('Creating units for new manual', [
-                    'manual_id' => $manual->id,
-                    'request_units' => $request->units,
-                    'request_eff_codes' => $request->eff_codes
-                ]);
-
                 foreach ($request->units as $index => $partNumber) {
                     // Пропускаем пустые значения
                     if (empty(trim($partNumber))) {
@@ -162,11 +155,6 @@ class ManualController extends Controller
                         'verified' => 1,
                     ]);
 
-                    \Log::info('Created new unit', [
-                        'unit_id' => $newUnit->id,
-                        'part_number' => $partNumber,
-                        'eff_code' => $effCode
-                    ]);
                 }
             }
         });
@@ -348,13 +336,6 @@ class ManualController extends Controller
             $existingUnits = $cmm->units()->pluck('id')->toArray();
             $newUnits = [];
 
-            \Log::info('Updating units for manual', [
-                'manual_id' => $cmm->id,
-                'existing_units' => $existingUnits,
-                'request_units' => $request->units,
-                'request_eff_codes' => $request->eff_codes
-            ]);
-
             // Обрабатываем каждый unit
             foreach ($request->units as $index => $partNumber) {
                 // Пропускаем пустые значения
@@ -372,11 +353,6 @@ class ManualController extends Controller
                         'eff_code' => $effCode,
                     ]);
                     $newUnits[] = $existingUnit->id;
-                    \Log::info('Updated existing unit', [
-                        'unit_id' => $existingUnit->id,
-                        'part_number' => $partNumber,
-                        'eff_code' => $effCode
-                    ]);
                 } else {
                     // Создаем новый unit
                     $newUnit = $cmm->units()->create([

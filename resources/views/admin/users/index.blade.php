@@ -191,7 +191,7 @@
                                 @else
                                     {{-- Others: can edit only themselves, no delete --}}
                                     @if(auth()->id() === $user->id)
-                                        <a href="{{ route('users.edit', ['user' => $user->id]) }}"
+                                        <a href="{{ route('profile.edit') }}"
                                            class="btn btn-outline-primary btn-sm">
                                             <i class="bi bi-pencil-square"></i>
                                         </a>

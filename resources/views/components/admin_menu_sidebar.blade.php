@@ -101,7 +101,10 @@
 
 
     {{--------------------------------------------------------------}}
-    @role("Admin")
+    @hasanyrole("Admin|Manager")
+    @php
+        $libraryAdmin = auth()->user()->roleIs('Admin');
+    @endphp
     <li class="nav-item">
         <button class="nav-link w-100 d-flex align-items-center flex-nowrap text-start"
                 type="button"
@@ -119,6 +122,7 @@
 
         <ul class="list-unstyled collapse ms-4" id="menu-lib">
 
+            @if($libraryAdmin)
             <li class="nav-item press-spinner">
                 <a href="{{route('general-tasks.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>General Tasks</span></a>
             </li>
@@ -130,6 +134,7 @@
             <li class="nav-item press-spinner">
                 <a href="{{route('roles.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Roles</span></a>
             </li>
+            @endif
 
             <li class="nav-item press-spinner">
                 <a href="{{route('teams.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Teams</span></a>
@@ -147,9 +152,11 @@
                 <a href="{{route('codes.index')}}" class="nav-link"><i class="bi bi-dot"></i> <span>Codes</span></a>
             </li>
 
+            @if($libraryAdmin)
             <li class="nav-item press-spinner">
                 <a href="{{route('process_names.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Process Names</span></a>
             </li>
+            @endif
 
             <li class="nav-item press-spinner">
                 <a href="{{route('scopes.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Scopes</span></a>
@@ -159,6 +166,7 @@
                 <a href="{{route('planes.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Planes</span></a>
             </li>
 
+            @if($libraryAdmin)
             <li class="nav-item press-spinner">
                 <a href="{{route('instructions.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Instructions</span></a>
             </li>
@@ -166,13 +174,14 @@
             <li class="nav-item press-spinner">
                 <a href="{{route('necessaries.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Necessaries</span></a>
             </li>
+            @endif
 
         </ul>
     </li>
 
     {{--------------------------------------------------------------}}
 
-    @endrole
+    @endhasanyrole
 
     @php
         $showManualsMenu = auth()->user()->roleIs('Admin')

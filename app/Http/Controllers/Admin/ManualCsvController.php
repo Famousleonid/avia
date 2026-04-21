@@ -55,12 +55,6 @@ class ManualCsvController extends Controller
             ->withCustomProperties(['process_type' => $processType])
             ->toMediaCollection('csv_files');
 
-        \Log::info('CSV file uploaded to manual', [
-            'manual_id' => $manual->id,
-            'file_name' => $fileName,
-            'process_type' => $processType
-        ]);
-
         return redirect()->back()->with('success', 'CSV file uploaded successfully' . ($processType ? ' (type: ' . strtoupper($processType) . ')' : ''));
     }
 
