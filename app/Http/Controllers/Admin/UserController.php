@@ -48,11 +48,14 @@ class UserController extends Controller
             'email' => ['required', 'string', 'email', 'max:155', 'unique:users,email'],
             'password' => ['required', 'string', 'min:' . config('security.user_password_min')],
             'birthday' => ['nullable', 'date', 'before:today'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'stamp' => ['nullable', 'string', 'max:255'],
             'role_id' => ['nullable', 'integer', 'exists:roles,id'],
             'team_id' => ['nullable', 'integer', 'exists:teams,id'],
         ]);
 
         $data = $validated;
+        $data['phone'] = $this->removeSpace($validated['phone'] ?? null);
 
         $data['password'] = Hash::make($validated['password']);
 

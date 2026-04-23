@@ -94,7 +94,7 @@ class UnitController extends Controller
                     'eff_code'    => $data['eff_code'] ?? null,
                     'name'        => $data['name'] ?? null,
                     'description' => $data['description'] ?? null,
-                    'verified'    => false,
+                    'verified'    => true,
                 ]);
 
                 // Отдаём то, что ожидает фронт при добавлении опции в селект
@@ -117,7 +117,7 @@ class UnitController extends Controller
                     Rule::unique('units', 'part_number')
                         ->where(fn($q) => $q->where('manual_id', $request->input('cmm_id'))),
                 ],
-                'units.*.eff_code'    => 'nullable|string|max:255',
+                'units.*.name'        => 'nullable|string|max:255',
             ]);
 
             $createdUnits = [];
@@ -125,8 +125,9 @@ class UnitController extends Controller
                 $createdUnits[] = Unit::create([
                     'part_number' => $unitData['part_number'],
                     'manual_id'   => $validated['cmm_id'],
-                    'eff_code'    => $unitData['eff_code'] ?? null,
-                    'verified'    => false,
+                    'name'        => $unitData['name'] ?? null,
+                    'eff_code'    => null,
+                    'verified'    => true,
                 ]);
             }
 
@@ -215,8 +216,9 @@ class UnitController extends Controller
                 $result = Unit::updateOrCreate(
                     ['manual_id' => $manualId, 'part_number' => $unit['part_number']],
                     [
+                        'name' => $unit['name'] ?? null,
                         'verified' => $unit['verified'],
-                        'eff_code' => $unit['eff_code'] ?? null
+                        'eff_code' => null,
                     ]
                 );
             }
@@ -283,11 +285,13 @@ class UnitController extends Controller
                     ->where(fn($q) => $q->where('manual_id', $unit->manual_id))
                     ->ignore($unit->id),
             ],
-            'eff_code'    => 'nullable|string|max:255',
+            'name'        => 'nullable|string|max:255',
             'verified'    => 'required|boolean',
         ], [
             'part_number.unique' => 'Part number already exists in this CMM (manual).',
         ]);
+
+        $data['eff_code'] = null;
 
         $unit->update($data);
 
@@ -295,7 +299,7 @@ class UnitController extends Controller
             'success' => true,
             'id' => $unit->id,
             'part_number' => $unit->part_number,
-            'eff_code' => $unit->eff_code,
+            'name' => $unit->name,
             'verified' => $unit->verified,
         ]);
     }

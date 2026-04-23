@@ -100,8 +100,8 @@ class ManualController extends Controller
             'lib' => 'required',
             'units' => 'nullable|array',
             'units.*' => 'required|string|max:255',
-            'eff_codes' => 'nullable|array',
-            'eff_codes.*' => 'nullable|string|max:255',
+            'unit_names' => 'nullable|array',
+            'unit_names.*' => 'nullable|string|max:255',
             'csv_files' => 'nullable|array',
             'csv_files.*' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
             'csv_process_types' => 'nullable|array',
@@ -147,10 +147,11 @@ class ManualController extends Controller
                         continue;
                     }
 
-                    $effCode = $request->eff_codes[$index] ?? '';
+                    $unitName = $request->unit_names[$index] ?? $manual->title;
                     $newUnit = $manual->units()->create([
                         'part_number' => $partNumber,
-                        'eff_code' => $effCode,
+                        'name' => $unitName,
+                        'eff_code' => null,
                         'manual_id' => $manual->id,
                         'verified' => 1,
                     ]);
@@ -304,8 +305,8 @@ class ManualController extends Controller
             'lib' => 'required',
             'units' => 'nullable|array',
             'units.*' => 'required|string|max:255',
-            'eff_codes' => 'nullable|array',
-            'eff_codes.*' => 'nullable|string|max:255',
+            'unit_names' => 'nullable|array',
+            'unit_names.*' => 'nullable|string|max:255',
             'permitted_user_ids' => 'nullable|array',
             'permitted_user_ids.*' => 'integer|exists:users,id',
             // CSV файлы теперь загружаются только через AJAX
@@ -343,21 +344,25 @@ class ManualController extends Controller
                     continue;
                 }
 
-                $effCode = $request->eff_codes[$index] ?? '';
-
                 // Если у нас есть существующий unit с таким же part_number, обновляем его
                 $existingUnit = $cmm->units()->where('part_number', $partNumber)->first();
 
                 if ($existingUnit) {
+                    $unitName = $request->unit_names[$index] ?? $existingUnit->name ?? $cmm->title;
+                    $unitName = trim((string) $unitName) !== '' ? $unitName : ($existingUnit->name ?? $cmm->title);
                     $existingUnit->update([
-                        'eff_code' => $effCode,
+                        'name' => $unitName,
+                        'eff_code' => null,
                     ]);
                     $newUnits[] = $existingUnit->id;
                 } else {
+                    $unitName = $request->unit_names[$index] ?? $cmm->title;
+                    $unitName = trim((string) $unitName) !== '' ? $unitName : $cmm->title;
                     // Создаем новый unit
                     $newUnit = $cmm->units()->create([
                         'part_number' => $partNumber,
-                        'eff_code' => $effCode,
+                        'name' => $unitName,
+                        'eff_code' => null,
                         'manual_id' => $cmm->id,
                         'verified' => 1,
                     ]);

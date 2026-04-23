@@ -132,11 +132,12 @@
                                                 </a>
                                             </label>
                                             <select name="unit_id" id="unit_id" class="form-control">
-                                                <option disabled selected value="">---</option>
+                                                <option disabled {{ old('unit_id') ? '' : 'selected' }} value="">---</option>
                                                 @foreach ($units as $unit)
                                                     <option
                                                         value="{{$unit->id}}"
-                                                        data-name="{{ $unit->name }}">
+                                                        data-name="{{ $unit->name }}"
+                                                        {{ (string) old('unit_id') === (string) $unit->id ? 'selected' : '' }}>
                                                         {{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@endif
                                                     </option>
                                                 @endforeach
@@ -149,9 +150,9 @@
                                                 </a>
                                             </label>
                                             <select name="customer_id" id="customer_id" class="form-select">
-                                                <option disabled selected value>---</option>
+                                                <option disabled {{ old('customer_id') ? '' : 'selected' }} value>---</option>
                                                 @foreach ($customers as $customer)
-                                                    <option value="{{$customer->id}}">{{$customer->name}}</option>
+                                                    <option value="{{$customer->id}}" {{ (string) old('customer_id') === (string) $customer->id ? 'selected' : '' }}>{{$customer->name}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -161,33 +162,33 @@
                                         <div class="form-group col-lg-4 mb-1">
                                             <label for="instruction_id">Instruction <span style="color:red; font-size: x-small">(required)</span></label>
                                             <select name="instruction_id" id="instruction_id" class="form-select">
-                                                <option disabled selected value>---</option>
+                                                <option disabled {{ old('instruction_id') ? '' : 'selected' }} value>---</option>
                                                 @foreach ($instructions as $instruction)
-                                                    <option value="{{$instruction->id}}">{{$instruction->name}}</option>
+                                                    <option value="{{$instruction->id}}" {{ (string) old('instruction_id') === (string) $instruction->id ? 'selected' : '' }}>{{$instruction->name}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="number_id">Serial number</label>
-                                            <input type="text" name="serial_number" id="serial_number" class="form-control @error('serial_number') is-invalid @enderror" placeholder="s/n">
+                                            <input type="text" name="serial_number" id="serial_number" value="{{ old('serial_number') }}" class="form-control @error('serial_number') is-invalid @enderror" placeholder="s/n">
                                         </div>
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_description">Description</label>
-                                            <input type="text" name="description" id="description" value="" class="form-control @error('description') is-invalid @enderror" placeholder="">
+                                            <input type="text" name="description" id="description" value="{{ old('description') }}" class="form-control @error('description') is-invalid @enderror" placeholder="">
                                         </div>
                                     </div>
 
                                     <div class="row ">
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_amdt">Amdt</label>
-                                            <input type="text" name="amdt" id="wo_amdt" maxlength="30" value="" class="form-control @error('amdt') is-invalid @enderror" placeholder="">
+                                            <input type="text" name="amdt" id="wo_amdt" maxlength="30" value="{{ old('amdt') }}" class="form-control @error('amdt') is-invalid @enderror" placeholder="">
                                         </div>
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_place">Place</label>
-                                            <input type="text" name="place" id="wo_place" maxlength="30" value="" class="form-control @error ('place') is-invalid @enderror" placeholder="">
+                                            <input type="text" name="place" id="wo_place" maxlength="30" value="{{ old('place') }}" class="form-control @error ('place') is-invalid @enderror" placeholder="">
                                         </div>
 
                                         <div class="form-group col-lg-4 mt-2">
@@ -202,16 +203,16 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="customer_po">Customer PO</label>
-                                            <input type="text" name="customer_po" id="customer_po" maxlength="30" value="" class="form-control @error ('customer_po') is-invalid @enderror" placeholder="">
+                                            <input type="text" name="customer_po" id="customer_po" maxlength="30" value="{{ old('customer_po') }}" class="form-control @error ('customer_po') is-invalid @enderror" placeholder="">
                                         </div>
 
                                         <div class="form-group col-lg-4  mt-2">
                                             <label for="instruction_id">Technician</label>
                                             <select name="user_id" id="user_id" class="form-select">
-                                                <option disabled selected value style="color: gray;"> -- select an option --</option>
+                                                <option disabled {{ old('user_id', auth()->user()->id) ? '' : 'selected' }} value style="color: gray;"> -- select an option --</option>
                                                 @foreach ($users as $user)
                                                     <option value="{{ $user->id }}"
-                                                            @if(isset($currentUser) && $user->id == $currentUser->id) selected @endif>
+                                                            @if((string) old('user_id', $currentUser->id ?? auth()->user()->id) === (string) $user->id) selected @endif>
                                                         {{ $user->name }}
                                                     </option>
                                                 @endforeach
@@ -220,7 +221,7 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="customer_po">Modified</label>
-                                            <input type="text" name="modified" id="modified" maxlength="30" value="" class="form-control @error ('modified') is-invalid @enderror" placeholder="">
+                                            <input type="text" name="modified" id="modified" maxlength="30" value="{{ old('modified') }}" class="form-control @error ('modified') is-invalid @enderror" placeholder="">
                                         </div>
 
                                     </div>
@@ -229,12 +230,12 @@
 
                                 <div class="col-lg-3 row">
 
-                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="external_damage">___ External Damage</label><br>
-                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="received_disassembly">___ Received Disassembly</label><br>
-                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="disassembly_upon_arrival">___ Disassembly Upon Arrival</label><br>
-                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="nameplate_missing">___ Name Plate Missing</label><br>
-                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="preliminary_test_false">___ Preliminary Test</label><br>
-                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="extra_parts">___ Extra Parts</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="external_damage" {{ old('external_damage') ? 'checked' : '' }}>___ External Damage</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="received_disassembly" {{ old('received_disassembly') ? 'checked' : '' }}>___ Received Disassembly</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="disassembly_upon_arrival" {{ old('disassembly_upon_arrival') ? 'checked' : '' }}>___ Disassembly Upon Arrival</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="nameplate_missing" {{ old('nameplate_missing') ? 'checked' : '' }}>___ Name Plate Missing</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="preliminary_test_false" {{ old('preliminary_test_false') ? 'checked' : '' }}>___ Preliminary Test</label><br>
+                                    <label class="checkbox-wo mb-2"><input type="checkbox" name="extra_parts" {{ old('extra_parts') ? 'checked' : '' }}>___ Extra Parts</label><br>
                                 </div>
 
                             </div>
@@ -271,7 +272,7 @@
                         <select class="form-select" id="cmmSelect" name="manual_id">
                             <option value="">{{ __('Select CMM') }}</option>
                             @foreach($manuals as $manual)
-                                <option value="{{ $manual->id }}">
+                                <option value="{{ $manual->id }}" data-title="{{ $manual->title }}">
                                     {{ $manual->number }}
                                     {{ $manual->title }}
                                     <span class="text-secondary">({{$manual->lib }})</span>
@@ -341,6 +342,8 @@
             const descriptionInput = document.getElementById('description');
             const instructionSelect = document.getElementById('instruction_id');
             const numberInput = document.getElementById('number_id');
+            const cmmSelect = document.getElementById('cmmSelect');
+            const unitNameInput = document.getElementById('unitNameInput');
 
             const DRAFT_INSTRUCTION_ID = {{ $draftInstructionId ?? 0 }};
 
@@ -373,6 +376,14 @@
                 const unitName = selectedOption.getAttribute('data-name');
                 descriptionInput.value = unitName || '';
             };
+
+            function syncUnitNameFromSelectedCmm() {
+                if (!cmmSelect || !unitNameInput) return;
+                const selectedOption = cmmSelect.options[cmmSelect.selectedIndex];
+                const manualTitle = selectedOption?.getAttribute('data-title') || '';
+                if (unitNameInput.dataset.userEdited === '1') return;
+                unitNameInput.value = manualTitle;
+            }
 
             function check1() {
                 if (isDraftSelected()) return true; // ✅ draft — номер не обязателен
@@ -465,7 +476,7 @@
 
             // --------------------------------- Select2 Initialization ---------------------------------
             $(document).ready(function () {
-                $('#unit_id, #customer_id').select2({
+                $('#unit_id, #customer_id, #user_id').select2({
                     placeholder: '---',
                     theme: 'bootstrap-5',
                     allowClear: true
@@ -478,6 +489,12 @@
                     width: '100%',
                     dropdownParent: $('#addUnitModal'),
                     dropdownAutoWidth: true
+                });
+
+                $('#cmmSelect').on('change', syncUnitNameFromSelectedCmm);
+                $('#cmmSelect').on('change', function () {
+                    unitNameInput.dataset.userEdited = '';
+                    syncUnitNameFromSelectedCmm();
                 });
 
                 applyTheme();
@@ -566,6 +583,7 @@
                         // Очистить поля
                         pnInput.value = '';
                         nameInput.value = '';
+                        delete nameInput.dataset.userEdited;
                         descriptionInput.value = '';
                         document.getElementById('cmmSelect').value = '';
                         $('#cmmSelect').trigger('change');
@@ -574,6 +592,10 @@
                         hideLoadingSpinner();
                         showNotification("Error: " + error.message, 'error');
                     });
+            });
+
+            unitNameInput?.addEventListener('input', function () {
+                this.dataset.userEdited = '1';
             });
 
             // ---------------------   Save Customer --------------------------------------------------------------

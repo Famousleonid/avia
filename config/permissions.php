@@ -15,7 +15,7 @@ return [
         'view'    => ['Admin','Manager', 'Team Leader', 'Technician'],
         'create'  => ['Admin','Manager', 'Team Leader', 'Technician'],
         'update'  => ['Admin','Manager', 'Team Leader', 'Technician'],
-        'delete'  => ['Admin'],
+        'delete'  => ['Admin','Manager'],
     ],
 
     'manuals' => [
@@ -31,7 +31,7 @@ return [
         'view'    => ['Admin','Manager', 'Team Leader', 'Technician'],
         'create'  => ['Admin','Manager', 'Team Leader', 'Technician'],
         'update'  => ['Admin','Manager', 'Team Leader', 'Technician'],
-        'delete'  => ['Admin'],
+        'delete'  => ['Admin','Manager'],
     ],
 
     'users' => [
@@ -48,7 +48,7 @@ return [
         'view'    => ['Admin','Manager', 'Team Leader', 'Technician'],
         'create'  => ['Admin','Manager', 'Team Leader', 'Technician'],
         'update'  => ['Admin','Manager'],
-        'delete'  => ['Admin'],
+        'delete'  => ['Admin','Manager'],
     ],
 
 ];

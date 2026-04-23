@@ -652,7 +652,7 @@
 
     <script>
         // URL-шаблон (лучше так, чем собирать руками)
-        const STORAGE_UPDATE_URL = @json(route('workorders.storage.update', ['workorder' => '__ID__']));
+        const STORAGE_UPDATE_URL = @json(route('mobile.workorders.storage.update', ['workorder' => '__ID__']));
 
         function toggleStorageEdit(id, on) {
             const form = document.getElementById('storageForm_' + id);

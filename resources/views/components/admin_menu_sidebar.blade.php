@@ -90,7 +90,7 @@
     @endroles
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('users.index')}}">
-            <i class="bi bi-person-arms-up me-2"></i> <span>Techniks</span>
+            <i class="bi bi-person-arms-up me-2"></i> <span>Technician</span>
         </a>
     </li>
     <li class="nav-item press-spinner">
@@ -148,6 +148,12 @@
                 <a href="{{route('vendors.index')}}" class="nav-link"><i class="bi bi-dot"></i> <span>Vendors</span></a>
             </li>
 
+            @if(auth()->user()->roleIs(['Admin', 'Manager']))
+            <li class="nav-item press-spinner">
+                <a href="{{route('customers.index')}}" class="nav-link"><i class="bi bi-dot"></i> <span>Customers</span></a>
+            </li>
+            @endif
+
             <li class="nav-item press-spinner">
                 <a href="{{route('codes.index')}}" class="nav-link"><i class="bi bi-dot"></i> <span>Codes</span></a>
             </li>
@@ -187,14 +193,6 @@
         $showManualsMenu = auth()->user()->roleIs('Admin')
             || auth()->user()->permittedManuals()->exists();
     @endphp
-
-    @if (auth()->user()->roleIs('Admin'))
-        <li class="nav-item">
-            <a class="nav-link press-spinner" href="{{route('customers.index')}}">
-                <i class="bi bi-person-workspace me-2"></i> <span>Customers</span>
-            </a>
-        </li>
-    @endif
 
     @if ($showManualsMenu)
         <li class="nav-item">

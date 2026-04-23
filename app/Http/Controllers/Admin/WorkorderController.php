@@ -600,8 +600,12 @@ class WorkorderController extends Controller
         $customers = Customer::all();
         $units = Unit::with('manuals')->get();
         $instructions = Instruction::all();
-        $manuals = Manual::all();
-        $users = User::all();
+        $manuals = Manual::query()
+            ->orderByRaw('CASE WHEN number IS NULL OR number = "" THEN 1 ELSE 0 END')
+            ->orderBy('number')
+            ->orderBy('title')
+            ->get();
+        $users = User::query()->orderBy('name')->get(['id', 'name']);
         $currentUser = Auth::user();
         $draftInstructionId = Instruction::where('name','Draft')->value('id');
 
@@ -733,8 +737,12 @@ class WorkorderController extends Controller
         $current_wo = $workorder;
         $customers = Customer::all();
         $units = Unit::with('manual')->get();
-        $manuals = Manual::all();
-        $users = User::all();
+        $manuals = Manual::query()
+            ->orderByRaw('CASE WHEN number IS NULL OR number = "" THEN 1 ELSE 0 END')
+            ->orderBy('number')
+            ->orderBy('title')
+            ->get();
+        $users = User::query()->orderBy('name')->get(['id', 'name']);
         $open_at = format_project_date($current_wo->open_at);
         $hasTdrs = $workorder->tdrs()->exists();
 

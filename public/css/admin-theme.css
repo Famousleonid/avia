@@ -283,8 +283,14 @@ html[data-bs-theme="light"] {
 /* ---------- Media / controls inside cells ---------- */
 .dir-table img {
     max-width: 100%;
-    height: auto;
     display: inline-block;
+    vertical-align: middle;
+}
+
+.dir-table img.rounded-circle {
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    object-position: center;
 }
 
 .dir-table .btn,

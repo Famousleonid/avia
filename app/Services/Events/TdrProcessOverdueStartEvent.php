@@ -77,8 +77,16 @@ class TdrProcessOverdueStartEvent implements EventDefinition
         $wo = $subject->tdr?->workorder;
         $woNo = $wo?->number ? ('WO ' . $wo->number) : 'WO ?';
         $ownerName = $wo?->user?->name;
-        $partNumber = $subject->tdr?->component?->part_number
-            ?: $subject->tdr?->component?->assy_part_number;
+        $component = $subject->tdr?->component;
+        $partNumber = $component?->part_number ?: $component?->assy_part_number;
+        $partName = trim((string) ($component?->name ?? ''));
+        $partDisplay = $partNumber ?: '';
+
+        if ($partDisplay !== '' && $partName !== '') {
+            $partDisplay .= " ({$partName})";
+        } elseif ($partDisplay === '' && $partName !== '') {
+            $partDisplay = $partName;
+        }
 
         // deadline + overdue days
         $deadline = ($subject->date_start && $std > 0)
@@ -107,7 +115,10 @@ class TdrProcessOverdueStartEvent implements EventDefinition
                     'owner_name' => $ownerName,
                 ],
                 'process'   => ['name' => $pName],
-                'part'      => ['number' => $partNumber],
+                'part'      => [
+                    'number' => $partDisplay,
+                    'name' => $partName,
+                ],
                 'dates'     => ['start' => $start],
                 'std_days'  => $std,
                 'overdue_days' => $overdueDays,
@@ -116,7 +127,7 @@ class TdrProcessOverdueStartEvent implements EventDefinition
             'text' => sprintf(
                 '%s. Overdue: %s. Start: %s. Std days: %d. Overdue days: %d',
                 $ownerName ? "{$woNo} ({$ownerName})" : $woNo,
-                $partNumber ? "{$pName} - {$partNumber}" : $pName,
+                $partDisplay ? "{$pName} - {$partDisplay}" : $pName,
                 $start ?? '',
                 $std,
                 $overdueDays

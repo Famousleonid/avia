@@ -22,6 +22,7 @@
                             <input type="text"
                                    name="name"
                                    class="form-control"
+                                   value="{{ old('name') }}"
                                    required>
                         </div>
 
@@ -30,6 +31,7 @@
                             <input type="email"
                                    name="email"
                                    class="form-control"
+                                   value="{{ old('email') }}"
                                    required>
                         </div>
                     </div>
@@ -72,7 +74,7 @@
                                     required>
                                 <option value="">Select Role</option>
                                 @foreach ($roles as $role)
-                                    <option value="{{ $role->id }}">{{ $role->name }}</option>
+                                    <option value="{{ $role->id }}" {{ (string) old('role_id') === (string) $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -84,7 +86,7 @@
                                     required>
                                 <option value="">Select Team</option>
                                 @foreach ($teams as $team)
-                                    <option value="{{ $team->id }}">{{ $team->name }}</option>
+                                    <option value="{{ $team->id }}" {{ (string) old('team_id') === (string) $team->id ? 'selected' : '' }}>{{ $team->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -96,14 +98,16 @@
                             <label class="form-label">Phone</label>
                             <input type="text"
                                    name="phone"
-                                   class="form-control">
+                                   class="form-control"
+                                   value="{{ old('phone') }}">
                         </div>
 
                         <div class="col-12 col-md-6">
                             <label class="form-label">Stamp</label>
                             <input type="text"
                                    name="stamp"
-                                   class="form-control">
+                                   class="form-control"
+                                   value="{{ old('stamp') }}">
                         </div>
                     </div>
 

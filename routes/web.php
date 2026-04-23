@@ -92,6 +92,7 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     // --- general pages  ---
     Route::get('/', [MobileController::class, 'index'])->name('index');
     Route::get('/show/{workorder}', [MobileController::class, 'show'])->name('show');
+    Route::patch('/workorders/{workorder}/storage', [MobileController::class, 'updateStorage'])->name('workorders.storage.update');
     Route::get('/draft', [MobileController::class, 'createDraft'])->name('draft');
     Route::post('/workorders/draft', [MobileController::class, 'storeDraft'])->name('draft.store');
     Route::post('/draft/units/pending', [MobileController::class, 'storePendingDraftUnit'])->name('draft.units.pending.store');

@@ -9,6 +9,7 @@ use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Workorder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 
 class WorkorderStdListProcessesService
@@ -60,25 +61,71 @@ class WorkorderStdListProcessesService
             return null;
         }
 
-        $tdr = $this->ensureStdListCarrierTdr($workorder);
+        $processNames = ProcessName::query()
+            ->whereIn('name', array_values(self::NAME_BY_KEY))
+            ->get()
+            ->keyBy('name');
 
         $out = collect();
+        $carrierTdr = null;
         foreach (self::NAME_BY_KEY as $key => $name) {
-            $pn = ProcessName::where('name', $name)->first();
-            if (!$pn) {
+            $pn = $processNames->get($name);
+            if (! $pn) {
                 continue;
             }
-            $tp = TdrProcess::firstOrCreate(
-                [
-                    'tdrs_id' => $tdr->id,
-                    'process_names_id' => $pn->id,
-                ],
-                []
-            );
+
+            $tp = $this->findPreferredStdListProcessForWorkorder($workorder, (int) $pn->id);
+            if (! $tp) {
+                $carrierTdr ??= $this->ensureStdListCarrierTdr($workorder);
+                $tp = TdrProcess::firstOrCreate(
+                    [
+                        'tdrs_id' => $carrierTdr->id,
+                        'process_names_id' => $pn->id,
+                    ],
+                    []
+                );
+            }
+
             $tp->load(['processName', 'updatedBy', 'dateStartUpdatedBy', 'dateFinishUpdatedBy', 'vendor:id,name']);
             $out->put($key, $tp);
         }
 
         return $out->isEmpty() ? null : $out;
+    }
+
+    public function findPreferredStdListProcessForWorkorder(Workorder $workorder, int $processNameId): ?TdrProcess
+    {
+        /** @var EloquentCollection<int, TdrProcess> $rows */
+        $rows = TdrProcess::query()
+            ->where('process_names_id', $processNameId)
+            ->whereHas('tdr', function ($query) use ($workorder) {
+                $query->where('workorder_id', (int) $workorder->id);
+            })
+            ->with('tdr:id,workorder_id,component_id')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        return $rows
+            ->sortByDesc(function (TdrProcess $row): array {
+                $hasMeaningfulState =
+                    ! empty($row->date_start)
+                    || ! empty($row->date_finish)
+                    || trim((string) ($row->repair_order ?? '')) !== ''
+                    || ! empty($row->vendor_id)
+                    || (bool) ($row->ignore_row ?? false);
+
+                $isWorkorderLevel = $row->tdr && $row->tdr->component_id === null;
+
+                return [
+                    $hasMeaningfulState ? 1 : 0,
+                    $isWorkorderLevel ? 1 : 0,
+                    optional($row->updated_at)?->getTimestamp() ?? 0,
+                    (int) $row->id,
+                ];
+            })
+            ->first();
     }
 }

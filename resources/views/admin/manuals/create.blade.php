@@ -150,7 +150,7 @@
 
                                 <div class="col-12 col-md-6">
                                     <label for="wo" class="form-label">{{ __('CMM No:') }}</label>
-                                    <input id="wo" type="text" class="form-control" name="number" required>
+                                    <input id="wo" type="text" class="form-control" name="number" value="{{ old('number') }}" required>
                                     @error('number')
                                     <div class="text-danger small">{{ $message }}</div>
                                     @enderror
@@ -158,18 +158,18 @@
 
                                 <div class="col-12 col-md-6">
                                     <label for="lib" class="form-label">{{ __('Library No:') }}</label>
-                                    <input id="lib" type="text" class="form-control" name="lib" required>
+                                    <input id="lib" type="text" class="form-control" name="lib" value="{{ old('lib') }}" required>
 
                                 </div>
 
                                 <div class="col-12">
                                     <label for="title" class="form-label">{{ __('Description') }}</label>
-                                    <input id="title" type="text" class="form-control" name="title" required>
+                                    <input id="title" type="text" class="form-control" name="title" value="{{ old('title') }}" required>
                                 </div>
 
                                 <div class="col-12 col-md-6">
                                     <label for="unit_name" class="form-label">{{ __('Component Part No:') }}</label>
-                                    <input id="unit_name" type="text" class="form-control" name="unit_name" required>
+                                    <input id="unit_name" type="text" class="form-control" name="unit_name" value="{{ old('unit_name') }}" required>
                                 </div>
 
                                 {{-- Select rows with "Add" button on the right --}}
@@ -179,7 +179,7 @@
                                         <select id="planes_id" name="planes_id" class="form-select" required>
                                             <option value="">{{ __('Select AirCraft') }}</option>
                                             @foreach ($planes as $plane)
-                                                <option value="{{ $plane->id }}">{{ $plane->type }}</option>
+                                                <option value="{{ $plane->id }}" {{ (string) old('planes_id') === (string) $plane->id ? 'selected' : '' }}>{{ $plane->type }}</option>
                                             @endforeach
                                         </select>
 
@@ -194,7 +194,7 @@
 
                                 <div class="col-12 col-md-6">
                                     <label for="unit_name_training" class="form-label">{{ __('Component Training Part No:') }}</label>
-                                    <input id="unit_name_training" type="text" class="form-control" name="unit_name_training" required>
+                                    <input id="unit_name_training" type="text" class="form-control" name="unit_name_training" value="{{ old('unit_name_training') }}" required>
                                 </div>
                                 <div class="col-12 col-md-6">
                                     <label class="form-label">{{ __('MFR') }}</label>
@@ -202,7 +202,7 @@
                                         <select id="builders_id" name="builders_id" class="form-select" required>
                                             <option value="">{{ __('Select MFR') }}</option>
                                             @foreach ($builders as $builder)
-                                                <option value="{{ $builder->id }}">{{ $builder->name }}</option>
+                                                <option value="{{ $builder->id }}" {{ (string) old('builders_id') === (string) $builder->id ? 'selected' : '' }}>{{ $builder->name }}</option>
                                             @endforeach
                                         </select>
 
@@ -216,7 +216,7 @@
                                 </div>
                                 <div class="col-12 col-md-6">
                                     <label for="training_hours" class="form-label">{{ __('Component First Training (hh)') }}</label>
-                                    <input id="training_hours" type="text" class="form-control" name="training_hours">
+                                    <input id="training_hours" type="text" class="form-control" name="training_hours" value="{{ old('training_hours') }}">
                                 </div>
 
                                 <div class="col-12 col-md-6">
@@ -225,7 +225,7 @@
                                         <select id="scopes_id" name="scopes_id" class="form-select" required>
                                             <option value="">{{ __('Select Scope') }}</option>
                                             @foreach ($scopes as $scope)
-                                                <option value="{{ $scope->id }}">{{ $scope->scope }}</option>
+                                                <option value="{{ $scope->id }}" {{ (string) old('scopes_id') === (string) $scope->id ? 'selected' : '' }}>{{ $scope->scope }}</option>
                                             @endforeach
                                         </select>
 
@@ -240,12 +240,12 @@
 
                                 <div class="col-12 col-md-3">
                                     <label for="ovh_life" class="form-label">{{ __('Overhaul Life') }}</label>
-                                    <input id="ovh_life" type="text" class="form-control" name="ovh_life">
+                                    <input id="ovh_life" type="text" class="form-control" name="ovh_life" value="{{ old('ovh_life') }}">
                                 </div>
 
                                 <div class="col-12 col-md-3">
                                     <label for="reg_sb" class="form-label">{{ __('Inspection Req.SB') }}</label>
-                                    <input id="reg_sb" type="text" class="form-control" name="reg_sb">
+                                    <input id="reg_sb" type="text" class="form-control" name="reg_sb" value="{{ old('reg_sb') }}">
                                 </div>
 
                                 <div class="col-12 col-md-6">
@@ -254,6 +254,7 @@
                                            type="text"
                                            class="form-control "
                                            name="revision_date"
+                                           value="{{ old('revision_date') }}"
                                            data-fp
 
                                            required>
@@ -278,23 +279,43 @@
 
                                 <hr class="opacity-25">
 
-                                <div class="section-title">Units</div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="section-title mb-0">Components</div>
+                                    <button class="btn btn-outline-primary btn-sm" type="button" id="addUnitField">
+                                        Add
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="units-panel">
                                 <div id="unitInputs">
-                                    <div class="input-group mb-2 unit-field">
-                                        <input type="text" class="form-control" placeholder="Enter Unit PN"
-                                               name="units[]" required>
-                                        <input type="text" class="form-control" placeholder="Enter EFF Code"
-                                               name="eff_codes[]">
-                                        <button class="btn btn-outline-primary" type="button" id="addUnitField">
-                                            Add
-                                        </button>
-                                    </div>
+                                    @php
+                                        $oldUnits = old('units');
+                                        $oldUnitNames = old('unit_names');
+                                    @endphp
+                                    @if(is_array($oldUnits) && count($oldUnits) > 0)
+                                        @foreach($oldUnits as $index => $oldUnitPartNumber)
+                                            <div class="input-group mb-2 unit-field">
+                                                <input type="text" class="form-control" placeholder="Enter Unit PN"
+                                                       name="units[]" value="{{ $oldUnitPartNumber }}" required>
+                                                <input type="text" class="form-control unit-name-input" placeholder="Enter Unit Name"
+                                                       name="unit_names[]" value="{{ $oldUnitNames[$index] ?? old('title') }}"
+                                                       data-user-edited="1">
+                                                <button class="btn btn-outline-danger removeUnitField" type="button" aria-label="Remove component">&times;</button>
+                                            </div>
+                                        @endforeach
+                                    @else
+                                        <div class="input-group mb-2 unit-field">
+                                            <input type="text" class="form-control" placeholder="Enter Unit PN"
+                                                   name="units[]" required>
+                                            <input type="text" class="form-control unit-name-input" placeholder="Enter Unit Name"
+                                                   name="unit_names[]" value="{{ old('title') }}">
+                                            <button class="btn btn-outline-danger removeUnitField" type="button" aria-label="Remove component">&times;</button>
+                                        </div>
+                                    @endif
                                 </div>
 
-                                <small class="text-muted">Add Unit PN / EFF Code pairs.</small>
+                                <small class="text-muted">Add component PN / Name pairs.</small>
                             </div>
                         </div>
                     </div>
@@ -412,6 +433,14 @@
 @section('scripts')
 
     <script>
+        function syncManualUnitNamesFromDescription() {
+            const manualDescription = (document.getElementById('title')?.value || '').trim();
+            document.querySelectorAll('#unitInputs .unit-name-input').forEach((input) => {
+                if (input.dataset.userEdited !== '1') {
+                    input.value = manualDescription;
+                }
+            });
+        }
         // Функция для обработки отправки форм для самолетов, MFR и Scope
         function handleFormSubmission(formId, route, selectId, dataKey, dataValue, modalId) {
             document.getElementById(formId).addEventListener('submit', function (event) {
@@ -599,10 +628,11 @@
                 newUnitField.className = 'input-group mb-2 unit-field';
                 newUnitField.innerHTML = `
             <input type="text" class="form-control" placeholder="Enter Unit Part Number" style="width: 130px" name="units[]" required>
-            <input type="text" class="form-control" placeholder="Enter EFF Code" style="width: 130px" name="eff_codes[]">
+            <input type="text" class="form-control unit-name-input" placeholder="Enter Unit Name" style="width: 180px" name="unit_names[]">
             <button class="btn btn-outline-danger removeUnitField" type="button">Remove</button>
         `;
                 document.getElementById('unitInputs').appendChild(newUnitField);
+                syncManualUnitNamesFromDescription();
             });
 
             document.getElementById('unitInputs').addEventListener('click', function (event) {
@@ -612,6 +642,16 @@
             });
 
             // Обработка отправки формы
+            document.getElementById('title')?.addEventListener('input', syncManualUnitNamesFromDescription);
+
+            document.getElementById('unitInputs').addEventListener('input', function (event) {
+                if (event.target.classList.contains('unit-name-input')) {
+                    event.target.dataset.userEdited = '1';
+                }
+            });
+
+            syncManualUnitNamesFromDescription();
+
             document.getElementById('createCMMForm').addEventListener('submit', function (e) {
                 // Удаляем пустые поля units перед отправкой
                 const unitFields = document.querySelectorAll('.unit-field');

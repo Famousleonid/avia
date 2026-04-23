@@ -136,9 +136,9 @@
                                                 </a>
                                             </label>
                                             <select name="unit_id" id="unit_id" class="form-control">
-                                                <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $current_wo->unit->name) }}" data-manual-id="{{ $current_wo->unit?->manual_id ?? '' }}" data-verified="{{ $current_wo->unit?->verified ? 1 : 0 }}">{{ old('part_number', $current_wo->unit->part_number) }}@if($current_wo->unit->manual) ({{ $current_wo->unit->manual->number }})@else (Manual pending)@endif</option>
+                                                <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $current_wo->unit->name) }}" data-part-number="{{ old('part_number', $current_wo->unit->part_number) }}" data-manual-id="{{ $current_wo->unit?->manual_id ?? '' }}" data-verified="{{ $current_wo->unit?->verified ? 1 : 0 }}">{{ old('part_number', $current_wo->unit->part_number) }}@if($current_wo->unit->manual) ({{ $current_wo->unit->manual->number }})@else (Manual pending)@endif</option>
                                                 @foreach ($units as $unit)
-                                                    <option value="{{$unit->id}}" data-name="{{ $unit->name }}" data-manual-id="{{ $unit->manual_id ?? '' }}" data-verified="{{ $unit->verified ? 1 : 0 }}">{{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@else (Manual pending)@endif</option>
+                                                    <option value="{{$unit->id}}" data-name="{{ $unit->name }}" data-part-number="{{ $unit->part_number }}" data-manual-id="{{ $unit->manual_id ?? '' }}" data-verified="{{ $unit->verified ? 1 : 0 }}">{{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@else (Manual pending)@endif</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -206,10 +206,10 @@
                                         <div class="form-group col-lg-4  mt-2">
                                             <label for="instruction_id">Technik</label>
                                             <select name="user_id" id="user_id" class="form-select">
-                                                <option selected value="{{ old('user_id', $current_wo->user_id) }}">{{ old('user_id', $current_wo->user->name) }}</option>
+                                                <option disabled {{ old('user_id', $current_wo->user_id) ? '' : 'selected' }} value=""> -- select an option --</option>
                                                 @foreach ($users as $user)
                                                     <option value="{{ $user->id }}"
-                                                            @if(isset($currentUser) && $user->id == $currentUser->id) selected @endif>
+                                                            @if((string) old('user_id', $current_wo->user_id) === (string) $user->id) selected @endif>
                                                         {{ $user->name }}
                                                     </option>
                                                 @endforeach
@@ -287,7 +287,7 @@
                         <select class="form-select" id="cmmSelect" name="manual_id">
                             <option value="">{{ __('Select CMM') }}</option>
                             @foreach($manuals as $manual)
-                                <option value="{{ $manual->id }}">
+                                <option value="{{ $manual->id }}" data-title="{{ $manual->title }}">
                                     {{ $manual->number }}
                                     {{ $manual->title }}
                                     <span class="text-secondary">({{$manual->lib }})</span>
@@ -332,7 +332,7 @@
                 </div>
                 <div class="modal-body">
                     <p class="text-warning small mb-3">
-                        This Draft uses a pending Unit. Assign CMM before releasing the Workorder.
+                        Confirm or change the CMM before releasing the Workorder.
                     </p>
                     <div class="mb-3">
                         <label for="assignManualPartNumber" class="form-label">Part Number</label>
@@ -353,11 +353,12 @@
                             @endforeach
                         </select>
                         <div class="invalid-feedback" id="assignManualError"></div>
+                        <div class="form-text text-info d-none" id="assignManualHint"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" id="assignManualBtn" class="btn btn-outline-primary">Assign Manual</button>
+                    <button type="button" id="assignManualBtn" class="btn btn-outline-primary">Save and Continue</button>
                 </div>
             </div>
         </div>
@@ -376,6 +377,8 @@
 
             const unitSelect = document.getElementById('unit_id');
             const workorderDescriptionInput = document.getElementById('description');
+            const cmmSelect = document.getElementById('cmmSelect');
+            const unitNameInput = document.getElementById('unitNameInput');
 
             unitSelect.onchange = function () {
                 const selectedOption = this.options[this.selectedIndex];
@@ -383,8 +386,16 @@
                 workorderDescriptionInput.value = unitName || '';
             };
 
+            function syncUnitNameFromSelectedCmm() {
+                if (!cmmSelect || !unitNameInput) return;
+                const selectedOption = cmmSelect.options[cmmSelect.selectedIndex];
+                const manualTitle = selectedOption?.getAttribute('data-title') || '';
+                if (unitNameInput.dataset.userEdited === '1') return;
+                unitNameInput.value = manualTitle;
+            }
+
             $(document).ready(function () {
-                $('#unit_id').select2({
+                $('#unit_id, #user_id').select2({
                     placeholder: '---',
                     theme: 'bootstrap-5',
                     allowClear: true
@@ -396,6 +407,20 @@
                     allowClear: true,
                     width: '100%',
                     dropdownParent: $('#addUnitModal'),
+                    dropdownAutoWidth: true
+                });
+
+                $('#cmmSelect').on('change', function () {
+                    unitNameInput.dataset.userEdited = '';
+                    syncUnitNameFromSelectedCmm();
+                });
+
+                $('#assignManualSelect').select2({
+                    placeholder: '{{ __('Select CMM') }}',
+                    theme: 'bootstrap-5',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#assignManualModal'),
                     dropdownAutoWidth: true
                 });
 
@@ -502,6 +527,7 @@
                         // Очистить поля
                         pnInput.value = '';
                         nameInput.value = '';
+                        delete nameInput.dataset.userEdited;
                         descriptionInput.value = '';
                         document.getElementById('cmmSelect').value = '';
                         $('#cmmSelect').trigger('change');
@@ -510,6 +536,10 @@
                         hideLoadingSpinner();
                         alert("Error: " + error.message);
                     });
+            });
+
+            unitNameInput?.addEventListener('input', function () {
+                this.dataset.userEdited = '1';
             });
 
             const instructionSelect = document.getElementById('instruction_id');
@@ -530,6 +560,7 @@
             const assignManualSelect = document.getElementById('assignManualSelect');
             const assignManualBtn = document.getElementById('assignManualBtn');
             const assignManualError = document.getElementById('assignManualError');
+            const assignManualHint = document.getElementById('assignManualHint');
             const assignManualPartNumber = document.getElementById('assignManualPartNumber');
             const assignManualCustomer = document.getElementById('assignManualCustomer');
 
@@ -543,15 +574,42 @@
                 return unitSelect.options[unitSelect.selectedIndex] || null;
             }
 
-            function selectedUnitNeedsManual() {
-                if (!shouldAllowEditNumber()) return false;
+            function selectedUnitManualId() {
                 const opt = selectedUnitOption();
-                return !opt || !String(opt.getAttribute('data-manual-id') || '').trim();
+                return String(opt?.getAttribute('data-manual-id') || '').trim();
             }
 
             function selectedUnitPartNumber() {
                 const opt = selectedUnitOption();
-                return (opt?.textContent || '').replace(/\s*\(Manual pending\)\s*$/, '').trim();
+                return String(opt?.getAttribute('data-part-number') || '').trim();
+            }
+
+            function findExistingUnitOptionForManual(manualId) {
+                const currentUnitId = String(selectedUnitOption()?.value || '').trim();
+                const partNumber = selectedUnitPartNumber();
+                if (!manualId || !partNumber) return null;
+
+                return Array.from(unitSelect.options).find((option) => {
+                    return String(option.value || '').trim() !== currentUnitId
+                        && String(option.getAttribute('data-manual-id') || '').trim() === String(manualId).trim()
+                        && String(option.getAttribute('data-part-number') || '').trim() === partNumber;
+                }) || null;
+            }
+
+            function updateAssignManualHint() {
+                if (!assignManualHint) return;
+
+                const manualId = String(assignManualSelect?.value || '').trim();
+                const existingOption = findExistingUnitOptionForManual(manualId);
+
+                if (existingOption) {
+                    assignManualHint.textContent = 'This CMM already has this unit. The existing unit will be used for the Workorder.';
+                    assignManualHint.classList.remove('d-none');
+                    return;
+                }
+
+                assignManualHint.textContent = '';
+                assignManualHint.classList.add('d-none');
             }
 
             function selectedCustomerText() {
@@ -563,6 +621,7 @@
                 const opt = selectedUnitOption();
                 const unitId = opt?.value || '';
                 const manualId = assignManualSelect?.value || '';
+                const currentManualId = selectedUnitManualId();
 
                 assignManualError.textContent = '';
                 assignManualSelect.classList.remove('is-invalid');
@@ -576,6 +635,25 @@
                 assignManualBtn.disabled = true;
 
                 try {
+                    if (currentManualId && currentManualId === String(manualId)) {
+                        assignManualModal?.hide();
+                        const form = document.getElementById('createForm');
+                        form.dataset.readyToSubmit = '1';
+                        form.requestSubmit();
+                        return true;
+                    }
+
+                    const existingOption = findExistingUnitOptionForManual(manualId);
+                    if (existingOption) {
+                        unitSelect.value = existingOption.value;
+                        $('#unit_id').val(existingOption.value).trigger('change');
+                        assignManualModal?.hide();
+                        const form = document.getElementById('createForm');
+                        form.dataset.readyToSubmit = '1';
+                        form.requestSubmit();
+                        return true;
+                    }
+
                     const res = await fetch(ASSIGN_MANUAL_URL.replace('__unit__', encodeURIComponent(unitId)), {
                         method: 'PATCH',
                         headers: {
@@ -601,7 +679,9 @@
                     $('#unit_id').trigger('change.select2');
 
                     assignManualModal?.hide();
-                    document.getElementById('createForm').requestSubmit();
+                    const form = document.getElementById('createForm');
+                    form.dataset.readyToSubmit = '1';
+                    form.requestSubmit();
                     return true;
                 } catch (err) {
                     assignManualError.textContent = err?.message || 'Manual assignment failed.';
@@ -613,7 +693,18 @@
             }
 
             assignManualBtn?.addEventListener('click', assignManualToSelectedUnit);
+            assignManualSelect?.addEventListener('change', updateAssignManualHint);
             assignManualModalEl?.addEventListener('hidden.bs.modal', () => {
+                if (assignManualSelect) {
+                    assignManualSelect.classList.remove('is-invalid');
+                    assignManualSelect.value = '';
+                    $('#assignManualSelect').val('').trigger('change');
+                }
+                assignManualError.textContent = '';
+                if (assignManualHint) {
+                    assignManualHint.textContent = '';
+                    assignManualHint.classList.add('d-none');
+                }
                 if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
             });
 
@@ -716,16 +807,25 @@
                         return;
                     }
 
-                    if (selectedUnitNeedsManual()) {
-                        if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
-                        assignManualError.textContent = '';
-                        assignManualSelect.classList.remove('is-invalid');
-                        if (assignManualSelect) assignManualSelect.value = '';
-                        if (assignManualPartNumber) assignManualPartNumber.value = selectedUnitPartNumber();
-                        if (assignManualCustomer) assignManualCustomer.value = selectedCustomerText();
-                        assignManualModal?.show();
-                        return;
+                    if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+                    assignManualError.textContent = '';
+                    assignManualSelect.classList.remove('is-invalid');
+                    if (assignManualSelect) {
+                        const currentManualId = selectedUnitManualId();
+                        const suggestedOption = Array.from(unitSelect.options).find((option) => {
+                            return String(option.value || '').trim() !== String(selectedUnitOption()?.value || '').trim()
+                                && String(option.getAttribute('data-part-number') || '').trim() === selectedUnitPartNumber()
+                                && String(option.getAttribute('data-manual-id') || '').trim() !== '';
+                        });
+                        const suggestedManualId = suggestedOption?.getAttribute('data-manual-id') || currentManualId;
+                        assignManualSelect.value = suggestedManualId;
+                        $('#assignManualSelect').val(suggestedManualId || '').trigger('change');
                     }
+                    if (assignManualPartNumber) assignManualPartNumber.value = selectedUnitPartNumber();
+                    if (assignManualCustomer) assignManualCustomer.value = selectedCustomerText();
+                    updateAssignManualHint();
+                    assignManualModal?.show();
+                    return;
                 }
 
                 // Предупреждение при смене unit, если есть TDR

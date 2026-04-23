@@ -89,12 +89,12 @@ class WorkordersWriteTest extends TestCase
 
         $response->assertCreated();
         $response->assertJsonPath('manual_id', null);
-        $response->assertJsonPath('verified', false);
+        $response->assertJsonPath('verified', true);
 
         $this->assertDatabaseHas('units', [
             'id' => $response->json('id'),
             'manual_id' => null,
-            'verified' => 0,
+            'verified' => 1,
         ]);
     }
 

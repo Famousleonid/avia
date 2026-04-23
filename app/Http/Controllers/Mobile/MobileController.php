@@ -373,6 +373,22 @@ class MobileController extends Controller
         return view('mobile.pages.show', compact('workorder'));
     }
 
+    public function updateStorage(Request $request, Workorder $workorder): JsonResponse
+    {
+        $data = $request->validate([
+            'storage_rack' => ['nullable', 'integer', 'min:0', 'max:999'],
+            'storage_level' => ['nullable', 'integer', 'min:0', 'max:999'],
+            'storage_column' => ['nullable', 'integer', 'min:0', 'max:999'],
+        ]);
+
+        $workorder->update($data);
+
+        return response()->json([
+            'success' => true,
+            'storage_location' => $workorder->storage_location,
+        ]);
+    }
+
     public function materials()
     {
         $user = Auth::user();
@@ -469,7 +485,7 @@ class MobileController extends Controller
             $unit = Unit::query()->create([
                 'part_number' => $partNumber,
                 'manual_id' => null,
-                'verified' => false,
+                'verified' => true,
                 'name' => $data['name'] ?? null,
                 'description' => $data['description'] ?? null,
             ]);

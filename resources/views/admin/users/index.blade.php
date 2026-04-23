@@ -26,6 +26,13 @@
 
         }
 
+        #userTable tbody td {
+            padding-top: 4px;
+            padding-bottom: 4px;
+            line-height: 1.15;
+            vertical-align: middle;
+        }
+
         #userTable .user-col-name {width: 18%;}
         #userTable .user-col-email {width: 23%;}
         #userTable .user-col-team {width: 14%;}
@@ -44,6 +51,17 @@
             font-size: 14px;
             font-weight: 400;
             /*z-index: 1020;*/
+        }
+
+        #userTable .user-avatar-link {
+            display: inline-flex;
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            min-height: 32px;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
 
         @media (max-width: 1200px) {
@@ -158,9 +176,9 @@
                             <td class="text-center user-col-team"
                                 style="color: {{ $user->team ? '#ffffff' : '#808080' }};">{{ $user->team->name ?? 'Unknown team' }}</td>
                             <td class="text-center user-col-avatar">
-                                <a href="{{ $user->getFirstMediaBigUrl('avatar') }}" data-fancybox="gallery">
+                                <a href="{{ $user->getFirstMediaBigUrl('avatar') }}" data-fancybox="gallery" class="user-avatar-link">
                                     <img class="rounded-circle" src="{{ $user->getFirstMediaThumbnailUrl('avatar') }}"
-                                         width="40" height="40" alt="Image"/>
+                                         width="32" height="32" alt="Image"/>
                                 </a>
                             </td>
                             <td class="text-center user-col-role" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->role->name ?? 'Unknown role' }}</td>

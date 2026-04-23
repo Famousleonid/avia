@@ -104,7 +104,7 @@
                     <thead class="bg-gradient">
                     <tr>
                         <th class="text-primary sortable bg-gradient text-center">
-                            {{ __('Components Description') }} <i class="bi bi-chevron-expand ms-1"></i>
+                            {{ __('Component Name') }} <i class="bi bi-chevron-expand ms-1"></i>
                         </th>
                         <th class="text-primary sortable bg-gradient text-center">
                             {{ __('Components PN') }} <i class="bi bi-chevron-expand ms-1"></i>
@@ -132,12 +132,14 @@
 
                         <tr>
 
-                            <td class="p-3">
-                                @if ($manual)
-                                    {{ $manual->title }}
-                                @else
-                                    <span>No data on CMM</span>
-                                @endif
+                            <td>
+                                <select class="form-select">
+                                    @foreach($units as $u)
+                                        <option value="{{ $u->name }}">
+                                            {{ $u->name ?: ($manual?->title ?? 'No name') }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </td>
 
                             <td>
@@ -253,7 +255,7 @@
                         <div id="pnInputs">
                             <div class="input-group mb-2 pn-field">
                                 <input type="text" class="form-control" placeholder="Enter PN" style="width:200px;" name="pn[]">
-                                <input type="text" class="form-control ms-2" placeholder="Enter EFF Code" style="width:150px;" name="eff_code[]">
+                                <input type="text" class="form-control ms-2" placeholder="Enter Name" style="width:200px;" name="name[]">
                                 <button class="btn btn-outline-primary" type="button" id="addPnField">Add PN</button>
                             </div>
                         </div>
@@ -332,7 +334,7 @@
                 newPnField.className = 'input-group mb-2 pn-field';
                 newPnField.innerHTML = `
                     <input type="text" class="form-control" placeholder="Enter PN" style="width:200px;" name="pn[]">
-                    <input type="text" class="form-control ms-2" placeholder="Enter EFF Code" style="width:150px;" name="eff_code[]">
+                    <input type="text" class="form-control ms-2" placeholder="Enter Name" style="width:200px;" name="name[]">
                     <button class="btn btn-outline-danger removePnField" type="button">Delete</button>`;
                 document.getElementById('pnInputs').appendChild(newPnField);
             });
@@ -352,11 +354,11 @@
 
                 pnInputs.forEach(field => {
                     const pnInput = field.querySelector('input[name="pn[]"]');
-                    const effCodeInput = field.querySelector('input[name="eff_code[]"]');
+                    const nameInput = field.querySelector('input[name="name[]"]');
                     if (pnInput && pnInput.value.trim()) {
                         unitData.push({
                             part_number: pnInput.value.trim(),
-                            eff_code: effCodeInput ? effCodeInput.value.trim() : ''
+                            name: nameInput ? nameInput.value.trim() : ''
                         });
                     }
                 });
@@ -412,7 +414,7 @@
                         .then(data => {
                             if (data.units && data.units.length > 0) {
                                 data.units.forEach(function (unit) {
-                                    addPartNumberRow(unit.part_number, unit.verified, unit.eff_code || '');
+                                    addPartNumberRow(unit.part_number, unit.verified, unit.name || '');
                                 });
                             } else {
                                 const noUnitsItem = document.createElement('div');
@@ -441,7 +443,7 @@
         function handleAddUnitClick() { addPartNumberRow('', true, ''); }
 
         // Добавление/удаление строк PN внутри Edit
-        function addPartNumberRow(partNumber = '', verified = true, effCode = '') {
+        function addPartNumberRow(partNumber = '', verified = true, name = '') {
             const partNumbersList = document.getElementById('partNumbersList');
             if (!partNumbersList) { console.error('Error: partNumbersList element not found'); return; }
 
@@ -460,12 +462,12 @@
             pnInput.value = partNumber;
             pnInput.placeholder = 'Part Number';
 
-            const effCodeInput = document.createElement('input');
-            effCodeInput.type = 'text';
-            effCodeInput.className = 'form-control me-2';
-            effCodeInput.style.width = '120px';
-            effCodeInput.value = effCode;
-            effCodeInput.placeholder = 'EFF Code';
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'form-control me-2';
+            nameInput.style.width = '200px';
+            nameInput.value = name;
+            nameInput.placeholder = 'Name';
 
             const deleteButton = document.createElement('button');
             deleteButton.className = 'btn btn-danger btn-sm ms-1';
@@ -474,7 +476,7 @@
 
             listItem.appendChild(checkbox);
             listItem.appendChild(pnInput);
-            listItem.appendChild(effCodeInput);
+            listItem.appendChild(nameInput);
             listItem.appendChild(deleteButton);
             partNumbersList.appendChild(listItem);
         }
@@ -490,7 +492,7 @@
                 const checkbox = listItem.querySelector('.form-check-input');
                 return {
                     part_number: inputs[0] ? inputs[0].value : '',
-                    eff_code: inputs[1] ? inputs[1].value : '',
+                    name: inputs[1] ? inputs[1].value : '',
                     verified: !!(checkbox && checkbox.checked)
                 };
             });
