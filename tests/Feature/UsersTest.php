@@ -62,13 +62,49 @@ class UsersTest extends TestCase
         ])->assertNotFound();
     }
 
-    public function test_admin_role_without_is_admin_flag_cannot_manage_users(): void
+    public function test_admin_role_without_is_admin_flag_can_open_users_index(): void
     {
         $roleOnlyAdmin = $this->createUserWithRole('Admin', ['is_admin' => 0]);
 
         $response = $this->actingAs($roleOnlyAdmin)->get(route('users.index'));
 
+        $response->assertOk();
+        $response->assertDontSee('Add User');
+    }
+
+    public function test_system_admin_sees_add_user_button_on_users_index(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+
+        $response = $this->actingAs($admin)->get(route('users.index'));
+
+        $response->assertOk();
+        $response->assertSee('Add User');
+    }
+
+    public function test_admin_role_without_is_admin_flag_cannot_create_user(): void
+    {
+        Notification::fake();
+
+        $roleOnlyAdmin = $this->createUserWithRole('Admin', ['is_admin' => 0]);
+        $role = Role::query()->firstOrCreate(['name' => 'Manager']);
+        $team = Team::query()->firstOrCreate(['name' => 'QA Team']);
+
+        $response = $this->actingAs($roleOnlyAdmin)->post(route('users.store'), [
+            'name' => 'Blocked User',
+            'email' => 'blocked.user@example.test',
+            'password' => 'secret123',
+            'birthday' => '1990-01-01',
+            'role_id' => $role->id,
+            'team_id' => $team->id,
+            'is_admin' => '1',
+            'email_verified_at' => '1',
+        ]);
+
         $response->assertForbidden();
+        $this->assertDatabaseMissing('users', [
+            'email' => 'blocked.user@example.test',
+        ]);
     }
 
     /**

@@ -6,12 +6,14 @@ use App\Models\EventLog;
 use App\Models\NotificationEventRule;
 use App\Models\User;
 use App\Notifications\NewMessageNotification;
+use App\Services\NotificationEventRegistry;
 use App\Services\NotificationEventRuleResolver;
 
 class EventRunner
 {
     public function __construct(
         protected NotificationEventRuleResolver $ruleResolver,
+        protected NotificationEventRegistry $registry,
     ) {}
 
     /** @param EventDefinition[] $events */
@@ -46,6 +48,10 @@ class EventRunner
                         }
                     }
 
+                    continue;
+                }
+
+                if ($this->registry->get($event->key()) !== null) {
                     continue;
                 }
 

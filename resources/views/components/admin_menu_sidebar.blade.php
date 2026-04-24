@@ -246,18 +246,22 @@
         </li>
     @endhasanyrole
 
-    @if (auth()->user()->roleIs('Admin'))
+    @admin
+        <li class="nav-item press-spinner">
+            <a href="{{ route('admin.notification-rules.index') }}" class="nav-link">
+                <i class="bi bi-bell me-2"></i> <span>Notification rules</span>
+            </a>
+        </li>
+        <li class="nav-item press-spinner">
+            <a href="{{ route('admin.date-notifications.index') }}" class="nav-link">
+                <i class="bi bi-calendar-event me-2"></i> <span>Date notifications</span>
+            </a>
+        </li>
 
-        @if(is_admin())
+        @systemadmin
             <li class="nav-item press-spinner">
                 <a href="{{route('admin.activity.index')}}" class="nav-link">
                     <i class="bi bi-stickies me-2"></i> <span>Log</span>
-                </a>
-            </li>
-
-            <li class="nav-item press-spinner">
-                <a href="{{ route('admin.notification-rules.index') }}" class="nav-link">
-                    <i class="bi bi-bell me-2"></i> <span>Notification rules</span>
                 </a>
             </li>
 
@@ -266,27 +270,29 @@
                 <i class="bi bi-phone me-2"></i> <span>Mobile</span>
             </a>
         </li>
-        @endif
+        @endsystemadmin
 
-        <li class="nav-item press-spinner">
-            <form action="{{ route('admin.database.backup') }}" method="post" class="m-0" id="admin-database-backup-form">
-                @csrf
-                <button type="submit"
-                        class="nav-link w-100 text-start border-0 bg-transparent"
-                        style="color: inherit;"
-                        title="Create full database backup (stored under storage/app/backups)"
-                        onclick="return confirm('Create a full database backup now? This may take a minute.');">
-                    <i class="bi bi-database-down me-2"></i><span>Database backup</span>
-                </button>
-            </form>
-        </li>
+        @systemadmin
+            <li class="nav-item press-spinner">
+                <form action="{{ route('admin.database.backup') }}" method="post" class="m-0" id="admin-database-backup-form">
+                    @csrf
+                    <button type="submit"
+                            class="nav-link w-100 text-start border-0 bg-transparent"
+                            style="color: inherit;"
+                            title="Create full database backup (stored under storage/app/backups)"
+                            onclick="return confirm('Create a full database backup now? This may take a minute.');">
+                        <i class="bi bi-database-down me-2"></i><span>Database backup</span>
+                    </button>
+                </form>
+            </li>
+        @endsystemadmin
 
         <li class="nav-item border-top">
             <a class="nav-link " href="#" id="{{ $themeToggleId }}">
                 <i class="bi bi-moon me-2"></i>&nbsp; <span>Thema</span>
             </a>
         </li>
-    @endif
+    @endadmin
 
 @endif
 

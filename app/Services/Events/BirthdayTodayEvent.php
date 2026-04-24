@@ -6,11 +6,11 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
-class BirthdaySelfEvent implements EventDefinition
+class BirthdayTodayEvent implements EventDefinition
 {
     public function key(): string
     {
-        return 'user.birthday.self.' . now()->year;
+        return 'user.birthday_today';
     }
 
     public function dueSubjects(): Collection
@@ -26,12 +26,14 @@ class BirthdaySelfEvent implements EventDefinition
 
     public function recipients($subject): array
     {
-        return $subject instanceof User ? [$subject] : [];
+        return [];
     }
 
     public function message($subject): array
     {
-        if (!$subject instanceof User) return [];
+        if (! $subject instanceof User) {
+            return [];
+        }
 
         $today = now()->startOfDay();
         $birth = $subject->birthday instanceof Carbon ? $subject->birthday : Carbon::parse($subject->birthday);
@@ -41,15 +43,14 @@ class BirthdaySelfEvent implements EventDefinition
             'fromUserId' => 0,
             'fromName' => 'System',
             'type' => 'birthday',
-            'event' => 'birthday.self',
+            'event' => 'birthday_today',
             'severity' => 'success',
-            'title' => 'Happy Birthday!',
-            'text' => "Happy Birthday, {$subject->name}! 🎉",
+            'title' => 'Birthday today',
+            'text' => "Today is {$subject->name}'s birthday.",
             'ui' => [
                 'birthday' => [
                     'user' => ['id' => $subject->id, 'name' => $subject->name],
                     'age' => $age,
-                    'for' => 'self',
                 ],
             ],
             'payload' => [],
@@ -62,4 +63,3 @@ class BirthdaySelfEvent implements EventDefinition
         return 0;
     }
 }
-

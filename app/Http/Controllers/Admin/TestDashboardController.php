@@ -13,7 +13,7 @@ class TestDashboardController extends Controller
 
     public function index()
     {
-        abort_unless(auth()->user()?->roleIs('Admin'), 403);
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
 
         return view('admin.tests.index', [
             'suites' => $this->runner->allResults(),
@@ -22,7 +22,7 @@ class TestDashboardController extends Controller
 
     public function run(string $suite)
     {
-        abort_unless(auth()->user()?->roleIs('Admin'), 403);
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
 
         $result = $this->runner->run($suite);
 

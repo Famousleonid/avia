@@ -7,10 +7,8 @@ use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
-
 
 class UserController extends Controller
 {
@@ -18,31 +16,29 @@ class UserController extends Controller
     {
         $this->middleware('can:users.viewAny')->only('index');
         $this->middleware('can:users.view')->only('show');
-        $this->middleware('can:users.create')->only(['create', 'store']);
-        $this->middleware('can:users.update')->only(['edit', 'update']);
-        $this->middleware('can:users.delete')->only('destroy');
     }
 
     public function index()
     {
-        $user = Auth::user();
         $users = User::all();
 
-        return View('admin.users.index', compact('users', ));
-
+        return view('admin.users.index', compact('users'));
     }
 
     public function create()
     {
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
+
         $roles = Role::all();
         $teams = Team::all();
 
-        return View('admin.users.create', compact('roles', 'teams'));
-
+        return view('admin.users.create', compact('roles', 'teams'));
     }
 
     public function store(Request $request)
     {
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'string', 'email', 'max:155', 'unique:users,email'],
@@ -50,36 +46,20 @@ class UserController extends Controller
             'birthday' => ['nullable', 'date', 'before:today'],
             'phone' => ['nullable', 'string', 'max:50'],
             'stamp' => ['nullable', 'string', 'max:255'],
-            'role_id' => ['nullable', 'integer', 'exists:roles,id'],
-            'team_id' => ['nullable', 'integer', 'exists:teams,id'],
+            'role_id' => ['required', 'integer', 'exists:roles,id'],
+            'team_id' => ['required', 'integer', 'exists:teams,id'],
         ]);
 
         $data = $validated;
         $data['phone'] = $this->removeSpace($validated['phone'] ?? null);
-
         $data['password'] = Hash::make($validated['password']);
 
         $user = User::create($data);
-
-        if (auth()->user()?->isSystemAdmin()) {
-
-            $user->is_admin = $request->has('is_admin') ? 1 : 0;
-
-            if ($request->filled('role_id')) {
-                $user->role_id = $request->input('role_id');
-            }
-
-            if ($request->filled('team_id')) {
-                $user->team_id = $request->input('team_id');
-            }
-
-            $user->email_verified_at = $request->has('email_verified_at') ? now() : null;
-
-            $user->save();
-        }
+        $user->is_admin = $request->boolean('is_admin');
+        $user->email_verified_at = $request->has('email_verified_at') ? now() : null;
+        $user->save();
 
         if ($request->hasFile('img')) {
-
             $request->validate([
                 'img' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4048'],
             ]);
@@ -94,13 +74,10 @@ class UserController extends Controller
                 ->route('users.index')
                 ->with('success', 'The user has been added. A confirmation email has been sent.');
         } catch (TransportExceptionInterface $e) {
-
             return redirect()
                 ->route('users.index')
                 ->with('warning', 'The user was added, but the email was NOT sent (SMTP is not configured locally).');
-
         } catch (\Throwable $e) {
-
             return redirect()
                 ->route('users.index')
                 ->with('warning', 'The user was added, but the letter was NOT sent (sending error).');
@@ -109,41 +86,33 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        $auth = auth()->user();
-        abort_unless($auth?->isSystemAdmin() || (int) $auth?->id === (int) $user->id, 403);
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
 
         $teams = Team::all();
         $roles = Role::all();
 
-        return view('admin.users.edit', compact('user', 'teams','roles'));
+        return view('admin.users.edit', compact('user', 'teams', 'roles'));
     }
 
     public function update(Request $request, $id)
     {
-        $auth = auth()->user();
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
+
         $user = User::findOrFail($id);
-        abort_unless($auth?->isSystemAdmin() || (int) $auth?->id === (int) $user->id, 403);
 
-        $isAdmin = $auth->isSystemAdmin();
-
-        // 2. Базовые правила валидации для всех
-        $rules = [
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
             'phone' => ['nullable', 'string', 'max:50'],
             'stamp' => ['required', 'string', 'max:255'],
             'birthday' => ['nullable', 'date', 'before:today'],
             'password' => ['nullable', 'string', 'min:' . config('security.user_password_min'), 'confirmed'],
+            'role_id' => ['required', 'integer', 'exists:roles,id'],
+            'team_id' => ['required', 'integer', 'exists:teams,id'],
             'img' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'sign' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:4096'],
-        ];
+        ]);
 
-        if ($isAdmin) {
-            $rules['email'] = ['required', 'email', 'max:255', 'unique:users,email,' . $user->id];
-            $rules['role_id'] = ['required', 'integer', 'exists:roles,id'];
-            $rules['team_id'] = ['required', 'integer', 'exists:teams,id'];
-        }
-
-        $validated = $request->validate($rules);
         $validated['phone'] = $this->removeSpace($validated['phone'] ?? null);
 
         if (! empty($validated['password'])) {
@@ -152,15 +121,8 @@ class UserController extends Controller
             unset($validated['password']);
         }
 
-        if (! $isAdmin) {
-            unset($validated['email'], $validated['role_id'], $validated['team_id'], $validated['img'], $validated['sign']);
-        } else {
-            $validated['is_admin'] = $request->boolean('is_admin');
-
-            $validated['email_verified_at'] = $request->has('email_verified_at')
-                ? now()
-                : null;
-        }
+        $validated['is_admin'] = $request->boolean('is_admin');
+        $validated['email_verified_at'] = $request->has('email_verified_at') ? now() : null;
 
         unset($validated['img'], $validated['sign']);
 
@@ -187,11 +149,13 @@ class UserController extends Controller
             ->with('success', 'Changes saved');
     }
 
-
     public function destroy($id)
     {
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
+        abort_if((int) auth()->id() === (int) $id, 403, 'You cannot delete yourself.');
+
         try {
-            $answer = User::destroy($id);
+            User::destroy($id);
         } catch (\Exception $e) {
             return back()->withErrors('The databases are linked. First remove...');
         }
@@ -213,14 +177,13 @@ class UserController extends Controller
         ]);
 
         $user = User::findOrFail($id);
+
         if (Hash::check($request->old_pass, $user->password)) {
             $user->fill(['password' => Hash::make($request->password)])->save();
+
             return redirect()->back()->with('success', 'New password saved');
-        } else {
-            return redirect()->back()->with('error', 'The current password is incorrect');
         }
 
-
+        return redirect()->back()->with('error', 'The current password is incorrect');
     }
-
 }

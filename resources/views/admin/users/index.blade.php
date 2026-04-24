@@ -113,7 +113,6 @@
     </style>
 
     <div class="card dir-page mt-1 pt-0 " >
-        @role('Admin')
         <div class="card-header my-1">
             <div class="d-flex align-items-center gap-3 flex-wrap">
 
@@ -138,16 +137,17 @@
                 </div>
 
                 {{-- Button --}}
-                <div class="flex-shrink-0">
-                    <a href="{{ route('users.create') }}"
-                       class="btn btn-outline-primary btn-sm">
-                        {{ __('Add User') }}
-                    </a>
-                </div>
+                @if(auth()->user()?->isSystemAdmin())
+                    <div class="flex-shrink-0">
+                        <a href="{{ route('users.create') }}"
+                           class="btn btn-outline-primary btn-sm">
+                            {{ __('Add User') }}
+                        </a>
+                    </div>
+                @endif
 
             </div>
         </div>
-        @endrole
 
         @if(count($users))
             <div class="table-wrapper p-2 pt-0 mb-3">
@@ -187,8 +187,7 @@
                                     style="display: none">{{$user->Birthday}}</span>{{ $user->birthday?->format('d.M.Y') }}
                             </td>
                             <td class="text-center user-col-action">
-                                @if(auth()->user()->roleIs('Admin'))
-                                    {{-- Admin: edit + delete everyone --}}
+                                @if(auth()->user()?->isSystemAdmin() && auth()->id() !== $user->id)
                                     <a href="{{ route('users.edit', ['user' => $user->id]) }}"
                                        class="btn btn-outline-primary btn-sm">
                                         <i class="bi bi-pencil-square"></i>
@@ -205,15 +204,13 @@
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
-
+                                @elseif(auth()->id() === $user->id)
+                                    <a href="{{ route('profile.edit') }}"
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
                                 @else
-                                    {{-- Others: can edit only themselves, no delete --}}
-                                    @if(auth()->id() === $user->id)
-                                        <a href="{{ route('profile.edit') }}"
-                                           class="btn btn-outline-primary btn-sm">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </a>
-                                    @endif
+                                    <span class="text-muted">-</span>
                                 @endif
                             </td>
                         </tr>

@@ -61,7 +61,7 @@
                             <label class="form-label">Email</label>
 
                             <div class="input-group">
-                                @role('Admin')
+                                @if(auth()->user()?->isSystemAdmin())
                                 <input type="email"
                                        name="email"
                                        class="form-control"
@@ -78,7 +78,7 @@
                                           style="cursor: help;">
                                     <i class="bi bi-lock-fill"></i>
                                 </span>
-                                    @endrole
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -114,7 +114,7 @@
 
                         <div class="col-12 col-md-6">
                             <label class="form-label" id="team_label">Team</label>
-                            @if(auth()->user()?->roleIs('Admin'))
+                            @if(auth()->user()?->isSystemAdmin())
                                 <select name="team_id" id="team_id" class="form-select" required>
                                     <option value="">Select Team</option>
                                     @foreach($teams as $team)
@@ -136,7 +136,6 @@
                     </div>
 
                     {{-- Role (Admin only) --}}
-                    @role('Admin')
                     <div class="row g-3 mt-0">
                         <div class="col-12 col-md-6">
                             <label class="form-label">Role</label>
@@ -195,8 +194,6 @@
                                    class="form-control">
                         </div>
                     </div>
-
-                    @endrole
 
                     {{-- Avatar / Sign --}}
                     <div class="row g-3 mt-0">

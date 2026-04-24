@@ -32,6 +32,7 @@ use App\Http\Controllers\Admin\MachiningController;
 use App\Http\Controllers\Admin\PaintController;
 use App\Http\Controllers\Admin\ManualStdProcessController;
 use App\Http\Controllers\Admin\NotificationEventRuleController;
+use App\Http\Controllers\Admin\DateNotificationController;
 use App\Http\Controllers\Front\FrontController;
 use App\Http\Controllers\General\MediaController;
 use App\Http\Controllers\General\NotificationController;
@@ -439,6 +440,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
 
     Route::get('/admin/activity', [ActivityLogController::class, 'index'])->name('admin.activity.index');
+    Route::post('/admin/activity/purge', [ActivityLogController::class, 'purge'])->name('admin.activity.purge');
     Route::post('/admin/database-backup', [DatabaseBackupController::class, 'store'])->name('admin.database.backup');
     Route::post('/reports/table/pdf', [ReportController::class, 'tablePdf'])->name('reports.table.pdf');
     Route::patch('/workorders/{workorder}/storage', [WorkorderController::class, 'updateStorage'])->name('workorders.storage.update');
@@ -452,6 +454,9 @@ Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin')->group(funct
     Route::resource('/notification-rules', NotificationEventRuleController::class)
         ->except(['show', 'create', 'edit'])
         ->names('admin.notification-rules');
+    Route::resource('/date-notifications', DateNotificationController::class)
+        ->except(['show', 'create', 'edit'])
+        ->names('admin.date-notifications');
     Route::get('/tests', [\App\Http\Controllers\Admin\TestDashboardController::class, 'index'])->name('admin.tests.index');
     Route::post('/tests/{suite}/run', [\App\Http\Controllers\Admin\TestDashboardController::class, 'run'])->name('admin.tests.run');
 });
