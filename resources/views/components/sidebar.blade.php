@@ -272,14 +272,21 @@
 {{-- ---------------------------------- modal message (NEW layout) ------------------- --}}
 
 <style>
-    #sendMsgModal .modal-dialog { max-width: 980px; }
+    #sendMsgModal .modal-dialog {
+        max-width: 980px;
+        height: calc(100vh - 3.5rem);
+        margin-top: 1.75rem;
+        margin-bottom: 1.75rem;
+    }
     #sendMsgModal .modal-content {
-        max-height: calc(100vh - 3.5rem);
+        height: 100%;
         display: flex;
         flex-direction: column;
         overflow: hidden;
     }
     #sendMsgModal .modal-body{
+        display: flex;
+        flex-direction: column;
         flex: 1 1 auto;
         min-height: 0;
         overflow: hidden;
@@ -287,8 +294,8 @@
 
     #sendMsgModal .msg-layout{
         display:flex; gap:14px;
+        flex: 1 1 auto;
         min-height: 0;
-        height: 100%;
         align-items: stretch;
     }
     #sendMsgModal .msg-left{
@@ -317,11 +324,18 @@
         display:flex; align-items:center; justify-content:space-between; gap:10px;
     }
     #sendMsgModal textarea#msgText{
-        resize: vertical;
+        flex: 1 1 auto;
         min-height: 260px;
+        max-height: 100%;
+        resize: vertical;
     }
     @media (max-width: 992px){
-        #sendMsgModal .modal-dialog{ max-width: 96vw; }
+        #sendMsgModal .modal-dialog{
+            max-width: 96vw;
+            height: auto;
+            margin-top: .75rem;
+            margin-bottom: .75rem;
+        }
         #sendMsgModal .msg-layout{ flex-direction:column; min-height:auto; }
         #sendMsgModal .msg-right{
             width:100%; flex:0 0 auto;

@@ -190,21 +190,43 @@
 
         @role('Admin')
         <td class="text-center no-print">
-            <form id="deleteForm_{{ $workorder->id }}"
-                  action="{{ route('workorders.destroy', $workorder->id) }}"
-                  method="POST" style="display:inline;">
-                @csrf
-                @method('DELETE')
-                <button class="btn btn-sm btn-outline-danger"
-                        type="button"
-                        name="btn_delete"
-                        data-bs-toggle="modal"
-                        data-bs-target="#useConfirmDelete"
-                        data-form-id="deleteForm_{{ $workorder->id }}"
-                        data-title="Delete Confirmation WO {{ $workorder->number }}">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </form>
+            <div class="d-flex justify-content-center gap-1">
+                <form id="deleteForm_{{ $workorder->id }}"
+                      action="{{ route('workorders.destroy', $workorder->id) }}"
+                      method="POST" style="display:inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button class="btn btn-sm btn-outline-danger"
+                            type="button"
+                            name="btn_delete"
+                            data-bs-toggle="modal"
+                            data-bs-target="#useConfirmDelete"
+                            data-form-id="deleteForm_{{ $workorder->id }}"
+                            data-title="Delete Confirmation WO {{ $workorder->number }}"
+                            data-message="Soft-delete workorder {{ $workorder->number }}? This will hide it from active records. Permanent deletion is irreversible.">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+                @systemadmin
+                    <form id="forceDeleteForm_{{ $workorder->id }}"
+                          action="{{ route('workorders.forceDestroy', $workorder->id) }}"
+                          method="POST" style="display:inline;">
+                        @csrf
+                        @method('DELETE')
+                        <button class="btn btn-sm btn-danger"
+                                type="button"
+                                name="btn_force_delete"
+                                title="Permanently delete workorder {{ $workorder->number }}"
+                                data-bs-toggle="modal"
+                                data-bs-target="#useConfirmDelete"
+                                data-form-id="forceDeleteForm_{{ $workorder->id }}"
+                                data-title="Permanent Delete WO {{ $workorder->number }}"
+                                data-message="Permanently delete workorder {{ $workorder->number }} from the database? This action is irreversible.">
+                            <i class="bi bi-trash-fill"></i>
+                        </button>
+                    </form>
+                @endsystemadmin
+            </div>
         </td>
         @endrole
     </tr>

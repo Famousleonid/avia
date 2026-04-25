@@ -35,7 +35,12 @@ class Component extends Model implements  hasMedia
     {
         return LogOptions::defaults()
             ->useLogName('component')
-            ->logOnly($this->fillable)
+            ->logOnly([
+                'part_number',
+                'name',
+                'ipl_num',
+                'manual_id',
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

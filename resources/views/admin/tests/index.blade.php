@@ -79,23 +79,33 @@
 
         <div class="row g-4">
             @foreach($suites as $suiteKey => $suite)
+                @php
+                    $suiteLabel = $suite['label'] ?? ucfirst((string) $suiteKey);
+                    $suiteDescription = $suite['description'] ?? 'No description available.';
+                    $suiteStatus = $suite['status'] ?? 'unknown';
+                    $suiteSummary = $suite['summary'] ?? 'Not run yet';
+                    $durationMs = $suite['duration_ms'] ?? null;
+                    $finishedAt = $suite['finished_at'] ?? '—';
+                    $suiteOutput = $suite['output'] ?? '';
+                @endphp
+
                 <div class="col-12 col-xl-6">
                     <div class="qa-card h-100 p-4">
                         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                             <div>
-                                <h4 class="mb-1 text-white">{{ $suite['label'] }}</h4>
-                                <div class="text-white-50">{{ $suite['description'] }}</div>
+                                <h4 class="mb-1 text-white">{{ $suiteLabel }}</h4>
+                                <div class="text-white-50">{{ $suiteDescription }}</div>
                             </div>
                             <div class="d-flex flex-column align-items-end gap-2">
-                                <span class="qa-status-pill {{ $suite['status'] }}">
-                                    @if($suite['status'] === 'passed')
+                                <span class="qa-status-pill {{ $suiteStatus }}">
+                                    @if($suiteStatus === 'passed')
                                         <i class="bi bi-check-circle-fill"></i>
-                                    @elseif($suite['status'] === 'failed')
+                                    @elseif($suiteStatus === 'failed')
                                         <i class="bi bi-x-circle-fill"></i>
                                     @else
                                         <i class="bi bi-dash-circle-fill"></i>
                                     @endif
-                                    {{ strtoupper($suite['status']) }}
+                                    {{ strtoupper($suiteStatus) }}
                                 </span>
 
                                 <form method="POST" action="{{ route('admin.tests.run', $suiteKey) }}">
@@ -110,23 +120,21 @@
                         <div class="row g-3 mb-3">
                             <div class="col-sm-4">
                                 <div class="small text-white-50">Summary</div>
-                                <div class="text-white">{{ $suite['summary'] }}</div>
+                                <div class="text-white">{{ $suiteSummary }}</div>
                             </div>
                             <div class="col-sm-4">
                                 <div class="small text-white-50">Duration</div>
-                                <div class="text-white">
-                                    {{ $suite['duration_ms'] !== null ? number_format($suite['duration_ms']) . ' ms' : '—' }}
-                                </div>
+                                <div class="text-white">{{ $durationMs !== null ? number_format($durationMs) . ' ms' : '—' }}</div>
                             </div>
                             <div class="col-sm-4">
                                 <div class="small text-white-50">Last run</div>
-                                <div class="text-white">{{ $suite['finished_at'] ?? '—' }}</div>
+                                <div class="text-white">{{ $finishedAt }}</div>
                             </div>
                         </div>
 
                         <details>
                             <summary class="text-info mb-3" style="cursor:pointer;">Показать вывод</summary>
-                            <div class="qa-output">{{ $suite['output'] !== '' ? $suite['output'] : 'Вывод пока отсутствует.' }}</div>
+                            <div class="qa-output">{{ $suiteOutput !== '' ? $suiteOutput : 'Вывод пока отсутствует.' }}</div>
                         </details>
                     </div>
                 </div>

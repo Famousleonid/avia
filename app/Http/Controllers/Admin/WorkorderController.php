@@ -722,6 +722,24 @@ class WorkorderController extends Controller
         return redirect()->route('workorders.index')->with('success', 'Workorder deleted');
     }
 
+    public function forceDestroy(Workorder $workorder)
+    {
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
+
+        try {
+            $number = $workorder->number;
+            $workorder->forceDelete();
+
+            return redirect()
+                ->route('workorders.index')
+                ->with('success', "Workorder {$number} permanently deleted.");
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('workorders.index')
+                ->with('error', 'Permanent deletion failed. Remove dependent records first.');
+        }
+    }
+
     public function edit(Workorder $workorder)
     {
 

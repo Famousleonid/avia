@@ -7,6 +7,7 @@ use App\Models\TdrProcess;
 use App\Models\Vendor;
 use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Schema;
@@ -14,6 +15,13 @@ use Illuminate\Support\Collection;
 
 class VendorTrackingController extends Controller
 {
+    private const SOURCE_MAP = [
+        'tdr_std' => TdrProcess::class,
+        'tdr_part' => TdrProcess::class,
+        'wo_bushing_process' => WoBushingProcess::class,
+        'wo_bushing_batch' => WoBushingBatch::class,
+    ];
+
     public function index(Request $request)
     {
         abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
@@ -27,6 +35,8 @@ class VendorTrackingController extends Controller
             'part_number' => trim((string) $request->input('part_number', '')),
             'repair_order' => trim((string) $request->input('repair_order', '')),
         ];
+
+        $totalRowsCount = $this->totalRowsCount();
 
         if (! in_array($filters['status'], ['open', 'returned', 'all'], true)) {
             $filters['status'] = 'all';
@@ -109,7 +119,46 @@ class VendorTrackingController extends Controller
 
         $vendors = Vendor::query()->orderBy('name')->get(['id', 'name']);
 
-        return view('admin.vendor_tracking.index', compact('rows', 'vendors', 'filters'));
+        $summary = [
+            'filtered_total' => $rows->total(),
+            'page_count' => $rows->count(),
+            'total_rows' => $totalRowsCount,
+        ];
+
+        return view('admin.vendor_tracking.index', compact('rows', 'vendors', 'filters', 'summary'));
+    }
+
+    public function updateRow(Request $request): JsonResponse
+    {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $data = $request->validate([
+            'source_key' => ['required', 'string'],
+            'id' => ['required', 'integer', 'min:1'],
+            'vendor_id' => ['nullable', 'integer', 'exists:vendors,id'],
+            'repair_order' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $modelClass = self::SOURCE_MAP[$data['source_key']] ?? null;
+        abort_unless($modelClass !== null, 422, 'Unknown vendor tracking source.');
+
+        /** @var TdrProcess|WoBushingProcess|WoBushingBatch $row */
+        $row = $modelClass::query()->findOrFail($data['id']);
+        $row->vendor_id = $data['vendor_id'] ?? null;
+        $row->repair_order = $this->normalizeRepairOrder($data['repair_order'] ?? null);
+
+        if ($row instanceof TdrProcess && auth()->id()) {
+            $row->user_id = auth()->id();
+        }
+
+        $row->save();
+        $row->loadMissing('vendor:id,name');
+
+        return response()->json([
+            'ok' => true,
+            'vendor_name' => $row->vendor?->name,
+            'repair_order' => $row->repair_order,
+        ]);
     }
 
     private function sourceFilters(Request $request): array
@@ -156,6 +205,7 @@ class VendorTrackingController extends Controller
 
         return (object) [
             'id' => (int) $row->id,
+            'source_key' => $tdr?->component_id === null ? 'tdr_std' : 'tdr_part',
             'source' => $tdr?->component_id === null ? 'STD' : 'Part',
             'vendor' => $row->vendor,
             'workorder' => $wo,
@@ -250,6 +300,7 @@ class VendorTrackingController extends Controller
 
         return (object) [
             'id' => (int) $row->id,
+            'source_key' => 'wo_bushing_process',
             'source' => 'Bushing',
             'vendor' => $row->vendor,
             'workorder' => $wo,
@@ -274,6 +325,7 @@ class VendorTrackingController extends Controller
 
         return (object) [
             'id' => (int) $row->id,
+            'source_key' => 'wo_bushing_batch',
             'source' => 'Bushing',
             'vendor' => $row->vendor,
             'workorder' => $row->workorder,
@@ -301,5 +353,44 @@ class VendorTrackingController extends Controller
             $page,
             ['path' => $request->url(), 'query' => $request->query()]
         ));
+    }
+
+    private function totalRowsCount(): int
+    {
+        $tdrCount = TdrProcess::query()
+            ->where(function ($q): void {
+                $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
+            })
+            ->whereHas('tdr.workorder')
+            ->count();
+
+        $bushingProcessCount = 0;
+        if (Schema::hasColumn('wo_bushing_processes', 'vendor_id')) {
+            $bushingProcessCount = WoBushingProcess::query()
+                ->where(function ($q): void {
+                    $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
+                })
+                ->whereHas('line.workorder')
+                ->count();
+        }
+
+        $bushingBatchCount = 0;
+        if (Schema::hasColumn('wo_bushing_batches', 'vendor_id')) {
+            $bushingBatchCount = WoBushingBatch::query()
+                ->where(function ($q): void {
+                    $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
+                })
+                ->whereHas('workorder')
+                ->count();
+        }
+
+        return $tdrCount + $bushingProcessCount + $bushingBatchCount;
+    }
+
+    private function normalizeRepairOrder(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
     }
 }

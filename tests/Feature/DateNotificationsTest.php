@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\DateNotification;
 use App\Services\DateNotificationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\NewMessageNotification;
 use Tests\BuildsDomainData;
@@ -13,7 +13,7 @@ use Tests\TestCase;
 class DateNotificationsTest extends TestCase
 {
     use BuildsDomainData;
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     public function test_admin_can_create_date_notification(): void
     {
