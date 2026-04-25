@@ -104,7 +104,7 @@ class GroupProcessFormsHandler {
             const selectedProcesses = Array.from(checkedBoxes).map(checkbox => checkbox.value);
             url.searchParams.set('process_ids', selectedProcesses.join(','));
         } else {
-            url.searchParams.delete('process_ids');
+            url.searchParams.set('process_ids', '');
         }
 
         link.setAttribute('href', url.toString());

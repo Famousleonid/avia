@@ -529,6 +529,10 @@ class TdrProcessController extends Controller
         $processes_name_id = $request->input('process_name_id');
         $process_name = ProcessName::findOrFail($processes_name_id);
 
+        if (ProcessName::hasNoProcessForm($process_name)) {
+            return redirect()->back()->with('error', __('There is no process form for EC.'));
+        }
+
         if (empty($process_name->process_sheet_name)) {
             return redirect()->back()->with('error', __('There is no form for this process.'));
         }
@@ -652,6 +656,9 @@ class TdrProcessController extends Controller
 
         // Получаем связанные данные через отношения
         $process_name = $current_tdrs_process->processName;
+        if (ProcessName::hasNoProcessForm($process_name)) {
+            abort(404, __('There is no process form for EC.'));
+        }
         $current_tdr = $current_tdrs_process->tdr;
         $current_wo = $current_tdr->workorder;
         $manual_id = $current_wo->unit->manual_id;
@@ -713,7 +720,6 @@ class TdrProcessController extends Controller
             ] + $ndt_ids;
 
         } else {
-            // Обработка обычных процессов
             // Базовый набор доступных процессов для данного имени
             $processComponents = Process::whereIn('id', $manualProcesses)
                 ->where('process_names_id', $process_name->id)
@@ -722,8 +728,8 @@ class TdrProcessController extends Controller
             // Если передан конкретный process_id (элемент из JSON-массива), фильтруем JSON «processes» у текущей записи
             if ($specificProcessId !== null) {
                 $currentProcesses = json_decode($current_tdrs_process->processes, true) ?: [];
-                $currentProcesses = array_values(array_filter($currentProcesses, function($pid) use ($specificProcessId) {
-                    return (int)$pid === (int)$specificProcessId;
+                $currentProcesses = array_values(array_filter($currentProcesses, function ($pid) use ($specificProcessId) {
+                    return (int) $pid === (int) $specificProcessId;
                 }));
                 $current_tdrs_process->processes = json_encode($currentProcesses);
             }
@@ -731,7 +737,7 @@ class TdrProcessController extends Controller
             $viewData += [
                 'process_components' => $processComponents,
                 // Строго одна выбранная запись (возможно с отфильтрованным одним process_id)
-                'process_tdr_components' => collect([$current_tdrs_process->load(['tdr', 'processName'])])
+                'process_tdr_components' => collect([$current_tdrs_process->load(['tdr', 'processName'])]),
             ];
         }
 
@@ -760,75 +766,9 @@ class TdrProcessController extends Controller
         // Получаем всех поставщиков
         $vendors = Vendor::all();
 
-        // Группируем процессы для создания кнопок групповых форм
-        $processGroups = [];
-        $totalQty = 0;
-
-        if ($current_tdr->component) {
-            // Процессы уже отфильтрованы по текущему TDR
-            $tdrProcessesForTdr = $tdrProcesses;
-
-            foreach ($tdrProcessesForTdr as $tdrProcess) {
-                if (!$tdrProcess->processName) {
-                    continue;
-                }
-
-                $processName = $tdrProcess->processName;
-                // Используем processNameId как ключ группы для всех процессов, включая NDT
-                // Это позволяет разделять NDT-1, NDT-4 и другие типы NDT в отдельные группы
-                $groupKey = $processName->id;
-
-                if (!isset($processGroups[$groupKey])) {
-                    $processGroups[$groupKey] = [
-                        'process_name' => $processName,
-                        'processes_qty' => [],
-                        'processes' => []
-                    ];
-                }
-
-                // Декодируем JSON-поле processes
-                $processData = json_decode($tdrProcess->processes, true);
-                if (is_array($processData)) {
-                    foreach ($processData as $processId) {
-                        // Находим процесс по ID
-                        $process = $proces->firstWhere('id', $processId);
-                        if ($process) {
-                            // Добавляем/обновляем количество по процессу (для TDR обычно qty = 1)
-                            $qty = 1;
-                            $processGroups[$groupKey]['processes_qty'][$processId] =
-                                ($processGroups[$groupKey]['processes_qty'][$processId] ?? 0) + $qty;
-
-                            // Сохраняем информацию о процессе
-                            if (!isset($processGroups[$groupKey]['processes'][$processId])) {
-                                $processGroups[$groupKey]['processes'][$processId] = [
-                                    'id' => $processId,
-                                    'name' => $process->process,
-                                    'tdr_process_id' => $tdrProcess->id,
-                                    'ec' => $tdrProcess->ec ?? false,
-                                    'qty' => $qty
-                                ];
-                            } else {
-                                // Обновляем qty если процесс уже есть
-                                $processGroups[$groupKey]['processes'][$processId]['qty'] += $qty;
-                            }
-
-                            $totalQty += $qty;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Подсчитываем уникальные процессы и суммы qty для каждого процесса
-        foreach ($processGroups as $processNameId => &$group) {
-            $processesQty = $group['processes_qty'];
-            $uniqueProcesses = array_keys($processesQty);
-            $group['count'] = count($uniqueProcesses);
-            $group['qty'] = array_sum($processesQty);
-            // Преобразуем массив процессов в обычный массив для удобства в представлении
-            $group['processes'] = array_values($group['processes']);
-            unset($group['processes_qty']); // Удаляем техническое поле
-        }
+        $built = $this->buildProcessGroupsForSingleTdr($current_tdr, $tdrProcesses, $proces);
+        $processGroups = $built['processGroups'];
+        $totalQty = $built['totalQty'];
 
         $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
 
@@ -848,10 +788,110 @@ class TdrProcessController extends Controller
         $proces = Process::all();
         $vendors = Vendor::all();
         $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
+        $built = $this->buildProcessGroupsForSingleTdr($current_tdr, $tdrProcesses, $proces);
+        $processGroups = $built['processGroups'];
+        $totalQty = $built['totalQty'];
 
         return view('admin.tdr-processes.partials.processes-body', compact(
-            'current_tdr', 'current_wo', 'tdrProcesses', 'proces', 'vendors', 'ecEligibleProcessNameIds'
+            'current_tdr', 'current_wo', 'tdrProcesses', 'proces', 'vendors', 'ecEligibleProcessNameIds',
+            'processGroups', 'totalQty'
         ));
+    }
+
+    /**
+     * @return array{processGroups: array, totalQty: int}
+     */
+    private function buildProcessGroupsForSingleTdr(Tdr $current_tdr, $tdrProcesses, $proces): array
+    {
+        $processGroups = [];
+        $totalQty = 0;
+
+        if ($current_tdr->component) {
+            foreach ($tdrProcesses as $tdrProcess) {
+                if (!$tdrProcess->processName) {
+                    continue;
+                }
+
+                $processName = $tdrProcess->processName;
+                if (ProcessName::hasNoProcessForm($processName)) {
+                    continue;
+                }
+
+                $groupKey = ProcessName::groupFormsGroupKey($processName, false);
+
+                if (!isset($processGroups[$groupKey])) {
+                    if ($groupKey === ProcessName::GROUP_KEY_MERGE_MACHINING_MEC) {
+                        $rep = ProcessName::machiningMachiningEcRepresentative() ?? $processName;
+                        $processGroups[$groupKey] = [
+                            'process_name' => $rep,
+                            'representative_process_name_id' => $rep->id,
+                            'processes_qty' => [],
+                            'processes' => [],
+                            'logical_unit_keys' => [],
+                        ];
+                    } else {
+                        $processGroups[$groupKey] = [
+                            'process_name' => $processName,
+                            'representative_process_name_id' => $processName->id,
+                            'processes_qty' => [],
+                            'processes' => [],
+                            'logical_unit_keys' => [],
+                        ];
+                    }
+                }
+
+                $rawProcesses = $tdrProcess->processes;
+                $processData = is_array($rawProcesses) ? $rawProcesses : json_decode((string) $rawProcesses, true);
+                if (!is_array($processData)) {
+                    continue;
+                }
+
+                $isCombinedNdtRow = $tdrProcess->isCombinedNdtPrimaryRow();
+
+                foreach ($processData as $processId) {
+                    $process = $proces->firstWhere('id', $processId);
+                    if (!$process) {
+                        continue;
+                    }
+
+                    if ($isCombinedNdtRow) {
+                        $processGroups[$groupKey]['logical_unit_keys']['ndt_combined_'.$tdrProcess->id] = true;
+                    } else {
+                        $processGroups[$groupKey]['logical_unit_keys']['pid_'.(int) $processId] = true;
+                    }
+
+                    $qty = 1;
+                    $processGroups[$groupKey]['processes_qty'][$processId] =
+                        ($processGroups[$groupKey]['processes_qty'][$processId] ?? 0) + $qty;
+
+                    if (!isset($processGroups[$groupKey]['processes'][$processId])) {
+                        $processGroups[$groupKey]['processes'][$processId] = [
+                            'id' => $processId,
+                            'name' => $process->process,
+                            'tdr_process_id' => $tdrProcess->id,
+                            'ec' => $tdrProcess->ec ?? false,
+                            'qty' => $qty,
+                        ];
+                    } else {
+                        $processGroups[$groupKey]['processes'][$processId]['qty'] += $qty;
+                    }
+
+                    $totalQty += $qty;
+                }
+            }
+        }
+
+        foreach ($processGroups as &$group) {
+            $processesQty = $group['processes_qty'];
+            $group['count'] = count($group['logical_unit_keys'] ?? []);
+            unset($group['logical_unit_keys']);
+            $group['qty'] = array_sum($processesQty);
+            $group['processes'] = array_values($group['processes']);
+            unset($group['processes_qty']);
+        }
+        unset($group);
+
+        return ['processGroups' => $processGroups, 'totalQty' => $totalQty];
     }
 
     public function travelerGroup(Request $request, $tdrId)
@@ -1909,6 +1949,9 @@ class TdrProcessController extends Controller
             }
 
             $process_name = $tdrProcess->processName;
+            if (ProcessName::hasNoProcessForm($process_name)) {
+                continue;
+            }
             $selectedVendor = $vendorId ? Vendor::find($vendorId) : null;
 
             // Базовые данные для формы
@@ -1977,16 +2020,16 @@ class TdrProcessController extends Controller
 
                 // Фильтруем processes по конкретному process_id
                 $currentProcesses = json_decode($tdrProcess->processes, true) ?: [];
-                $currentProcesses = array_values(array_filter($currentProcesses, function($pid) use ($processId) {
-                    return (int)$pid === (int)$processId;
+                $currentProcesses = array_values(array_filter($currentProcesses, function ($pid) use ($processId) {
+                    return (int) $pid === (int) $processId;
                 }));
                 $tdrProcess->processes = json_encode($currentProcesses);
 
-            $formData += [
-                'process_components' => $processComponents,
-                'process_tdr_components' => collect([$tdrProcess->load(['tdr', 'processName'])])
-            ];
-        }
+                $formData += [
+                    'process_components' => $processComponents,
+                    'process_tdr_components' => collect([$tdrProcess->load(['tdr', 'processName'])]),
+                ];
+            }
 
         // Добавляем current_tdr для использования в view
         $formData['current_tdr'] = $current_tdr;

@@ -63,6 +63,22 @@ class TdrProcess extends Model
         return $this->belongsTo(Vendor::class, 'vendor_id');
     }
 
+    /**
+     * Строка NDT с «плюсом» (например NDT-1 + NDT-4 в одной строке через plus_process).
+     * Для групповых форм это одна логическая операция, не несколько.
+     */
+    public function isCombinedNdtPrimaryRow(): bool
+    {
+        if (!$this->processName) {
+            return false;
+        }
+        $pn = $this->processName;
+
+        return ($pn->process_sheet_name ?? '') === 'NDT'
+            && str_starts_with((string) ($pn->name ?? ''), 'NDT-')
+            && trim((string) ($this->plus_process ?? '')) !== '';
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

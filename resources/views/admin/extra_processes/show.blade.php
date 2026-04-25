@@ -112,6 +112,23 @@
             padding: 1rem;
         }
 
+        #groupFormsModal .modal-dialog {
+            max-height: 80vh;
+            margin: 1.75rem auto;
+        }
+        #groupFormsModal .modal-content {
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #groupFormsModal .modal-header {
+            flex-shrink: 0;
+        }
+        #groupFormsModal .modal-body {
+            overflow-y: auto;
+            min-height: 0;
+        }
+
         .component-checkboxes {
             max-height: 200px;
             overflow-y: auto;
@@ -338,7 +355,7 @@
     <!-- Modal - Group Process Forms -->
     @if(isset($processGroups) && count($processGroups) > 0)
         <div class="modal fade" id="groupFormsModal" tabindex="-1" aria-labelledby="groupFormsModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="groupFormsModalLabel">

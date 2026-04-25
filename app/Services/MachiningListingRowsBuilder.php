@@ -110,6 +110,10 @@ final class MachiningListingRowsBuilder
     }
 
     /**
+     * Открытые строки: в очереди — сначала machining_queue_order, затем номер WO, затем дата старта
+     * (без старта в конце группы WO), затем detail. Вне очереди — номер WO, дата старта, detail.
+     * Без глобального «все со стартом выше всех без старта», чтобы части одного WO не разъезжались.
+     *
      * @param  Collection<int, object>  $rows
      * @return Collection<int, object>
      */
@@ -136,11 +140,6 @@ final class MachiningListingRowsBuilder
         }
 
         $openSorted = $open->sort(function (object $a, object $b) use ($queuedBucket): int {
-            $byStart = ($this->rowHasMachiningDateStart($a) ? 0 : 1) <=> ($this->rowHasMachiningDateStart($b) ? 0 : 1);
-            if ($byStart !== 0) {
-                return $byStart;
-            }
-
             if ($queuedBucket) {
                 $qa = (int) ($a->workorder->machining_queue_order ?? PHP_INT_MAX);
                 $qb = (int) ($b->workorder->machining_queue_order ?? PHP_INT_MAX);
@@ -150,19 +149,18 @@ final class MachiningListingRowsBuilder
                 }
             }
 
+            // Один WO подряд; внутри WO — по дате старта (rowMachiningStartTimestamp: без даты = в конец).
+            $byWo = ((int) $a->workorder->number) <=> ((int) $b->workorder->number);
+            if ($byWo !== 0) {
+                return $byWo;
+            }
+
             $byTs = $this->rowMachiningStartTimestamp($a) <=> $this->rowMachiningStartTimestamp($b);
             if ($byTs !== 0) {
                 return $byTs;
             }
 
-            if (! $queuedBucket) {
-                $byNum = ((int) $a->workorder->number) <=> ((int) $b->workorder->number);
-                if ($byNum !== 0) {
-                    return $byNum;
-                }
-            }
-
-            return ((int) $a->workorder->number) <=> ((int) $b->workorder->number);
+            return strcmp((string) ($a->detail_label ?? ''), (string) ($b->detail_label ?? ''));
         })->values();
 
         $doneSorted = $done->sort(function (object $a, object $b): int {

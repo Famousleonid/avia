@@ -7,6 +7,10 @@
     .extra-part-processes .component-checkboxes { max-height: 200px; overflow-y: auto; padding: 0.5rem; color: inherit; }
     .extra-part-processes .component-checkbox:checked + .form-check-label { font-weight: 500; color: inherit; }
     .process-text-long { font-size: 0.90rem; line-height: 0.9; letter-spacing: -0.3px; transform: scale(0.9); transform-origin: left; margin-top: 5px; }
+    #extraGroupFormsModal .modal-dialog { max-height: 80vh; margin: 1.75rem auto; }
+    #extraGroupFormsModal .modal-content { max-height: 80vh; display: flex; flex-direction: column; }
+    #extraGroupFormsModal .modal-header { flex-shrink: 0; }
+    #extraGroupFormsModal .modal-body { overflow-y: auto; min-height: 0; }
 </style>
 
 <div class="extra-part-processes" data-has-records="{{ (isset($extra_components) && count($extra_components) > 0) ? '1' : '0' }}" data-extra-process-count="{{ isset($extra_components) ? count($extra_components) : 0 }}">
@@ -91,7 +95,7 @@
 
     @if(isset($processGroups) && count($processGroups) > 0)
         <div class="modal fade" id="extraGroupFormsModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content bg-gradient">
                     <div class="modal-header">
                         <h5 class="modal-title"><i class="fas fa-print"></i> {{ __('Group Process Forms') }}</h5>

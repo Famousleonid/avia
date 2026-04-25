@@ -935,9 +935,13 @@ window.hapticTap = function (pattern = 10) {
                 window.showNotification(okText, 'success', 2000);
             }
 
-            // Machining index: даты через js-ajax — перерисовка очереди / сортировки / поиска с сервера
+            // Machining index: даты через js-ajax — перерисовка таблицы без полного reload (см. machining scripts)
             if (form.closest('#machining-wo-table') && form.querySelector('.machining-date-input-wrap')) {
-                setTimeout(() => window.location.reload(), 350);
+                if (typeof window.refreshMachiningTableAfterEdits === 'function') {
+                    window.refreshMachiningTableAfterEdits({ skipSpinner: true });
+                } else {
+                    setTimeout(() => window.location.reload(), 350);
+                }
             }
 
         } catch (e) {

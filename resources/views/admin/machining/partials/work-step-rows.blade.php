@@ -29,8 +29,10 @@
     @endphp
     <tr @if($si === 1) id="machining-steps-body-{{ $machiningGroupId }}" @endif
         data-machining-group="{{ $machiningGroupId }}"
+        data-wo-id="{{ (int) ($woId ?? 0) }}"
         data-machining-search="{{ $machiningSearch }} {{ $stepSearchNorm }}"
         @if($rowHasDateFinish) data-machining-closed="1" @endif
+        @if(! empty($machiningWoMasterIsExtra)) data-machining-wo-extra="1" @endif
         class="machining-row-child machining-row-unqueued {{ $isBushingRow ? 'machining-row-bushing' : '' }} {{ ! empty($collapseStepRowsDefault) ? 'd-none' : '' }}">
         <td colspan="{{ $leadCols }}" class="machining-step-lead-cell small text-secondary py-2">
             <span class="text-info">Step {{ $si }}</span>

@@ -1196,20 +1196,32 @@
                 var invalidItems = partNumbers.filter(function (item) { return !item.part_number.trim(); });
                 if (invalidItems.length > 0) { showNotification('{{ __("Error: All part numbers must be filled") }}', 'error'); return; }
 
-                var updateUrl = '{{ route("units.update", ":id") }}'.replace(':id', manualId);
+                var unitsUpdateBase = @json(rtrim((string) url('/units'), '/'));
+                var updateUrl = unitsUpdateBase + '/' + encodeURIComponent(manualId);
 
                 fetch(updateUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({ part_numbers: partNumbers })
                 })
                     .then(function (r) {
-                        if (!r.ok) throw new Error('HTTP ' + r.status);
-                        return r.json();
+                        return r.text().then(function (text) {
+                            var data = {};
+                            if (text) {
+                                try { data = JSON.parse(text); } catch (e) { data = { _raw: text }; }
+                            }
+                            if (!r.ok) {
+                                var errMsg = (data && (data.error || data.message)) || (r.status + ' ' + r.statusText);
+                                throw new Error(errMsg);
+                            }
+                            return data;
+                        });
                     })
                     .then(function (data) {
                         if (data.success) {

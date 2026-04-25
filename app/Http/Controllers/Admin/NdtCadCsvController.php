@@ -10,6 +10,7 @@ use App\Models\Component;
 use App\Models\Process;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 class NdtCadCsvController extends Controller
@@ -56,11 +57,11 @@ class NdtCadCsvController extends Controller
     /**
      * Partial для встраивания в TDR show (без layout)
      */
-    public function partial(Workorder $workorder): View
+    public function partial(Workorder $workorder): Response
     {
-        $ndtCadCsv = $workorder->ndtCadCsv;
+        $ndtCadCsv = NdtCadCsv::query()->where('workorder_id', $workorder->id)->first();
         $shouldAutoLoad = false;
-        if (!$ndtCadCsv) {
+        if (! $ndtCadCsv) {
             $shouldAutoLoad = true;
         } else {
             $ndtEmpty = empty($ndtCadCsv->ndt_components) || (is_array($ndtCadCsv->ndt_components) && count($ndtCadCsv->ndt_components) == 0);
@@ -73,12 +74,22 @@ class NdtCadCsvController extends Controller
         }
         if ($shouldAutoLoad) {
             if (! $ndtCadCsv) {
-                $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder->id);
+                NdtCadCsv::createForWorkorder($workorder->id);
             } else {
-                $ndtCadCsv = NdtCadCsv::loadComponentsFromManual($workorder->id, $ndtCadCsv);
+                NdtCadCsv::loadComponentsFromManual($workorder->id, $ndtCadCsv);
             }
         }
-        return view('admin.ndt-cad-csv.partial', compact('workorder', 'ndtCadCsv'));
+
+        $ndtCadCsv = NdtCadCsv::query()->where('workorder_id', $workorder->id)->first();
+        if (! $ndtCadCsv) {
+            abort(404, 'NdtCadCsv not found for workorder');
+        }
+
+        $view = view('admin.ndt-cad-csv.partial', compact('workorder', 'ndtCadCsv'));
+
+        return response($view, 200)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     /**
@@ -491,7 +502,7 @@ class NdtCadCsvController extends Controller
         ]);
 
         try {
-            $ndtCadCsv = $workorder->ndtCadCsv;
+            $ndtCadCsv = NdtCadCsv::query()->where('workorder_id', $workorder->id)->first();
 
             if (! $ndtCadCsv) {
                 return response()->json([
@@ -531,11 +542,28 @@ class NdtCadCsvController extends Controller
             }
 
             $ndtCadCsv->save();
+            $ndtCadCsv->refresh();
+
+            $woNdtCadCols = [
+                'ndtManual' => collect($ndtCadCsv->ndt_components ?? [])->contains(fn ($c) => ! empty($c['manual'] ?? null)),
+                'cadManual' => collect($ndtCadCsv->cad_components ?? [])->contains(fn ($c) => ! empty($c['manual'] ?? null)),
+                'paintManual' => collect($ndtCadCsv->paint_components ?? [])->contains(fn ($c) => ! empty($c['manual'] ?? null)),
+                'stressManual' => collect($ndtCadCsv->stress_components ?? [])->contains(fn ($c) => ! empty($c['manual'] ?? null)),
+            ];
 
             return response()->json([
                 'success' => true,
                 'message' => strtoupper($type).' components were replaced from the STD manual',
                 'count' => count($components),
+                'updated_type' => $type,
+                'updated_components' => $components,
+                'wo_ndt_cad_cols' => $woNdtCadCols,
+                'std_counts' => [
+                    'ndt' => count($ndtCadCsv->ndt_components ?? []),
+                    'cad' => count($ndtCadCsv->cad_components ?? []),
+                    'stress' => count($ndtCadCsv->stress_components ?? []),
+                    'paint' => count($ndtCadCsv->paint_components ?? []),
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([

@@ -88,6 +88,7 @@
     };
 </script>
 @include('admin.tdrs.partials.component-inspection-scripts')
+@include('admin.tdrs.partials.all-parts-group-forms-modal-script')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var pendingTdrNotification = null;
@@ -145,6 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var itemPn = document.getElementById('compProcessesPn');
     var itemSn = document.getElementById('compProcessesSn');
     var addProcessBtn = document.getElementById('compProcessesAddProcessBtn');
+    var compProcessesGroupFormsBtn = document.getElementById('compProcessesGroupFormsBtn');
     var allPartsProcessesUrl = '{{ route("tdrs.processesPartial", ["workorder_id" => $current_wo->id]) }}';
     var allPartsBody = document.getElementById('allPartsProcessesTabBody');
     {{-- Имя extra_processes.partial: не используем route(), чтобы не падать при устаревшем route:cache; путь совпадает с routes/web.php --}}
@@ -161,6 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var tabExtraPartsProcessesBtn = document.getElementById('tab-extra-parts-processes');
     var extraGroupFormsHeaderBtn = document.getElementById('extraGroupFormsHeaderBtn');
     var extraPartsTabActions = document.getElementById('extraPartsTabActions');
+    var allPartsGroupFormsTabActions = document.getElementById('allPartsGroupFormsTabActions');
     var logCardTabBody = document.getElementById('logCardTabBody');
     var logCardPartialUrl = '{{ route("log_card.partial", ["workorder_id" => $current_wo->id]) }}';
     var transfersTabBody = document.getElementById('transfersTabBody');
@@ -179,17 +182,32 @@ document.addEventListener('DOMContentLoaded', function() {
     var editBushingUrl = '{{ route("wo_bushings.edit", ["wo_bushing" => "__ID__"]) }}';
     var getProcessesBaseUrl = '{{ url("/get-processes") }}';
 
+    function syncAllPartsGroupFormsBtnVisibility() {
+        var btn = document.getElementById('allPartsGroupFormsBtn');
+        if (!btn) return;
+        if (!allPartsBody) {
+            btn.classList.add('d-none');
+            return;
+        }
+        var hasModal = !!allPartsBody.querySelector('#groupFormsModal');
+        if (hasModal) btn.classList.remove('d-none');
+        else btn.classList.add('d-none');
+    }
+
     function loadAllPartsProcesses() {
         if (!allPartsBody) return;
         allPartsBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
+        syncAllPartsGroupFormsBtnVisibility();
         fetch(allPartsProcessesUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, spinner: false })
             .then(function(r) { return r.text(); })
             .then(function(html) {
                 allPartsBody.innerHTML = html;
                 initAllPartsGroupForms(allPartsBody);
+                syncAllPartsGroupFormsBtnVisibility();
             })
             .catch(function() {
                 allPartsBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }}</div>';
+                syncAllPartsGroupFormsBtnVisibility();
             });
     }
 
@@ -322,9 +340,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function loadStdProcessesPartial() {
-        if (!stdProcessesTabBody || !stdProcessesPartialUrl) return;
+        if (!stdProcessesTabBody || !stdProcessesPartialUrl) {
+            return Promise.resolve();
+        }
         stdProcessesTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
-        fetch(stdProcessesPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+        var bustUrl = stdProcessesPartialUrl + (String(stdProcessesPartialUrl).indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
+        return fetch(bustUrl, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+            },
+            credentials: 'same-origin',
+            cache: 'no-store',
+        })
             .then(function(r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
                 return r.text();
@@ -345,6 +375,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 stdProcessesTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
             });
     }
+
+    window.loadStdProcessesPartial = loadStdProcessesPartial;
+
+    // Показать/скрыть кнопки NDT/CAD/Stress/Paint STD в шапке после Load from STD (c — объект std_counts из API).
+    window.updateTdrStdPaperButtonsFromCounts = function(c) {
+        if (!c || typeof c !== 'object') return;
+        function toggle(selector, count) {
+            var el = document.querySelector(selector);
+            if (!el) return;
+            var n = parseInt(count, 10);
+            if (isNaN(n) || n < 1) el.classList.add('d-none');
+            else el.classList.remove('d-none');
+        }
+        toggle('.tdr-std-paper-ndt-wrap', c.ndt);
+        toggle('.tdr-std-paper-cad-wrap', c.cad);
+        toggle('.tdr-std-paper-stress-wrap', c.stress);
+        toggle('.tdr-std-paper-paint-wrap', c.paint);
+    };
 
     function loadRmReportsPartial() {
         if (!rmReportsTabBody) return;
@@ -561,42 +609,67 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function initAllPartsGroupForms(container) {
-        if (!container) return;
-        var vendorSelects = container.querySelectorAll('.vendor-select');
-        var groupFormButtons = container.querySelectorAll('.group-form-button');
-        var componentCheckboxes = container.querySelectorAll('.component-checkbox');
+        if (typeof window.initAllPartsGroupFormModalRows === 'function') {
+            window.initAllPartsGroupFormModalRows(container);
+        }
+    }
+
+    /** Group Process Forms: модалка на вкладке Part Processes (#partProcessesGroupFormsModal). */
+    function initPartProcessesGroupForms(modal) {
+        if (!modal) return;
+        var vendorSelects = modal.querySelectorAll('.vendor-select');
+        var groupFormButtons = modal.querySelectorAll('.group-form-button');
+        var processCheckboxes = modal.querySelectorAll('.process-checkbox');
         function updateLinkUrl(processNameId) {
-            var link = container.querySelector('.group-form-button[data-process-name-id="' + processNameId + '"]');
+            var link = modal.querySelector('.group-form-button[data-process-name-id="' + processNameId + '"]');
             if (!link || !link.getAttribute('href')) return;
             var url = new URL(link.getAttribute('href'), window.location.origin);
-            var vendorSelect = container.querySelector('.vendor-select[data-process-name-id="' + processNameId + '"]');
-            if (vendorSelect && vendorSelect.value) url.searchParams.set('vendor_id', vendorSelect.value);
-            else url.searchParams.delete('vendor_id');
-            var checkedBoxes = container.querySelectorAll('.component-checkbox[data-process-name-id="' + processNameId + '"]:checked:not([disabled])');
-            if (checkedBoxes.length > 0) {
-                url.searchParams.set('component_ids', Array.from(checkedBoxes).map(function(c){ return c.getAttribute('data-component-id'); }).join(','));
-                url.searchParams.set('serial_numbers', Array.from(checkedBoxes).map(function(c){ return c.getAttribute('data-serial-number') || ''; }).join(','));
-                url.searchParams.set('ipl_nums', Array.from(checkedBoxes).map(function(c){ return c.getAttribute('data-ipl-num') || ''; }).join(','));
-                url.searchParams.set('part_numbers', Array.from(checkedBoxes).map(function(c){ return c.getAttribute('data-part-number') || ''; }).join(','));
+            var existingTdrId = url.searchParams.get('tdrId');
+            if (existingTdrId) {
+                url.searchParams.set('tdrId', existingTdrId);
+            }
+            var vendorSelect = modal.querySelector('.vendor-select[data-process-name-id="' + processNameId + '"]');
+            if (vendorSelect && vendorSelect.value) {
+                url.searchParams.set('vendor_id', vendorSelect.value);
             } else {
-                url.searchParams.delete('component_ids'); url.searchParams.delete('serial_numbers');
-                url.searchParams.delete('ipl_nums'); url.searchParams.delete('part_numbers');
+                url.searchParams.delete('vendor_id');
+            }
+            var checkedBoxes = modal.querySelectorAll('.process-checkbox[data-process-name-id="' + processNameId + '"]:checked');
+            if (checkedBoxes.length > 0) {
+                url.searchParams.set('process_ids', Array.from(checkedBoxes).map(function(cb) { return cb.value; }).join(','));
+            } else {
+                url.searchParams.set('process_ids', '');
             }
             link.setAttribute('href', url.toString());
         }
         function updateQuantityBadge(processNameId) {
-            var checkedBoxes = container.querySelectorAll('.component-checkbox[data-process-name-id="' + processNameId + '"]:checked:not([disabled])');
-            var badge = container.querySelector('.process-qty-badge[data-process-name-id="' + processNameId + '"]');
+            var checkedBoxes = modal.querySelectorAll('.process-checkbox[data-process-name-id="' + processNameId + '"]:checked:not([disabled])');
+            var badge = modal.querySelector('.process-qty-badge[data-process-name-id="' + processNameId + '"]');
             if (badge && checkedBoxes.length > 0) {
                 var totalQty = 0;
-                checkedBoxes.forEach(function(c){ totalQty += parseInt(c.getAttribute('data-qty')) || 0; });
+                checkedBoxes.forEach(function(cb) { totalQty += parseInt(cb.getAttribute('data-qty'), 10) || 0; });
                 badge.textContent = totalQty + ' pcs';
             }
         }
-        vendorSelects.forEach(function(s){ s.addEventListener('change', function(){ updateLinkUrl(this.getAttribute('data-process-name-id')); }); });
-        componentCheckboxes.forEach(function(c){ c.addEventListener('change', function(){ updateLinkUrl(this.getAttribute('data-process-name-id')); updateQuantityBadge(this.getAttribute('data-process-name-id')); }); });
-        groupFormButtons.forEach(function(b){ b.addEventListener('click', function(){ updateLinkUrl(this.getAttribute('data-process-name-id')); }); });
-        groupFormButtons.forEach(function(b){ var pid = b.getAttribute('data-process-name-id'); if (pid) { updateLinkUrl(pid); updateQuantityBadge(pid); } });
+        vendorSelects.forEach(function(s) {
+            s.addEventListener('change', function() { updateLinkUrl(s.getAttribute('data-process-name-id')); });
+        });
+        processCheckboxes.forEach(function(c) {
+            c.addEventListener('change', function() {
+                updateLinkUrl(c.getAttribute('data-process-name-id'));
+                updateQuantityBadge(c.getAttribute('data-process-name-id'));
+            });
+        });
+        groupFormButtons.forEach(function(b) {
+            b.addEventListener('click', function() { updateLinkUrl(b.getAttribute('data-process-name-id')); });
+        });
+        groupFormButtons.forEach(function(b) {
+            var pid = b.getAttribute('data-process-name-id');
+            if (pid) {
+                updateLinkUrl(pid);
+                updateQuantityBadge(pid);
+            }
+        });
     }
 
     function initTravelerGroupHandlers(container) {
@@ -721,6 +794,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (itemPn) itemPn.textContent = '-';
             if (itemSn) itemSn.textContent = '-';
             if (addProcessBtn) { addProcessBtn.dataset.tdrId = tdrId; addProcessBtn.disabled = true; }
+            if (compProcessesGroupFormsBtn) compProcessesGroupFormsBtn.classList.add('d-none');
         }
         fetch(processesBodyUrl.replace('__ID__', tdrId), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
             .then(function(r) { return r.text(); })
@@ -764,6 +838,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 bindProcessHandlers(wrapper, target);
                 if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(target);
                 initTravelerGroupHandlers(target);
+                if (isTabTarget && compProcessesGroupFormsBtn) {
+                    var processesWrapperForGroup = target.querySelector('.processes-modal-body');
+                    var allowGroupForms = processesWrapperForGroup
+                        && processesWrapperForGroup.getAttribute('data-group-process-forms') === '1';
+                    var partGroupModal = target.querySelector('#partProcessesGroupFormsModal');
+                    if (allowGroupForms && partGroupModal) {
+                        compProcessesGroupFormsBtn.classList.remove('d-none');
+                        initPartProcessesGroupForms(partGroupModal);
+                    } else {
+                        compProcessesGroupFormsBtn.classList.add('d-none');
+                    }
+                }
                 if (isTabTarget && addProcessBtn) {
                     addProcessBtn.disabled = false;
                     addProcessBtn.onclick = function() {
@@ -779,6 +865,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(function() {
                 target.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load processes.") }}</div>';
                 if (isTabTarget && addProcessBtn) addProcessBtn.disabled = false;
+                if (isTabTarget && compProcessesGroupFormsBtn) compProcessesGroupFormsBtn.classList.add('d-none');
             });
     }
 
@@ -1272,7 +1359,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    var groupProcessFormsHeaderBtn = document.getElementById('groupProcessFormsHeaderBtn');
     tdrShowTabListEl?.addEventListener('shown.bs.tab', function(e) {
         var activeTabId = e?.target?.id || '';
         if (isPersistentTabId(activeTabId)) {
@@ -1281,6 +1367,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var target = (e.target.getAttribute && e.target.getAttribute('data-bs-target')) || (e.target.getAttribute && e.target.getAttribute('href'));
         if (target && String(target).indexOf('content-part-processes') !== -1) {
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
@@ -1289,18 +1376,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         if (target && String(target).indexOf('content-all-parts-processes') !== -1) {
-            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.remove('d-none');
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.remove('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
             if (transfersTabActions) transfersTabActions.classList.add('d-none');
+            syncAllPartsGroupFormsBtnVisibility();
             if (allPartsBody && !allPartsBody.dataset.loaded) {
                 allPartsBody.dataset.loaded = '1';
                 loadAllPartsProcesses();
             }
         } else if (target && String(target).indexOf('content-extra-parts-processes') !== -1) {
-            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
@@ -1313,7 +1401,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateExtraGroupFormsButtonVisibility();
             }
         } else if (target && String(target).indexOf('content-log-card') !== -1) {
-            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
@@ -1324,7 +1412,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadLogCardPartial();
             }
         } else if (target && String(target).indexOf('content-bushing') !== -1) {
-            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
@@ -1335,7 +1423,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadBushingPartial();
             }
         } else if (target && String(target).indexOf('content-rm-reports') !== -1) {
-            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
@@ -1346,7 +1434,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadRmReportsPartial();
             }
         } else if (target && String(target).indexOf('content-std-processes') !== -1) {
-            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
@@ -1357,7 +1445,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadStdProcessesPartial();
             }
         } else if (target && String(target).indexOf('content-transfers') !== -1) {
-            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
@@ -1368,14 +1456,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadTransfersPartial();
             }
         } else if (target && String(target).indexOf('content-extra-processes') !== -1) {
-            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
             if (transfersTabActions) transfersTabActions.classList.add('d-none');
         } else {
-            if (groupProcessFormsHeaderBtn) groupProcessFormsHeaderBtn.classList.add('d-none');
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');

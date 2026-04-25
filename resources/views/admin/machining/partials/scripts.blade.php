@@ -71,6 +71,71 @@
         });
     }
 
+    var __machiningSortableInstance = null;
+    var machiningFilterInputsBound = false;
+
+    function destroyMachiningSortable() {
+        if (__machiningSortableInstance) {
+            try {
+                __machiningSortableInstance.destroy();
+            } catch (e) {}
+            __machiningSortableInstance = null;
+        }
+    }
+
+    function refreshMachiningTableAfterEdits(opts) {
+        opts = opts || {};
+        var url = window.__machiningTableFragmentUrl;
+        var tb = document.getElementById('machining-sortable-tbody');
+        if (!url || !tb) {
+            window.location.reload();
+            return;
+        }
+        if (!opts.skipSpinner && typeof window.safeShowSpinner === 'function') {
+            window.safeShowSpinner();
+        }
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        }).then(function (r) {
+            if (!r.ok) throw new Error('fragment');
+            return r.json();
+        }).then(function (payload) {
+            if (!payload || typeof payload.html !== 'string') throw new Error('payload');
+            tb.innerHTML = payload.html;
+            var qc = document.querySelector('.js-machining-queued-count');
+            if (qc && payload.queuedCount != null) qc.textContent = String(payload.queuedCount);
+            remountMachiningTableBodyPlugins();
+        }).catch(function () {
+            window.location.reload();
+        }).finally(function () {
+            if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+        });
+    }
+    window.refreshMachiningTableAfterEdits = refreshMachiningTableAfterEdits;
+
+    function remountMachiningTableBodyPlugins() {
+        var table = document.getElementById('machining-wo-table');
+        if (table) {
+            delete table.dataset.machiningStepsToggleBound;
+            delete table.dataset.machiningWoPartsToggleBound;
+        }
+        destroyMachiningSortable();
+        initMachiningNativeDateInputs();
+        initMachiningStepsCountInputs();
+        initMachiningStepMachinists();
+        initMachiningStepsToggle();
+        initMachiningWoPartsToggle();
+        applyMachiningExpandPrefsFromStorage();
+        if (window.__machiningCanReorder) {
+            initMachiningSortable();
+            initMachiningPositionInputs();
+        }
+    }
+
     function initMachiningStepsCountInputs() {
         document.querySelectorAll('.js-machining-steps-count').forEach(function (inp) {
             if (inp.dataset.machiningStepsBound === '1') return;
@@ -108,7 +173,7 @@
                     return r.json().then(function (d) {
                         if (r.ok && d && d.success) {
                             inp.dataset.prevN = String(n);
-                            window.location.reload();
+                            refreshMachiningTableAfterEdits({ skipSpinner: true });
                             return;
                         }
                         var msg = '';
@@ -250,10 +315,7 @@
                     var okText = (data && data.message) ? data.message : (form.getAttribute('data-success') || 'Saved');
                     window.showNotification(okText, 'success', 2000);
                 }
-                // Перерисовка строк (очередь при Date finish, сортировка, data-machining-search) с сервера
-                setTimeout(function () {
-                    window.location.reload();
-                }, 350);
+                refreshMachiningTableAfterEdits({ skipSpinner: true });
             } catch (e) {
                 if (typeof window.notifyError === 'function') window.notifyError('Request failed', 2500);
             } finally {
@@ -304,6 +366,124 @@
         });
     }
 
+    var LS_MACHINING_WO_PARTS = 'machining.ui.expandWoParts';
+    var LS_MACHINING_STEPS = 'machining.ui.expandSteps';
+
+    function readMachiningLsObj(key) {
+        try {
+            var o = JSON.parse(localStorage.getItem(key) || '{}');
+            return o && typeof o === 'object' ? o : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function writeMachiningLsObj(key, o) {
+        try {
+            localStorage.setItem(key, JSON.stringify(o));
+        } catch (e) {}
+    }
+
+    function persistMachiningWoPartsExpand(woId, expanded) {
+        var o = readMachiningLsObj(LS_MACHINING_WO_PARTS);
+        if (expanded) {
+            o[String(woId)] = true;
+        } else {
+            delete o[String(woId)];
+        }
+        writeMachiningLsObj(LS_MACHINING_WO_PARTS, o);
+    }
+
+    function persistMachiningStepsExpand(groupId, expanded) {
+        var o = readMachiningLsObj(LS_MACHINING_STEPS);
+        if (expanded) {
+            o[String(groupId)] = true;
+        } else {
+            delete o[String(groupId)];
+        }
+        writeMachiningLsObj(LS_MACHINING_STEPS, o);
+    }
+
+    function isMachiningWoPartsExpandedPref(woId) {
+        var o = readMachiningLsObj(LS_MACHINING_WO_PARTS);
+        return o[String(woId)] === true;
+    }
+
+    function isMachiningStepsExpandedPref(groupId) {
+        var o = readMachiningLsObj(LS_MACHINING_STEPS);
+        return o[String(groupId)] === true;
+    }
+
+    function setMachiningStepsToggleButtonUi(btn, expanded) {
+        btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        var icon = btn.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('bi-chevron-up', expanded);
+            icon.classList.toggle('bi-chevron-down', !expanded);
+        }
+        var hideLabel = 'Hide step rows';
+        var showLabel = 'Show step rows';
+        btn.setAttribute('title', expanded ? hideLabel : showLabel);
+        btn.setAttribute('aria-label', expanded ? hideLabel : showLabel);
+    }
+
+    function setMachiningWoPartsToggleButtonUi(btn, expanded) {
+        btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        var icon = btn.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('bi-chevron-up', expanded);
+            icon.classList.toggle('bi-chevron-down', !expanded);
+        }
+        var hideLabel = 'Hide other machining parts for this WO';
+        var showLabel = 'Show other machining parts for this WO';
+        btn.setAttribute('title', expanded ? hideLabel : showLabel);
+        btn.setAttribute('aria-label', expanded ? hideLabel : showLabel);
+    }
+
+    /** For WO head row (multiple machining lines): in key columns, show "..." when other parts are collapsed. */
+    function syncMachiningWoHeadRowCellSummaries() {
+        var table = document.getElementById('machining-wo-table');
+        if (!table) return;
+        table.querySelectorAll('.js-machining-toggle-wo-parts').forEach(function (btn) {
+            var tr = btn.closest('tr');
+            if (!tr) return;
+            var expanded = btn.getAttribute('aria-expanded') !== 'false';
+            tr.querySelectorAll('td.js-machining-wo-head-col').forEach(function (td) {
+                var ph = td.querySelector('.machining-wo-head-col-placeholder');
+                var content = td.querySelector('.machining-wo-head-col-content');
+                if (!ph || !content) return;
+                if (expanded) {
+                    ph.classList.add('d-none');
+                    content.classList.remove('d-none');
+                } else {
+                    ph.classList.remove('d-none');
+                    content.classList.add('d-none');
+                }
+            });
+        });
+    }
+
+    /** После разметки по умолчанию (всё свёрнуто) — применить сохранённые раскрытия и фильтры. */
+    function applyMachiningExpandPrefsFromStorage() {
+        var table = document.getElementById('machining-wo-table');
+        if (!table) {
+            applyMachiningTableFilters();
+            return;
+        }
+        table.querySelectorAll('.js-machining-toggle-wo-parts').forEach(function (btn) {
+            var wid = btn.getAttribute('data-wo-parts');
+            if (!wid || !isMachiningWoPartsExpandedPref(wid)) return;
+            setMachiningWoPartsToggleButtonUi(btn, true);
+        });
+        table.querySelectorAll('.js-machining-toggle-steps').forEach(function (btn) {
+            var gid = btn.getAttribute('data-steps-group');
+            if (!gid || !isMachiningStepsExpandedPref(gid)) return;
+            setMachiningStepsToggleButtonUi(btn, true);
+        });
+        applyMachiningTableFilters();
+        syncMachiningWoHeadRowCellSummaries();
+    }
+
     function applyMachiningTableFilters() {
         var inp = document.getElementById('machiningTableSearch');
         var hideClosed = document.getElementById('machiningHideClosed');
@@ -324,7 +504,15 @@
                     toggleHidden = !!(btn && btn.getAttribute('aria-expanded') === 'false');
                 }
             }
-            tr.classList.toggle('d-none', filterHidden || toggleHidden);
+            var woPartsHidden = false;
+            if (tr.getAttribute('data-machining-wo-extra') === '1' && table) {
+                var wid = tr.getAttribute('data-wo-id');
+                if (wid) {
+                    var woBtn = table.querySelector('.js-machining-toggle-wo-parts[data-wo-parts="' + wid + '"]');
+                    woPartsHidden = !!(woBtn && woBtn.getAttribute('aria-expanded') === 'false');
+                }
+            }
+            tr.classList.toggle('d-none', filterHidden || toggleHidden || woPartsHidden);
         });
     }
 
@@ -340,126 +528,73 @@
             if (!gid) return;
             var expanded = btn.getAttribute('aria-expanded') !== 'false';
             var next = !expanded;
-            btn.setAttribute('aria-expanded', next ? 'true' : 'false');
-            var icon = btn.querySelector('i');
-            if (icon) {
-                icon.classList.toggle('bi-chevron-up', next);
-                icon.classList.toggle('bi-chevron-down', !next);
-            }
-            var hideLabel = 'Hide step rows';
-            var showLabel = 'Show step rows';
-            btn.setAttribute('title', next ? hideLabel : showLabel);
-            btn.setAttribute('aria-label', next ? hideLabel : showLabel);
+            setMachiningStepsToggleButtonUi(btn, next);
+            persistMachiningStepsExpand(gid, next);
             applyMachiningTableFilters();
         });
     }
 
+    function initMachiningWoPartsToggle() {
+        var table = document.getElementById('machining-wo-table');
+        if (!table || table.dataset.machiningWoPartsToggleBound === '1') return;
+        table.dataset.machiningWoPartsToggleBound = '1';
+        table.addEventListener('click', function (e) {
+            var btn = e.target.closest('.js-machining-toggle-wo-parts');
+            if (!btn || !table.contains(btn)) return;
+            e.preventDefault();
+            var wid = btn.getAttribute('data-wo-parts');
+            if (!wid) return;
+            var expanded = btn.getAttribute('aria-expanded') !== 'false';
+            var next = !expanded;
+            setMachiningWoPartsToggleButtonUi(btn, next);
+            persistMachiningWoPartsExpand(wid, next);
+            applyMachiningTableFilters();
+            syncMachiningWoHeadRowCellSummaries();
+        });
+    }
+
     function initMachiningTableFilters() {
+        if (machiningFilterInputsBound) return;
+        machiningFilterInputsBound = true;
         var inp = document.getElementById('machiningTableSearch');
         var hideClosed = document.getElementById('machiningHideClosed');
         if (inp) inp.addEventListener('input', applyMachiningTableFilters);
         if (hideClosed) hideClosed.addEventListener('change', applyMachiningTableFilters);
     }
 
-    function bootMachiningPage() {
-        initMachiningNativeDateInputs();
-        initMachiningStepsCountInputs();
-        initMachiningStepMachinists();
-        initMachiningTableFilters();
-        initMachiningStepsToggle();
-        applyMachiningTableFilters();
+    function initMachiningSortable() {
+        var tbody = document.getElementById('machining-sortable-tbody');
+        if (!tbody || typeof Sortable === 'undefined') return;
+        if (!tbody.querySelector('tr.machining-row-queued.machining-row-master')) return;
 
-        @if($canReorderMachining ?? false)
-        (function initMachiningSortable() {
-            var tbody = document.getElementById('machining-sortable-tbody');
-            if (!tbody || typeof Sortable === 'undefined') return;
-            if (!tbody.querySelector('tr.machining-row-queued.machining-row-master')) return;
+        destroyMachiningSortable();
 
-            var reorderUrl = @json(route('machining.reorder'));
-            var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        var reorderUrl = @json(route('machining.reorder'));
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-            Sortable.create(tbody, {
-                handle: '.machining-drag-handle',
-                draggable: 'tr.machining-row-queued.machining-row-master',
-                animation: 150,
-                ghostClass: 'table-active',
-                onMove: function (evt) {
-                    var rel = evt.related;
-                    if (rel && rel.classList.contains('machining-row-child')) {
-                        return false;
-                    }
-                    if (rel && rel.classList.contains('machining-row-unqueued') && evt.willInsertAfter) {
-                        return false;
-                    }
-                    return true;
-                },
-                onEnd: function () {
-                    regroupMachiningStepRows(tbody);
-                    if (typeof window.safeShowSpinner === 'function') window.safeShowSpinner();
-                    var ids = Array.from(tbody.querySelectorAll('tr.machining-row-queued.machining-row-master')).map(function (tr) {
-                        return parseInt(tr.getAttribute('data-wo-id'), 10);
-                    }).filter(function (id) { return id > 0; });
-
-                    fetch(reorderUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': token,
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({ workorder_ids: ids })
-                    }).then(function (r) {
-                        if (r.ok) {
-                            window.location.reload();
-                            return;
-                        }
-                        if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
-                        return r.json().then(function (d) {
-                            var msg = (d && d.message) ? d.message : 'Reorder failed';
-                            if (typeof window.notifyError === 'function') window.notifyError(msg, 2500);
-                        });
-                    }).catch(function () {
-                        if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
-                        if (typeof window.notifyError === 'function') window.notifyError('Network error', 2500);
-                    });
+        __machiningSortableInstance = Sortable.create(tbody, {
+            handle: '.machining-drag-handle',
+            draggable: 'tr.machining-row-queued.machining-row-master',
+            animation: 150,
+            ghostClass: 'table-active',
+            onMove: function (evt) {
+                var rel = evt.related;
+                if (rel && rel.classList.contains('machining-row-child')) {
+                    return false;
                 }
-            });
-        })();
-
-        (function initMachiningPositionInputs() {
-            var positionUrl = @json(route('machining.position'));
-            var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-
-            function showSpin() {
+                if (rel && rel.classList.contains('machining-row-unqueued') && evt.willInsertAfter) {
+                    return false;
+                }
+                return true;
+            },
+            onEnd: function () {
+                regroupMachiningStepRows(tbody);
                 if (typeof window.safeShowSpinner === 'function') window.safeShowSpinner();
-            }
-            function hideSpin() {
-                if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
-            }
+                var ids = Array.from(tbody.querySelectorAll('tr.machining-row-queued.machining-row-master')).map(function (tr) {
+                    return parseInt(tr.getAttribute('data-wo-id'), 10);
+                }).filter(function (id) { return id > 0; });
 
-            function revertValue(inp, was, inQueue) {
-                if (inQueue && was > 0) {
-                    inp.value = String(was);
-                } else {
-                    inp.value = '';
-                }
-            }
-
-            function submit(inp) {
-                var wid = parseInt(inp.getAttribute('data-wo-id'), 10);
-                var inQueue = inp.getAttribute('data-in-queue') === '1';
-                var was = parseInt(inp.getAttribute('data-was') || '0', 10) || 0;
-                var raw = String(inp.value || '').replace(/\D/g, '');
-                if (raw === '') {
-                    revertValue(inp, was, inQueue);
-                    return;
-                }
-                var pos = parseInt(raw, 10);
-                if (pos === was) return;
-
-                showSpin();
-                fetch(positionUrl, {
+                fetch(reorderUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -467,46 +602,125 @@
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ workorder_id: wid, position: pos })
+                    body: JSON.stringify({ workorder_ids: ids })
                 }).then(function (r) {
                     if (r.ok) {
-                        window.location.reload();
+                        if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+                        refreshMachiningTableAfterEdits({ skipSpinner: true });
                         return;
                     }
-                    hideSpin();
-                    revertValue(inp, was, inQueue);
+                    if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
                     return r.json().then(function (d) {
-                        var msg = (d && d.message) ? d.message : 'Update failed';
+                        var msg = (d && d.message) ? d.message : 'Reorder failed';
                         if (typeof window.notifyError === 'function') window.notifyError(msg, 2500);
                     });
                 }).catch(function () {
-                    hideSpin();
-                    revertValue(inp, was, inQueue);
+                    if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
                     if (typeof window.notifyError === 'function') window.notifyError('Network error', 2500);
                 });
             }
+        });
+    }
 
-            document.querySelectorAll('.js-machining-position-input').forEach(function (inp) {
-                inp.addEventListener('input', function () {
-                    var cur = inp.selectionStart;
-                    var filtered = String(inp.value || '').replace(/\D/g, '');
-                    if (inp.value !== filtered) {
-                        inp.value = filtered;
-                        if (cur !== null) {
-                            try { inp.setSelectionRange(filtered.length, filtered.length); } catch (_) {}
-                        }
-                    }
+    function initMachiningPositionInputs() {
+        var positionUrl = @json(route('machining.position'));
+        var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        function showSpin() {
+            if (typeof window.safeShowSpinner === 'function') window.safeShowSpinner();
+        }
+        function hideSpin() {
+            if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+        }
+
+        function revertValue(inp, was, inQueue) {
+            if (inQueue && was > 0) {
+                inp.value = String(was);
+            } else {
+                inp.value = '';
+            }
+        }
+
+        function submit(inp) {
+            var wid = parseInt(inp.getAttribute('data-wo-id'), 10);
+            var inQueue = inp.getAttribute('data-in-queue') === '1';
+            var was = parseInt(inp.getAttribute('data-was') || '0', 10) || 0;
+            var raw = String(inp.value || '').replace(/\D/g, '');
+            if (raw === '') {
+                revertValue(inp, was, inQueue);
+                return;
+            }
+            var pos = parseInt(raw, 10);
+            if (pos === was) return;
+
+            showSpin();
+            fetch(positionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ workorder_id: wid, position: pos })
+            }).then(function (r) {
+                if (r.ok) {
+                    hideSpin();
+                    refreshMachiningTableAfterEdits({ skipSpinner: true });
+                    return;
+                }
+                hideSpin();
+                revertValue(inp, was, inQueue);
+                return r.json().then(function (d) {
+                    var msg = (d && d.message) ? d.message : 'Update failed';
+                    if (typeof window.notifyError === 'function') window.notifyError(msg, 2500);
                 });
-                inp.addEventListener('blur', function () { submit(inp); });
-                inp.addEventListener('keydown', function (e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        inp.blur();
-                    }
-                });
+            }).catch(function () {
+                hideSpin();
+                revertValue(inp, was, inQueue);
+                if (typeof window.notifyError === 'function') window.notifyError('Network error', 2500);
             });
-        })();
-        @endif
+        }
+
+        document.querySelectorAll('.js-machining-position-input').forEach(function (inp) {
+            if (inp.dataset.machiningPositionBound === '1') return;
+            inp.dataset.machiningPositionBound = '1';
+            inp.addEventListener('input', function () {
+                var cur = inp.selectionStart;
+                var filtered = String(inp.value || '').replace(/\D/g, '');
+                if (inp.value !== filtered) {
+                    inp.value = filtered;
+                    if (cur !== null) {
+                        try { inp.setSelectionRange(filtered.length, filtered.length); } catch (_) {}
+                    }
+                }
+            });
+            inp.addEventListener('blur', function () { submit(inp); });
+            inp.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    inp.blur();
+                }
+            });
+        });
+    }
+
+    function bootMachiningPage() {
+        if (typeof window.__machiningCanReorder === 'undefined') {
+            window.__machiningCanReorder = false;
+        }
+        initMachiningNativeDateInputs();
+        initMachiningStepsCountInputs();
+        initMachiningStepMachinists();
+        initMachiningTableFilters();
+        initMachiningStepsToggle();
+        initMachiningWoPartsToggle();
+        applyMachiningExpandPrefsFromStorage();
+
+        if (window.__machiningCanReorder) {
+            initMachiningSortable();
+            initMachiningPositionInputs();
+        }
     }
 
     if (document.readyState === 'loading') {

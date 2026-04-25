@@ -40,6 +40,9 @@
         }
     }
     $travelerFormMergedDone = false;
+    $hasGroupProcessForms = collect($processGroups ?? [])->contains(function ($g) {
+        return (int) ($g['count'] ?? 0) > 1;
+    });
 @endphp
 
 <div class="processes-modal-body" data-tdr-id="{{ $current_tdr->id }}"
@@ -49,6 +52,7 @@
      data-component-pn="{{ $comp->part_number ?? 'N/A' }}"
      data-serial-number="{{ $current_tdr->serial_number ?? 'N/A' }}"
      data-traveler-block="{{ $hasTravelerBlock ? '1' : '0' }}"
+     data-group-process-forms="{{ $hasGroupProcessForms ? '1' : '0' }}"
      data-traveler-group-url="{{ route('tdr-processes.traveler-group', ['tdrId' => $current_tdr->id]) }}"
      data-traveler-ungroup-url="{{ route('tdr-processes.traveler-ungroup', ['tdrId' => $current_tdr->id]) }}">
     <div class="table-wrapper me-3" style="max-height: 55vh; overflow-y: auto; overflow-x: auto;">
@@ -316,6 +320,8 @@
         </table>
     </div>
 </div>
+
+@include('admin.tdr-processes.partials.part-processes-group-forms-modal')
 
 {{-- Add Vendor Modal --}}
 <div class="modal fade" id="addVendorModal" tabindex="-1" aria-labelledby="addVendorModalLabel" aria-hidden="true">

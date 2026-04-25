@@ -155,6 +155,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::delete('/paint/lost/{paint}', [PaintController::class, 'destroyLost'])->middleware('can:feature.paint')->name('paint.lost.destroy');
 
     Route::get('/machining', [MachiningController::class, 'index'])->middleware('can:feature.machining')->name('machining.index');
+    Route::get('/machining/table-fragment', [MachiningController::class, 'tableFragment'])->middleware('can:feature.machining')->name('machining.table_fragment');
     Route::post('/machining/reorder', [MachiningController::class, 'reorder'])->middleware('can:feature.machining')->name('machining.reorder');
     Route::post('/machining/add', [MachiningController::class, 'addToQueue'])->middleware('can:feature.machining')->name('machining.add');
     Route::post('/machining/position', [MachiningController::class, 'setPosition'])->middleware('can:feature.machining')->name('machining.position');

@@ -195,38 +195,49 @@ class UnitController extends Controller
     {
 
         try {
-            $manual = Manual::findOrFail($manualId);
+            Manual::findOrFail($manualId);
 
-            if (!$request->has('part_numbers') || !is_array($request->input('part_numbers'))) {
+            $partNumbersPayload = $request->input('part_numbers');
+            if (!is_array($partNumbersPayload) || $partNumbersPayload === []) {
                 return response()->json(['success' => false, 'error' => 'Invalid part_numbers format'], 400);
             }
 
             $newPartNumbersArray = array_map(function ($unit) {
-                return $unit['part_number'];
-            }, $request->input('part_numbers'));
-
-            $existingPartNumbers = $manual->units()->pluck('part_number')->toArray();
+                return $unit['part_number'] ?? null;
+            }, $partNumbersPayload);
+            if (in_array(null, $newPartNumbersArray, true)) {
+                return response()->json(['success' => false, 'error' => 'Invalid part_numbers format'], 400);
+            }
 
             Unit::where('manual_id', $manualId)
                 ->whereNotIn('part_number', $newPartNumbersArray)
                 ->delete();
 
-            foreach ($request->input('part_numbers') as $unit) {
-
-                $result = Unit::updateOrCreate(
+            // С учётом soft deletes: иначе при повторном добавлении ранее удалённого PN insert бьёт unique (manual_id, part_number).
+            foreach ($partNumbersPayload as $unit) {
+                $row = Unit::withTrashed()->updateOrCreate(
                     ['manual_id' => $manualId, 'part_number' => $unit['part_number']],
                     [
-                        'name' => $unit['name'] ?? null,
-                        'verified' => $unit['verified'],
-                        'eff_code' => null,
+                        'name'     => $unit['name'] ?? null,
+                        'verified' => (bool) ($unit['verified'] ?? false),
+                        'eff_code' => array_key_exists('eff_code', $unit) && $unit['eff_code'] !== null && (string) $unit['eff_code'] !== ''
+                            ? (string) $unit['eff_code']
+                            : null,
                     ]
                 );
+                if ($row->trashed()) {
+                    $row->restore();
+                }
             }
 
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
+            Log::error('units.update: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
-            return response()->json(['success' => false, 'error' => 'An error occurred while updating units'], 500);
+            return response()->json([
+                'success' => false,
+                'error'   => config('app.debug') ? $e->getMessage() : 'An error occurred while updating units',
+            ], 500);
         }
     }
 

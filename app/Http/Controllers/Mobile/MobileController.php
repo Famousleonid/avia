@@ -32,6 +32,15 @@ use Illuminate\Validation\ValidationException;
 
 class MobileController extends Controller
 {
+    /** @var list<string> */
+    private const MOBILE_MACHINING_NO_WORK_FOR_USER_MESSAGES = [
+        'You have no machining steps assigned on this work order.',
+        'There is no machining work for you on this work order.',
+        'This work order has no machining steps assigned to you.',
+        'You are not assigned to any machining work on this work order.',
+        'No matching machining tasks for you on this work order.',
+    ];
+
     public function index()
     {
         if (Auth::user()?->roleIs('Paint')) {
@@ -155,6 +164,12 @@ class MobileController extends Controller
         $user = Auth::user();
         abort_unless($user !== null && $user->roleIs(['Machining', 'Admin', 'Manager']), 403);
 
+        if ($request->has('set_my_wo')) {
+            session(['mobile_machining_my_wo' => $request->boolean('set_my_wo')]);
+
+            return redirect()->route('mobile.machining');
+        }
+
         if ($request->boolean('toggle_my_wo')) {
             session(['mobile_machining_my_wo' => ! (bool) session('mobile_machining_my_wo', false)]);
 
@@ -198,18 +213,27 @@ class MobileController extends Controller
             ->filter(static fn (object $row) => self::mobileMachiningRowHasAssignedStepForUser($row, $uid))
             ->values();
         if ($rows->isEmpty()) {
-            abort(404);
+            return redirect()
+                ->route('mobile.machining')
+                ->with('error', $this->randomMobileMachiningNoWorkForUserMessage());
         }
 
         $detailItems = $this->buildMobileMachiningWorkorderDetailItems($rows, $uid);
         if ($detailItems->isEmpty()) {
-            abort(404);
+            return redirect()
+                ->route('mobile.machining')
+                ->with('error', $this->randomMobileMachiningNoWorkForUserMessage());
         }
 
         return view('mobile.pages.machining-workorder', [
             'workorder' => $workorder,
             'detailItems' => $detailItems,
         ]);
+    }
+
+    private function randomMobileMachiningNoWorkForUserMessage(): string
+    {
+        return collect(self::MOBILE_MACHINING_NO_WORK_FOR_USER_MESSAGES)->random();
     }
 
     public function updateMachiningWorkStepMobile(Request $request, MachiningWorkStep $machiningWorkStep): JsonResponse

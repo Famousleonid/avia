@@ -7,6 +7,10 @@
     .all-parts-processes .vendor-select:focus { border-color: #0d6efd; box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25); }
     .all-parts-processes .component-checkboxes { max-height: 200px; overflow-y: auto; padding: 0.5rem; color: inherit; }
     .all-parts-processes .component-checkbox:checked + .form-check-label { font-weight: 500; color: inherit; }
+    #groupFormsModal .modal-dialog { max-height: 80vh; margin: 1.75rem auto; }
+    #groupFormsModal .modal-content { max-height: 80vh; display: flex; flex-direction: column; }
+    #groupFormsModal .modal-header { flex-shrink: 0; }
+    #groupFormsModal .modal-body { overflow-y: auto; min-height: 0; }
 </style>
 
 <div class="all-parts-processes ">
@@ -40,9 +44,13 @@
                                     @if(!$processes->processName) @continue @endif
                                     @if(is_array($processData) && !empty($processData))
                                         @foreach($processData as $processId)
-                                            {{ $processName }} :
                                             @if(isset($proces[$processId]))
-                                                {{ $proces[$processId]->process }}@if($processes->ec) ( EC )@endif<br>
+                                                @php
+                                                    $catalogRow = $proces[$processId];
+                                                    $lineProcessName = $catalogRow->process_name?->name ?? $processName;
+                                                @endphp
+                                                {{ $lineProcessName }} :
+                                                {{ $catalogRow->process }}@if($processes->ec) ( EC )@endif<br>
                                             @endif
                                         @endforeach
                                     @endif
@@ -91,7 +99,7 @@
 
     @if(isset($processGroups) && count($processGroups) > 0)
         <div class="modal fade" id="groupFormsModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title"><i class="fas fa-print"></i> {{ __('Group Process Forms') }}</h5>
@@ -112,59 +120,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($processGroups as $groupKey => $group)
-                                        @php
-                                            $actualProcessNameId = ($groupKey == 'NDT_GROUP') ? ($group['process_name']->id ?? $groupKey) : $groupKey;
-                                            $displayName = ($groupKey == 'NDT_GROUP') ? 'NDT' : ($group['process_name'] ? $group['process_name']->name : 'N/A');
-                                        @endphp
-                                        <tr>
-                                            <td class="align-middle">
-                                                <div class="position-relative d-inline-block ms-5">
-                                                    <x-paper-button text="{{ $displayName }}" size="landscape" width="120px"
-                                                        href="{{ route('tdrs.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $actualProcessNameId]) }}"
-                                                        target="_blank" class="group-form-button"
-                                                        data-process-name-id="{{ $actualProcessNameId }}" />
-                                                    <span class="badge bg-success mt-1 ms-1 process-qty-badge"
-                                                        data-process-name-id="{{ $actualProcessNameId }}"
-                                                        style="position: absolute; top: -5px; left: 5px; min-width: 20px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
-                                                        {{ $group['qty'] }} pcs</span>
-                                                </div>
-                                            </td>
-                                            <td class="align-middle">
-                                                <div class="component-checkboxes" data-process-name-id="{{ $actualProcessNameId }}">
-                                                    @foreach($group['components'] as $componentKey => $component)
-                                                        <div class="form-check">
-                                                            <input class="form-check-input component-checkbox" type="checkbox"
-                                                                value="{{ ($component['ipl_num'] ?? '') . '_' . ($component['part_number'] ?? '') . '_' . ($component['serial_number'] ?? '') }}"
-                                                                data-component-id="{{ $component['id'] }}"
-                                                                data-ipl-num="{{ $component['ipl_num'] ?? '' }}"
-                                                                data-part-number="{{ $component['part_number'] ?? '' }}"
-                                                                data-serial-number="{{ $component['serial_number'] ?? '' }}"
-                                                                id="allParts_component_{{ $actualProcessNameId }}_{{ $componentKey }}"
-                                                                data-process-name-id="{{ $actualProcessNameId }}"
-                                                                data-qty="{{ $component['qty'] }}"
-                                                                {{ $group['count'] <= 1 ? 'disabled' : 'checked' }}>
-                                                            <label class="form-check-label" for="allParts_component_{{ $actualProcessNameId }}_{{ $componentKey }}">
-                                                                <strong>{{ $component['ipl_num'] }}</strong> - {{ Str::limit($component['name'], 40) }}
-                                                                @if(isset($component['serial_number']) && $component['serial_number'])
-                                                                    <span class="text-muted">(SN: {{ $component['serial_number'] }})</span>
-                                                                @endif
-                                                                <span>Qty: {{ $component['qty'] }}</span>
-                                                            </label>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            </td>
-                                            <td class="align-middle">
-                                                <select class="form-select vendor-select" data-process-name-id="{{ $actualProcessNameId }}" style="font-size: 0.9rem;">
-                                                    <option value="">No vendor</option>
-                                                    @foreach($vendors as $vendor)
-                                                        <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </td>
-                                        </tr>
-                                    @endforeach
+                                    @include('admin.tdrs.partials.all-parts-group-forms-modal-body', ['processGroups' => $processGroups, 'vendors' => $vendors, 'current_wo' => $current_wo])
                                 </tbody>
                             </table>
                         </div>

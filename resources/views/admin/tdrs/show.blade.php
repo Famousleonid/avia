@@ -133,9 +133,26 @@
             border: 1px solid #495057 !important;
         }
         /* Add Part Processes & Edit Part Process modals (iframe) - ensure on top */
-        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #createLogCardModal, #editLogCardModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal { z-index: 1080 !important; }
+        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #createLogCardModal, #editLogCardModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal, #partProcessesGroupFormsModal { z-index: 1080 !important; }
         #addProcessesModal.modal.show, #addPartModal.modal.show { z-index: 1090 !important; }
-        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #createLogCardModal ~ .modal-backdrop, #editLogCardModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop { z-index: 1075 !important; }
+        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #createLogCardModal ~ .modal-backdrop, #editLogCardModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop, #partProcessesGroupFormsModal ~ .modal-backdrop { z-index: 1075 !important; }
+
+        #partProcessesGroupFormsModal .modal-dialog {
+            max-height: 80vh;
+            margin: 1.75rem auto;
+        }
+        #partProcessesGroupFormsModal .modal-content {
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #partProcessesGroupFormsModal .modal-header {
+            flex-shrink: 0;
+        }
+        #partProcessesGroupFormsModal .modal-body {
+            overflow-y: auto;
+            min-height: 0;
+        }
 
         /* Part / Extra processes (AJAX block) — заметнее подсветка строки при наведении */
         .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
@@ -240,31 +257,27 @@
                                     </div>
                                 @endif
                                 </div>
-                                @if(count($processParts) > 1)
-                                    <div id="groupProcessFormsHeaderBtn" class="d-none pt-1 me-3">
-                                        <x-paper-button-multy text="Group Process Forms" color="outline-primary" size="landscape" width="100"
-                                                              ariaLabel="Group Process Forms" data-bs-toggle="modal" data-bs-target="#groupFormsModal" />
-                                    </div>
-                                @endif
                                     <div id="extraGroupFormsHeaderBtn" class="d-none pt-1 me-3">
                                         <x-paper-button-multy text="Group Process Forms" color="outline-primary" size="landscape" width="100"
                                                               ariaLabel="Group Process Forms" data-bs-toggle="modal" data-bs-target="#extraGroupFormsModal" />
                                     </div>
 
                             </div>
-                            <div class="d-flex flex-wrap gap-2 ms-2">
-                                @if($current_wo->instruction_id == 1 && $hasNdtComponents)
-                                    <x-paper-button text="NDT STD" href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}" target="_blank" color="outline-primary" />
+                            <div class="d-flex flex-wrap gap-2 ms-2" id="tdr-std-paper-group">
+                                @if($current_wo->instruction_id == 1)
+                                    <span class="tdr-std-paper-ndt-wrap d-inline-block @if(!$hasNdtComponents) d-none @endif">
+                                        <x-paper-button text="NDT STD" href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}" target="_blank" color="outline-primary" />
+                                    </span>
+                                    <span class="tdr-std-paper-cad-wrap d-inline-block @if(!$hasCadComponents) d-none @endif">
+                                        <x-paper-button text="CAD STD" href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}" target="_blank" color="outline-primary" />
+                                    </span>
+                                    <span class="tdr-std-paper-stress-wrap d-inline-block @if(!$hasStressComponents) d-none @endif">
+                                        <x-paper-button text="Stress STD" href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}" target="_blank" color="outline-primary" />
+                                    </span>
                                 @endif
-                                @if($current_wo->instruction_id == 1 && $hasCadComponents)
-                                    <x-paper-button text="CAD STD" href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}" target="_blank" color="outline-primary" />
-                                @endif
-                                @if($current_wo->instruction_id == 1 && $hasStressComponents)
-                                    <x-paper-button text="Stress STD" href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}" target="_blank" color="outline-primary" />
-                                @endif
-                                @if($hasPaintComponents)
+                                <span class="tdr-std-paper-paint-wrap d-inline-block @if(!$hasPaintComponents) d-none @endif">
                                     <x-paper-button text="Paint STD" href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}" target="_blank" color="outline-primary" />
-                                @endif
+                                </span>
                                 @if($log_card)
                                     <x-paper-button text="Log Card" href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}" target="_blank" color="outline-primary" />
                                 @endif
@@ -374,6 +387,14 @@
                         <i class="fas fa-plus"></i> {{ __('Add Extra Part') }}
                     </button>
                 </div>
+                @if(count($processParts))
+                    <div id="allPartsGroupFormsTabActions" class="d-none d-flex gap-2 align-items-center">
+                        <button type="button" class="btn btn-outline-primary btn-sm d-none" id="allPartsGroupFormsBtn"
+                                data-bs-toggle="modal" data-bs-target="#groupFormsModal">
+                            <i class="fas fa-print"></i> {{ __('Group Process Forms') }}
+                        </button>
+                    </div>
+                @endif
                 @if($showLogCardTab ?? false)
                 <div id="logCardTabActions" class="d-none d-flex gap-2 align-items-center">
                     @if($log_card)
@@ -441,7 +462,11 @@
                                     <h6 class="mb-0">{{ __('Part Processes') }}, {{ __('Work Order') }}: <span id="compProcessesWoNumber" class="text-primary">-</span></h6>
                                     <small class="text-muted">ITEM: <span id="compProcessesName">-</span> | IPL: <span id="compProcessesIpl">-</span> | PN: <span id="compProcessesPn">-</span> | SN: <span id="compProcessesSn">-</span></small>
                                 </div>
-                                <div class="d-flex gap-2 ms-md-auto">
+                                <div class="d-flex gap-2 ms-md-auto flex-wrap align-items-center">
+                                    <button type="button" class="btn btn-outline-primary btn-sm d-none" id="compProcessesGroupFormsBtn"
+                                            data-bs-toggle="modal" data-bs-target="#partProcessesGroupFormsModal">
+                                        <i class="fas fa-print"></i> {{ __('Group Process Forms') }}
+                                    </button>
                                     <button type="button" class="btn btn-outline-success btn-sm" id="compProcessesAddProcessBtn" data-tdr-id="">
                                         <i class="bi bi-plus-lg"></i> {{ __('Add Process') }}
                                     </button>

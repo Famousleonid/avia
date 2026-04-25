@@ -34,16 +34,6 @@
             vertical-align: middle;
             padding: .25rem .35rem;
         }
-        .machining-mobile-toolbar {
-            padding: 0 .15rem .35rem;
-            font-size: .72rem;
-            font-weight: 500;
-            color: #e9ecef;
-        }
-        .machining-mobile-toolbar-user {
-            display: block;
-            min-width: 0;
-        }
         .machining-mobile-wo-btn {
             font-weight: 600;
             min-width: 3.5rem;
@@ -58,10 +48,6 @@
 
     <div class="container-fluid machining-mobile-wrap">
         <div class="machining-mobile-card">
-            <div class="machining-mobile-toolbar">
-                <span class="machining-mobile-toolbar-user text-truncate"
-                      title="{{ auth()->user()?->name ?? '' }}">{{ auth()->user()?->name ?? '' }}</span>
-            </div>
             <div class="table-responsive">
                 <table class="table table-dark table-striped table-sm machining-mobile-table">
                     <colgroup>
@@ -70,8 +56,8 @@
                     </colgroup>
                     <thead>
                     <tr>
-                        <th class="machining-mobile-col-queue">Queue</th>
-                        <th>WO</th>
+{{--                        <th class="machining-mobile-col-queue">Queue</th>--}}
+{{--                        <th>WO</th>--}}
                     </tr>
                     </thead>
                     <tbody>

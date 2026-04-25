@@ -311,7 +311,7 @@
 
             <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
                 <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">
-                    {{ $component->ipl_num }}
+                    {{ $component->item_display ?? $component->ipl_num }}
                 </div>
                 <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
                     {{ $component->part_number }}

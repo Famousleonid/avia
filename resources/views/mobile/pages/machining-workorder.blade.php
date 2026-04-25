@@ -12,20 +12,6 @@
             padding: .35rem;
             margin: 0;
         }
-        .machining-mobile-toolbar {
-            padding: 0 0 .35rem;
-            font-size: .72rem;
-            font-weight: 500;
-            color: #e9ecef;
-        }
-        .machining-mobile-toolbar-user {
-            display: block;
-            min-width: 0;
-        }
-        .machining-detail-back {
-            font-size: .75rem;
-            margin-bottom: .35rem;
-        }
         .machining-detail-wo-title {
             font-size: .95rem;
             font-weight: 600;
@@ -51,29 +37,29 @@
         .machining-detail-line .text-secondary {
             font-size: .66rem;
         }
-        .machining-detail-parent-dates {
+        .machining-detail-dates-step {
             display: grid;
-            grid-template-columns: auto 1fr;
-            gap: .2rem .65rem;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: .35rem .6rem;
             font-size: .72rem;
-            margin-bottom: .4rem;
-            align-items: baseline;
+            margin-bottom: .1rem;
+            align-items: center;
         }
-        .machining-detail-parent-dates .k {
+        .machining-detail-dates-step .k {
             color: #9fb0c0;
         }
-        .machining-detail-parent-dates .v {
+        .machining-detail-dates-step .v {
             color: #e9ecef;
-            text-align: right;
         }
-        .machining-detail-step-form-caption {
-            font-size: .65rem;
-            color: #9fb0c0;
-            margin-bottom: .2rem;
+        .machining-detail-dates-step .step-finish-form-wrap {
+            min-width: 0;
         }
         .machining-mobile-date {
-            min-width: 68px;
+            min-width: 0;
             white-space: nowrap;
+        }
+        .machining-detail-dates-step .machining-mobile-date .js-mobile-date-display {
+            max-width: 100%;
         }
         .machining-mobile-date .js-mobile-date-display {
             width: 100%;
@@ -105,13 +91,6 @@
 
     <div class="container-fluid machining-mobile-wrap">
         <div class="machining-mobile-card">
-            <div class="machining-detail-back">
-                <a href="{{ route('mobile.machining') }}" class="text-info">&larr; Work orders</a>
-            </div>
-            <div class="machining-mobile-toolbar">
-                <span class="machining-mobile-toolbar-user text-truncate"
-                      title="{{ auth()->user()?->name ?? '' }}">{{ auth()->user()?->name ?? '' }}</span>
-            </div>
             <div class="machining-detail-wo-title">WO {{ $workorder->number }}</div>
 
             @foreach($detailItems as $item)
@@ -121,31 +100,30 @@
                     $finishYmd = $step->date_finish?->format('Y-m-d') ?? '';
                     $finishDisp = $fmtDisp($step->date_finish);
                     $startLine = $p && $p->date_start ? $fmtDisp($p->date_start) : '—';
-                    $finishLine = $p && $p->date_finish ? $fmtDisp($p->date_finish) : '—';
                 @endphp
                 <div class="machining-detail-block js-detail-block" data-kind="step">
                     <div class="machining-detail-line">
                         {{ $item->detail_name ?? '—' }}<br>
                         <span class="text-secondary">{{ $item->detail_label ?? '' }}</span>
                     </div>
-                    <div class="machining-detail-parent-dates">
-                        <span class="k">Start</span><span class="v">{{ $startLine }}</span>
-                        <span class="k">Finish</span><span class="v">{{ $finishLine }}</span>
-                    </div>
-                    <div class="machining-detail-step-form-caption">Step finish</div>
-                    <div class="machining-mobile-date">
-                        <form method="POST" action="{{ route('mobile.machining.steps.update', $step) }}"
-                              class="js-mobile-machining-step-form m-0">
-                            @csrf
-                            @method('PATCH')
-                            <input type="hidden" name="date_finish" value="{{ $finishYmd }}" class="js-mobile-date-real">
-                            <input type="date" value="{{ $finishYmd }}" class="d-none js-mobile-date-picker" tabindex="-1">
-                            <input type="text"
-                                   class="form-control form-control-sm bg-dark text-light js-mobile-date-display {{ $finishYmd !== '' ? 'has-finish' : '' }}"
-                                   value="{{ $finishYmd !== '' ? $finishDisp : '...' }}"
-                                   placeholder="Finish"
-                                   readonly>
-                        </form>
+                    <div class="machining-detail-dates-step">
+                        <span class="k">Start</span>
+                        <span class="v">{{ $startLine }}</span>
+                        <span class="k">Finish</span>
+                        <div class="step-finish-form-wrap machining-mobile-date">
+                            <form method="POST" action="{{ route('mobile.machining.steps.update', $step) }}"
+                                  class="js-mobile-machining-step-form m-0">
+                                @csrf
+                                @method('PATCH')
+                                <input type="hidden" name="date_finish" value="{{ $finishYmd }}" class="js-mobile-date-real">
+                                <input type="date" value="{{ $finishYmd }}" class="d-none js-mobile-date-picker" tabindex="-1">
+                                <input type="text"
+                                       class="form-control form-control-sm bg-dark text-light js-mobile-date-display w-100 {{ $finishYmd !== '' ? 'has-finish' : '' }}"
+                                       value="{{ $finishYmd !== '' ? $finishDisp : '...' }}"
+                                       placeholder="…"
+                                       readonly>
+                            </form>
+                        </div>
                     </div>
                 </div>
             @endforeach

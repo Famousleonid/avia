@@ -22,6 +22,39 @@ class MachiningController extends Controller
 
     public function index(): View
     {
+        return view('admin.machining.index', $this->machiningIndexData());
+    }
+
+    /**
+     * HTML tbody content + queue count for live refresh without full page reload.
+     */
+    public function tableFragment(): JsonResponse
+    {
+        $data = $this->machiningIndexData();
+        $html = view('admin.machining.partials.table-body', [
+            'rows' => $data['rows'],
+            'machiningLinesPerWo' => $data['machiningLinesPerWo'],
+            'machiningMachinists' => $data['machiningMachinists'],
+            'canReorderMachining' => $data['canReorderMachining'],
+        ])->render();
+
+        return response()->json([
+            'html' => $html,
+            'queuedCount' => $data['queuedCount'],
+        ]);
+    }
+
+    /**
+     * @return array{
+     *     rows: \Illuminate\Support\Collection,
+     *     machiningLinesPerWo: \Illuminate\Support\Collection,
+     *     queuedCount: int,
+     *     machiningMachinists: \Illuminate\Database\Eloquent\Collection<int, User>,
+     *     canReorderMachining: bool
+     * }
+     */
+    private function machiningIndexData(): array
+    {
         $workorders = Workorder::query()
             ->whereNotNull('approve_at')
             ->whereNull('done_at')
@@ -56,6 +89,8 @@ class MachiningController extends Controller
 
         $rows = app(MachiningListingRowsBuilder::class)->build($workorders);
 
+        $machiningLinesPerWo = $rows->countBy(static fn ($r) => (int) $r->workorder->id);
+
         $queuedCount = $rows
             ->filter(static fn ($r) => $r->workorder->machining_queue_order !== null)
             ->pluck('workorder.id')
@@ -69,12 +104,13 @@ class MachiningController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('admin.machining.index', [
+        return [
             'rows' => $rows,
+            'machiningLinesPerWo' => $machiningLinesPerWo,
             'queuedCount' => $queuedCount,
             'canReorderMachining' => $user !== null && $user->roleIs(['Admin', 'Manager']),
             'machiningMachinists' => $machiningMachinists,
-        ]);
+        ];
     }
 
     public function updateMachiningWorkStep(Request $request, MachiningWorkStep $machiningWorkStep): JsonResponse

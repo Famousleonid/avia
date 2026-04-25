@@ -108,6 +108,23 @@
             font-weight: 600;
         }
 
+        #groupFormsModal .modal-dialog {
+            max-height: 80vh;
+            margin: 1.75rem auto;
+        }
+        #groupFormsModal .modal-content {
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #groupFormsModal .modal-header {
+            flex-shrink: 0;
+        }
+        #groupFormsModal .modal-body {
+            overflow-y: auto;
+            min-height: 0;
+        }
+
         #groupFormsModal .table td {
             vertical-align: middle;
             padding: 1rem;
@@ -159,19 +176,12 @@
                     </div>
 
 
-                    <div class="ps-2 d-flex" style="width: 540px">
+                    <div class="ps-2 d-flex align-items-center" style="width: 540px">
                         @if(isset($processGroups) && count($processGroups) > 0)
-                            <div style="width: 250px">
-                                <x-paper-button-multy
-                                    text="Group Process Forms"
-                                    color="outline-primary"
-                                    size="landscape"
-                                    width="100"
-                                    ariaLabel="Group Process Forms"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#groupFormsModal"
-                                />
-                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                data-bs-toggle="modal" data-bs-target="#groupFormsModal">
+                                <i class="fas fa-print"></i> {{ __('Group Process Forms') }}
+                            </button>
                         @endif
                     </div>
 
@@ -238,9 +248,13 @@
 
                                                 @if(is_array($processData) && !empty($processData))
                                                     @foreach($processData as $processId)
-                                                    {{ $processName }} :
                                                     @if(isset($proces[$processId]))
-                                                        {{ $proces[$processId]->process }}@if($processes->ec) ( EC )@endif<br>
+                                                        @php
+                                                            $catalogRow = $proces[$processId];
+                                                            $lineProcessName = $catalogRow->process_name?->name ?? $processName;
+                                                        @endphp
+                                                        {{ $lineProcessName }} :
+                                                        {{ $catalogRow->process }}@if($processes->ec) ( EC )@endif<br>
                                                     @endif
                                                     @endforeach
                                                 @endif
@@ -317,7 +331,7 @@
     <!-- Modal - Group Process Forms -->
     @if(isset($processGroups) && count($processGroups) > 0)
         <div class="modal fade" id="groupFormsModal" tabindex="-1" aria-labelledby="groupFormsModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="groupFormsModalLabel">
@@ -345,119 +359,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                            @foreach($processGroups as $groupKey => $group)
-                                        @php
-                                            // Используем processNameId как ключ для всех процессов
-                                            $actualProcessNameId = $groupKey;
-                                            // Отображаем название процесса
-                                            $displayName = $group['process_name'] ? $group['process_name']->name : 'N/A';
-                                        @endphp
-                                        <tr>
-                                            <td class="align-middle ">
-                                                <div class="position-relative d-inline-block ms-5">
-                                                <x-paper-button
-                                                    text="{{ $displayName }} "
-                                                    size="landscape"
-                                                    width="120px"
-                                                    href="{{ route('tdrs.show_group_forms', ['id' => $current_wo->id, 'processNameId' => $actualProcessNameId]) }}"
-                                                    target="_blank"
-                                                    class="group-form-button"
-                                                    data-process-name-id="{{ $actualProcessNameId }}"
-                                                > </x-paper-button>
-
-                                                    <span class="badge bg-success  mt-1 ms-1 process-qty-badge"
-                                                          style="position: absolute; top: -5px; left: 5px; min-width: 20px;
-                                                          height: 30px;
-                                              display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">
-                                                        {{$group['qty'] }} pcs</span>
-
-                                                </div>
-
-                                            </td>
-                                            <td class="align-middle">
-                                                <div class="component-checkboxes" data-process-name-id="{{ $actualProcessNameId }}">
-                                                    @if($group['count'] > 1)
-                                                        @foreach($group['components'] as $componentKey => $component)
-                                                            @php
-                                                                // Создаем составной ключ для идентификации компонента
-                                                                $componentIdentifier = sprintf(
-                                                                    '%s_%s_%s',
-                                                                    $component['ipl_num'] ?? '',
-                                                                    $component['part_number'] ?? '',
-                                                                    $component['serial_number'] ?? ''
-                                                                );
-                                                            @endphp
-                                                            <div class="form-check">
-                                                                <input class=" ms-1 form-check-input component-checkbox"
-                                                                       type="checkbox"
-                                                                       value="{{ $componentIdentifier }}"
-                                                                       data-component-id="{{ $component['id'] }}"
-                                                                       data-ipl-num="{{ $component['ipl_num'] ?? '' }}"
-                                                                       data-part-number="{{ $component['part_number'] ?? '' }}"
-                                                                       data-serial-number="{{ $component['serial_number'] ?? '' }}"
-                                                                       id="component_{{ $actualProcessNameId }}_{{ $componentKey }}"
-                                                                       data-process-name-id="{{ $actualProcessNameId }}"
-                                                                       data-qty="{{ $component['qty'] }}"
-                                                                       checked>
-                                                                <label class="form-check-label" for="component_{{ $actualProcessNameId }}_{{ $componentKey }}">
-                                                                    <strong>{{ $component['ipl_num'] }}</strong> -
-                                                                    {{ Str::limit($component['name'], 40) }}
-                                                                    @if(isset($component['serial_number']) && $component['serial_number'])
-                                                                        <span class="text-muted">(SN: {{ $component['serial_number'] }})</span>
-                                                                    @endif
-                                                                    <span class="">Qty: {{ $component['qty'] }}</span>
-                                                                </label>
-                                                            </div>
-                                                        @endforeach
-                                                    @else
-                                                        @foreach($group['components'] as $componentKey => $component)
-                                                            @php
-                                                                // Создаем составной ключ для идентификации компонента
-                                                                $componentIdentifier = sprintf(
-                                                                    '%s_%s_%s',
-                                                                    $component['ipl_num'] ?? '',
-                                                                    $component['part_number'] ?? '',
-                                                                    $component['serial_number'] ?? ''
-                                                                );
-                                                            @endphp
-                                                            <div class="form-check">
-                                                                <input class="ms-1 form-check-input component-checkbox"
-                                                                       type="checkbox"
-                                                                       value="{{ $componentIdentifier }}"
-                                                                       data-component-id="{{ $component['id'] }}"
-                                                                       data-ipl-num="{{ $component['ipl_num'] ?? '' }}"
-                                                                       data-part-number="{{ $component['part_number'] ?? '' }}"
-                                                                       data-serial-number="{{ $component['serial_number'] ?? '' }}"
-                                                                       id="component_{{ $actualProcessNameId }}_{{ $componentKey }}"
-                                                                       data-process-name-id="{{ $actualProcessNameId }}"
-                                                                       data-qty="{{ $component['qty'] }}"
-                                                                       checked
-                                                                       disabled>
-                                                                <label class="form-check-label" for="component_{{ $actualProcessNameId }}_{{ $componentKey }}">
-                                                                    <strong>{{ $component['ipl_num'] }}</strong> -
-                                                                    {{ Str::limit($component['name'], 40) }}
-                                                                    @if(isset($component['serial_number']) && $component['serial_number'])
-                                                                        <span class="text-muted">(SN: {{ $component['serial_number'] }})</span>
-                                                                    @endif
-                                                                    <span class="">Qty: {{ $component['qty'] }}</span>
-                                                                </label>
-                                                            </div>
-                                                        @endforeach
-                                                    @endif
-                                    </div>
-                                            </td>
-                                            <td class="align-middle">
-                                        <select class="form-select vendor-select"
-                                                data-process-name-id="{{ $actualProcessNameId }}"
-                                                style="font-size: 0.9rem;">
-                                            <option value="">No vendor</option>
-                                            @foreach($vendors as $vendor)
-                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                            @endforeach
-                                        </select>
-                                            </td>
-                                        </tr>
-                            @endforeach
+                                    @include('admin.tdrs.partials.all-parts-group-forms-modal-body', ['processGroups' => $processGroups, 'vendors' => $vendors, 'current_wo' => $current_wo])
                                 </tbody>
                             </table>
                         </div>
@@ -467,127 +369,13 @@
         </div>
     @endif
 
+    @include('admin.tdrs.partials.all-parts-group-forms-modal-script')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const vendorSelects = document.querySelectorAll('.vendor-select');
-            const groupFormLinks = document.querySelectorAll('.group-form-link');
-            const groupFormButtons = document.querySelectorAll('.group-form-button');
-            const componentCheckboxes = document.querySelectorAll('.component-checkbox');
-
-            // Функция для обновления URL с учетом vendor и компонентов
-            function updateLinkUrl(processNameId) {
-                // Пробуем найти ссылку или кнопку
-                let link = document.querySelector(`.group-form-link[data-process-name-id="${processNameId}"]`);
-                if (!link) {
-                    link = document.querySelector(`.group-form-button[data-process-name-id="${processNameId}"]`);
-                }
-                if (!link) return;
-
-                const originalUrl = link.getAttribute('href');
-                if (!originalUrl) return;
-
-                const url = new URL(originalUrl, window.location.origin);
-
-                // Добавляем vendor_id если выбран
-                const vendorSelect = document.querySelector(`.vendor-select[data-process-name-id="${processNameId}"]`);
-                if (vendorSelect && vendorSelect.value) {
-                    url.searchParams.set('vendor_id', vendorSelect.value);
-                } else {
-                    url.searchParams.delete('vendor_id');
-                }
-
-                // Добавляем component_ids и serial_numbers из выбранных чекбоксов
-                const checkedBoxes = document.querySelectorAll(
-                    `.component-checkbox[data-process-name-id="${processNameId}"]:checked`
-                );
-                if (checkedBoxes.length > 0) {
-                    const selectedComponentIds = Array.from(checkedBoxes).map(checkbox => checkbox.getAttribute('data-component-id'));
-                    const selectedSerialNumbers = Array.from(checkedBoxes).map(checkbox => checkbox.getAttribute('data-serial-number') || '');
-                    const selectedIplNums = Array.from(checkedBoxes).map(checkbox => checkbox.getAttribute('data-ipl-num') || '');
-                    const selectedPartNumbers = Array.from(checkedBoxes).map(checkbox => checkbox.getAttribute('data-part-number') || '');
-
-                    url.searchParams.set('component_ids', selectedComponentIds.join(','));
-                    url.searchParams.set('serial_numbers', selectedSerialNumbers.join(','));
-                    url.searchParams.set('ipl_nums', selectedIplNums.join(','));
-                    url.searchParams.set('part_numbers', selectedPartNumbers.join(','));
-                } else {
-                    url.searchParams.delete('component_ids');
-                    url.searchParams.delete('serial_numbers');
-                    url.searchParams.delete('ipl_nums');
-                    url.searchParams.delete('part_numbers');
-                }
-
-                link.setAttribute('href', url.toString());
+            var modal = document.getElementById('groupFormsModal');
+            if (modal && typeof window.initAllPartsGroupFormModalRows === 'function') {
+                window.initAllPartsGroupFormModalRows(modal);
             }
-
-            // Функция для обновления badge с количеством
-            function updateQuantityBadge(processNameId) {
-                const checkedBoxes = document.querySelectorAll(
-                    `.component-checkbox[data-process-name-id="${processNameId}"]:checked:not([disabled])`
-                );
-                const badge = document.querySelector(
-                    `.process-qty-badge[data-process-name-id="${processNameId}"]`
-                );
-
-                if (badge && checkedBoxes.length > 0) {
-                    let totalQty = 0;
-                    checkedBoxes.forEach(checkbox => {
-                        const qty = parseInt(checkbox.getAttribute('data-qty')) || 0;
-                        totalQty += qty;
-                    });
-                    badge.textContent = `${totalQty} pcs`;
-                }
-            }
-
-            // Обработчик изменения выбора vendor для каждого дропдауна
-            vendorSelects.forEach(vendorSelect => {
-                vendorSelect.addEventListener('change', function() {
-                    const processNameId = this.getAttribute('data-process-name-id');
-                    updateLinkUrl(processNameId);
-                });
-            });
-
-            // Обработчик изменения чекбоксов компонентов
-            componentCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    const processNameId = this.getAttribute('data-process-name-id');
-                    updateLinkUrl(processNameId);
-                    updateQuantityBadge(processNameId);
-                });
-            });
-
-            // Обработчик клика по кнопкам форм
-            groupFormLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    const processNameId = this.getAttribute('data-process-name-id');
-                    updateLinkUrl(processNameId);
-                });
-            });
-
-            // Обработчик клика по paper-button кнопкам форм
-            groupFormButtons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    const processNameId = this.getAttribute('data-process-name-id');
-                    if (processNameId) {
-                        // Обновляем URL перед переходом
-                        updateLinkUrl(processNameId);
-                        // Получаем обновленный URL и устанавливаем его
-                        const updatedUrl = this.getAttribute('href');
-                        if (updatedUrl) {
-                            this.setAttribute('href', updatedUrl);
-                        }
-                    }
-                });
-            });
-
-            // Инициализация URL и badge при загрузке страницы
-            document.querySelectorAll('.group-form-link, .group-form-button').forEach(link => {
-                const processNameId = link.getAttribute('data-process-name-id');
-                if (processNameId) {
-                    updateLinkUrl(processNameId);
-                    updateQuantityBadge(processNameId);
-                }
-            });
         });
     </script>
 @endsection

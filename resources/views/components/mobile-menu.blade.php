@@ -18,7 +18,7 @@
         $deptLostUrl = route('mobile.paint', ['tab' => 'lost']);
         $deptActive = 'paint';
     } elseif ($isMachiningRoute) {
-        $deptWoUrl = route('mobile.machining', ['toggle_my_wo' => 1]);
+        $deptWoUrl = route('mobile.machining');
         $deptLostUrl = route('mobile.index');
         $deptActive = 'machining';
     } elseif ($isPaintUser) {
@@ -36,6 +36,7 @@
     }
     $paintTab = request()->query('tab', 'wo');
     $machiningMyWoOnly = (bool) session('mobile_machining_my_wo', false);
+    $mobileProfileLabel = (string) (auth()->user()?->name ?: 'Profile');
 @endphp
 
 <style>
@@ -90,89 +91,171 @@
         line-height: 1;
     }
 
-    .menu-label-machining-scope-inline {
-        font-size: 0.62rem;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        white-space: nowrap;
+    .menu-machining-my-wo {
+        min-width: 0;
     }
+
+    /* Same 36×36 “icon” band as WO / Logout so the label lines up with .menu-label under them. */
+    .menu-machining-my-wo .menu-machining-my-wo-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .menu-machining-my-wo .menu-machining-my-wo-icon .form-check-input {
+        width: 1.1em;
+        height: 1.1em;
+        margin: 0;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* One underline from .menu-label; links must not underline (avoids double line on profile name). */
+    .mobile-menu-bar {
+        min-height: 60px;
+        height: auto !important;
+        align-items: flex-start !important;
+        padding: 6px 0 4px;
+    }
+
+    .mobile-menu-bar > a.text-white,
+    .mobile-menu-bar > label {
+        text-decoration: none !important;
+        justify-content: flex-start !important;
+    }
+
+    .mobile-menu-bar a.text-white:hover,
+    .mobile-menu-bar a.text-white:focus {
+        text-decoration: none !important;
+    }
+
+    .mobile-menu-bar .menu-label {
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    /* Long names: min-w-0 + padding so underline is not cut by overflow:hidden. */
+    .mobile-menu-bar .menu-label.text-truncate {
+        min-width: 0;
+        padding: 0 0.15rem 2px;
+    }
+
+    /* All icon glyphs share one horizontal band. */
+    .menu-top-icon-slot {
+        width: 100%;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .menu-top-icon-slot .menu-icon-wrapper,
+    .menu-top-icon-slot .menu-machining-my-wo-icon {
+        margin: 0;
+    }
+
 </style>
 
-<div class="{{ $borderClass }} bg-primary d-flex justify-content-between align-items-center" style="height: 60px;">
+<div class="mobile-menu-bar {{ $borderClass }} bg-primary d-flex justify-content-between align-items-start">
 
     <a href="{{ $useShopDeptMenu ? $deptWoUrl : route('mobile.index') }}" data-spinner
-       class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
-        <div class="menu-icon-wrapper {{ (($isPaintRoute || $isMachiningRoute) && $paintTab === 'wo') || (!$useShopDeptMenu && $isActive('mobile.index')) ? 'active' : '' }}">
+       class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+        <div class="menu-top-icon-slot">
+            <div class="menu-icon-wrapper {{ (($isPaintRoute || $isMachiningRoute) && $paintTab === 'wo') || (!$useShopDeptMenu && $isActive('mobile.index')) ? 'active' : '' }}">
             <i class="bi {{ $deptActive === 'machining' ? 'bi-hammer' : 'bi-brush' }}"></i>
             <svg viewBox="0 0 36 36">
                 <circle cx="18" cy="18" r="18"/>
             </svg>
+            </div>
         </div>
-        <span class="menu-label text-nowrap">
-            WO
-            @if($deptActive === 'machining')
-                <span class="menu-label-machining-scope-inline {{ $machiningMyWoOnly ? 'text-warning' : 'text-white-50' }}"
-                      title="{{ $machiningMyWoOnly ? 'Only workorders assigned to you' : 'All open machining workorders' }}"> · {{ $machiningMyWoOnly ? 'My' : 'All' }}</span>
-            @endif
-        </span>
+        <span class="menu-label text-nowrap">WO</span>
     </a>
+
+    @if($useMachiningMenu && $deptActive === 'machining')
+        <label class="menu-machining-my-wo flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white user-select-none mb-0"
+               title="On: only your WOs. Off: all WOs in the machining list.">
+            <div class="menu-top-icon-slot">
+                <div class="menu-icon-wrapper menu-machining-my-wo-icon">
+                <input type="checkbox"
+                       class="form-check-input border-light"
+                       {{ $machiningMyWoOnly ? 'checked' : '' }}
+                       onchange='window.location.href = @json(route("mobile.machining")) + (this.checked ? "?set_my_wo=1" : "?set_my_wo=0")'>
+                </div>
+            </div>
+            <span class="menu-label text-nowrap">My&nbsp;WO</span>
+        </label>
+    @endif
 
     @if($showDeptLost)
         <a href="{{ $deptLostUrl }}" data-spinner
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+            <div class="menu-top-icon-slot">
             <div class="menu-icon-wrapper {{ (($isPaintRoute || $isMachiningRoute) && $paintTab === 'lost') ? 'active' : '' }}">
                 <i class="bi bi-camera"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
             </div>
+            </div>
             <span class="menu-label">Lost</span>
         </a>
 
         <a href="{{ route('mobile.profile') }}" data-spinner
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+           class="min-w-0 flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+            <div class="menu-top-icon-slot">
             <div class="menu-icon-wrapper {{ $isActive('mobile.profile') ? 'active' : '' }}">
                 <i class="bi bi-person-bounding-box"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
             </div>
-            <span class="menu-label">Profile</span>
+            </div>
+            <span class="menu-label d-block w-100 min-w-0 text-center text-truncate"
+                  title="{{ $mobileProfileLabel }}">{{ $mobileProfileLabel }}</span>
         </a>
 
         <form id="{{ $menuId }}" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
         <a href="#"
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white"
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none"
            onclick="event.preventDefault(); document.getElementById('{{ $menuId }}').submit();">
+            <div class="menu-top-icon-slot">
             <div class="menu-icon-wrapper">
                 <i class="bi bi-box-arrow-right"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
+            </div>
             </div>
             <span class="menu-label">Logout</span>
         </a>
     @elseif($useMachiningMenu)
         <a href="{{ route('mobile.profile') }}" data-spinner
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+           class="min-w-0 flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+            <div class="menu-top-icon-slot">
             <div class="menu-icon-wrapper {{ $isActive('mobile.profile') ? 'active' : '' }}">
                 <i class="bi bi-person-bounding-box"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
             </div>
-            <span class="menu-label">Profile</span>
+            </div>
+            <span class="menu-label d-block w-100 min-w-0 text-center text-truncate"
+                  title="{{ $mobileProfileLabel }}">{{ $mobileProfileLabel }}</span>
         </a>
 
         <form id="{{ $menuId }}" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
         <a href="#"
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white"
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none"
            onclick="event.preventDefault(); document.getElementById('{{ $menuId }}').submit();">
+            <div class="menu-top-icon-slot">
             <div class="menu-icon-wrapper">
                 <i class="bi bi-box-arrow-right"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
+            </div>
             </div>
             <span class="menu-label">Logout</span>
         </a>
@@ -180,30 +263,34 @@
 
         @if($onShowPage && isset($workorder))
             <a href="{{ route('mobile.show', $currentWorkorderId) }}" data-spinner
-               class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+               class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+                <div class="menu-top-icon-slot">
                 <div class="menu-icon-wrapper {{ $isActive('mobile.show') ? 'active' : '' }}">
                     <span class="">W</span>
                     <svg viewBox="0 0 36 36">
                         <circle cx="18" cy="18" r="18"/>
                     </svg>
                 </div>
+                </div>
                 <span class="menu-label">Workorder</span>
             </a>
         @endif
         @notrole('Shipping')
         <a href="{{ route('mobile.tasks', $currentWorkorderId) }}" data-spinner
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+            <div class="menu-top-icon-slot">
             <div class="menu-icon-wrapper {{ $isActive('mobile.tasks') ? 'active' : '' }}">
                 <i class="bi bi-alarm"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
             </div>
+            </div>
             <span class="menu-label">Tasks</span>
         </a>
 
         <a href="{{ route('mobile.components', $currentWorkorderId) }}" data-spinner
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white border-0 bg-transparent js-menu-photo">
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none border-0 bg-transparent js-menu-photo">
             <div class="menu-icon-wrapper {{ $isActive('mobile.components') ? 'active' : '' }}">
                 <i class="bi bi-gear"></i>
                 <svg viewBox="0 0 36 36">
@@ -214,12 +301,14 @@
         </a>
 
         <a href="{{ route('mobile.process', $currentWorkorderId) }}" data-spinner
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+            <div class="menu-top-icon-slot">
             <div class="menu-icon-wrapper {{ $isActive('mobile.process') ? 'active' : '' }}">
                 <i class="bi bi-activity"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
+            </div>
             </div>
             <span class="menu-label">Process</span>
         </a>
@@ -231,36 +320,43 @@
         @notrole('Shipping')
 
         <a href="{{ route('mobile.materials') }}" data-spinner
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+            <div class="menu-top-icon-slot">
             <div class="menu-icon-wrapper {{ $isActive('mobile.materials') ? 'active' : '' }}">
                 <i class="bi bi-diagram-3"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
             </div>
+            </div>
             <span class="menu-label">Material</span>
         </a>
 
         <a href="{{ route('mobile.profile') }}" data-spinner
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+           class="min-w-0 flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+            <div class="menu-top-icon-slot">
             <div class="menu-icon-wrapper {{ $isActive('mobile.profile') ? 'active' : '' }}">
                 <i class="bi bi-person-bounding-box"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
             </div>
-            <span class="menu-label">Profile</span>
+            </div>
+            <span class="menu-label d-block w-100 min-w-0 text-center text-truncate"
+                  title="{{ $mobileProfileLabel }}">{{ $mobileProfileLabel }}</span>
         </a>
         @endnotrole
 
         @roles('Shipping|Manager|Admin')
         <a href="{{ route('mobile.draft') }}" data-spinner
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white">
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+            <div class="menu-top-icon-slot">
             <div class="menu-icon-wrapper {{ $isActive('mobile.draft') ? 'active' : '' }}">
                 <i class="bi bi-wallet"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
+            </div>
             </div>
             <span class="menu-label">Create Draft</span>
         </a>
@@ -268,13 +364,15 @@
 
         <form id="{{ $menuId }}" action="{{ route('logout') }}" method="POST" style="display: none;">@csrf</form>
         <a href="#"
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-center text-white"
+           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none"
            onclick="event.preventDefault(); document.getElementById('{{ $menuId }}').submit();">
+            <div class="menu-top-icon-slot">
             <div class="menu-icon-wrapper">
                 <i class="bi bi-box-arrow-right"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
                 </svg>
+            </div>
             </div>
             <span class="menu-label">Logout</span>
         </a>

@@ -165,6 +165,23 @@
             padding: 1rem;
         }
 
+        #groupFormsModal .modal-dialog {
+            max-height: 80vh;
+            margin: 1.75rem auto;
+        }
+        #groupFormsModal .modal-content {
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #groupFormsModal .modal-header {
+            flex-shrink: 0;
+        }
+        #groupFormsModal .modal-body {
+            overflow-y: auto;
+            min-height: 0;
+        }
+
         .process-checkboxes {
             max-height: 200px;
             overflow-y: auto;
@@ -357,6 +374,9 @@
     @php
         // Определяем ID для EC (один раз в начале файла для оптимизации)
         $ecProcessNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
+        $processGroupsForGroupFormsModal = collect($processGroups ?? [])->filter(function ($g) {
+            return (int) ($g['count'] ?? 0) > 1;
+        })->all();
     @endphp
 
     <div class="container mt-3">
@@ -379,7 +399,7 @@
                                Parts Processes')}} </a>
 
                     <div class="d-flex " style="width: 250px">
-                        @if(isset($processGroups) && count($processGroups) > 0)
+                        @if(isset($processGroupsForGroupFormsModal) && count($processGroupsForGroupFormsModal) > 0)
                             <div class="me-2">
                                 <x-paper-button-multy
                                     text="Group Process Forms"
@@ -755,9 +775,9 @@
 
 
     <!-- Modal - Group Process Forms -->
-    @if(isset($processGroups) && count($processGroups) > 0)
+    @if(isset($processGroupsForGroupFormsModal) && count($processGroupsForGroupFormsModal) > 0)
         <div class="modal fade" id="groupFormsModal" tabindex="-1" aria-labelledby="groupFormsModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="groupFormsModalLabel">
@@ -785,12 +805,10 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                            @foreach($processGroups as $groupKey => $group)
+                            @foreach($processGroupsForGroupFormsModal as $groupKey => $group)
                                         @php
-                                            // Используем processNameId как ключ для всех процессов
-                                            $actualProcessNameId = $groupKey;
-                                            // Отображаем название процесса
-                                            $displayName = $group['process_name']->name;
+                                            $actualProcessNameId = $group['representative_process_name_id'] ?? $groupKey;
+                                            $displayName = $group['process_name']->name ?? 'N/A';
                                         @endphp
                                         <tr>
                                             <td class="align-middle ">
@@ -818,42 +836,22 @@
                                             </td>
                                             <td class="align-middle">
                                                 <div class="process-checkboxes" data-process-name-id="{{ $actualProcessNameId }}">
-                                                    @if($group['count'] > 1)
-                                                        @foreach($group['processes'] as $processItem)
-                                                            <div class="form-check">
-                                                                <input class="ms-1 form-check-input process-checkbox"
-                                                                       type="checkbox"
-                                                                       value="{{ $processItem['id'] }}"
-                                                                       id="process_{{ $actualProcessNameId }}_{{ $processItem['id'] }}"
-                                                                       data-process-name-id="{{ $actualProcessNameId }}"
-                                                                       data-qty="{{ $processItem['qty'] }}"
-                                                                       data-tdr-process-id="{{ $processItem['tdr_process_id'] }}"
-                                                                       checked>
-                                                                <label class="form-check-label" for="process_{{ $actualProcessNameId }}_{{ $processItem['id'] }}">
-                                                                    <strong>{{ $processItem['name'] }}</strong>@if($processItem['ec']) (EC)@endif
-                                                                    <span class="">Qty: {{ $processItem['qty'] }}</span>
-                                                                </label>
-                                                            </div>
-                                                        @endforeach
-                                                    @else
-                                                        @foreach($group['processes'] as $processItem)
-                                                            <div class="form-check">
-                                                                <input class="ms-1 form-check-input process-checkbox"
-                                                                       type="checkbox"
-                                                                       value="{{ $processItem['id'] }}"
-                                                                       id="process_{{ $actualProcessNameId }}_{{ $processItem['id'] }}"
-                                                                       data-process-name-id="{{ $actualProcessNameId }}"
-                                                                       data-qty="{{ $processItem['qty'] }}"
-                                                                       data-tdr-process-id="{{ $processItem['tdr_process_id'] }}"
-                                                                       checked
-                                                                       disabled>
-                                                                <label class="form-check-label" for="process_{{ $actualProcessNameId }}_{{ $processItem['id'] }}">
-                                                                    <strong>{{ $processItem['name'] }}</strong>@if($processItem['ec']) (EC)@endif
-                                                                    <span class="">Qty: {{ $processItem['qty'] }}</span>
-                                                                </label>
-                                                            </div>
-                                                        @endforeach
-                                                    @endif
+                                                    @foreach($group['processes'] as $processItem)
+                                                        <div class="form-check">
+                                                            <input class="ms-1 form-check-input process-checkbox"
+                                                                   type="checkbox"
+                                                                   value="{{ $processItem['id'] }}"
+                                                                   id="process_{{ $actualProcessNameId }}_{{ $processItem['tdr_process_id'] }}_{{ $processItem['id'] }}"
+                                                                   data-process-name-id="{{ $actualProcessNameId }}"
+                                                                   data-qty="{{ $processItem['qty'] }}"
+                                                                   data-tdr-process-id="{{ $processItem['tdr_process_id'] }}"
+                                                                   checked>
+                                                            <label class="form-check-label" for="process_{{ $actualProcessNameId }}_{{ $processItem['tdr_process_id'] }}_{{ $processItem['id'] }}">
+                                                                <strong>{{ $processItem['name'] }}</strong>@if($processItem['ec']) (EC)@endif
+                                                                <span class="">Qty: {{ $processItem['qty'] }}</span>
+                                                            </label>
+                                                        </div>
+                                                    @endforeach
                                     </div>
                                             </td>
                                             <td class="align-middle">
