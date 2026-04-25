@@ -23,9 +23,13 @@ use App\Models\Workorder;
 use App\Services\MachiningListingRowsBuilder;
 use App\Services\PaintIndexRowsBuilder;
 use App\Services\WorkorderNotifyService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
@@ -195,6 +199,256 @@ class MobileController extends Controller
 
     public function machiningWorkorder(Workorder $workorder)
     {
+        $ctx = $this->getMobileMachiningWorkorderContext($workorder);
+        if ($ctx instanceof RedirectResponse) {
+            return $ctx;
+        }
+
+        return view('mobile.pages.machining-workorder', [
+            'workorder' => $ctx['workorder'],
+            'detailItems' => $ctx['detailItems'],
+            'machiningPhotoCount' => $ctx['workorder']->getMedia('Machining')->count(),
+            'pdfCount' => $ctx['workorder']->getMedia('pdfs')->count(),
+        ]);
+    }
+
+    public function machiningWorkorderPhotos(Workorder $workorder)
+    {
+        $ctx = $this->getMobileMachiningWorkorderContext($workorder);
+        if ($ctx instanceof RedirectResponse) {
+            return $ctx;
+        }
+
+        $wo = $ctx['workorder'];
+        $photos = collect();
+        foreach ($wo->getMedia('Machining') as $media) {
+            if (! $media->mime_type || ! str_starts_with($media->mime_type, 'image/')) {
+                continue;
+            }
+            $photos->push([
+                'id' => $media->id,
+                'thumb_url' => route('image.show.thumb', [
+                    'mediaId' => $media->id,
+                    'modelId' => $wo->id,
+                    'mediaName' => 'Machining',
+                ]),
+                'big_url' => route('image.show.big', [
+                    'mediaId' => $media->id,
+                    'modelId' => $wo->id,
+                    'mediaName' => 'Machining',
+                ]),
+            ]);
+        }
+
+        return view('mobile.pages.machining-workorder-photos', [
+            'workorder' => $wo,
+            'photos' => $photos,
+        ]);
+    }
+
+    public function machiningWorkorderPdfs(Workorder $workorder)
+    {
+        $ctx = $this->getMobileMachiningWorkorderContext($workorder);
+        if ($ctx instanceof RedirectResponse) {
+            return $ctx;
+        }
+
+        $wo = $ctx['workorder'];
+        $pdfs = $wo->getMedia('pdfs')->map(function ($media) use ($wo) {
+            $documentName = $media->getCustomProperty('document_name') ?: ($media->name ?? null);
+            $label = $documentName ?: $media->file_name;
+
+            return [
+                'id' => $media->id,
+                'label' => $label,
+                'file_name' => $media->file_name,
+                'size' => $media->size,
+                'created_at' => $media->created_at?->format('Y-m-d H:i'),
+                'show_url' => route('workorders.pdf.show', [
+                    'workorderId' => $wo->id,
+                    'mediaId' => $media->id,
+                ]),
+                'download_url' => route('workorders.pdf.download', [
+                    'workorderId' => $wo->id,
+                    'mediaId' => $media->id,
+                ]),
+            ];
+        })->values();
+
+        return view('mobile.pages.machining-workorder-pdfs', [
+            'workorder' => $wo,
+            'pdfs' => $pdfs,
+        ]);
+    }
+
+    public function storeMachiningWorkorderPhoto(Request $request, Workorder $workorder): JsonResponse
+    {
+        $user = Auth::user();
+        if ($user === null || ! $user->roleIs(['Machining', 'Admin', 'Manager'])) {
+            return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
+        }
+        if (! $workorder->approve_at || $workorder->done_at !== null || $workorder->is_draft) {
+            return response()->json(['success' => false, 'message' => 'Not found.'], 404);
+        }
+        $ctx = $this->mobileMachiningWorkorderContextCore($workorder, $user);
+        if ($ctx === null) {
+            return response()->json([
+                'success' => false,
+                'message' => $this->randomMobileMachiningNoWorkForUserMessage(),
+            ], 403);
+        }
+
+        $wo = $ctx['workorder'];
+        $request->validate([
+            'photos' => ['required', 'array', 'min:1'],
+            'photos.*' => ['file', 'image', 'max:15360'],
+        ], [
+            'photos.required' => 'Select at least one image.',
+        ]);
+
+        $category = 'Machining';
+        foreach ($request->file('photos', []) as $photo) {
+            $filename = 'wo_' . $wo->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.' . $photo->getClientOriginalExtension();
+            $wo->addMedia($photo)
+                ->usingFileName($filename)
+                ->toMediaCollection($category);
+        }
+
+        $wo->refresh();
+        $uploaded = [];
+        foreach ($wo->getMedia($category) as $media) {
+            if (! $media->id) {
+                continue;
+            }
+            $uploaded[] = [
+                'id' => $media->id,
+                'big_url' => route('image.show.big', [
+                    'mediaId' => $media->id,
+                    'modelId' => $wo->id,
+                    'mediaName' => $category,
+                ]),
+                'thumb_url' => route('image.show.thumb', [
+                    'mediaId' => $media->id,
+                    'modelId' => $wo->id,
+                    'mediaName' => $category,
+                ]),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'photo_count' => count($uploaded),
+            'machining_photo_count' => $wo->getMedia('Machining')->count(),
+            'pdf_count' => $wo->getMedia('pdfs')->count(),
+        ]);
+    }
+
+    public function storeMachiningWorkorderDocPdf(Request $request, Workorder $workorder): JsonResponse
+    {
+        $user = Auth::user();
+        if ($user === null || ! $user->roleIs(['Machining', 'Admin', 'Manager'])) {
+            return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
+        }
+        if (! $workorder->approve_at || $workorder->done_at !== null || $workorder->is_draft) {
+            return response()->json(['success' => false, 'message' => 'Not found.'], 404);
+        }
+        $ctx = $this->mobileMachiningWorkorderContextCore($workorder, $user);
+        if ($ctx === null) {
+            return response()->json([
+                'success' => false,
+                'message' => $this->randomMobileMachiningNoWorkForUserMessage(),
+            ], 403);
+        }
+
+        $wo = $ctx['workorder'];
+        $request->validate([
+            'image' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:15360'],
+        ], [
+            'image.required' => 'Select an image for the document.',
+        ]);
+
+        $file = $request->file('image');
+        $mime = (string) $file->getMimeType();
+        $path = $file->getRealPath();
+        $raw = $path && is_readable($path) ? (string) file_get_contents($path) : (string) $file->getContent();
+        if ($raw === '') {
+            return response()->json(['success' => false, 'message' => 'Could not read the uploaded image.'], 422);
+        }
+        $src = 'data:' . $mime . ';base64,' . base64_encode($raw);
+
+        $html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+            . '<style>@page { margin: 10mm; } html, body { margin: 0; padding: 0; } '
+            . 'img { max-width: 100%; height: auto; display: block; margin: 0 auto; }</style></head><body><img src="'
+            . htmlspecialchars($src, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+            . '" alt=""></body></html>';
+
+        try {
+            $pdf = Pdf::loadHTML($html)
+                ->setPaper('a4', 'portrait');
+            $binary = $pdf->output();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to build PDF. Try a smaller image.',
+            ], 500);
+        }
+
+        $filename = 'wo_' . $wo->number . '_machining_doc_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.pdf';
+        $label = 'Machining doc ' . now()->format('Y-m-d H:i');
+
+        $media = $wo
+            ->addMediaFromString($binary)
+            ->usingFileName($filename)
+            ->toMediaCollection('pdfs');
+        $media->setCustomProperty('document_name', $label);
+        $media->setCustomProperty('source', 'mobile_machining_doc');
+        $media->name = $label;
+        $media->save();
+
+        $wo->refresh();
+
+        return response()->json([
+            'success' => true,
+            'media_id' => $media->id,
+            'machining_photo_count' => $wo->getMedia('Machining')->count(),
+            'pdf_count' => $wo->getMedia('pdfs')->count(),
+        ]);
+    }
+
+    public function destroyMachiningWorkorderMedia(Workorder $workorder, Media $media): RedirectResponse
+    {
+        $ctx = $this->getMobileMachiningWorkorderContext($workorder);
+        if ($ctx instanceof RedirectResponse) {
+            return $ctx;
+        }
+
+        $wo = $ctx['workorder'];
+        abort_unless(
+            (int) $media->model_id === (int) $wo->id
+            && $media->model_type === $wo->getMorphClass()
+            && in_array($media->collection_name, ['Machining', 'pdfs'], true),
+            404
+        );
+
+        if ($media->collection_name === 'Machining') {
+            abort_unless(
+                $media->mime_type && str_starts_with($media->mime_type, 'image/'),
+                404
+            );
+        }
+
+        $media->delete();
+
+        return back()->with('success', __('Deleted.'));
+    }
+
+    /**
+     * @return RedirectResponse|array{workorder: Workorder, detailItems: Collection<int, object>}
+     */
+    private function getMobileMachiningWorkorderContext(Workorder $workorder): RedirectResponse|array
+    {
         $user = Auth::user();
         abort_unless($user !== null && $user->roleIs(['Machining', 'Admin', 'Manager']), 403);
 
@@ -205,6 +459,21 @@ class MobileController extends Controller
             404
         );
 
+        $ctx = $this->mobileMachiningWorkorderContextCore($workorder, $user);
+        if ($ctx === null) {
+            return redirect()
+                ->route('mobile.machining')
+                ->with('error', $this->randomMobileMachiningNoWorkForUserMessage());
+        }
+
+        return $ctx;
+    }
+
+    /**
+     * @return array{workorder: Workorder, detailItems: Collection<int, object>}|null
+     */
+    private function mobileMachiningWorkorderContextCore(Workorder $workorder, User $user): ?array
+    {
         $workorder->loadMissing($this->mobileMachiningRelations());
 
         $rows = $this->buildMobileMachiningFilteredRows(collect([$workorder]), $user, false);
@@ -213,22 +482,18 @@ class MobileController extends Controller
             ->filter(static fn (object $row) => self::mobileMachiningRowHasAssignedStepForUser($row, $uid))
             ->values();
         if ($rows->isEmpty()) {
-            return redirect()
-                ->route('mobile.machining')
-                ->with('error', $this->randomMobileMachiningNoWorkForUserMessage());
+            return null;
         }
 
         $detailItems = $this->buildMobileMachiningWorkorderDetailItems($rows, $uid);
         if ($detailItems->isEmpty()) {
-            return redirect()
-                ->route('mobile.machining')
-                ->with('error', $this->randomMobileMachiningNoWorkForUserMessage());
+            return null;
         }
 
-        return view('mobile.pages.machining-workorder', [
+        return [
             'workorder' => $workorder,
             'detailItems' => $detailItems,
-        ]);
+        ];
     }
 
     private function randomMobileMachiningNoWorkForUserMessage(): string

@@ -14,6 +14,10 @@ class RedirectMobileToMobile
             return $next($request);
         }
 
+        if ($request->is('workorders/*/pdf/*/show', 'workorders/*/pdf/*/download')) {
+            return $next($request);
+        }
+
         if (Device::isMobile($request)) {
             return redirect('/mobile');
         }
