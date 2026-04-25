@@ -106,6 +106,47 @@ class UserAccessUpdateTest extends TestCase
         $this->assertNotNull($target->email_verified_at);
     }
 
+    public function test_admin_role_without_is_admin_flag_cannot_open_other_user_edit_page(): void
+    {
+        $roleOnlyAdmin = $this->createUserWithRole('Admin', ['is_admin' => 0]);
+        $target = $this->createUserWithRole('Technician');
+
+        $response = $this->actingAs($roleOnlyAdmin)->get(route('users.edit', $target));
+
+        $response->assertForbidden();
+    }
+
+    public function test_admin_role_without_is_admin_flag_cannot_update_other_user_role_or_is_admin(): void
+    {
+        $roleOnlyAdmin = $this->createUserWithRole('Admin', ['is_admin' => 0]);
+        $target = $this->createUserWithRole('Technician', [
+            'email' => 'target.before@example.test',
+            'stamp' => 'OLD',
+            'is_admin' => 0,
+        ]);
+        $managerRole = Role::query()->firstOrCreate(['name' => 'Manager']);
+        $team = Team::query()->firstOrCreate(['name' => 'Manager Team']);
+
+        $response = $this->actingAs($roleOnlyAdmin)->put(route('users.update', $target->id), [
+            'name' => 'Target After',
+            'email' => 'target.after@example.test',
+            'phone' => '555 777 1111',
+            'stamp' => 'ADM',
+            'birthday' => '1989-05-10',
+            'team_id' => $team->id,
+            'role_id' => $managerRole->id,
+            'is_admin' => '1',
+            'email_verified_at' => '1',
+        ]);
+
+        $response->assertForbidden();
+
+        $target->refresh();
+        $this->assertSame('target.before@example.test', $target->email);
+        $this->assertNotSame($managerRole->id, $target->role_id);
+        $this->assertSame(0, (int) $target->is_admin);
+    }
+
     public function test_user_can_change_only_own_password_with_old_password(): void
     {
         $technician = $this->createUserWithRole('Technician', [

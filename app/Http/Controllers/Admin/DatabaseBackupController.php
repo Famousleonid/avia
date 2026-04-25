@@ -11,10 +11,7 @@ class DatabaseBackupController extends Controller
 {
     public function store(Request $request, DatabaseBackupService $service): RedirectResponse
     {
-        $user = $request->user();
-        if ($user === null || ! $user->roleIs('Admin')) {
-            abort(403);
-        }
+        abort_unless($request->user()?->isSystemAdmin(), 403);
 
         try {
             $path = $service->createBackup();

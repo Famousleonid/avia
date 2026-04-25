@@ -30,6 +30,8 @@ class ActivityLogController extends Controller
 {
     public function index(Request $request)
     {
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
+
         $q = trim((string)$request->get('q', ''));
         $logName = (string)$request->get('log_name', 'all');
         $event = (string)$request->get('event', 'all');
@@ -357,5 +359,37 @@ class ActivityLogController extends Controller
             'doneUserMap',
             'notifyUserMap'
         ));
+    }
+
+    public function purge(Request $request)
+    {
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
+
+        $data = $request->validate([
+            'days' => ['required', 'integer', 'in:30,60,90,180,365,730,1095'],
+        ]);
+
+        $days = (int) $data['days'];
+        $cutoff = now()->subDays($days);
+
+        $deleted = Activity::query()
+            ->where('created_at', '<', $cutoff)
+            ->delete();
+
+        activity('activity_log')
+            ->causedBy(auth()->user())
+            ->event('purged')
+            ->withProperties([
+                'days' => $days,
+                'cutoff' => $cutoff->toDateTimeString(),
+                'deleted_count' => $deleted,
+            ])
+            ->log('activity_log_purged');
+
+        return redirect()
+            ->route('admin.activity.index')
+            ->with('success', "Deleted {$deleted} log entries older than {$days} days.")
+            ->with('purge_deleted_count', $deleted)
+            ->with('purge_days', $days);
     }
 }

@@ -91,6 +91,13 @@ class NotificationEventRuleResolver
             }
         }
 
+        if ($key === 'assigned_user') {
+            $user = $subject?->user ?? null;
+            if ($user) {
+                $users->push($user);
+            }
+        }
+
         if ($key === 'draft_creator') {
             $actorId = (int) (
                 $message['fromUserId']
@@ -105,8 +112,21 @@ class NotificationEventRuleResolver
             }
         }
 
+        if ($key === 'system_admins') {
+            $users = $users->merge(
+                User::query()
+                    ->where('is_admin', true)
+                    ->whereHas('role', fn ($query) => $query->where('name', 'Admin'))
+                    ->get()
+            );
+        }
+
         if ($key === 'birthday_user' && $subject instanceof User) {
             $users->push($subject);
+        }
+
+        if ($key === 'all_users') {
+            $users = $users->merge(User::query()->get());
         }
 
         return $users;

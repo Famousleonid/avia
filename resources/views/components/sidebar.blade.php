@@ -193,7 +193,7 @@
             @endif
 
             <div class="p-3 mt-auto border-top border-bottom border-1">
-                @if(Auth::user()?->roleIs('Admin'))
+                @if(Auth::user()?->isSystemAdmin())
                     <a class="nav-link" href="{{ route('admin.tests.index') }}">
                         <i class="bi bi-clipboard2-pulse me-2"></i>
                         <span>Tests</span>
@@ -251,7 +251,7 @@
     </div>
 
     <div class="p-3 mt-auto border-top border-bottom border-1">
-        @if(Auth::user()?->roleIs('Admin'))
+        @if(Auth::user()?->isSystemAdmin())
             <a class="nav-link" href="{{ route('admin.tests.index') }}">
                 <i class="bi bi-clipboard2-pulse me-2"></i>
                 <span>Tests</span>
@@ -273,21 +273,35 @@
 
 <style>
     #sendMsgModal .modal-dialog { max-width: 980px; }
-    #sendMsgModal .modal-content { max-height: 86vh; }
+    #sendMsgModal .modal-content {
+        max-height: calc(100vh - 3.5rem);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    #sendMsgModal .modal-body{
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
 
     #sendMsgModal .msg-layout{
         display:flex; gap:14px;
-        min-height: 62vh;
+        min-height: 0;
+        height: 100%;
+        align-items: stretch;
     }
     #sendMsgModal .msg-left{
         flex:1 1 auto; min-width:0;
         display:flex; flex-direction:column;
+        min-height: 0;
     }
     #sendMsgModal .msg-right{
         width:320px; flex:0 0 320px;
         display:flex; flex-direction:column;
         border-left:1px solid rgba(255,255,255,.12);
         padding-left:14px;
+        min-height: 0;
     }
     #sendMsgModal .users-scroll{
         flex:1 1 auto; min-height:0;

@@ -111,6 +111,32 @@
                         </div>
                     </div>
 
+                    <div class="row g-3 mt-0">
+                        <div class="col-12 col-md-4 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="is_admin"
+                                       id="is_admin"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('is_admin') ? 'checked' : '' }}>
+                                <label for="is_admin" class="form-check-label">System admin</label>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="email_verified_at"
+                                       id="email_verified_at"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('email_verified_at') ? 'checked' : '' }}>
+                                <label for="email_verified_at" class="form-check-label">Email verified</label>
+                            </div>
+                        </div>
+                    </div>
+
                     {{-- Buttons --}}
                     <div class="d-flex gap-2 mt-2">
                         <button type="submit"

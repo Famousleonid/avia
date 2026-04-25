@@ -1,30 +1,30 @@
 <?php
-// app/Console/Commands/RunTimedEvents.php
+
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
+use App\Services\DateNotificationService;
+use App\Services\Events\BirthdayInTwoDaysEvent;
+use App\Services\Events\BirthdayTodayEvent;
 use App\Services\Events\EventRunner;
 use App\Services\Events\TdrProcessOverdueStartEvent;
-use App\Services\Events\BirthdayAdminEvent;
-use App\Services\Events\BirthdaySelfEvent;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Console\Command;
 
 class RunTimedEvents extends Command
 {
     protected $signature = 'events:run';
+
     protected $description = 'Run timed business events (overdue, reminders, etc.)';
 
-    public function handle(EventRunner $runner): int
+    public function handle(EventRunner $runner, DateNotificationService $dateNotificationService): int
     {
         $runner->run([
             new TdrProcessOverdueStartEvent(),
-            new BirthdaySelfEvent(),
-            new BirthdayAdminEvent(),
-            // потом добавишь новые события сюда
-
-
+            new BirthdayInTwoDaysEvent(),
+            new BirthdayTodayEvent(),
         ]);
-       // Log::channel('avia')->info('RunTimedEvents started');
+
+        $dateNotificationService->sendDueForToday();
+
         return self::SUCCESS;
     }
 }

@@ -19,56 +19,83 @@
             <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
                 <h5 class="mb-0 text-primary">Activity log (all)</h5>
 
-                <form method="GET" action="{{ route('admin.activity.index') }}" class="d-flex gap-2 align-items-center flex-wrap">
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <form method="POST" action="{{ route('admin.activity.purge') }}" class="d-flex gap-2 align-items-center flex-wrap">
+                        @csrf
+                        <label for="purge_days" class="small text-muted mb-0">Delete older than</label>
+                        <select name="days" id="purge_days" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto">
+                            @foreach([30, 60, 90, 180, 365, 730, 1095] as $daysOption)
+                                <option value="{{ $daysOption }}" @selected((int) old('days', session('purge_days', 90)) === $daysOption)>
+                                    {{ $daysOption }} days
+                                </option>
+                            @endforeach
+                        </select>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger"
+                                data-bs-toggle="modal"
+                                data-bs-target="#useConfirmDelete"
+                                data-title="Delete old logs">
+                            Delete old logs
+                        </button>
+                    </form>
 
-                    <input type="text" name="q" value="{{ request('q') }}"
-                           class="form-control bg-dark text-light border-secondary"
-                           placeholder="Search in all fields..." autocomplete="off" style="min-width:260px">
+                    <form method="GET" action="{{ route('admin.activity.index') }}" class="d-flex gap-2 align-items-center flex-wrap">
 
-                    <select name="log_name" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto">
-                        <option value="all">All log_name</option>
-                        @foreach($logNames as $ln)
-                            <option value="{{ $ln }}" @selected(request('log_name','all')===$ln)>{{ $ln }}</option>
-                        @endforeach
-                    </select>
+                        <input type="text" name="q" value="{{ request('q') }}"
+                               class="form-control bg-dark text-light border-secondary"
+                               placeholder="Search in all fields..." autocomplete="off" style="min-width:260px">
 
-                    <select name="event" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto">
-                        <option value="all">All events</option>
-                        @foreach(['created','updated','deleted'] as $ev)
-                            <option value="{{ $ev }}" @selected(request('event','all')===$ev)>{{ $ev }}</option>
-                        @endforeach
-                    </select>
+                        <select name="log_name" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto">
+                            <option value="all">All log_name</option>
+                            @foreach($logNames as $ln)
+                                <option value="{{ $ln }}" @selected(request('log_name','all')===$ln)>{{ $ln }}</option>
+                            @endforeach
+                        </select>
 
-                    <select name="subject_type" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto; max-width:260px">
-                        <option value="all">All subjects</option>
-                        @foreach($subjectTypes as $st)
-                            <option value="{{ $st }}" @selected(request('subject_type','all')===$st)>{{ class_basename($st) }}</option>
-                        @endforeach
-                    </select>
+                        <select name="event" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto">
+                            <option value="all">All events</option>
+                            @foreach(['created','updated','deleted', 'purged'] as $ev)
+                                <option value="{{ $ev }}" @selected(request('event','all')===$ev)>{{ $ev }}</option>
+                            @endforeach
+                        </select>
 
-                    <select name="causer_id" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto; max-width:220px">
-                        <option value="all">All users</option>
-                        @foreach($causers as $u)
-                            <option value="{{ $u->id }}" @selected((string)request('causer_id','all')===(string)$u->id)>{{ $u->name }}</option>
-                        @endforeach
-                    </select>
+                        <select name="subject_type" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto; max-width:260px">
+                            <option value="all">All subjects</option>
+                            @foreach($subjectTypes as $st)
+                                <option value="{{ $st }}" @selected(request('subject_type','all')===$st)>{{ class_basename($st) }}</option>
+                            @endforeach
+                        </select>
 
-                    <input type="date" name="from" value="{{ request('from') }}" class="form-control bg-dark text-light border-secondary" style="width:auto">
-                    <input type="date" name="to" value="{{ request('to') }}" class="form-control bg-dark text-light border-secondary" style="width:auto">
+                        <select name="causer_id" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto; max-width:220px">
+                            <option value="all">All users</option>
+                            @foreach($causers as $u)
+                                <option value="{{ $u->id }}" @selected((string)request('causer_id','all')===(string)$u->id)>{{ $u->name }}</option>
+                            @endforeach
+                        </select>
 
-                    <select name="per_page" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto">
-                        @foreach([25,50,100,200] as $pp)
-                            <option value="{{ $pp }}" @selected((int)request('per_page', $perPage)===$pp)>{{ $pp }}/page</option>
-                        @endforeach
-                    </select>
+                        <input type="date" name="from" value="{{ request('from') }}" class="form-control bg-dark text-light border-secondary" style="width:auto">
+                        <input type="date" name="to" value="{{ request('to') }}" class="form-control bg-dark text-light border-secondary" style="width:auto">
 
-                    <button class="btn btn-sm btn-outline-info">Apply</button>
+                        <select name="per_page" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto">
+                            @foreach([25,50,100,200] as $pp)
+                                <option value="{{ $pp }}" @selected((int)request('per_page', $perPage)===$pp)>{{ $pp }}/page</option>
+                            @endforeach
+                        </select>
 
-                    @if(request()->query())
-                        <a href="{{ route('admin.activity.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
-                    @endif
-                </form>
+                        <button class="btn btn-sm btn-outline-info">Apply</button>
+
+                        @if(request()->query())
+                            <a href="{{ route('admin.activity.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+                        @endif
+                    </form>
+                </div>
             </div>
+
+            @if(session()->has('purge_deleted_count'))
+                <div class="px-3 py-2 border-bottom small text-warning">
+                    Deleted {{ (int) session('purge_deleted_count') }} log entries older than {{ (int) session('purge_days', 0) }} days.
+                </div>
+            @endif
 
             <div class="card-body">
                 <div class="logs-table-wrap">
@@ -332,4 +359,36 @@
 
         </div>
     </div>
+
+    @include('components.delete')
+@endsection
+
+@section('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modal = document.getElementById('useConfirmDelete');
+            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+            let deleteForm = null;
+
+            if (modal && confirmDeleteBtn) {
+                modal.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    deleteForm = button ? button.closest('form') : null;
+
+                    const title = button ? button.getAttribute('data-title') : null;
+                    const modalTitle = modal.querySelector('#confirmDeleteLabel');
+
+                    if (modalTitle) {
+                        modalTitle.textContent = title || 'Delete Confirmation';
+                    }
+                });
+
+                confirmDeleteBtn.addEventListener('click', function () {
+                    if (deleteForm) {
+                        deleteForm.submit();
+                    }
+                });
+            }
+        });
+    </script>
 @endsection

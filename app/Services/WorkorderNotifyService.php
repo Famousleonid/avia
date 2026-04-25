@@ -10,6 +10,36 @@ use Illuminate\Support\Collection;
 
 class WorkorderNotifyService
 {
+    public function assigned(Workorder $workorder, int $byUserId, string $byUserName): void
+    {
+        $msg = [
+            'fromUserId' => $byUserId,
+            'fromName' => $byUserName,
+            'type' => 'workorder',
+            'event' => 'assigned',
+            'severity' => 'info',
+            'title' => 'Workorder assigned',
+            'text' => "Workorder {$workorder->number} was assigned by {$byUserName}",
+            'url' => route('mains.show', $workorder->id),
+            'ui' => [
+                'workorder' => [
+                    'id' => $workorder->id,
+                    'no' => $workorder->number,
+                ],
+                'actor' => [
+                    'id' => $byUserId,
+                    'name' => $byUserName,
+                ],
+            ],
+            'payload' => [
+                'workorder_id' => $workorder->id,
+                'workorder_no' => $workorder->number,
+                'assigned_to_user_id' => $workorder->user_id,
+            ],
+        ];
+
+        $this->notifyByRules('workorder.assigned', $workorder, $msg);
+    }
 
     public function approved(Workorder $workorder, int $byUserId, string $approveName): void
     {
@@ -39,47 +69,7 @@ class WorkorderNotifyService
             ],
         ];
 
-        if ($this->notifyByRules('workorder.approved', $workorder, $msg)) {
-            return;
-        }
-
-        $notification = new WorkorderNotification(
-            event: 'approved',
-            payload: [
-            'workorder_id' => $workorder->id,
-            'workorder_no' => $workorder->number ?? null,
-            'approved_at'  => optional($workorder->approved_at)->toDateTimeString(),
-            'approve_name' => $approveName,
-        ],
-            byUserId: $byUserId,
-            byUserName: $approveName,
-        );
-
-        $recipients = collect();
-
-        // owner
-        if ($workorder->user_id && $workorder->user_id !== $byUserId) {
-            $owner = User::find($workorder->user_id);
-            if ($owner) $recipients->push($owner);
-        }
-
-        // managers
-        $managers = User::query()
-            ->where('id', '!=', $byUserId)
-            ->whereHas('role', fn($q) => $q->where('name', 'Manager'))
-            ->get();
-
-        $recipients = $recipients->merge($managers)->unique('id');
-
-        // IMPORTANT:
-        // notification_prefs.muted_workorders в UI сейчас хранит НОМЕРА WO (workorders.number),
-        // а не workorders.id. Поэтому передаём оба, чтобы фильтр работал корректно.
-        $this->notifyUsers(
-            $recipients,
-            $notification,
-            workorderId: (int) $workorder->id,
-            workorderNo: is_null($workorder->number) ? null : (int) $workorder->number
-        );
+        $this->notifyByRules('workorder.approved', $workorder, $msg);
     }
 
     public function draftCreated(Workorder $workorder, int $byUserId, string $byUserName): void
@@ -129,7 +119,7 @@ class WorkorderNotifyService
 
     protected function notifyByRules(string $eventKey, Workorder $workorder, array $msg): bool
     {
-        $resolver = app(\App\Services\NotificationEventRuleResolver::class);
+        $resolver = app(NotificationEventRuleResolver::class);
         $rules = $resolver->activeRules($eventKey);
 
         if ($rules->isEmpty()) {
@@ -141,7 +131,14 @@ class WorkorderNotifyService
             $recipients = $resolver->recipients($rule, $workorder, $ruleMsg);
 
             foreach ($recipients as $recipient) {
-                if ($rule->respect_user_preferences && ! $this->canReceiveWorkorderNotification($recipient, (int) $workorder->id, is_null($workorder->number) ? null : (int) $workorder->number)) {
+                if (
+                    $rule->respect_user_preferences
+                    && ! $this->canReceiveWorkorderNotification(
+                        $recipient,
+                        (int) $workorder->id,
+                        is_null($workorder->number) ? null : (int) $workorder->number
+                    )
+                ) {
                     continue;
                 }
 
@@ -163,57 +160,50 @@ class WorkorderNotifyService
         return true;
     }
 
-
-    /**
-     * Универсально: уведомить пользователей по ролям (по имени роли из таблицы roles.name)
-     * $excludeUserId — кого исключить (обычно автора события)
-     */
     public function notifyRoles(array $roleNames, WorkorderNotification $notification, ?int $excludeUserId = null): void
     {
-        $q = User::query()->whereHas('role', fn($r) => $r->whereIn('name', $roleNames));
+        $query = User::query()->whereHas('role', fn ($roleQuery) => $roleQuery->whereIn('name', $roleNames));
 
         if ($excludeUserId) {
-            $q->where('id', '!=', $excludeUserId);
+            $query->where('id', '!=', $excludeUserId);
         }
 
-        $users = $q->get();
+        $users = $query->get();
 
         $this->notifyUsers($users, $notification);
     }
 
-    /**
-     * Внутренний хелпер: разослать уведомление коллекции пользователей
-     */
     protected function notifyUsers(
         Collection $users,
         WorkorderNotification $notification,
         ?int $workorderId = null,
         ?int $workorderNo = null
-    ): void
-    {
-        if ($users->isEmpty()) return;
+    ): void {
+        if ($users->isEmpty()) {
+            return;
+        }
 
         $users
-            ->filter(fn (User $u) => $this->canReceiveWorkorderNotification($u, $workorderId, $workorderNo))
-            ->each(fn(User $u) => $u->notify($notification));
+            ->filter(fn (User $user) => $this->canReceiveWorkorderNotification($user, $workorderId, $workorderNo))
+            ->each(fn (User $user) => $user->notify($notification));
     }
 
     protected function canReceiveWorkorderNotification(User $user, ?int $workorderId, ?int $workorderNo): bool
     {
         $prefs = $user->notification_prefs ?? [];
 
-        if (!empty($prefs['mute_all'])) {
+        if (! empty($prefs['mute_all'])) {
             return false;
         }
 
-        // UI сохраняет muted_workorders как номера WO (workorders.number).
-        // На всякий случай поддержим и вариант, если там окажутся id.
         if ($workorderId || $workorderNo) {
             $muted = $prefs['muted_workorders'] ?? [];
             $muted = array_map('intval', is_array($muted) ? $muted : []);
+
             if ($workorderNo && in_array((int) $workorderNo, $muted, true)) {
                 return false;
             }
+
             if ($workorderId && in_array((int) $workorderId, $muted, true)) {
                 return false;
             }
@@ -222,4 +212,3 @@ class WorkorderNotifyService
         return true;
     }
 }
-
