@@ -150,6 +150,11 @@ class Workorder extends Model implements HasMedia
         return $this->hasMany(\App\Models\WorkorderGeneralTaskStatus::class);
     }
 
+    public function toolEntries(): HasMany
+    {
+        return $this->hasMany(WorkorderTool::class);
+    }
+
     public function syncDoneByCompletedTask(): void
     {
         // 1) находим id задачи Completed (один раз на вызов; при 20 tasks это ок)

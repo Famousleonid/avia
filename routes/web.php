@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\RmReportController;
 use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\TdrController;
 use App\Http\Controllers\Admin\TdrProcessController;
+use App\Http\Controllers\Admin\ToolController;
 use App\Http\Controllers\Admin\TransferController;
 use App\Http\Controllers\Admin\ManualController;
 use App\Http\Controllers\Admin\MaterialController;
@@ -176,6 +177,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('workorders-logs', [\App\Http\Controllers\Admin\WorkorderController::class, 'logs'])->name('workorders.logs');
     Route::get('/workorders/{workorder}/logs-json', [WorkorderController::class, 'logsForWorkorder'])->name('workorders.logs-json');
     Route::get('/workorders/check-number', [WorkorderController::class, 'checkNumber'])->name('workorders.checkNumber');
+    Route::get('/tools', [ToolController::class, 'index'])->name('tools.index');
+    Route::post('/tools/save', [ToolController::class, 'save'])->name('tools.save');
 
     Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class)->except(['show']);
@@ -187,6 +190,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
   //  Route::patch('/mains/general-task/{workorder}/{generalTask}', [MainController::class, 'updateGeneralTaskDates'])->name('mains.updateGeneralTaskDates');
     Route::get('/main-rows/{main}/activity', [MainController::class, 'activity'])->name('mains.activity');
     Route::resource('/workorders', WorkorderController::class);
+    Route::delete('/workorders/{workorder}/force', [WorkorderController::class, 'forceDestroy'])->name('workorders.forceDestroy');
 
     Route::post('/workorders/{workorder}/approve', [WorkorderController::class, 'approveAjax'])->name('workorders.approve.ajax');
         Route::post('workorders/{workorder}/inspection', [WorkorderController::class, 'updateInspect'])->name('workorders.inspection');
@@ -350,6 +354,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
     Route::get('/vendor-tracking', [VendorTrackingController::class, 'index'])->name('vendor-tracking.index');
+    Route::patch('/vendor-tracking/row', [VendorTrackingController::class, 'updateRow'])->name('vendor-tracking.row.update');
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
     Route::post('/components/store_from_extra', [ComponentController::class, 'storeFromExtra'])->name('components.storeFromExtra');

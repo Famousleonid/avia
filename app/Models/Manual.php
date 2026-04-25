@@ -5,16 +5,14 @@ namespace App\Models;
 use App\Traits\HasMediaHelpers;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Log;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\LogOptions;
 
-
-class Manual extends Model implements  HasMedia
+class Manual extends Model implements HasMedia
 {
-    use SoftDeletes, InteractsWithMedia, HasMediaHelpers,LogsActivity;
+    use SoftDeletes, InteractsWithMedia, HasMediaHelpers, LogsActivity;
 
     protected $fillable = [
         'number',
@@ -34,22 +32,24 @@ class Manual extends Model implements  HasMedia
 
     protected $dates = ['deleted_at'];
 
-
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->useLogName('manual')      // log_name в activity_log
-            ->logAll()                  // логировать ВСЕ поля
-            ->logOnly(['number', 'title', 'unit_name', 'training_hours','lib'])
-            ->logExcept(['created_at','updated_at'])
-            ->logOnlyDirty()            // только изменившиеся
-            ->dontSubmitEmptyLogs();    // не создавать пустых логов
+            ->useLogName('manual')
+            ->logOnly([
+                'number',
+                'title',
+                'unit_name',
+                'lib',
+            ])
+            ->logExcept(['created_at', 'updated_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
     protected static $recordEvents = ['created', 'updated', 'deleted'];
 
     public $mediaUrlName = 'manuals';
-
 
     public function plane()
     {
@@ -60,29 +60,27 @@ class Manual extends Model implements  HasMedia
     {
         return $this->belongsToMany(Process::class, 'manual_processes', 'manual_id', 'processes_id');
     }
-    // Отношение с моделью MFR
+
     public function builder()
     {
         return $this->belongsTo(Builder::class, 'builders_id');
     }
 
-    // Отношение с моделью Scope
     public function scope()
     {
         return $this->belongsTo(Scope::class, 'scopes_id');
     }
 
-    // Отношение с моделью Training
     public function trainings()
     {
         return $this->hasMany(Training::class, 'manuals_id');
     }
 
-    // Отношение с моделью Unit
     public function units()
     {
-        return $this->hasMany(Unit::class,'manual_id');
+        return $this->hasMany(Unit::class, 'manual_id');
     }
+
     public function components()
     {
         return $this->hasMany(Component::class, 'manual_id');
@@ -119,14 +117,14 @@ class Manual extends Model implements  HasMedia
     public function getCsvFileUrl()
     {
         $media = $this->getMedia('csv_files')->first();
+
         return $media ? $media->getUrl() : null;
     }
 
     public function getCsvFileName()
     {
         $media = $this->getMedia('csv_files')->first();
+
         return $media ? $media->file_name : null;
     }
-
-
 }

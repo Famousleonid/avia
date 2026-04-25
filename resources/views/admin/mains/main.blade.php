@@ -179,6 +179,13 @@
                                                     @endif
                                                 </a>
 
+                                                <a href="{{ route('tools.index', ['workorder_id' => $current_workorder->id, 'workorder' => $current_workorder->number, 'user' => auth()->user()?->name]) }}"
+                                                   class="btn btn-outline-primary dir-top-square-btn ms-2"
+                                                   data-tippy-content="{{ __('Tools') }}"
+                                                   onclick="showLoadingSpinner()">
+                                                    <i class="bi bi-tools"></i>
+                                                </a>
+
                                                 @role('Admin')
                                                 <a class="btn btn-outline-warning dir-top-square-btn open-log-modal ms-2"
                                                    data-tippy-content="{{ __('Logs') }}"

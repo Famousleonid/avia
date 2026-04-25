@@ -147,7 +147,8 @@
         }
 
         .col-delete {
-            width: 50px;
+            width: 96px;
+            min-width: 96px;
             font-size: 0.8rem;
             font-weight: normal;
         }
@@ -1130,7 +1131,9 @@
                 currentFormId = button?.getAttribute('data-form-id') || null;
 
                 const title = button?.getAttribute('data-title') || 'Delete Confirmation';
+                const message = button?.getAttribute('data-message') || 'Are you sure you want to delete this item?';
                 document.getElementById('confirmDeleteLabel').textContent = title;
+                deleteModal.querySelector('.modal-body').textContent = message;
             });
 
             confirmBtn.addEventListener('click', () => {
