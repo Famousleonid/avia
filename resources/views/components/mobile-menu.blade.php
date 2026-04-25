@@ -8,12 +8,7 @@
     $isPaintUser = auth()->check() && auth()->user()->roleIs('Paint');
     $isPaintRoute = request()->routeIs('mobile.paint');
     $isMachiningUser = auth()->check() && auth()->user()->roleIs('Machining');
-    $isMachiningRoute = request()->routeIs(
-        'mobile.machining',
-        'mobile.machining.workorder',
-        'mobile.machining.workorder.machining-photos',
-        'mobile.machining.workorder.pdfs',
-    );
+    $isMachiningRoute = request()->routeIs('mobile.machining', 'mobile.machining.workorder');
     $usePaintMenu = $isPaintUser || $isPaintRoute;
     $useMachiningMenu = $isMachiningUser || $isMachiningRoute;
     $useShopDeptMenu = $usePaintMenu || $useMachiningMenu;

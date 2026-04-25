@@ -16,10 +16,7 @@
             font-size: .95rem;
             font-weight: 600;
             color: #e9ecef;
-            margin-bottom: .35rem;
-        }
-        .machining-action-row .btn {
-            font-size: .78rem;
+            margin-bottom: .5rem;
         }
         .machining-detail-block {
             border: 1px solid rgba(255, 255, 255, .1);
@@ -96,27 +93,6 @@
         <div class="machining-mobile-card">
             <div class="machining-detail-wo-title">WO {{ $workorder->number }}</div>
 
-            @php
-                $machiningPhotoCount = $machiningPhotoCount ?? 0;
-                $pdfCount = $pdfCount ?? 0;
-            @endphp
-            <input type="file" class="d-none js-machining-input-photo" accept="image/*" multiple>
-            <input type="file" class="d-none js-machining-input-doc" accept="image/*">
-            <div class="d-grid gap-1 mt-0 mb-1 machining-action-row" style="grid-template-columns: 1fr 1fr;">
-                <button type="button" class="btn btn-sm btn-primary js-machining-btn-photo">Photo</button>
-                <button type="button" class="btn btn-sm btn-primary js-machining-btn-doc">Doc</button>
-            </div>
-            <div class="d-grid gap-1 mt-0 mb-2" style="grid-template-columns: 1fr 1fr;">
-                <a href="{{ route('mobile.machining.workorder.machining-photos', $workorder) }}"
-                   class="btn btn-sm btn-outline-light text-nowrap">
-                    Machining photos <span class="badge bg-secondary align-middle js-machining-badge-photos">{{ $machiningPhotoCount }}</span>
-                </a>
-                <a href="{{ route('mobile.machining.workorder.pdfs', $workorder) }}"
-                   class="btn btn-sm btn-outline-light text-nowrap">
-                    PDFs <span class="badge bg-secondary align-middle js-machining-badge-pdfs">{{ $pdfCount }}</span>
-                </a>
-            </div>
-
             @foreach($detailItems as $item)
                 @php
                     $step = $item->step;
@@ -156,14 +132,6 @@
 @endsection
 
 @section('scripts')
-    @php
-        $jsMachiningPhotoStoreUrl = route('mobile.machining.workorder.photo.store', $workorder);
-        $jsMachiningDocPdfUrl = route('mobile.machining.workorder.doc_pdf.store', $workorder);
-    @endphp
-    <script>
-        const MACHINING_WO_PHOTO_URL = @json($jsMachiningPhotoStoreUrl);
-        const MACHINING_WO_DOC_PDF_URL = @json($jsMachiningDocPdfUrl);
-    </script>
     <script>
         function formatMachiningDateYmd(ymd) {
             const s = String(ymd || '').trim();
@@ -317,146 +285,5 @@
                 }
             }
         });
-
-        (function () {
-            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-            const btnPhoto = document.querySelector('.js-machining-btn-photo');
-            const btnDoc = document.querySelector('.js-machining-btn-doc');
-            const inputPhoto = document.querySelector('.js-machining-input-photo');
-            const inputDoc = document.querySelector('.js-machining-input-doc');
-            const badgePhotos = document.querySelector('.js-machining-badge-photos');
-            const badgePdfs = document.querySelector('.js-machining-badge-pdfs');
-
-            function isOnline() {
-                return typeof navigator === 'undefined' || navigator.onLine !== false;
-            }
-
-            function updateBadges(p, pdf) {
-                if (typeof p === 'number' && badgePhotos) {
-                    badgePhotos.textContent = String(p);
-                }
-                if (typeof pdf === 'number' && badgePdfs) {
-                    badgePdfs.textContent = String(pdf);
-                }
-            }
-
-            function firstValidationMessage(payload) {
-                if (payload?.message) {
-                    return String(payload.message);
-                }
-                const err = payload?.errors;
-                if (err && typeof err === 'object') {
-                    const k = Object.keys(err)[0];
-                    if (k && err[k]?.[0]) {
-                        return err[k][0];
-                    }
-                }
-                return 'Request failed';
-            }
-
-            if (btnPhoto && inputPhoto) {
-                btnPhoto.addEventListener('click', function () {
-                    if (!isOnline()) {
-                        if (typeof window.notifyError === 'function') {
-                            window.notifyError('No network connection.', 3500);
-                        }
-                        return;
-                    }
-                    inputPhoto.click();
-                });
-                inputPhoto.addEventListener('change', async function () {
-                    const files = inputPhoto.files;
-                    if (!files || !files.length) {
-                        return;
-                    }
-                    if (typeof safeShowSpinner === 'function') {
-                        safeShowSpinner();
-                    }
-                    const fd = new FormData();
-                    for (let i = 0; i < files.length; i += 1) {
-                        fd.append('photos[]', files[i]);
-                    }
-                    try {
-                        const res = await fetch(MACHINING_WO_PHOTO_URL, {
-                            method: 'POST',
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'X-CSRF-TOKEN': token,
-                                'Accept': 'application/json',
-                            },
-                            body: fd,
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok || !data.success) {
-                            throw new Error(firstValidationMessage(data));
-                        }
-                        updateBadges(data.machining_photo_count, data.pdf_count);
-                    } catch (e) {
-                        const msg = e?.message || 'Upload failed';
-                        if (typeof window.notifyError === 'function') {
-                            window.notifyError(msg, 4000);
-                        } else {
-                            console.error(msg);
-                        }
-                    } finally {
-                        inputPhoto.value = '';
-                        if (typeof safeHideSpinner === 'function') {
-                            safeHideSpinner();
-                        }
-                    }
-                });
-            }
-
-            if (btnDoc && inputDoc) {
-                btnDoc.addEventListener('click', function () {
-                    if (!isOnline()) {
-                        if (typeof window.notifyError === 'function') {
-                            window.notifyError('No network connection.', 3500);
-                        }
-                        return;
-                    }
-                    inputDoc.click();
-                });
-                inputDoc.addEventListener('change', async function () {
-                    const f = inputDoc.files && inputDoc.files[0];
-                    if (!f) {
-                        return;
-                    }
-                    if (typeof safeShowSpinner === 'function') {
-                        safeShowSpinner();
-                    }
-                    const fd = new FormData();
-                    fd.append('image', f);
-                    try {
-                        const res = await fetch(MACHINING_WO_DOC_PDF_URL, {
-                            method: 'POST',
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'X-CSRF-TOKEN': token,
-                                'Accept': 'application/json',
-                            },
-                            body: fd,
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok || !data.success) {
-                            throw new Error(firstValidationMessage(data));
-                        }
-                        updateBadges(data.machining_photo_count, data.pdf_count);
-                    } catch (e) {
-                        const msg = e?.message || 'Could not build PDF';
-                        if (typeof window.notifyError === 'function') {
-                            window.notifyError(msg, 4000);
-                        } else {
-                            console.error(msg);
-                        }
-                    } finally {
-                        inputDoc.value = '';
-                        if (typeof safeHideSpinner === 'function') {
-                            safeHideSpinner();
-                        }
-                    }
-                });
-            }
-        })();
     </script>
 @endsection

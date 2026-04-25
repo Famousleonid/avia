@@ -127,17 +127,7 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     Route::delete('/paint/lost/{paint}', [MobileController::class, 'destroyPaintLost'])->name('paint.lost.destroy');
 
     Route::get('/machining', [MobileController::class, 'machining'])->name('machining');
-    Route::post('/machining/{workorder}/photo', [MobileController::class, 'storeMachiningWorkorderPhoto'])
-        ->name('machining.workorder.photo.store');
-    Route::post('/machining/{workorder}/doc-pdf', [MobileController::class, 'storeMachiningWorkorderDocPdf'])
-        ->name('machining.workorder.doc_pdf.store');
     Route::get('/machining/{workorder}', [MobileController::class, 'machiningWorkorder'])->name('machining.workorder');
-    Route::get('/machining/{workorder}/machining-photos', [MobileController::class, 'machiningWorkorderPhotos'])
-        ->name('machining.workorder.machining-photos');
-    Route::get('/machining/{workorder}/pdfs', [MobileController::class, 'machiningWorkorderPdfs'])
-        ->name('machining.workorder.pdfs');
-    Route::delete('/machining/{workorder}/media/{media}', [MobileController::class, 'destroyMachiningWorkorderMedia'])
-        ->name('machining.workorder.media.destroy');
     Route::patch('/machining/steps/{machiningWorkStep}', [MobileController::class, 'updateMachiningWorkStepMobile'])
         ->name('machining.steps.update');
 

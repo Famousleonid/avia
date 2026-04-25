@@ -12,7 +12,6 @@ return [
 
     'groups' => [
         'received'     => 'As received',
-        'Machining'   => 'Machining',
         'photos'     => 'Photos of the unit',
         'extra'     => 'Extra parts',
         'ec'     => 'EC',

@@ -14,11 +14,6 @@ class RedirectMobileToMobile
             return $next($request);
         }
 
-        // Workorder PDF preview/download: same named routes are used on mobile machining pages
-        if ($request->is('workorders/*/pdf/*/show', 'workorders/*/pdf/*/download')) {
-            return $next($request);
-        }
-
         if (Device::isMobile($request)) {
             return redirect('/mobile');
         }
