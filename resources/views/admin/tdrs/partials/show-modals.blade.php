@@ -165,16 +165,16 @@
                 </div>
                 <div id="pdfListContainer" class="row g-3"></div>
                 <div class="modal fade" id="pdfViewerModal" tabindex="-1" aria-labelledby="pdfViewerModalLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-xl">
-                        <div class="modal-content bg-dark">
-                            <div class="modal-header">
+                    <div class="modal-dialog modal-dialog-centered" style="max-width: 90vw; width: 90vw; height: 85vh; margin: 1.75rem auto;">
+                        <div class="modal-content bg-dark d-flex flex-column" style="height: 100%; max-height: 85vh; overflow: hidden;">
+                            <div class="modal-header flex-shrink-0">
                                 <h6 class="modal-title text-info" id="pdfViewerModalLabel">PDF Viewer</h6>
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
-                            <div class="modal-body p-0" style="min-height: 600px;">
-                                <iframe id="pdfViewerFrame" src="" style="width: 100%; height: 600px; border: none;"></iframe>
+                            <div class="modal-body p-0 flex-grow-1 d-flex" style="min-height: 0; overflow: hidden;">
+                                <iframe id="pdfViewerFrame" class="w-100 border-0" src="" style="flex: 1 1 auto; min-height: 0; width: 100%;"></iframe>
                             </div>
-                            <div class="modal-footer">
+                            <div class="modal-footer flex-shrink-0">
                                 <a id="pdfDownloadLink" href="#" class="btn btn-primary" download><i class="bi bi-download"></i> Download</a>
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                             </div>
