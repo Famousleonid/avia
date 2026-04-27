@@ -76,10 +76,7 @@
                             </div>
                             <div class="col-md-4">
                                 @if($currentProcessName && $currentProcessName->name === 'EC' && $current_tdr_processes->standalone_ec_only)
-                                <div class="form-check mt-2 mb-2">
-                                    <input type="checkbox" name="processes[0][standalone_ec_only]" value="1" class="form-check-input" id="standalone_ec_edit" checked>
-                                    <label class="form-check-label" for="standalone_ec_edit">{{ __('EC only (uncheck to remove this row)') }}</label>
-                                </div>
+                                    <input type="hidden" name="processes[0][standalone_ec_only]" value="1">
                                 @endif
                                 <div class="form-check mt-2" id="ec-checkbox-container" style="display: none;">
                                     <input type="checkbox" name="processes[0][ec]" value="1" class="form-check-input" id="ec_edit" {{ $current_tdr_processes->ec ? 'checked' : '' }}>
@@ -135,6 +132,7 @@
         ndtProcessNames: @json($ndtProcessNames->pluck('id')->toArray()),
         ndtProcessNamesData: @json($ndtProcessNames->keyBy('id')),
         ecEligibleProcessNameIds: @json($ecEligibleProcessNameIds ?? []),
+        processNamesData: @json($processNames->keyBy('id')),
         currentProcesses: @json(json_decode($current_tdr_processes->processes, true) ?: []),
         dropdownParent: document.body
     };

@@ -27,10 +27,32 @@
             return (this.config.ecEligibleProcessNameIds || []).includes(parseInt(processNameId));
         },
 
+        isMachiningEcProcessNameId(processNameId) {
+            const p =
+                (this.config.processNamesData || {})[processNameId] ||
+                (this.config.processNamesData || {})[String(processNameId)];
+            return p && p.name === 'Machining (EC)';
+        },
+
         toggleEcCheckbox(processRow, processNameId) {
+            const ecContainer =
+                (processRow && processRow.querySelector('#ec-checkbox-container')) ||
+                document.getElementById('ec-checkbox-container');
             const ecCheckbox = processRow?.querySelector('input[name*="[ec]"]');
-            if (ecCheckbox) {
-                ecCheckbox.closest('.form-check').style.display = this.isEcEligibleProcess(processNameId) ? 'block' : 'none';
+            if (!ecContainer || !ecCheckbox) {
+                return;
+            }
+
+            if (this.isEcEligibleProcess(processNameId)) {
+                if (this.isMachiningEcProcessNameId(processNameId)) {
+                    ecContainer.style.display = 'none';
+                    ecCheckbox.checked = true;
+                } else {
+                    ecContainer.style.display = 'block';
+                }
+            } else {
+                ecContainer.style.display = 'none';
+                ecCheckbox.checked = false;
             }
         },
 
@@ -137,10 +159,8 @@
             if (!processNameSelect?.value) return;
 
             const processNameId = processNameSelect.value;
-
-            if (ecCheckboxContainer) {
-                ecCheckboxContainer.style.display = this.isEcEligibleProcess(processNameId) ? 'block' : 'none';
-            }
+            const processRow = processNameSelect.closest('.process-row');
+            this.toggleEcCheckbox(processRow, processNameId);
 
             if (ndtPlusContainer) {
                 if (this.isNdtProcess(processNameId)) {

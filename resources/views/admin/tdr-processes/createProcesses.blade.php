@@ -346,6 +346,14 @@
         // Данные процессов для использования в динамически создаваемых строках
         const processNamesData = @json($processNames->keyBy('id'));
 
+        function isMachiningEcProcessName(processNameId) {
+            if (processNameId === undefined || processNameId === null || processNameId === '') {
+                return false;
+            }
+            const p = processNamesData[String(processNameId)] || processNamesData[processNameId];
+            return p && p.name === 'Machining (EC)';
+        }
+
         // Получаем все NDT process_names_id для проверки
         const ndtProcessNames = @json($ndtProcessNames->pluck('id')->toArray());
         const ndtProcessNamesData = @json($ndtProcessNames->keyBy('id'));
@@ -363,7 +371,7 @@
             return ecEligibleProcessNameIds.includes(parseInt(processNameId));
         }
 
-        /** Чекбокс «только EC» при выборе имени EC; чекбокс EC — только для Machining / RIL */
+        /** Имя EC: «только EC» всегда on (чекбокс скрыт). Machining/RIL: отдельный чекбокс EC. Machining (EC): EC скрыт, всегда on. */
         function updateEcCheckboxesForProcessRow(processRow, processNameId) {
             if (!processRow || processNameId === undefined || processNameId === null || processNameId === '') {
                 return;
@@ -372,11 +380,13 @@
             const isEcName = ecProcessNameId && parseInt(pid, 10) === parseInt(String(ecProcessNameId), 10);
             const standaloneWrap = processRow.querySelector('.standalone-ec-only-wrap');
             if (standaloneWrap) {
+                const c = standaloneWrap.querySelector('input[type="checkbox"]');
                 if (isEcName) {
-                    standaloneWrap.style.display = 'block';
+                    // «Только EC» (отдельная строка) для имени EC всегда on — чекбокс не показываем, лишний шаг
+                    if (c) c.checked = true;
+                    standaloneWrap.style.display = 'none';
                 } else {
                     standaloneWrap.style.display = 'none';
-                    const c = standaloneWrap.querySelector('input[type="checkbox"]');
                     if (c) c.checked = false;
                 }
             }
@@ -384,7 +394,14 @@
             if (ecMachiningWrap) {
                 const ecInput = ecMachiningWrap.querySelector('input.form-check-input');
                 if (isEcEligibleProcess(pid)) {
-                    ecMachiningWrap.style.display = 'block';
+                    if (isMachiningEcProcessName(pid)) {
+                        ecMachiningWrap.style.display = 'none';
+                        if (ecInput) {
+                            ecInput.checked = true;
+                        }
+                    } else {
+                        ecMachiningWrap.style.display = 'block';
+                    }
                 } else {
                     ecMachiningWrap.style.display = 'none';
                     if (ecInput) ecInput.checked = false;
@@ -648,13 +665,15 @@
                     });
                 }
 
-                // Machining/RIL: чекбокс EC; «только EC» — из селекта или кнопки «EC only»
+                // Machining/RIL: чекбокс EC; «Machining (EC)» — EC всегда без чекбокса; «только EC» — из селекта или кнопки
                 const standaloneCb = row.querySelector('input[name*="standalone_ec_only"]');
                 const wantStandaloneEc = !isEcOnlyRow && standaloneCb && standaloneCb.checked
                     && ecProcessNameId && parseInt(String(processNameId), 10) === parseInt(String(ecProcessNameId), 10);
                 const machEcCb = row.querySelector('.ec-machining-wrap input.form-check-input');
                 let ecValue;
                 if (isEcOnlyRow || wantStandaloneEc) {
+                    ecValue = true;
+                } else if (isMachiningEcProcessName(processNameId)) {
                     ecValue = true;
                 } else if (machEcCb) {
                     ecValue = machEcCb.checked;

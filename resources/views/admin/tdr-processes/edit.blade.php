@@ -260,6 +260,7 @@
                 ndtProcessNames: @json($ndtProcessNames->pluck('id')->toArray()),
                 ndtProcessNamesData: @json($ndtProcessNames->keyBy('id')),
                 ecEligibleProcessNameIds: @json($ecEligibleProcessNameIds ?? []),
+                processNamesData: @json($processNames->keyBy('id')),
                 currentProcesses: @json(json_decode($current_tdr_processes->processes, true) ?: [])
             };
             if (window.TdrProcessEditForm) TdrProcessEditForm.init(config);

@@ -250,13 +250,18 @@
 
                                     @if(is_array($processData) && !empty($processData))
                                         @foreach($processData as $process)
-                                        @if(strpos($processName, 'EC') === false)
+                                        @php
+                                            // Скрываем только служебную строку ProcessName «EC» (companion к Machining).
+                                            // «Machining (EC)» и «только EC» (standalone_ec_only) в traveler остаются.
+                                            $isCompanionEcRow = ($processName === 'EC' && !($processes->standalone_ec_only ?? false));
+                                        @endphp
+                                        @if(!$isCompanionEcRow)
                                         <tr data-id="{{ $processes->id }}">
                                             <td class="text-center">{{ $processName }}</td>
                                             <td class="ps-2">
                                                 @foreach($proces as $proc)
                                                     @if($proc->id == $process)
-                                                        {{ $proc->process }}@if($processes->ec) ( EC )@endif
+                                                        {{ $proc->process }}@if($processes->ec) (EC)@endif
                                                     @endif
                                                 @endforeach
                                             </td>

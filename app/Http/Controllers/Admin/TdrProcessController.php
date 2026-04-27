@@ -84,6 +84,18 @@ class TdrProcessController extends Controller
     }
 
     /**
+     * Process name «Machining (EC)» подразумевает EC по определению; отдельный чекбокс EC не используется.
+     */
+    private function isProcessNameMachiningEc(?int $processNamesId): bool
+    {
+        if ($processNamesId === null) {
+            return false;
+        }
+
+        return ProcessName::where('id', $processNamesId)->where('name', 'Machining (EC)')->exists();
+    }
+
+    /**
      * Получает manual_id для TDR записи
      * Сначала пытается получить из компонента, затем из workorder
      */
@@ -363,6 +375,10 @@ class TdrProcessController extends Controller
                 if (count($processesData) === 1) {
                     $ecValue = true;
                 }
+            }
+
+            if ($this->isProcessNameMachiningEc((int) $data['process_names_id'])) {
+                $ecValue = true;
             }
 
             $isStandaloneEcRow = $isEcProcessName && $standaloneEcOnly;
@@ -1163,6 +1179,10 @@ class TdrProcessController extends Controller
                     $ecValue = true;
                 }
             }
+        }
+
+        if ($this->isProcessNameMachiningEc((int) $newProcessNamesId)) {
+            $ecValue = true;
         }
 
         // Обрабатываем plus_process: если это NDT процесс, сохраняем дополнительные NDT process_names_id
