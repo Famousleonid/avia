@@ -27,7 +27,7 @@
         footerWidth: '{{ $formConfig['footer_width'] ?? 800 }}px',
         footerFontSize: '{{ $formConfig['footer_font_size'] ?? 10 }}px',
         footerPadding: '{{ $formConfig['footer_padding'] ?? '3px 3px' }}',
-        componentNameFontSize: '12',
+        componentNameFontSize: '{{ (int) ($formConfig['component_name_font_size'] ?? 12) }}',
         '{{ $tableRowsKey }}': '{{ $tableRowsDefault }}'
     };
 

@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @php
+        $tdrFormConfig = config('tdr_forms.ndtFormStd');
+    @endphp
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NDT Form</title>
@@ -14,17 +17,18 @@
         }
 
         :root {
-            --container-max-width: 920px;
-            --container-padding: 5px;
-            --container-margin-left: 10px;
-            --container-margin-right: 10px;
-            --print-page-margin: 1mm;
-            --print-body-height: 99%;
-            --print-body-width: 98%;
-            --print-body-margin-left: 2px;
-            --print-footer-width: 800px;
-            --print-footer-font-size: 10px;
-            --print-footer-padding: 3px 3px;
+            --container-max-width: {{ (int) ($tdrFormConfig['container_max_width'] ?? 920) }}px;
+            --container-padding: {{ (int) ($tdrFormConfig['container_padding'] ?? 5) }}px;
+            --container-margin-left: {{ (int) ($tdrFormConfig['container_margin_left'] ?? 10) }}px;
+            --container-margin-right: {{ (int) ($tdrFormConfig['container_margin_right'] ?? 10) }}px;
+            --print-page-margin: {{ $tdrFormConfig['page_margin'] ?? 1 }}mm;
+            --print-body-height: {{ (int) ($tdrFormConfig['body_height'] ?? 99) }}%;
+            --print-body-width: {{ (int) ($tdrFormConfig['body_width'] ?? 98) }}%;
+            --print-body-margin-left: {{ (int) ($tdrFormConfig['body_margin_left'] ?? 2) }}px;
+            --print-footer-width: {{ (int) ($tdrFormConfig['footer_width'] ?? 800) }}px;
+            --print-footer-font-size: {{ (int) ($tdrFormConfig['footer_font_size'] ?? 10) }}px;
+            --print-footer-padding: {{ $tdrFormConfig['footer_padding'] ?? '3px 3px' }};
+            --component-name-font-size: {{ (int) ($tdrFormConfig['component_name_font_size'] ?? 12) }}px;
         }
 
         .container-fluid {
@@ -569,7 +573,6 @@
         </footer>
 </div>
 
-@php $tdrFormConfig = config('tdr_forms.ndtFormStd'); @endphp
 @include('shared.tdr-forms._print-settings-modal', ['formType' => 'ndtFormStd', 'formConfig' => $tdrFormConfig])
 
 <!-- Bootstrap JS для работы модального окна -->
