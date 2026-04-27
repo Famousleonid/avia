@@ -46,6 +46,15 @@
 @endsection
 
 @section('content')
+    @php
+        $machiningGalleryItems = $photos->values()->map(function (array $p, int $idx) use ($workorder, $photos) {
+            return [
+                'src' => $p['big_url'],
+                'type' => 'image',
+                'caption' => 'WO '.$workorder->number.' — Machining — '.($idx + 1).' / '.$photos->count(),
+            ];
+        });
+    @endphp
     <div class="container-fluid machining-media-page">
         <div class="machining-media-title">WO {{ $workorder->number }} — Machining photos</div>
 
@@ -63,7 +72,10 @@
             <div class="machining-photo-grid">
                 @foreach($photos as $p)
                     <div class="machining-photo-cell">
-                        <a class="machining-photo-thumb" href="{{ $p['big_url'] }}" target="_blank" rel="noopener">
+                        <a class="machining-photo-thumb js-machining-gallery-open"
+                           href="{{ $p['big_url'] }}"
+                           data-gallery-index="{{ $loop->index }}"
+                           role="button">
                             <img src="{{ $p['thumb_url'] }}" alt="" loading="lazy">
                         </a>
                         <form class="machining-photo-del"
@@ -79,4 +91,33 @@
             </div>
         @endif
     </div>
+@endsection
+
+@section('scripts')
+    <script>
+        (function () {
+            const items = @json($machiningGalleryItems);
+            const opts = {
+                Toolbar: ['zoom', 'fullscreen', 'close'],
+                dragToClose: true,
+                placeFocusBack: false,
+                trapFocus: false,
+                showClass: 'fancybox-fadeIn',
+                hideClass: 'fancybox-fadeOut',
+            };
+
+            document.querySelectorAll('.js-machining-gallery-open').forEach(function (el) {
+                el.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (!items.length || typeof Fancybox === 'undefined') {
+                        return;
+                    }
+                    const raw = el.getAttribute('data-gallery-index');
+                    const start = Math.max(0, Math.min(Number.parseInt(raw || '0', 10) || 0, items.length - 1));
+                    const rotated = items.slice(start).concat(items.slice(0, start));
+                    Fancybox.show(rotated, opts);
+                });
+            });
+        })();
+    </script>
 @endsection

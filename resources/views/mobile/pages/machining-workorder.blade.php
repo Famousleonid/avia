@@ -100,8 +100,7 @@
                 $machiningPhotoCount = $machiningPhotoCount ?? 0;
                 $pdfCount = $pdfCount ?? 0;
             @endphp
-            <input type="file" class="d-none js-machining-input-photo" accept="image/*" multiple>
-            <input type="file" class="d-none js-machining-input-doc" accept="image/*">
+            <form id="js-machining-file-anchor" class="d-none" aria-hidden="true"></form>
             <div class="d-grid gap-1 mt-0 mb-1 machining-action-row" style="grid-template-columns: 1fr 1fr;">
                 <button type="button" class="btn btn-sm btn-primary js-machining-btn-photo">Photo</button>
                 <button type="button" class="btn btn-sm btn-primary js-machining-btn-doc">Doc</button>
@@ -322,10 +321,9 @@
             const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const btnPhoto = document.querySelector('.js-machining-btn-photo');
             const btnDoc = document.querySelector('.js-machining-btn-doc');
-            const inputPhoto = document.querySelector('.js-machining-input-photo');
-            const inputDoc = document.querySelector('.js-machining-input-doc');
             const badgePhotos = document.querySelector('.js-machining-badge-photos');
             const badgePdfs = document.querySelector('.js-machining-badge-pdfs');
+            const fileAnchor = document.getElementById('js-machining-file-anchor');
 
             function isOnline() {
                 return typeof navigator === 'undefined' || navigator.onLine !== false;
@@ -354,107 +352,119 @@
                 return 'Request failed';
             }
 
-            if (btnPhoto && inputPhoto) {
-                btnPhoto.addEventListener('click', function () {
-                    if (!isOnline()) {
-                        if (typeof window.notifyError === 'function') {
-                            window.notifyError('No network connection.', 3500);
-                        }
-                        return;
-                    }
-                    inputPhoto.click();
+            function notifyErr(msg) {
+                if (typeof window.notifyError === 'function') {
+                    window.notifyError(msg, 4000);
+                } else {
+                    console.error(msg);
+                }
+            }
+
+            async function uploadMachiningPhotos(files) {
+                const fd = new FormData();
+                for (let i = 0; i < files.length; i += 1) {
+                    fd.append('photos[]', files[i]);
+                }
+                const res = await fetch(MACHINING_WO_PHOTO_URL, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json',
+                    },
+                    body: fd,
                 });
-                inputPhoto.addEventListener('change', async function () {
-                    const files = inputPhoto.files;
-                    if (!files || !files.length) {
-                        return;
-                    }
-                    if (typeof safeShowSpinner === 'function') {
-                        safeShowSpinner();
-                    }
-                    const fd = new FormData();
-                    for (let i = 0; i < files.length; i += 1) {
-                        fd.append('photos[]', files[i]);
-                    }
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.success) {
+                    throw new Error(firstValidationMessage(data));
+                }
+                updateBadges(data.machining_photo_count, data.pdf_count);
+            }
+
+            async function uploadMachiningDocPdf(file) {
+                const fd = new FormData();
+                fd.append('image', file);
+                const res = await fetch(MACHINING_WO_DOC_PDF_URL, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json',
+                    },
+                    body: fd,
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.success) {
+                    throw new Error(firstValidationMessage(data));
+                }
+                updateBadges(data.machining_photo_count, data.pdf_count);
+            }
+
+            /** Same pattern as mobile index `openCamera()` (show.blade.php): ephemeral file input + capture. */
+            function openMachiningNativePicker(opts) {
+                const multiple = !!opts.multiple;
+                const onFiles = opts.onFiles;
+                if (!fileAnchor) return;
+
+                document.getElementById('machining-camera-input')?.remove();
+
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.id = 'machining-camera-input';
+                fileInput.name = multiple ? 'photos[]' : 'image';
+                fileInput.accept = 'image/*';
+                fileInput.capture = 'environment';
+                if (multiple) {
+                    fileInput.multiple = true;
+                }
+                fileInput.style.display = 'none';
+
+                fileInput.addEventListener('change', async function () {
                     try {
-                        const res = await fetch(MACHINING_WO_PHOTO_URL, {
-                            method: 'POST',
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'X-CSRF-TOKEN': token,
-                                'Accept': 'application/json',
-                            },
-                            body: fd,
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok || !data.success) {
-                            throw new Error(firstValidationMessage(data));
+                        if (!fileInput.files?.length) {
+                            return;
                         }
-                        updateBadges(data.machining_photo_count, data.pdf_count);
+                        if (typeof safeShowSpinner === 'function') {
+                            safeShowSpinner();
+                        }
+                        await onFiles(fileInput.files);
                     } catch (e) {
-                        const msg = e?.message || 'Upload failed';
-                        if (typeof window.notifyError === 'function') {
-                            window.notifyError(msg, 4000);
-                        } else {
-                            console.error(msg);
-                        }
+                        notifyErr(e?.message || 'Upload failed');
                     } finally {
-                        inputPhoto.value = '';
+                        fileInput.remove();
                         if (typeof safeHideSpinner === 'function') {
                             safeHideSpinner();
                         }
                     }
+                });
+
+                fileAnchor.appendChild(fileInput);
+                fileInput.click();
+            }
+
+            if (btnPhoto) {
+                btnPhoto.addEventListener('click', function () {
+                    if (!isOnline()) {
+                        notifyErr('No network connection.');
+                        return;
+                    }
+                    openMachiningNativePicker({
+                        multiple: true,
+                        onFiles: (files) => uploadMachiningPhotos(files),
+                    });
                 });
             }
 
-            if (btnDoc && inputDoc) {
+            if (btnDoc) {
                 btnDoc.addEventListener('click', function () {
                     if (!isOnline()) {
-                        if (typeof window.notifyError === 'function') {
-                            window.notifyError('No network connection.', 3500);
-                        }
+                        notifyErr('No network connection.');
                         return;
                     }
-                    inputDoc.click();
-                });
-                inputDoc.addEventListener('change', async function () {
-                    const f = inputDoc.files && inputDoc.files[0];
-                    if (!f) {
-                        return;
-                    }
-                    if (typeof safeShowSpinner === 'function') {
-                        safeShowSpinner();
-                    }
-                    const fd = new FormData();
-                    fd.append('image', f);
-                    try {
-                        const res = await fetch(MACHINING_WO_DOC_PDF_URL, {
-                            method: 'POST',
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'X-CSRF-TOKEN': token,
-                                'Accept': 'application/json',
-                            },
-                            body: fd,
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok || !data.success) {
-                            throw new Error(firstValidationMessage(data));
-                        }
-                        updateBadges(data.machining_photo_count, data.pdf_count);
-                    } catch (e) {
-                        const msg = e?.message || 'Could not build PDF';
-                        if (typeof window.notifyError === 'function') {
-                            window.notifyError(msg, 4000);
-                        } else {
-                            console.error(msg);
-                        }
-                    } finally {
-                        inputDoc.value = '';
-                        if (typeof safeHideSpinner === 'function') {
-                            safeHideSpinner();
-                        }
-                    }
+                    openMachiningNativePicker({
+                        multiple: false,
+                        onFiles: (files) => uploadMachiningDocPdf(files[0]),
+                    });
                 });
             }
         })();
