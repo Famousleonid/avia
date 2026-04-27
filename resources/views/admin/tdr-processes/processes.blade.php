@@ -514,8 +514,16 @@
                                         $isEc = ($ecProcessNameId !== null && (int)$processes->process_names_id === (int)$ecProcessNameId);
                                         // Есть ли Machining(EC) или RIL среди процессов
                                         $hasMachiningOrRil = $tdrProcesses->contains(fn($p) => in_array((int)$p->process_names_id, $ecEligibleProcessNameIds ?? []));
-                                        // EC редактируем: единственный ИЛИ (не единственный и нет Machining/RIL)
-                                        $isEcEditable = $isEc && ($tdrProcesses->count() === 1 || !$hasMachiningOrRil);
+                                        $isStandaloneEc = $isEc && (
+                                            $processes->standalone_ec_only === true
+                                            || $processes->standalone_ec_only === 1
+                                            || $processes->standalone_ec_only === '1'
+                                        );
+                                        $isEcEditable = $isEc && (
+                                            $isStandaloneEc
+                                            || $tdrProcesses->count() === 1
+                                            || ! $hasMachiningOrRil
+                                        );
 
                                         // Проверяем, является ли это NDT процесс с дополнительными процессами
                                         $isNdtWithPlus = false;

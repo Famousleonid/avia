@@ -189,6 +189,7 @@ class TdrProcessController extends Controller
         })->get();
 
         $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
+        $ecProcessNameId = ProcessName::where('name', 'EC')->value('id');
 
         return view('admin.tdr-processes.createProcesses', compact(
             'current_tdr',
@@ -198,7 +199,8 @@ class TdrProcessController extends Controller
             'tdrProcesses',
             'manual_id',
             'ndtProcessNames',
-            'ecEligibleProcessNameIds'
+            'ecEligibleProcessNameIds',
+            'ecProcessNameId'
         ));
     }
 
@@ -321,10 +323,28 @@ class TdrProcessController extends Controller
 
         // ID процессов, для которых показывается EC checkbox: Machining (EC)/Machining/Machining (Blend), RIL
         $ecEligibleIds = $this->getEcEligibleProcessNameIds();
+        $ecProcessNameIdForRow = $this->getEcProcessNameId();
 
         // Сохраняем каждый процесс
         foreach ($processesData as $index => $data) {
             $isEcEligible = in_array((int)$data['process_names_id'], $ecEligibleIds);
+            $rawStandalone = $data['standalone_ec_only'] ?? false;
+            $standaloneEcOnly = $rawStandalone === true
+                || $rawStandalone === 1
+                || $rawStandalone === '1'
+                || (is_string($rawStandalone) && strcasecmp($rawStandalone, 'on') === 0)
+                || (is_string($rawStandalone) && strcasecmp($rawStandalone, 'true') === 0);
+
+            $isEcProcessName = $ecProcessNameIdForRow && (int) $data['process_names_id'] === (int) $ecProcessNameIdForRow;
+            if ($standaloneEcOnly && ! $isEcProcessName) {
+                return response()->json(['error' => __('“EC only” applies only to process name EC.')], 422);
+            }
+            if ($standaloneEcOnly) {
+                $procIds = is_array($data['processes'] ?? null) ? $data['processes'] : [];
+                if (count(array_filter($procIds)) === 0) {
+                    return response()->json(['error' => __('“EC only” requires at least one specification process selected.')], 422);
+                }
+            }
 
             // Проверяем значение ec (может быть true, 1, "1", или отсутствовать)
             $ecValue = isset($data['ec']) ? (
@@ -334,13 +354,18 @@ class TdrProcessController extends Controller
                 $data['ec'] === 'true'
             ) : false;
 
-            // Правило: если в запросе только один процесс и это EC — ставим ec = 1
-            if (count($processesData) === 1) {
-                $ecProcessName = ProcessName::where('name', 'EC')->first();
-                if ($ecProcessName && (int)$data['process_names_id'] === (int)$ecProcessName->id) {
+            if ($isEcProcessName && $standaloneEcOnly) {
+                $ecValue = true;
+            } elseif (! $isEcProcessName) {
+                // no-op: ecValue from checkbox
+            } else {
+                // Правило: если в запросе только один процесс и это EC (без «только EC») — ставим ec = 1
+                if (count($processesData) === 1) {
                     $ecValue = true;
                 }
             }
+
+            $isStandaloneEcRow = $isEcProcessName && $standaloneEcOnly;
 
             // Создаем запись процесса
             TdrProcess::create([
@@ -352,6 +377,7 @@ class TdrProcessController extends Controller
                 'date_start' => null,
                 'date_finish' => null,
                 'ec' => $ecValue, // Добавляем поле EC
+                'standalone_ec_only' => $isStandaloneEcRow,
                 'description' => $data['description'] ?? null, // Добавляем поле description (необязательное)
                 'notes' => $data['notes'] ?? null, // Добавляем поле notes (необязательное)
             ]);
@@ -384,9 +410,10 @@ class TdrProcessController extends Controller
 
                 // Проверяем, что $ecProcessName был успешно получен или создан
                 if ($ecProcessName && $ecProcessName->id) {
-                    // 2. Проверяем, существует ли уже запись EC для этого компонента
+                    // 2. Проверяем, существует ли уже запись companion EC (не «только EC») для этого компонента
                     $existingEcProcess = TdrProcess::where('tdrs_id', $tdrId)
                         ->where('process_names_id', $ecProcessName->id)
+                        ->where('standalone_ec_only', false)
                         ->first();
 
                     try {
@@ -417,6 +444,7 @@ class TdrProcessController extends Controller
                             'date_start' => null,
                             'date_finish' => null,
                             'ec' => 0, // Поле ec = 0
+                            'standalone_ec_only' => false,
                             'description' => $data['description'] ?? null, // Добавляем поле description (необязательное)
                             'notes' => $data['notes'] ?? null, // Добавляем поле notes (необязательное)
                         ]);
@@ -1059,6 +1087,25 @@ class TdrProcessController extends Controller
         }
         $request->merge(['processes' => $processes]);
 
+        $pd0 = $request->input('processes.0', []);
+        $rawStandaloneIn = $pd0['standalone_ec_only'] ?? false;
+        $requestWantsStandaloneEc = $rawStandaloneIn === true
+            || $rawStandaloneIn === 1
+            || $rawStandaloneIn === '1'
+            || (is_string($rawStandaloneIn) && strcasecmp($rawStandaloneIn, 'on') === 0)
+            || (is_string($rawStandaloneIn) && strcasecmp($rawStandaloneIn, 'true') === 0);
+
+        if ($current_tdr_processes->standalone_ec_only && ! $requestWantsStandaloneEc) {
+            $tdrIdForRedirect = $current_tdr_processes->tdrs_id;
+            $current_tdr_processes->delete();
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => true, 'tdrId' => $tdrIdForRedirect]);
+            }
+
+            return redirect()->route('tdr-processes.processes', ['tdrId' => $tdrIdForRedirect])
+                ->with('success', 'EC-only row removed.');
+        }
+
         // Валидация данных
         $validated = $request->validate([
             'tdrs_id' => 'required|integer|exists:tdrs,id',
@@ -1087,6 +1134,19 @@ class TdrProcessController extends Controller
         $newProcessNamesId = $processData['process_names_id'];
         $ecEligibleIds = $this->getEcEligibleProcessNameIds();
 
+        $ecProcessNameId = $this->getEcProcessNameId();
+        $isEcName = $ecProcessNameId && (int) $newProcessNamesId === (int) $ecProcessNameId;
+        $standaloneEcRow = $isEcName && $requestWantsStandaloneEc;
+
+        if ($standaloneEcRow && count(array_filter($processesArray)) === 0) {
+            $msg = __('“EC only” requires at least one specification process selected.');
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['message' => $msg, 'errors' => ['processes' => [$msg]]], 422);
+            }
+
+            return redirect()->back()->withErrors(['processes' => $msg]);
+        }
+
         // Определяем значение EC: только для EC-eligible процессов (Machining, RIL)
         $isNewEcEligible = in_array((int)$newProcessNamesId, $ecEligibleIds);
         $ecValue = false;
@@ -1094,12 +1154,14 @@ class TdrProcessController extends Controller
             $ecValue = $processData['ec'] ?? false;
         }
 
-        // Правило: если процесс EC и он единственный для tdrs_id — ставим ec = 1
-        $ecProcessNameId = $this->getEcProcessNameId();
-        if ($ecProcessNameId && (int)$newProcessNamesId === (int)$ecProcessNameId) {
-            $processCount = TdrProcess::where('tdrs_id', $validated['tdrs_id'])->count();
-            if ($processCount === 1) {
+        if ($isEcName) {
+            if ($standaloneEcRow) {
                 $ecValue = true;
+            } else {
+                $processCount = TdrProcess::where('tdrs_id', $validated['tdrs_id'])->count();
+                if ($processCount === 1) {
+                    $ecValue = true;
+                }
             }
         }
 
@@ -1117,6 +1179,7 @@ class TdrProcessController extends Controller
             'plus_process' => $plusProcess, // Дополнительные NDT process_names_id через запятую
             'processes' => json_encode($processesArray), // Преобразуем массив в JSON
             'ec' => $ecValue, // Используем вычисленное значение EC
+            'standalone_ec_only' => $standaloneEcRow,
             'description' => $request->input('description') ?? null, // Добавляем поле description (необязательное)
             'notes' => $request->input('notes') ?? null, // Добавляем поле notes (необязательное)
         ];
@@ -1263,9 +1326,10 @@ class TdrProcessController extends Controller
         // Вариант C: Тип процесса изменился (с другого на EC-eligible) и чекбокс EC отмечен
         // Обрабатываем ПЕРЕД поиском существующей EC записи, так как её может не быть
         if (!$isOldEcEligible && $isNewEcEligible && $ecChecked) {
-            // Проверяем, существует ли уже запись EC для этого компонента
+            // Проверяем, существует ли уже запись companion EC для этого компонента
             $ecProcess = TdrProcess::where('tdrs_id', $tdrId)
                 ->where('process_names_id', $ecProcessNameId)
+                ->where('standalone_ec_only', false)
                 ->first();
 
             if ($ecProcess) {
@@ -1288,6 +1352,7 @@ class TdrProcessController extends Controller
                     'date_start' => null,
                     'date_finish' => null,
                     'ec' => 0,
+                    'standalone_ec_only' => false,
                     'description' => null,
                     'notes' => null,
                 ]);
@@ -1296,9 +1361,10 @@ class TdrProcessController extends Controller
             return; // Выходим, так как уже обработали случай создания/обновления EC
         }
 
-        // Находим запись EC для этого компонента (для вариантов A и B)
+        // Находим запись companion EC для этого компонента (для вариантов A и B)
         $ecProcess = TdrProcess::where('tdrs_id', $tdrId)
             ->where('process_names_id', $ecProcessNameId)
+            ->where('standalone_ec_only', false)
             ->first();
 
         if (!$ecProcess) {
@@ -1349,12 +1415,12 @@ class TdrProcessController extends Controller
             }
             $ecProcesses = array_values($ecProcesses);
 
-            // Проверяем, остались ли еще записи Machining (EC) для этого компонента
-            $remainingMachining = TdrProcess::where('tdrs_id', $tdrId)
-                ->where('process_names_id', $machiningProcessNameId)
+            // Проверяем, остались ли ещё EC-eligible процессы (Machining / RIL и т.д.) на этом TDR
+            $remainingEcEligible = TdrProcess::where('tdrs_id', $tdrId)
+                ->whereIn('process_names_id', $ecEligibleIds)
                 ->get();
 
-            if ($remainingMachining->isEmpty() || empty($ecProcesses)) {
+            if ($remainingEcEligible->isEmpty() || empty($ecProcesses)) {
                 // Если нет больше Machining (EC) ИЛИ EC пуст - удаляем запись EC
                 $ecProcess->delete();
             } else {
@@ -1378,38 +1444,33 @@ class TdrProcessController extends Controller
             return;
         }
 
-        // Находим все записи EC для этого компонента (может быть несколько, если созданы до исправления)
+        // Только companion EC (строка «только EC» с standalone не трогаем)
         $ecProcesses = TdrProcess::where('tdrs_id', $tdrId)
             ->where('process_names_id', $ecProcessNameId)
+            ->where('standalone_ec_only', false)
             ->get();
 
         if ($ecProcesses->isEmpty()) {
             return;
         }
 
-        // Если найдено несколько записей EC, объединяем их процессы в первую запись
+        // Если найдено несколько записей companion EC, объединяем их в первую
         if ($ecProcesses->count() > 1) {
-            Log::warning('Multiple EC process records found during delete, merging them', [
+            Log::warning('Multiple companion EC process records found during delete, merging them', [
                 'tdrs_id' => $tdrId,
-                'count' => $ecProcesses->count()
+                'count' => $ecProcesses->count(),
             ]);
 
-            // Собираем все процессы из всех EC записей
             $allEcProcesses = [];
             foreach ($ecProcesses as $ecProc) {
                 $proc = json_decode($ecProc->processes, true) ?: [];
                 $allEcProcesses = array_merge($allEcProcesses, $proc);
             }
-            $allEcProcesses = array_unique($allEcProcesses);
-            $allEcProcesses = array_values($allEcProcesses);
+            $allEcProcesses = array_values(array_unique($allEcProcesses));
 
-            // Обновляем первую запись всеми процессами
             $ecProcess = $ecProcesses->first();
-            $ecProcess->update([
-                'processes' => json_encode($allEcProcesses)
-            ]);
+            $ecProcess->update(['processes' => json_encode($allEcProcesses)]);
 
-            // Удаляем остальные дублирующие записи EC
             foreach ($ecProcesses->skip(1) as $duplicateEc) {
                 $duplicateEc->delete();
             }

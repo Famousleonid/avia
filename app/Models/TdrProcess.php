@@ -30,6 +30,7 @@ class TdrProcess extends Model
         'ignore_row',
         'in_traveler',
         'ec',
+        'standalone_ec_only', // true = «только EC» (отдельная строка в SP Form); false = companion к Machining/RIL
         'user_id',
     ];
     protected $casts = [
@@ -38,6 +39,7 @@ class TdrProcess extends Model
         'date_finish' => 'date',   // <-- важно
         'ignore_row'  => 'boolean',
         'in_traveler' => 'boolean',
+        'standalone_ec_only' => 'boolean',
     ];
 
 

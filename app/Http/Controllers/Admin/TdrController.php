@@ -3357,8 +3357,8 @@ class TdrController extends Controller
         // Извлекаем компоненты, связанные с manual_id
         $components = Component::where('manual_id', $manual_id)->get();
 
-        // EC показываем в форме, если: EC единственный ИЛИ (EC не единственный и нет Machining(EC)/RIL)
-        // EC НЕ показываем, когда есть Machining(EC)+EC или RIL+EC (companion-строка)
+        // EC в шапке: есть «только EC» (standalone_ec_only) ИЛИ старое правило (один EC на TDR без Machining/RIL)
+        // Companion EC (Machining+RIL+EC) — в шапке EC не дублируем
         $ecProcessNameId = ProcessName::where('name', 'EC')->value('id');
         $ecEligibleIds = ProcessName::whereIn('name', ['Machining (EC)', 'Machining', 'Machining (Blend)', 'RIL'])->pluck('id');
         $showEcInForm = false;
@@ -3368,6 +3368,13 @@ class TdrController extends Controller
             ->get();
         foreach ($tdrsForEcCheck as $tdr) {
             $procs = $tdr->tdrProcesses;
+            $hasStandaloneEc = $ecProcessNameId && $procs->contains(
+                fn ($p) => (int) $p->process_names_id === (int) $ecProcessNameId && $p->standalone_ec_only
+            );
+            if ($hasStandaloneEc) {
+                $showEcInForm = true;
+                break;
+            }
             $hasEc = $procs->contains(fn($p) => (int)$p->process_names_id === (int)$ecProcessNameId);
             $hasMachiningOrRil = $procs->contains(fn($p) => $ecEligibleIds->contains((int)$p->process_names_id));
             if ($hasEc && ($procs->count() === 1 || !$hasMachiningOrRil)) {
@@ -3426,7 +3433,7 @@ class TdrController extends Controller
             // Получаем связанные процессы (processName уже загружен)
             $groupedProcesses = $tdr->tdrProcesses;
 
-            // Для данного TDR: показывать EC в форме? (единственный или нет Machining/RIL)
+            // Для данного TDR: companion EC — без отдельного номера; «только EC» — отдельный номер
             $procs = $groupedProcesses;
             $hasEc = $procs->contains(fn($p) => (int)$p->process_names_id === (int)$ecProcessNameId);
             $hasMachiningOrRil = $procs->contains(fn($p) => $ecEligibleIds->contains((int)$p->process_names_id));
@@ -3439,9 +3446,11 @@ class TdrController extends Controller
             $groupedProcesses->each(function ($process) use (&$result, &$lineNumber, $tdr, $ecProcessIds, $showEcForThisTdr) {
                 $isEcProcess = $ecProcessIds->contains($process->process_names_id);
 
-                // EC: number_line только если показываем EC для этого TDR
                 if ($isEcProcess) {
-                    if ($showEcForThisTdr) {
+                    if ($process->standalone_ec_only) {
+                        $lineNumber++;
+                        $numberLine = $lineNumber;
+                    } elseif ($showEcForThisTdr) {
                         $lineNumber++;
                         $numberLine = $lineNumber;
                     } else {
@@ -3550,6 +3559,29 @@ class TdrController extends Controller
         // Извлекаем компоненты, связанные с manual_id
         $components = Component::where('manual_id', $manual_id)->get();
 
+        $ecProcessNameIdEmp = ProcessName::where('name', 'EC')->value('id');
+        $ecEligibleIdsEmp = ProcessName::whereIn('name', ['Machining (EC)', 'Machining', 'Machining (Blend)', 'RIL'])->pluck('id');
+        $showEcInFormEmp = false;
+        $tdrsForEcCheckEmp = Tdr::where('workorder_id', $current_wo->id)
+            ->where('use_process_forms', true)
+            ->with('tdrProcesses')
+            ->get();
+        foreach ($tdrsForEcCheckEmp as $tdrEc) {
+            $procsEc = $tdrEc->tdrProcesses;
+            if ($ecProcessNameIdEmp && $procsEc->contains(
+                fn ($p) => (int) $p->process_names_id === (int) $ecProcessNameIdEmp && $p->standalone_ec_only
+            )) {
+                $showEcInFormEmp = true;
+                break;
+            }
+            $hasEcE = $procsEc->contains(fn($p) => (int)$p->process_names_id === (int)$ecProcessNameIdEmp);
+            $hasM = $procsEc->contains(fn($p) => $ecEligibleIdsEmp->contains((int)$p->process_names_id));
+            if ($hasEcE && ($procsEc->count() === 1 || ! $hasM)) {
+                $showEcInFormEmp = true;
+                break;
+            }
+        }
+
         // Получаем все уникальные process_names_id из TdrProcess для данного workorder
         $processNameIds = TdrProcess::whereHas('tdr', function ($query) use ($current_wo) {
             $query->where('workorder_id', $current_wo->id)
@@ -3557,13 +3589,13 @@ class TdrController extends Controller
         })->distinct()->pluck('process_names_id');
 
         // Получаем ProcessName по этим ID с фильтрами, ограничиваем до 20 элементов
-        $processNames = ProcessName::forPicker()
+        $processNamesQueryEmp = ProcessName::forPicker()
             ->whereIn('id', $processNameIds)
-            ->where(function ($query) {
-                $query->where('name', 'NOT LIKE', '%NDT%')
-//                ->where('name', 'NOT LIKE', '%Paint%');
-                ->where('name', '!=', 'EC');
-            })
+            ->where('name', 'NOT LIKE', '%NDT%');
+        if (! $showEcInFormEmp) {
+            $processNamesQueryEmp->where('name', '!=', 'EC');
+        }
+        $processNames = $processNamesQueryEmp
             ->limit(20)
             ->get();
 
@@ -3623,18 +3655,35 @@ class TdrController extends Controller
 
         // Создаем коллекцию для результата (как в specProcessForm)
         $result = collect();
+        $ecNameId = ProcessName::where('name', 'EC')->value('id');
+        $ecElig = ProcessName::whereIn('name', ['Machining (EC)', 'Machining', 'Machining (Blend)', 'RIL'])->pluck('id');
         foreach ($tdrs as $tdr) {
             $groupedProcesses = $tdr->tdrProcesses;
+            $procs = $groupedProcesses;
+            $hasEc = $procs->contains(fn($p) => (int) $p->process_names_id === (int) $ecNameId);
+            $hasMachiningOrRil = $procs->contains(fn($p) => $ecElig->contains((int) $p->process_names_id));
+            $showEcForThisTdr = $hasEc && ($procs->count() === 1 || ! $hasMachiningOrRil);
             $lineNumber = 0;
-            $groupedProcesses->each(function ($process) use (&$result, &$lineNumber, $tdr, $ecProcessIds) {
+            $groupedProcesses->each(function ($process) use (&$result, &$lineNumber, $tdr, $ecProcessIds, $showEcForThisTdr) {
                 $isEcProcess = $ecProcessIds->contains($process->process_names_id);
-                if (!$isEcProcess) {
+                if ($isEcProcess) {
+                    if ($process->standalone_ec_only) {
+                        $lineNumber++;
+                        $num = $lineNumber;
+                    } elseif ($showEcForThisTdr) {
+                        $lineNumber++;
+                        $num = $lineNumber;
+                    } else {
+                        $num = null;
+                    }
+                } else {
                     $lineNumber++;
+                    $num = $lineNumber;
                 }
                 $result->push([
                     'tdrs_id' => $tdr->id,
                     'process_name_id' => $process->process_names_id,
-                    'number_line' => $isEcProcess ? null : $lineNumber,
+                    'number_line' => $num,
                     'ec' => $process->ec,
                 ]);
             });

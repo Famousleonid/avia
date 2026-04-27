@@ -89,7 +89,16 @@
                         $processName = $processes->processName ? $processes->processName->name : 'N/A';
                         $isEc = ($ecProcessNameId !== null && (int)$processes->process_names_id === (int)$ecProcessNameId);
                         $hasMachiningOrRil = $tdrProcesses->contains(fn($p) => in_array((int)$p->process_names_id, $ecEligibleProcessNameIds ?? []));
-                        $isEcEditable = $isEc && ($tdrProcesses->count() === 1 || !$hasMachiningOrRil);
+                        $isStandaloneEc = $isEc && (
+                            $processes->standalone_ec_only === true
+                            || $processes->standalone_ec_only === 1
+                            || $processes->standalone_ec_only === '1'
+                        );
+                        $isEcEditable = $isEc && (
+                            $isStandaloneEc
+                            || $tdrProcesses->count() === 1
+                            || ! $hasMachiningOrRil
+                        );
                         $isNdtWithPlus = false;
                         $combinedProcessNames = [];
                         if (strpos($processName, 'NDT-') === 0 && !empty($processes->plus_process)) {

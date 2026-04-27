@@ -151,10 +151,15 @@
                             </div>
                         </div>
                     </div>
-                    <div class="position-absolute start-50 translate-middle-x">
+                    <div class="position-absolute start-50 translate-middle-x d-flex gap-2">
                         <button class="btn btn-outline-success" type="button" style="width: 120px" id="add-process">
                             Add Process
                         </button>
+                        @if(!empty($ecProcessNameId))
+                        <button class="btn btn-outline-secondary" type="button" id="add-ec-only" title="{{ __('EC only — separate line in Special Process Form') }}">
+                            {{ __('EC only') }}
+                        </button>
+                        @endif
                     </div>
                     <div class="align-items-center">
                         <h4 class="pe-3 mb-3">{{ __('W') }}{{ $current_tdr->workorder->number }}</h4>
@@ -240,11 +245,13 @@
 {{--                                        <small class="text-muted">Process ID: <span id="process-name-id-0" class="fw-bold">-</span></small>--}}
 {{--                                    </div>--}}
 
-                                    <div class="form-check mt-2" style="display: none;">
+                                    <div class="form-check mt-2 standalone-ec-only-wrap" style="display: none;">
+                                        <input type="checkbox" name="processes[0][standalone_ec_only]" value="1" class="form-check-input" id="standalone_ec_0">
+                                        <label class="form-check-label" for="standalone_ec_0">{{ __('EC only (separate line in SP Form)') }}</label>
+                                    </div>
+                                    <div class="form-check mt-2 ec-machining-wrap" style="display: none;">
                                         <input type="checkbox" name="processes[0][ec]" value="1" class="form-check-input" id="ec_0">
-                                        <label class="form-check-label" for="ec_0">
-                                            EC
-                                        </label>
+                                        <label class="form-check-label" for="ec_0">EC</label>
                                     </div>
                                     <div>
                                         <label for="description" class="form-label" style="margin-bottom:
@@ -350,9 +357,92 @@
 
         // ID процессов с EC checkbox: Machining (EC)/Machining/Machining (Blend), RIL
         const ecEligibleProcessNameIds = @json($ecEligibleProcessNameIds ?? []);
+        const ecProcessNameId = @json($ecProcessNameId ?? null);
 
         function isEcEligibleProcess(processNameId) {
             return ecEligibleProcessNameIds.includes(parseInt(processNameId));
+        }
+
+        /** Чекбокс «только EC» при выборе имени EC; чекбокс EC — только для Machining / RIL */
+        function updateEcCheckboxesForProcessRow(processRow, processNameId) {
+            if (!processRow || processNameId === undefined || processNameId === null || processNameId === '') {
+                return;
+            }
+            const pid = String(processNameId);
+            const isEcName = ecProcessNameId && parseInt(pid, 10) === parseInt(String(ecProcessNameId), 10);
+            const standaloneWrap = processRow.querySelector('.standalone-ec-only-wrap');
+            if (standaloneWrap) {
+                if (isEcName) {
+                    standaloneWrap.style.display = 'block';
+                } else {
+                    standaloneWrap.style.display = 'none';
+                    const c = standaloneWrap.querySelector('input[type="checkbox"]');
+                    if (c) c.checked = false;
+                }
+            }
+            const ecMachiningWrap = processRow.querySelector('.ec-machining-wrap');
+            if (ecMachiningWrap) {
+                const ecInput = ecMachiningWrap.querySelector('input.form-check-input');
+                if (isEcEligibleProcess(pid)) {
+                    ecMachiningWrap.style.display = 'block';
+                } else {
+                    ecMachiningWrap.style.display = 'none';
+                    if (ecInput) ecInput.checked = false;
+                }
+            }
+        }
+
+        // Строка «только EC» (отдельная нумерация в SP Form)
+        const addEcOnlyBtn = document.getElementById('add-ec-only');
+        if (addEcOnlyBtn && ecProcessNameId) {
+            addEcOnlyBtn.addEventListener('click', function () {
+                const container = document.getElementById('processes-container');
+                const index = container.children.length;
+                const newRow = document.createElement('div');
+                newRow.classList.add('process-row', 'mb-3');
+                newRow.setAttribute('data-standalone-ec', '1');
+                newRow.innerHTML = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <label>Process Name:</label>
+                        <div class="form-control bg-light">EC <span class="text-muted small">({{ __('EC only') }})</span></div>
+                        <select name="processes[${index}][process_names_id]" class="form-control select2-process" required style="display:none" aria-hidden="true">
+                            <option value="${ecProcessNameId}" selected>EC</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label>Processes (Specification):</label>
+                        <button type="button" class="btn btn-link mb-1" data-bs-toggle="modal" data-bs-target="#addProcessModal">
+                            <img src="{{ asset('img/plus.png')}}" alt="+" style="width: 20px;">
+                        </button>
+                        <div class="process-options"></div>
+                        <div class="ndt-plus-process-container mt-3" style="display: none; visibility: visible;">
+                            <label>Additional NDT Process(es):</label>
+                            <select name="processes[${index}][ndt_plus_process][]" class="form-control select2-ndt-plus" data-row-index="${index}" multiple style="width: 100%; min-height: 70px;">
+                                @foreach ($ndtProcessNames as $ndtProcessName)
+                                <option value="{{ $ndtProcessName->id }}">{{ $ndtProcessName->name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="ndt-plus-process-options mt-2"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check mt-2" style="display: none;"><input type="checkbox" class="form-check-input" disabled></div>
+                    </div>
+                    <div class="col-md-2">
+                        <label>Description</label>
+                        <input type="text" class="form-control" name="processes[${index}][description]" placeholder="CMM fig.___">
+                        <label class="mt-1">Notes</label>
+                        <input type="text" class="form-control" name="processes[${index}][notes]" placeholder="Notes">
+                    </div>
+                </div>`;
+                container.appendChild(newRow);
+                const sel = newRow.querySelector('.select2-process');
+                if (sel) {
+                    loadProcessesForRow(sel);
+                }
+                newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
         }
 
         // Динамическое добавление новых строк
@@ -422,15 +512,13 @@
             </div>
         </div>
         <div class="col-md-2">
-             {{--                                    <label for="ec">EC:</label>
-            <div class="mb-2">
-                <small class="text-muted">Process ID: <span id="process-name-id-${index}" class="fw-bold">-</span></small>
-            </div>--}}
-            <div class="form-check mt-2" style="display: none;">
+            <div class="form-check mt-2 standalone-ec-only-wrap" style="display: none;">
+                <input type="checkbox" name="processes[${index}][standalone_ec_only]" value="1" class="form-check-input" id="standalone_ec_${index}">
+                <label class="form-check-label" for="standalone_ec_${index}">{{ __('EC only (separate line in SP Form)') }}</label>
+            </div>
+            <div class="form-check mt-2 ec-machining-wrap" style="display: none;">
                 <input type="checkbox" name="processes[${index}][ec]" value="1" class="form-check-input" id="ec_${index}">
-                <label class="form-check-label" for="ec_${index}">
-                    EC
-                </label>
+                <label class="form-check-label" for="ec_${index}">EC</label>
             </div>
             <div>
                 <label for="description_${index}" class="form-label" style="margin-bottom: -5px">Description</label>
@@ -457,15 +545,7 @@
                     const processNameId = selectElement.value;
                     const processRow = selectElement.closest('.process-row');
 
-                    // Показываем/скрываем чекбокс EC для Machining
-                    const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
-                    if (ecCheckbox) {
-                        if (isEcEligibleProcess(processNameId)) {
-                            ecCheckbox.closest('.form-check').style.display = 'block';
-                        } else {
-                            ecCheckbox.closest('.form-check').style.display = 'none';
-                        }
-                    }
+                    updateEcCheckboxesForProcessRow(processRow, processNameId);
 
                     loadProcessesForRow(selectElement);
 
@@ -521,11 +601,18 @@
             let hasCheckedCheckbox = false;
 
             processRows.forEach(row => {
+                const isEcOnlyRow = row.getAttribute('data-standalone-ec') === '1';
                 const processNameSelect = row.querySelector('.select2-process');
-                const processNameId = (typeof $ !== 'undefined' && $(processNameSelect).hasClass('select2-hidden-accessible'))
+                let processNameId;
+                if (isEcOnlyRow && processNameSelect) {
+                    processNameId = (typeof $ !== 'undefined' && $(processNameSelect).hasClass('select2-hidden-accessible'))
+                        ? $(processNameSelect).val() : processNameSelect.value;
+                } else {
+                    processNameId = (typeof $ !== 'undefined' && processNameSelect && $(processNameSelect).hasClass('select2-hidden-accessible'))
                     ? $(processNameSelect).val() : processNameSelect?.value;
+                }
                 if (!processNameId) return; // Пропускаем строки без выбранного Process Name
-                const processName = processNameSelect.options[processNameSelect.selectedIndex]?.text || '';
+                const processName = processNameSelect?.options[processNameSelect.selectedIndex]?.text || '';
 
                 const checkedRadio = row.querySelector('.process-options input[type="radio"]:checked');
                 const selectedProcessIds = [];
@@ -561,9 +648,19 @@
                     });
                 }
 
-                // Получаем значение чекбокса EC
-                const ecCheckbox = row.querySelector('input[name*="[ec]"]');
-                const ecValue = ecCheckbox ? ecCheckbox.checked : false;
+                // Machining/RIL: чекбокс EC; «только EC» — из селекта или кнопки «EC only»
+                const standaloneCb = row.querySelector('input[name*="standalone_ec_only"]');
+                const wantStandaloneEc = !isEcOnlyRow && standaloneCb && standaloneCb.checked
+                    && ecProcessNameId && parseInt(String(processNameId), 10) === parseInt(String(ecProcessNameId), 10);
+                const machEcCb = row.querySelector('.ec-machining-wrap input.form-check-input');
+                let ecValue;
+                if (isEcOnlyRow || wantStandaloneEc) {
+                    ecValue = true;
+                } else if (machEcCb) {
+                    ecValue = machEcCb.checked;
+                } else {
+                    ecValue = false;
+                }
 
                 // Получаем значение description
                 const descriptionInput = row.querySelector('input[name*="[description]"]');
@@ -582,14 +679,18 @@
                         ? ndtPlusProcessNameIds.sort((a, b) => parseInt(a) - parseInt(b)).join(',')
                         : null;
 
-                    processesData.push({
+                    const rowPayload = {
                         process_names_id: processNameId,
                         plus_process: plusProcessString, // Дополнительные NDT process_names_id через запятую (отсортированные)
                         processes: allProcessIds, // Объединенный массив ID процессов
                         ec: ecValue, // Добавляем значение EC
                         description: descriptionValue || null, // Добавляем значение description
                         notes: notesValue || null // Добавляем значение notes
-                    });
+                    };
+                    if (isEcOnlyRow || wantStandaloneEc) {
+                        rowPayload.standalone_ec_only = true;
+                    }
+                    processesData.push(rowPayload);
                 }
             });
 
@@ -1357,15 +1458,7 @@
 
                 // СПОСОБ 4: Условное отображение элементов на основе id
 
-                const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
-                if (ecCheckbox) {
-                    // Показываем чекбокс EC только для процесса Machining (определяется динамически)
-                    if (isEcEligibleProcess(processNameId)) {
-                        ecCheckbox.closest('.form-check').style.display = 'block';
-                    } else {
-                        ecCheckbox.closest('.form-check').style.display = 'none';
-                    }
-                }
+                updateEcCheckboxesForProcessRow(processRow, processNameId);
 
                 // Используем функцию для загрузки процессов
                 loadProcessesForRow(event.target);
@@ -1579,15 +1672,7 @@
                     const processNameId = selectElement.value;
                     const processRow = selectElement.closest('.process-row');
 
-                    // Показываем/скрываем чекбокс EC для Machining
-                    const ecCheckbox = processRow.querySelector('input[name*="[ec]"]');
-                    if (ecCheckbox) {
-                        if (isEcEligibleProcess(processNameId)) {
-                            ecCheckbox.closest('.form-check').style.display = 'block';
-                        } else {
-                            ecCheckbox.closest('.form-check').style.display = 'none';
-                        }
-                    }
+                    updateEcCheckboxesForProcessRow(processRow, processNameId);
 
                     loadProcessesForRow(selectElement);
 
@@ -1612,17 +1697,7 @@
                 const select = row.querySelector('.select2-process');
                 if (select) {
                     const processNameId = select.value;
-                    const ecCheckbox = row.querySelector('input[name*="[ec]"]');
-
-                    // Показываем/скрываем чекбокс EC в зависимости от выбранного id
-                    if (ecCheckbox) {
-                        // Показываем чекбокс EC только для процесса Machining (определяется динамически)
-                        if (isEcEligibleProcess(processNameId)) {
-                            ecCheckbox.closest('.form-check').style.display = 'block';
-                        } else {
-                            ecCheckbox.closest('.form-check').style.display = 'none';
-                        }
-                    }
+                    updateEcCheckboxesForProcessRow(row, processNameId);
 
                     // Если это NDT процесс, исключаем его из дополнительного селекта
                     if (isNdtProcess(processNameId)) {
