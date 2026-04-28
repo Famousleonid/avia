@@ -116,8 +116,8 @@
         <div id="sidebarColumn" class="bg-body p-0 col-auto">
             @include('components.sidebar')
         </div>
-        <div class="content col bg-body pt-2">
-            <div class="content-inner px-1">
+        <div class="content col bg-body pt-0">
+            <div class="content-inner px-0">
                 @include('components.status')
                 @yield('content')
             </div>

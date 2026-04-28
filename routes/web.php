@@ -363,7 +363,13 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('log_card/show/{id}', [LogCardController::class, 'show'])->name('log_card.show');
 
     Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
+    Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('vendors.show');
+    Route::patch('/vendors/{vendor}/meta', [VendorController::class, 'updateMeta'])->name('vendors.meta.update');
+    Route::post('/vendors/{vendor}/media', [VendorController::class, 'uploadMedia'])->name('vendors.media.upload');
+    Route::delete('/vendors/{vendor}/media/{media}', [VendorController::class, 'destroyMedia'])->name('vendors.media.destroy');
+    Route::get('/vendors/{vendor}/media/{media}', [VendorController::class, 'showMedia'])->name('vendors.media.show');
     Route::get('/vendor-tracking', [VendorTrackingController::class, 'index'])->name('vendor-tracking.index');
+    Route::get('/vendor-tracking/export', [VendorTrackingController::class, 'export'])->name('vendor-tracking.export');
     Route::patch('/vendor-tracking/row', [VendorTrackingController::class, 'updateRow'])->name('vendor-tracking.row.update');
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');

@@ -76,6 +76,25 @@
         #show-workorder {
             table-layout: fixed;
             width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            --wo-table-border-color: rgba(255, 255, 255, 0.12);
+            border-color: var(--wo-table-border-color);
+        }
+
+        html[data-bs-theme="light"] #show-workorder {
+            --wo-table-border-color: rgba(0, 0, 0, 0.12);
+        }
+
+        #show-workorder > :not(caption) > * > * {
+            border-color: var(--wo-table-border-color) !important;
+            border-bottom-width: 1px !important;
+        }
+
+        #show-workorder tbody > tr > td,
+        #show-workorder tbody > tr > th {
+            border-top: 0 !important;
+            border-bottom: 1px solid var(--wo-table-border-color) !important;
         }
 
         .table th,
@@ -206,9 +225,10 @@
             position: sticky;
             height: 40px;
             top: 0;
+            z-index: 12;
             vertical-align: middle;
             border-top: 1px;
-            /*z-index: 1009;*/
+            background-clip: padding-box;
         }
 
         .table th.sortable {

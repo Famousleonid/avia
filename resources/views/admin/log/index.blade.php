@@ -166,6 +166,7 @@
                                         $processNameMap,
                                         $processMap,
                                         $tdrMap,
+                                        $tdrProcessMap,
                                         $codeMap,
                                         $conditionMap,
                                         $necessaryMap,
@@ -303,6 +304,100 @@
                                     $subjectId = is_numeric($a->subject_id) ? (int)$a->subject_id : null;
                                     $subjectName = class_basename($a->subject_type);
                                     $objectText = $subjectId ? "{$subjectName} #{$subjectId}" : $subjectName;
+                                    $subject = $a->subject;
+
+                                    if ($a->subject_type === \App\Models\Manual::class && $subjectId) {
+                                        $fallback = $subject
+                                            ? 'manual: '.trim((string) ($subject->number ?? '')).'   lib: '.trim((string) ($subject->lib ?? ''))
+                                            : null;
+                                        $objectText = $manualMap[$subjectId] ?? $fallback ?? $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Component::class && $subjectId) {
+                                        $fallback = $subject
+                                            ? trim(((string) ($subject->part_number ?? '')).' '.((string) ($subject->name ?? '')))
+                                            : null;
+                                        $label = $componentMap[$subjectId] ?? $fallback;
+                                        $objectText = filled($label) ? "component: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Tdr::class && $subjectId) {
+                                        $objectText = $tdrMap[$subjectId] ?? $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Workorder::class && $subjectId) {
+                                        $label = $workorderMap[$subjectId] ?? ($subject->number ?? null);
+                                        $objectText = $label ? "wo: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\User::class && $subjectId) {
+                                        $label = $userMap[$subjectId] ?? ($subject->name ?? null);
+                                        $objectText = $label ? "user: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\GeneralTask::class && $subjectId) {
+                                        $label = $generalTaskMap[$subjectId] ?? ($subject->name ?? null);
+                                        $objectText = $label ? "general task: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Task::class && $subjectId) {
+                                        $label = $taskMap[$subjectId] ?? ($subject->name ?? null);
+                                        $objectText = $label ? "task: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Code::class && $subjectId) {
+                                        $fallback = $subject
+                                            ? trim(((string) ($subject->code ?? '')).' '.((string) ($subject->name ?? '')))
+                                            : null;
+                                        $label = $codeMap[$subjectId] ?? $fallback;
+                                        $objectText = filled($label) ? "code: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Condition::class && $subjectId) {
+                                        $label = $conditionMap[$subjectId] ?? ($subject->name ?? null);
+                                        $objectText = $label ? "condition: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Necessary::class && $subjectId) {
+                                        $label = $necessaryMap[$subjectId] ?? ($subject->name ?? null);
+                                        $objectText = $label ? "necessary: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Builder::class && $subjectId) {
+                                        $label = $builderMap[$subjectId] ?? ($subject->name ?? null);
+                                        $objectText = $label ? "builder: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Plane::class && $subjectId) {
+                                        $label = $planeMap[$subjectId] ?? ($subject->type ?? null);
+                                        $objectText = $label ? "plane: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Scope::class && $subjectId) {
+                                        $label = $scopeMap[$subjectId] ?? ($subject->scope ?? null);
+                                        $objectText = $label ? "scope: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Unit::class && $subjectId) {
+                                        $fallback = $subject
+                                            ? trim(((string) ($subject->part_number ?? '')).' '.((string) ($subject->name ?? '')))
+                                            : null;
+                                        $label = $unitMap[$subjectId] ?? $fallback;
+                                        $objectText = filled($label) ? "unit: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Instruction::class && $subjectId) {
+                                        $label = $instructionMap[$subjectId] ?? ($subject->name ?? null);
+                                        $objectText = $label ? "instruction: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Customer::class && $subjectId) {
+                                        $label = $customerMap[$subjectId] ?? ($subject->name ?? null);
+                                        $objectText = $label ? "customer: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Process::class && $subjectId) {
+                                        $label = $processMap[$subjectId] ?? ($subject->process ?? null);
+                                        $objectText = $label ? "process: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\ProcessName::class && $subjectId) {
+                                        $label = $processNameMap[$subjectId] ?? ($subject->name ?? null);
+                                        $objectText = $label ? "process name: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\Main::class && $subjectId) {
+                                        $generalName = $a->properties['task']['general'] ?? null;
+                                        $taskName = $a->properties['task']['name'] ?? null;
+                                        $parts = array_values(array_filter([$generalName, $taskName], fn ($value) => filled($value)));
+                                        if ($parts !== []) {
+                                            $objectText = 'main: '.implode(' / ', $parts);
+                                        }
+                                    } elseif ($a->subject_type === \App\Models\TdrProcess::class && $subjectId) {
+                                        $subjectTdrId = $subject->tdrs_id ?? null;
+                                        $newTdrId = $new['tdrs_id'] ?? null;
+                                        $oldTdrId = $old['tdrs_id'] ?? null;
+                                        $tdrSourceId = is_numeric($subjectTdrId)
+                                            ? (int) $subjectTdrId
+                                            : (is_numeric($newTdrId) ? (int) $newTdrId : (is_numeric($oldTdrId) ? (int) $oldTdrId : null));
+
+                                        $subjectProcessNameId = $subject->process_names_id ?? null;
+                                        $newProcessNameId = $new['process_names_id'] ?? null;
+                                        $oldProcessNameId = $old['process_names_id'] ?? null;
+                                        $processSourceId = is_numeric($subjectProcessNameId)
+                                            ? (int) $subjectProcessNameId
+                                            : (is_numeric($newProcessNameId) ? (int) $newProcessNameId : (is_numeric($oldProcessNameId) ? (int) $oldProcessNameId : null));
+
+                                        $tdrLabel = $tdrSourceId ? ($tdrMap[$tdrSourceId] ?? null) : null;
+                                        $processLabel = $processSourceId ? ($processNameMap[$processSourceId] ?? null) : null;
+                                        $parts = array_values(array_filter([$tdrLabel, $processLabel], fn ($value) => filled($value)));
+                                        $fallback = $parts !== [] ? 'tdr process: '.implode('   process: ', $parts) : null;
+                                        $objectText = $tdrProcessMap[$subjectId] ?? $fallback ?? $objectText;
+                                    }
 
                                     $workorderId = null;
                                     if (isset($new['workorder_id']) && is_numeric($new['workorder_id'])) {
@@ -313,9 +408,9 @@
                                         $workorderId = (int)$a->subject->workorder_id;
                                     }
 
-                                    if ($workorderId !== null && $workorderId > 0) {
+                                    if ($workorderId !== null && $workorderId > 0 && $a->subject_type !== \App\Models\Workorder::class && $a->subject_type !== \App\Models\Tdr::class) {
                                         $workorderNumber = $workorderMap[$workorderId] ?? null;
-                                        $objectText .= $workorderNumber ? " | WO #{$workorderNumber}" : " | WO id {$workorderId}";
+                                        $objectText .= $workorderNumber ? "   wo: {$workorderNumber}" : "   wo id: {$workorderId}";
                                     }
                                 @endphp
                                 <tr>

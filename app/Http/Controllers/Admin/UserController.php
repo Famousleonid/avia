@@ -57,6 +57,9 @@ class UserController extends Controller
         $user = User::create($data);
         $user->is_admin = $request->boolean('is_admin');
         $user->email_verified_at = $request->has('email_verified_at') ? now() : null;
+        $user->notification_prefs = array_merge($user->notification_prefs ?? [], [
+            'manuals_full_access' => $request->boolean('manuals_full_access'),
+        ]);
         $user->save();
 
         if ($request->hasFile('img')) {
@@ -123,6 +126,9 @@ class UserController extends Controller
 
         $validated['is_admin'] = $request->boolean('is_admin');
         $validated['email_verified_at'] = $request->has('email_verified_at') ? now() : null;
+        $validated['notification_prefs'] = array_merge($user->notification_prefs ?? [], [
+            'manuals_full_access' => $request->boolean('manuals_full_access'),
+        ]);
 
         unset($validated['img'], $validated['sign']);
 

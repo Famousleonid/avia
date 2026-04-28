@@ -23,3 +23,86 @@
     --nav-link-hover-color: #ffffff;
     --nav-link-hover-color-bg: #ffffff;
 }
+/* =========================================================
+   MODALS — FULL FIX FOR LIGHT / DARK + NO FLASH
+   ========================================================= */
+
+/* --- BASE (Bootstrap variables override) --- */
+
+:root {
+    --modal-bg-light: #ffffff;
+    --modal-color-light: #212529;
+    --modal-border-light: #dee2e6;
+
+    --modal-bg-dark: #2B3035;
+    --modal-color-dark: #f8f9fa;
+    --modal-border-dark: #3a3f44;
+}
+
+/* LIGHT */
+[data-bs-theme="light"] .modal {
+    --bs-modal-bg: var(--modal-bg-light);
+    --bs-modal-color: var(--modal-color-light);
+    --bs-modal-border-color: var(--modal-border-light);
+}
+
+/* DARK */
+[data-bs-theme="dark"] .modal {
+    --bs-modal-bg: var(--modal-bg-dark);
+    --bs-modal-color: var(--modal-color-dark);
+    --bs-modal-border-color: var(--modal-border-dark);
+}
+
+/* --- HARD FIX (убирает белый flash) --- */
+.modal-content {
+    background-color: var(--bs-modal-bg) !important;
+    color: var(--bs-modal-color) !important;
+    border: 1px solid var(--bs-modal-border-color) !important;
+    border-radius: 16px;
+    box-shadow: 0 24px 70px rgba(0,0,0,.45);
+}
+
+/* header/footer */
+.modal-header,
+.modal-footer {
+    border-color: var(--bs-modal-border-color) !important;
+}
+
+/* --- CLOSE BUTTON --- */
+[data-bs-theme="dark"] .modal .btn-close {
+    filter: invert(1) brightness(200%);
+}
+
+/* --- INPUTS --- */
+[data-bs-theme="light"] .modal .form-control,
+[data-bs-theme="light"] .modal .form-select {
+    background-color: #fff;
+    color: #212529;
+}
+
+[data-bs-theme="dark"] .modal .form-control,
+[data-bs-theme="dark"] .modal .form-select {
+    background-color: #212529;
+    color: #f8f9fa;
+    border-color: #495057;
+}
+
+/* --- BACKDROP (blur как macOS) --- */
+.modal-backdrop.show {
+    backdrop-filter: blur(6px);
+    background-color: rgba(0,0,0,.5);
+}
+
+/* --- macOS animation --- */
+.modal.fade .modal-dialog {
+    transform: translateY(15px) scale(.96);
+    opacity: 0;
+    transition:
+        transform .28s cubic-bezier(.22,1,.36,1),
+        opacity .22s ease;
+}
+
+.modal.show .modal-dialog {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}

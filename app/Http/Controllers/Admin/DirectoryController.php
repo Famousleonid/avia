@@ -201,6 +201,13 @@ class DirectoryController extends Controller
 
         $modelClass = $dir['model'];
         $query = $modelClass::query();
+        if ($slug === 'vendors') {
+            $query->withCount([
+                'media as media_count' => function ($mediaQuery) {
+                    $mediaQuery->where('collection_name', 'vendor');
+                },
+            ]);
+        }
 
         [$query, $search] = $this->applySearch($request, $query, $dir, $fieldKeys);
         $query = $this->applyOrder($query, $dir);
