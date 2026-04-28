@@ -374,18 +374,9 @@ class MobileController extends Controller
         if ($raw === '') {
             return response()->json(['success' => false, 'message' => 'Could not read the uploaded image.'], 422);
         }
-        $src = 'data:' . $mime . ';base64,' . base64_encode($raw);
-
-        $html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
-            . '<style>@page { margin: 10mm; } html, body { margin: 0; padding: 0; } '
-            . 'img { max-width: 100%; height: auto; display: block; margin: 0 auto; }</style></head><body><img src="'
-            . htmlspecialchars($src, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-            . '" alt=""></body></html>';
 
         try {
-            $pdf = Pdf::loadHTML($html)
-                ->setPaper('a4', 'portrait');
-            $binary = $pdf->output();
+            $binary = $this->buildMachiningWorkorderDocPdfBinary($raw, $mime);
         } catch (\Throwable $e) {
             report($e);
 
@@ -995,5 +986,178 @@ class MobileController extends Controller
         }
 
         return (int) ($p->working_steps_count ?? 0);
+    }
+
+    /**
+     * One PDF page sized to the photo (within A4), explicit mm layout — avoids DomPDF splitting / half-empty A4.
+     *
+     * @throws \RuntimeException
+     */
+    private function buildMachiningWorkorderDocPdfBinary(string $raw, string $mime): string
+    {
+        $normalized = $this->normalizeMachiningDocImageForPdf($raw, $mime);
+        $embed = $normalized ?? ['data' => $raw, 'mime' => $mime];
+        $data = $embed['data'];
+        $mimeOut = (string) $embed['mime'];
+
+        $info = @getimagesizefromstring($data);
+        if ($info === false || ($info[0] ?? 0) < 1 || ($info[1] ?? 0) < 1) {
+            throw new \RuntimeException('Invalid image dimensions.');
+        }
+
+        $wPx = (int) $info[0];
+        $hPx = (int) $info[1];
+        $imgRatio = $wPx / $hPx;
+
+        $marginMm = 5.0;
+        // US Letter 8.5" × 11" (page box for fitting the image, not fixed DomPDF "letter" preset)
+        $paperWmm = 8.5 * 25.4;
+        $paperHmm = 11.0 * 25.4;
+        $maxInnerW = $paperWmm - 2 * $marginMm;
+        $maxInnerH = $paperHmm - 2 * $marginMm;
+        $boxRatio = $maxInnerW / $maxInnerH;
+
+        if ($imgRatio > $boxRatio) {
+            $dispWmm = $maxInnerW;
+            $dispHmm = $maxInnerW / $imgRatio;
+        } else {
+            $dispHmm = $maxInnerH;
+            $dispWmm = $maxInnerH * $imgRatio;
+        }
+
+        $pageWmm = $dispWmm + 2 * $marginMm;
+        $pageHmm = $dispHmm + 2 * $marginMm;
+
+        $mm2pt = static fn (float $mm): float => $mm * 72 / 25.4;
+        $pageWpt = $mm2pt($pageWmm);
+        $pageHpt = $mm2pt($pageHmm);
+
+        $src = 'data:' . $mimeOut . ';base64,' . base64_encode($data);
+        $html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+            . '<style>@page{margin:0;}html,body{margin:0;padding:0;}'
+            . 'body{padding:' . $marginMm . 'mm;box-sizing:border-box;}'
+            . 'img{display:block;margin:0;padding:0;width:' . $dispWmm . 'mm;height:' . $dispHmm . 'mm;}'
+            . '</style></head><body><img src="'
+            . htmlspecialchars($src, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+            . '" alt=""></body></html>';
+
+        return Pdf::loadHTML($html)
+            ->setPaper([0.0, 0.0, $pageWpt, $pageHpt])
+            ->output();
+    }
+
+    /**
+     * Apply EXIF orientation (phone camera) and re-encode as JPEG for reliable DomPDF embedding.
+     *
+     * @return array{data: string, mime: string}|null
+     */
+    private function normalizeMachiningDocImageForPdf(string $raw, string $mime): ?array
+    {
+        if (! function_exists('imagecreatefromstring')) {
+            return null;
+        }
+
+        $im = @imagecreatefromstring($raw);
+        if ($im === false) {
+            return null;
+        }
+
+        if (function_exists('exif_read_data') && str_contains(strtolower($mime), 'jpeg')) {
+            $tmp = tempnam(sys_get_temp_dir(), 'mdoc');
+            if ($tmp !== false) {
+                file_put_contents($tmp, $raw);
+                $exif = @exif_read_data($tmp);
+                @unlink($tmp);
+                if (is_array($exif) && ! empty($exif['Orientation'])) {
+                    $fixed = $this->applyExifOrientationToGdImage($im, (int) $exif['Orientation']);
+                    if ($fixed !== false) {
+                        imagedestroy($im);
+                        $im = $fixed;
+                    }
+                }
+            }
+        }
+
+        if (function_exists('imageistruecolor') && ! imageistruecolor($im)) {
+            $w = imagesx($im);
+            $h = imagesy($im);
+            $tc = imagecreatetruecolor($w, $h);
+            if ($tc !== false) {
+                $white = imagecolorallocate($tc, 255, 255, 255);
+                imagefill($tc, 0, 0, $white);
+                imagecopy($tc, $im, 0, 0, 0, 0, $w, $h);
+                imagedestroy($im);
+                $im = $tc;
+            }
+        }
+
+        ob_start();
+        imagejpeg($im, null, 92);
+        $out = (string) ob_get_clean();
+        imagedestroy($im);
+
+        if ($out === '') {
+            return null;
+        }
+
+        return ['data' => $out, 'mime' => 'image/jpeg'];
+    }
+
+    /**
+     * @param \GdImage|resource $im
+     * @return \GdImage|resource|false
+     */
+    private function applyExifOrientationToGdImage($im, int $orientation)
+    {
+        $rot = null;
+        $flipH = false;
+        $flipV = false;
+
+        switch ($orientation) {
+            case 2:
+                $flipH = true;
+                break;
+            case 3:
+                $rot = 180;
+                break;
+            case 4:
+                $flipV = true;
+                break;
+            case 5:
+                $flipH = true;
+                $rot = 270;
+                break;
+            case 6:
+                $rot = 270;
+                break;
+            case 7:
+                $flipH = true;
+                $rot = 90;
+                break;
+            case 8:
+                $rot = 90;
+                break;
+            default:
+                return $im;
+        }
+
+        if ($flipH && function_exists('imageflip')) {
+            imageflip($im, IMG_FLIP_HORIZONTAL);
+        }
+        if ($flipV && function_exists('imageflip')) {
+            imageflip($im, IMG_FLIP_VERTICAL);
+        }
+        if ($rot !== null) {
+            $bg = imagecolorallocatealpha($im, 255, 255, 255, 127);
+            $turned = imagerotate($im, $rot, $bg !== false ? $bg : 0);
+            if ($turned === false) {
+                return false;
+            }
+            imagedestroy($im);
+
+            return $turned;
+        }
+
+        return $im;
     }
 }
