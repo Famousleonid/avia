@@ -10,7 +10,19 @@
                  style="width: 120px; margin: 6px 10px 0;">
         </div>
         <div class="col-9">
-            <h4 class="mt-4 text-black text-"><strong>{{ $process_name->process_sheet_name ?? $process_name->name ?? ($header_title ?? 'PROCESS') }} PROCESS SHEET</strong></h4>
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mt-4">
+                <h4 class="mb-0 text-black">
+                    <strong>{{ $process_name->process_sheet_name ?? $process_name->name ?? ($header_title ?? 'PROCESS') }} PROCESS SHEET</strong>
+                </h4>
+                @if(isset($process_name) && \App\Models\ProcessName::isMachiningPrintedForm($process_name))
+                    @php($mhLibs = $machining_header_manual_libs ?? [])
+                    @auth
+                        <div class="machining-sheet-header-meta text-md-end ms-md-auto">
+                            {{ auth()->user()->name }}@if(count($mhLibs) > 0) (lib: {{ implode(', ', $mhLibs) }}@endif)
+                        </div>
+                    @endauth
+                @endif
+            </div>
         </div>
     </div>
     <div class="row">

@@ -52,6 +52,12 @@ class ProcessName extends Model
         return $processName !== null && in_array($processName->name, self::MACHINING_EC_MERGE_NAMES, true);
     }
 
+    /** Печатная форма с листом MACHINING (Machining, Machining (EC), Machining (Blend) и т.д.). */
+    public static function isMachiningPrintedForm(?self $processName): bool
+    {
+        return $processName !== null && $processName->process_sheet_name === 'MACHINING';
+    }
+
     /**
      * @return list<int>
      */

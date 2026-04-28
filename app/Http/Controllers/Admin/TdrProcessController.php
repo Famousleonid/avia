@@ -117,23 +117,19 @@ class TdrProcessController extends Controller
      */
     private function getManualIdsForWorkorder($workorderId)
     {
-        $workorder = Workorder::findOrFail($workorderId);
-        $manualIds = collect();
+        return Manual::manualIdsForWorkorder((int) $workorderId);
+    }
 
-        // Добавляем основной manual_id из workorder
-        if ($workorder->unit && $workorder->unit->manual_id) {
-            $manualIds->push($workorder->unit->manual_id);
+    /**
+     * @return list<string>
+     */
+    private function machiningHeaderManualLibsForWorkorder(?ProcessName $processName, int $workorderId): array
+    {
+        if (! ProcessName::isMachiningPrintedForm($processName)) {
+            return [];
         }
 
-        // Добавляем manual_id из всех компонентов TDR записей
-        $tdrs = Tdr::with('component')->where('workorder_id', $workorderId)->get();
-        foreach ($tdrs as $tdr) {
-            if ($tdr->component && $tdr->component->manual_id) {
-                $manualIds->push($tdr->component->manual_id);
-            }
-        }
-
-        return $manualIds->unique()->values()->toArray();
+        return Manual::orderedLibValuesForManualIds(Manual::manualIdsForWorkorder($workorderId));
     }
     /**
      * Display a listing of the resource.
@@ -646,7 +642,8 @@ class TdrProcessController extends Controller
                 'process_name' => $process_name,
                 'ndt_processes' => $ndt_processes,
                 'ndt_components' => $ndt_components,
-                'selectedVendor' => $selectedVendor
+                'selectedVendor' => $selectedVendor,
+                'machining_header_manual_libs' => $this->machiningHeaderManualLibsForWorkorder($process_name, (int) $current_wo->id),
             ], $ndt_ids));
         }
 
@@ -671,7 +668,8 @@ class TdrProcessController extends Controller
             'process_components' => $process_components,
             'process_tdr_components' => $process_tdr_components,
             'manual_id' => $manual_id,
-            'selectedVendor' => $selectedVendor
+            'selectedVendor' => $selectedVendor,
+            'machining_header_manual_libs' => $this->machiningHeaderManualLibsForWorkorder($process_name, (int) $current_wo->id),
         ]);
     }
     /**
@@ -721,7 +719,8 @@ class TdrProcessController extends Controller
             'manuals' => Manual::where('id', $manual_id)->get(),
             'process_name' => $process_name,
             'manual_id' => $manual_id,
-            'selectedVendor' => $selectedVendor
+            'selectedVendor' => $selectedVendor,
+            'machining_header_manual_libs' => $this->machiningHeaderManualLibsForWorkorder($process_name, (int) $current_wo->id),
         ];
 
         // Обработка случая для NDT-форм
@@ -2045,7 +2044,8 @@ class TdrProcessController extends Controller
                 'process_name' => $process_name,
                 'manual_id' => $manual_id,
                 'selectedVendor' => $selectedVendor,
-                'current_tdr' => $current_tdr
+                'current_tdr' => $current_tdr,
+                'machining_header_manual_libs' => $this->machiningHeaderManualLibsForWorkorder($process_name, (int) $current_wo->id),
             ];
 
             // Обработка NDT форм

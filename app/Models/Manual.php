@@ -127,4 +127,51 @@ class Manual extends Model implements HasMedia
 
         return $media ? $media->file_name : null;
     }
+
+    /**
+     * Все distinct manual_id по work order: основной из unit и из компонентов TDR (порядок сохранён).
+     *
+     * @return list<int>
+     */
+    public static function manualIdsForWorkorder(int $workorderId): array
+    {
+        $workorder = Workorder::findOrFail($workorderId);
+        $manualIds = collect();
+
+        if ($workorder->unit && $workorder->unit->manual_id) {
+            $manualIds->push($workorder->unit->manual_id);
+        }
+
+        $tdrs = Tdr::with('component')->where('workorder_id', $workorderId)->get();
+        foreach ($tdrs as $tdr) {
+            if ($tdr->component && $tdr->component->manual_id) {
+                $manualIds->push($tdr->component->manual_id);
+            }
+        }
+
+        return $manualIds->unique()->values()->all();
+    }
+
+    /**
+     * Значения lib по списку manual_id (в том же порядке; несколько одинаковых lib — все показываются).
+     *
+     * @param  array<int|string|null>  $manualIds
+     * @return list<string>
+     */
+    public static function orderedLibValuesForManualIds(array $manualIds): array
+    {
+        $values = [];
+        foreach ($manualIds as $id) {
+            $id = (int) $id;
+            if ($id <= 0) {
+                continue;
+            }
+            $lib = static::query()->whereKey($id)->value('lib');
+            if ($lib !== null && $lib !== '') {
+                $values[] = is_string($lib) ? trim($lib) : (string) $lib;
+            }
+        }
+
+        return $values;
+    }
 }

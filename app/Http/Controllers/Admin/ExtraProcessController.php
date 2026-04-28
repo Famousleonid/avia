@@ -812,7 +812,10 @@ class ExtraProcessController extends Controller
             'manual_id' => $manual_id,
             'process_name' => $processName,
             'table_data' => $groupedComponents,
-            'selectedVendor' => $selectedVendor
+            'selectedVendor' => $selectedVendor,
+            'machining_header_manual_libs' => ProcessName::isMachiningPrintedForm($processName)
+                ? Manual::orderedLibValuesForManualIds(Manual::manualIdsForWorkorder((int) $current_wo->id))
+                : [],
         ];
 
         // Добавляем первый компонент для заголовка формы (если есть компоненты)
@@ -1348,7 +1351,10 @@ class ExtraProcessController extends Controller
             'manuals' => \App\Models\Manual::where('id', $manual_id)->get(),
             'manual_id' => $manual_id,
             'process_name' => $processName,
-            'selectedVendor' => $selectedVendor
+            'selectedVendor' => $selectedVendor,
+            'machining_header_manual_libs' => ProcessName::isMachiningPrintedForm($processName)
+                ? Manual::orderedLibValuesForManualIds(Manual::manualIdsForWorkorder((int) $current_wo->id))
+                : [],
         ];
 
         // Обработка NDT формы (если нужно)
@@ -1597,7 +1603,8 @@ class ExtraProcessController extends Controller
             'extra_process' => $extra_process,
             'manuals' => \App\Models\Manual::where('id', $manual_id)->get(),
             'manual_id' => $manual_id,
-            'selectedVendor' => null
+            'selectedVendor' => null,
+            'machining_header_manual_libs' => [],
         ];
 
         // Если есть процессы, получаем данные для отображения формы
@@ -1648,6 +1655,10 @@ class ExtraProcessController extends Controller
                 }
             }
         }
+
+        $viewData['machining_header_manual_libs'] = isset($viewData['process_name']) && ProcessName::isMachiningPrintedForm($viewData['process_name'])
+            ? Manual::orderedLibValuesForManualIds(Manual::manualIdsForWorkorder((int) $current_wo->id))
+            : [];
 
         return view('admin.extra_processes.processesForm', $viewData);
     }

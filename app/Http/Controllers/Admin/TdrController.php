@@ -1572,7 +1572,10 @@ class TdrController extends Controller
             'manual_id' => $manual_id,
             'process_name' => $displayProcessName,
             'selectedVendor' => $selectedVendor,
-            'tdrs' => $tdrIds->toArray()
+            'tdrs' => $tdrIds->toArray(),
+            'machining_header_manual_libs' => ProcessName::isMachiningPrintedForm($displayProcessName)
+                ? Manual::orderedLibValuesForManualIds(Manual::manualIdsForWorkorder((int) $current_wo->id))
+                : [],
         ];
 
         // Добавляем первый компонент для заголовка формы (если есть компоненты)

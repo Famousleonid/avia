@@ -671,7 +671,10 @@ class WoBushingController extends Controller
             'manuals' => \App\Models\Manual::where('id', $manual_id)->get(),
             'manual_id' => $manual_id,
             'process_name' => $processName,
-            'selectedVendor' => $selectedVendor
+            'selectedVendor' => $selectedVendor,
+            'machining_header_manual_libs' => ProcessName::isMachiningPrintedForm($processName)
+                ? Manual::orderedLibValuesForManualIds(Manual::manualIdsForWorkorder((int) $current_wo->id))
+                : [],
         ];
 
         $bushData = $this->woBushingSync->resolveBushDataForViews($woBushing);
