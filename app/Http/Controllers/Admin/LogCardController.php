@@ -32,22 +32,16 @@ class LogCardController extends Controller
     }
 
     /**
-     * Return partial HTML for Log Card tab (empty table with components log_card=1, or filled if exists).
-     *
-     * @param int $workorder_id
-     * @return \Illuminate\Contracts\View\View|\Illuminate\Http\Response
+     * Return partial HTML for Log Card tab: grouped rows with variant selection like Create Log Card form.
      */
     public function partial($workorder_id)
     {
         $current_wo = Workorder::findOrFail($workorder_id);
-        $manual_id = $current_wo->unit->manual_id;
-
-        $components = Component::where('manual_id', $manual_id)
-            ->where('log_card', 1)
-            ->orderBy('ipl_num', 'asc')
-            ->get();
+        $codes = Code::all();
 
         $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
+
+        $ctx = $this->prepareGroupedLogCardComponents($current_wo);
 
         $componentData = [];
         if ($log_card && $log_card->component_data) {
@@ -56,52 +50,171 @@ class LogCardController extends Controller
                 : json_decode($log_card->component_data, true);
         }
 
-        $codes = Code::all();
+        [$presetByIplGroup, $separateQueue] = $this->splitLogCardComponentPresets(is_array($componentData) ? $componentData : []);
 
-        // Build rows for table: when log_card exists use componentData; else empty rows
-        // When no record: group by base ipl_num (1-180, 1-180A, 1-180B -> base 1-180), show only last per group
-        $tableRows = [];
-        if ($log_card && !empty($componentData)) {
-            foreach ($componentData as $item) {
-                $comp = $components->firstWhere('id', $item['component_id'] ?? 0) ?: $components->firstWhere('id', (string)($item['component_id'] ?? 0));
-                $tableRows[] = [
-                    'component' => $comp,
-                    'serial_number' => $item['serial_number'] ?? '',
-                    'assy_serial_number' => $item['assy_serial_number'] ?? '',
-                    'reason' => $item['reason'] ?? '',
-                ];
+        $tabMetaGroupMap = [];
+        $groupKeysOrdered = [];
+        foreach ($ctx['groupedComponents'] as $groupIndex => $group) {
+            $k = (string) $groupIndex;
+            $tabMetaGroupMap[$k] = $group['ipl_group'];
+            $groupKeysOrdered[] = $k;
+        }
+
+        $tabMeta = [
+            'workorder_id' => (int) $current_wo->id,
+            'log_card_id' => $log_card ? (int) $log_card->id : null,
+            'has_saved_log_card' => (bool) ($log_card && ! empty($componentData)),
+            'group_map' => $tabMetaGroupMap,
+            'group_keys_ordered' => $groupKeysOrdered,
+        ];
+
+        return view(
+            'admin.log_card.partial',
+            array_merge(compact(
+                'current_wo',
+                'log_card',
+                'codes',
+                'presetByIplGroup',
+                'separateQueue',
+                'tabMeta'
+            ), $ctx)
+        );
+    }
+
+    /**
+     * @return array{0: array<string, array<string, mixed>>, 1: list<array<string, mixed>>}
+     */
+    private function splitLogCardComponentPresets(array $componentData): array
+    {
+        $presetByIplGroup = [];
+        $separateQueue = [];
+
+        foreach ($componentData as $row) {
+            if (! is_array($row)) {
+                continue;
             }
-        } else {
-            // Group by base ipl_num (e.g. 1-180), take only the last component per group (e.g. 1-180B)
-            $groupedByBaseIpl = $components->groupBy(function ($component) {
-                if (preg_match('/^(\d+-\d+)/', $component->ipl_num ?? '', $matches)) {
-                    return $matches[1];
-                }
-                return $component->ipl_num;
+            if (isset($row['ipl_group']) && $row['ipl_group'] !== '' && $row['ipl_group'] !== null) {
+                $presetByIplGroup[$row['ipl_group']] = $row;
+
+                continue;
+            }
+            $separateQueue[] = $row;
+        }
+
+        return [$presetByIplGroup, $separateQueue];
+    }
+
+    /**
+     * Grouped log-card components (same rules as create form): IPL suffix groups + separate rows for units_assy &gt; 1.
+     *
+     * @return array{
+     *   groupedComponents: \Illuminate\Support\Collection,
+     *   separateComponents: \Illuminate\Support\Collection,
+     *   components: \Illuminate\Database\Eloquent\Collection,
+     *   tdrs: \Illuminate\Database\Eloquent\Collection,
+     *   code: ?\App\Models\Code,
+     *   necessary: ?\App\Models\Necessary
+     * }
+     */
+    private function prepareGroupedLogCardComponents(Workorder $current_wo): array
+    {
+        $manual_id = $current_wo->unit->manual_id;
+
+        $necessary = Necessary::where('name', 'Order New')->first();
+        $code = Code::where('name', 'Missing')->first();
+
+        $components = Component::where('manual_id', $manual_id)
+            ->where('log_card', 1)
+            ->orderBy('ipl_num', 'asc')
+            ->get();
+
+        $tdrs = Tdr::where('workorder_id', $current_wo->id)->with(['codes', 'necessaries'])->get();
+
+        $groupedComponents = $components->groupBy(function ($component) {
+            if (preg_match('/^(\d+-\d+)/', $component->ipl_num, $matches)) {
+                return $matches[1];
+            }
+
+            return $component->ipl_num;
+        })->map(function ($group, $baseIplKey) use ($tdrs, $code, $necessary) {
+            $filteredGroup = $group->filter(function ($component) {
+                return ($component->units_assy ?? 1) == 1;
             });
-            $lastPerGroup = $groupedByBaseIpl->map(function ($group) {
-                return $group->sortBy('ipl_num')->last();
-            })->sortBy(function ($component) {
-                $n = $component->ipl_num ?? '';
-                if (preg_match('/^(\d+)-(\d+)/', $n, $m)) {
-                    return (int)$m[1] * 1000 + (int)$m[2];
-                }
-                return $n;
-            });
-            foreach ($lastPerGroup as $component) {
-                $units_assy = $component->units_assy ?? 1;
-                for ($i = 1; $i <= $units_assy; $i++) {
-                    $tableRows[] = [
+
+            return [
+                'ipl_group' => $baseIplKey,
+                'group_key' => $baseIplKey,
+                'components' => $filteredGroup->sortBy('ipl_num')->map(function ($component) use ($tdrs, $code, $necessary) {
+                    $tdr = $tdrs->where('component_id', $component->id)->first();
+                    $reasonForRemove = '';
+                    if ($tdr) {
+                        if ($tdr->codes && $code && $tdr->codes->id === $code->id) {
+                            $reasonForRemove = 'Missing';
+                        }
+                        if ($tdr->necessaries && $necessary && $tdr->necessaries->id === $necessary->id && $tdr->codes) {
+                            $reasonForRemove = $tdr->codes->name;
+                        }
+                    }
+
+                    return [
                         'component' => $component,
-                        'serial_number' => '',
-                        'assy_serial_number' => '',
-                        'reason' => '',
+                        'reason_for_remove' => $reasonForRemove,
                     ];
+                }),
+                'count' => $filteredGroup->count(),
+                'has_multiple' => $filteredGroup->count() > 1,
+            ];
+        })->filter(function ($group) {
+            return $group['count'] > 0;
+        });
+
+        $groupedComponents = $groupedComponents->sortBy(function ($group, $key) {
+            if (preg_match('/^(\d+)-(\d+)$/', (string) $key, $matches)) {
+                return (int) $matches[1] * 1000 + (int) $matches[2];
+            }
+
+            return $key;
+        });
+
+        $separateComponents = collect();
+
+        foreach ($components as $component) {
+            $units_assy = $component->units_assy ?? 1;
+
+            if ($units_assy > 1) {
+                $tdr = $tdrs->where('component_id', $component->id)->first();
+                $reasonForRemove = '';
+                if ($tdr) {
+                    if ($tdr->codes && $code && $tdr->codes->id === $code->id) {
+                        $reasonForRemove = 'Missing';
+                    }
+                    if ($tdr->necessaries && $necessary && $tdr->necessaries->id === $necessary->id && $tdr->codes) {
+                        $reasonForRemove = $tdr->codes->name;
+                    }
+                }
+
+                for ($i = 1; $i <= $units_assy; $i++) {
+                    $separateComponents->push([
+                        'component' => $component,
+                        'reason_for_remove' => $reasonForRemove,
+                        'units_assy' => $units_assy,
+                        'unit_index' => $i,
+                        'is_multiple_units' => true,
+                        'group_key' => 'separate',
+                        'ipl_group' => 'separate',
+                    ]);
                 }
             }
         }
 
-        return view('admin.log_card.partial', compact('current_wo', 'components', 'log_card', 'tableRows', 'codes'));
+        return [
+            'groupedComponents' => $groupedComponents,
+            'separateComponents' => $separateComponents,
+            'components' => $components,
+            'tdrs' => $tdrs,
+            'code' => $code,
+            'necessary' => $necessary,
+        ];
     }
 
     public function logCardForm(Request $request, $id)
@@ -172,135 +285,14 @@ class LogCardController extends Controller
      */
     public function create($id)
     {
-//        dd($id);
         $current_wo = Workorder::findOrFail($id);
-        $manual_id = $current_wo->unit->manual_id;
-
         $codes = Code::all();
-        $necessaries = Necessary::all();
+        $ctx = $this->prepareGroupedLogCardComponents($current_wo);
 
-        $necessary = Necessary::where('name', 'Order New')->first();
-        $code = Code::where('name', 'Missing')->first();
-
-
-        $components = Component::where('manual_id', $manual_id)
-            ->where('log_card', 1)  // Возвращаем условие
-            ->orderBy('ipl_num', 'asc')
-            ->get();
-//        dd($manual_id, $current_wo,$components);
-
-        // Получаем TDR записи для данного workorder с загруженными отношениями
-        $tdrs = Tdr::where('workorder_id', $id)->with(['codes', 'necessaries'])->get();
-//        dd($components,$tdrs);
-
-        // Группируем компоненты по базовому номеру из ipl_num (без буквенных суффиксов)
-        $groupedComponents = $components->groupBy(function ($component) {
-            // Извлекаем базовый номер из ipl_num (например, "1-120" из "1-120A")
-            if (preg_match('/^(\d+-\d+)/', $component->ipl_num, $matches)) {
-                return $matches[1];
-            }
-            return $component->ipl_num;
-        })->map(function ($group, $baseIplKey) use ($tdrs, $code, $necessary) {
-            // Фильтруем компоненты - оставляем только те, у которых units_assy = 1
-            $filteredGroup = $group->filter(function ($component) {
-                return ($component->units_assy ?? 1) == 1;
-            });
-
-//            dd($filteredGroup);
-
-            return [
-                // $baseIplKey — ключ groupBy: «1-20» для вариантов 1-20, 1-20A, 1-20B (один выбор на группу)
-                'ipl_group' => $baseIplKey,
-                'group_key' => $baseIplKey,
-                'components' => $filteredGroup->sortBy('ipl_num')->map(function ($component) use ($tdrs, $code, $necessary) {
-                    // Ищем TDR для данного компонента
-                    $tdr = $tdrs->where('component_id', $component->id)->first();
-                    // Определяем причину удаления
-                    $reasonForRemove = '';
-                    if ($tdr) {
-                        // Проверяем codes (Missing)
-                        if ($tdr->codes && $tdr->codes->id === $code->id) {
-                            $reasonForRemove = 'Missing';
-                        }
-
-                        // Проверяем necessary (Order New)
-                        if ($tdr->necessaries && $tdr->necessaries->id === $necessary->id) {
-                            // Если necessary = "Order New", то берем значение из codes
-                            if ($tdr->codes) {
-                                $reasonForRemove = $tdr->codes->name;
-                            }
-                        }
-                    }
-
-                    return [
-                        'component' => $component,
-                        'reason_for_remove' => $reasonForRemove
-                    ];
-                }),
-                'count' => $filteredGroup->count(),
-                'has_multiple' => $filteredGroup->count() > 1
-            ];
-        })->filter(function ($group) {
-            // Убираем пустые группы
-            return $group['count'] > 0;
-        });
-
-        // Сортируем группы по базовым номерам ipl_num
-        $groupedComponents = $groupedComponents->sortBy(function ($group, $key) {
-            // Функция для правильной сортировки номеров вида "1-120", "1-130", "2-100"
-            if (preg_match('/^(\d+)-(\d+)$/', $key, $matches)) {
-                $first = (int)$matches[1];
-                $second = (int)$matches[2];
-                // Создаем числовое значение для сортировки (например, 1-120 = 1120, 1-130 = 1130)
-                return $first * 1000 + $second;
-            }
-            return $key;
-        });
-//        dd($components,$groupedComponents);
-
-        // Обрабатываем компоненты с units_assy > 1 - создаем отдельные строки
-        $separateComponents = collect();
-
-//        dd($components,$separateComponents);
-
-        // Сначала проверим все компоненты, включая те, что были исключены из группировки
-        foreach ($components as $component) {
-            $units_assy = $component->units_assy ?? 1;
-
-            if ($units_assy > 1) {
-                // Ищем TDR для данного компонента
-                $tdr = $tdrs->where('component_id', $component->id)->first();
-                $reasonForRemove = '';
-                if ($tdr) {
-                    // Проверяем codes (Missing)
-                    if ($tdr->codes && $tdr->codes->id === $code->id) {
-                        $reasonForRemove = 'Missing';
-                    }
-                    // Проверяем necessary (Order New)
-                    if ($tdr->necessaries && $tdr->necessaries->id === $necessary->id) {
-                        if ($tdr->codes) {
-                            $reasonForRemove = $tdr->codes->name;
-                        }
-                    }
-                }
-
-                // Создаем отдельные строки для каждой единицы
-                for ($i = 1; $i <= $units_assy; $i++) {
-                    $separateComponents->push([
-                        'component' => $component,
-                        'reason_for_remove' => $reasonForRemove,
-                        'units_assy' => $units_assy,
-                        'unit_index' => $i,
-                        'is_multiple_units' => true,
-                        'group_key' => 'separate',
-                        'ipl_group' => 'separate'
-                    ]);
-                }
-            }
-
-        }
-
-        return view('admin.log_card.create', compact('current_wo', 'groupedComponents', 'separateComponents', 'components', 'tdrs', 'code', 'necessary','codes'));
+        return view('admin.log_card.create', array_merge(
+            compact('current_wo', 'codes'),
+            $ctx
+        ));
     }
 
     /**

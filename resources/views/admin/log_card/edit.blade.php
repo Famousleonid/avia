@@ -56,7 +56,7 @@
                         <thead>
                         <tr>
                             <th>Description</th>
-                            <th>Part Number / Assy PN</th>
+                            <th class="text-center">Part Number / Assy PN</th>
                             <th>Select</th>
                             <th>Serial Number</th>
                             <th>ASSY Serial Number</th>
@@ -170,7 +170,7 @@
                                 <td>
                                     {{ $component->name }}
                                 </td>
-                                <td>
+                                <td class="text-start ps-3">
                                     {{ $component->part_number }}
                                     @if($component->assy_part_number)
                                         / {{ $component->assy_part_number }}

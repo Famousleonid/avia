@@ -432,21 +432,6 @@
     </div>
 </div>
 
-{{-- Create Log Card Modal (iframe) --}}
-<div class="modal fade" id="createLogCardModal" tabindex="-1" aria-labelledby="createLogCardModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: 1100px; width: 95%; height: 90vh;">
-        <div class="modal-content bg-gradient" style="height: 90vh;">
-            <div class="modal-header">
-                <h6 class="modal-title text-info" id="createLogCardModalLabel">{{ __('Create Log Card') }}</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0 overflow-hidden" style="height: calc(90vh - 60px);">
-                <iframe id="createLogCardIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
-            </div>
-        </div>
-    </div>
-</div>
-
 {{-- Edit Bushing Modal (iframe) --}}
 <div class="modal fade" id="editBushingModal" tabindex="-1" aria-labelledby="editBushingModalLabel" aria-hidden="true">
     <div class="modal-dialog" style="max-width: 1400px; width: 95%; height: 90vh;">
@@ -495,21 +480,6 @@
 @if($hasTransfers ?? false)
     @include('admin.transfers.change-sn-modal')
 @endif
-
-{{-- Edit Log Card Modal (iframe) --}}
-<div class="modal fade" id="editLogCardModal" tabindex="-1" aria-labelledby="editLogCardModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: 1100px; width: 95%; height: 90vh;">
-        <div class="modal-content bg-gradient" style="height: 90vh;">
-            <div class="modal-header">
-                <h6 class="modal-title text-info" id="editLogCardModalLabel">{{ __('Edit Log Card') }}</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0 overflow-hidden" style="height: calc(90vh - 60px);">
-                <iframe id="editLogCardIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
-            </div>
-        </div>
-    </div>
-</div>
 
 {{-- Add Extra Part Modal (iframe) - create new extra part --}}
 <div class="modal fade" id="addExtraPartModal" tabindex="-1" aria-labelledby="addExtraPartModalLabel" aria-hidden="true">

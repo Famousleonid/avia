@@ -101,7 +101,7 @@
                         <thead>
                         <tr>
                             <th>Description</th>
-                            <th>Part Number / Assy PN</th>
+                            <th class="text-center">Part Number / Assy PN</th>
                             <th>Select</th>
                             <th>Serial Number</th>
                             <th>ASSY Serial Number</th>
@@ -122,7 +122,7 @@
                                             ({{$component->ipl_num}})
                                         </td>
                                     @endif
-                                    <td class="text-center">
+                                    <td class="text-start ps-3">
                                         {{ $component->part_number }}
                                         @if($component->assy_part_number)
                                             / {{ $component->assy_part_number }}
@@ -179,7 +179,7 @@
                                     {{ $component->name }}
                                     <br><small class="text-muted">Unit {{ $unitIndex }} of {{ $unitsAssy }}</small>
                                 </td>
-                                <td>
+                                <td class="text-start ps-3">
                                     {{ $component->part_number }}
                                     @if($component->assy_part_number)
                                         / {{ $component->assy_part_number }}

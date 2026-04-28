@@ -194,7 +194,7 @@
                                 , S/A
                             @endif
                         </td>
-                        <td>
+                        <td class="text-start ps-3">
                             @if($hasAssySerialNumber && !$hasSerialNumber)
                                 {{ $comp ? $comp->assy_part_number : '' }}
                             @else

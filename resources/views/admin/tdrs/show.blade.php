@@ -133,9 +133,9 @@
             border: 1px solid #495057 !important;
         }
         /* Add Part Processes & Edit Part Process modals (iframe) - ensure on top */
-        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #createLogCardModal, #editLogCardModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal, #partProcessesGroupFormsModal { z-index: 1080 !important; }
+        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal, #partProcessesGroupFormsModal { z-index: 1080 !important; }
         #addProcessesModal.modal.show, #addPartModal.modal.show { z-index: 1090 !important; }
-        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #createLogCardModal ~ .modal-backdrop, #editLogCardModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop, #partProcessesGroupFormsModal ~ .modal-backdrop { z-index: 1075 !important; }
+        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop, #partProcessesGroupFormsModal ~ .modal-backdrop { z-index: 1075 !important; }
 
         #partProcessesGroupFormsModal .modal-dialog {
             max-height: 80vh;
@@ -278,9 +278,9 @@
                                 <span class="tdr-std-paper-paint-wrap d-inline-block @if(!$hasPaintComponents) d-none @endif">
                                     <x-paper-button text="Paint STD" href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}" target="_blank" color="outline-primary" />
                                 </span>
-                                @if($log_card)
+                                <span id="logCardFormPaperWrap" class="{{ $log_card ? '' : 'd-none' }}">
                                     <x-paper-button text="Log Card" href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}" target="_blank" color="outline-primary" />
-                                @endif
+                                </span>
                                 <span id="bushingSpFormHeaderBtn">
                                     @if($woBushing)
                                         <x-paper-button text="Bushing SP Form" href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" target="_blank" color="outline-primary" />
@@ -396,16 +396,14 @@
                     </div>
                 @endif
                 @if($showLogCardTab ?? false)
-                <div id="logCardTabActions" class="d-none d-flex gap-2 align-items-center">
-                    @if($log_card)
-                        <button type="button" class="btn btn-outline-primary btn-sm open-edit-log-card-modal" data-log-card-id="{{ $log_card->id }}">
-                            <i class="fas fa-edit"></i> {{ __('Edit Log Card') }}
-                        </button>
-                    @else
-                        <button type="button" class="btn btn-success btn-sm open-create-log-card-modal" data-workorder-id="{{ $current_wo->id }}">
-                            <i class="fas fa-plus"></i> {{ __('Create Log Card') }}
-                        </button>
-                    @endif
+                <div id="logCardTabActions" class="d-none d-flex gap-2 align-items-center flex-wrap">
+                    <button type="button" id="logCardEnterDataBtn" class="btn btn-success btn-sm" data-has-log="{{ $log_card ? '1' : '0' }}" data-log-card-id="{{ $log_card->id ?? '' }}">
+                        <i class="fas fa-{{ $log_card ? 'edit' : 'keyboard' }}"></i> {{ $log_card ? __('Edit') : __('Enter Data') }}
+                    </button>
+                    <button type="button" id="logCardSaveBtn" class="btn btn-primary btn-sm d-none">
+                        <i class="fas fa-save"></i> {{ __('Save') }}
+                    </button>
+                    <button type="button" id="logCardCancelBtn" class="btn btn-outline-secondary btn-sm d-none">{{ __('Cancel') }}</button>
                 </div>
                 @endif
                 <div id="bushingTabActions" class="d-none d-flex gap-2 align-items-center">
