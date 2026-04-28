@@ -20,7 +20,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
 {
     use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers, LogsActivity, softDeletes;
 
-    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'role_id', 'phone', 'stamp', 'team_id','birthday'];
+    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'role_id', 'phone', 'stamp', 'team_id', 'birthday', 'notification_prefs'];
     protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date'];
     protected $hidden = ['password', 'remember_token'];
     protected static $logAttributes = ['name',  'phone', 'stamp'];
@@ -66,6 +66,11 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     {
         return $this->belongsToMany(Manual::class, 'manual_user_permissions', 'user_id', 'manual_id')
             ->withTimestamps();
+    }
+
+    public function hasFullManualsAccess(): bool
+    {
+        return (bool) data_get($this->notification_prefs ?? [], 'manuals_full_access', false);
     }
 
     public function roleIs(string|array $roles): bool

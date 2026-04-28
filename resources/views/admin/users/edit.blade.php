@@ -172,8 +172,21 @@
                                 <label for="email_verified_at" class="form-check-label">Email verified</label>
                             </div>
                         </div>
+                    </div>
 
-
+                    <div class="row g-3 mt-0">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="manuals_full_access"
+                                       id="manuals_full_access"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('manuals_full_access', $user->hasFullManualsAccess()) ? 'checked' : '' }}>
+                                <label for="manuals_full_access" class="form-check-label">Full access to Manuals menu and all manuals</label>
+                                <div class="form-text">Personal override for this user. Works independently from manual-by-manual assignments.</div>
+                            </div>
+                        </div>
                     </div>
 
 

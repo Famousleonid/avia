@@ -34,7 +34,7 @@ class ManualController extends Controller
     {
         $query = Manual::with(['plane', 'builder', 'scope']);
 
-        if (! auth()->user()->roleIs('Admin')) {
+        if (! auth()->user()->roleIs('Admin') && ! auth()->user()->hasFullManualsAccess()) {
             $query->whereHas('permittedUsers', function ($q) {
                 $q->where('users.id', auth()->id());
             });
@@ -249,7 +249,7 @@ class ManualController extends Controller
         $stdAddSourceManuals = Manual::query()
             ->where('planes_id', $cmm->planes_id)
             ->where('builders_id', $cmm->builders_id)
-            ->when(! auth()->user()->roleIs('Admin'), function ($q) {
+            ->when(! auth()->user()->roleIs('Admin') && ! auth()->user()->hasFullManualsAccess(), function ($q) {
                 $q->whereHas('permittedUsers', function ($q2) {
                     $q2->where('users.id', auth()->id());
                 });
@@ -428,7 +428,7 @@ class ManualController extends Controller
             abort(403);
         }
 
-        if ($user->roleIs('Admin')) {
+        if ($user->roleIs('Admin') || $user->hasFullManualsAccess()) {
             return;
         }
 

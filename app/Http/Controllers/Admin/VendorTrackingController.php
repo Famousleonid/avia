@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Exports\VendorTrackingExport;
 use App\Models\TdrProcess;
 use App\Models\Vendor;
 use App\Models\WoBushingBatch;
@@ -12,9 +13,26 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class VendorTrackingController extends Controller
 {
+    private const EXPORTABLE_COLUMNS = [
+        'repair_order',
+        'type',
+        'vendor',
+        'wo',
+        'customer',
+        'ipl',
+        'part_number',
+        'serial',
+        'process',
+        'sent',
+        'returned',
+        'days',
+    ];
+
     private const SOURCE_MAP = [
         'tdr_std' => TdrProcess::class,
         'tdr_part' => TdrProcess::class,
@@ -26,25 +44,166 @@ class VendorTrackingController extends Controller
     {
         abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
 
+        $filters = $this->filtersFromRequest($request);
+        $totalRowsCount = $this->totalRowsCount();
+        $allRows = $this->collectRows($filters);
+
+        $rows = $this->paginateRows(
+            $allRows,
+            $request
+        );
+
+        $vendors = Vendor::query()->orderBy('name')->get(['id', 'name']);
+
+        $summary = [
+            'filtered_total' => $rows->total(),
+            'page_count' => $rows->count(),
+            'total_rows' => $totalRowsCount,
+        ];
+
+        return view('admin.vendor_tracking.index', compact('rows', 'vendors', 'filters', 'summary'));
+    }
+
+    public function export(Request $request): BinaryFileResponse
+    {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $filters = $this->filtersFromRequest($request);
+        $rows = $this->collectRows($filters);
+        $columns = $this->exportColumnsFromRequest($request);
+        $title = trim((string) $request->input('excel_title', 'Vendor Tracking'));
+        $filename = 'vendor-tracking-' . now()->format('Y-m-d_H-i') . '.xlsx';
+
+        return Excel::download(new VendorTrackingExport($rows, $columns, $title), $filename);
+    }
+
+    public function updateRow(Request $request): JsonResponse
+    {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $data = $request->validate([
+            'source_key' => ['required', 'string'],
+            'id' => ['required', 'integer', 'min:1'],
+            'vendor_id' => ['nullable', 'integer', 'exists:vendors,id'],
+            'repair_order' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $modelClass = self::SOURCE_MAP[$data['source_key']] ?? null;
+        abort_unless($modelClass !== null, 422, 'Unknown vendor tracking source.');
+
+        /** @var TdrProcess|WoBushingProcess|WoBushingBatch $row */
+        $row = $modelClass::query()->findOrFail($data['id']);
+        $row->vendor_id = $data['vendor_id'] ?? null;
+        $row->repair_order = $this->normalizeRepairOrder($data['repair_order'] ?? null);
+
+        if ($row instanceof TdrProcess && auth()->id()) {
+            $row->user_id = auth()->id();
+        }
+
+        $row->save();
+        $row->loadMissing('vendor:' . $this->vendorSelectColumns());
+
+        return response()->json([
+            'ok' => true,
+            'vendor_name' => $row->vendor?->name,
+            'repair_order' => $row->repair_order,
+        ]);
+    }
+
+    private function sourceFilters(Request $request): array
+    {
+        $sources = $request->input('sources', ['part', 'std', 'bushing']);
+        $sources = is_array($sources) ? $sources : [$sources];
+        $sources = array_values(array_intersect($sources, ['part', 'std', 'bushing']));
+
+        return $sources ?: ['part', 'std', 'bushing'];
+    }
+
+    private function filtersFromRequest(Request $request): array
+    {
         $filters = [
             'vendor_id' => (int) $request->input('vendor_id', 0),
             'status' => $request->input('status', 'all'),
             'sources' => $this->sourceFilters($request),
             'include_vendor_null' => $request->boolean('include_vendor_null'),
-            'workorder' => trim((string) $request->input('workorder', '')),
+            'workorder' => $this->normalizeWorkorderFilter((string) $request->input('workorder', '')),
             'part_number' => trim((string) $request->input('part_number', '')),
             'repair_order' => trim((string) $request->input('repair_order', '')),
+            'sort' => $this->normalizeSort((string) $request->input('sort', 'wo')),
+            'direction' => $this->normalizeSortDirection((string) $request->input('direction', 'desc')),
         ];
-
-        $totalRowsCount = $this->totalRowsCount();
 
         if (! in_array($filters['status'], ['open', 'returned', 'all'], true)) {
             $filters['status'] = 'all';
         }
 
+        return $filters;
+    }
+
+    private function exportColumnsFromRequest(Request $request): array
+    {
+        $columns = $request->input('columns', self::EXPORTABLE_COLUMNS);
+        $columns = is_array($columns) ? $columns : [$columns];
+        $columns = array_values(array_intersect($columns, self::EXPORTABLE_COLUMNS));
+
+        return $columns ?: self::EXPORTABLE_COLUMNS;
+    }
+
+    private function normalizeSort(string $value): string
+    {
+        return in_array($value, ['vendor', 'type', 'wo', 'ipl', 'process'], true)
+            ? $value
+            : 'wo';
+    }
+
+    private function normalizeSortDirection(string $value): string
+    {
+        return strtolower($value) === 'asc' ? 'asc' : 'desc';
+    }
+
+    private function vendorSelectColumns(): string
+    {
+        $columns = ['id', 'name'];
+
+        if (Schema::hasColumn('vendors', 'is_trusted')) {
+            $columns[] = 'is_trusted';
+        }
+
+        return implode(',', $columns);
+    }
+
+    private function hasAllTdrSources(array $filters): bool
+    {
+        return in_array('part', $filters['sources'], true)
+            && in_array('std', $filters['sources'], true);
+    }
+
+    private function applyVendorFilter($query, array $filters): void
+    {
+        $vendorId = (int) ($filters['vendor_id'] ?? 0);
+        $includeVendorNull = (bool) ($filters['include_vendor_null'] ?? false);
+
+        if ($vendorId > 0) {
+            $query->where(function ($inner) use ($vendorId, $includeVendorNull): void {
+                $inner->where('vendor_id', $vendorId);
+                if ($includeVendorNull) {
+                    $inner->orWhereNull('vendor_id');
+                }
+            });
+
+            return;
+        }
+
+        if (! $includeVendorNull) {
+            $query->whereNotNull('vendor_id');
+        }
+    }
+
+    private function collectRows(array $filters): Collection
+    {
         $tdrRows = TdrProcess::query()
             ->with([
-                'vendor:id,name',
+                'vendor:' . $this->vendorSelectColumns(),
                 'processName:id,name',
                 'tdr:id,workorder_id,component_id,serial_number,assy_serial_number',
                 'tdr.workorder:id,number,customer_id',
@@ -93,108 +252,62 @@ class VendorTrackingController extends Controller
         $bushingProcessRows = in_array('bushing', $filters['sources'], true) ? $this->bushingProcessRows($filters) : collect();
         $bushingBatchRows = in_array('bushing', $filters['sources'], true) ? $this->bushingBatchRows($filters) : collect();
 
-        $rows = $this->paginateRows(
+        return $this->sortRows(
             $tdrRows
                 ->concat($bushingProcessRows)
                 ->concat($bushingBatchRows)
-                ->sort(function ($a, $b): int {
-                    $returned = (int) $a->is_returned <=> (int) $b->is_returned;
-                    if ($returned !== 0) {
-                        return $returned;
-                    }
-
-                    $start = strcmp(
-                        (string) ($a->date_start?->format('Y-m-d') ?? '9999-12-31'),
-                        (string) ($b->date_start?->format('Y-m-d') ?? '9999-12-31')
-                    );
-                    if ($start !== 0) {
-                        return $start;
-                    }
-
-                    return $b->id <=> $a->id;
-                })
                 ->values(),
-            $request
+            $filters
         );
-
-        $vendors = Vendor::query()->orderBy('name')->get(['id', 'name']);
-
-        $summary = [
-            'filtered_total' => $rows->total(),
-            'page_count' => $rows->count(),
-            'total_rows' => $totalRowsCount,
-        ];
-
-        return view('admin.vendor_tracking.index', compact('rows', 'vendors', 'filters', 'summary'));
     }
 
-    public function updateRow(Request $request): JsonResponse
+    private function sortRows(Collection $rows, array $filters): Collection
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $sort = $filters['sort'] ?? 'wo';
+        $direction = $filters['direction'] ?? 'desc';
 
-        $data = $request->validate([
-            'source_key' => ['required', 'string'],
-            'id' => ['required', 'integer', 'min:1'],
-            'vendor_id' => ['nullable', 'integer', 'exists:vendors,id'],
-            'repair_order' => ['nullable', 'string', 'max:255'],
-        ]);
+        return $rows->sort(function ($a, $b) use ($sort, $direction): int {
+            $result = match ($sort) {
+                'vendor' => $this->compareText($a->vendor?->name, $b->vendor?->name),
+                'type' => $this->compareText($a->source ?? null, $b->source ?? null),
+                'ipl' => $this->compareText($a->ipl_num ?? null, $b->ipl_num ?? null),
+                'process' => $this->compareText($a->process_name ?? null, $b->process_name ?? null),
+                'wo' => $this->compareText($a->workorder?->number ?? null, $b->workorder?->number ?? null, true),
+                default => 0,
+            };
 
-        $modelClass = self::SOURCE_MAP[$data['source_key']] ?? null;
-        abort_unless($modelClass !== null, 422, 'Unknown vendor tracking source.');
+            if ($result === 0) {
+                $result = $this->compareText($a->repair_order ?? null, $b->repair_order ?? null, true);
+            }
 
-        /** @var TdrProcess|WoBushingProcess|WoBushingBatch $row */
-        $row = $modelClass::query()->findOrFail($data['id']);
-        $row->vendor_id = $data['vendor_id'] ?? null;
-        $row->repair_order = $this->normalizeRepairOrder($data['repair_order'] ?? null);
+            if ($result === 0) {
+                $result = $b->id <=> $a->id;
+            }
 
-        if ($row instanceof TdrProcess && auth()->id()) {
-            $row->user_id = auth()->id();
+            return $direction === 'asc' ? $result : -$result;
+        })->values();
+    }
+
+    private function compareText(?string $left, ?string $right, bool $natural = false): int
+    {
+        $left = trim((string) $left);
+        $right = trim((string) $right);
+
+        if ($left === '' && $right === '') {
+            return 0;
         }
 
-        $row->save();
-        $row->loadMissing('vendor:id,name');
-
-        return response()->json([
-            'ok' => true,
-            'vendor_name' => $row->vendor?->name,
-            'repair_order' => $row->repair_order,
-        ]);
-    }
-
-    private function sourceFilters(Request $request): array
-    {
-        $sources = $request->input('sources', ['part', 'std', 'bushing']);
-        $sources = is_array($sources) ? $sources : [$sources];
-        $sources = array_values(array_intersect($sources, ['part', 'std', 'bushing']));
-
-        return $sources ?: ['part', 'std', 'bushing'];
-    }
-
-    private function hasAllTdrSources(array $filters): bool
-    {
-        return in_array('part', $filters['sources'], true)
-            && in_array('std', $filters['sources'], true);
-    }
-
-    private function applyVendorFilter($query, array $filters): void
-    {
-        $vendorId = (int) ($filters['vendor_id'] ?? 0);
-        $includeVendorNull = (bool) ($filters['include_vendor_null'] ?? false);
-
-        if ($vendorId > 0) {
-            $query->where(function ($inner) use ($vendorId, $includeVendorNull): void {
-                $inner->where('vendor_id', $vendorId);
-                if ($includeVendorNull) {
-                    $inner->orWhereNull('vendor_id');
-                }
-            });
-
-            return;
+        if ($left === '') {
+            return 1;
         }
 
-        if (! $includeVendorNull) {
-            $query->whereNotNull('vendor_id');
+        if ($right === '') {
+            return -1;
         }
+
+        return $natural
+            ? strnatcasecmp($left, $right)
+            : strcasecmp($left, $right);
     }
 
     private function normalizeTdrProcess(TdrProcess $row): object
@@ -207,6 +320,7 @@ class VendorTrackingController extends Controller
             'id' => (int) $row->id,
             'source_key' => $tdr?->component_id === null ? 'tdr_std' : 'tdr_part',
             'source' => $tdr?->component_id === null ? 'STD' : 'Part',
+            'date_update_url' => route('tdrprocesses.updateDate', $row),
             'vendor' => $row->vendor,
             'workorder' => $wo,
             'customer' => $wo?->customer,
@@ -229,7 +343,7 @@ class VendorTrackingController extends Controller
 
         return WoBushingProcess::query()
             ->with([
-                'vendor:id,name',
+                'vendor:' . $this->vendorSelectColumns(),
                 'process.process_name:id,name',
                 'line:id,workorder_id,component_id,qty',
                 'line.workorder:id,number,customer_id',
@@ -265,7 +379,7 @@ class VendorTrackingController extends Controller
 
         return WoBushingBatch::query()
             ->with([
-                'vendor:id,name',
+                'vendor:' . $this->vendorSelectColumns(),
                 'process.process_name:id,name',
                 'workorder:id,number,customer_id',
                 'workorder.customer:id,name',
@@ -301,7 +415,8 @@ class VendorTrackingController extends Controller
         return (object) [
             'id' => (int) $row->id,
             'source_key' => 'wo_bushing_process',
-            'source' => 'Bushing',
+            'source' => 'Bush',
+            'date_update_url' => route('wo_bushing_processes.updateDate', $row),
             'vendor' => $row->vendor,
             'workorder' => $wo,
             'customer' => $wo?->customer,
@@ -326,7 +441,8 @@ class VendorTrackingController extends Controller
         return (object) [
             'id' => (int) $row->id,
             'source_key' => 'wo_bushing_batch',
-            'source' => 'Bushing',
+            'source' => 'Bush',
+            'date_update_url' => route('wo_bushing_batches.updateDate', $row),
             'vendor' => $row->vendor,
             'workorder' => $row->workorder,
             'customer' => $row->workorder?->customer,
@@ -392,5 +508,16 @@ class VendorTrackingController extends Controller
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    private function normalizeWorkorderFilter(string $value): string
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        return preg_replace('/^\s*w\s*/i', '', $value) ?? $value;
     }
 }

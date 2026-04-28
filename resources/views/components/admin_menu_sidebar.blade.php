@@ -41,6 +41,12 @@
     $minimalShopSidebar = $sidebarUser
         && $sidebarUser->roleIs(['Paint', 'Machining'])
         && ! $sidebarUser->roleIs(['Admin', 'Manager']);
+    $showManualsMenu = $sidebarUser
+        && (
+            $sidebarUser->roleIs('Admin')
+            || $sidebarUser->hasFullManualsAccess()
+            || $sidebarUser->permittedManuals()->exists()
+        );
 @endphp
 @if($minimalShopSidebar)
     <li class="nav-item">
@@ -66,6 +72,13 @@
             </li>
         @endif
     @endcan
+    @if($showManualsMenu)
+        <li class="nav-item">
+            <a class="nav-link press-spinner" href="{{ route('manuals.index') }}">
+                <i class="bi bi-book-half me-2"></i> <span>Manuals</span>
+            </a>
+        </li>
+    @endif
 @else
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('workorders.index')}}">
@@ -188,11 +201,6 @@
 
     @endhasanyrole
 
-    @php
-        $showManualsMenu = auth()->user()->roleIs('Admin')
-            || auth()->user()->permittedManuals()->exists();
-    @endphp
-
     @if ($showManualsMenu)
         <li class="nav-item">
             <a class="nav-link press-spinner" href="{{route('manuals.index')}}">
@@ -286,12 +294,15 @@
             </li>
         @endsystemadmin
 
+    @endadmin
+
+    @hasanyrole('Admin|Manager')
         <li class="nav-item border-top">
-            <a class="nav-link " href="#" id="{{ $themeToggleId }}">
+            <a class="nav-link" href="#" id="{{ $themeToggleId }}">
                 <i class="bi bi-moon me-2"></i>&nbsp; <span>Thema</span>
             </a>
         </li>
-    @endadmin
+    @endhasanyrole
 
 @endif
 

@@ -47,8 +47,18 @@ return [
                 'label' => 'Name',
                 'rules' => ['required', 'string', 'max:255', 'unique:vendors,name'],
             ],
+            'is_trusted' => [
+                'label' => 'Trusted',
+                'type' => 'boolean',
+            ],
+            'description' => [
+                'label' => 'Description',
+                'rules' => ['nullable', 'string', 'max:5000'],
+                'type' => 'textarea',
+                'placeholder' => 'Vendor notes...',
+            ],
         ],
-        'search' => ['name'],
+        'search' => ['name', 'description'],
         'order'  => ['name' => 'asc'],
     ],
 

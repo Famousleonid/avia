@@ -19,6 +19,7 @@ use App\Models\ProcessName;
 use App\Models\Scope;
 use App\Models\Task;
 use App\Models\Tdr;
+use App\Models\TdrProcess;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Workorder;
@@ -138,6 +139,7 @@ class ActivityLogController extends Controller
             'process_names_id' => [],
             'processes_id' => [],
             'tdrs_id' => [],
+            'tdr_process_id' => [],
             'codes_id' => [],
             'conditions_id' => [],
             'necessaries_id' => [],
@@ -177,6 +179,18 @@ class ActivityLogController extends Controller
                 }
             }
 
+            if ($activity->subject_type === Manual::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
+                $idBuckets['manual_id'][] = (int) $activity->subject_id;
+            }
+
+            if ($activity->subject_type === Tdr::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
+                $idBuckets['tdrs_id'][] = (int) $activity->subject_id;
+            }
+
+            if ($activity->subject_type === TdrProcess::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
+                $idBuckets['tdr_process_id'][] = (int) $activity->subject_id;
+            }
+
             if (isset($activity->subject) && isset($activity->subject->workorder_id)) {
                 $subjectWorkorderId = $activity->subject->workorder_id;
                 if (is_numeric($subjectWorkorderId) && (int)$subjectWorkorderId > 0) {
@@ -212,8 +226,10 @@ class ActivityLogController extends Controller
         $manualIds = array_values(array_unique(array_merge($idBuckets['manual_id'], $idBuckets['manuals_id'])));
         $manualMap = Manual::query()
             ->whereIn('id', $manualIds)
-            ->get(['id', 'number', 'title'])
-            ->mapWithKeys(fn(Manual $m) => [$m->id => trim(((string)$m->number).' '.$m->title)])
+            ->get(['id', 'number', 'lib'])
+            ->mapWithKeys(fn(Manual $m) => [
+                $m->id => 'manual: '.trim((string) $m->number).'   lib: '.trim((string) $m->lib),
+            ])
             ->all();
 
         $componentIds = array_values(array_unique(array_merge($idBuckets['component_id'], $idBuckets['order_component_id'])));
@@ -237,11 +253,43 @@ class ActivityLogController extends Controller
 
         $tdrMap = Tdr::query()
             ->whereIn('id', array_unique($idBuckets['tdrs_id']))
-            ->with(['component:id,name'])
-            ->get(['id', 'component_id'])
+            ->with(['component:id,name,part_number', 'workorder:id,number'])
+            ->get(['id', 'component_id', 'workorder_id'])
             ->mapWithKeys(function (Tdr $t) {
-                $label = $t->component?->name ? "TDR {$t->component->name}" : "TDR #{$t->id}";
+                $componentLabel = trim(((string) ($t->component?->part_number ?? '')).' '.((string) ($t->component?->name ?? '')));
+                $label = $componentLabel !== '' ? "tdr: {$componentLabel}" : "tdr id: {$t->id}";
+                if ($t->workorder?->number) {
+                    $label .= '   wo: '.$t->workorder->number;
+                }
                 return [$t->id => $label];
+            })
+            ->all();
+
+        $tdrProcessMap = TdrProcess::query()
+            ->whereIn('id', array_unique($idBuckets['tdr_process_id']))
+            ->with([
+                'tdr.component:id,name,part_number',
+                'tdr.workorder:id,number',
+                'processName:id,name',
+            ])
+            ->get(['id', 'tdrs_id', 'process_names_id'])
+            ->mapWithKeys(function (TdrProcess $tdrProcess) {
+                $tdr = $tdrProcess->tdr;
+                $componentLabel = trim(((string) ($tdr?->component?->part_number ?? '')).' '.((string) ($tdr?->component?->name ?? '')));
+                $tdrLabel = $componentLabel !== '' ? "tdr: {$componentLabel}" : null;
+
+                if ($tdrLabel !== null && $tdr?->workorder?->number) {
+                    $tdrLabel .= '   wo: '.$tdr->workorder->number;
+                }
+
+                $processLabel = trim((string) ($tdrProcess->processName?->name ?? ''));
+                $parts = array_values(array_filter([$tdrLabel, $processLabel], fn ($value) => filled($value)));
+
+                return [
+                    $tdrProcess->id => $parts !== []
+                        ? 'tdr process: '.implode('   process: ', $parts)
+                        : 'tdr process id: '.$tdrProcess->id,
+                ];
             })
             ->all();
 
@@ -347,6 +395,7 @@ class ActivityLogController extends Controller
             'processNameMap',
             'processMap',
             'tdrMap',
+            'tdrProcessMap',
             'codeMap',
             'conditionMap',
             'necessaryMap',
