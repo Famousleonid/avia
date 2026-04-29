@@ -144,7 +144,17 @@
                             color="outline-primary"
                             size="80px"
                         />
-
+                    @endif
+                    @if(!empty($showDestructionCert))
+                        <span @class(['ms-2' => $log_card])>
+                            <x-paper-button
+                                text="Certificate of Destruction"
+                                href="{{ route('log_card.sertDistrForm', ['id'=> $current_wo->id]) }}"
+                                target="_blank"
+                                color="outline-primary"
+                                size="80px"
+                            />
+                        </span>
                     @endif
                 </div>
 

@@ -14,6 +14,11 @@ class Code extends Model
     protected $fillable = [
         'name',
         'code',
+        'requires_destruction_cert',
+    ];
+
+    protected $casts = [
+        'requires_destruction_cert' => 'boolean',
     ];
     public function tdr()
     {

@@ -164,26 +164,28 @@
                     </div>
                 </div>
                 <div id="pdfListContainer" class="row g-3"></div>
-                <div class="modal fade" id="pdfViewerModal" tabindex="-1" aria-labelledby="pdfViewerModalLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered" style="max-width: 90vw; width: 90vw; height: 85vh; margin: 1.75rem auto;">
-                        <div class="modal-content bg-dark d-flex flex-column" style="height: 100%; max-height: 85vh; overflow: hidden;">
-                            <div class="modal-header flex-shrink-0">
-                                <h6 class="modal-title text-info" id="pdfViewerModalLabel">PDF Viewer</h6>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body p-0 flex-grow-1 d-flex" style="min-height: 0; overflow: hidden;">
-                                <iframe id="pdfViewerFrame" class="w-100 border-0" src="" style="flex: 1 1 auto; min-height: 0; width: 100%;"></iframe>
-                            </div>
-                            <div class="modal-footer flex-shrink-0">
-                                <a id="pdfDownloadLink" href="#" class="btn btn-primary" download><i class="bi bi-download"></i> Download</a>
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- PDF viewer: sibling of #pdfModal, not nested — nested modal breaks iframe width/layout for Chrome built-in PDF --}}
+<div class="modal fade" id="pdfViewerModal" tabindex="-1" aria-labelledby="pdfViewerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: min(1200px, 92vw); width: min(1200px, 92vw); height: min(85vh, 900px); margin: 1.75rem auto;">
+        <div class="modal-content bg-dark d-flex flex-column" style="height: 100%; max-height: min(85vh, 900px); overflow: hidden;">
+            <div class="modal-header flex-shrink-0">
+                <h6 class="modal-title text-info" id="pdfViewerModalLabel">PDF Viewer</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 flex-grow-1 d-flex flex-column" style="min-height: 0; min-width: 0; overflow: hidden;">
+                <iframe id="pdfViewerFrame" title="PDF" class="w-100 border-0 flex-grow-1 d-block" src="" style="flex: 1 1 0; min-height: 0; min-width: 0; width: 100%;"></iframe>
+            </div>
+            <div class="modal-footer flex-shrink-0">
+                <a id="pdfDownloadLink" href="#" class="btn btn-primary" download><i class="bi bi-download"></i> Download</a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>

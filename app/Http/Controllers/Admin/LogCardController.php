@@ -11,6 +11,7 @@ use App\Models\Manual;
 use App\Models\Necessary;
 use App\Models\Workorder;
 use App\Models\Tdr;
+use App\Support\LogCardDestructionCertificate;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
@@ -278,6 +279,24 @@ class LogCardController extends Controller
 
 
     }
+
+    /**
+     * Printable Certificate of Destruction (Log Card rows with destruction-flagged reason codes).
+     */
+    public function sertDistrForm(Request $request, $id)
+    {
+        $current_wo = Workorder::with('customer')->findOrFail($id);
+        $rows = LogCardDestructionCertificate::rowsForWorkorder($current_wo);
+        if ($rows === []) {
+            abort(404, __('Certificate of Destruction is not available for this work order.'));
+        }
+
+        return view('admin.log_card.sertDistrForm', [
+            'current_wo' => $current_wo,
+            'rows' => $rows,
+        ]);
+    }
+
     /**
      * Show the form for creating a new resource.
      *
@@ -375,6 +394,7 @@ class LogCardController extends Controller
     public function show($id)
     {
         $current_wo = Workorder::findOrFail($id);
+        $showDestructionCert = LogCardDestructionCertificate::availableFor($current_wo);
         $manual_id = $current_wo->unit->manual_id;
         $components = Component::where('manual_id', $manual_id)->get();
 
@@ -391,7 +411,14 @@ class LogCardController extends Controller
         // Загружаем коды для отображения названий
         $codes = Code::all();
 
-        return view('admin.log_card.show', compact('current_wo', 'componentData', 'log_card', 'components', 'codes'));
+        return view('admin.log_card.show', compact(
+            'current_wo',
+            'componentData',
+            'log_card',
+            'components',
+            'codes',
+            'showDestructionCert'
+        ));
     }
 
     /**

@@ -281,6 +281,11 @@
                                 <span id="logCardFormPaperWrap" class="{{ $log_card ? '' : 'd-none' }}">
                                     <x-paper-button text="Log Card" href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}" target="_blank" color="outline-primary" />
                                 </span>
+                                @if(!empty($showDestructionCert))
+                                    <span class="ms-1">
+                                        <x-paper-button text="Cert. of Destruction" href="{{ route('log_card.sertDistrForm', ['id'=> $current_wo->id]) }}" target="_blank" color="outline-primary" />
+                                    </span>
+                                @endif
                                 <span id="bushingSpFormHeaderBtn">
                                     @if($woBushing)
                                         <x-paper-button text="Bushing SP Form" href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" target="_blank" color="outline-primary" />

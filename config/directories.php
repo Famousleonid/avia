@@ -75,6 +75,11 @@ return [
                 'label' => 'Code',
                 'rules' => ['nullable', 'string', 'max:100', 'unique:codes,code'],
             ],
+            'requires_destruction_cert' => [
+                'label' => 'Destruction certificate',
+                'rules' => ['nullable', 'boolean'],
+                'type' => 'boolean',
+            ],
         ],
         'search' => ['name', 'code'],
         'order'  => ['name' => 'asc'],
