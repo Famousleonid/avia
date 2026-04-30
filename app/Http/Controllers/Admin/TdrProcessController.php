@@ -384,7 +384,7 @@ class TdrProcessController extends Controller
                 'tdrs_id' => $tdrId,
                 'process_names_id' => $data['process_names_id'],
                 'plus_process' => $data['plus_process'] ?? null, // Дополнительные NDT process_names_id через запятую
-                'processes' => json_encode($data['processes']), // Сохраняем массив ID процессов
+                'processes' => array_values(TdrProcess::normalizeStoredProcessIds($data['processes'] ?? [])), // массив ID для cast JSON
                 'sort_order' => $maxSortOrder + $sortOrderCounter + 1, // Устанавливаем sort_order в конец списка
                 'date_start' => null,
                 'date_finish' => null,
@@ -431,15 +431,15 @@ class TdrProcessController extends Controller
                     try {
                         if ($existingEcProcess) {
                             // Обновляем существующую запись EC: добавляем новые процессы в JSON-массив
-                            $existingProcesses = json_decode($existingEcProcess->processes, true) ?: [];
-                            $newProcesses = $data['processes'];
+                            $existingProcesses = TdrProcess::normalizeStoredProcessIds($existingEcProcess->processes);
+                            $newProcesses = TdrProcess::normalizeStoredProcessIds($data['processes'] ?? []);
 
                             // Объединяем массивы и убираем дубликаты
                             $mergedProcesses = array_unique(array_merge($existingProcesses, $newProcesses));
                             $mergedProcesses = array_values($mergedProcesses); // Переиндексируем массив
 
                             $existingEcProcess->update([
-                                'processes' => json_encode($mergedProcesses),
+                                'processes' => $mergedProcesses,
                                 // Обновляем description и notes, если они переданы (опционально)
                                 // Если нужно сохранять последние значения:
                                 'description' => $data['description'] ?? $existingEcProcess->description,
@@ -451,7 +451,7 @@ class TdrProcessController extends Controller
                         TdrProcess::create([
                             'tdrs_id' => $tdrId,
                             'process_names_id' => $ecProcessName->id,
-                            'processes' => json_encode($data['processes']), // Те же processes что и у Machining
+                            'processes' => array_values(TdrProcess::normalizeStoredProcessIds($data['processes'] ?? [])), // те же ID что у Machining
                             'sort_order' => $maxSortOrder + $sortOrderCounter + 1, // Следующий порядок после Machining
                             'date_start' => null,
                             'date_finish' => null,
@@ -1196,7 +1196,7 @@ class TdrProcessController extends Controller
             'tdrs_id' => $validated['tdrs_id'],
             'process_names_id' => $processData['process_names_id'],
             'plus_process' => $plusProcess, // Дополнительные NDT process_names_id через запятую
-            'processes' => json_encode($processesArray), // Преобразуем массив в JSON
+            'processes' => array_values(TdrProcess::normalizeStoredProcessIds($processesArray)), // cast модели сам кодирует JSON
             'ec' => $ecValue, // Используем вычисленное значение EC
             'standalone_ec_only' => $standaloneEcRow,
             'description' => $request->input('description') ?? null, // Добавляем поле description (необязательное)
@@ -1353,11 +1353,11 @@ class TdrProcessController extends Controller
 
             if ($ecProcess) {
                 // Обновляем существующую запись EC: добавляем новые процессы
-                $ecProcesses = json_decode($ecProcess->processes, true) ?: [];
-                $mergedProcesses = array_unique(array_merge($ecProcesses, $newProcesses));
+                $ecProcesses = TdrProcess::normalizeStoredProcessIds($ecProcess->processes);
+                $mergedProcesses = array_unique(array_merge($ecProcesses, TdrProcess::normalizeStoredProcessIds($newProcesses)));
                 $mergedProcesses = array_values($mergedProcesses);
 
-                $ecProcess->update(['processes' => json_encode($mergedProcesses)]);
+                $ecProcess->update(['processes' => $mergedProcesses]);
 
             } else {
                 // Создаем новую запись EC
@@ -1366,7 +1366,7 @@ class TdrProcessController extends Controller
                 TdrProcess::create([
                     'tdrs_id' => $tdrId,
                     'process_names_id' => $ecProcessNameId,
-                    'processes' => json_encode($newProcesses),
+                    'processes' => array_values(TdrProcess::normalizeStoredProcessIds($newProcesses)),
                     'sort_order' => $maxSortOrder + 1,
                     'date_start' => null,
                     'date_finish' => null,
@@ -1390,7 +1390,7 @@ class TdrProcessController extends Controller
             return; // Нет EC записи - ничего не делаем (для вариантов A и B)
         }
 
-        $ecProcesses = json_decode($ecProcess->processes, true) ?: [];
+        $ecProcesses = TdrProcess::normalizeStoredProcessIds($ecProcess->processes);
 
         // Вариант A: Тип процесса не изменился (остался EC-eligible)
         if ($isOldEcEligible && $isNewEcEligible) {
@@ -1421,7 +1421,7 @@ class TdrProcessController extends Controller
                 // Если EC пуст, удаляем запись
                 $ecProcess->delete();
             } else {
-                $ecProcess->update(['processes' => json_encode($ecProcesses)]);
+                $ecProcess->update(['processes' => $ecProcesses]);
             }
         }
         // Вариант B: Тип процесса изменился (с EC-eligible на другой)
@@ -1444,7 +1444,7 @@ class TdrProcessController extends Controller
                 $ecProcess->delete();
             } else {
                 // Обновляем запись EC
-                $ecProcess->update(['processes' => json_encode($ecProcesses)]);
+                $ecProcess->update(['processes' => $ecProcesses]);
             }
         }
     }
@@ -1482,13 +1482,13 @@ class TdrProcessController extends Controller
 
             $allEcProcesses = [];
             foreach ($ecProcesses as $ecProc) {
-                $proc = json_decode($ecProc->processes, true) ?: [];
+                $proc = TdrProcess::normalizeStoredProcessIds($ecProc->processes);
                 $allEcProcesses = array_merge($allEcProcesses, $proc);
             }
             $allEcProcesses = array_values(array_unique($allEcProcesses));
 
             $ecProcess = $ecProcesses->first();
-            $ecProcess->update(['processes' => json_encode($allEcProcesses)]);
+            $ecProcess->update(['processes' => $allEcProcesses]);
 
             foreach ($ecProcesses->skip(1) as $duplicateEc) {
                 $duplicateEc->delete();
@@ -1498,7 +1498,7 @@ class TdrProcessController extends Controller
         }
 
         // Получаем текущие процессы из EC записи
-        $ecProcessesArray = json_decode($ecProcess->processes, true) ?: [];
+        $ecProcessesArray = TdrProcess::normalizeStoredProcessIds($ecProcess->processes);
 
         // Удаляем процессы, которые были в удаленном EC-eligible процессе
         $remainingProcesses = array_filter($ecProcessesArray, function ($processId) use ($processesToRemove) {
@@ -1522,7 +1522,7 @@ class TdrProcessController extends Controller
             } else {
                 // Обновляем процессы в EC записи
                 $ecProcess->update([
-                    'processes' => json_encode($remainingProcesses)
+                    'processes' => array_values($remainingProcesses),
                 ]);
             }
         }

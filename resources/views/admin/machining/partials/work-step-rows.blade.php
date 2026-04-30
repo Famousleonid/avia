@@ -1,6 +1,6 @@
 @php
-    /** Drag … Part + следующая колонка (Date sent), объединённые с подписью Step */
-    $leadCols = ($canReorderMachining ?? false) ? 6 : 5;
+    /** Drag … Part, Processes + колонка Date sent — объединённые с подписью Step */
+    $leadCols = ($canReorderMachining ?? false) ? 7 : 6;
     $stepLeadColspan = $leadCols + 1;
     $fmt = static function ($d) {
         if ($d === null) {

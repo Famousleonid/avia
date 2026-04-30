@@ -112,17 +112,36 @@
             word-break: break-word;
             overflow-wrap: anywhere;
         }
+        /* Processes: не более двух строк; полный текст — в title ячейки */
+        #machining-wo-table td.machining-col-processes-td {
+            min-width: 0;
+            max-width: 0;
+        }
+        #machining-wo-table .machining-processes-clamp {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            overflow: hidden;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            line-height: 1.28;
+            text-align: center;
+            margin: 0 auto;
+            max-width: 100%;
+        }
         #machining-wo-table .machining-col-ellipsis {
             white-space: nowrap;
             text-overflow: ellipsis;
         }
         /* Сумма ~100%: фиксированное распределение без min-width в rem → без горизонтального скролла */
         #machining-wo-table col.machining-col-drag { width: 35px;}
-        #machining-wo-table col.machining-col-num { width: 8%; }
-        #machining-wo-table col.machining-col-wo { width: 14%; }
-        #machining-wo-table col.machining-col-customer { width: 20%; }
+        #machining-wo-table col.machining-col-num { width: 6%; }
+        #machining-wo-table col.machining-col-wo { width: 11%; }
+        #machining-wo-table col.machining-col-customer { width: 15%; }
         #machining-wo-table col.machining-col-aircraft { width: 17%; }
-        #machining-wo-table col.machining-col-pn { width: 18%; }
+        #machining-wo-table col.machining-col-pn { width: 15%; }
+        #machining-wo-table col.machining-col-processes { width: 12%; }
         #machining-wo-table col.machining-col-work { width: 11%; }
         #machining-wo-table .machining-steps-controls {
             min-width: 0;
@@ -138,7 +157,7 @@
             vertical-align: middle;
         }
         #machining-wo-table col.machining-col-date { width: 145px; }
-        #machining-wo-table:not(.machining-table-has-drag) col.machining-col-num { width: 145px; }
+        #machining-wo-table:not(.machining-table-has-drag) col.machining-col-num { width: 5.5rem; max-width: 6rem; }
         .machining-col-priority {
             max-width: 100%;
         }
@@ -345,6 +364,7 @@
                                 <col class="machining-col-customer">
                                 <col class="machining-col-aircraft">
                                 <col class="machining-col-pn">
+                                <col class="machining-col-processes">
                                 <col class="machining-col-date">
                                 <col class="machining-col-work">
                                 <col class="machining-col-date">
@@ -360,6 +380,7 @@
                                     <th>Customer</th>
                                     <th>Component PN <br> AirCraft Type</th>
                                     <th>Part</th>
+                                    <th>Processes</th>
                                     <th>Date send</th>
                                     <th>Working Steps <br> Machinist</th>
                                     <th>Date start</th>

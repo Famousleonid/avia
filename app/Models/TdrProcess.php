@@ -48,6 +48,66 @@ class TdrProcess extends Model
         return $this->hasMany(MachiningWorkStep::class, 'tdr_process_id')->orderBy('step_index');
     }
 
+    /**
+     * ID процессов из JSON-колонки `processes` (строка после cast и лишний json_encode при сохранении в контроллере).
+     *
+     * @return list<int>
+     */
+    public static function normalizeStoredProcessIds(mixed $raw): array
+    {
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+
+        if (is_array($raw)) {
+            $out = [];
+            foreach ($raw as $item) {
+                if (is_array($item) && array_key_exists('id', $item)) {
+                    $id = (int) $item['id'];
+                    if ($id > 0) {
+                        $out[] = $id;
+                    }
+
+                    continue;
+                }
+                $id = (int) $item;
+                if ($id > 0) {
+                    $out[] = $id;
+                }
+            }
+
+            return array_values(array_unique($out));
+        }
+
+        if (is_string($raw)) {
+            $trim = trim($raw);
+            if ($trim === '' || strcasecmp($trim, 'null') === 0) {
+                return [];
+            }
+
+            $decoded = json_decode($trim, true);
+            if (json_last_error() === JSON_ERROR_NONE && $decoded !== null && $decoded !== $trim) {
+                return self::normalizeStoredProcessIds($decoded);
+            }
+
+            if (ctype_digit($trim)) {
+                $id = (int) $trim;
+
+                return $id > 0 ? [$id] : [];
+            }
+
+            return [];
+        }
+
+        if (is_int($raw) || is_float($raw)) {
+            $id = (int) $raw;
+
+            return $id > 0 ? [$id] : [];
+        }
+
+        return [];
+    }
+
     // Отношение к модели Tdr
     public function tdr()
     {

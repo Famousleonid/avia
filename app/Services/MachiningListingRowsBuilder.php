@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ProcessName;
 use App\Models\TdrProcess;
 use App\Models\Workorder;
 use Illuminate\Support\Collection;
@@ -17,8 +18,10 @@ final class MachiningListingRowsBuilder
      */
     public function build(Collection $workorders): Collection
     {
-        $rows = $workorders->flatMap(function (Workorder $wo) {
-            $machiningProcesses = $this->collectMachiningProcessesForRow($wo);
+        $machiningProcessNameId = ProcessName::query()->where('name', 'Machining')->value('id');
+
+        $rows = $workorders->flatMap(function (Workorder $wo) use ($machiningProcessNameId) {
+            $machiningProcesses = $this->collectMachiningProcessesForRow($wo, $machiningProcessNameId);
 
             $active = $machiningProcesses
                 ->filter(fn (TdrProcess $tp) => ! ($tp->ignore_row ?? false))
@@ -220,20 +223,15 @@ final class MachiningListingRowsBuilder
                 $effFinish = $parent->machiningWorkSteps->firstWhere('step_index', $n)?->date_finish;
             }
 
-            $hasAnyStepFinish = $parent->machiningWorkSteps->contains(
-                fn ($s) => $this->machiningDateValuePresent($s->date_finish ?? null)
-            );
-
             $stepOne = $parent->machiningWorkSteps->firstWhere('step_index', 1);
             if ($stepOne !== null && $this->machiningDateValuePresent($stepOne->date_start ?? null)) {
                 $row->date_start = $stepOne->date_start;
             } elseif (
                 $stepOne !== null
                 && ! $this->machiningDateValuePresent($stepOne->date_start ?? null)
-                && $hasAnyStepFinish
                 && $this->machiningDateValuePresent($parent->date_start ?? null)
             ) {
-                /** Legacy: есть finish у шага, но явного work start шага 1 нет — показываем как Sent */
+                /** Нет work start на шаге 1 — Date Sent родителя (в т.ч. только отправлено, без finish по шагам). */
                 $row->date_start = $parent->date_start;
             } else {
                 $row->date_start = null;
@@ -288,13 +286,15 @@ final class MachiningListingRowsBuilder
     /**
      * @return Collection<int, TdrProcess>
      */
-    private function collectMachiningProcessesForRow(Workorder $wo): Collection
+    private function collectMachiningProcessesForRow(Workorder $wo, ?int $machiningProcessNameId): Collection
     {
         $out = collect();
+        if ($machiningProcessNameId === null) {
+            return $out;
+        }
         foreach ($wo->tdrs as $tdr) {
             foreach ($tdr->tdrProcesses as $tp) {
-                $name = trim((string) ($tp->processName?->name ?? ''));
-                if ($name !== 'Machining') {
+                if ((int) ($tp->process_names_id ?? 0) !== $machiningProcessNameId) {
                     continue;
                 }
                 $tp->setRelation('tdr', $tdr);

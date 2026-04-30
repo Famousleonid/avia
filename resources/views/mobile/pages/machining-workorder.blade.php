@@ -90,6 +90,19 @@
             border-color: #198754 !important;
             color: #fff !important;
         }
+        .machining-detail-processes {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            overflow: hidden;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            font-size: .68rem;
+            line-height: 1.25;
+            color: #aab9c6;
+            text-align: left;
+        }
     </style>
 @endsection
 
@@ -136,6 +149,161 @@
             </div>
 
             @foreach($detailItems as $item)
+                @if(($item->kind ?? 'step') === 'pending_steps')
+                    @php
+                        $p = $item->date_parent ?? null;
+                        $sendDisp = $p && $p->date_start ? $fmtDisp($p->date_start) : '—';
+                    @endphp
+                    <div class="machining-detail-block js-detail-block" data-kind="pending_steps">
+                        <div class="machining-detail-line">
+                            <div class="d-flex justify-content-between">
+                                <div>{{ $item->detail_name ?? '—' }}</div>
+                                <div class="text-end text-secondary small">No steps yet</div>
+                            </div>
+                            <span class="text-secondary">
+                                PN {{ $item->detail_label ?? '—' }}@if(filled($item->detail_serial ?? null)) · SN {{ $item->detail_serial }}@endif
+                            </span>
+                            @if(filled($item->processes_label ?? ''))
+                                <div class="machining-detail-processes mt-1"
+                                     title="{{ e($item->processes_label) }}">{{ $item->processes_label }}</div>
+                            @endif
+                        </div>
+                        <div class="machining-detail-dates-step">
+                            <span class="k" title="Date sent">Sent</span>
+                            <span class="v">{{ $sendDisp }}</span>
+                            <span class="k">Start</span>
+                            <span class="v text-secondary">—</span>
+                            <span class="k">Finish</span>
+                            <span class="v text-secondary">—</span>
+                        </div>
+                        <p class="mb-0 mt-2 small text-secondary">
+                            Set the number of working steps on the Machining board (desktop), then dates can be filled here.
+                        </p>
+                    </div>
+                    @continue
+                @endif
+                @if(($item->kind ?? '') === 'step_group')
+                    @php
+                        $grp = $item;
+                        $pGrp = $grp->date_parent ?? null;
+                        $sendDispGrp = $pGrp && $pGrp->date_start ? $fmtDisp($pGrp->date_start) : '—';
+                        $nStepsGrp = $grp->steps->count();
+                    @endphp
+                    <div class="machining-detail-block js-detail-block" data-kind="step_group">
+                        <div class="machining-detail-line">
+                            <div class="d-flex justify-content-between align-items-baseline gap-2">
+                                <div>{{ $grp->detail_name ?? '—' }}</div>
+                                <div class="text-end text-secondary small text-nowrap">{{ $nStepsGrp }} {{ $nStepsGrp === 1 ? 'step' : 'steps' }}</div>
+                            </div>
+                            <span class="text-secondary">
+                                PN {{ $grp->detail_label ?? '—' }}@if(filled($grp->detail_serial ?? null)) · SN {{ $grp->detail_serial }}@endif
+                            </span>
+                            @if(filled($grp->processes_label ?? ''))
+                                <div class="machining-detail-processes mt-1"
+                                     title="{{ e($grp->processes_label) }}">{{ $grp->processes_label }}</div>
+                            @endif
+                        </div>
+                        <div class="machining-detail-dates-step pb-2 mb-2 border-bottom border-secondary border-opacity-25">
+                            <span class="k" title="Date sent">Sent</span>
+                            <span class="v">{{ $sendDispGrp }}</span>
+                        </div>
+                        @foreach($grp->steps as $stepItem)
+                            @php
+                                $step = $stepItem->step;
+                                $listRow = $stepItem->row ?? null;
+                                $workStartResolved = $step->date_start ?? $listRow?->date_start;
+                                $startYmd = $workStartResolved instanceof \DateTimeInterface
+                                    ? $workStartResolved->format('Y-m-d')
+                                    : '';
+                                $startDisp = $fmtDisp($workStartResolved instanceof \DateTimeInterface ? $workStartResolved : null);
+                                $finishYmd = $step->date_finish?->format('Y-m-d') ?? '';
+                                $finishDisp = $fmtDisp($step->date_finish);
+                                $isStepOne = (int) ($step->step_index ?? 0) === 1;
+                                $effectiveStepStart = $stepItem->effective_step_start ?? null;
+                                $effectiveStartYmd = $effectiveStepStart instanceof \DateTimeInterface
+                                    ? $effectiveStepStart->format('Y-m-d')
+                                    : '';
+                                $effectiveStartDisp = $fmtDisp($effectiveStepStart instanceof \DateTimeInterface ? $effectiveStepStart : null);
+                                $authMachining = Auth::user();
+                                $canEditStep = $authMachining !== null
+                                    && (int) ($step->machinist_user_id ?? 0) === (int) ($authMachining->id ?? 0);
+                                $assignedMachinistId = (int) ($step->machinist_user_id ?? 0);
+                                $displayMachinistId = (int) ($stepItem->display_machinist_user_id ?? $assignedMachinistId);
+                                $hideOwnMachinistNextToStep = $authMachining !== null
+                                    && $authMachining->roleIs(['Machining'])
+                                    && $assignedMachinistId > 0
+                                    && $assignedMachinistId === (int) ($authMachining->id ?? 0);
+                                $stepMachinistName = '';
+                                if ($assignedMachinistId > 0 && $assignedMachinistId === $displayMachinistId) {
+                                    $step->loadMissing([
+                                        'machinist' => static fn ($q) => $q->withTrashed(),
+                                    ]);
+                                    $stepMachinistName = trim((string) ($step->machinist?->name ?? ''));
+                                }
+                                if ($stepMachinistName === '' && $displayMachinistId > 0) {
+                                    $nm = $machiningStepMachinistNames[$displayMachinistId] ?? $machiningStepMachinistNames[(string) $displayMachinistId] ?? '';
+                                    $stepMachinistName = trim((string) $nm);
+                                }
+                                $stepMachinistDisplay = $stepMachinistName !== '' ? $stepMachinistName : ($displayMachinistId > 0 ? 'user #' . $displayMachinistId : '');
+                                $showStepMachinistName = $displayMachinistId > 0 && ! $hideOwnMachinistNextToStep;
+                            @endphp
+                            <div class="machining-detail-step-sub js-machining-closed-target {{ $loop->first ? '' : 'pt-2 mt-2 border-top border-secondary border-opacity-25' }}"
+                                 @if($finishYmd !== '') data-machining-step-closed="1" @endif>
+                                <div class="d-flex justify-content-between mb-1" style="font-size:.72rem;line-height:1.2;">
+                                    <span class="text-secondary">Step {{ $step->step_index }}</span>
+                                    @if($showStepMachinistName)
+                                        <span class="text-end text-secondary text-truncate ms-2" style="max-width:58%;">{{ $stepMachinistDisplay }}</span>
+                                    @endif
+                                </div>
+                                <div class="machining-detail-dates-step">
+                                    <span class="k" title="{{ $isStepOne ? 'Work start (step 1)' : 'Effective start (previous step finish)' }}">Start</span>
+                                    @if($isStepOne)
+                                        @if($canEditStep)
+                                            <div class="step-finish-form-wrap machining-mobile-date">
+                                                <form method="POST" action="{{ route('mobile.machining.steps.update', $step) }}"
+                                                      class="js-mobile-machining-step-form m-0">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <input type="hidden" name="date_start" value="{{ $startYmd }}" class="js-mobile-date-real">
+                                                    <input type="date" value="{{ $startYmd }}" class="d-none js-mobile-date-picker" tabindex="-1">
+                                                    <input type="text"
+                                                           class="form-control form-control-sm bg-dark text-light js-mobile-date-display w-100 {{ $startYmd !== '' ? 'has-finish' : '' }}"
+                                                           value="{{ $startYmd !== '' ? $startDisp : '...' }}"
+                                                           placeholder="…"
+                                                           readonly>
+                                                </form>
+                                            </div>
+                                        @else
+                                            <span class="v">{{ $effectiveStartYmd !== '' ? $effectiveStartDisp : ($startYmd !== '' ? $startDisp : '—') }}</span>
+                                        @endif
+                                    @else
+                                        <span class="v">{{ $effectiveStartYmd !== '' ? $effectiveStartDisp : '—' }}</span>
+                                    @endif
+                                    <span class="k">Finish</span>
+                                    @if($canEditStep)
+                                        <div class="step-finish-form-wrap machining-mobile-date">
+                                            <form method="POST" action="{{ route('mobile.machining.steps.update', $step) }}"
+                                                  class="js-mobile-machining-step-form m-0">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="hidden" name="date_finish" value="{{ $finishYmd }}" class="js-mobile-date-real">
+                                                <input type="date" value="{{ $finishYmd }}" class="d-none js-mobile-date-picker" tabindex="-1">
+                                                <input type="text"
+                                                       class="form-control form-control-sm bg-dark text-light js-mobile-date-display w-100 {{ $finishYmd !== '' ? 'has-finish' : '' }}"
+                                                       value="{{ $finishYmd !== '' ? $finishDisp : '...' }}"
+                                                       placeholder="…"
+                                                       readonly>
+                                            </form>
+                                        </div>
+                                    @else
+                                        <span class="v">{{ $finishYmd !== '' ? $finishDisp : '—' }}</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                    @continue
+                @endif
                 @php
                     $step = $item->step;
                     $listRow = $item->row ?? null;
@@ -149,10 +317,15 @@
                     $finishYmd = $step->date_finish?->format('Y-m-d') ?? '';
                     $finishDisp = $fmtDisp($step->date_finish);
                     $isStepOne = (int) ($step->step_index ?? 0) === 1;
+                    $effectiveStepStart = $item->effective_step_start ?? null;
+                    $effectiveStartYmd = $effectiveStepStart instanceof \DateTimeInterface
+                        ? $effectiveStepStart->format('Y-m-d')
+                        : '';
+                    $effectiveStartDisp = $fmtDisp($effectiveStepStart instanceof \DateTimeInterface ? $effectiveStepStart : null);
                     $authMachining = Auth::user();
+                    /** Даты на mobile — только у назначенного на шаг machinist (не чужие шаги, без исключения для Admin/Manager). */
                     $canEditStep = $authMachining !== null
-                        && ($authMachining->roleIs(['Admin', 'Manager'])
-                            || (int) ($step->machinist_user_id ?? 0) === (int) $authMachining->id);
+                        && (int) ($step->machinist_user_id ?? 0) === (int) ($authMachining->id ?? 0);
                     $assignedMachinistId = (int) ($step->machinist_user_id ?? 0);
                     $displayMachinistId = (int) ($item->display_machinist_user_id ?? $assignedMachinistId);
                     $hideOwnMachinistNextToStep = $authMachining !== null
@@ -173,7 +346,9 @@
                     $stepMachinistDisplay = $stepMachinistName !== '' ? $stepMachinistName : ($displayMachinistId > 0 ? 'user #' . $displayMachinistId : '');
                     $showStepMachinistName = $displayMachinistId > 0 && ! $hideOwnMachinistNextToStep;
                 @endphp
-                <div class="machining-detail-block js-detail-block" data-kind="step">
+                <div class="machining-detail-block js-detail-block js-machining-closed-target"
+                     data-kind="step"
+                     @if($finishYmd !== '') data-machining-step-closed="1" @endif>
                     <div class="machining-detail-line">
                         <div class="d-flex justify-content-between">
                             <div> {{ $item->detail_name ?? '—' }}</div>
@@ -184,11 +359,15 @@
                         <span class="text-secondary">
                             PN {{ $item->detail_label ?? '—' }}@if(filled($item->detail_serial ?? null)) · SN {{ $item->detail_serial }}@endif
                         </span>
+                        @if(filled($item->processes_label ?? ''))
+                            <div class="machining-detail-processes mt-1"
+                                 title="{{ e($item->processes_label) }}">{{ $item->processes_label }}</div>
+                        @endif
                     </div>
                     <div class="machining-detail-dates-step">
                         <span class="k" title="Date sent">Sent</span>
                         <span class="v">{{ $sendDisp }}</span>
-                        <span class="k" title="Work start (step 1)">Start</span>
+                        <span class="k" title="{{ $isStepOne ? 'Work start (step 1)' : 'Effective start (previous step finish)' }}">Start</span>
                         @if($isStepOne)
                             @if($canEditStep)
                                 <div class="step-finish-form-wrap machining-mobile-date">
@@ -206,10 +385,10 @@
                                     </form>
                                 </div>
                             @else
-                                <span class="v">{{ $startYmd !== '' ? $startDisp : '—' }}</span>
+                                <span class="v">{{ $effectiveStartYmd !== '' ? $effectiveStartDisp : ($startYmd !== '' ? $startDisp : '—') }}</span>
                             @endif
                         @else
-                            <span class="v">—</span>
+                            <span class="v">{{ $effectiveStartYmd !== '' ? $effectiveStartDisp : '—' }}</span>
                         @endif
                         <span class="k">Finish</span>
                         @if($canEditStep)
@@ -247,6 +426,28 @@
         const MACHINING_WO_DOC_PDF_URL = @json($jsMachiningDocPdfUrl);
     </script>
     <script>
+        function bindMachiningWoHideClosedToggle() {
+            var cb = document.getElementById('js-machining-wo-hide-closed');
+            if (!cb || cb.dataset.bound === '1') {
+                return;
+            }
+            cb.dataset.bound = '1';
+            function applyMachiningWoHideClosed() {
+                var hide = cb.checked;
+                document.querySelectorAll('.js-machining-closed-target[data-machining-step-closed="1"]').forEach(function (el) {
+                    el.classList.toggle('d-none', hide);
+                });
+            }
+            cb.addEventListener('change', applyMachiningWoHideClosed);
+            applyMachiningWoHideClosed();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bindMachiningWoHideClosedToggle);
+        } else {
+            bindMachiningWoHideClosedToggle();
+        }
+
         function formatMachiningDateYmd(ymd) {
             const s = String(ymd || '').trim();
             if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '...';
@@ -381,6 +582,14 @@
                             display.classList.toggle('has-finish', !!ymd);
                         }
                         if (input) input.value = ymd;
+                        const closedTarget = form.closest('.js-machining-closed-target');
+                        if (closedTarget && payloadKey === 'date_finish' && ymd) {
+                            closedTarget.setAttribute('data-machining-step-closed', '1');
+                            const hideCb = document.getElementById('js-machining-wo-hide-closed');
+                            if (hideCb && hideCb.checked) {
+                                closedTarget.classList.add('d-none');
+                            }
+                        }
                     }
                 }
             } catch (err) {

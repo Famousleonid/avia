@@ -64,6 +64,61 @@
                                             ? route('wo_bushing_batches.updateDate', $bushingBatch)
                                             : ($bushingProcess ? route('wo_bushing_processes.updateDate', $bushingProcess) : ''));
                                     $dateFinishAction = $dateStartAction;
+                                    $bushingProcessDetailFmt = static function ($wpProc): string {
+                                        $p = $wpProc->process;
+                                        $pn = $p?->process_name;
+                                        $prName = trim((string) ($pn->name ?? ''));
+                                        $prNum = trim((string) ($p->process ?? ''));
+
+                                        return trim(($prName !== '' ? $prName : 'Process').($prNum !== '' ? ' '.$prNum : ''));
+                                    };
+                                    $machiningDetailProcessesLabel = '';
+                                    if ($editTp) {
+                                        /** JSON `tdr_processes.processes` — id в `processes`; только строки с process_names_id = Machining; текст из колонки `process`. */
+                                        $catalog = $machiningProcessCatalog ?? [];
+                                        $opParts = [];
+                                        foreach (\App\Models\TdrProcess::normalizeStoredProcessIds($editTp->processes) as $id) {
+                                            $catalogRow = $catalog[$id] ?? null;
+                                            if ($catalogRow === null) {
+                                                continue;
+                                            }
+                                            $procText = trim((string) ($catalogRow->process ?? ''));
+                                            if ($procText !== '') {
+                                                $opParts[] = $procText;
+                                            }
+                                        }
+                                        $machiningDetailProcessesLabel = implode(' · ', array_filter($opParts));
+                                    } elseif ($bushingProcess) {
+                                        $bushingProcess->loadMissing(['line.processes.process.process_name']);
+                                        $ln = $bushingProcess->line;
+                                        if ($ln !== null) {
+                                            $machiningDetailProcessesLabel = $ln->processes
+                                                ->sortBy(static fn ($wpProc) => [(string) ($wpProc->repair_order ?? ''), $wpProc->id])
+                                                ->map($bushingProcessDetailFmt)
+                                                ->filter()
+                                                ->unique()
+                                                ->implode(' · ');
+                                        }
+                                    } elseif ($bushingBatch) {
+                                        $bushingBatch->loadMissing(['woBushingProcesses.line.processes.process.process_name']);
+                                        $chunks = [];
+                                        foreach ($bushingBatch->woBushingProcesses->sortBy('id') as $bp) {
+                                            $ln = $bp->line;
+                                            if ($ln === null) {
+                                                continue;
+                                            }
+                                            $chunk = $ln->processes
+                                                ->sortBy(static fn ($wpProc) => [(string) ($wpProc->repair_order ?? ''), $wpProc->id])
+                                                ->map($bushingProcessDetailFmt)
+                                                ->filter()
+                                                ->unique()
+                                                ->implode(' · ');
+                                            if ($chunk !== '') {
+                                                $chunks[] = $chunk;
+                                            }
+                                        }
+                                        $machiningDetailProcessesLabel = collect($chunks)->unique()->implode(' | ');
+                                    }
                                     $machiningSearchBlob = implode(' ', array_filter([
                                         'w' . $wo->number,
                                         (string) ($wo->customer?->name ?? ''),
@@ -72,6 +127,7 @@
                                         (string) ($wo->user?->name ?? ''),
                                         (string) ($row->detail_label ?? ''),
                                         (string) ($row->detail_name ?? ''),
+                                        $machiningDetailProcessesLabel !== '' ? $machiningDetailProcessesLabel : null,
                                         $isBushingRow ? 'bushing' : null,
                                         $startStr,
                                         $sendStr,
@@ -222,6 +278,22 @@
                                     @else
                                         <td class="text-center machining-col-wrap">{{ $row->detail_name ?? 'Name' }} <br>
                                             <span class="text-secondary">{{ $row->detail_label ?? 'List' }}</span>
+                                        </td>
+                                    @endif
+                                    @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
+                                        <td class="text-center small machining-col-wrap machining-col-processes-td js-machining-wo-head-col"
+                                            @if($machiningDetailProcessesLabel !== '') title="{{ e($machiningDetailProcessesLabel) }}" @endif>
+                                            <span class="machining-wo-head-col-placeholder text-muted">...</span>
+                                            <span class="machining-wo-head-col-content machining-processes-clamp d-none">{{ $machiningDetailProcessesLabel !== '' ? $machiningDetailProcessesLabel : '—' }}</span>
+                                        </td>
+                                    @else
+                                        <td class="text-center small machining-col-wrap machining-col-processes-td"
+                                            @if($machiningDetailProcessesLabel !== '') title="{{ e($machiningDetailProcessesLabel) }}" @endif>
+                                            @if($machiningDetailProcessesLabel !== '')
+                                                <span class="machining-processes-clamp">{{ $machiningDetailProcessesLabel }}</span>
+                                            @else
+                                                —
+                                            @endif
                                         </td>
                                     @endif
                                     @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
@@ -670,6 +742,6 @@
                                 @endif
                             @empty
                                 <tr>
-                                    <td colspan="{{ ($canReorderMachining ?? false) ? 12 : 11 }}" class="text-center text-muted py-4">No workorders (approved, open, not draft).</td>
+                                    <td colspan="{{ ($canReorderMachining ?? false) ? 13 : 12 }}" class="text-center text-muted py-4">No workorders (approved, open, not draft).</td>
                                 </tr>
                             @endforelse

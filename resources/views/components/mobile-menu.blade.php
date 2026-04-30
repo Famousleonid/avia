@@ -197,6 +197,21 @@
         </label>
     @endif
 
+    @if(request()->routeIs('mobile.machining.workorder'))
+        <label class="menu-machining-my-wo flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white user-select-none mb-0"
+               title="Hide machining steps that already have a finish date">
+            <div class="menu-top-icon-slot">
+                <div class="menu-icon-wrapper menu-machining-my-wo-icon">
+                    <input type="checkbox"
+                           id="js-machining-wo-hide-closed"
+                           class="form-check-input border-light"
+                           autocomplete="off">
+                </div>
+            </div>
+            <span class="menu-label lh-sm px-1" style="font-size: 0.68rem;">Hide closed</span>
+        </label>
+    @endif
+
     @if($showDeptLost)
         <a href="{{ $deptLostUrl }}" data-spinner
            class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">

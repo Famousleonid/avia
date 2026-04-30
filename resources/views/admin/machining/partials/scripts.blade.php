@@ -534,8 +534,13 @@
         var doHideClosed = hideClosed && hideClosed.checked;
         var completedFiltersActive = machiningCompletedFiltersAnyActive();
         var table = document.getElementById('machining-wo-table');
-            document.querySelectorAll('#machining-sortable-tbody tr[data-machining-search]').forEach(function (tr) {
-                var hay = tr.getAttribute('data-machining-search') || '';
+        var trList = document.querySelectorAll('#machining-sortable-tbody tr[data-machining-search]');
+
+        /** Master скрыт (Hide closed / поиск / фильтры), а открытая часть WO — только wo-extra и свёрнута: без этого строки не видно и раскрыть некуда. */
+        var filterHiddenList = [];
+        var masterByWo = {};
+        trList.forEach(function (tr, idx) {
+            var hay = tr.getAttribute('data-machining-search') || '';
             var matchSearch = q === '' || hay.indexOf(q) !== -1;
             var isClosed = tr.getAttribute('data-machining-closed') === '1';
             var matchListing;
@@ -544,7 +549,35 @@
             } else {
                 matchListing = !completedFiltersActive || machiningCompletedFiltersMatch(tr);
             }
-            var filterHidden = !matchSearch || !matchListing;
+            filterHiddenList[idx] = !matchSearch || !matchListing;
+            if (tr.classList.contains('machining-row-master')) {
+                var widM = tr.getAttribute('data-wo-id');
+                if (widM) {
+                    masterByWo[widM] = idx;
+                }
+            }
+        });
+
+        var forceExpandWoParts = {};
+        trList.forEach(function (tr, idx) {
+            if (tr.getAttribute('data-machining-wo-extra') !== '1') {
+                return;
+            }
+            var wid = tr.getAttribute('data-wo-id');
+            if (!wid) {
+                return;
+            }
+            var mIdx = masterByWo[wid];
+            if (mIdx === undefined) {
+                return;
+            }
+            if (filterHiddenList[mIdx] && !filterHiddenList[idx]) {
+                forceExpandWoParts[wid] = true;
+            }
+        });
+
+        trList.forEach(function (tr, idx) {
+            var filterHidden = filterHiddenList[idx];
             var toggleHidden = false;
             if (tr.classList.contains('machining-row-child') && table) {
                 var gid = tr.getAttribute('data-machining-group');
@@ -558,7 +591,8 @@
                 var wid = tr.getAttribute('data-wo-id');
                 if (wid) {
                     var woBtn = table.querySelector('.js-machining-toggle-wo-parts[data-wo-parts="' + wid + '"]');
-                    woPartsHidden = !!(woBtn && woBtn.getAttribute('aria-expanded') === 'false');
+                    woPartsHidden = !!(woBtn && woBtn.getAttribute('aria-expanded') === 'false')
+                        && !forceExpandWoParts[wid];
                 }
             }
             tr.classList.toggle('d-none', filterHidden || toggleHidden || woPartsHidden);

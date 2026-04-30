@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\MachiningWorkStep;
+use App\Models\ProcessName;
+use App\Models\Process;
 use App\Models\TdrProcess;
 use App\Models\User;
 use App\Models\WoBushingBatch;
@@ -50,7 +52,8 @@ class MachiningController extends Controller
      *     machiningLinesPerWo: \Illuminate\Support\Collection,
      *     queuedCount: int,
      *     machiningMachinists: \Illuminate\Database\Eloquent\Collection<int, User>,
-     *     canReorderMachining: bool
+     *     canReorderMachining: bool,
+     *     machiningProcessCatalog: array<int, Process>
      * }
      */
     private function machiningIndexData(): array
@@ -86,6 +89,37 @@ class MachiningController extends Controller
             ->orderBy('number', 'asc')
             ->get();
 
+        /** Строки `tdr_processes` с `process_names_id` = ProcessName «Machining». */
+        $machiningProcessNameId = ProcessName::query()->where('name', 'Machining')->value('id');
+
+        $machiningProcessCatalogIds = [];
+        foreach ($workorders as $wo) {
+            foreach ($wo->tdrs as $tdr) {
+                foreach ($tdr->tdrProcesses as $tp) {
+                    if (
+                        $machiningProcessNameId === null
+                        || (int) ($tp->process_names_id ?? 0) !== (int) $machiningProcessNameId
+                    ) {
+                        continue;
+                    }
+                    foreach (TdrProcess::normalizeStoredProcessIds($tp->processes) as $id) {
+                        $machiningProcessCatalogIds[$id] = true;
+                    }
+                }
+            }
+        }
+        $machiningProcessCatalog = [];
+        if ($machiningProcessNameId !== null && $machiningProcessCatalogIds !== []) {
+            /** Только строки справочника `processes` с `process_names_id` = Machining (как в DataGrip). */
+            $machiningProcessCatalog = Process::query()
+                ->whereIn('id', array_keys($machiningProcessCatalogIds))
+                ->where('process_names_id', (int) $machiningProcessNameId)
+                ->select(['id', 'process'])
+                ->get()
+                ->keyBy(static fn (Process $p): int => (int) $p->id)
+                ->all();
+        }
+
         $rows = app(MachiningListingRowsBuilder::class)->build($workorders);
 
         $machiningLinesPerWo = $rows->countBy(static fn ($r) => (int) $r->workorder->id);
@@ -109,6 +143,7 @@ class MachiningController extends Controller
             'queuedCount' => $queuedCount,
             'canReorderMachining' => $user !== null && $user->roleIs(['Admin', 'Manager', 'Team Leader']),
             'machiningMachinists' => $machiningMachinists,
+            'machiningProcessCatalog' => $machiningProcessCatalog,
         ];
     }
 

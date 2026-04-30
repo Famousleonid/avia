@@ -12,6 +12,8 @@ use App\Models\Main;
 use App\Models\Manual;
 use App\Models\Material;
 use App\Models\Paint;
+use App\Models\Process;
+use App\Models\ProcessName;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
@@ -212,16 +214,27 @@ class MobileController extends Controller
 
         $machinistName = '';
         $authId = (int) (Auth::id() ?? 0);
-        $firstItem = $ctx['detailItems']->first();
-        if ($firstItem?->step !== null) {
-            $firstItem->step->loadMissing('machinist:id,name');
-            $assignedMachinistId = (int) ($firstItem->step->machinist_user_id ?? 0);
+        $firstProbe = $ctx['detailItems']->first();
+        if (($firstProbe->kind ?? '') === 'step_group' && isset($firstProbe->steps)) {
+            $firstProbe = $firstProbe->steps->first();
+        }
+        if ($firstProbe !== null && ($firstProbe->kind ?? '') === 'step' && $firstProbe->step !== null) {
+            $firstProbe->step->loadMissing('machinist:id,name');
+            $assignedMachinistId = (int) ($firstProbe->step->machinist_user_id ?? 0);
             if ($assignedMachinistId > 0 && $assignedMachinistId !== $authId) {
-                $machinistName = trim((string) ($firstItem->step->machinist?->name ?? ''));
+                $machinistName = trim((string) ($firstProbe->step->machinist?->name ?? ''));
             }
         }
 
         $stepMachinistIds = $ctx['detailItems']
+            ->flatMap(static function ($item) {
+                if (($item->kind ?? '') === 'step_group' && isset($item->steps)) {
+                    return $item->steps;
+                }
+
+                return collect([$item]);
+            })
+            ->filter(static fn ($item) => ($item->kind ?? '') === 'step' && ($item->step ?? null) !== null)
             ->map(static fn ($item) => (int) ($item->display_machinist_user_id ?? $item->step->machinist_user_id ?? 0))
             ->filter(static fn ($id) => $id > 0)
             ->unique()
@@ -527,6 +540,19 @@ class MobileController extends Controller
             return null;
         }
 
+        $machiningProcessCatalog = $this->mobileMachiningProcessCatalogForWorkorder($workorder);
+        foreach ($detailItems as $item) {
+            if (($item->kind ?? '') === 'pending_steps') {
+                $item->processes_label = self::mobileMachiningProcessesLabelForRow($item->row, $machiningProcessCatalog);
+
+                continue;
+            }
+            if (($item->kind ?? '') === 'step') {
+                $item->processes_label = self::mobileMachiningProcessesLabelForRow($item->row, $machiningProcessCatalog);
+            }
+        }
+        $detailItems = $this->groupMobileMachiningWorkorderDetailItems($detailItems);
+
         return [
             'workorder' => $workorder,
             'detailItems' => $detailItems,
@@ -537,9 +563,8 @@ class MobileController extends Controller
     {
         $user = Auth::user();
         abort_unless($user !== null && $user->roleIs(['Machining', 'Admin', 'Manager']), 403);
-        if (! $user->roleIs(['Admin', 'Manager'])) {
-            abort_unless((int) $machiningWorkStep->machinist_user_id === (int) $user->id, 403);
-        }
+        /** На mobile даты шага меняет только назначенный machinist (без обхода для Admin/Manager — чужую работу править с телефона нельзя). */
+        abort_unless((int) ($machiningWorkStep->machinist_user_id ?? 0) === (int) $user->id && (int) $user->id > 0, 403);
 
         return app(AdminMachiningController::class)->updateMachiningWorkStep($request, $machiningWorkStep);
     }
@@ -647,7 +672,6 @@ class MobileController extends Controller
             $allStepsFull = self::mobileMachiningStepsForRowUserAssignment($row)
                 ->sortBy('step_index')
                 ->values();
-            $fallbackMachinistId = (int) ($allStepsFull->first(static fn ($x) => (int) ($x->machinist_user_id ?? 0) > 0)?->machinist_user_id ?? 0);
 
             $allSteps = $allStepsFull;
             if ($restrictStepsToMachinistId !== null && $restrictStepsToMachinistId > 0) {
@@ -655,11 +679,52 @@ class MobileController extends Controller
                     ->filter(static fn ($s) => (int) ($s->machinist_user_id ?? 0) === $restrictStepsToMachinistId)
                     ->values();
             }
+
+            if ($allSteps->isEmpty()) {
+                if ($restrictStepsToMachinistId !== null && $restrictStepsToMachinistId > 0 && $allStepsFull->isNotEmpty()) {
+                    continue;
+                }
+
+                $parent = $row->edit_machining_process ?? $row->bushing_batch ?? $row->bushing_process ?? null;
+                if ($parent !== null && self::mobileMachiningDatePresent($parent->date_start ?? null)) {
+                    $dn = trim((string) ($row->detail_name ?? ''));
+                    $items->push((object) [
+                        'kind' => 'pending_steps',
+                        'step' => null,
+                        'row' => $row,
+                        'detail_name' => $dn !== '' ? $dn : '—',
+                        'detail_label' => trim((string) ($row->detail_label ?? '')),
+                        'detail_serial' => self::mobileMachiningRowDetailSerial($row),
+                        'date_parent' => $parent,
+                        'display_machinist_user_id' => null,
+                    ]);
+                }
+
+                continue;
+            }
+
+            $fallbackMachinistId = (int) ($allStepsFull->first(static fn ($x) => (int) ($x->machinist_user_id ?? 0) > 0)?->machinist_user_id ?? 0);
+
+            $parentForChain = $row->edit_machining_process ?? $row->bushing_batch ?? $row->bushing_process ?? null;
+            $parentSendStart = $parentForChain?->date_start;
+            $effectiveStartByStepIndex = [];
+            $prevFinishForChain = null;
+            foreach ($allStepsFull as $chainStep) {
+                $idx = (int) $chainStep->step_index;
+                if ($idx === 1) {
+                    $effectiveStartByStepIndex[$idx] = $chainStep->date_start ?? $parentSendStart;
+                } else {
+                    $effectiveStartByStepIndex[$idx] = $prevFinishForChain;
+                }
+                $prevFinishForChain = $chainStep->date_finish;
+            }
+
             foreach ($allSteps as $step) {
                 $assignedId = (int) ($step->machinist_user_id ?? 0);
                 $displayMachinistId = $assignedId > 0 ? $assignedId : ($fallbackMachinistId > 0 ? $fallbackMachinistId : 0);
 
                 [$detailName, $detailLabel] = self::mobileMachiningStepDetailLabels($step, $row);
+                $stepIndex = (int) $step->step_index;
                 $items->push((object) [
                     'kind' => 'step',
                     'step' => $step,
@@ -668,6 +733,8 @@ class MobileController extends Controller
                     'detail_label' => $detailLabel,
                     'detail_serial' => self::mobileMachiningStepDetailSerial($step, $row),
                     'date_parent' => self::machiningStepDateParent($step),
+                    /** Совпадает с эффективным стартом в {@see MachiningWorkStepsService::validateFullChain}: шаг 1 — свой start или Date Sent родителя; далее — finish предыдущего шага. */
+                    'effective_step_start' => $effectiveStartByStepIndex[$stepIndex] ?? null,
                     /** Для подписи возле Step: если на шаге пусто — как у другого шага той же строки Machining. Права редактирования — только по фактическому machinist_user_id шага. */
                     'display_machinist_user_id' => $displayMachinistId > 0 ? $displayMachinistId : null,
                 ]);
@@ -675,6 +742,180 @@ class MobileController extends Controller
         }
 
         return $items;
+    }
+
+    /**
+     * Каталог Process для строк Machining на WO (как на admin machining index).
+     *
+     * @return array<int, Process>
+     */
+    private function mobileMachiningProcessCatalogForWorkorder(Workorder $workorder): array
+    {
+        $machiningPnId = ProcessName::query()->where('name', 'Machining')->value('id');
+        if ($machiningPnId === null) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($workorder->tdrs as $tdr) {
+            foreach ($tdr->tdrProcesses as $tp) {
+                if ((int) ($tp->process_names_id ?? 0) !== (int) $machiningPnId) {
+                    continue;
+                }
+                foreach (TdrProcess::normalizeStoredProcessIds($tp->processes) as $pid) {
+                    if ($pid > 0) {
+                        $ids[$pid] = true;
+                    }
+                }
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return Process::query()
+            ->whereIn('id', array_keys($ids))
+            ->where('process_names_id', (int) $machiningPnId)
+            ->select(['id', 'process'])
+            ->get()
+            ->keyBy(static fn (Process $p): int => (int) $p->id)
+            ->all();
+    }
+
+    /**
+     * Текст процессов для строки machining (TDR Machining — поле process; bushing — тексты с линий).
+     *
+     * @param  array<int, Process>  $machiningCatalog
+     */
+    private static function mobileMachiningProcessesLabelForRow(object $row, array $machiningCatalog): string
+    {
+        $tp = $row->edit_machining_process ?? null;
+        if ($tp instanceof TdrProcess) {
+            $parts = [];
+            foreach (TdrProcess::normalizeStoredProcessIds($tp->processes) as $id) {
+                $pr = $machiningCatalog[$id] ?? null;
+                if ($pr === null) {
+                    continue;
+                }
+                $t = trim((string) ($pr->process ?? ''));
+                if ($t !== '') {
+                    $parts[] = $t;
+                }
+            }
+
+            return implode(' · ', $parts);
+        }
+
+        $batch = $row->bushing_batch ?? null;
+        if ($batch instanceof WoBushingBatch) {
+            $batch->loadMissing(['woBushingProcesses.process']);
+            $parts = [];
+            foreach ($batch->woBushingProcesses as $wp) {
+                $t = trim((string) ($wp->process?->process ?? ''));
+                if ($t !== '') {
+                    $parts[] = $t;
+                }
+            }
+
+            return collect($parts)->unique()->implode(' · ');
+        }
+
+        $bp = $row->bushing_process ?? null;
+        if ($bp instanceof WoBushingProcess) {
+            $bp->loadMissing(['line.processes.process']);
+            $parts = [];
+            foreach ($bp->line?->processes ?? [] as $lineProc) {
+                $t = trim((string) ($lineProc->process?->process ?? ''));
+                if ($t !== '') {
+                    $parts[] = $t;
+                }
+            }
+
+            return collect($parts)->unique()->implode(' · ');
+        }
+
+        return '';
+    }
+
+    private static function mobileMachiningStepGroupId(object $item): ?string
+    {
+        if (($item->kind ?? '') !== 'step' || ! isset($item->row)) {
+            return null;
+        }
+        $row = $item->row;
+        $woId = (int) ($row->workorder->id ?? 0);
+        if ($row->edit_machining_process ?? null) {
+            return $woId . ':tp:' . (int) $row->edit_machining_process->id;
+        }
+        if ($row->bushing_batch ?? null) {
+            return $woId . ':bb:' . (int) $row->bushing_batch->id;
+        }
+        if ($row->bushing_process ?? null) {
+            return $woId . ':bp:' . (int) $row->bushing_process->id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Объединяет подряд идущие шаги одной строки machining в один элемент step_group.
+     *
+     * @param  Collection<int, object>  $items
+     * @return Collection<int, object>
+     */
+    private function groupMobileMachiningWorkorderDetailItems(Collection $items): Collection
+    {
+        $out = collect();
+        $buffer = [];
+        $bufferGroup = null;
+
+        foreach ($items as $item) {
+            $gk = self::mobileMachiningStepGroupId($item);
+            if ($gk === null) {
+                $this->flushMobileMachiningStepGroupBuffer($buffer, $out);
+                $buffer = [];
+                $bufferGroup = null;
+                $out->push($item);
+
+                continue;
+            }
+            if ($bufferGroup !== null && $gk !== $bufferGroup) {
+                $this->flushMobileMachiningStepGroupBuffer($buffer, $out);
+                $buffer = [];
+            }
+            $bufferGroup = $gk;
+            $buffer[] = $item;
+        }
+        $this->flushMobileMachiningStepGroupBuffer($buffer, $out);
+
+        return $out;
+    }
+
+    /**
+     * @param  array<int, object>  $buffer
+     */
+    private function flushMobileMachiningStepGroupBuffer(array $buffer, Collection $out): void
+    {
+        if ($buffer === []) {
+            return;
+        }
+        if (count($buffer) === 1) {
+            $out->push($buffer[0]);
+
+            return;
+        }
+        $first = $buffer[0];
+        $out->push((object) [
+            'kind' => 'step_group',
+            'steps' => collect($buffer),
+            'row' => $first->row,
+            'detail_name' => $first->detail_name,
+            'detail_label' => $first->detail_label,
+            'detail_serial' => $first->detail_serial,
+            'date_parent' => $first->date_parent,
+            'processes_label' => $first->processes_label ?? '',
+        ]);
     }
 
     public function show(Workorder $workorder)
@@ -882,6 +1123,28 @@ class MobileController extends Controller
         }
 
         return self::mobileMachiningStepsForRow($row);
+    }
+
+    /** SN по строке списка Machining (без шага), только TDR-деталь. */
+    private static function mobileMachiningRowDetailSerial(object $row): string
+    {
+        $tp = $row->edit_machining_process ?? null;
+        if ($tp === null) {
+            return '';
+        }
+        $tp->loadMissing('tdr');
+        $tdr = $tp->tdr;
+        if ($tdr === null) {
+            return '';
+        }
+        foreach (['serial_number', 'assy_serial_number'] as $attr) {
+            $v = trim((string) ($tdr->{$attr} ?? ''));
+            if ($v !== '') {
+                return $v;
+            }
+        }
+
+        return '';
     }
 
     /** SN детали по строке Machining: только у соответствующего {@see Tdr} (не serial WO). */
