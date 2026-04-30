@@ -1,4 +1,4 @@
-﻿@extends('admin.master')
+@extends('admin.master')
 
 @section('style')
     @include('admin.mains.partials.styles')
@@ -18,6 +18,13 @@
         }
         .machining-table-outer.machining-table-scroll {
             max-height: calc(100dvh - 50px);
+        }
+        .machining-header-toolbar #machiningTableSearch {
+            width: 200px;
+            max-width: 100%;
+        }
+        .machining-header-toolbar .machining-header-hide-closed {
+            padding-bottom: 0.2rem;
         }
         /* Нижний блок lost parts — одна рамка (без вложенного .paint-page-bottom) */
         .machining-lost-fieldset {
@@ -270,8 +277,8 @@
         <div class="card border-0 dir-page shadow-sm">
             <div class="card-header p-0 mx-0 bg-transparent border-0 dir-topbar">
                 <div class="dir-topbar px-3 py-2">
-                    <div class="row g-2 align-items-center flex-nowrap">
-                        <div class="col-auto flex-shrink-0">
+                    <div class="row g-2 align-items-end flex-wrap machining-header-toolbar pb-1">
+                        <div class="col-auto flex-shrink-0 align-self-center">
                             <h5 class="mb-0 text-info text-nowrap"
                                 title="{{ $queuedCount }} workorder(s) in machining queue">
                                 Machining
@@ -281,19 +288,45 @@
                                 <span class="text-secondary">)</span>
                             </h5>
                         </div>
-                        <div class="col min-w-0 machining-header-search">
+                        <div class="col-auto flex-shrink-0 machining-header-search">
                             <label for="machiningTableSearch" class="visually-hidden">Search table</label>
                             <input type="search"
                                    id="machiningTableSearch"
-                                   class="form-control form-control-sm dir-input w-100"
+                                   class="form-control form-control-sm dir-input"
                                    placeholder="Search (WO, customer, P/N, owner, dates…)"
                                    autocomplete="off">
                         </div>
-                        <div class="col-auto flex-shrink-0 ps-md-2">
-                            <div class="form-check form-check-inline mb-0 pt-1">
+                        <div class="col-auto flex-shrink-0 machining-header-hide-closed">
+                            <div class="form-check form-check-inline mb-0">
                                 <input class="form-check-input" type="checkbox" id="machiningHideClosed" value="1" autocomplete="off" checked>
                                 <label class="form-check-label text-nowrap small" for="machiningHideClosed">Hide closed</label>
                             </div>
+                        </div>
+                        <div class="col-auto flex-shrink-0">
+                            <label for="machiningCompletedMachinistFilter" class="form-label small mb-0 text-secondary text-nowrap">Machinist (completed)</label>
+                            <select id="machiningCompletedMachinistFilter"
+                                    class="form-select form-select-sm dir-input"
+                                    style="min-width: 11rem"
+                                    autocomplete="off">
+                                <option value="">Any</option>
+                                @foreach($machiningMachinists ?? [] as $mu)
+                                    <option value="{{ (int) $mu->id }}">{{ $mu->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-auto flex-shrink-0">
+                            <label for="machiningCompletedDateFrom" class="form-label small mb-0 text-secondary text-nowrap">Finish from</label>
+                            <input type="date"
+                                   id="machiningCompletedDateFrom"
+                                   class="form-control form-control-sm dir-input"
+                                   autocomplete="off">
+                        </div>
+                        <div class="col-auto flex-shrink-0">
+                            <label for="machiningCompletedDateTo" class="form-label small mb-0 text-secondary text-nowrap">to</label>
+                            <input type="date"
+                                   id="machiningCompletedDateTo"
+                                   class="form-control form-control-sm dir-input"
+                                   autocomplete="off">
                         </div>
                     </div>
                 </div>
@@ -312,6 +345,7 @@
                                 <col class="machining-col-customer">
                                 <col class="machining-col-aircraft">
                                 <col class="machining-col-pn">
+                                <col class="machining-col-date">
                                 <col class="machining-col-work">
                                 <col class="machining-col-date">
                                 <col class="machining-col-date">
@@ -326,6 +360,7 @@
                                     <th>Customer</th>
                                     <th>Component PN <br> AirCraft Type</th>
                                     <th>Part</th>
+                                    <th>Date send</th>
                                     <th>Working Steps <br> Machinist</th>
                                     <th>Date start</th>
                                     <th>Date finish</th>

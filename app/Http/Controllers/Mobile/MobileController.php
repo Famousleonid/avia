@@ -36,15 +36,6 @@ use Illuminate\Validation\ValidationException;
 
 class MobileController extends Controller
 {
-    /** @var list<string> */
-    private const MOBILE_MACHINING_NO_WORK_FOR_USER_MESSAGES = [
-        'You have no machining steps assigned on this work order.',
-        'There is no machining work for you on this work order.',
-        'This work order has no machining steps assigned to you.',
-        'You are not assigned to any machining work on this work order.',
-        'No matching machining tasks for you on this work order.',
-    ];
-
     public function index()
     {
         if (Auth::user()?->roleIs('Paint')) {
@@ -163,6 +154,19 @@ class MobileController extends Controller
         return redirect()->route('mobile.paint', ['tab' => 'lost'])->with('success', 'Lost part deleted');
     }
 
+    /**
+     * ?set_my_wo=0|1 на странице карточки WO — сохранить сессию и остаться на этом URL без query.
+     */
+    private function redirectMachiningMyWoSessionFromQuery(Request $request): ?RedirectResponse
+    {
+        if (! $request->has('set_my_wo')) {
+            return null;
+        }
+        session(['mobile_machining_my_wo' => $request->boolean('set_my_wo')]);
+
+        return redirect()->to($request->url());
+    }
+
     public function machining(Request $request)
     {
         $user = Auth::user();
@@ -181,15 +185,13 @@ class MobileController extends Controller
         }
         $myWo = (bool) session('mobile_machining_my_wo', false);
 
-        $workorders = $this->mobileMachiningWorkordersQuery($myWo)->get();
-        // All: все открытые строки machining; My: только строки, где у пользователя есть шаг.
+        $workorders = $this->mobileMachiningWorkordersQuery()->get();
+        /** Те же строки что machining.index; режим «Мои WO» оставляет только строки с шагом, назначенным пользователю. */
         $rows = $this->buildMobileMachiningFilteredRows($workorders, $user, $myWo);
-        $uid = (int) ($user->id ?? 0);
-        if ($myWo) {
-            $rows = $rows
-                ->filter(static fn (object $row) => self::mobileMachiningRowHasAssignedStepForUser($row, $uid))
-                ->values();
-        }
+        /** На экране списка — только WO с незавершённой строкой Machining (Date finish пустой). */
+        $rows = $rows
+            ->filter(static fn (object $row) => ! self::mobileMachiningDatePresent($row->date_finish ?? null))
+            ->values();
         $woList = $this->aggregateMobileMachiningWorkorderList($rows);
 
         return view('mobile.pages.machining', [
@@ -197,23 +199,60 @@ class MobileController extends Controller
         ]);
     }
 
-    public function machiningWorkorder(Workorder $workorder)
+    public function machiningWorkorder(Request $request, Workorder $workorder)
     {
+        if ($redirectMyWo = $this->redirectMachiningMyWoSessionFromQuery($request)) {
+            return $redirectMyWo;
+        }
+
         $ctx = $this->getMobileMachiningWorkorderContext($workorder);
         if ($ctx instanceof RedirectResponse) {
             return $ctx;
         }
 
+        $machinistName = '';
+        $authId = (int) (Auth::id() ?? 0);
+        $firstItem = $ctx['detailItems']->first();
+        if ($firstItem?->step !== null) {
+            $firstItem->step->loadMissing('machinist:id,name');
+            $assignedMachinistId = (int) ($firstItem->step->machinist_user_id ?? 0);
+            if ($assignedMachinistId > 0 && $assignedMachinistId !== $authId) {
+                $machinistName = trim((string) ($firstItem->step->machinist?->name ?? ''));
+            }
+        }
+
+        $stepMachinistIds = $ctx['detailItems']
+            ->map(static fn ($item) => (int) ($item->display_machinist_user_id ?? $item->step->machinist_user_id ?? 0))
+            ->filter(static fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        $machiningStepMachinistNames = [];
+        if ($stepMachinistIds->isNotEmpty()) {
+            $machiningStepMachinistNames = User::query()
+                ->withTrashed()
+                ->whereIn('id', $stepMachinistIds->all())
+                ->get(['id', 'name'])
+                ->mapWithKeys(static fn (User $u) => [(int) $u->id => trim((string) ($u->name ?? ''))])
+                ->all();
+        }
+
         return view('mobile.pages.machining-workorder', [
             'workorder' => $ctx['workorder'],
             'detailItems' => $ctx['detailItems'],
+            'machinistName' => $machinistName,
+            'machiningStepMachinistNames' => $machiningStepMachinistNames,
             'machiningPhotoCount' => $ctx['workorder']->getMedia('Machining')->count(),
             'pdfCount' => $ctx['workorder']->getMedia('pdfs')->count(),
         ]);
     }
 
-    public function machiningWorkorderPhotos(Workorder $workorder)
+    public function machiningWorkorderPhotos(Request $request, Workorder $workorder)
     {
+        if ($redirectMyWo = $this->redirectMachiningMyWoSessionFromQuery($request)) {
+            return $redirectMyWo;
+        }
+
         $ctx = $this->getMobileMachiningWorkorderContext($workorder);
         if ($ctx instanceof RedirectResponse) {
             return $ctx;
@@ -246,8 +285,12 @@ class MobileController extends Controller
         ]);
     }
 
-    public function machiningWorkorderPdfs(Workorder $workorder)
+    public function machiningWorkorderPdfs(Request $request, Workorder $workorder)
     {
+        if ($redirectMyWo = $this->redirectMachiningMyWoSessionFromQuery($request)) {
+            return $redirectMyWo;
+        }
+
         $ctx = $this->getMobileMachiningWorkorderContext($workorder);
         if ($ctx instanceof RedirectResponse) {
             return $ctx;
@@ -287,14 +330,14 @@ class MobileController extends Controller
         if ($user === null || ! $user->roleIs(['Machining', 'Admin', 'Manager'])) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
-        if (! $workorder->approve_at || $workorder->done_at !== null || $workorder->is_draft) {
+        if (! $workorder->isOpenForMachiningBoard()) {
             return response()->json(['success' => false, 'message' => 'Not found.'], 404);
         }
         $ctx = $this->mobileMachiningWorkorderContextCore($workorder, $user);
         if ($ctx === null) {
             return response()->json([
                 'success' => false,
-                'message' => $this->randomMobileMachiningNoWorkForUserMessage(),
+                'message' => 'This work order is not on the machining board or has no machining steps.',
             ], 403);
         }
 
@@ -349,14 +392,14 @@ class MobileController extends Controller
         if ($user === null || ! $user->roleIs(['Machining', 'Admin', 'Manager'])) {
             return response()->json(['success' => false, 'message' => 'Forbidden.'], 403);
         }
-        if (! $workorder->approve_at || $workorder->done_at !== null || $workorder->is_draft) {
+        if (! $workorder->isOpenForMachiningBoard()) {
             return response()->json(['success' => false, 'message' => 'Not found.'], 404);
         }
         $ctx = $this->mobileMachiningWorkorderContextCore($workorder, $user);
         if ($ctx === null) {
             return response()->json([
                 'success' => false,
-                'message' => $this->randomMobileMachiningNoWorkForUserMessage(),
+                'message' => 'This work order is not on the machining board or has no machining steps.',
             ], 403);
         }
 
@@ -443,18 +486,13 @@ class MobileController extends Controller
         $user = Auth::user();
         abort_unless($user !== null && $user->roleIs(['Machining', 'Admin', 'Manager']), 403);
 
-        abort_unless(
-            $workorder->approve_at
-            && $workorder->done_at === null
-            && ! $workorder->is_draft,
-            404
-        );
+        abort_unless($workorder->isOpenForMachiningBoard(), 404);
 
         $ctx = $this->mobileMachiningWorkorderContextCore($workorder, $user);
         if ($ctx === null) {
             return redirect()
                 ->route('mobile.machining')
-                ->with('error', $this->randomMobileMachiningNoWorkForUserMessage());
+                ->with('error', 'This work order is not on the machining board or has no machining steps.');
         }
 
         return $ctx;
@@ -467,16 +505,24 @@ class MobileController extends Controller
     {
         $workorder->loadMissing($this->mobileMachiningRelations());
 
-        $rows = $this->buildMobileMachiningFilteredRows(collect([$workorder]), $user, false);
-        $uid = (int) ($user->id ?? 0);
-        $rows = $rows
-            ->filter(static fn (object $row) => self::mobileMachiningRowHasAssignedStepForUser($row, $uid))
-            ->values();
+        $rows = $this->buildMobileMachiningFilteredRows(collect([$workorder]), $user, false)->values();
         if ($rows->isEmpty()) {
             return null;
         }
 
-        $detailItems = $this->buildMobileMachiningWorkorderDetailItems($rows, $uid);
+        $uid = (int) ($user->id ?? 0);
+        $onlyMine = (bool) session('mobile_machining_my_wo', false);
+        if ($onlyMine && $uid > 0) {
+            $rows = $rows
+                ->filter(static fn (object $row) => self::mobileMachiningRowHasAssignedStepForUser($row, $uid))
+                ->values();
+            if ($rows->isEmpty()) {
+                return null;
+            }
+        }
+
+        $restrictStepsToMachinistId = ($onlyMine && $uid > 0) ? $uid : null;
+        $detailItems = $this->buildMobileMachiningWorkorderDetailItems($rows, $restrictStepsToMachinistId);
         if ($detailItems->isEmpty()) {
             return null;
         }
@@ -485,11 +531,6 @@ class MobileController extends Controller
             'workorder' => $workorder,
             'detailItems' => $detailItems,
         ];
-    }
-
-    private function randomMobileMachiningNoWorkForUserMessage(): string
-    {
-        return collect(self::MOBILE_MACHINING_NO_WORK_FOR_USER_MESSAGES)->random();
     }
 
     public function updateMachiningWorkStepMobile(Request $request, MachiningWorkStep $machiningWorkStep): JsonResponse
@@ -531,56 +572,34 @@ class MobileController extends Controller
         ];
     }
 
-    private function mobileMachiningWorkordersQuery(bool $myWo)
+    /**
+     * Тот же набор WO и eager-load, что у {@see MachiningController} machining index (без сужения по роли в SQL).
+     */
+    private function mobileMachiningWorkordersQuery()
     {
         return Workorder::query()
-            ->whereNotNull('approve_at')
             ->whereNull('done_at')
-            ->where('is_draft', 0)
-            ->when($myWo, static function ($q): void {
-                $uid = (int) Auth::id();
-                $q->where(static function ($w) use ($uid): void {
-                    $w->where('user_id', $uid)
-                        ->orWhereHas('tdrs', static function ($tdrQ) use ($uid): void {
-                            $tdrQ->whereHas('tdrProcesses', static function ($tpQ) use ($uid): void {
-                                $tpQ->whereHas('processName', static function ($pnQ): void {
-                                    $pnQ->where('name', 'Machining');
-                                })->whereHas('machiningWorkSteps', static function ($s) use ($uid): void {
-                                    $s->where('machinist_user_id', $uid);
-                                });
-                            });
-                        })
-                        ->orWhereHas('woBushingProcesses', static function ($wbpQ) use ($uid): void {
-                            $wbpQ->where(static function ($inner) use ($uid): void {
-                                $inner->whereHas('machiningWorkSteps', static function ($s) use ($uid): void {
-                                    $s->where('machinist_user_id', $uid);
-                                })->orWhereHas('batch.machiningWorkSteps', static function ($s) use ($uid): void {
-                                    $s->where('machinist_user_id', $uid);
-                                });
-                            });
-                        });
-                });
-            })
-            ->with($this->mobileMachiningRelations())
+            ->whereMachiningHasDateSent()
+            ->with(array_merge([
+                'user:id,name',
+                'customer:id,name',
+            ], $this->mobileMachiningRelations()))
             ->orderByRaw('CASE WHEN machining_queue_order IS NULL THEN 1 ELSE 0 END ASC')
             ->orderBy('machining_queue_order', 'asc')
             ->orderBy('number', 'asc');
     }
 
     /**
-     * @param  bool  $onlyRowsForCurrentUser  true = «My»: только строки, где пользователь участвует в шагах (как раньше).
-     *                                       false = «All»: все открытые строки machining без фильтра по machinist.
+     * @param  bool  $onlyMyMachiningSteps  true = только строки с шагом machinist = текущий пользователь (как «Мои WO»).
      */
-    private function buildMobileMachiningFilteredRows(Collection $workorders, ?User $user = null, bool $onlyRowsForCurrentUser = true): Collection
+    private function buildMobileMachiningFilteredRows(Collection $workorders, ?User $user = null, bool $onlyMyMachiningSteps = false): Collection
     {
         $user = $user ?? Auth::user();
         $rows = app(MachiningListingRowsBuilder::class)->build($workorders);
         $uid = (int) ($user?->id ?? 0);
 
-        $rows = $rows->filter(static fn (object $row) => ! self::mobileMachiningRowIsClosed($row));
-
-        if ($onlyRowsForCurrentUser) {
-            $rows = $rows->filter(static fn (object $row) => self::mobileMachiningRowHasUserInSteps($row, $uid));
+        if ($onlyMyMachiningSteps && $uid > 0) {
+            $rows = $rows->filter(static fn (object $row) => self::mobileMachiningRowHasAssignedStepForUser($row, $uid));
         }
 
         return $rows->values();
@@ -614,23 +633,32 @@ class MobileController extends Controller
                 return $a->queue_sort <=> $b->queue_sort;
             }
 
-            return (int) $b->workorder->number <=> (int) $a->workorder->number;
+            return (int) $a->workorder->number <=> (int) $b->workorder->number;
         })->values();
     }
 
-    private function buildMobileMachiningWorkorderDetailItems(Collection $rows, int $userId): Collection
+    /**
+     * @param  ?int  $restrictStepsToMachinistId  только шаги с machinist_user_id = этому id (режим «My WO» на карточке).
+     */
+    private function buildMobileMachiningWorkorderDetailItems(Collection $rows, ?int $restrictStepsToMachinistId = null): Collection
     {
         $items = collect();
         foreach ($rows as $row) {
-            $allSteps = self::mobileMachiningStepsForRowUserAssignment($row);
-            $mySteps = $allSteps
-                ->filter(static fn ($s) => (int) ($s->machinist_user_id ?? 0) === $userId)
+            $allStepsFull = self::mobileMachiningStepsForRowUserAssignment($row)
                 ->sortBy('step_index')
                 ->values();
-            if ($mySteps->isEmpty()) {
-                continue;
+            $fallbackMachinistId = (int) ($allStepsFull->first(static fn ($x) => (int) ($x->machinist_user_id ?? 0) > 0)?->machinist_user_id ?? 0);
+
+            $allSteps = $allStepsFull;
+            if ($restrictStepsToMachinistId !== null && $restrictStepsToMachinistId > 0) {
+                $allSteps = $allStepsFull
+                    ->filter(static fn ($s) => (int) ($s->machinist_user_id ?? 0) === $restrictStepsToMachinistId)
+                    ->values();
             }
-            foreach ($mySteps as $step) {
+            foreach ($allSteps as $step) {
+                $assignedId = (int) ($step->machinist_user_id ?? 0);
+                $displayMachinistId = $assignedId > 0 ? $assignedId : ($fallbackMachinistId > 0 ? $fallbackMachinistId : 0);
+
                 [$detailName, $detailLabel] = self::mobileMachiningStepDetailLabels($step, $row);
                 $items->push((object) [
                     'kind' => 'step',
@@ -638,7 +666,10 @@ class MobileController extends Controller
                     'row' => $row,
                     'detail_name' => $detailName,
                     'detail_label' => $detailLabel,
+                    'detail_serial' => self::mobileMachiningStepDetailSerial($step, $row),
                     'date_parent' => self::machiningStepDateParent($step),
+                    /** Для подписи возле Step: если на шаге пусто — как у другого шага той же строки Machining. Права редактирования — только по фактическому machinist_user_id шага. */
+                    'display_machinist_user_id' => $displayMachinistId > 0 ? $displayMachinistId : null,
                 ]);
             }
         }
@@ -782,15 +813,6 @@ class MobileController extends Controller
         ], $unit->wasRecentlyCreated ? 201 : 200);
     }
 
-    /**
-     * Строка со стартом и финишем (в т.ч. финиш с последнего шага после build) — не показываем на mobile machining.
-     */
-    private static function mobileMachiningRowIsClosed(object $row): bool
-    {
-        return self::mobileMachiningDatePresent($row->date_start ?? null)
-            && self::mobileMachiningDatePresent($row->date_finish ?? null);
-    }
-
     private static function mobileMachiningDatePresent(mixed $d): bool
     {
         if ($d === null) {
@@ -809,30 +831,6 @@ class MobileController extends Controller
     private static function mobileMachiningRowHasAssignedStepForUser(object $row, int $userId): bool
     {
         foreach (self::mobileMachiningStepsForRowUserAssignment($row) as $step) {
-            if ((int) ($step->machinist_user_id ?? 0) === $userId) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Если есть записи machining steps (на batch — также на дочерних wo_bushing_process) — строка только
-     * при назначении текущего пользователя на шаг; без шагов в БД — строка общая.
-     */
-    private static function mobileMachiningRowHasUserInSteps(object $row, int $userId): bool
-    {
-        $steps = self::mobileMachiningStepsForRowUserAssignment($row);
-        if ($steps->isEmpty()) {
-            if (self::mobileMachiningParentWorkingStepsCount($row) >= 1) {
-                return false;
-            }
-
-            return true;
-        }
-
-        foreach ($steps as $step) {
             if ((int) ($step->machinist_user_id ?? 0) === $userId) {
                 return true;
             }
@@ -884,6 +882,37 @@ class MobileController extends Controller
         }
 
         return self::mobileMachiningStepsForRow($row);
+    }
+
+    /** SN детали по строке Machining: только у соответствующего {@see Tdr} (не serial WO). */
+    private static function mobileMachiningStepDetailSerial(MachiningWorkStep $step, object $row): string
+    {
+        if (! $step->tdr_process_id) {
+            return '';
+        }
+
+        $tpid = (int) $step->tdr_process_id;
+        $embTp = $row->edit_machining_process ?? null;
+        $tdr = null;
+        if ($embTp !== null && (int) $embTp->id === $tpid) {
+            $embTp->loadMissing('tdr');
+            $tdr = $embTp->tdr;
+        } else {
+            $tdr = TdrProcess::query()->with(['tdr'])->find($tpid)?->tdr;
+        }
+
+        if ($tdr === null) {
+            return '';
+        }
+
+        foreach (['serial_number', 'assy_serial_number'] as $attr) {
+            $v = trim((string) ($tdr->{$attr} ?? ''));
+            if ($v !== '') {
+                return $v;
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -967,25 +996,6 @@ class MobileController extends Controller
         }
 
         return $merged->unique('id')->values();
-    }
-
-    private static function mobileMachiningParentWorkingStepsCount(object $row): int
-    {
-        $p = $row->edit_machining_process ?? $row->bushing_batch ?? $row->bushing_process ?? null;
-        if ($p === null) {
-            return 0;
-        }
-        if ($p instanceof WoBushingProcess) {
-            $n = (int) ($p->working_steps_count ?? 0);
-            if ($n >= 1) {
-                return $n;
-            }
-            $p->loadMissing('batch');
-
-            return (int) ($p->batch?->working_steps_count ?? 0);
-        }
-
-        return (int) ($p->working_steps_count ?? 0);
     }
 
     /**

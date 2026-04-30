@@ -17,6 +17,19 @@
             font-weight: 600;
             color: #e9ecef;
             margin-bottom: .35rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: .5rem;
+        }
+        .machining-detail-wo-title .machining-detail-wo-machinist {
+            font-weight: 400;
+            min-width: 0;
+            max-width: 60%;
+            text-align: right;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .machining-action-row .btn {
             font-size: .78rem;
@@ -83,6 +96,7 @@
 @section('content')
     @php
         $detailItems = $detailItems ?? collect();
+        $machiningStepMachinistNames = $machiningStepMachinistNames ?? [];
         $fmtDisp = static function ($d) {
             if (!$d) {
                 return '...';
@@ -94,7 +108,12 @@
 
     <div class="container-fluid machining-mobile-wrap">
         <div class="machining-mobile-card">
-            <div class="machining-detail-wo-title">WO {{ $workorder->number }}</div>
+            <div class="machining-detail-wo-title">
+                <span>WO {{ $workorder->number }}</span>
+                @if(filled($machinistName ?? null))
+                    <span class="text-secondary machining-detail-wo-machinist" title="{{ $machinistName }}">{{ $machinistName }}</span>
+                @endif
+            </div>
 
             @php
                 $machiningPhotoCount = $machiningPhotoCount ?? 0;
@@ -119,34 +138,98 @@
             @foreach($detailItems as $item)
                 @php
                     $step = $item->step;
+                    $listRow = $item->row ?? null;
                     $p = $item->date_parent ?? null;
+                    $sendDisp = $p && $p->date_start ? $fmtDisp($p->date_start) : '—';
+                    $workStartResolved = $step->date_start ?? $listRow?->date_start;
+                    $startYmd = $workStartResolved instanceof \DateTimeInterface
+                        ? $workStartResolved->format('Y-m-d')
+                        : '';
+                    $startDisp = $fmtDisp($workStartResolved instanceof \DateTimeInterface ? $workStartResolved : null);
                     $finishYmd = $step->date_finish?->format('Y-m-d') ?? '';
                     $finishDisp = $fmtDisp($step->date_finish);
-                    $startLine = $p && $p->date_start ? $fmtDisp($p->date_start) : '—';
+                    $isStepOne = (int) ($step->step_index ?? 0) === 1;
+                    $authMachining = Auth::user();
+                    $canEditStep = $authMachining !== null
+                        && ($authMachining->roleIs(['Admin', 'Manager'])
+                            || (int) ($step->machinist_user_id ?? 0) === (int) $authMachining->id);
+                    $assignedMachinistId = (int) ($step->machinist_user_id ?? 0);
+                    $displayMachinistId = (int) ($item->display_machinist_user_id ?? $assignedMachinistId);
+                    $hideOwnMachinistNextToStep = $authMachining !== null
+                        && $authMachining->roleIs(['Machining'])
+                        && $assignedMachinistId > 0
+                        && $assignedMachinistId === (int) ($authMachining->id ?? 0);
+                    $stepMachinistName = '';
+                    if ($assignedMachinistId > 0 && $assignedMachinistId === $displayMachinistId) {
+                        $step->loadMissing([
+                            'machinist' => static fn ($q) => $q->withTrashed(),
+                        ]);
+                        $stepMachinistName = trim((string) ($step->machinist?->name ?? ''));
+                    }
+                    if ($stepMachinistName === '' && $displayMachinistId > 0) {
+                        $nm = $machiningStepMachinistNames[$displayMachinistId] ?? $machiningStepMachinistNames[(string) $displayMachinistId] ?? '';
+                        $stepMachinistName = trim((string) $nm);
+                    }
+                    $stepMachinistDisplay = $stepMachinistName !== '' ? $stepMachinistName : ($displayMachinistId > 0 ? 'user #' . $displayMachinistId : '');
+                    $showStepMachinistName = $displayMachinistId > 0 && ! $hideOwnMachinistNextToStep;
                 @endphp
                 <div class="machining-detail-block js-detail-block" data-kind="step">
                     <div class="machining-detail-line">
-                        {{ $item->detail_name ?? '—' }}<br>
-                        <span class="text-secondary">{{ $item->detail_label ?? '' }}</span>
+                        <div class="d-flex justify-content-between">
+                            <div> {{ $item->detail_name ?? '—' }}</div>
+                            <div class="text-end">
+                                <span>Step {{ $step->step_index }}</span>@if($showStepMachinistName)<span class="text-secondary fw-normal"> · {{ $stepMachinistDisplay }}</span>@endif
+                            </div>
+                        </div>
+                        <span class="text-secondary">
+                            PN {{ $item->detail_label ?? '—' }}@if(filled($item->detail_serial ?? null)) · SN {{ $item->detail_serial }}@endif
+                        </span>
                     </div>
                     <div class="machining-detail-dates-step">
-                        <span class="k">Start</span>
-                        <span class="v">{{ $startLine }}</span>
+                        <span class="k" title="Date sent">Sent</span>
+                        <span class="v">{{ $sendDisp }}</span>
+                        <span class="k" title="Work start (step 1)">Start</span>
+                        @if($isStepOne)
+                            @if($canEditStep)
+                                <div class="step-finish-form-wrap machining-mobile-date">
+                                    <form method="POST" action="{{ route('mobile.machining.steps.update', $step) }}"
+                                          class="js-mobile-machining-step-form m-0">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="date_start" value="{{ $startYmd }}" class="js-mobile-date-real">
+                                        <input type="date" value="{{ $startYmd }}" class="d-none js-mobile-date-picker" tabindex="-1">
+                                        <input type="text"
+                                               class="form-control form-control-sm bg-dark text-light js-mobile-date-display w-100 {{ $startYmd !== '' ? 'has-finish' : '' }}"
+                                               value="{{ $startYmd !== '' ? $startDisp : '...' }}"
+                                               placeholder="…"
+                                               readonly>
+                                    </form>
+                                </div>
+                            @else
+                                <span class="v">{{ $startYmd !== '' ? $startDisp : '—' }}</span>
+                            @endif
+                        @else
+                            <span class="v">—</span>
+                        @endif
                         <span class="k">Finish</span>
-                        <div class="step-finish-form-wrap machining-mobile-date">
-                            <form method="POST" action="{{ route('mobile.machining.steps.update', $step) }}"
-                                  class="js-mobile-machining-step-form m-0">
-                                @csrf
-                                @method('PATCH')
-                                <input type="hidden" name="date_finish" value="{{ $finishYmd }}" class="js-mobile-date-real">
-                                <input type="date" value="{{ $finishYmd }}" class="d-none js-mobile-date-picker" tabindex="-1">
-                                <input type="text"
-                                       class="form-control form-control-sm bg-dark text-light js-mobile-date-display w-100 {{ $finishYmd !== '' ? 'has-finish' : '' }}"
-                                       value="{{ $finishYmd !== '' ? $finishDisp : '...' }}"
-                                       placeholder="…"
-                                       readonly>
-                            </form>
-                        </div>
+                        @if($canEditStep)
+                            <div class="step-finish-form-wrap machining-mobile-date">
+                                <form method="POST" action="{{ route('mobile.machining.steps.update', $step) }}"
+                                      class="js-mobile-machining-step-form m-0">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="date_finish" value="{{ $finishYmd }}" class="js-mobile-date-real">
+                                    <input type="date" value="{{ $finishYmd }}" class="d-none js-mobile-date-picker" tabindex="-1">
+                                    <input type="text"
+                                           class="form-control form-control-sm bg-dark text-light js-mobile-date-display w-100 {{ $finishYmd !== '' ? 'has-finish' : '' }}"
+                                           value="{{ $finishYmd !== '' ? $finishDisp : '...' }}"
+                                           placeholder="…"
+                                           readonly>
+                                </form>
+                            </div>
+                        @else
+                            <span class="v">{{ $finishYmd !== '' ? $finishDisp : '—' }}</span>
+                        @endif
                     </div>
                 </div>
             @endforeach
@@ -287,14 +370,18 @@
                     throw new Error(msg);
                 }
 
-                if (form.classList.contains('js-mobile-machining-step-form') && payload.date_finish !== undefined) {
-                    const ymd = payload.date_finish || '';
-                    if (real) real.value = ymd;
-                    if (display) {
-                        display.value = ymd ? formatMachiningDateYmd(ymd) : '...';
-                        display.classList.toggle('has-finish', !!ymd);
+                if (form.classList.contains('js-mobile-machining-step-form')) {
+                    const fieldName = real && real.name ? real.name : 'date_finish';
+                    const payloadKey = fieldName === 'date_start' ? 'date_start' : 'date_finish';
+                    if (payload[payloadKey] !== undefined) {
+                        const ymd = payload[payloadKey] || '';
+                        if (real) real.value = ymd;
+                        if (display) {
+                            display.value = ymd ? formatMachiningDateYmd(ymd) : '...';
+                            display.classList.toggle('has-finish', !!ymd);
+                        }
+                        if (input) input.value = ymd;
                     }
-                    if (input) input.value = ymd;
                 }
             } catch (err) {
                 if (real) real.value = prevRealValue;

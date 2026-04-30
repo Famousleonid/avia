@@ -56,9 +56,8 @@ class MachiningController extends Controller
     private function machiningIndexData(): array
     {
         $workorders = Workorder::query()
-            ->whereNotNull('approve_at')
             ->whereNull('done_at')
-            ->where('is_draft', 0)
+            ->whereMachiningHasDateSent()
             ->with([
                 'user:id,name',
                 'customer:id,name',
@@ -108,7 +107,7 @@ class MachiningController extends Controller
             'rows' => $rows,
             'machiningLinesPerWo' => $machiningLinesPerWo,
             'queuedCount' => $queuedCount,
-            'canReorderMachining' => $user !== null && $user->roleIs(['Admin', 'Manager']),
+            'canReorderMachining' => $user !== null && $user->roleIs(['Admin', 'Manager', 'Team Leader']),
             'machiningMachinists' => $machiningMachinists,
         ];
     }
@@ -118,6 +117,7 @@ class MachiningController extends Controller
         $v = Validator::make($request->all(), [
             'machinist_user_id' => 'sometimes|nullable|integer|exists:users,id',
             'date_finish' => 'sometimes|nullable|date',
+            'date_start' => 'sometimes|nullable|date',
         ]);
         if ($v->fails()) {
             return response()->json(['success' => false, 'errors' => $v->errors()], 422);
@@ -130,6 +130,8 @@ class MachiningController extends Controller
                 $request->input('machinist_user_id'),
                 $request->exists('date_finish'),
                 $request->input('date_finish'),
+                $request->exists('date_start'),
+                $request->input('date_start'),
             );
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'errors' => $e->errors()], 422);
@@ -140,6 +142,7 @@ class MachiningController extends Controller
 
         return response()->json([
             'success' => true,
+            'date_start' => $machiningWorkStep->date_start?->format('Y-m-d'),
             'date_finish' => $machiningWorkStep->date_finish?->format('Y-m-d'),
             'machinist_user_id' => $machiningWorkStep->machinist_user_id,
             'parent_date_finish' => $parent?->date_finish?->format('Y-m-d'),
@@ -268,8 +271,12 @@ class MachiningController extends Controller
             return response()->json(['success' => false, 'message' => 'Workorder not found'], 422);
         }
 
-        if ($wo->approve_at === null || $wo->done_at !== null || (int) $wo->is_draft !== 0) {
-            return response()->json(['success' => false, 'message' => 'Workorder must be approved, not completed, not draft'], 422);
+        if ($wo->done_at !== null || (int) $wo->is_draft !== 0) {
+            return response()->json(['success' => false, 'message' => 'Workorder must not be completed or draft'], 422);
+        }
+
+        if (! Workorder::query()->whereKey($wo->id)->whereMachiningHasDateSent()->exists()) {
+            return response()->json(['success' => false, 'message' => 'Machining Date Sent is required'], 422);
         }
 
         if ($wo->machining_queue_order !== null) {
@@ -277,9 +284,8 @@ class MachiningController extends Controller
         }
 
         $max = Workorder::query()
-            ->whereNotNull('approve_at')
             ->whereNull('done_at')
-            ->where('is_draft', 0)
+            ->whereMachiningHasDateSent()
             ->whereNotNull('machining_queue_order')
             ->max('machining_queue_order');
 
@@ -304,9 +310,8 @@ class MachiningController extends Controller
 
         $wo = Workorder::query()
             ->whereKey($wid)
-            ->whereNotNull('approve_at')
             ->whereNull('done_at')
-            ->where('is_draft', 0)
+            ->whereMachiningHasDateSent()
             ->first();
 
         if ($wo === null) {
@@ -314,9 +319,8 @@ class MachiningController extends Controller
         }
 
         $queuedIds = Workorder::query()
-            ->whereNotNull('approve_at')
             ->whereNull('done_at')
-            ->where('is_draft', 0)
+            ->whereMachiningHasDateSent()
             ->whereNotNull('machining_queue_order')
             ->orderBy('machining_queue_order', 'asc')
             ->orderBy('number', 'asc')

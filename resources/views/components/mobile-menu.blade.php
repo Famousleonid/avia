@@ -41,6 +41,10 @@
     }
     $paintTab = request()->query('tab', 'wo');
     $machiningMyWoOnly = (bool) session('mobile_machining_my_wo', false);
+    /** На карточке WO / фото / PDF — переключатель не уводит на список. */
+    $machiningMyWoToggleUrl = ($isMachiningRoute && request()->route('workorder'))
+        ? request()->url()
+        : route('mobile.machining');
     $mobileProfileLabel = (string) (auth()->user()?->name ?: 'Profile');
 @endphp
 
@@ -180,13 +184,13 @@
 
     @if($useMachiningMenu && $deptActive === 'machining')
         <label class="menu-machining-my-wo flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white user-select-none mb-0"
-               title="On: only your WOs. Off: all WOs in the machining list.">
+               title="{{ request()->route('workorder') ? 'On: only your steps on this WO. Off: all steps. List WO unchanged.' : 'On: only your WOs in the list. Off: all WOs in the list.' }}">
             <div class="menu-top-icon-slot">
                 <div class="menu-icon-wrapper menu-machining-my-wo-icon">
                 <input type="checkbox"
                        class="form-check-input border-light"
                        {{ $machiningMyWoOnly ? 'checked' : '' }}
-                       onchange='window.location.href = @json(route("mobile.machining")) + (this.checked ? "?set_my_wo=1" : "?set_my_wo=0")'>
+                       onchange='window.location.href = @json($machiningMyWoToggleUrl) + (this.checked ? "?set_my_wo=1" : "?set_my_wo=0")'>
                 </div>
             </div>
             <span class="menu-label text-nowrap">My&nbsp;WO</span>

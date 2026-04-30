@@ -25,7 +25,7 @@ class MachiningWorkStepsService
         }
 
         if (! $parent->date_start) {
-            throw ValidationException::withMessages(['working_steps_count' => ['Set start date first']]);
+            throw ValidationException::withMessages(['working_steps_count' => ['Set send date first']]);
         }
 
         $this->assertParentEligible($parent);
@@ -54,6 +54,8 @@ class MachiningWorkStepsService
         mixed $machinistUserId,
         bool $dateFinishPresent,
         mixed $dateFinish,
+        bool $dateStartPresent = false,
+        mixed $dateStart = null,
     ): void {
         $this->assertUserCanEditStep(auth()->user(), $step);
 
@@ -68,6 +70,15 @@ class MachiningWorkStepsService
             } else {
                 $step->machinist_user_id = null;
             }
+        }
+
+        if ($dateStartPresent) {
+            if ((int) $step->step_index !== 1) {
+                throw ValidationException::withMessages(['date_start' => ['Work start date applies only to step 1']]);
+            }
+            $step->date_start = ($dateStart === '' || $dateStart === null)
+                ? null
+                : Carbon::parse((string) $dateStart)->startOfDay();
         }
 
         if ($dateFinishPresent) {
@@ -111,7 +122,7 @@ class MachiningWorkStepsService
         }
 
         if (! $parent->date_start) {
-            throw ValidationException::withMessages(['date_start' => ['Parent start date required']]);
+            throw ValidationException::withMessages(['date_start' => ['Send date required on parent before steps']]);
         }
 
         $prevFinish = null;
@@ -121,10 +132,19 @@ class MachiningWorkStepsService
             }
 
             $effStart = $idx === 0
-                ? $parent->date_start->copy()->startOfDay()
+                ? (
+                    $step->date_start
+                        ? $step->date_start->copy()->startOfDay()
+                        : ($parent->date_start ? $parent->date_start->copy()->startOfDay() : null)
+                )
                 : ($prevFinish ? $prevFinish->copy()->startOfDay() : null);
 
             if ($step->date_finish) {
+                if ($idx === 0 && ! $effStart) {
+                    throw ValidationException::withMessages([
+                        'date_finish' => ['Set send date and step 1 work start date before finish'],
+                    ]);
+                }
                 if ($idx > 0 && ! $prevFinish) {
                     throw ValidationException::withMessages([
                         'date_finish' => ['Finish previous step before step '.($idx + 1)],
@@ -218,6 +238,7 @@ class MachiningWorkStepsService
             [
                 'step_index' => $i,
                 'machinist_user_id' => null,
+                'date_start' => null,
                 'date_finish' => null,
             ]
         ));

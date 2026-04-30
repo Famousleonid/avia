@@ -99,7 +99,8 @@
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
             },
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            cache: 'no-store'
         }).then(function (r) {
             if (!r.ok) throw new Error('fragment');
             return r.json();
@@ -118,17 +119,11 @@
     window.refreshMachiningTableAfterEdits = refreshMachiningTableAfterEdits;
 
     function remountMachiningTableBodyPlugins() {
-        var table = document.getElementById('machining-wo-table');
-        if (table) {
-            delete table.dataset.machiningStepsToggleBound;
-            delete table.dataset.machiningWoPartsToggleBound;
-        }
+        /* tbody заменяется; #machining-wo-table — тот же узел: делегирование steps/wo уже привязано в bootMachiningPage. НЕ вызываем повторный initMachiningStepsToggle/initMachiningWoPartsToggle — иначе копятся обработчики и UI «подвисает». */
         destroyMachiningSortable();
         initMachiningNativeDateInputs();
         initMachiningStepsCountInputs();
         initMachiningStepMachinists();
-        initMachiningStepsToggle();
-        initMachiningWoPartsToggle();
         applyMachiningExpandPrefsFromStorage();
         if (window.__machiningCanReorder) {
             initMachiningSortable();
@@ -142,7 +137,7 @@
             inp.dataset.machiningStepsBound = '1';
             inp.dataset.prevN = String(inp.value || '').trim();
 
-            inp.addEventListener('blur', function () {
+            inp.addEventListener('change', function () {
                 if (inp.disabled) return;
                 var url = inp.getAttribute('data-steps-url');
                 if (!url) return;
@@ -484,18 +479,72 @@
         syncMachiningWoHeadRowCellSummaries();
     }
 
+    /** Есть ли выбор в фильтрах по выполненным (machinist или интервал дат finish). */
+    function machiningCompletedFiltersAnyActive() {
+        var sel = document.getElementById('machiningCompletedMachinistFilter');
+        var fromInp = document.getElementById('machiningCompletedDateFrom');
+        var toInp = document.getElementById('machiningCompletedDateTo');
+        var mid = sel ? parseInt(String(sel.value || '').trim(), 10) : 0;
+        var fromVal = fromInp ? String(fromInp.value || '').trim() : '';
+        var toVal = toInp ? String(toInp.value || '').trim() : '';
+        return mid > 0 || fromVal !== '' || toVal !== '';
+    }
+
+    /** Machinist — только строки, где в шаге назначен выбранный user (master: любой из шагов); период finish — только для закрытых. */
+    function machiningCompletedFiltersMatch(tr) {
+        var sel = document.getElementById('machiningCompletedMachinistFilter');
+        var mid = sel ? parseInt(String(sel.value || '').trim(), 10) : 0;
+        if (mid > 0) {
+            var idsRaw = tr.getAttribute('data-machining-machinist-ids') || '';
+            var ids = idsRaw.split(',').map(function (x) {
+                return parseInt(String(x).trim(), 10);
+            }).filter(function (n) { return n > 0; });
+            if (ids.indexOf(mid) === -1) {
+                return false;
+            }
+        }
+        var isClosed = tr.getAttribute('data-machining-closed') === '1';
+        if (!isClosed) {
+            return true;
+        }
+        var fromInp = document.getElementById('machiningCompletedDateFrom');
+        var toInp = document.getElementById('machiningCompletedDateTo');
+        var fromVal = fromInp ? String(fromInp.value || '').trim() : '';
+        var toVal = toInp ? String(toInp.value || '').trim() : '';
+        if (fromVal === '' && toVal === '') {
+            return true;
+        }
+        var finishYmd = tr.getAttribute('data-machining-finish-ymd') || '';
+        if (finishYmd === '') {
+            return false;
+        }
+        if (fromVal !== '' && finishYmd < fromVal) {
+            return false;
+        }
+        if (toVal !== '' && finishYmd > toVal) {
+            return false;
+        }
+        return true;
+    }
+
     function applyMachiningTableFilters() {
         var inp = document.getElementById('machiningTableSearch');
         var hideClosed = document.getElementById('machiningHideClosed');
         var q = inp ? String(inp.value || '').trim().toLowerCase() : '';
         var doHideClosed = hideClosed && hideClosed.checked;
+        var completedFiltersActive = machiningCompletedFiltersAnyActive();
         var table = document.getElementById('machining-wo-table');
             document.querySelectorAll('#machining-sortable-tbody tr[data-machining-search]').forEach(function (tr) {
                 var hay = tr.getAttribute('data-machining-search') || '';
             var matchSearch = q === '' || hay.indexOf(q) !== -1;
             var isClosed = tr.getAttribute('data-machining-closed') === '1';
-            var matchClosed = !doHideClosed || !isClosed;
-            var filterHidden = !matchSearch || !matchClosed;
+            var matchListing;
+            if (isClosed && doHideClosed) {
+                matchListing = false;
+            } else {
+                matchListing = !completedFiltersActive || machiningCompletedFiltersMatch(tr);
+            }
+            var filterHidden = !matchSearch || !matchListing;
             var toggleHidden = false;
             if (tr.classList.contains('machining-row-child') && table) {
                 var gid = tr.getAttribute('data-machining-group');
@@ -558,8 +607,14 @@
         machiningFilterInputsBound = true;
         var inp = document.getElementById('machiningTableSearch');
         var hideClosed = document.getElementById('machiningHideClosed');
+        var machSel = document.getElementById('machiningCompletedMachinistFilter');
+        var dateFrom = document.getElementById('machiningCompletedDateFrom');
+        var dateTo = document.getElementById('machiningCompletedDateTo');
         if (inp) inp.addEventListener('input', applyMachiningTableFilters);
         if (hideClosed) hideClosed.addEventListener('change', applyMachiningTableFilters);
+        if (machSel) machSel.addEventListener('change', applyMachiningTableFilters);
+        if (dateFrom) dateFrom.addEventListener('change', applyMachiningTableFilters);
+        if (dateTo) dateTo.addEventListener('change', applyMachiningTableFilters);
     }
 
     function initMachiningSortable() {

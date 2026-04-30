@@ -1047,6 +1047,7 @@ class MainController extends Controller
         if (array_key_exists('date_finish', $data)) {
             $woBushingBatch->date_finish = $data['date_finish'] ?: null;
         }
+
         $woBushingBatch->save();
 
         if ($fromMachiningBatchIndex) {

@@ -20,7 +20,10 @@ final class MachiningListingRowsBuilder
         $rows = $workorders->flatMap(function (Workorder $wo) {
             $machiningProcesses = $this->collectMachiningProcessesForRow($wo);
 
-            $active = $machiningProcesses->filter(fn (TdrProcess $tp) => ! ($tp->ignore_row ?? false))->values();
+            $active = $machiningProcesses
+                ->filter(fn (TdrProcess $tp) => ! ($tp->ignore_row ?? false))
+                ->filter(fn (TdrProcess $tp) => $this->machiningDateValuePresent($tp->date_start ?? null))
+                ->values();
 
             $tdrRows = $active
                 ->filter(static fn (TdrProcess $tp) => trim((string) ($tp->tdr?->component?->part_number ?? '')) !== '')
@@ -33,7 +36,7 @@ final class MachiningListingRowsBuilder
                         'row_source' => 'tdr',
                         'detail_label' => $detailPn,
                         'detail_name' => $detailNm,
-                        'date_start' => $tp->date_start,
+                        'date_start' => null,
                         'date_finish' => $tp->date_finish,
                         'edit_machining_process' => $tp,
                         'machining_queue_position' => null,
@@ -208,22 +211,39 @@ final class MachiningListingRowsBuilder
             return;
         }
 
-        if ($parent->date_start) {
-            $row->date_start = $parent->date_start;
-        }
-
-        $finish = $parent->date_finish;
         $n = (int) ($parent->working_steps_count ?? 0);
+
+        $effFinish = $parent->date_finish ?? null;
         if ($n >= 1) {
             $parent->loadMissing('machiningWorkSteps');
-            if (! $this->machiningDateValuePresent($finish)) {
-                $last = $parent->machiningWorkSteps->firstWhere('step_index', $n);
-                $finish = $last?->date_finish;
+            if (! $this->machiningDateValuePresent($effFinish)) {
+                $effFinish = $parent->machiningWorkSteps->firstWhere('step_index', $n)?->date_finish;
             }
+
+            $hasAnyStepFinish = $parent->machiningWorkSteps->contains(
+                fn ($s) => $this->machiningDateValuePresent($s->date_finish ?? null)
+            );
+
+            $stepOne = $parent->machiningWorkSteps->firstWhere('step_index', 1);
+            if ($stepOne !== null && $this->machiningDateValuePresent($stepOne->date_start ?? null)) {
+                $row->date_start = $stepOne->date_start;
+            } elseif (
+                $stepOne !== null
+                && ! $this->machiningDateValuePresent($stepOne->date_start ?? null)
+                && $hasAnyStepFinish
+                && $this->machiningDateValuePresent($parent->date_start ?? null)
+            ) {
+                /** Legacy: есть finish у шага, но явного work start шага 1 нет — показываем как Sent */
+                $row->date_start = $parent->date_start;
+            } else {
+                $row->date_start = null;
+            }
+        } else {
+            $row->date_start = null;
         }
 
-        if ($this->machiningDateValuePresent($finish)) {
-            $row->date_finish = $finish;
+        if ($this->machiningDateValuePresent($effFinish)) {
+            $row->date_finish = $effFinish;
         }
     }
 

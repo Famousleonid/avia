@@ -1,4 +1,4 @@
-﻿                            @php $machiningRowsSeq = $rows->values(); @endphp
+                            @php $machiningRowsSeq = $rows->values(); @endphp
                             @forelse ($rows as $row)
                                 @php
                                     $wo = $row->workorder;
@@ -22,24 +22,41 @@
                                         }
                                         return $d->format('d') . '.' . strtolower($d->format('M')) . '.' . $d->format('Y');
                                     };
-                                    $startStr = $fmtMachiningDisp($row->date_start);
+                                    $startStr = $fmtMachiningDisp($row->date_start ?? null);
                                     $finishStr = $fmtMachiningDisp($row->date_finish);
+                                    $parentForSteps = $editTp ?? $bushingBatch ?? $bushingProcess;
+                                    $stepCount = (int) ($parentForSteps?->working_steps_count ?? 0);
+                                    if ($parentForSteps && $stepCount >= 1) {
+                                        $parentForSteps->loadMissing('machiningWorkSteps');
+                                    }
+                                    $stepOne = ($stepCount >= 1 && $parentForSteps)
+                                        ? $parentForSteps->machiningWorkSteps->firstWhere('step_index', 1)
+                                        : null;
+                                    $stepOneWorkStartUrl = $stepOne ? route('machining.work_steps.update', $stepOne) : '';
                                     if ($bushingBatch) {
-                                        $tpStartYmd = $bushingBatch->date_start?->format('Y-m-d') ?? '';
-                                        $tpStartDisp = $fmtMachiningDisp($bushingBatch->date_start);
+                                        $parentSendYmd = $bushingBatch->date_start?->format('Y-m-d') ?? '';
+                                        $parentSendDisp = $fmtMachiningDisp($bushingBatch->date_start);
                                         $tpFinishYmd = $bushingBatch->date_finish?->format('Y-m-d') ?? '';
                                         $tpFinishDisp = $fmtMachiningDisp($bushingBatch->date_finish);
                                     } elseif ($bushingProcess) {
-                                        $tpStartYmd = $bushingProcess->date_start?->format('Y-m-d') ?? '';
-                                        $tpStartDisp = $fmtMachiningDisp($bushingProcess->date_start);
+                                        $parentSendYmd = $bushingProcess->date_start?->format('Y-m-d') ?? '';
+                                        $parentSendDisp = $fmtMachiningDisp($bushingProcess->date_start);
                                         $tpFinishYmd = $bushingProcess->date_finish?->format('Y-m-d') ?? '';
                                         $tpFinishDisp = $fmtMachiningDisp($bushingProcess->date_finish);
                                     } else {
-                                        $tpStartYmd = $editTp?->date_start?->format('Y-m-d') ?? '';
-                                        $tpStartDisp = $fmtMachiningDisp($editTp?->date_start);
+                                        $parentSendYmd = $editTp?->date_start?->format('Y-m-d') ?? '';
+                                        $parentSendDisp = $fmtMachiningDisp($editTp?->date_start);
                                         $tpFinishYmd = $editTp?->date_finish?->format('Y-m-d') ?? '';
                                         $tpFinishDisp = $fmtMachiningDisp($editTp?->date_finish);
                                     }
+                                    $stepOneWorkStartResolved = $stepOne?->date_start ?? $row->date_start;
+                                    $stepOneWorkStartYmd = $stepOneWorkStartResolved instanceof \DateTimeInterface
+                                        ? $stepOneWorkStartResolved->format('Y-m-d')
+                                        : '';
+                                    $stepOneWorkStartDisp = $fmtMachiningDisp(
+                                        $stepOneWorkStartResolved instanceof \DateTimeInterface ? $stepOneWorkStartResolved : null
+                                    );
+                                    $sendStr = $fmtMachiningDisp($parentForSteps?->date_start);
                                     $canEditMachiningDates = $editTp || $bushingBatch || $bushingProcess;
                                     $dateStartAction = $editTp
                                         ? route('tdrprocesses.updateDate', $editTp)
@@ -57,6 +74,7 @@
                                         (string) ($row->detail_name ?? ''),
                                         $isBushingRow ? 'bushing' : null,
                                         $startStr,
+                                        $sendStr,
                                         $finishStr,
                                     ]));
                                     $machiningSearch = function_exists('mb_strtolower')
@@ -65,8 +83,6 @@
                                     $rowFinishForQueue = $row->date_finish ?? null;
                                     $rowHasDateFinish = $rowFinishForQueue !== null
                                         && ($rowFinishForQueue instanceof \DateTimeInterface || trim((string) $rowFinishForQueue) !== '');
-                                    $parentForSteps = $editTp ?? $bushingBatch ?? $bushingProcess;
-                                    $stepCount = (int) ($parentForSteps?->working_steps_count ?? 0);
                                     /** По умолчанию step-строки свёрнуты; раскрытие — из localStorage в JS. */
                                     $collapseMachiningStepRows = $stepCount >= 1;
                                     $machiningGroupId = '';
@@ -83,9 +99,34 @@
                                             ? route('machining.batch_working_steps_count', $bushingBatch)
                                             : ($bushingProcess ? route('machining.process_working_steps_count', $bushingProcess) : ''));
                                     $parentHasStart = (bool) ($parentForSteps?->date_start);
+                                    $rowFinishYmd = '';
+                                    if ($rowHasDateFinish) {
+                                        if ($rowFinishForQueue instanceof \DateTimeInterface) {
+                                            $rowFinishYmd = $rowFinishForQueue->format('Y-m-d');
+                                        } elseif (is_string($rowFinishForQueue) && trim($rowFinishForQueue) !== '') {
+                                            try {
+                                                $rowFinishYmd = \Carbon\Carbon::parse($rowFinishForQueue)->format('Y-m-d');
+                                            } catch (\Throwable $e) {
+                                                $rowFinishYmd = '';
+                                            }
+                                        }
+                                    }
+                                    $machiningMachinistIdsCsv = '';
+                                    if ($parentForSteps) {
+                                        $parentForSteps->loadMissing('machiningWorkSteps');
+                                        $machiningMachinistIdsCsv = $parentForSteps->machiningWorkSteps
+                                            ->pluck('machinist_user_id')
+                                            ->filter(static fn ($id) => $id !== null && (int) $id > 0)
+                                            ->unique()
+                                            ->sort()
+                                            ->values()
+                                            ->implode(',');
+                                    }
                                 @endphp
                                 <tr data-wo-id="{{ $woIdInt }}"
                                     data-machining-search="{{ $machiningSearch }}"
+                                    data-machining-finish-ymd="{{ $rowFinishYmd }}"
+                                    data-machining-machinist-ids="{{ $machiningMachinistIdsCsv }}"
                                     @if($machiningGroupId !== '') data-machining-group="{{ $machiningGroupId }}" @endif
                                     @if($rowHasDateFinish) data-machining-closed="1" @endif
                                     @if($machiningWoMasterIsExtra) data-machining-wo-extra="1" @endif
@@ -184,6 +225,110 @@
                                         </td>
                                     @endif
                                     @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
+                                        <td class="machining-col-date-cell js-machining-wo-head-col">
+                                            <span class="machining-wo-head-col-placeholder text-muted d-block w-100 text-center">...</span>
+                                            <div class="machining-wo-head-col-content d-none w-100">
+                                        @if ($canEditMachiningDates)
+                                            <form method="POST"
+                                                  action="{{ $dateStartAction }}"
+                                                  class="js-ajax mb-0"
+                                                  data-no-spinner
+                                                  data-success="Saved"
+                                                  autocomplete="off">
+                                                @csrf
+                                                @method('PATCH')
+                                                @if($editTp || $bushingBatch || $bushingProcess)
+                                                    <input type="hidden" name="from_machining_index" value="1">
+                                                @endif
+                                                <div class="machining-date-input-wrap">
+                                                    <input type="hidden"
+                                                           name="date_start"
+                                                           value="{{ $parentSendYmd }}"
+                                                           class="js-machining-date-ymd"
+                                                           data-original="{{ $parentSendYmd }}">
+                                                    <input type="text"
+                                                           readonly
+                                                           value="{{ $parentSendDisp }}"
+                                                           class="form-control form-control-sm finish-input machining-native-date machining-date-display {{ $parentSendYmd !== '' ? 'has-finish' : '' }} {{ $parentSendYmd !== '' ? '' : 'machining-date-empty' }}"
+                                                           tabindex="0"
+                                                           inputmode="none"
+                                                           autocomplete="off">
+                                                    <span class="machining-date-fake-ph" aria-hidden="true">…</span>
+                                                    <input type="date"
+                                                           class="js-machining-picker-aid"
+                                                           value="{{ $parentSendYmd }}"
+                                                           tabindex="-1"
+                                                           aria-hidden="true">
+                                                </div>
+                                            </form>
+                                        @elseif ($sendStr !== '')
+                                            <input type="text"
+                                                   readonly
+                                                   tabindex="-1"
+                                                   class="form-control form-control-sm finish-input has-finish machining-date-readonly w-100"
+                                                   value="{{ $sendStr }}">
+                                        @else
+                                            <input type="text"
+                                                   readonly
+                                                   tabindex="-1"
+                                                   class="form-control form-control-sm finish-input machining-date-readonly w-100"
+                                                   placeholder="…"
+                                                   value="">
+                                        @endif
+                                            </div>
+                                        </td>
+                                    @else
+                                    <td class="machining-col-date-cell">
+                                        @if ($canEditMachiningDates)
+                                            <form method="POST"
+                                                  action="{{ $dateStartAction }}"
+                                                  class="js-ajax mb-0"
+                                                  data-no-spinner
+                                                  data-success="Saved"
+                                                  autocomplete="off">
+                                                @csrf
+                                                @method('PATCH')
+                                                @if($editTp || $bushingBatch || $bushingProcess)
+                                                    <input type="hidden" name="from_machining_index" value="1">
+                                                @endif
+                                                <div class="machining-date-input-wrap">
+                                                    <input type="hidden"
+                                                           name="date_start"
+                                                           value="{{ $parentSendYmd }}"
+                                                           class="js-machining-date-ymd"
+                                                           data-original="{{ $parentSendYmd }}">
+                                                    <input type="text"
+                                                           readonly
+                                                           value="{{ $parentSendDisp }}"
+                                                           class="form-control form-control-sm finish-input machining-native-date machining-date-display {{ $parentSendYmd !== '' ? 'has-finish' : '' }} {{ $parentSendYmd !== '' ? '' : 'machining-date-empty' }}"
+                                                           tabindex="0"
+                                                           inputmode="none"
+                                                           autocomplete="off">
+                                                    <span class="machining-date-fake-ph" aria-hidden="true">…</span>
+                                                    <input type="date"
+                                                           class="js-machining-picker-aid"
+                                                           value="{{ $parentSendYmd }}"
+                                                           tabindex="-1"
+                                                           aria-hidden="true">
+                                                </div>
+                                            </form>
+                                        @elseif ($sendStr !== '')
+                                            <input type="text"
+                                                   readonly
+                                                   tabindex="-1"
+                                                   class="form-control form-control-sm finish-input has-finish machining-date-readonly w-100"
+                                                   value="{{ $sendStr }}">
+                                        @else
+                                            <input type="text"
+                                                   readonly
+                                                   tabindex="-1"
+                                                   class="form-control form-control-sm finish-input machining-date-readonly w-100"
+                                                   placeholder="…"
+                                                   value="">
+                                        @endif
+                                    </td>
+                                    @endif
+                                    @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
                                         <td class="text-center machining-col-work align-middle js-machining-wo-head-col">
                                             <span class="machining-wo-head-col-placeholder text-muted">...</span>
                                             <div class="machining-wo-head-col-content d-none">
@@ -255,39 +400,52 @@
                                         <td class="machining-col-date-cell js-machining-wo-head-col">
                                             <span class="machining-wo-head-col-placeholder text-muted d-block w-100 text-center">...</span>
                                             <div class="machining-wo-head-col-content d-none w-100">
-                                        @if ($canEditMachiningDates)
+                                        @if ($canEditMachiningDates && $stepCount >= 1 && $stepOne && $stepOneWorkStartUrl !== '')
                                             <form method="POST"
-                                                  action="{{ $dateStartAction }}"
+                                                  action="{{ $stepOneWorkStartUrl }}"
                                                   class="js-ajax mb-0"
                                                   data-no-spinner
                                                   data-success="Saved"
                                                   autocomplete="off">
                                                 @csrf
                                                 @method('PATCH')
-                                                @if($editTp || $bushingBatch || $bushingProcess)
-                                                    <input type="hidden" name="from_machining_index" value="1">
-                                                @endif
                                                 <div class="machining-date-input-wrap">
                                                     <input type="hidden"
                                                            name="date_start"
-                                                           value="{{ $tpStartYmd }}"
+                                                           value="{{ $stepOneWorkStartYmd }}"
                                                            class="js-machining-date-ymd"
-                                                           data-original="{{ $tpStartYmd }}">
+                                                           data-original="{{ $stepOneWorkStartYmd }}">
                                                     <input type="text"
                                                            readonly
-                                                           value="{{ $tpStartDisp }}"
-                                                           class="form-control form-control-sm finish-input machining-native-date machining-date-display {{ $tpStartYmd !== '' ? 'has-finish' : '' }} {{ $tpStartYmd !== '' ? '' : 'machining-date-empty' }}"
+                                                           value="{{ $stepOneWorkStartDisp }}"
+                                                           class="form-control form-control-sm finish-input machining-native-date machining-date-display {{ $stepOneWorkStartYmd !== '' ? 'has-finish' : '' }} {{ $stepOneWorkStartYmd !== '' ? '' : 'machining-date-empty' }}"
                                                            tabindex="0"
                                                            inputmode="none"
                                                            autocomplete="off">
                                                     <span class="machining-date-fake-ph" aria-hidden="true">…</span>
                                                     <input type="date"
                                                            class="js-machining-picker-aid"
-                                                           value="{{ $tpStartYmd }}"
+                                                           value="{{ $stepOneWorkStartYmd }}"
                                                            tabindex="-1"
                                                            aria-hidden="true">
                                                 </div>
                                             </form>
+                                        @elseif ($canEditMachiningDates && $stepCount >= 1)
+                                            <input type="text"
+                                                   readonly
+                                                   tabindex="-1"
+                                                   class="form-control form-control-sm finish-input machining-date-readonly w-100"
+                                                   placeholder="…"
+                                                   title="Step row pending"
+                                                   value="">
+                                        @elseif ($canEditMachiningDates)
+                                            <input type="text"
+                                                   readonly
+                                                   tabindex="-1"
+                                                   class="form-control form-control-sm finish-input machining-date-readonly w-100 text-muted"
+                                                   placeholder="N steps"
+                                                   title="Set working steps count first"
+                                                   value="">
                                         @elseif ($startStr !== '')
                                             <input type="text"
                                                    readonly
@@ -306,39 +464,52 @@
                                         </td>
                                     @else
                                     <td class="machining-col-date-cell">
-                                        @if ($canEditMachiningDates)
+                                        @if ($canEditMachiningDates && $stepCount >= 1 && $stepOne && $stepOneWorkStartUrl !== '')
                                             <form method="POST"
-                                                  action="{{ $dateStartAction }}"
+                                                  action="{{ $stepOneWorkStartUrl }}"
                                                   class="js-ajax mb-0"
                                                   data-no-spinner
                                                   data-success="Saved"
                                                   autocomplete="off">
                                                 @csrf
                                                 @method('PATCH')
-                                                @if($editTp || $bushingBatch || $bushingProcess)
-                                                    <input type="hidden" name="from_machining_index" value="1">
-                                                @endif
                                                 <div class="machining-date-input-wrap">
                                                     <input type="hidden"
                                                            name="date_start"
-                                                           value="{{ $tpStartYmd }}"
+                                                           value="{{ $stepOneWorkStartYmd }}"
                                                            class="js-machining-date-ymd"
-                                                           data-original="{{ $tpStartYmd }}">
+                                                           data-original="{{ $stepOneWorkStartYmd }}">
                                                     <input type="text"
                                                            readonly
-                                                           value="{{ $tpStartDisp }}"
-                                                           class="form-control form-control-sm finish-input machining-native-date machining-date-display {{ $tpStartYmd !== '' ? 'has-finish' : '' }} {{ $tpStartYmd !== '' ? '' : 'machining-date-empty' }}"
+                                                           value="{{ $stepOneWorkStartDisp }}"
+                                                           class="form-control form-control-sm finish-input machining-native-date machining-date-display {{ $stepOneWorkStartYmd !== '' ? 'has-finish' : '' }} {{ $stepOneWorkStartYmd !== '' ? '' : 'machining-date-empty' }}"
                                                            tabindex="0"
                                                            inputmode="none"
                                                            autocomplete="off">
                                                     <span class="machining-date-fake-ph" aria-hidden="true">…</span>
                                                     <input type="date"
                                                            class="js-machining-picker-aid"
-                                                           value="{{ $tpStartYmd }}"
+                                                           value="{{ $stepOneWorkStartYmd }}"
                                                            tabindex="-1"
                                                            aria-hidden="true">
                                                 </div>
                                             </form>
+                                        @elseif ($canEditMachiningDates && $stepCount >= 1)
+                                            <input type="text"
+                                                   readonly
+                                                   tabindex="-1"
+                                                   class="form-control form-control-sm finish-input machining-date-readonly w-100"
+                                                   placeholder="…"
+                                                   title="Step row pending"
+                                                   value="">
+                                        @elseif ($canEditMachiningDates)
+                                            <input type="text"
+                                                   readonly
+                                                   tabindex="-1"
+                                                   class="form-control form-control-sm finish-input machining-date-readonly w-100 text-muted"
+                                                   placeholder="N steps"
+                                                   title="Set working steps count first"
+                                                   value="">
                                         @elseif ($startStr !== '')
                                             <input type="text"
                                                    readonly
@@ -488,6 +659,7 @@
                                         'machiningGroupId' => $machiningGroupId,
                                         'machiningSearch' => $machiningSearch,
                                         'rowHasDateFinish' => $rowHasDateFinish,
+                                        'rowFinishYmd' => $rowFinishYmd,
                                         'collapseStepRowsDefault' => $collapseMachiningStepRows,
                                         'woId' => $woIdInt,
                                         'machiningWoMasterIsExtra' => $machiningWoMasterIsExtra,
@@ -498,6 +670,6 @@
                                 @endif
                             @empty
                                 <tr>
-                                    <td colspan="{{ ($canReorderMachining ?? false) ? 11 : 10 }}" class="text-center text-muted py-4">No workorders (approved, open, not draft).</td>
+                                    <td colspan="{{ ($canReorderMachining ?? false) ? 12 : 11 }}" class="text-center text-muted py-4">No workorders (approved, open, not draft).</td>
                                 </tr>
                             @endforelse

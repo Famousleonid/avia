@@ -17,10 +17,12 @@ class MachiningWorkStep extends Model
         'wo_bushing_process_id',
         'step_index',
         'machinist_user_id',
+        'date_start',
         'date_finish',
     ];
 
     protected $casts = [
+        'date_start' => 'date',
         'date_finish' => 'date',
     ];
 
@@ -48,7 +50,7 @@ class MachiningWorkStep extends Model
     {
         return LogOptions::defaults()
             ->useLogName('machining_work_step')
-            ->logOnly(['step_index', 'machinist_user_id', 'date_finish'])
+            ->logOnly(['step_index', 'machinist_user_id', 'date_start', 'date_finish'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

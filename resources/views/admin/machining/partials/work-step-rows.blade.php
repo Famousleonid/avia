@@ -1,6 +1,7 @@
 @php
-    /** Drag + № + WO + Customer + Component + Part */
+    /** Drag … Part + следующая колонка (Date sent), объединённые с подписью Step */
     $leadCols = ($canReorderMachining ?? false) ? 6 : 5;
+    $stepLeadColspan = $leadCols + 1;
     $fmt = static function ($d) {
         if ($d === null) {
             return '';
@@ -9,12 +10,18 @@
         return $d->format('d').'.'.strtolower($d->format('M')).'.'.$d->format('Y');
     };
     $stepsOrdered = $parentForSteps->machiningWorkSteps->sortBy('step_index')->values();
+    $hasAnyStepFinish = $stepsOrdered->contains(static fn ($s) => filled($s->date_finish ?? null));
+    $s1ForEff = $stepsOrdered->firstWhere('step_index', 1);
+    $effStartStep1 = $s1ForEff?->date_start;
+    if ($effStartStep1 === null && $hasAnyStepFinish && $parentForSteps->date_start !== null) {
+        $effStartStep1 = $parentForSteps->date_start;
+    }
 @endphp
 @for($si = 1; $si <= $stepCount; $si++)
     @php
         $stepRow = $stepsOrdered->firstWhere('step_index', $si);
         $effStart = $si === 1
-            ? $parentForSteps->date_start
+            ? $effStartStep1
             : $stepsOrdered->firstWhere('step_index', $si - 1)?->date_finish;
         $finishYmd = $stepRow?->date_finish?->format('Y-m-d') ?? '';
         $finishDisp = $fmt($stepRow?->date_finish);
@@ -26,15 +33,21 @@
         $stepSearchNorm = function_exists('mb_strtolower')
             ? mb_strtolower($stepSearch, 'UTF-8')
             : strtolower($stepSearch);
+        $stepMachinistCsv = '';
+        if ($stepRow && (int) ($stepRow->machinist_user_id ?? 0) > 0) {
+            $stepMachinistCsv = (string) (int) $stepRow->machinist_user_id;
+        }
     @endphp
     <tr @if($si === 1) id="machining-steps-body-{{ $machiningGroupId }}" @endif
         data-machining-group="{{ $machiningGroupId }}"
         data-wo-id="{{ (int) ($woId ?? 0) }}"
         data-machining-search="{{ $machiningSearch }} {{ $stepSearchNorm }}"
+        data-machining-finish-ymd="{{ $rowFinishYmd ?? '' }}"
+        data-machining-machinist-ids="{{ $stepMachinistCsv }}"
         @if($rowHasDateFinish) data-machining-closed="1" @endif
         @if(! empty($machiningWoMasterIsExtra)) data-machining-wo-extra="1" @endif
         class="machining-row-child machining-row-unqueued {{ $isBushingRow ? 'machining-row-bushing' : '' }} {{ ! empty($collapseStepRowsDefault) ? 'd-none' : '' }}">
-        <td colspan="{{ $leadCols }}" class="machining-step-lead-cell small text-secondary py-2">
+        <td colspan="{{ $stepLeadColspan }}" class="machining-step-lead-cell small text-secondary py-2">
             <span class="text-info">Step {{ $si }}</span>
         </td>
         <td class="text-center machining-col-work align-middle">

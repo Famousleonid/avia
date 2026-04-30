@@ -42,6 +42,9 @@ final class MachiningBushingRowsBuilder
                     if (! $wp) {
                         continue;
                     }
+                    if (! self::machiningParentHasDateSent($batch, $wp)) {
+                        continue;
+                    }
                     $rows->push(self::makeRow($wo, $batch, $pr, $wp));
                 }
 
@@ -58,10 +61,41 @@ final class MachiningBushingRowsBuilder
                 continue;
             }
 
+            if (! self::machiningParentHasDateSent($batch, $wpModel)) {
+                continue;
+            }
+
             $rows->push(self::makeRow($wo, $batch, null, $wpModel));
         }
 
         return $rows;
+    }
+
+    /**
+     * Date Sent на родителе строки machining (batch или одиночный процесс).
+     */
+    private static function machiningParentHasDateSent(array $batch, ?WoBushingProcess $wpForRow): bool
+    {
+        $isBatch = ! empty($batch['is_batch']);
+        if ($isBatch) {
+            $bm = $batch['batch_model'] ?? null;
+
+            return $bm !== null && self::dateSentValuePresent($bm->date_start ?? null);
+        }
+
+        return $wpForRow !== null && self::dateSentValuePresent($wpForRow->date_start ?? null);
+    }
+
+    private static function dateSentValuePresent(mixed $d): bool
+    {
+        if ($d === null) {
+            return false;
+        }
+        if ($d instanceof \DateTimeInterface) {
+            return true;
+        }
+
+        return trim((string) $d) !== '';
     }
 
     /**
@@ -74,13 +108,10 @@ final class MachiningBushingRowsBuilder
         $batchModel = $batch['batch_model'] ?? null;
 
         if ($processRowOverride !== null) {
-            $start = $processRowOverride['date_start'] ?? null;
             $finish = $processRowOverride['date_finish'] ?? null;
         } elseif ($isBatch) {
-            $start = $batch['date_start'] ?? null;
             $finish = $batch['date_finish'] ?? null;
         } else {
-            $start = $wpModel?->date_start;
             $finish = $wpModel?->date_finish;
         }
 
@@ -98,7 +129,7 @@ final class MachiningBushingRowsBuilder
             'row_source' => 'bushing',
             'detail_label' => $detailLabel,
             'detail_name' => $detailName,
-            'date_start' => $start,
+            'date_start' => null,
             'date_finish' => $finish,
             'edit_machining_process' => null,
             'machining_queue_position' => null,

@@ -260,6 +260,47 @@ class Workorder extends Model implements HasMedia
         return $query->withoutGlobalScope('exclude_drafts');
     }
 
+    /**
+     * Есть хотя бы одна строка Machining с заполненной датой отправки (Date Sent):
+     * TDR Machining с date_start или бушинг batch/process machining с датой на соответствующей записи.
+     */
+    public function scopeWhereMachiningHasDateSent(Builder $query): Builder
+    {
+        return $query->where(function (Builder $w) {
+            $w->whereHas('tdrs.tdrProcesses', function ($tp) {
+                $tp->whereHas('processName', fn ($pn) => $pn->where('name', 'Machining'))
+                    ->whereNotNull('tdr_processes.date_start');
+            })->orWhereHas('woBushingProcesses', function ($wbp) {
+                $wbp->where(function ($dates) {
+                    $dates->where(function ($batchPath) {
+                        $batchPath->whereNotNull('wo_bushing_processes.batch_id')
+                            ->whereHas('batch', fn ($batch) => $batch->whereNotNull('date_start'));
+                    })->orWhere(function ($singlePath) {
+                        $singlePath->whereNull('wo_bushing_processes.batch_id')
+                            ->whereNotNull('wo_bushing_processes.date_start');
+                    });
+                })->whereHas('process', function ($proc) {
+                    $proc->join('process_names', 'process_names.id', '=', 'processes.process_names_id')
+                        ->whereRaw(
+                            'INSTR(LOWER(TRIM(CONCAT(COALESCE(process_names.name, ""), " ", COALESCE(processes.process, "")))), ?) > 0',
+                            ['machining']
+                        );
+                });
+            });
+        });
+    }
+
+    /**
+     * WO попадает на экран Machining: не черновик, не закрыт по WO, есть Date Sent по machining.
+     */
+    public function isOpenForMachiningBoard(): bool
+    {
+        if ($this->done_at !== null || (bool) $this->is_draft) {
+            return false;
+        }
+
+        return static::query()->whereKey($this->getKey())->whereMachiningHasDateSent()->exists();
+    }
 
     public static function createDraft(array $attributes = []): self
     {
