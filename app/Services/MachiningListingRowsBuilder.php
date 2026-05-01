@@ -117,8 +117,8 @@ final class MachiningListingRowsBuilder
 
     /**
      * Открытые строки: в очереди — сначала machining_queue_order, затем номер WO, затем дата старта
-     * (без старта в конце группы WO), затем detail. Вне очереди — номер WO, дата старта, detail.
-     * Без глобального «все со стартом выше всех без старта», чтобы части одного WO не разъезжались.
+     * (без старта в конце группы WO), затем detail. Вне очереди — то же; open/done делится по WO целиком
+     * (если у WO есть хоть одна незакрытая линия — все её строки в «open»), чтобы части одного WO не разъезжались.
      *
      * @param  Collection<int, object>  $rows
      * @return Collection<int, object>
@@ -141,8 +141,15 @@ final class MachiningListingRowsBuilder
             $open = $rows->filter(fn ($r) => ! $woFullyDone[(int) $r->workorder->id])->values();
             $done = $rows->filter(fn ($r) => $woFullyDone[(int) $r->workorder->id])->values();
         } else {
-            $open = $rows->filter(fn ($r) => ! ($this->rowHasMachiningDateStart($r) && $this->rowHasMachiningDateFinish($r)))->values();
-            $done = $rows->filter(fn ($r) => $this->rowHasMachiningDateStart($r) && $this->rowHasMachiningDateFinish($r))->values();
+            /** Как в queued-бакете: деление по WO целиком, иначе части одного WO разъезжаются (open vs done по строке). */
+            $woHasIncompleteLine = [];
+            foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $woId => $group) {
+                $woHasIncompleteLine[(int) $woId] = $group->contains(
+                    fn ($r) => ! ($this->rowHasMachiningDateStart($r) && $this->rowHasMachiningDateFinish($r))
+                );
+            }
+            $open = $rows->filter(fn ($r) => $woHasIncompleteLine[(int) $r->workorder->id])->values();
+            $done = $rows->filter(fn ($r) => ! $woHasIncompleteLine[(int) $r->workorder->id])->values();
         }
 
         $openSorted = $open->sort(function (object $a, object $b) use ($queuedBucket): int {
