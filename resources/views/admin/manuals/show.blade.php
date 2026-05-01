@@ -109,6 +109,10 @@
         .card-header h5{
             font-size: 12px;
         }
+        .manual-show-cmm-number {
+            font-size: 1.5em;
+            line-height: 1;
+        }
         .card-body{
             height: 80vh;
             /*overflow-y: auto;*/
@@ -190,6 +194,12 @@
             color: grey;
         }
         /* Просмотр STD CSV в модалке: прокрутка + фиксированный заголовок */
+        #nav-tabContent .table,
+        #nav-tabContent .table th,
+        #nav-tabContent .table td,
+        #nav-tabContent .table .small {
+            font-size: 14px !important;
+        }
         .std-csv-view-table-wrap {
             max-height: 70vh;
             overflow: auto;
@@ -207,6 +217,19 @@
         #nav-tab .nav-link:focus-visible {
             outline: none;
             box-shadow: none;
+        }
+        #nav-tabContent .tab-pane:focus,
+        #nav-tabContent .tab-pane:focus-visible,
+        #nav-tabContent .component-table-container:focus,
+        #nav-tabContent .component-table-container:focus-visible,
+        #nav-tabContent .parts-table-container:focus,
+        #nav-tabContent .parts-table-container:focus-visible,
+        #nav-tabContent .process-table-container:focus,
+        #nav-tabContent .process-table-container:focus-visible,
+        #nav-tabContent .std-table-container:focus,
+        #nav-tabContent .std-table-container:focus-visible {
+            outline: none !important;
+            box-shadow: none !important;
         }
         #editUnitModal .modal-dialog {
             max-height: 90vh;
@@ -238,7 +261,7 @@
                 </a>
 
                 <div class="ms-3">
-                    <h5 class="ms-2 "><strong class="text-secondary">{{__('CMM:')}}</strong> {{ $cmm->number }}</h5>
+                    <h5 class="ms-2 "><strong class="text-secondary">{{__('CMM:')}}</strong> <span class="manual-show-cmm-number">{{ $cmm->number }}</span></h5>
                     <h5 class="ms-2"><strong class="text-secondary">{{__('Description:')}}</strong> {{ $cmm->title }}</h5>
                 </div>
             </div>

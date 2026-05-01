@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('submit', (e) => {
             if (!taskInput?.value) {
                 e.preventDefault();
-                alert('Please choose a task first');
+                window.showNotification('Please choose a task first');
                 return;
             }
             safeShowSpinner();

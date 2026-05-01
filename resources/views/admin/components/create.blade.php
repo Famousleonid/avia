@@ -246,12 +246,12 @@
                                 (window.top || window.parent).postMessage({ type: 'addPartSuccess' }, '*');
                             } else {
                                 submitBtn.prop('disabled', false).html(origHtml);
-                                alert(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Error.") }}');
+                                window.notifyError(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Error.") }}');
                             }
                         }).fail(function(xhr) {
                             submitBtn.prop('disabled', false).html(origHtml);
                             var data = xhr.responseJSON || {};
-                            alert(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Failed to submit.") }}');
+                            window.notifyError(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Failed to submit.") }}');
                         });
                     });
                 }

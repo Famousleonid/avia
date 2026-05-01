@@ -241,12 +241,12 @@
                             if (data.success) {
                                 (window.top || window.parent).postMessage({ type: 'addProcessesSuccess' }, '*');
                             } else {
-                                alert(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Error.") }}');
+                                window.notifyError(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Error.") }}');
                             }
                         })
                         .catch(function() {
                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
-                            alert('{{ __("Failed to submit.") }}');
+                            window.notifyError('{{ __("Failed to submit.") }}');
                         });
                     });
                 }

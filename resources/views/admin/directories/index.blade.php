@@ -402,7 +402,7 @@
                     }
                 } catch (error) {
                     btn.textContent = oldText;
-                    alert('Unable to update value.');
+                    window.notifyError('Unable to update value.');
                 } finally {
                     btn.disabled = false;
                 }

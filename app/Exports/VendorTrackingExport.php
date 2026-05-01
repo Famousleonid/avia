@@ -19,10 +19,12 @@ class VendorTrackingExport implements FromArray, ShouldAutoSize, WithEvents
         'customer' => 'Customer',
         'ipl' => 'IPL',
         'part_number' => 'Part Number',
+        'part_name' => 'Part Name',
         'serial' => 'Serial',
         'process' => 'Process',
         'sent' => 'Sent',
         'returned' => 'Returned',
+        'ecd' => 'ECD',
         'days' => 'Days',
     ];
 
@@ -90,6 +92,7 @@ class VendorTrackingExport implements FromArray, ShouldAutoSize, WithEvents
     {
         $sent = $row->date_start;
         $returned = $row->date_finish;
+        $ecd = $row->date_promise;
         $days = $sent ? $sent->diffInDays($returned ?: now()) : null;
         $woNumber = (string) ($row->workorder?->number ?? '');
         $woDisplay = $woNumber !== '' ? trim('w ' . preg_replace('/(\d{3})(?=\d)/', '$1 ', $woNumber)) : '';
@@ -102,10 +105,12 @@ class VendorTrackingExport implements FromArray, ShouldAutoSize, WithEvents
             'customer' => (string) ($row->customer?->name ?? ''),
             'ipl' => (string) ($row->ipl_num ?? ''),
             'part_number' => (string) ($row->part_number ?? ''),
+            'part_name' => (string) ($row->part_name ?? ''),
             'serial' => (string) ($row->serial ?? ''),
             'process' => (string) ($row->process_name ?? ''),
             'sent' => optional($sent)->format('Y-m-d') ?? '',
             'returned' => optional($returned)->format('Y-m-d') ?? '',
+            'ecd' => optional($ecd)->format('Y-m-d') ?? '',
             'days' => $days ?? '',
         ];
 

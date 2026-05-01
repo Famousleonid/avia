@@ -23,16 +23,12 @@
                                 <input id="ipl_num" type="text" class="form-control" name="ipl_num" required>
                             </div>
                             <div class="mb-2">
-                                <label>{{ __('Image') }}</label>
-                                <input type="file" name="img" class="form-control" placeholder="Image">
-                            </div>
-                            <div class="mb-2">
                                 <label for="part_number">{{ __('Part Number') }}</label>
                                 <input id="part_number" type="text" class="form-control" name="part_number" required>
                             </div>
                             <div class="mb-2">
-                                <label for="eff_code">{{ __('EFF Code') }}</label>
-                                <input id="eff_code" type="text" class="form-control" name="eff_code" placeholder="Enter EFF code (optional)">
+                                <label>{{ __('Image') }}</label>
+                                <input type="file" name="img" class="form-control" placeholder="Image">
                             </div>
                         </div>
                         <div class="m-3">
@@ -107,10 +103,6 @@
                                 <input id="edit_part_number" type="text" class="form-control" name="part_number" required>
                             </div>
                             <div class="mb-2">
-                                <label for="edit_eff_code">{{ __('EFF Code') }}</label>
-                                <input id="edit_eff_code" type="text" class="form-control" name="eff_code">
-                            </div>
-                            <div class="mb-2">
                                 <label for="edit_units_assy">{{ __('Units per Assy') }}</label>
                                 <input id="edit_units_assy" type="text" class="form-control" name="units_assy">
                             </div>
@@ -135,10 +127,6 @@
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" id="edit_log_card" name="log_card">
                                 <label class="form-check-label" for="edit_log_card">Log Card</label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" id="edit_repair" name="repair">
-                                <label class="form-check-label" for="edit_repair">Repair</label>
                             </div>
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" id="edit_is_bush" name="is_bush">

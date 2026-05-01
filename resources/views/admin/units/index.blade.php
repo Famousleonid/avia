@@ -386,7 +386,7 @@
                         }
                     });
                 } else {
-                    alert('Please select CMM and enter at least one PN.');
+                    window.showNotification('Please select CMM and enter at least one PN.');
                 }
             });
 

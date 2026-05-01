@@ -607,12 +607,12 @@
             });
 
             if (!hasSelectedRadio) {
-                alert('Process not added because no process is selected.');
+                window.showNotification('Process not added because no process is selected.');
                 return;
             }
 
             if (!componentId) {
-                alert('Please select a component.');
+                window.showNotification('Please select a component.');
                 return;
             }
 
@@ -664,7 +664,7 @@
                 .then(data => {
                     console.log('Success:', data);
                     if (data.message) {
-                        alert(data.message);
+                        window.showNotification(data.message);
                     }
                     var inModal = {{ request()->query('modal') ? 'true' : 'false' }};
                     if (data.success && inModal && window.parent !== window) {
@@ -675,7 +675,7 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error saving processes: ' + error.message);
+                    window.notifyError('Error saving processes: ' + error.message);
                 });
         });
 
@@ -787,7 +787,7 @@
             const selectedRadio = document.querySelector('#existingProcessContainer input[type="radio"]:checked');
 
             if (newProcess === '' && !selectedRadio) {
-                alert("Enter a new process or select an existing one.");
+                window.showNotification("Enter a new process or select an existing one.");
                 return;
             }
 
@@ -843,7 +843,7 @@
 
                                 document.getElementById('newProcessInput').value = '';
                             } else {
-                alert(data.message || "Error while adding a new process.");
+                window.notifyError(data.message || "Error while adding a new process.");
                             }
                         })
                         .catch(error => {
@@ -1001,14 +1001,14 @@
                         modalInstance.hide();
 
                         // Показываем сообщение об успехе
-                        alert('Component created successfully!');
+                        window.notifySuccess('Component created successfully!');
                     } else {
-                        alert(data.message || 'Error creating component');
+                        window.notifyError(data.message || 'Error creating component');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error creating component: ' + error.message);
+                    window.notifyError('Error creating component: ' + error.message);
                 });
         });
     </script>

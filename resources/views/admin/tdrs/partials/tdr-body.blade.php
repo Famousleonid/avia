@@ -33,7 +33,7 @@
     }
 
     #tdr_process_Table thead th {
-        font-size: 10px;
+        font-size: 14px;
         font-weight: 400;
         line-height: 1.1;
         padding: .18rem .25rem;
@@ -135,16 +135,20 @@
 
     #tdrInlineAddBtn {
         align-items: center;
-        align-self: flex-start;
         display: inline-flex;
-        flex: 0 0 58px;
-        height: 28px;
+        height: 24px;
         justify-content: center;
-        margin-left: auto !important;
-        min-width: 58px;
+        min-width: 52px;
         padding-left: .35rem;
         padding-right: .35rem;
-        width: 58px;
+        width: 52px;
+    }
+
+    #tdrInlineAddRow > td {
+        border-top: 0;
+        padding-bottom: .15rem;
+        padding-top: .15rem;
+        vertical-align: middle;
     }
 
     .tdr-inline-manual-picker {
@@ -164,7 +168,7 @@
 
     #tdr-inline-add-part-btn,
     #tdr-inline-edit-part-btn {
-        font-size: 10px;
+        font-size: 12px;
         line-height: 1.1;
     }
 
@@ -249,13 +253,18 @@
 
     #tdrInlineCreateRow .tdr-inline-field .form-control,
     #tdrInlineCreateRow .tdr-inline-field .form-select {
-        font-size: 11px !important;
-        line-height: 1.25 !important;
+        font-size: 14px !important;
+        height: 32px !important;
+        line-height: 30px !important;
+        padding-bottom: 0 !important;
+        padding-top: 0 !important;
+        text-align: center;
+        text-align-last: center;
     }
 
     body.tdr-inline-select2-dropdown-open .select2-container--open .select2-search__field,
     body.tdr-inline-select2-dropdown-open .select2-container--open .select2-results__option {
-        font-size: 11px !important;
+        font-size: 14px !important;
         line-height: 1.25 !important;
     }
 
@@ -270,7 +279,28 @@
     }
 
     #tdrInlineCreateRow .tdr-inline-field .select2-selection {
-        min-height: 28px;
+        height: 32px !important;
+        min-height: 32px !important;
+    }
+
+    #tdrInlineCreateRow .tdr-inline-field .select2-selection__rendered {
+        align-items: center;
+        display: flex !important;
+        font-size: 14px !important;
+        height: 100%;
+        justify-content: center;
+        line-height: 30px !important;
+        padding-bottom: 0 !important;
+        padding-top: 0 !important;
+        text-align: center;
+    }
+
+    #tdrInlineCreateRow .tdr-inline-field .select2-selection__arrow {
+        height: 30px !important;
+    }
+
+    #tdr_process_Table select option {
+        font-size: 14px;
     }
 
     #tdrInlineComponentPicker .select2-selection__rendered[data-part-number]:not([data-part-number=""]) {
@@ -282,11 +312,14 @@
         color: var(--bs-body-color);
         content: attr(data-part-number);
         left: 0;
+        line-height: 1.2;
         overflow: hidden;
         position: absolute;
         right: 0;
+        text-align: center;
         text-overflow: ellipsis;
-        top: 0;
+        top: 50%;
+        transform: translateY(-50%);
         white-space: nowrap;
     }
 
@@ -430,7 +463,6 @@
                     @endforeach
                 </select>
             </div>
-            <button type="button" class="btn btn-outline-info btn-sm ms-auto" id="tdrInlineAddBtn" style="height: 28px">{{ __('Add') }}</button>
         </div>
         <div class="table-wrapper p-1 tdr-show-right-table-wrapper">
             <table id="tdr_process_Table" class="table table-sm table-hover align-middle dir-table small shadow-lg">
@@ -612,6 +644,12 @@
                             <button type="submit" form="tdrInlineCreateForm" class="btn btn-outline-primary btn-sm">{{ __('Save') }}</button>
                         </div>
                     </td>
+                </tr>
+                <tr id="tdrInlineAddRow">
+                    <td class="text-start">
+                        <button type="button" class="btn btn-outline-info btn-sm" id="tdrInlineAddBtn">{{ __('Add') }}</button>
+                    </td>
+                    <td colspan="7"></td>
                 </tr>
                 </tbody>
             </table>

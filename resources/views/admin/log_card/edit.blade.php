@@ -263,7 +263,7 @@
             document.getElementById('editForm').addEventListener('submit', function(e) {
                 let data = buildComponentData();
                 if (!data) {
-                    (typeof showNotification === 'function' ? showNotification : alert)('Отметьте хотя бы один компонент (радиокнопку) для сохранения.', 'warning');
+                    window.showNotification('Отметьте хотя бы один компонент (радиокнопку) для сохранения.', 'warning');
                     e.preventDefault();
                     return false;
                 }
@@ -286,12 +286,12 @@
                             window.parent.postMessage({ type: 'editLogCardSuccess' }, '*');
                         } else {
                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-save"></i> {{ __("Update Log Card") }}'; }
-                            alert(res.message || (res.errors ? Object.values(res.errors).flat().join(', ') : 'Error'));
+                            window.notifyError(res.message || (res.errors ? Object.values(res.errors).flat().join(', ') : 'Error'));
                         }
                     })
                     .catch(function() {
                         if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<i class="fas fa-save"></i> {{ __("Update Log Card") }}'; }
-                        alert('Error');
+                        window.notifyError('Error');
                     });
                     return false;
                 }

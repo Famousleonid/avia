@@ -581,7 +581,7 @@
             });
 
             if (!hasSelectedRadio) {
-                alert('Process not added because no process is selected.');
+                window.showNotification('Process not added because no process is selected.');
                 return;
             }
 
@@ -625,7 +625,7 @@
             })
             .then(data => {
                 if (data.success && data.message) {
-                    alert(data.message);
+                    window.showNotification(data.message);
                 }
                 const inModal = {{ request()->query('modal') ? 'true' : 'false' }};
                 if (data.success && inModal && window.parent !== window) {
@@ -639,7 +639,7 @@
             .catch(error => {
                 console.error('Error details:', error);
                 console.error('Error stack:', error.stack);
-                alert('Error saving processes: ' + error.message);
+                window.notifyError('Error saving processes: ' + error.message);
             });
         });
 
@@ -909,7 +909,7 @@
             const manualId = document.getElementById('processes-container').dataset.manualId;
 
             if (!newProcessName) {
-                alert('Please enter a process name.');
+                window.showNotification('Please enter a process name.');
                 return;
             }
 
@@ -943,14 +943,14 @@
                         currentSelect.dispatchEvent(new Event('change'));
                     }
 
-                    alert('Process added successfully!');
+                    window.notifySuccess('Process added successfully!');
                 } else {
-                    alert('Error adding process: ' + data.message);
+                    window.notifyError('Error adding process: ' + data.message);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error adding process: ' + error.message);
+                window.notifyError('Error adding process: ' + error.message);
             });
         });
     </script>

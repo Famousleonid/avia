@@ -272,7 +272,8 @@
 
             const html = (items || []).map(n => {
                 const id = escapeHtml(n.id);
-                const from = n.from_name ? `From: ${escapeHtml(n.from_name)}` : '';
+                const fromName = String(n.from_name || 'System').trim() || 'System';
+                const from = `From: ${escapeHtml(fromName)}`;
                 const time = escapeHtml(n.created_at_human);
                 const msg = buildMessage(n);
                 const url = n.url ? escapeHtml(n.url) : '';

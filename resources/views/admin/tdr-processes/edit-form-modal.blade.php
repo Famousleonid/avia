@@ -35,12 +35,12 @@
                                 var first = Object.values(data.errors)[0];
                                 if (Array.isArray(first) && first[0]) msg = first[0];
                             }
-                            (window.NotificationHandler?.error || alert)(msg);
+                            (window.NotificationHandler?.error || window.notifyError)(msg);
                         }
                     })
                     .catch(function() {
                         if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origText; }
-                        (window.NotificationHandler?.error || alert)('Error');
+                        (window.NotificationHandler?.error || window.notifyError)('Error');
                     });
             });
         }

@@ -24,11 +24,13 @@ class TdrProcess extends Model
         'sort_order', // Поле для сортировки
         'date_start',
         'date_finish',
+        'date_promise',
         'date_start_user_id',
         'date_finish_user_id',
         'working_steps_count',
         'ignore_row',
         'in_traveler',
+        'traveler_group',
         'ec',
         'standalone_ec_only', // true = «только EC» (отдельная строка в SP Form); false = companion к Machining/RIL
         'user_id',
@@ -37,8 +39,10 @@ class TdrProcess extends Model
         'processes'   => 'array',
         'date_start'  => 'date',   // <-- важно
         'date_finish' => 'date',   // <-- важно
+        'date_promise' => 'date',
         'ignore_row'  => 'boolean',
         'in_traveler' => 'boolean',
+        'traveler_group' => 'integer',
         'standalone_ec_only' => 'boolean',
     ];
 
@@ -148,6 +152,7 @@ class TdrProcess extends Model
             ->logOnly([
                 'date_start',
                 'date_finish',
+                'date_promise',
                 'repair_order',
                 'vendor_id',
             ])

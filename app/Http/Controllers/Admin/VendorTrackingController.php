@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Exports\VendorTrackingExport;
+use App\Models\Customer;
+use App\Models\Process;
 use App\Models\TdrProcess;
 use App\Models\Vendor;
 use App\Models\WoBushingBatch;
@@ -26,10 +28,12 @@ class VendorTrackingController extends Controller
         'customer',
         'ipl',
         'part_number',
+        'part_name',
         'serial',
         'process',
         'sent',
         'returned',
+        'ecd',
         'days',
     ];
 
@@ -54,6 +58,7 @@ class VendorTrackingController extends Controller
         );
 
         $vendors = Vendor::query()->orderBy('name')->get(['id', 'name']);
+        $customers = Customer::query()->orderBy('name')->get(['id', 'name']);
 
         $summary = [
             'filtered_total' => $rows->total(),
@@ -61,7 +66,7 @@ class VendorTrackingController extends Controller
             'total_rows' => $totalRowsCount,
         ];
 
-        return view('admin.vendor_tracking.index', compact('rows', 'vendors', 'filters', 'summary'));
+        return view('admin.vendor_tracking.index', compact('rows', 'vendors', 'customers', 'filters', 'summary'));
     }
 
     public function export(Request $request): BinaryFileResponse
@@ -84,11 +89,42 @@ class VendorTrackingController extends Controller
         $data = $request->validate([
             'source_key' => ['required', 'string'],
             'id' => ['required', 'integer', 'min:1'],
+            'traveler_group' => ['nullable', 'integer', 'min:1'],
             'vendor_id' => ['nullable', 'integer', 'exists:vendors,id'],
             'repair_order' => ['nullable', 'string', 'max:255'],
         ]);
 
         $modelClass = self::SOURCE_MAP[$data['source_key']] ?? null;
+        if ($data['source_key'] === 'tdr_traveler') {
+            $travelerGroup = (int) ($data['traveler_group'] ?? 0);
+
+            $rows = TdrProcess::query()
+                ->where('tdrs_id', (int) $data['id'])
+                ->where('in_traveler', true)
+                ->when($travelerGroup > 0, fn ($query) => $this->whereTravelerGroup($query, $travelerGroup))
+                ->get();
+
+            abort_if($rows->isEmpty(), 404);
+
+            foreach ($rows as $row) {
+                $row->vendor_id = $data['vendor_id'] ?? null;
+                $row->repair_order = $this->normalizeRepairOrder($data['repair_order'] ?? null);
+                if (auth()->id()) {
+                    $row->user_id = auth()->id();
+                }
+                $row->save();
+            }
+
+            $leader = $rows->first();
+            $leader->loadMissing('vendor:' . $this->vendorSelectColumns());
+
+            return response()->json([
+                'ok' => true,
+                'vendor_name' => $leader->vendor?->name,
+                'repair_order' => $leader->repair_order,
+            ]);
+        }
+
         abort_unless($modelClass !== null, 422, 'Unknown vendor tracking source.');
 
         /** @var TdrProcess|WoBushingProcess|WoBushingBatch $row */
@@ -123,6 +159,7 @@ class VendorTrackingController extends Controller
     {
         $filters = [
             'vendor_id' => (int) $request->input('vendor_id', 0),
+            'customer_id' => (int) $request->input('customer_id', 0),
             'status' => $request->input('status', 'all'),
             'sources' => $this->sourceFilters($request),
             'include_vendor_null' => $request->boolean('include_vendor_null'),
@@ -201,7 +238,7 @@ class VendorTrackingController extends Controller
 
     private function collectRows(array $filters): Collection
     {
-        $tdrRows = TdrProcess::query()
+        $tdrRawRows = TdrProcess::query()
             ->with([
                 'vendor:' . $this->vendorSelectColumns(),
                 'processName:id,name',
@@ -242,18 +279,39 @@ class VendorTrackingController extends Controller
             ->when($filters['workorder'] !== '', function ($q) use ($filters): void {
                 $q->whereHas('tdr.workorder', fn ($wq) => $wq->where('number', 'like', '%' . $filters['workorder'] . '%'));
             })
+            ->when((int) ($filters['customer_id'] ?? 0) > 0, function ($q) use ($filters): void {
+                $q->whereHas('tdr.workorder', fn ($wq) => $wq->where('customer_id', (int) $filters['customer_id']));
+            })
             ->when($filters['part_number'] !== '', function ($q) use ($filters): void {
                 $q->whereHas('tdr.component', fn ($cq) => $cq->where('part_number', 'like', '%' . $filters['part_number'] . '%'));
             })
             ->when($filters['repair_order'] !== '', fn ($q) => $q->where('repair_order', 'like', '%' . $filters['repair_order'] . '%'))
-            ->get()
+            ->orderBy('tdrs_id')
+            ->orderBy('id')
+            ->get();
+
+        $travelerTdrIds = $tdrRawRows
+            ->filter(fn (TdrProcess $row) => (bool) $row->in_traveler)
+            ->pluck('tdrs_id')
+            ->unique()
+            ->values();
+
+        $tdrRows = $tdrRawRows
+            ->reject(fn (TdrProcess $row) => (bool) $row->in_traveler || $travelerTdrIds->contains($row->tdrs_id))
             ->map(fn (TdrProcess $row) => $this->normalizeTdrProcess($row));
+
+        $tdrTravelerRows = $tdrRawRows
+            ->filter(fn (TdrProcess $row) => (bool) $row->in_traveler)
+            ->groupBy(fn (TdrProcess $row) => ((int) $row->tdrs_id) . ':' . ((int) ($row->traveler_group ?: 1)))
+            ->map(fn (Collection $group) => $this->normalizeTdrTravelerGroup($this->loadFullTravelerGroup($group)))
+            ->values();
 
         $bushingProcessRows = in_array('bushing', $filters['sources'], true) ? $this->bushingProcessRows($filters) : collect();
         $bushingBatchRows = in_array('bushing', $filters['sources'], true) ? $this->bushingBatchRows($filters) : collect();
 
         return $this->sortRows(
             $tdrRows
+                ->concat($tdrTravelerRows)
                 ->concat($bushingProcessRows)
                 ->concat($bushingBatchRows)
                 ->values(),
@@ -326,12 +384,130 @@ class VendorTrackingController extends Controller
             'customer' => $wo?->customer,
             'ipl_num' => $component?->ipl_num,
             'part_number' => $component?->part_number,
+            'part_name' => $component?->name,
             'serial' => $tdr?->serial_number ?: $tdr?->assy_serial_number,
             'process_name' => $row->processName?->name ?? null,
             'repair_order' => $row->repair_order,
             'date_start' => $row->date_start,
             'date_finish' => $row->date_finish,
+            'date_promise' => $row->date_promise,
             'is_returned' => ! empty($row->date_finish),
+        ];
+    }
+
+    private function loadFullTravelerGroup(Collection $group): Collection
+    {
+        $tdrId = (int) ($group->first()?->tdrs_id ?? 0);
+        $travelerGroup = (int) ($group->first()?->traveler_group ?: 1);
+        if ($tdrId <= 0) {
+            return $group;
+        }
+
+        return TdrProcess::query()
+            ->with([
+                'vendor:' . $this->vendorSelectColumns(),
+                'processName:id,name',
+                'tdr:id,workorder_id,component_id,serial_number,assy_serial_number',
+                'tdr.workorder:id,number,customer_id',
+                'tdr.workorder.customer:id,name',
+                'tdr.component:id,part_number,ipl_num,name',
+            ])
+            ->where('tdrs_id', $tdrId)
+            ->where('in_traveler', true)
+            ->where(fn ($query) => $this->whereTravelerGroup($query, $travelerGroup))
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+    }
+
+    private function whereTravelerGroup($query, int $travelerGroup): void
+    {
+        $query->where('traveler_group', $travelerGroup);
+
+        if ($travelerGroup === 1) {
+            $query->orWhereNull('traveler_group');
+        }
+    }
+
+    private function normalizeTdrTravelerGroup(Collection $group): object
+    {
+        /** @var TdrProcess $leader */
+        $leader = $group
+            ->first(fn (TdrProcess $row) => ! empty($row->date_start) || ! empty($row->date_finish))
+            ?? $group->first(fn (TdrProcess $row) => ! empty($row->vendor_id))
+            ?? $group->first();
+        $tdr = $leader->tdr;
+        $wo = $tdr?->workorder;
+        $component = $tdr?->component;
+        $travelerGroup = (int) ($leader->traveler_group ?: 1);
+        $processIds = $group
+            ->flatMap(function (TdrProcess $row): array {
+                $values = json_decode((string) $row->processes, true);
+                return is_array($values) ? array_map('intval', $values) : [];
+            })
+            ->filter()
+            ->unique()
+            ->values();
+        $processLabels = $processIds->isNotEmpty()
+            ? Process::query()->whereIn('id', $processIds)->pluck('process', 'id')
+            : collect();
+        $children = $group
+            ->sortBy('sort_order')
+            ->values()
+            ->map(function (TdrProcess $row) use ($processLabels, $tdr, $travelerGroup): object {
+                $values = json_decode((string) $row->processes, true);
+                $labels = collect(is_array($values) ? $values : [])
+                    ->map(fn ($id) => $processLabels->get((int) $id))
+                    ->filter()
+                    ->values();
+                $processId = collect(is_array($values) ? $values : [])
+                    ->map(fn ($id) => (int) $id)
+                    ->filter()
+                    ->first();
+                $formParams = ['tdr_process' => $row->id];
+                if ($processId) {
+                    $formParams['process_id'] = $processId;
+                }
+
+                return (object) [
+                    'id' => (int) $row->id,
+                    'source_key' => $row->tdr?->component_id === null ? 'tdr_std' : 'tdr_part',
+                    'process_name' => $row->processName?->name ?? '--',
+                    'process_label' => $labels->isNotEmpty() ? $labels->implode(', ') : ($row->processName?->name ?? '--'),
+                    'part_number' => $row->tdr?->component?->part_number,
+                    'part_name' => $row->tdr?->component?->name,
+                    'repair_order' => $row->repair_order,
+                    'vendor' => $row->vendor,
+                    'form_url' => route('tdr-processes.show', $formParams),
+                    'traveler_form_url' => route('tdr-processes.travelForm', ['id' => $tdr->id, 'traveler_group' => $travelerGroup]),
+                    'date_start' => $row->date_start,
+                    'date_finish' => $row->date_finish,
+                    'date_promise' => $row->date_promise,
+                ];
+            });
+
+        return (object) [
+            'id' => (int) $tdr->id,
+            'row_key' => 'tdr-' . (int) $tdr->id . '-traveler-' . $travelerGroup,
+            'traveler_group' => $travelerGroup,
+            'source_key' => 'tdr_traveler',
+            'source' => 'Traveler',
+            'date_update_url' => route('tdrprocesses.updateTravelerGroupDates', ['tdr' => $tdr, 'traveler_group' => $travelerGroup]),
+            'vendor' => $leader->vendor,
+            'workorder' => $wo,
+            'customer' => $wo?->customer,
+            'ipl_num' => $component?->ipl_num,
+            'part_number' => $component?->part_number,
+            'part_name' => $component?->name,
+            'serial' => $tdr?->serial_number ?: $tdr?->assy_serial_number,
+            'process_name' => ($travelerGroup === 1 ? 'Traveler' : 'Traveler ' . $travelerGroup) . ' (' . $children->count() . ')',
+            'repair_order' => $leader->repair_order,
+            'date_start' => $leader->date_start,
+            'date_finish' => $leader->date_finish,
+            'date_promise' => $leader->date_promise,
+            'is_returned' => ! empty($leader->date_finish),
+            'is_traveler_group' => true,
+            'traveler_children' => $children,
         ];
     }
 
@@ -362,6 +538,9 @@ class VendorTrackingController extends Controller
             ->when($filters['status'] === 'returned', fn ($q) => $q->whereNotNull('date_finish'))
             ->when($filters['workorder'] !== '', function ($q) use ($filters): void {
                 $q->whereHas('line.workorder', fn ($wq) => $wq->where('number', 'like', '%' . $filters['workorder'] . '%'));
+            })
+            ->when((int) ($filters['customer_id'] ?? 0) > 0, function ($q) use ($filters): void {
+                $q->whereHas('line.workorder', fn ($wq) => $wq->where('customer_id', (int) $filters['customer_id']));
             })
             ->when($filters['part_number'] !== '', function ($q) use ($filters): void {
                 $q->whereHas('line.component', fn ($cq) => $cq->where('part_number', 'like', '%' . $filters['part_number'] . '%'));
@@ -398,6 +577,9 @@ class VendorTrackingController extends Controller
             ->when($filters['workorder'] !== '', function ($q) use ($filters): void {
                 $q->whereHas('workorder', fn ($wq) => $wq->where('number', 'like', '%' . $filters['workorder'] . '%'));
             })
+            ->when((int) ($filters['customer_id'] ?? 0) > 0, function ($q) use ($filters): void {
+                $q->whereHas('workorder', fn ($wq) => $wq->where('customer_id', (int) $filters['customer_id']));
+            })
             ->when($filters['part_number'] !== '', function ($q) use ($filters): void {
                 $q->whereHas('woBushingProcesses.line.component', fn ($cq) => $cq->where('part_number', 'like', '%' . $filters['part_number'] . '%'));
             })
@@ -422,11 +604,13 @@ class VendorTrackingController extends Controller
             'customer' => $wo?->customer,
             'ipl_num' => $component?->ipl_num,
             'part_number' => $component?->part_number,
+            'part_name' => $component?->name,
             'serial' => null,
             'process_name' => $row->process?->process_name?->name ?? $row->process?->process,
             'repair_order' => $row->repair_order,
             'date_start' => $row->date_start,
             'date_finish' => $row->date_finish,
+            'date_promise' => $row->date_promise,
             'is_returned' => ! empty($row->date_finish),
         ];
     }
@@ -448,11 +632,13 @@ class VendorTrackingController extends Controller
             'customer' => $row->workorder?->customer,
             'ipl_num' => $component?->ipl_num,
             'part_number' => $component?->part_number,
+            'part_name' => $component?->name,
             'serial' => null,
             'process_name' => ($row->process?->process_name?->name ?? $row->process?->process ?? 'Bushing batch') . ' / Batch',
             'repair_order' => $row->repair_order,
             'date_start' => $row->date_start,
             'date_finish' => $row->date_finish,
+            'date_promise' => $row->date_promise,
             'is_returned' => ! empty($row->date_finish),
         ];
     }

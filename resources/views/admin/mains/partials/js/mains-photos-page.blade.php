@@ -28,7 +28,7 @@
                 showNotification(message, type);
                 return;
             }
-            alert(message);
+            window.showNotification(message);
         };
 
         function buildUrl(template, replacements) {

@@ -47,6 +47,10 @@
             flex: 0 0 150px;
         }
 
+        .vendor-tracking-filter-customer {
+            flex: 0 0 170px;
+        }
+
         .vendor-tracking-filter-status {
             flex: 0 0 105px;
         }
@@ -241,9 +245,10 @@
         }
 
         .vendor-tracking-type-col {
-            width: 56px;
-            min-width: 56px;
-            max-width: 56px;
+            width: 72px;
+            min-width: 72px;
+            max-width: 72px;
+            white-space: nowrap;
         }
 
         .vendor-tracking-vendor-col {
@@ -259,6 +264,7 @@
         .vendor-tracking-vendor-select-wrap .vendor-tracking-inline-select {
             width: 100%;
             min-width: 0;
+            font-size: 14px;
         }
 
         .vendor-tracking-vendor-select-wrap .vendor-tracking-inline-select.is-expanded {
@@ -298,6 +304,11 @@
 
         .vendor-tracking-part-col {
             width: 12%;
+        }
+
+        .vendor-tracking-part-name-col {
+            width: 12%;
+            min-width: 120px;
         }
 
         .vendor-tracking-serial-col {
@@ -510,6 +521,106 @@
             vertical-align: middle;
         }
 
+        .vendor-tracking-traveler-row > td {
+            background: #f8fbff !important;
+        }
+
+        .vendor-tracking-traveler-toggle {
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .vendor-tracking-traveler-toggle .bi {
+            transition: transform .16s ease;
+        }
+
+        .vendor-tracking-traveler-toggle[aria-expanded="true"] .bi {
+            transform: rotate(90deg);
+        }
+
+        .vendor-tracking-detail-cell {
+            background: #f3f7fb !important;
+            padding: .45rem .65rem !important;
+            text-align: left;
+        }
+
+        .vendor-tracking-detail-panel {
+            display: block;
+            max-width: 920px;
+            min-width: 300px;
+            margin-left: 0;
+            margin-right: auto;
+            border: 1px solid #d7e0ea;
+            background: #ffffff;
+        }
+
+        .vendor-tracking-detail-table {
+            margin: 0;
+            color: inherit;
+            font-size: .82rem;
+            width: auto;
+            min-width: 300px;
+        }
+
+        .vendor-tracking-detail-table th,
+        .vendor-tracking-detail-table td {
+            padding: .25rem .45rem;
+            border-color: #d7e0ea;
+            background: #ffffff;
+            white-space: nowrap;
+        }
+
+        .vendor-tracking-detail-ro-col {
+            width: 90px;
+            min-width: 90px;
+        }
+
+        .vendor-tracking-detail-vendor-col {
+            width: 190px;
+            min-width: 190px;
+        }
+
+        .vendor-tracking-detail-form-col {
+            width: 210px;
+            min-width: 210px;
+            text-align: center;
+        }
+
+        .vendor-tracking-detail-traveler-actions {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .35rem;
+            white-space: nowrap;
+        }
+
+        .vendor-tracking-detail-group-ro {
+            width: 76px;
+            min-width: 76px;
+        }
+
+        .vendor-tracking-detail-table .vendor-tracking-inline-input,
+        .vendor-tracking-detail-table .vendor-tracking-inline-select {
+            height: calc(1.65rem + 2px);
+            padding-top: .15rem;
+            padding-bottom: .15rem;
+            font-size: .78rem;
+        }
+
+        .vendor-tracking-detail-table .vendor-tracking-vendor-cell .vendor-tracking-inline-select {
+            font-size: 14px;
+        }
+
+        .vendor-tracking-detail-table thead th {
+            background: #f4f7fb;
+            color: #334155;
+            font-weight: 600;
+        }
+
         .vendor-tracking-table a {
             color: #0ea5e9;
         }
@@ -637,6 +748,31 @@
             border-color: rgba(255, 255, 255, 0.12);
         }
 
+        html[data-bs-theme="dark"] .vendor-tracking-traveler-row > td {
+            background: #202a32 !important;
+        }
+
+        html[data-bs-theme="dark"] .vendor-tracking-detail-cell {
+            background: #1d252c !important;
+        }
+
+        html[data-bs-theme="dark"] .vendor-tracking-detail-panel {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: #232525;
+        }
+
+        html[data-bs-theme="dark"] .vendor-tracking-detail-table th,
+        html[data-bs-theme="dark"] .vendor-tracking-detail-table td {
+            background: #232525;
+            border-color: rgba(255, 255, 255, 0.12);
+            color: #f8f9fa;
+        }
+
+        html[data-bs-theme="dark"] .vendor-tracking-detail-table thead th {
+            background: #232525;
+            color: #adb5bd;
+        }
+
         html[data-bs-theme="dark"] .vendor-tracking-table a {
             color: #22c7ff;
         }
@@ -728,6 +864,10 @@
                         params.set('vendor_id', stored.vendor_id);
                     }
 
+                    if (stored.customer_id && stored.customer_id !== '0') {
+                        params.set('customer_id', stored.customer_id);
+                    }
+
                     if (stored.status && stored.status !== 'all') {
                         params.set('status', stored.status);
                     }
@@ -806,6 +946,16 @@
                                 <option value="0">All vendors</option>
                                 @foreach($vendors as $vendor)
                                     <option value="{{ $vendor->id }}" @selected((int) $filters['vendor_id'] === (int) $vendor->id)>{{ $vendor->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="vendor-tracking-filter-customer">
+                            <label class="form-label small text-muted">Customer</label>
+                            <select name="customer_id" class="form-select form-select-sm">
+                                <option value="0">All customers</option>
+                                @foreach($customers as $customer)
+                                    <option value="{{ $customer->id }}" @selected((int) ($filters['customer_id'] ?? 0) === (int) $customer->id)>{{ $customer->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -901,6 +1051,7 @@
                                     </a>
                                 </th>
                                 <th class="vendor-tracking-part-col" data-col="part_number">Part number</th>
+                                <th class="vendor-tracking-part-name-col" data-col="part_name">Name</th>
                                 <th class="vendor-tracking-serial-col" data-col="serial">Serial</th>
                                 <th class="vendor-tracking-process-col" data-col="process">
                                     <a href="{{ $sortUrl('process') }}" class="vendor-tracking-sort-link {{ $currentSort === 'process' ? 'is-active' : '' }}">
@@ -910,6 +1061,7 @@
                                 </th>
                                 <th class="text-center vendor-tracking-date-col" data-col="sent">Sent (edit)</th>
                                 <th class="text-center vendor-tracking-date-col" data-col="returned">Returned (edit)</th>
+                                <th class="text-center vendor-tracking-date-col" data-col="ecd">ECD</th>
                                 <th class="text-center" data-col="days">Days</th>
                                 <th class="text-center" data-col="status">Status</th>
                             </tr>
@@ -920,6 +1072,7 @@
                                     $wo = $row->workorder;
                                     $sent = $row->date_start;
                                     $returned = $row->date_finish;
+                                    $ecd = $row->date_promise;
                                     $days = $sent ? $sent->diffInDays($returned ?: now()) : null;
                                     $woNumber = (string) ($wo?->number ?? '');
                                     $woDisplay = trim('w ' . preg_replace('/(\d{3})(?=\d)/', '$1 ', $woNumber));
@@ -928,10 +1081,19 @@
                                         'STD' => 'text-success',
                                         'Part' => 'text-primary',
                                         'Bush' => 'text-light',
+                                        'Traveler' => 'text-info',
                                         default => 'text-secondary',
                                     };
+                                    $isTravelerGroup = (bool) ($row->is_traveler_group ?? false);
+                                    $travelerChildren = collect($row->traveler_children ?? []);
+                                    $rowKey = (string) ($row->row_key ?? $row->id);
+                                    $travelerGroup = (int) ($row->traveler_group ?? 0);
                                 @endphp
-                                <tr data-row-id="{{ $row->id }}" data-source-key="{{ $row->source_key }}">
+                                <tr data-row-id="{{ $row->id }}"
+                                    data-row-key="{{ $rowKey }}"
+                                    data-source-key="{{ $row->source_key }}"
+                                    @if($travelerGroup > 0) data-traveler-group="{{ $travelerGroup }}" @endif
+                                    @class(['vendor-tracking-traveler-row' => $isTravelerGroup])>
                                     <td class="vendor-tracking-save-cell vendor-tracking-repair-col" data-col="repair_order">
                                         <input type="text" class="form-control form-control-sm vendor-tracking-inline-input js-vendor-tracking-repair-order" value="{{ $row->repair_order ?? '' }}">
                                     </td>
@@ -963,8 +1125,20 @@
                                     <td class="vendor-tracking-customer-col" data-col="customer">{{ $row->customer?->name ?? '--' }}</td>
                                     <td class="vendor-tracking-ipl-col" data-col="ipl">{{ $row->ipl_num ?? '--' }}</td>
                                     <td class="vendor-tracking-part-col" data-col="part_number">{{ $row->part_number ?? '--' }}</td>
+                                    <td class="vendor-tracking-part-name-col" data-col="part_name">{{ $row->part_name ?? '--' }}</td>
                                     <td class="vendor-tracking-serial-col" data-col="serial">{{ $row->serial ?: '--' }}</td>
-                                    <td class="vendor-tracking-process-col" data-col="process">{{ $row->process_name ?? '--' }}</td>
+                                    <td class="vendor-tracking-process-col" data-col="process">
+                                        @if($isTravelerGroup)
+                                            <div class="d-flex align-items-center gap-2">
+                                                <button type="button" class="btn btn-sm btn-outline-info vendor-tracking-traveler-toggle js-vendor-traveler-toggle" aria-expanded="false" title="Show traveler processes">
+                                                    <i class="bi bi-chevron-right"></i>
+                                                </button>
+                                                <span>{{ $row->process_name ?? '--' }}</span>
+                                            </div>
+                                        @else
+                                            {{ $row->process_name ?? '--' }}
+                                        @endif
+                                    </td>
                                     <td class="vendor-tracking-save-cell" data-col="sent">
                                         <input
                                             type="text"
@@ -987,6 +1161,17 @@
                                             data-original="{{ optional($returned)->format('Y-m-d') ?? '' }}"
                                         >
                                     </td>
+                                    <td class="vendor-tracking-save-cell" data-col="ecd">
+                                        <input
+                                            type="text"
+                                            data-fp
+                                            data-date-url="{{ $row->date_update_url }}"
+                                            name="date_promise"
+                                            class="form-control form-control-sm finish-input js-vendor-tracking-date"
+                                            value="{{ optional($ecd)->format('Y-m-d') }}"
+                                            data-original="{{ optional($ecd)->format('Y-m-d') ?? '' }}"
+                                        >
+                                    </td>
                                     <td class="text-center js-vendor-tracking-days" data-col="days">{{ $days ?? '--' }}</td>
                                     <td class="text-center js-vendor-tracking-status" data-col="status">
                                         @if($sent && ! $returned)
@@ -998,9 +1183,69 @@
                                         @endif
                                     </td>
                                 </tr>
+                                @if($isTravelerGroup)
+                                    <tr class="vendor-tracking-detail-row d-none" data-traveler-detail-for="{{ $rowKey }}">
+                                        <td class="vendor-tracking-detail-cell" colspan="16">
+                                            <div class="vendor-tracking-detail-panel">
+                                                <table class="table table-sm table-bordered vendor-tracking-detail-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Process</th>
+                                                            <th>Name</th>
+                                                            <th class="vendor-tracking-detail-ro-col">RO</th>
+                                                            <th class="vendor-tracking-detail-vendor-col">Vendor</th>
+                                                            <th class="vendor-tracking-detail-form-col">
+                                                                <div class="vendor-tracking-detail-traveler-actions">
+                                                                    <input type="text"
+                                                                           class="form-control form-control-sm vendor-tracking-inline-input vendor-tracking-detail-group-ro js-vendor-traveler-ro-all"
+                                                                           placeholder="RO"
+                                                                           value="{{ $row->repair_order ?? '' }}"
+                                                                           autocomplete="off"
+                                                                           data-no-submit
+                                                                           onkeydown="if (event.key === 'Enter') { event.preventDefault(); }">
+                                                                    <a href="{{ route('tdr-processes.travelForm', ['id' => $row->id, 'traveler_group' => $travelerGroup]) }}" class="btn btn-sm btn-outline-primary js-vendor-tracking-form-link" target="_blank">
+                                                                        Form traveler
+                                                                    </a>
+                                                                    <button type="button" class="btn btn-sm btn-outline-warning js-vendor-traveler-ungroup" data-ungroup-url="{{ route('tdr-processes.traveler-ungroup', ['tdrId' => $row->id]) }}" data-traveler-group="{{ $travelerGroup }}">
+                                                                        Ungroup
+                                                                    </button>
+                                                                </div>
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach($travelerChildren as $child)
+                                                            @php $childVendorId = (int) ($child->vendor?->id ?? 0); @endphp
+                                                            <tr data-row-id="{{ $child->id }}" data-source-key="{{ $child->source_key }}">
+                                                                <td>{{ $child->process_name ?? '--' }}</td>
+                                                                <td>{{ $child->process_label ?? '--' }}</td>
+                                                                <td class="vendor-tracking-save-cell vendor-tracking-detail-ro-col">
+                                                                    <input type="text" class="form-control form-control-sm vendor-tracking-inline-input js-vendor-tracking-repair-order" value="{{ $child->repair_order ?? '' }}">
+                                                                </td>
+                                                                <td class="vendor-tracking-save-cell vendor-tracking-detail-vendor-col vendor-tracking-vendor-cell">
+                                                                    <div class="vendor-tracking-vendor-select-wrap">
+                                                                        <select class="form-select form-select-sm vendor-tracking-inline-select js-vendor-tracking-vendor">
+                                                                            <option value="">--</option>
+                                                                            @foreach($vendors as $vendor)
+                                                                                <option value="{{ $vendor->id }}" @selected($childVendorId === (int) $vendor->id)>{{ $vendor->name }}</option>
+                                                                            @endforeach
+                                                                        </select>
+                                                                    </div>
+                                                                </td>
+                                                                <td class="vendor-tracking-detail-form-col">
+                                                                    <a href="{{ $child->form_url }}" class="btn btn-sm btn-outline-primary js-vendor-tracking-form-link" target="_blank">Form</a>
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endif
                             @empty
                                 <tr>
-                                    <td colspan="14" class="text-muted text-center py-4">No vendor process records found.</td>
+                                    <td colspan="16" class="text-muted text-center py-4 vendor-tracking-empty-cell">No vendor process records found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -1106,8 +1351,10 @@
             const screenColumnOrderKey = 'vendorTrackingScreenColumnOrder';
             const excelColumnOrderKey = 'vendorTrackingExcelColumnOrder';
             const excelTitleKey = 'vendorTrackingExcelTitle';
-            const defaultScreenColumns = ['repair_order', 'type', 'info', 'vendor', 'wo', 'customer', 'ipl', 'part_number', 'serial', 'process', 'sent', 'returned', 'days', 'status'];
-            const defaultExcelColumns = ['repair_order', 'type', 'vendor', 'wo', 'customer', 'ipl', 'part_number', 'serial', 'process', 'sent', 'returned', 'days'];
+            const settingsVersionKey = 'vendorTrackingSettingsVersion';
+            const currentSettingsVersion = '2';
+            const defaultScreenColumns = ['repair_order', 'type', 'info', 'vendor', 'wo', 'customer', 'ipl', 'part_number', 'part_name', 'serial', 'process', 'sent', 'returned', 'ecd', 'days', 'status'];
+            const defaultExcelColumns = ['repair_order', 'type', 'vendor', 'wo', 'customer', 'ipl', 'part_number', 'part_name', 'serial', 'process', 'sent', 'returned', 'ecd', 'days'];
             const screenColumnDefs = [
                 { key: 'repair_order', label: 'RO' },
                 { key: 'type', label: 'Type' },
@@ -1117,10 +1364,12 @@
                 { key: 'customer', label: 'Customer' },
                 { key: 'ipl', label: 'IPL' },
                 { key: 'part_number', label: 'Part Number' },
+                { key: 'part_name', label: 'Part Name' },
                 { key: 'serial', label: 'Serial' },
                 { key: 'process', label: 'Process' },
                 { key: 'sent', label: 'Sent' },
                 { key: 'returned', label: 'Returned' },
+                { key: 'ecd', label: 'ECD' },
                 { key: 'days', label: 'Days' },
                 { key: 'status', label: 'Status' },
             ];
@@ -1128,7 +1377,7 @@
             const form = document.querySelector('.vendor-tracking-page form');
             const boxes = Array.from(document.querySelectorAll('.vendor-source-checkbox'));
             const vendorNullBox = document.getElementById('vendorTrackingIncludeNull');
-            const autoSubmitFields = Array.from(form?.querySelectorAll('select[name="vendor_id"], select[name="status"]') || []);
+            const autoSubmitFields = Array.from(form?.querySelectorAll('select[name="vendor_id"], select[name="customer_id"], select[name="status"]') || []);
             const textFields = Array.from(form?.querySelectorAll('input[name="workorder"], input[name="part_number"], input[name="repair_order"]') || []);
             const tbody = document.getElementById('vendorTrackingBody');
             const paginationWrap = document.getElementById('vendorTrackingPagination');
@@ -1169,6 +1418,7 @@
             function collectFilterState() {
                 return {
                     vendor_id: form?.querySelector('select[name="vendor_id"]')?.value || '0',
+                    customer_id: form?.querySelector('select[name="customer_id"]')?.value || '0',
                     status: form?.querySelector('select[name="status"]')?.value || 'all',
                     sources: selectedSources(),
                     include_vendor_null: Boolean(vendorNullBox?.checked),
@@ -1186,10 +1436,16 @@
                 localStorage.setItem(filtersStateKey, JSON.stringify(collectFilterState()));
             }
 
-            function sanitizeColumns(selected, allowed, fallback) {
+            function sanitizeColumns(selected, allowed, fallback, required) {
                 const values = Array.isArray(selected) ? selected : [];
                 const normalized = values.filter(value => allowed.includes(value));
-                return normalized.length ? normalized : [...fallback];
+                const result = normalized.length ? normalized : [];
+                (required || []).forEach(function (keyValue) {
+                    if (allowed.includes(keyValue) && !result.includes(keyValue)) {
+                        result.push(keyValue);
+                    }
+                });
+                return result.length ? result : [...fallback];
             }
 
             function sanitizeColumnOrder(order, defs, fallback) {
@@ -1208,7 +1464,11 @@
 
             function getStoredScreenColumns() {
                 try {
-                    return sanitizeColumns(JSON.parse(localStorage.getItem(screenColumnsKey) || 'null'), screenColumnDefs.map(def => def.key), defaultScreenColumns);
+                    const columns = sanitizeColumns(JSON.parse(localStorage.getItem(screenColumnsKey) || 'null'), screenColumnDefs.map(def => def.key), defaultScreenColumns, ['process']);
+                    if (localStorage.getItem(settingsVersionKey) !== currentSettingsVersion && !columns.includes('part_name')) {
+                        columns.splice(Math.max(0, columns.indexOf('part_number') + 1), 0, 'part_name');
+                    }
+                    return columns;
                 } catch (error) {
                     return [...defaultScreenColumns];
                 }
@@ -1216,7 +1476,11 @@
 
             function getStoredExcelColumns() {
                 try {
-                    return sanitizeColumns(JSON.parse(localStorage.getItem(excelColumnsKey) || 'null'), excelColumnDefs.map(def => def.key), defaultExcelColumns);
+                    const columns = sanitizeColumns(JSON.parse(localStorage.getItem(excelColumnsKey) || 'null'), excelColumnDefs.map(def => def.key), defaultExcelColumns, ['process']);
+                    if (localStorage.getItem(settingsVersionKey) !== currentSettingsVersion && !columns.includes('part_name')) {
+                        columns.splice(Math.max(0, columns.indexOf('part_number') + 1), 0, 'part_name');
+                    }
+                    return columns;
                 } catch (error) {
                     return [...defaultExcelColumns];
                 }
@@ -1253,10 +1517,11 @@
                 }, {});
 
                 container.innerHTML = order.map(function (keyValue) {
+                    const isRequired = keyValue === 'process';
                     return `
                         <label class="vendor-tracking-column-item" draggable="true" data-column-key="${keyValue}">
                             <span class="vendor-tracking-column-drag"><i class="bi bi-grip-vertical"></i></span>
-                            <input class="form-check-input" type="checkbox" name="${inputName}" value="${keyValue}" ${values.includes(keyValue) ? 'checked' : ''}>
+                            <input class="form-check-input" type="checkbox" name="${inputName}" value="${keyValue}" ${values.includes(keyValue) || isRequired ? 'checked' : ''} ${isRequired ? 'disabled' : ''}>
                             <span class="form-check-label">${labelByKey[keyValue] || keyValue}</span>
                         </label>
                     `;
@@ -1316,16 +1581,17 @@
             }
 
             function updateEmptyStateColspan() {
-                const emptyCell = tbody?.querySelector('td[colspan]');
-                if (!emptyCell) {
-                    return;
-                }
-
                 const visibleCount = document.querySelectorAll('thead [data-col]').length
                     ? Array.from(document.querySelectorAll('thead [data-col]')).filter(cell => cell.style.display !== 'none').length
-                    : 14;
+                    : 16;
+                const fullCount = document.querySelectorAll('#vendorTrackingTable > thead [data-col]').length || 16;
 
-                emptyCell.colSpan = Math.max(1, visibleCount);
+                tbody?.querySelectorAll('.vendor-tracking-empty-cell').forEach(function (cell) {
+                    cell.colSpan = Math.max(1, visibleCount);
+                });
+                tbody?.querySelectorAll('.vendor-tracking-detail-cell').forEach(function (cell) {
+                    cell.colSpan = Math.max(1, fullCount);
+                });
             }
 
             function getOrderedSelectedColumns(columns, order) {
@@ -1337,9 +1603,12 @@
 
             function reorderTableColumns(order) {
                 const normalizedOrder = sanitizeColumnOrder(order, screenColumnDefs, defaultScreenColumns);
-                document.querySelectorAll('#vendorTrackingTable tr').forEach(function (row) {
+                document.querySelectorAll('#vendorTrackingTable > thead > tr, #vendorTrackingBody > tr:not(.vendor-tracking-detail-row)').forEach(function (row) {
                     const cellsByKey = {};
-                    row.querySelectorAll('[data-col]').forEach(function (cell) {
+                    Array.from(row.children).forEach(function (cell) {
+                        if (!cell.dataset.col) {
+                            return;
+                        }
                         cellsByKey[cell.dataset.col] = cell;
                     });
 
@@ -1355,7 +1624,7 @@
                 reorderTableColumns(order);
                 screenColumnDefs.forEach(function (def) {
                     const isVisible = columns.includes(def.key);
-                    document.querySelectorAll(`[data-col="${def.key}"]`).forEach(function (cell) {
+                    document.querySelectorAll(`#vendorTrackingTable > thead > tr > [data-col="${def.key}"], #vendorTrackingBody > tr:not(.vendor-tracking-detail-row) > [data-col="${def.key}"]`).forEach(function (cell) {
                         cell.style.display = isVisible ? '' : 'none';
                     });
                 });
@@ -1391,12 +1660,14 @@
                 const screenColumns = sanitizeColumns(
                     Array.from(screenColumnsWrap?.querySelectorAll('input:checked') || []).map(input => input.value),
                     screenColumnDefs.map(def => def.key),
-                    defaultScreenColumns
+                    defaultScreenColumns,
+                    ['process']
                 );
                 const excelColumns = sanitizeColumns(
                     Array.from(excelColumnsWrap?.querySelectorAll('input:checked') || []).map(input => input.value),
                     excelColumnDefs.map(def => def.key),
-                    defaultExcelColumns
+                    defaultExcelColumns,
+                    ['process']
                 );
 
                 localStorage.setItem(screenColumnsKey, JSON.stringify(screenColumns));
@@ -1404,6 +1675,7 @@
                 localStorage.setItem(screenColumnOrderKey, JSON.stringify(screenOrder));
                 localStorage.setItem(excelColumnOrderKey, JSON.stringify(excelOrder));
                 localStorage.setItem(excelTitleKey, (excelTitleInput?.value || 'Vendor Tracking').trim() || 'Vendor Tracking');
+                localStorage.setItem(settingsVersionKey, currentSettingsVersion);
                 applyScreenColumns(screenColumns, screenOrder);
                 settingsModal?.hide();
             }
@@ -1414,6 +1686,7 @@
                 localStorage.removeItem(screenColumnOrderKey);
                 localStorage.removeItem(excelColumnOrderKey);
                 localStorage.removeItem(excelTitleKey);
+                localStorage.setItem(settingsVersionKey, currentSettingsVersion);
                 openSettingsModal();
                 applyScreenColumns(defaultScreenColumns, defaultScreenColumns);
             }
@@ -1688,9 +1961,11 @@
                 const cell = input.closest('td');
                 const startInput = row.querySelector('.js-vendor-tracking-date[name="date_start"]');
                 const finishInput = row.querySelector('.js-vendor-tracking-date[name="date_finish"]');
+                const promiseInput = row.querySelector('.js-vendor-tracking-date[name="date_promise"]');
 
                 setVisibleInvalid(startInput, false);
                 setVisibleInvalid(finishInput, false);
+                setVisibleInvalid(promiseInput, false);
                 setCellState(cell, 'is-saving');
 
                 try {
@@ -1741,6 +2016,21 @@
                             }
                         }
                         refreshFinishInputState(finishInput);
+                    }
+
+                    if (promiseInput) {
+                        const promiseValue = data.date_promise ?? '';
+                        promiseInput.value = promiseValue;
+                        promiseInput.dataset.lastSavedValue = promiseValue;
+                        promiseInput.dataset.original = promiseValue;
+                        if (promiseInput._flatpickr) {
+                            if (promiseValue) {
+                                promiseInput._flatpickr.setDate(promiseValue, false, 'Y-m-d');
+                            } else {
+                                promiseInput._flatpickr.clear(false);
+                            }
+                        }
+                        refreshFinishInputState(promiseInput);
                     }
 
                     updateStatusCell(row, data.date_start ?? '', data.date_finish ?? '');
@@ -1938,6 +2228,7 @@
                         body: JSON.stringify({
                             id: Number(row.dataset.rowId),
                             source_key: row.dataset.sourceKey,
+                            traveler_group: Number(row.dataset.travelerGroup || 0) || null,
                             vendor_id: payload.vendor_id,
                             repair_order: payload.repair_order,
                         }),
@@ -1982,6 +2273,118 @@
 
             tbody.querySelectorAll('tr').forEach(initRow);
 
+            tbody.addEventListener('keydown', function (event) {
+                const groupRoInput = event.target.closest('.js-vendor-traveler-ro-all');
+                if (!groupRoInput || event.key !== 'Enter') {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+                window.clearTimeout(repairOrderTimers.get(groupRoInput));
+                applyTravelerRoToChildren(groupRoInput);
+                groupRoInput.blur();
+            }, true);
+
+            tbody.addEventListener('click', function (event) {
+                const ungroupButton = event.target.closest('.js-vendor-traveler-ungroup');
+                if (ungroupButton) {
+                    const url = ungroupButton.dataset.ungroupUrl;
+                    if (!url) {
+                        return;
+                    }
+
+                    ungroupButton.disabled = true;
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            traveler_group: Number(ungroupButton.dataset.travelerGroup || 0),
+                        }),
+                    })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                throw new Error('Failed to ungroup traveler');
+                            }
+                            return response.json();
+                        })
+                        .then(function () {
+                            window.location.reload();
+                        })
+                        .catch(function () {
+                            ungroupButton.disabled = false;
+                            flashError(ungroupButton.closest('th'));
+                        });
+                    return;
+                }
+
+                const formLink = event.target.closest('.js-vendor-tracking-form-link');
+                if (formLink) {
+                    const row = formLink.closest('tr[data-row-id]');
+                    const vendorSelect = row?.querySelector('.js-vendor-tracking-vendor');
+                    const url = new URL(formLink.getAttribute('href'), window.location.origin);
+                    if (vendorSelect && vendorSelect.value) {
+                        url.searchParams.set('vendor_id', vendorSelect.value);
+                    } else {
+                        url.searchParams.delete('vendor_id');
+                    }
+                    formLink.setAttribute('href', url.toString());
+                    return;
+                }
+
+                const toggle = event.target.closest('.js-vendor-traveler-toggle');
+                if (!toggle) {
+                    return;
+                }
+
+                const row = toggle.closest('tr');
+                const rowKey = row?.dataset.rowKey || row?.dataset.rowId;
+                if (!rowKey) {
+                    return;
+                }
+
+                const detailRow = tbody.querySelector(`.vendor-tracking-detail-row[data-traveler-detail-for="${CSS.escape(rowKey)}"]`);
+                if (!detailRow) {
+                    return;
+                }
+
+                const isOpen = !detailRow.classList.contains('d-none');
+                detailRow.classList.toggle('d-none', isOpen);
+                toggle.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+                toggle.title = isOpen ? 'Show traveler processes' : 'Hide traveler processes';
+            });
+
+            const applyTravelerRoToChildren = function (input) {
+                if (!input) {
+                    return;
+                }
+
+                const detailRow = input.closest('.vendor-tracking-detail-row');
+                if (!detailRow) {
+                    return;
+                }
+
+                const value = input.value ?? '';
+                detailRow.querySelectorAll('tbody tr[data-row-id]').forEach(function (row) {
+                    const repairInput = row.querySelector('.js-vendor-tracking-repair-order');
+                    const vendorSelect = row.querySelector('.js-vendor-tracking-vendor');
+                    if (!repairInput || repairInput.value === value) {
+                        return;
+                    }
+
+                    repairInput.value = value;
+                    saveTrackingRow(row, {
+                        vendor_id: vendorSelect && vendorSelect.value !== '' ? Number(vendorSelect.value) : null,
+                        repair_order: value,
+                    });
+                });
+            };
+
             tbody.addEventListener('change', function (event) {
                 const vendorSelect = event.target.closest('.js-vendor-tracking-vendor');
                 if (!vendorSelect) {
@@ -2017,6 +2420,16 @@
             };
 
             tbody.addEventListener('input', function (event) {
+                const groupRoInput = event.target.closest('.js-vendor-traveler-ro-all');
+                if (groupRoInput) {
+                    window.clearTimeout(repairOrderTimers.get(groupRoInput));
+                    const timer = window.setTimeout(function () {
+                        applyTravelerRoToChildren(groupRoInput);
+                    }, 450);
+                    repairOrderTimers.set(groupRoInput, timer);
+                    return;
+                }
+
                 const input = event.target.closest('.js-vendor-tracking-repair-order');
                 if (!input) {
                     return;
@@ -2030,6 +2443,13 @@
             });
 
             tbody.addEventListener('blur', function (event) {
+                const groupRoInput = event.target.closest('.js-vendor-traveler-ro-all');
+                if (groupRoInput) {
+                    window.clearTimeout(repairOrderTimers.get(groupRoInput));
+                    applyTravelerRoToChildren(groupRoInput);
+                    return;
+                }
+
                 const input = event.target.closest('.js-vendor-tracking-repair-order');
                 if (!input) {
                     return;
@@ -2040,6 +2460,16 @@
             }, true);
 
             tbody.addEventListener('keydown', function (event) {
+                const groupRoInput = event.target.closest('.js-vendor-traveler-ro-all');
+                if (groupRoInput && event.key === 'Enter') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    window.clearTimeout(repairOrderTimers.get(groupRoInput));
+                    applyTravelerRoToChildren(groupRoInput);
+                    groupRoInput.blur();
+                    return;
+                }
+
                 const input = event.target.closest('.js-vendor-tracking-repair-order');
                 if (!input || event.key !== 'Enter') {
                     return;

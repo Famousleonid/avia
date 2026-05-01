@@ -22,7 +22,7 @@ class NotificationController extends Controller
                 return (object)[
                     'id' => $n->id,
                     'read_at' => $n->read_at,
-                    'from_name' => $d['from_name'] ?? null,
+                    'from_name' => $d['from_name'] ?? $d['by_user_name'] ?? 'System',
                     'from_user_id' => $d['from_user_id'] ?? null,
                     'text' => $d['text'] ?? '',
                     'url' => $d['url'] ?? null,
@@ -66,7 +66,7 @@ class NotificationController extends Controller
                 'ui' => $d['ui'] ?? [],
                 'text' => $d['text'] ?? '',
                 'url' => $d['url'] ?? null,
-                'from_name' => $d['by_user_name'] ?? null,
+                'from_name' => $d['from_name'] ?? $d['by_user_name'] ?? 'System',
                 'created_at_human' => optional($n->created_at)->diffForHumans(),
             ];
         })->values();

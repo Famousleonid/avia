@@ -412,12 +412,12 @@
                             this.reloadModalProcesses(processNameId, manualId);
                             bootstrap.Modal.getInstance(document.getElementById('addProcessModal'))?.hide();
                         } else {
-                            (window.NotificationHandler || { error: alert }).error(data.message || 'Error');
+                            (window.NotificationHandler || { error: window.notifyError }).error(data.message || 'Error');
                         }
                     })
                     .catch(err => {
                         loadingDiv.remove();
-                        (window.NotificationHandler?.error || alert)('Error: ' + (err.message || 'Unknown'));
+                        (window.NotificationHandler?.error || window.notifyError)('Error: ' + (err.message || 'Unknown'));
                     });
             } else if (selectedCheckboxes.length) {
                 selectedCheckboxes.forEach(cb => {

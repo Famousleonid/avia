@@ -312,7 +312,7 @@
             btnCreateUnit?.addEventListener('click', async () => {
                 const pn = (document.getElementById('unitPn').value || '').trim();
 
-                if (!pn) { alert('Part Number is required'); return; }
+                if (!pn) { window.showNotification('Part Number is required'); return; }
 
                 try {
                     if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
@@ -353,7 +353,7 @@
                     document.getElementById('unitPn').value = '';
 
                 } catch (e) {
-                    alert('Error: ' + e.message);
+                    window.notifyError('Error: ' + e.message);
                 } finally {
                     if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
                 }

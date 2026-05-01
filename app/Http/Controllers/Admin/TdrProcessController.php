@@ -500,45 +500,21 @@ class TdrProcessController extends Controller
 
         $manual = $current_wo->unit->manuals;
 
-        $vendorId = $request->input('vendor_id', $request->input('vendor'));
-        if (!$vendorId) {
-            return redirect()
-                ->route('tdr-processes.traveler', ['tdrId' => $current_tdr->id])
-                ->with('error', __('Please select a vendor.'));
-        }
-
-        $vendor = Vendor::find($vendorId);
-        if (!$vendor) {
-            return redirect()
-                ->route('tdr-processes.traveler', ['tdrId' => $current_tdr->id])
-                ->with('error', __('Invalid vendor.'));
-        }
-
-        $vendorName = $vendor->name;
-
-        $excludeInput = $request->input('exclude_process_ids', []);
-        if (is_string($excludeInput)) {
-            $excludeInput = array_filter(array_map('intval', explode(',', $excludeInput)));
-        } elseif (! is_array($excludeInput)) {
-            $excludeInput = [];
-        }
-        $excludeIds = array_values(array_unique(array_map('intval', $excludeInput)));
-        $excludeIds = array_values(array_filter($excludeIds, fn ($id) => $id > 0));
-        $allowedIds = TdrProcess::where('tdrs_id', $current_tdr->id)->pluck('id')->all();
-        $excludeIds = array_values(array_intersect($excludeIds, $allowedIds));
+        $vendorName = '';
+        $travelerGroup = (int) $request->query('traveler_group', 0);
 
         $tdrProcesses = TdrProcess::with('processName')
+            ->with('vendor')
             ->where('tdrs_id', $current_tdr->id)
             ->where('ignore_row', false)
-            ->when(count($excludeIds) > 0, fn ($q) => $q->whereNotIn('id', $excludeIds))
+            ->when($travelerGroup > 0, fn ($query) => $query->where('in_traveler', true)->where('traveler_group', $travelerGroup))
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
 
         $proces = Process::all();
 
-        $repairNum = $request->input('repair_num');
-        $repairNum = ($repairNum !== null && $repairNum !== '') ? $repairNum : 'N/A';
+        $repairNum = 'N/A';
 
         $formConfig = config('process_forms.travel-form', config('process_forms.tdr-processes'));
 
@@ -720,6 +696,9 @@ class TdrProcessController extends Controller
             'process_name' => $process_name,
             'manual_id' => $manual_id,
             'selectedVendor' => $selectedVendor,
+            'formHeaderComponentName' => $current_tdr->component?->name,
+            'formHeaderRepairOrder' => $current_tdrs_process->repair_order,
+            'formHeaderDate' => $current_tdrs_process->date_start ? strtolower($current_tdrs_process->date_start->format('d M Y')) : null,
             'machining_header_manual_libs' => $this->machiningHeaderManualLibsForWorkorder($process_name, (int) $current_wo->id),
         ];
 
@@ -942,18 +921,11 @@ class TdrProcessController extends Controller
         $validated = $request->validate([
             'process_ids' => 'required|array|min:1',
             'process_ids.*' => 'integer|exists:tdr_processes,id',
+            'clear_conflicting_values' => 'sometimes|boolean',
         ]);
 
         $current_tdr = Tdr::findOrFail($tdrId);
         $ids = array_values(array_unique(array_map('intval', $validated['process_ids'])));
-
-        $hasBlock = TdrProcess::where('tdrs_id', $current_tdr->id)->where('in_traveler', true)->exists();
-        if ($hasBlock) {
-            return response()->json([
-                'success' => false,
-                'message' => __('A Traveler group already exists. UnGroup it first.'),
-            ], 422);
-        }
 
         $processes = TdrProcess::whereIn('id', $ids)->where('tdrs_id', $current_tdr->id)->get();
         if ($processes->count() !== count($ids)) {
@@ -970,7 +942,96 @@ class TdrProcessController extends Controller
             ], 422);
         }
 
-        TdrProcess::whereIn('id', $ids)->update(['in_traveler' => true]);
+        $filledVendorIds = $processes
+            ->pluck('vendor_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $hasVendorConflict = $filledVendorIds->count() > 1;
+
+        $dateFields = ['date_start', 'date_finish', 'date_promise'];
+        $hasAnyDate = false;
+        $hasDateConflict = false;
+        foreach ($dateFields as $field) {
+            $values = $processes
+                ->map(fn (TdrProcess $process) => $process->{$field} ? $process->{$field}->format('Y-m-d') : null)
+                ->values();
+
+            if ($values->filter()->isNotEmpty()) {
+                $hasAnyDate = true;
+            }
+
+            if ($values->uniqueStrict()->count() > 1) {
+                $hasDateConflict = true;
+            }
+        }
+
+        $repairOrders = $processes
+            ->map(fn (TdrProcess $process) => trim((string) ($process->repair_order ?? '')))
+            ->map(fn (string $value) => $value === '' ? null : $value)
+            ->values();
+        $hasRepairOrderConflict = $repairOrders->uniqueStrict()->count() > 1;
+        $needsCleanup = $hasVendorConflict || ($hasAnyDate && $hasDateConflict) || $hasRepairOrderConflict;
+
+        if ($needsCleanup && ! $request->boolean('clear_conflicting_values')) {
+            $parts = [];
+            if ($hasAnyDate && $hasDateConflict) {
+                $parts[] = __('Start/Finish/ECD dates');
+            }
+            if ($hasRepairOrderConflict) {
+                $parts[] = __('RO');
+            }
+            if ($hasVendorConflict) {
+                $parts[] = __('Vendor');
+            }
+
+            return response()->json([
+                'success' => false,
+                'requires_confirmation' => true,
+                'message' => __('Selected processes have different :values. They will be cleared before creating Traveler. Continue?', [
+                    'values' => implode(' / ', $parts),
+                ]),
+            ], 409);
+        }
+
+        $sharedVendorId = $hasVendorConflict ? null : $filledVendorIds->first();
+        $sharedRepairOrder = $repairOrders->filter()->uniqueStrict()->count() === 1
+            ? $repairOrders->filter()->first()
+            : null;
+
+        $usedTravelerGroups = TdrProcess::query()
+            ->where('tdrs_id', $current_tdr->id)
+            ->where('in_traveler', true)
+            ->pluck('traveler_group')
+            ->map(fn ($group) => (int) ($group ?: 1))
+            ->filter(fn (int $group) => $group > 0)
+            ->unique()
+            ->values()
+            ->all();
+        $travelerGroup = 1;
+        while (in_array($travelerGroup, $usedTravelerGroups, true)) {
+            $travelerGroup++;
+        }
+
+        DB::transaction(function () use ($ids, $travelerGroup, $needsCleanup, $hasAnyDate, $hasDateConflict, $hasRepairOrderConflict, $sharedVendorId, $sharedRepairOrder): void {
+            $updates = [
+                'in_traveler' => true,
+                'traveler_group' => $travelerGroup,
+                'vendor_id' => $sharedVendorId ?: null,
+                'repair_order' => $hasRepairOrderConflict ? null : $sharedRepairOrder,
+            ];
+
+            if ($needsCleanup && $hasAnyDate && $hasDateConflict) {
+                $updates['date_start'] = null;
+                $updates['date_finish'] = null;
+                $updates['date_promise'] = null;
+                $updates['date_start_user_id'] = null;
+                $updates['date_finish_user_id'] = null;
+            }
+
+            TdrProcess::whereIn('id', $ids)->update($updates);
+        });
 
         return response()->json(['success' => true]);
     }
@@ -978,7 +1039,41 @@ class TdrProcessController extends Controller
     public function travelerUngroup(Request $request, $tdrId)
     {
         $current_tdr = Tdr::findOrFail($tdrId);
-        TdrProcess::where('tdrs_id', $current_tdr->id)->where('in_traveler', true)->update(['in_traveler' => false]);
+        $validated = $request->validate([
+            'process_ids' => 'sometimes|array|min:1',
+            'process_ids.*' => 'integer|exists:tdr_processes,id',
+            'traveler_group' => 'sometimes|integer|min:1',
+        ]);
+
+        $query = TdrProcess::where('tdrs_id', $current_tdr->id)->where('in_traveler', true);
+
+        if (! empty($validated['process_ids'])) {
+            $groups = TdrProcess::whereIn('id', array_map('intval', $validated['process_ids']))
+                ->where('tdrs_id', $current_tdr->id)
+                ->where('in_traveler', true)
+                ->get(['traveler_group'])
+                ->map(fn (TdrProcess $process) => (int) ($process->traveler_group ?: 1))
+                ->unique()
+                ->values();
+
+            if ($groups->isEmpty()) {
+                return response()->json(['success' => false, 'message' => __('Select a Traveler group to ungroup.')], 422);
+            }
+
+            $query->where(function ($inner) use ($groups): void {
+                $inner->whereIn('traveler_group', $groups);
+                if ($groups->contains(1)) {
+                    $inner->orWhereNull('traveler_group');
+                }
+            });
+        } elseif (! empty($validated['traveler_group'])) {
+            $query->where('traveler_group', (int) $validated['traveler_group']);
+        }
+
+        $query->update([
+            'in_traveler' => false,
+            'traveler_group' => null,
+        ]);
 
         return response()->json(['success' => true]);
     }
@@ -1582,6 +1677,7 @@ class TdrProcessController extends Controller
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'date_start'  => ['nullable', 'date'],
             'date_finish' => ['nullable', 'date'],
+            'date_promise' => ['nullable', 'date'],
         ]);
 
         // 1) Обычная валидация (формат дат)
@@ -1596,6 +1692,10 @@ class TdrProcessController extends Controller
         }
 
         $data = $v->validated();
+
+        if ($tdrProcess->in_traveler) {
+            return $this->updateTravelerProcessDateFields($request, $tdrProcess, $data, $isAjax);
+        }
 
         // текущий start из БД
         $currentStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
@@ -1676,6 +1776,10 @@ class TdrProcessController extends Controller
             if ($oldFinish !== $nextFinish) {
                 $tdrProcess->date_finish_user_id = $authId;
             }
+        }
+
+        if (array_key_exists('date_promise', $data)) {
+            $tdrProcess->date_promise = $data['date_promise'] ?: null;
         }
 
         // фиксируем пользователя
@@ -1811,6 +1915,7 @@ class TdrProcessController extends Controller
                 'user'                  => auth()->user()->name ?? 'system',
                 'date_start'            => $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null,
                 'date_finish'           => $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null,
+                'date_promise'          => $tdrProcess->date_promise ? $tdrProcess->date_promise->format('Y-m-d') : null,
                 'date_start_user'       => $tdrProcess->dateStartUpdatedBy?->name,
                 'date_finish_user'      => $tdrProcess->dateFinishUpdatedBy?->name,
                 'paint_queue_changed'   => $paintQueueDequeued,
@@ -1818,6 +1923,133 @@ class TdrProcessController extends Controller
         }
 
         return back()->with('success', 'Process dates updated');
+    }
+
+    private function updateTravelerProcessDateFields(Request $request, TdrProcess $tdrProcess, array $data, bool $isAjax)
+    {
+        if (! array_key_exists('date_start', $data) && ! array_key_exists('date_finish', $data) && ! array_key_exists('date_promise', $data)) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'message' => 'No date fields'], 422);
+            }
+
+            return back()->withErrors(['date' => 'No date fields'])->withInput();
+        }
+
+        $travelerGroup = (int) ($tdrProcess->traveler_group ?: 1);
+
+        $processes = TdrProcess::query()
+            ->where('tdrs_id', (int) $tdrProcess->tdrs_id)
+            ->where('in_traveler', true)
+            ->where(function ($query) use ($travelerGroup): void {
+                $query->where('traveler_group', $travelerGroup);
+                if ($travelerGroup === 1) {
+                    $query->orWhereNull('traveler_group');
+                }
+            })
+            ->orderBy('id')
+            ->get();
+
+        if ($processes->isEmpty()) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'message' => 'No traveler processes'], 422);
+            }
+
+            abort(404);
+        }
+
+        $currentStart = $processes
+            ->map(fn (TdrProcess $process) => $process->date_start ? $process->date_start->format('Y-m-d') : null)
+            ->filter()
+            ->sort()
+            ->first();
+
+        $effectiveStart = array_key_exists('date_start', $data)
+            ? ($data['date_start'] ?: null)
+            : $currentStart;
+
+        if (! empty($data['date_finish']) && ! $effectiveStart) {
+            $errors = ['date_finish' => ['The start date must be filled in before setting the end date.']];
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $errors], 422);
+            }
+
+            return back()->withErrors($errors)->withInput();
+        }
+
+        if (! empty($data['date_finish']) && $effectiveStart && Carbon::parse($data['date_finish'])->lt(Carbon::parse($effectiveStart))) {
+            $errors = ['date_finish' => ['The end date cannot be earlier than the start date.']];
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $errors], 422);
+            }
+
+            return back()->withErrors($errors)->withInput();
+        }
+
+        $uid = auth()->id();
+
+        DB::transaction(function () use ($processes, $data, $uid): void {
+            foreach ($processes as $process) {
+                $oldStart = $process->date_start ? $process->date_start->format('Y-m-d') : null;
+                $oldFinish = $process->date_finish ? $process->date_finish->format('Y-m-d') : null;
+
+                if (array_key_exists('date_start', $data)) {
+                    $nextStart = $data['date_start'] ?: null;
+                    $process->date_start = $nextStart;
+                    if ($oldStart !== $nextStart) {
+                        $process->date_start_user_id = $uid;
+                    }
+
+                    if ($nextStart === null) {
+                        $process->date_finish = null;
+                        if ($oldFinish !== null) {
+                            $process->date_finish_user_id = $uid;
+                        }
+                    }
+                }
+
+                if (array_key_exists('date_finish', $data)) {
+                    $nextFinish = $data['date_finish'] ?: null;
+                    $process->date_finish = $nextFinish;
+                    if ($oldFinish !== $nextFinish) {
+                        $process->date_finish_user_id = $uid;
+                    }
+                }
+
+                if (array_key_exists('date_promise', $data)) {
+                    $process->date_promise = $data['date_promise'] ?: null;
+                }
+
+                $process->user_id = $uid;
+                $process->save();
+            }
+        });
+
+        $leader = TdrProcess::query()
+            ->where('tdrs_id', (int) $tdrProcess->tdrs_id)
+            ->where('in_traveler', true)
+            ->where(function ($query) use ($travelerGroup): void {
+                $query->where('traveler_group', $travelerGroup);
+                if ($travelerGroup === 1) {
+                    $query->orWhereNull('traveler_group');
+                }
+            })
+            ->with(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name'])
+            ->orderBy('id')
+            ->first();
+
+        if ($isAjax) {
+            return response()->json([
+                'success'          => true,
+                'user'             => auth()->user()->name ?? 'system',
+                'date_start'       => $leader?->date_start ? $leader->date_start->format('Y-m-d') : null,
+                'date_finish'      => $leader?->date_finish ? $leader->date_finish->format('Y-m-d') : null,
+                'date_promise'     => $leader?->date_promise ? $leader->date_promise->format('Y-m-d') : null,
+                'date_start_user'  => $leader?->dateStartUpdatedBy?->name,
+                'date_finish_user' => $leader?->dateFinishUpdatedBy?->name,
+            ], 200);
+        }
+
+        return back()->with('success', 'Traveler dates updated');
     }
 
     /**
@@ -1828,10 +2060,12 @@ class TdrProcessController extends Controller
         $isAjax = $request->ajax()
             || $request->expectsJson()
             || $request->header('X-Requested-With') === 'XMLHttpRequest';
+        $travelerGroup = (int) $request->input('traveler_group', $request->query('traveler_group', 0));
 
         $processes = TdrProcess::query()
             ->where('tdrs_id', (int) $tdr->id)
             ->where('in_traveler', true)
+            ->when($travelerGroup > 0, fn ($query) => $query->where('traveler_group', $travelerGroup))
             ->orderBy('id')
             ->get();
 
@@ -1846,6 +2080,7 @@ class TdrProcessController extends Controller
         $v = Validator::make($request->all(), [
             'date_start'  => ['nullable', 'date'],
             'date_finish' => ['nullable', 'date'],
+            'date_promise' => ['nullable', 'date'],
         ]);
 
         if ($v->fails()) {
@@ -1861,7 +2096,7 @@ class TdrProcessController extends Controller
 
         $data = $v->validated();
 
-        if (! array_key_exists('date_start', $data) && ! array_key_exists('date_finish', $data)) {
+        if (! array_key_exists('date_start', $data) && ! array_key_exists('date_finish', $data) && ! array_key_exists('date_promise', $data)) {
             if ($isAjax) {
                 return response()->json(['success' => false, 'message' => 'No date fields'], 422);
             }
@@ -1869,7 +2104,7 @@ class TdrProcessController extends Controller
             return back()->withErrors(['date' => 'No date fields'])->withInput();
         }
 
-        return DB::transaction(function () use ($data, $tdr, $isAjax, $processes) {
+        return DB::transaction(function () use ($data, $tdr, $isAjax, $processes, $travelerGroup) {
             $uid = auth()->id();
 
             if (array_key_exists('date_start', $data)) {
@@ -1880,6 +2115,7 @@ class TdrProcessController extends Controller
                 $fresh = TdrProcess::query()
                     ->where('tdrs_id', (int) $tdr->id)
                     ->where('in_traveler', true)
+                    ->when($travelerGroup > 0, fn ($query) => $query->where('traveler_group', $travelerGroup))
                     ->orderBy('id')
                     ->get();
 
@@ -1905,6 +2141,7 @@ class TdrProcessController extends Controller
                 $fresh = TdrProcess::query()
                     ->where('tdrs_id', (int) $tdr->id)
                     ->where('in_traveler', true)
+                    ->when($travelerGroup > 0, fn ($query) => $query->where('traveler_group', $travelerGroup))
                     ->orderBy('id')
                     ->get();
 
@@ -1954,10 +2191,30 @@ class TdrProcessController extends Controller
                 }
             }
 
+            if (array_key_exists('date_promise', $data)) {
+                $promiseVal = $data['date_promise'] !== null && $data['date_promise'] !== ''
+                    ? $data['date_promise']
+                    : null;
+
+                $fresh = TdrProcess::query()
+                    ->where('tdrs_id', (int) $tdr->id)
+                    ->where('in_traveler', true)
+                    ->when($travelerGroup > 0, fn ($query) => $query->where('traveler_group', $travelerGroup))
+                    ->orderBy('id')
+                    ->get();
+
+                foreach ($fresh as $p) {
+                    $p->date_promise = $promiseVal;
+                    $p->user_id = $uid;
+                    $p->save();
+                }
+            }
+
             if ($isAjax) {
                 $leader = TdrProcess::query()
                     ->where('tdrs_id', (int) $tdr->id)
                     ->where('in_traveler', true)
+                    ->when($travelerGroup > 0, fn ($query) => $query->where('traveler_group', $travelerGroup))
                     ->with(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name'])
                     ->orderBy('id')
                     ->first();
@@ -1967,6 +2224,7 @@ class TdrProcessController extends Controller
                     'user'             => auth()->user()->name ?? 'system',
                     'date_start'       => $leader?->date_start ? $leader->date_start->format('Y-m-d') : null,
                     'date_finish'      => $leader?->date_finish ? $leader->date_finish->format('Y-m-d') : null,
+                    'date_promise'     => $leader?->date_promise ? $leader->date_promise->format('Y-m-d') : null,
                     'date_start_user'  => $leader?->dateStartUpdatedBy?->name,
                     'date_finish_user' => $leader?->dateFinishUpdatedBy?->name,
                 ], 200);

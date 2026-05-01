@@ -449,11 +449,11 @@
                         error: function (xhr) {
                             // Обработка ошибок
                             console.error(xhr.responseText);
-                            alert('An error occurred while creating the unit. Please try again.');
+                            window.notifyError('An error occurred while creating the unit. Please try again.');
                         }
                     });
                 } else {
-                    alert('Please select CMM and enter at least one PN.');
+                    window.showNotification('Please select CMM and enter at least one PN.');
                 }
             });
 
@@ -603,12 +603,12 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            alert('Units updated successfully');
+                            window.notifySuccess('Units updated successfully');
                             $('#editUnitModal').modal('hide');
                             // Обновляем страницу после закрытия модального окна
                             window.location.href = '/admin/units';
                         } else {
-                            alert('Error updating units: ' + data.error);
+                            window.notifyError('Error updating units: ' + data.error);
                         }
                     })
                     .catch(error => {

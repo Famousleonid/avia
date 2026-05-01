@@ -1014,13 +1014,13 @@
 
                 if (!iplNum || !partNumber || !name) {
                     if (typeof showErrorMessage === 'function') showErrorMessage('Please fill in all required fields (IPL Number, Part Number, Component Name)');
-                    else alert('Please fill in all required fields');
+                    else window.showNotification('Please fill in all required fields');
                     return;
                 }
 
                 if (isBush && !bushIpl) {
                     if (typeof showErrorMessage === 'function') showErrorMessage('Please enter Bush IPL Number');
-                    else alert('Please enter Bush IPL Number');
+                    else window.showNotification('Please enter Bush IPL Number');
                     return;
                 }
 
@@ -1050,7 +1050,7 @@
                     const json = await res.json();
                     if (!res.ok || !json?.ok) {
                         if (typeof showErrorMessage === 'function') showErrorMessage(json?.message || 'Create failed');
-                        else alert(json?.message || 'Create failed');
+                        else window.notifyError(json?.message || 'Create failed');
                         return;
                     }
 
@@ -1101,7 +1101,7 @@
                 } catch (e) {
                     console.error(e);
                     if (typeof showErrorMessage === 'function') showErrorMessage('Create failed');
-                    else alert('Create failed');
+                    else window.notifyError('Create failed');
                 } finally {
 
                 }
@@ -1255,7 +1255,7 @@
                     } catch (e) {
                         console.error(e);
                         if (typeof showErrorMessage === 'function') showErrorMessage(e.message || 'Upload error');
-                        else alert(e.message || 'Upload error');
+                        else window.notifyError(e.message || 'Upload error');
                     } finally {
                         input.remove();
                     }
@@ -1300,7 +1300,7 @@
                     } catch (e) {
                         console.error(e);
                         if (typeof showErrorMessage === 'function') showErrorMessage(e.message || 'Upload error');
-                        else alert(e.message || 'Upload error');
+                        else window.notifyError(e.message || 'Upload error');
 
                     } finally {
                         input.remove();

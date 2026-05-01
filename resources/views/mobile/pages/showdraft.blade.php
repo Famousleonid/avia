@@ -450,7 +450,7 @@
 
                 btn.onclick = async () => {
                     const mediaId = triggerEl?.dataset.mediaId;
-                    if (!mediaId) return alert('Media ID not found!');
+                    if (!mediaId) return window.notifyError('Media ID not found!');
                     if (!confirm('Are you sure you want to delete this photo?')) return;
 
                     try {
@@ -459,7 +459,7 @@
                         refreshGalleryAfterAction(workorderId, workorderNumber, category);
                         fancybox.close();
                     } catch (e) {
-                        alert(`Error deleting photo: ${e.message}`);
+                        window.notifyError(`Error deleting photo: ${e.message}`);
                     }
                 };
 
@@ -577,7 +577,7 @@
                     updateGalleryUI(currentWorkorderId, currentWorkorderNumber, response, currentPhotoCategory);
                     setTimeout(() => bindFancyboxForCell(currentWorkorderId, currentPhotoCategory), 100);
                 } catch (e) {
-                    alert(`Error uploading photos: ${e.message}`);
+                    window.notifyError(`Error uploading photos: ${e.message}`);
                 } finally {
                     hideLoadingSpinner();
                 }

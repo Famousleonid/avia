@@ -39,7 +39,8 @@
             $travelerVisualRowCount++;
         }
     }
-    $travelerFormMergedDone = false;
+    $travelerFormRendered = [];
+    $travelerCheckboxRendered = [];
     $hasGroupProcessForms = collect($processGroups ?? [])->contains(function ($g) {
         return (int) ($g['count'] ?? 0) > 1;
     });
@@ -55,30 +56,19 @@
      data-group-process-forms="{{ $hasGroupProcessForms ? '1' : '0' }}"
      data-traveler-group-url="{{ route('tdr-processes.traveler-group', ['tdrId' => $current_tdr->id]) }}"
      data-traveler-ungroup-url="{{ route('tdr-processes.traveler-ungroup', ['tdrId' => $current_tdr->id]) }}">
+    <div class="processes-toolbar"></div>
     <div class="table-wrapper me-3" style="max-height: 55vh; overflow-y: auto; overflow-x: auto;">
-        <table class="display table table-sm table-hover align-middle table-bordered bg-gradient dir-table">
+        <table class="display table table-sm table-hover align-middle table-bordered bg-gradient dir-table sortable-table">
             <thead>
             <tr>
-                <th class="text-primary text-center" style="width: 10%">Process Name</th>
-                <th class="text-primary text-center" style="width: 30%;">Process</th>
-                <th class="text-primary text-center" style="width: 22%">Description</th>
-                <th class="text-primary text-center" style="width: 8%">Traveler Notes</th>
-                @if($hasTravelerBlock)
-                    <th class="text-primary text-center" style="width: 7%"
-                        title="{{ __('AT rows: include on Part Traveler print. Traveler block rows are always included.') }}">{{ __('PT print') }}</th>
-                @endif
-                <th class="text-primary text-center align-middle" style="width: 10%">
-                    <div class="d-flex flex-column align-items-center gap-1 py-1">
-                        <span class="d-block">{{ __('Traveler') }}</span>
-                        @if($hasTravelerBlock)
-                            <button type="button" class="btn btn-sm btn-outline-warning text-nowrap" id="btnUngroupTraveler">{{ __('UnGroup') }}</button>
-                        @else
-                            <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" id="btnCreateTraveler" disabled>{{ __('Create') }}</button>
-                        @endif
-                    </div>
+                <th class="text-primary text-center" style="width: 12%">Process Name</th>
+                <th class="text-primary text-center" style="width: 34%;">Process</th>
+                <th class="text-primary text-center" style="width: 26%">Description</th>
+                <th class="text-primary text-center" style="width: 10%">
+                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-2" id="btnCreateTraveler">{{ __('Traveler') }}</button>
                 </th>
-                <th class="text-primary text-center" style="width: 11%">Action</th>
-                <th class="text-primary text-center" style="width: 11%">Form</th>
+                <th class="text-primary text-center process-action-col">{{ __('Action') }}</th>
+                <th class="text-primary text-center" style="width: 14%">{{ __('Form') }}</th>
             </tr>
             </thead>
             <tbody id="sortable-tbody">
@@ -134,16 +124,9 @@
                                 {{ !empty($processNames) ? implode(', ', $processNames) : 'No processes' }}
                             </td>
                             <td class="text-center">{{ $processes->description ?? '' }}</td>
-                            <td class="text-center">{{ $processes->notes ?? '' }}</td>
-                            @if($hasTravelerBlock)
-                                @include('admin.tdr-processes.partials.processes-body-omit-travel-form-cell', ['processes' => $processes, 'inTr' => $inTr])
-                            @endif
-                            <td class="text-center align-middle">
-                                @if(!$hasTravelerBlock && !$inTr)
-                                    <input type="checkbox" class="form-check-input traveler-select-cb" data-tdr-process-id="{{ $processes->id }}">
-                                @endif
-                            </td>
-                            <td class="text-center">
+                            @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$processes->id]); $travelerCheckboxRendered[$processes->id] = true; @endphp
+                            @include('admin.tdr-processes.partials.processes-body-traveler-checkbox', ['showTravelerCheckbox' => $showTravelerCheckbox])
+                            <td class="text-center process-action-cell">
                                 @if($inTr)
                                     <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled title="{{ __('UnGroup Traveler to edit') }}"><i class="bi bi-pencil-square"></i></button>
                                     <button type="button" class="btn btn-outline-danger btn-sm disabled" disabled title="{{ __('UnGroup Traveler to delete') }}"><i class="bi bi-trash"></i></button>
@@ -160,11 +143,14 @@
                                 @endif
                             </td>
                             @if($inTr)
-                                @if(! $travelerFormMergedDone)
-                                    @php $travelerFormMergedDone = true; @endphp
-                                    <td rowspan="{{ max(1, $travelerVisualRowCount) }}" class="text-center align-middle p-2 traveler-merged-form-cell">
+                                @php $travelerGroup = (int) ($processes->traveler_group ?: 1); @endphp
+                                @if(empty($travelerFormRendered[$travelerGroup]))
+                                    @php $travelerFormRendered[$travelerGroup] = true; @endphp
+                                    <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                         @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
                                     </td>
+                                @else
+                                    <td class="text-center align-middle text-muted small">—</td>
                                 @endif
                             @else
                             <td class="text-center">
@@ -188,16 +174,9 @@
                                 {{ !empty($allProcesses) ? implode(' / ', $allProcesses) : 'No processes' }}@if($processes->ec) ( EC ) @endif
                             </td>
                             <td class="text-center">{{ $processes->description ?? '' }}</td>
-                            <td class="text-center">{{ $processes->notes ?? '' }}</td>
-                            @if($hasTravelerBlock)
-                                @include('admin.tdr-processes.partials.processes-body-omit-travel-form-cell', ['processes' => $processes, 'inTr' => $inTr])
-                            @endif
-                            <td class="text-center align-middle">
-                                @if(!$hasTravelerBlock && !$inTr)
-                                    <input type="checkbox" class="form-check-input traveler-select-cb" data-tdr-process-id="{{ $processes->id }}">
-                                @endif
-                            </td>
-                            <td class="text-center">
+                            @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$processes->id]); $travelerCheckboxRendered[$processes->id] = true; @endphp
+                            @include('admin.tdr-processes.partials.processes-body-traveler-checkbox', ['showTravelerCheckbox' => $showTravelerCheckbox])
+                            <td class="text-center process-action-cell">
                                 @if($inTr)
                                     <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled><i class="bi bi-pencil-square"></i></button>
                                     <button type="button" class="btn btn-outline-danger btn-sm disabled" disabled><i class="bi bi-trash"></i></button>
@@ -207,11 +186,14 @@
                                 @endif
                             </td>
                             @if($inTr)
-                                @if(! $travelerFormMergedDone)
-                                    @php $travelerFormMergedDone = true; @endphp
-                                    <td rowspan="{{ max(1, $travelerVisualRowCount) }}" class="text-center align-middle p-2 traveler-merged-form-cell">
+                                @php $travelerGroup = (int) ($processes->traveler_group ?: 1); @endphp
+                                @if(empty($travelerFormRendered[$travelerGroup]))
+                                    @php $travelerFormRendered[$travelerGroup] = true; @endphp
+                                    <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                         @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
                                     </td>
+                                @else
+                                    <td class="text-center align-middle text-muted small">—</td>
                                 @endif
                             @else
                             <td class="text-center">
@@ -237,16 +219,9 @@
                                         @if($proc){{ $proc->process }}@if($processes->ec) ( EC ) @endif @endif
                                     </td>
                                     <td class="text-center">{{ $processes->description ?? '' }}</td>
-                                    <td class="text-center">{{ $processes->notes ?? '' }}</td>
-                                    @if($hasTravelerBlock)
-                                        @include('admin.tdr-processes.partials.processes-body-omit-travel-form-cell', ['processes' => $processes, 'inTr' => $inTr, 'showOmitCheckbox' => $loop->first])
-                                    @endif
-                                    <td class="text-center align-middle">
-                                        @if(!$hasTravelerBlock && !$inTr && $loop->first)
-                                            <input type="checkbox" class="form-check-input traveler-select-cb" data-tdr-process-id="{{ $processes->id }}">
-                                        @endif
-                                    </td>
-                                    <td class="text-center">
+                                    @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$processes->id]); $travelerCheckboxRendered[$processes->id] = true; @endphp
+                                    @include('admin.tdr-processes.partials.processes-body-traveler-checkbox', ['showTravelerCheckbox' => $showTravelerCheckbox])
+                                    <td class="text-center process-action-cell">
                                         @if($inTr)
                                             <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled><i class="bi bi-pencil-square"></i></button>
                                             <button type="button" class="btn btn-outline-danger btn-sm disabled" disabled><i class="bi bi-trash"></i></button>
@@ -256,11 +231,14 @@
                                         @endif
                                     </td>
                                     @if($inTr)
-                                        @if(! $travelerFormMergedDone)
-                                            @php $travelerFormMergedDone = true; @endphp
-                                            <td rowspan="{{ max(1, $travelerVisualRowCount) }}" class="text-center align-middle p-2 traveler-merged-form-cell">
+                                        @php $travelerGroup = (int) ($processes->traveler_group ?: 1); @endphp
+                                        @if(empty($travelerFormRendered[$travelerGroup]))
+                                            @php $travelerFormRendered[$travelerGroup] = true; @endphp
+                                            <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                                 @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
                                             </td>
+                                        @else
+                                            <td class="text-center align-middle text-muted small">—</td>
                                         @endif
                                     @else
                                     <td class="text-center">
@@ -282,16 +260,9 @@
                                 <td class="text-center">{{ $processName }}</td>
                                 <td class="ps-2 text-muted">—</td>
                                 <td class="text-center">{{ $processes->description ?? '' }}</td>
-                                <td class="text-center">{{ $processes->notes ?? '' }}</td>
-                                @if($hasTravelerBlock)
-                                    @include('admin.tdr-processes.partials.processes-body-omit-travel-form-cell', ['processes' => $processes, 'inTr' => $inTr])
-                                @endif
-                                <td class="text-center align-middle">
-                                    @if(!$hasTravelerBlock && !$inTr)
-                                        <input type="checkbox" class="form-check-input traveler-select-cb" data-tdr-process-id="{{ $processes->id }}">
-                                    @endif
-                                </td>
-                                <td class="text-center">
+                                @php $showTravelerCheckbox = empty($travelerCheckboxRendered[$processes->id]); $travelerCheckboxRendered[$processes->id] = true; @endphp
+                                @include('admin.tdr-processes.partials.processes-body-traveler-checkbox', ['showTravelerCheckbox' => $showTravelerCheckbox])
+                                <td class="text-center process-action-cell">
                                     @if($inTr)
                                         <button type="button" class="btn btn-outline-primary btn-sm me-2 disabled" disabled><i class="bi bi-pencil-square"></i></button>
                                         <button type="button" class="btn btn-outline-danger btn-sm disabled" disabled><i class="bi bi-trash"></i></button>
@@ -301,11 +272,14 @@
                                     @endif
                                 </td>
                                 @if($inTr)
-                                    @if(! $travelerFormMergedDone)
-                                        @php $travelerFormMergedDone = true; @endphp
-                                        <td rowspan="{{ max(1, $travelerVisualRowCount) }}" class="text-center align-middle p-2 traveler-merged-form-cell">
+                                    @php $travelerGroup = (int) ($processes->traveler_group ?: 1); @endphp
+                                    @if(empty($travelerFormRendered[$travelerGroup]))
+                                        @php $travelerFormRendered[$travelerGroup] = true; @endphp
+                                        <td class="text-center align-middle p-2 traveler-merged-form-cell">
                                             @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
                                         </td>
+                                    @else
+                                        <td class="text-center align-middle text-muted small">—</td>
                                     @endif
                                 @else
                                 <td class="text-center">
@@ -331,28 +305,3 @@
 </div>
 
 @include('admin.tdr-processes.partials.part-processes-group-forms-modal')
-
-{{-- Add Vendor Modal --}}
-<div class="modal fade" id="addVendorModal" tabindex="-1" aria-labelledby="addVendorModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addVendorModalLabel">{{ __('Add New Vendor') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="addVendorForm">
-                    @csrf
-                    <div class="mb-3">
-                        <label for="vendorName" class="form-label">{{ __('Vendor Name') }}</label>
-                        <input type="text" class="form-control" id="vendorName" name="name" required>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
-                <button type="button" class="btn btn-primary" id="saveVendorButton">{{ __('Save Vendor') }}</button>
-            </div>
-        </div>
-    </div>
-</div>

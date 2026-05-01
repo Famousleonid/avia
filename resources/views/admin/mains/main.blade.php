@@ -89,6 +89,9 @@
 @section('content')
     @php
         $canManageVendorTracking = auth()->check() && auth()->user()->hasAnyRole('Admin|Manager');
+        // TODO(main-vendor-tracking-columns): временно тестируем mains без RO/Vendor колонок.
+        // Потом решить: вернуть эти колонки, переключив флаг в true, или удалить связанный UI окончательно.
+        $showMainRoVendorColumns = false;
         $vendors = $vendors ?? collect();
     @endphp
 
@@ -302,22 +305,27 @@
                         <button type="button" class="main-tab-btn" data-main-tab="bushings" role="tab">Bushing / Processes</button>
                     </div>
 
+                    <div class="main-tabs-toolbar">
+                        <div class="form-check form-switch mb-0" data-no-spinner>
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="showAll"
+                                   autocomplete="off"
+                                   data-no-spinner>
+
+                            <label class="form-check-label small"
+                                   for="showAll"
+                                   data-no-spinner>
+                                Show all
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="bottom-row d-flex align-items-stretch">
 
                     {{-- Left panel --}}
                     <div class="bottom-col left gradient-pane border-info p-1" >
                         <div class="left-pane d-flex flex-column gap-2 h-100">
-
-                            {{-- GeneralTask buttons --}}
-                            <div class="d-flex gap-2 main-gt-buttons">
-                                @foreach($general_tasks as $i => $gt)
-                                    <button type="button"
-                                            class="btn btn-sm flex-fill js-gt-btn {{ ($gtAllFinished[$gt->id] ?? false) ? 'btn-outline-success' : 'btn-outline-danger' }}"
-                                            data-gt-id="{{ $gt->id }}">
-                                        {{ $gt->name }}
-                                    </button>
-                                @endforeach
-                            </div>
 
                             <div id="mainLeftLoading" class="main-left-loading">
                                 <span class="main-left-loading-dots" aria-label="Loading left panel">
@@ -343,7 +351,19 @@
                                                 $showStartCol = $gtTasks->contains(fn($t) => (bool) $t->task_has_start_date);
                                             @endphp
 
-                                            <div class="table-responsive flex-shrink-0 main-tasks-block">
+                                            <div class="main-tasks-notes-window border border-info rounded flex-shrink-0">
+                                                {{-- GeneralTask buttons --}}
+                                                <div class="d-flex gap-2 main-gt-buttons">
+                                                    @foreach($general_tasks as $menuGt)
+                                                        <button type="button"
+                                                                class="btn btn-sm flex-fill js-gt-btn {{ ($gtAllFinished[$menuGt->id] ?? false) ? 'btn-outline-success' : 'btn-outline-danger' }}"
+                                                                data-gt-id="{{ $menuGt->id }}">
+                                                            {{ $menuGt->name }}
+                                                        </button>
+                                                    @endforeach
+                                                </div>
+
+                                            <div class="table-responsive main-tasks-block">
                                             <table
                                                 class="table table-dark table-hover table-bordered mb-0 align-middle tasks-table dir-table mt-1">
                                                 <colgroup>
@@ -562,7 +582,7 @@
                                             </div>
                                             {{-- Workorder Notes --}}
 
-                                            <div class="border border-secondary rounded wo-notes-box main-notes-block flex-shrink-0">
+                                            <div class="wo-notes-box main-notes-block flex-shrink-0">
                                                 {{-- Header --}}
                                                 <div class="wo-notes-head">
                                                     <div class="wo-notes-title">Workorder Notes</div>
@@ -608,7 +628,8 @@
                                             </div>
 
                                             {{-- WO bushing → процессы (по одной строке на процесс), Qty / RO / даты --}}
-                                            <div class="border border-secondary rounded wo-bushings-box d-flex flex-column flex-grow-1">
+                                            </div>
+                                            <div class="border border-info rounded wo-bushings-box main-section-window d-flex flex-column">
                                                 <div class="wo-notes-head">
                                                     <div class="wo-notes-title small">
                                                         WO bushing → WO bushing process:
@@ -669,13 +690,25 @@
 {{--                                                                                    </div>--}}
                                                                                     <div class="table-responsive">
                                                                                         <table class="table table-sm table-dark table-bordered table-hover mb-0 align-middle wo-bushings-table dir-table">
+                                                                                            <colgroup>
+                                                                                                <col class="wo-bush-col-part">
+                                                                                                <col class="wo-bush-col-ipl">
+                                                                                                <col class="wo-bush-col-process">
+                                                                                                <col class="wo-bush-col-qty">
+                                                                                                @if($canManageVendorTracking && $showMainRoVendorColumns)
+                                                                                                    <col class="wo-bush-col-ro">
+                                                                                                    <col class="wo-bush-col-vendor">
+                                                                                                @endif
+                                                                                                <col class="wo-bush-col-dt">
+                                                                                                <col class="wo-bush-col-dt">
+                                                                                            </colgroup>
                                                                                             <thead>
                                                                                             <tr>
                                                                                                 <th class="wo-bush-col-part">Part №</th>
                                                                                                 <th class="wo-bush-col-ipl text-center">IPL</th>
                                                                                                 <th class="wo-bush-col-process">{{ __('Process') }}</th>
                                                                                                 <th class="text-center wo-bush-col-qty">Qty</th>
-                                                                                                @if($canManageVendorTracking)
+                                                                                            @if($canManageVendorTracking && $showMainRoVendorColumns)
                                                                                                     <th class="wo-bush-col-ro">Rep order</th>
                                                                                                     <th class="wo-bush-col-vendor">Vendor</th>
                                                                                                 @endif
@@ -723,7 +756,7 @@
                                                                                                         </td>
                                                                                                         <td class="text-center small wo-bush-col-qty align-middle fw-semibold text-info"
                                                                                                             title="{{ __('Sum of quantities in this batch') }}">{{ $batchQtySum }}</td>
-                                                                                                        @if($canManageVendorTracking)
+                                                                                                @if($canManageVendorTracking && $showMainRoVendorColumns)
                                                                                                         <td class="align-middle wo-bush-col-ro px-1" onclick="event.stopPropagation();">
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_batches.updateRepairOrder', $batch['id']) }}"
@@ -785,7 +818,7 @@
                                                                                                         </td>
                                                                                                     </tr>
                                                                                                     <tr class="collapse" id="{{ $batchCollapseId }}">
-                                                                                                        <td colspan="{{ $canManageVendorTracking ? 8 : 6 }}" class="p-0 border-secondary bg-opacity-10" style="background: rgba(0,0,0,.15);">
+                                                                                                  <td colspan="{{ ($canManageVendorTracking && $showMainRoVendorColumns) ? 8 : 6 }}" class="p-0 border-secondary bg-opacity-10" style="background: rgba(0,0,0,.15);">
                                                                                                             <div class="wo-bush-batch-nested-wrap">
                                                                                                                 <table class="table table-sm table-dark table-bordered mb-0 wo-bush-batch-nested">
                                                                                                                     <tbody>
@@ -827,7 +860,7 @@
                                                                                                         <td class="small wo-bush-col-ipl" @if($__ipl !== '') title="{{ e($__ipl) }}" @endif>{{ $__ipl !== '' ? $__ipl : '—' }}</td>
                                                                                                         <td class="small text-info wo-bush-col-process" @if($__pd !== '') title="{{ e($__pd) }}" @endif>{{ $__pd !== '' ? $__pd : '—' }}</td>
                                                                                                         <td class="text-center wo-bush-col-qty">{{ $item['qty'] ?? 0 }}</td>
-                                                                                                        @if($canManageVendorTracking)
+                                                                                                  @if($canManageVendorTracking && $showMainRoVendorColumns)
                                                                                                         <td class="wo-bush-col-ro">
                                                                                                             <form method="POST"
                                                                                                                   action="{{ route('wo_bushing_processes.updateRepairOrder', $wbr['id']) }}"
@@ -921,56 +954,37 @@
                     {{-- Right panel: Components / Processes --}}
                     <div class="bottom-col right border-info gradient-pane p-1">
 
-                        <div class="d-flex align-items-center justify-content-between mb-2 main-right-head">
-
-                            <div class="d-flex align-items-center gap-2">
-                                <h6 class="mb-0 text-primary main-right-title main-right-title-overview">Parts</h6>
-                                <span class="text-info main-right-title-overview">({{ $components->count() }})</span>
-                                <h6 class="mb-0 text-primary main-right-title main-right-title-overview">&nbsp;& Repair Processes</h6>
-                                <h6 class="mb-0 text-primary main-right-title main-right-title-std">STD Processes</h6>
-                                <h6 class="mb-0 text-primary main-right-title main-right-title-parts">Parts & Repair Processes</h6>
-                                <span class="text-info main-right-title-parts">({{ $components->count() }})</span>
-                            </div>
-
-
-
-                            <div class="form-check form-switch" data-no-spinner>
-                                <input class="form-check-input"
-                                       type="checkbox"
-                                       id="showAll"
-                                       autocomplete="off"
-                                       data-no-spinner>
-
-                                <label class="form-check-label small"
-                                       for="showAll"
-                                       data-no-spinner>
-                                    Show all
-                                </label>
-                            </div>
-
-                        </div>
-
                         @if($stdListTdrProcesses && $stdListTdrProcesses->isNotEmpty())
-                            <div class="req_standart main-std-processes-block mb-2 w-100">
+                            <div class="req_standart main-std-processes-block main-section-window border border-info rounded mb-2 w-100">
+                                <div class="main-section-head">
+                                    <h6 class="mb-0 text-primary">STD Processes</h6>
+                                </div>
                                 <table class="table table-sm table-dark table-bordered table-hover mb-0 align-middle dir-table">
+                                    <colgroup>
+                                        <col class="main-col-ignore">
+                                        <col class="main-col-tech">
+                                        <col class="main-col-name">
+                                        @if($canManageVendorTracking && $showMainRoVendorColumns)
+                                            <col class="main-col-ro">
+                                            <col class="main-col-vendor">
+                                        @endif
+                                        <col class="main-col-date">
+                                        <col class="main-col-date">
+                                    </colgroup>
                                     <thead>
                                     <tr>
-                                        <th style="width:6%; text-align:center" class="fw-normal text-muted small">I</th>
-                                        <th style="width:12%; text-align:center" class="fw-normal text-muted small">Technik</th>
-                                        <th style="width:{{ $canManageVendorTracking ? '18%' : '30%' }};" class="fw-normal text-muted small">List</th>
-                                        @if($canManageVendorTracking)
-                                            <th style="width:15%; text-align: center"
-                                                class="fw-normal text-muted small">Repair Order
+                                        <th class="fw-normal text-muted small text-center">I</th>
+                                        <th class="fw-normal text-muted small text-center">Technik</th>
+                                        <th class="fw-normal text-muted small">List</th>
+                                        @if($canManageVendorTracking && $showMainRoVendorColumns)
+                                            <th class="fw-normal text-muted small text-center">Repair Order
                                             </th>
-                                            <th style="width:15%; text-align: center"
-                                                class="fw-normal text-muted small">Vendor
+                                            <th class="fw-normal text-muted small text-center">Vendor
                                             </th>
                                         @endif
-                                        <th style="width:{{ $canManageVendorTracking ? '17%' : '25%' }}; text-align: center"
-                                            class="fw-normal text-muted small">Sent (edit)
+                                        <th class="fw-normal text-muted small text-center main-date-cell">Sent (edit)
                                         </th>
-                                        <th style="width:{{ $canManageVendorTracking ? '17%' : '25%' }}; text-align: center"
-                                            class="fw-normal text-muted small">Returned (edit)
+                                        <th class="fw-normal text-muted small text-center main-date-cell">Returned (edit)
                                         </th>
                                     </tr>
                                     </thead>
@@ -1031,7 +1045,7 @@
                                                 <td>
                                                     <span class="text-info">{{ $label }}</span>
                                                 </td>
-                                                @if($canManageVendorTracking)
+                                                @if($canManageVendorTracking && $showMainRoVendorColumns)
                                                 <td>
                                                     <form method="POST"
                                                           action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
@@ -1068,7 +1082,7 @@
                                                     </form>
                                                 </td>
                                                 @endif
-                                                <td>
+                                                <td class="main-date-cell">
                                                     <form method="POST"
                                                           action="{{ route('tdrprocesses.updateDate', $pr) }}"
                                                           class="auto-submit-form js-ajax"
@@ -1084,7 +1098,7 @@
                                                                @if($isIgnoredStd) disabled @endif>
                                                     </form>
                                                 </td>
-                                                <td>
+                                                <td class="main-date-cell">
                                                     <form method="POST"
                                                           action="{{ route('tdrprocesses.updateDate', $pr) }}"
                                                           class="auto-submit-form js-ajax"
@@ -1108,7 +1122,13 @@
                             </div>
                         @endif
 
-                        <div class="main-parts-processes-block">
+                        <div class="main-parts-processes-block main-section-window border border-info rounded">
+                            <div class="main-section-head">
+                                <div class="d-flex align-items-center gap-2">
+                                    <h6 class="mb-0 text-primary">Parts & Repair Processes</h6>
+                                    <span class="text-info">({{ $components->count() }})</span>
+                                </div>
+                            </div>
                             @if($components->isEmpty())
                                 <div class="text-muted small">
                                     No components with processes.
@@ -1126,24 +1146,32 @@
                                                 $travelerProcesses = $prs->filter(function ($p) {
                                                     return (bool) ($p->in_traveler ?? false);
                                                 })->sortBy('id')->values();
+                                                $travelerGroups = $travelerProcesses->groupBy(function ($p) {
+                                                    return (int) (($p->traveler_group ?? null) ?: 1);
+                                                })->sortKeys();
                                                 $nonTravelerProcesses = $prs->filter(function ($p) {
                                                     return ! (bool) ($p->in_traveler ?? false);
                                                 })->values();
-                                                $travelerLeader = $travelerProcesses->first();
-                                                $travelerUpdatedByRow = $travelerProcesses->sortByDesc(function ($p) {
-                                                    return $p->updated_at?->timestamp ?? 0;
-                                                })->first();
                                             @endphp
                                             @if($prs->isNotEmpty())
                                                 <div class="mt-2 ps-2">
                                                     <table
                                                         class="table table-sm table-dark table-bordered table-hover mb-2 align-middle dir-table">
+                                                        <colgroup>
+                                                            <col class="main-col-tech">
+                                                            <col class="main-col-name">
+                                                            @if($canManageVendorTracking && $showMainRoVendorColumns)
+                                                                <col class="main-col-ro">
+                                                                <col class="main-col-vendor">
+                                                            @endif
+                                                            <col class="main-col-date">
+                                                            <col class="main-col-date">
+                                                        </colgroup>
                                                         <thead>
                                                         <tr>
-                                                            <th style="width:10%; text-align:center"
-                                                                class="fw-normal text-muted">Technik
+                                                            <th class="fw-normal text-muted text-center">Technik
                                                             </th>
-                                                            <th style="width:{{ $canManageVendorTracking ? '30%' : '40%' }};">
+                                                            <th>
                                                                 <div class=" text-info">
                                                                     {{ $cmp->name ?? ('#'.$cmp->id) }}&nbsp;&nbsp;
                                                                     <span class="text-muted" style="font-size: 12px;">
@@ -1151,26 +1179,26 @@
                                                                         </span>
                                                                 </div>
                                                             </th>
-                                                            @if($canManageVendorTracking)
-                                                                <th style="width:15%; text-align: center"
-                                                                    class="fw-normal text-muted">Repair Order
+                                                            @if($canManageVendorTracking && $showMainRoVendorColumns)
+                                                                <th class="fw-normal text-muted text-center">Repair Order
                                                                 </th>
-                                                                <th style="width:15%; text-align: center"
-                                                                    class="fw-normal text-muted">Vendor
+                                                                <th class="fw-normal text-muted text-center">Vendor
                                                                 </th>
                                                             @endif
-                                                            <th style="width:{{ $canManageVendorTracking ? '15%' : '25%' }}; text-align: center"
-                                                                class="fw-normal text-muted">Sent (edit)
+                                                            <th class="fw-normal text-muted text-center main-date-cell">Sent (edit)
                                                             </th>
-                                                            <th style="width:{{ $canManageVendorTracking ? '15%' : '25%' }}; text-align: center"
-                                                                class="fw-normal text-muted">Returned (edit)
+                                                            <th class="fw-normal text-muted text-center main-date-cell">Returned (edit)
                                                             </th>
                                                         </tr>
                                                         </thead>
                                                         <tbody>
-                                                        @if($travelerProcesses->isNotEmpty() && $travelerLeader)
+                                                        @foreach($travelerGroups as $travelerGroup => $travelerGroupProcesses)
                                                             @php
-                                                                $trClosed = $travelerProcesses->every(function ($p) {
+                                                                $travelerLeader = $travelerGroupProcesses->sortBy('id')->first();
+                                                                $travelerUpdatedByRow = $travelerGroupProcesses->sortByDesc(function ($p) {
+                                                                    return $p->updated_at?->timestamp ?? 0;
+                                                                })->first();
+                                                                $trClosed = $travelerGroupProcesses->every(function ($p) {
                                                                     return ! empty($p->date_finish);
                                                                 });
                                                                 $trUserRow = $travelerUpdatedByRow ?? $travelerLeader;
@@ -1194,9 +1222,9 @@
                                                                         </span>">
                                                                     {{ $trUserRow->updatedBy?->name ?? '—' }}
                                                                 </td>
-                                                                <td><span class="text-info">Traveler</span></td>
+                                                                <td><span class="text-info">Traveler {{ (int) $travelerGroup }}</span></td>
 
-                                                                @if($canManageVendorTracking)
+                                                                @if($canManageVendorTracking && $showMainRoVendorColumns)
                                                                 <td>
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateTravelerGroupRepairOrder', $tdr) }}"
@@ -1204,6 +1232,7 @@
                                                                           data-no-spinner>
                                                                         @csrf
                                                                         @method('PATCH')
+                                                                        <input type="hidden" name="traveler_group" value="{{ (int) $travelerGroup }}">
 
                                                                         <input type="text"
                                                                                name="repair_order"
@@ -1223,6 +1252,7 @@
                                                                           data-no-spinner>
                                                                         @csrf
                                                                         @method('PATCH')
+                                                                        <input type="hidden" name="traveler_group" value="{{ (int) $travelerGroup }}">
                                                                         <select name="vendor_id" class="form-select form-select-sm">
                                                                             <option value="">...</option>
                                                                             @foreach($vendors as $vendor)
@@ -1233,13 +1263,14 @@
                                                                 </td>
                                                                 @endif
 
-                                                                <td>
+                                                                <td class="main-date-cell">
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateTravelerGroupDates', $tdr) }}"
                                                                           class="auto-submit-form js-ajax"
                                                                           data-no-spinner>
                                                                         @csrf
                                                                         @method('PATCH')
+                                                                        <input type="hidden" name="traveler_group" value="{{ (int) $travelerGroup }}">
                                                                         <input type="text" data-fp name="date_start"
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $travelerLeader->date_start?->format('Y-m-d') }}"
@@ -1248,13 +1279,14 @@
                                                                                placeholder="...">
                                                                     </form>
                                                                 </td>
-                                                                <td>
+                                                                <td class="main-date-cell">
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateTravelerGroupDates', $tdr) }}"
                                                                           class="auto-submit-form js-ajax"
                                                                           data-no-spinner>
                                                                         @csrf
                                                                         @method('PATCH')
+                                                                        <input type="hidden" name="traveler_group" value="{{ (int) $travelerGroup }}">
                                                                         <input type="text" data-fp name="date_finish"
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $travelerLeader->date_finish?->format('Y-m-d') }}"
@@ -1264,7 +1296,7 @@
                                                                     </form>
                                                                 </td>
                                                             </tr>
-                                                        @endif
+                                                        @endforeach
                                                         @foreach($nonTravelerProcesses as $pr)
                                                             @php
                                                                 $isClosed = !empty($pr->date_finish);
@@ -1290,7 +1322,7 @@
                                                                 </td>
                                                                 <td>{{ $pr->processName->name ?? '—' }}</td>
 
-                                                                @if($canManageVendorTracking)
+                                                                @if($canManageVendorTracking && $showMainRoVendorColumns)
                                                                 <td>
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
@@ -1337,7 +1369,7 @@
                                                                 </td>
                                                                 @endif
 
-                                                                <td>
+                                                                <td class="main-date-cell">
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateDate', $pr) }}"
                                                                           class="auto-submit-form js-ajax"
@@ -1352,7 +1384,7 @@
                                                                                placeholder="...">
                                                                     </form>
                                                                 </td>
-                                                                <td>
+                                                                <td class="main-date-cell">
                                                                     <form method="POST"
                                                                           action="{{ route('tdrprocesses.updateDate', $pr) }}"
                                                                           class="auto-submit-form js-ajax"

@@ -25,6 +25,7 @@ class TdrProcessOverdueStartEvent implements EventDefinition
             ->whereNotNull('date_start')
             ->whereNull('date_finish')
             ->whereHas('processName', fn ($query) => $query->whereNotNull('std_days'))
+            ->whereHas('tdr.workorder')
             ->with(['processName.notifyUser', 'tdr.workorder.user', 'tdr.component'])
             ->get()
             ->filter(function (TdrProcess $process): bool {

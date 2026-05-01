@@ -158,6 +158,7 @@
 
     .main-tabs-shell {
         --main-tab-panel-width: 100%;
+        --main-date-col-width: 7.75rem;
         flex: 1 1 auto;
         min-height: 0;
         display: flex;
@@ -171,7 +172,7 @@
     }
 
     .main-tabs-shell > .bottom-row {
-        margin-top: 0;
+        margin-top: -1px;
     }
 
     .main-tabs-nav {
@@ -182,10 +183,24 @@
         min-width: 0;
         padding-top: .35rem;
         padding-left: .45rem;
+        padding-right: 8.75rem;
         margin-bottom: -1px;
         background: transparent;
         overflow-x: auto;
         overflow-y: hidden;
+    }
+
+    .main-tabs-toolbar {
+        position: absolute;
+        top: .45rem;
+        right: .55rem;
+        z-index: 20;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        min-height: 0;
+        padding: 0;
+        color: #adb5bd;
     }
 
     .main-tab-btn {
@@ -262,21 +277,8 @@
         display: none !important;
     }
 
-    html[data-main-tab="bushings"] .main-tabs-shell .main-tasks-block,
-    html[data-main-tab="bushings"] .main-tabs-shell .main-notes-block,
-    html[data-main-tab="bushings"] .main-tabs-shell .main-gt-buttons {
+    html[data-main-tab="bushings"] .main-tabs-shell .main-tasks-notes-window {
         display: none !important;
-    }
-
-    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-box {
-        border: 0 !important;
-        border-radius: 0 !important;
-    }
-
-    html[data-main-tab="bushings"] .main-tabs-shell .main-gt-scroll-area,
-    html[data-main-tab="bushings"] .main-tabs-shell .wo-bush-strip-accordion {
-        border: 0 !important;
-        border-radius: 0 !important;
     }
 
     html[data-main-tab="std"] .main-tabs-shell .main-parts-processes-block,
@@ -292,6 +294,14 @@
     html[data-main-tab="std"] .main-tabs-shell .main-right-title-std,
     html[data-main-tab="parts"] .main-tabs-shell .main-right-title-parts {
         display: inline-flex;
+    }
+
+    html[data-main-tab="bushings"] .main-tabs-shell .main-gt-scroll-area,
+    html[data-main-tab="bushings"] .main-tabs-shell .main-gt-scroll-inner,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-box {
+        flex: 1 1 0% !important;
+        min-height: 0;
+        height: 100%;
     }
 
     html[data-main-tab="tasks"] .main-tabs-shell .bottom-row,
@@ -359,9 +369,9 @@
     }
 
     .bottom-col {
-        border: 1px solid rgba(0, 0, 0, .125);
+        border: 0 !important;
         border-radius: .5rem;
-        padding: 1rem;
+        padding: 0 !important;
         overflow: hidden;
 
         display: flex;
@@ -371,6 +381,34 @@
         /* равные колонки и разрешить сжиматься (таблица не раздувает ширину) */
         flex: 1 1 0 !important;
         min-width: 0 !important;
+    }
+
+    .main-section-window {
+        flex: 1 1 0%;
+        min-height: 0;
+        overflow: auto;
+        background: rgba(255,255,255,0.03);
+    }
+
+    .main-std-processes-block.main-section-window {
+        flex: 0 0 auto;
+        min-height: auto;
+        overflow: visible;
+    }
+
+    .main-parts-processes-block.main-section-window {
+        flex: 1 1 0%;
+    }
+
+    .main-section-head {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .5rem;
+        padding: .35rem .5rem;
+        border-bottom: 1px solid rgba(13, 202, 240, .35);
+        background: rgba(0, 0, 0, .12);
     }
 
     /* =========================================================
@@ -446,8 +484,8 @@
     /* col widths (from your <colgroup>) */
     .tasks-table col.col-ignore {width: 30px;}
     .tasks-table col.col-tech {width: 10%;}
-    .tasks-table col.col-start {width: 22%;}
-    .tasks-table col.col-finish {width: 22%;}
+    .tasks-table col.col-start {width: var(--main-date-col-width);}
+    .tasks-table col.col-finish {width: var(--main-date-col-width);}
     .tasks-table col.col-log {width: 50px;}
     .tasks-table col.col-task {width: auto;}
 
@@ -463,6 +501,46 @@
     /* avoid table row height jumps by forms */
     .tasks-table td form {
         margin: 0 !important;
+    }
+
+    .main-std-processes-block .dir-table,
+    .main-parts-processes-block .dir-table {
+        table-layout: fixed;
+    }
+
+    .main-std-processes-block col.main-col-ignore { width: 2.25rem; }
+    .main-std-processes-block col.main-col-tech { width: 7.25rem; }
+    .main-std-processes-block col.main-col-name { width: auto; }
+    .main-std-processes-block col.main-col-ro { width: 9rem; }
+    .main-std-processes-block col.main-col-vendor { width: 10rem; }
+    .main-parts-processes-block col.main-col-tech { width: 7.75rem; }
+    .main-parts-processes-block col.main-col-name { width: auto; }
+    .main-parts-processes-block col.main-col-ro { width: 9rem; }
+    .main-parts-processes-block col.main-col-vendor { width: 10rem; }
+
+    .main-std-processes-block col.main-col-date,
+    .main-parts-processes-block col.main-col-date {
+        width: var(--main-date-col-width);
+    }
+
+    .main-std-processes-block .main-date-cell,
+    .main-parts-processes-block .main-date-cell {
+        width: var(--main-date-col-width);
+        min-width: var(--main-date-col-width);
+        max-width: var(--main-date-col-width);
+    }
+
+    .main-std-processes-block .main-date-cell form,
+    .main-parts-processes-block .main-date-cell form {
+        margin: 0;
+        min-width: 0;
+    }
+
+    .tasks-table .fp-alt-wrap,
+    .main-std-processes-block .fp-alt-wrap,
+    .main-parts-processes-block .fp-alt-wrap {
+        width: 100%;
+        min-width: 0;
     }
 
     /* =========================================================
@@ -486,6 +564,24 @@
     }
 
     /* Flatpickr: hide extra calendar trigger when the field already shows the green “has date” check */
+    .tasks-table .finish-input,
+    .tasks-table .fp-alt,
+    .main-std-processes-block .finish-input,
+    .main-std-processes-block .fp-alt,
+    .main-parts-processes-block .finish-input,
+    .main-parts-processes-block .fp-alt,
+    .wo-bushings-table .wo-bush-col-dt .finish-input,
+    .wo-bushings-table .wo-bush-col-dt .fp-alt {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+        font-size: .78rem;
+        font-variant-numeric: tabular-nums;
+        padding-left: .35rem !important;
+        padding-right: 1.75rem !important;
+    }
+
     .fp-alt-wrap:has(.finish-input.has-finish) .fp-cal-btn {
         display: none !important;
     }
@@ -827,8 +923,18 @@
 
     .tasks-table td,
     .tasks-table th {
-        padding: 3px 6px !important;
-        line-height: 1.05;
+        padding: 4px 6px !important;
+        line-height: 1.25;
+        vertical-align: middle;
+    }
+
+    .main-std-processes-block .dir-table td,
+    .main-std-processes-block .dir-table th,
+    .main-parts-processes-block .dir-table td,
+    .main-parts-processes-block .dir-table th {
+        line-height: 1.28;
+        padding-top: .32rem;
+        padding-bottom: .32rem;
         vertical-align: middle;
     }
 
@@ -836,8 +942,31 @@
         font-size: .85rem;
     }
 
+    .main-tasks-notes-window {
+        flex: 0 1 auto;
+        max-height: 50%;
+        min-height: 0;
+        overflow: auto;
+        background: rgba(255,255,255,0.03);
+    }
+
+    .main-tasks-notes-window .main-gt-buttons {
+        padding: .45rem .5rem .5rem;
+        border-bottom: 1px solid rgba(13, 202, 240, .25);
+    }
+
+    .main-tasks-notes-window .main-tasks-block {
+        flex: 0 0 auto;
+        overflow: visible;
+    }
+
     .wo-notes-box{
         background: rgba(255,255,255,0.03);
+    }
+
+    .main-tasks-notes-window .wo-notes-box {
+        border-top: 1px solid rgba(13, 202, 240, .25);
+        border-radius: 0;
     }
 
     .wo-notes-head{
@@ -874,18 +1003,21 @@
         resize: vertical;
     }
 
-    /* Левая колонка: один скролл здесь (таблица + заметки + бушинги). flex-basis 0% обязателен для сжатия. */
+    /* Левая колонка: высоту ограничивает родитель; scroll живет внутри окон Tasks/Notes и Bushing отдельно. */
     .main-gt-scroll-area{
         flex: 1 1 0%;
+        border: 0 !important;
+        border-radius: 0 !important;
         min-height: 0;
         max-height: 100%;
-        overflow-y: auto;
+        overflow: hidden;
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
     }
 
     .main-gt-scroll-inner{
-        min-height: 100%;
+        height: 100%;
+        min-height: 0;
         box-sizing: border-box;
     }
 
@@ -893,11 +1025,10 @@
         background: rgba(255,255,255,0.03);
     }
 
-    /* Прокрутка только у .main-gt-scroll-area; min-h-0 на этом блоке обрезал аккордеон без скролла */
     .wo-bushings-list{
         flex: 1 1 auto;
         min-height: 0;
-        overflow: visible;
+        overflow: auto;
     }
 
     /* WO bushing: одна «карусель» из 7 полос (аккордеон), без вложенных полос */
@@ -1024,30 +1155,32 @@
         min-width: 0;
         box-sizing: border-box;
     }
-    .wo-bushings-table .wo-bush-col-part{ width: 11%; }
-    .wo-bushings-table .wo-bush-col-ipl{ width: 7%; }
+    .wo-bushings-table .wo-bush-col-part{ width: 8.5rem; }
+    .wo-bushings-table .wo-bush-col-ipl{ width: 4.25rem; }
     .wo-bushings-table .wo-bush-col-process{
-        width: 21%;
+        width: auto;
         white-space: normal;
         word-wrap: break-word;
         overflow-wrap: anywhere;
     }
     .wo-bushings-table .wo-bush-col-qty{
-        width: 5%;
+        width: 3.25rem;
         white-space: nowrap;
         text-align: center;
     }
     .wo-bushings-table .wo-bush-col-ro{
-        width: 13%;
+        width: 8.5rem;
         white-space: normal;
         word-wrap: break-word;
         overflow-wrap: anywhere;
     }
     .wo-bushings-table .wo-bush-col-vendor{
-        width: 13%;
+        width: 10rem;
     }
     .wo-bushings-table .wo-bush-col-dt{
-        width: 15%;
+        width: var(--main-date-col-width);
+        min-width: var(--main-date-col-width);
+        max-width: var(--main-date-col-width);
     }
 
     .wo-bushings-table .wo-bush-col-part,
@@ -1072,13 +1205,13 @@
     }
     .wo-bushings-table .wo-bush-col-dt .finish-input,
     .wo-bushings-table .wo-bush-col-dt .fp-alt{
-        width: 100%;
-        max-width: 100%;
+        width: 100% !important;
+        max-width: 100% !important;
         min-width: 0 !important;
         box-sizing: border-box;
-        font-size: clamp(0.65rem, 1.1vw, 0.75rem);
-        padding-left: 0.15rem;
-        padding-right: 1.5rem;
+        font-size: .78rem;
+        padding-left: .35rem !important;
+        padding-right: 1.75rem !important;
     }
     .wo-bushings-table .wo-bush-col-dt .fp-alt-wrap{
         width: 100%;
@@ -1152,9 +1285,9 @@
         }
         .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-dt .finish-input,
         .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-dt .fp-alt {
-            font-size: clamp(0.65rem, 1.1vw, 0.75rem) !important;
-            padding-left: 0.15rem !important;
-            padding-right: 1.5rem !important;
+            font-size: .78rem !important;
+            padding-left: .35rem !important;
+            padding-right: 1.75rem !important;
             min-height: unset !important;
         }
         /* Строка BATCH */
@@ -1195,6 +1328,11 @@
     html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .finish-input,
     html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .fp-alt {
         font-size: .875rem !important;
+    }
+
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .wo-bush-col-dt .finish-input,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .wo-bush-col-dt .fp-alt {
+        font-size: .78rem !important;
     }
 
 </style>

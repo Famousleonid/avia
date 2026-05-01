@@ -772,7 +772,7 @@
 
                     error: function(response) {
                         // Если что-то пошло не так, выводим сообщение об ошибке
-                        alert('Error occurred while adding the component');
+                        window.notifyError('Error occurred while adding the component');
                     }
                 });
             });

@@ -540,7 +540,7 @@
 
                 if (selectedComponents.length === 0) {
                     e.preventDefault();
-                    alert('{{__("Please select at least one component before submitting.")}}');
+                    window.showNotification('{{__("Please select at least one component before submitting.")}}');
                     return false;
                 }
 
@@ -566,7 +566,7 @@
 
                 if (hasErrors) {
                     e.preventDefault();
-                    alert('{{__("Please enter quantity for all groups with selected components.")}}');
+                    window.showNotification('{{__("Please enter quantity for all groups with selected components.")}}');
                     return false;
                 }
 
@@ -589,12 +589,12 @@
                             window.parent.postMessage({ type: 'editBushingSuccess' }, '*');
                         } else {
                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
-                            alert(res.message || (res.errors ? Object.values(res.errors).flat().join(', ') : '{{ __("Error") }}'));
+                            window.notifyError(res.message || (res.errors ? Object.values(res.errors).flat().join(', ') : '{{ __("Error") }}'));
                         }
                     })
                     .catch(function() {
                         if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
-                        alert('{{ __("Error") }}');
+                        window.notifyError('{{ __("Error") }}');
                     });
                     return false;
                 }

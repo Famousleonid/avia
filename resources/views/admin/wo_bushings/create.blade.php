@@ -542,7 +542,7 @@
 
                 if (selectedComponents.length === 0) {
                     e.preventDefault();
-                    alert('{{__("Please select at least one component before submitting.")}}');
+                    window.showNotification('{{__("Please select at least one component before submitting.")}}');
                     return false;
                 }
 
@@ -568,7 +568,7 @@
 
                 if (hasErrors) {
                     e.preventDefault();
-                    alert('{{__("Please enter quantity for all groups with selected components.")}}');
+                    window.showNotification('{{__("Please enter quantity for all groups with selected components.")}}');
                     return false;
                 }
             });
@@ -781,7 +781,7 @@
                 });
 
                 if (selectedComponents.length === 0) {
-                    alert('{{__("Please select at least one bushing")}}');
+                    window.showNotification('{{__("Please select at least one bushing")}}');
                     return;
                 }
 

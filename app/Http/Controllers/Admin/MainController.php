@@ -927,6 +927,10 @@ class MainController extends Controller
             $woBushingProcess->date_finish = $data['date_finish'] ?: null;
         }
 
+        if (array_key_exists('date_promise', $data)) {
+            $woBushingProcess->date_promise = $data['date_promise'] ?: null;
+        }
+
         $woBushingProcess->save();
 
         if ($fromMachiningIndex) {
@@ -945,6 +949,7 @@ class MainController extends Controller
                 'user' => auth()->user()?->name ?? 'system',
                 'date_start' => $woBushingProcess->date_start?->format('Y-m-d'),
                 'date_finish' => $woBushingProcess->date_finish?->format('Y-m-d'),
+                'date_promise' => $woBushingProcess->date_promise?->format('Y-m-d'),
             ], 200);
         }
 
@@ -965,6 +970,9 @@ class MainController extends Controller
         }
         if ($request->has('vendor_id')) {
             $woBushingBatch->vendor_id = $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null;
+        }
+        if (array_key_exists('date_promise', $data)) {
+            $woBushingBatch->date_promise = $data['date_promise'] ?: null;
         }
         $woBushingBatch->save();
         $woBushingBatch->load('vendor:id,name');
@@ -1066,6 +1074,7 @@ class MainController extends Controller
                 'user' => auth()->user()?->name ?? 'system',
                 'date_start' => $woBushingBatch->date_start?->format('Y-m-d'),
                 'date_finish' => $woBushingBatch->date_finish?->format('Y-m-d'),
+                'date_promise' => $woBushingBatch->date_promise?->format('Y-m-d'),
             ], 200);
         }
 
@@ -1127,6 +1136,7 @@ class MainController extends Controller
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'date_start' => ['nullable', 'date'],
             'date_finish' => ['nullable', 'date'],
+            'date_promise' => ['nullable', 'date'],
         ]);
 
         if ($v->fails()) {
@@ -1203,12 +1213,30 @@ class MainController extends Controller
             'vendor_id' => 'nullable|integer|exists:vendors,id',
         ]);
 
-        if ($request->has('repair_order')) {
-            $tdrProcess->repair_order = $request->repair_order;
+        $targetProcesses = $tdrProcess->in_traveler
+            ? TdrProcess::query()
+                ->where('tdrs_id', (int) $tdrProcess->tdrs_id)
+                ->where('in_traveler', true)
+                ->where(function ($query) use ($tdrProcess): void {
+                    $group = (int) ($tdrProcess->traveler_group ?: 1);
+                    $query->where('traveler_group', $group);
+                    if ($group === 1) {
+                        $query->orWhereNull('traveler_group');
+                    }
+                })
+                ->get()
+            : collect([$tdrProcess]);
+
+        foreach ($targetProcesses as $targetProcess) {
+            if ($request->has('repair_order')) {
+                $targetProcess->repair_order = $request->repair_order;
+            }
+            $targetProcess->vendor_id = $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null;
+            $targetProcess->user_id = auth()->id();
+            $targetProcess->save();
         }
-        $tdrProcess->vendor_id = $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null;
-        $tdrProcess->user_id = auth()->id();
-        $tdrProcess->save();
+
+        $tdrProcess->refresh();
         $tdrProcess->load('vendor:id,name');
 
         return response()->json([
@@ -1230,11 +1258,22 @@ class MainController extends Controller
         $request->validate([
             'repair_order' => 'nullable|string|max:255',
             'vendor_id' => 'nullable|integer|exists:vendors,id',
+            'traveler_group' => 'nullable|integer|min:1',
         ]);
+
+        $travelerGroup = (int) $request->input('traveler_group', 0);
 
         $processes = TdrProcess::query()
             ->where('tdrs_id', (int) $tdr->id)
             ->where('in_traveler', true)
+            ->when($travelerGroup > 0, function ($query) use ($travelerGroup): void {
+                $query->where(function ($inner) use ($travelerGroup): void {
+                    $inner->where('traveler_group', $travelerGroup);
+                    if ($travelerGroup === 1) {
+                        $inner->orWhereNull('traveler_group');
+                    }
+                });
+            })
             ->get();
 
         if ($processes->isEmpty()) {
@@ -1245,7 +1284,9 @@ class MainController extends Controller
             if ($request->has('repair_order')) {
                 $tdrProcess->repair_order = $request->repair_order;
             }
-            $tdrProcess->vendor_id = $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null;
+            if ($request->has('vendor_id')) {
+                $tdrProcess->vendor_id = $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null;
+            }
             $tdrProcess->user_id = auth()->id();
             $tdrProcess->save();
         }

@@ -444,19 +444,19 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            alert(data.message);
+                            window.showNotification(data.message);
                             if (data.redirect) {
                                 window.location.href = data.redirect;
                             } else {
                                 location.reload();
                             }
                         } else {
-                            alert('Error: ' + data.message);
+                            window.notifyError('Error: ' + data.message);
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        alert('Error deleting process');
+                        window.notifyError('Error deleting process');
                     });
 
                     // Закрываем модальное окно
@@ -490,12 +490,12 @@
                                 location.reload();
                             }
                         } else {
-                            alert('Error: ' + (data.message || 'Failed to delete process'));
+                            window.notifyError('Error: ' + (data.message || 'Failed to delete process'));
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        alert('Error deleting process');
+                        window.notifyError('Error deleting process');
                     });
                 });
             });
@@ -550,7 +550,7 @@
                 const vendorName = vendorNameInput.value.trim();
 
                 if (!vendorName) {
-                    alert('Please enter vendor name');
+                    window.showNotification('Please enter vendor name');
                     return;
                 }
 
@@ -586,14 +586,14 @@
                         // Очищаем форму
                         addVendorForm.reset();
 
-                        alert('Vendor added successfully!');
+                        window.notifySuccess('Vendor added successfully!');
                     } else {
-                        alert('Error: ' + data.message);
+                        window.notifyError('Error: ' + data.message);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error adding vendor');
+                    window.notifyError('Error adding vendor');
                 });
             });
 

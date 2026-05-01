@@ -1304,7 +1304,7 @@
 
                 const ids = getLoadedWorkorderIds();
                 if (!ids.length) {
-                    window.alert('No visible rows to export.');
+                    window.showNotification('No visible rows to export.');
                     return;
                 }
 

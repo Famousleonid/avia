@@ -15,6 +15,7 @@ class WoBushingProcess extends Model
         'qty',
         'date_start',
         'date_finish',
+        'date_promise',
         'working_steps_count',
         'repair_order',
         'vendor_id',
@@ -24,6 +25,7 @@ class WoBushingProcess extends Model
         'qty' => 'integer',
         'date_start' => 'date',
         'date_finish' => 'date',
+        'date_promise' => 'date',
     ];
 
     public function line(): BelongsTo

@@ -276,15 +276,15 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert('Work Order updated successfully!');
+                        window.notifySuccess('Work Order updated successfully!');
                         location.reload();
                     } else {
-                        alert('Failed to update Work Order.');
+                        window.notifyError('Failed to update Work Order.');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred.');
+                    window.notifyError('An error occurred.');
                 });
         });
 

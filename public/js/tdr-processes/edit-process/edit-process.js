@@ -229,7 +229,7 @@
                 .catch(err => {
                     processOptionsContainer.innerHTML = `<div class="text-danger">Error: ${err.message}</div>`;
                     saveButton.disabled = true;
-            (window.NotificationHandler?.error || alert)('Error while loading processes');
+            (window.NotificationHandler?.error || window.notifyError)('Error while loading processes');
                 });
         },
 
@@ -307,7 +307,7 @@
                     ? $(select).val() : select?.value;
                 if (!processNameId || processNameId === '') {
                     e.preventDefault();
-                    (window.NotificationHandler?.warning || alert)('Please select Process Name before adding specification.');
+                    (window.NotificationHandler?.warning || window.notifyWarn)('Please select Process Name before adding specification.');
                     return;
                 }
                 window._editProcessCurrentRow = row;
@@ -343,7 +343,7 @@
             const saveButton = document.querySelector('button[type="submit"]');
 
             if (!newProcess) {
-                (window.NotificationHandler?.warning || alert)('Please enter the new process name.');
+                (window.NotificationHandler?.warning || window.notifyWarn)('Please enter the new process name.');
                 return;
             }
             if (!processNameId || !manualId || !processOptionsContainer) return;
@@ -379,16 +379,16 @@
                         processOptionsContainer.appendChild(div);
                         document.getElementById('newProcessInput').value = '';
                         saveButton.disabled = false;
-                        (window.NotificationHandler?.success || alert)('Process added successfully!');
+                        (window.NotificationHandler?.success || window.notifySuccess)('Process added successfully!');
                         bootstrap.Modal.getInstance(document.getElementById('addProcessModal'))?.hide();
                         this.config.currentProcesses = [data.process.id];
                     } else {
-                        (window.NotificationHandler?.error || alert)(data.message || 'Error');
+                        (window.NotificationHandler?.error || window.notifyError)(data.message || 'Error');
                     }
                 })
                 .catch(err => {
                     loadingDiv.remove();
-                    (window.NotificationHandler?.error || alert)('Error: ' + (err.message || 'Unknown'));
+                    (window.NotificationHandler?.error || window.notifyError)('Error: ' + (err.message || 'Unknown'));
                 });
         },
 
@@ -403,7 +403,7 @@
 
                 if (!checkedRadio) {
                     e.preventDefault();
-                    (window.NotificationHandler?.warning || alert)('Please select a specification.');
+                    (window.NotificationHandler?.warning || window.notifyWarn)('Please select a specification.');
                     return;
                 }
 

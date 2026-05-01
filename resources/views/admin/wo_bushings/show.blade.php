@@ -194,14 +194,14 @@
                 if (typeof window.notifyWarn === 'function') {
                     window.notifyWarn(m);
                 } else {
-                    alert(m);
+                    window.showNotification(m, 'warning');
                 }
             }
             function bushingToastErr(m) {
                 if (typeof window.notifyError === 'function') {
                     window.notifyError(m);
                 } else {
-                    alert(m);
+                    window.showNotification(m, 'error');
                 }
             }
             document.querySelectorAll('.form-btn').forEach(function(btn) {

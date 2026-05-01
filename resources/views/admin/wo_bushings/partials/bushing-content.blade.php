@@ -3,12 +3,12 @@
     // Bushing table column widths: edit values here when you need to rebalance the table.
     // Mixed units are OK: %, px, rem, etc. This is used by both saved view and create form.
     $bushingTableColumnWidths = $bushingTableColumnWidths ?? [
-        'bushing' => '30%',
+        'bushing' => '20%',
         'select' => '120px',
-        'qty' => 'calc(3ch + .75rem)',
+        'qty' => 'calc(4ch + .75rem)',
         'machining' => '15%',
         'stress_relief' => '15%',
-        'ndt' => '110px',
+        'ndt' => '130px',
         'passivation' => '15%',
         'cad' => '13%',
         'anodizing' => '15%',
@@ -67,7 +67,7 @@
             table-layout: fixed;
             width: 100%;
             min-width: 100%;
-            font-size: 10px;
+            font-size: 12px;
             line-height: 1.15;
         }
         table.bushing-view-table th,
@@ -78,12 +78,16 @@
             vertical-align: middle;
         }
         table.bushing-view-table thead.wo-bush-thead th {
-            font-size: 10px !important;
+            font-size: 14px !important;
             font-weight: 400 !important;
-            height: 20px;
+            height: 28px;
             line-height: 1.05;
-            padding: .1rem .14rem !important;
+            padding: .3rem .14rem !important;
             white-space: normal;
+        }
+        table.bushing-view-table thead.wo-bush-thead .bushing-process-subhead th {
+            padding-top: .35rem !important;
+            padding-bottom: .35rem !important;
         }
         table.bushing-view-table thead th,
         table.bushing-view-table thead th.text-primary,
@@ -121,12 +125,14 @@
             line-height: 1.15 !important;
         }
         table.bushing-view-table th.bushing-col-ndt .vendor-select-sm {
-            max-width: 100% !important;
+            max-width: none !important;
             min-width: 0 !important;
-            width: 100% !important;
+            width: auto !important;
         }
         .bushing-view-table .bushing-col {
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         table.bushing-view-table .bushing-ipl {
             display: inline-block;
@@ -138,28 +144,70 @@
             font-size: 14px !important;
         }
         .bushing-view-table .vendor-select-sm {
-            min-width: 42px;
-            max-width: 58px;
+            flex: 1 1 auto;
+            min-width: 0;
+            max-width: none;
+            width: auto !important;
             height: 20px;
-            font-size: 9px;
+            display: block;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            border: 1px solid #6c757d;
+            border-radius: .2rem;
+            background-color: #000 !important;
+            background-image: none !important;
+            color: #fff;
+            font-size: 10px !important;
             line-height: 1;
-            padding: .05rem .1rem;
+            padding: .05rem .1rem !important;
+        }
+        .bushing-view-table .vendor-select-sm option {
+            font-size: 14px !important;
+        }
+        .bushing-view-table .bushing-form-row {
+            flex-wrap: nowrap !important;
+            justify-content: stretch !important;
+            margin-bottom: .25rem;
+            width: 100%;
+        }
+        .bushing-view-table .form-btn {
+            flex: 0 0 auto;
+            width: auto !important;
+            min-width: 32px !important;
+            max-width: none !important;
+        }
+        .bushing-view-table .bushing-form-placeholder {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            width: auto !important;
+            min-width: 32px !important;
+            max-width: none !important;
+            font-size: 12px !important;
+            line-height: 1.05;
         }
         .bushing-view-table .form-btn,
         .bushing-view-table .js-bushing-create-batch,
         .bushing-view-table .js-bushing-ungroup-batch,
         .bushing-view-table .js-bushing-batch-label {
-            font-size: 9px !important;
+            font-size: 12px !important;
             line-height: 1.05;
             min-height: 18px;
-            padding: .08rem .18rem !important;
+            padding: .12rem .18rem !important;
+        }
+        .bushing-view-table .js-bushing-create-batch,
+        .bushing-view-table .js-bushing-ungroup-batch {
+            padding-top: .18rem !important;
+            padding-bottom: .18rem !important;
         }
         .bushing-subcol-batch, .bushing-subcol-form { vertical-align: middle; }
         .bushing-view-table thead.wo-bush-thead tr:first-child th {
             position: sticky; top: 0; z-index: 12; background: #031e3a;
         }
         .bushing-view-table thead.wo-bush-thead tr:nth-child(2) th {
-            position: sticky; top: 20px; z-index: 11; background: #031e3a;
+            position: sticky; top: 28px; z-index: 11; background: #031e3a;
             box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
         }
         .bushing-view-table .bushing-batch-group-checkbox,
@@ -187,15 +235,6 @@
             overflow: visible !important;
             padding-right: 0 !important;
             width: 100%;
-        }
-        @media (max-width: 1280px) {
-            .bushing-view-table { font-size: 9px; }
-            table.bushing-view-table thead.wo-bush-thead th { font-size: 10px !important; font-weight: 400 !important; }
-            .bushing-view-table .vendor-select-sm { min-width: 40px; max-width: 54px; font-size: 8px; }
-            .bushing-view-table .form-btn,
-            .bushing-view-table .js-bushing-create-batch,
-            .bushing-view-table .js-bushing-ungroup-batch,
-            .bushing-view-table .js-bushing-batch-label { font-size: 8px !important; }
         }
     </style>
     <div class="w-100 bushing-table-outer">
@@ -240,11 +279,11 @@
                             <th class="bushing-subcol-batch bushing-col-{{ $hc['key'] }} text-center p-1">
                                 @if($woBushing)
                                     <div class="d-flex flex-column gap-1 align-items-stretch">
-                                        <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap mt-1">
-                                            <select class="form-select form-select-sm vendor-select-sm" name="vendor_id" id="{{ $hc['vendor'] }}">
-                                                <option value="">---</option>
+                                        <div class="d-flex align-items-center justify-content-center gap-1 mt-1 bushing-form-row">
+                                            <select class="vendor-select-sm" name="vendor_id" id="{{ $hc['vendor'] }}">
+                                                <option style="font-size: 14px;" value="">---</option>
                                                 @foreach($vendors as $vendor)
-                                                    <option style="font-size: 10px;" value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                    <option style="font-size: 14px;" value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                                 @endforeach
                                             </select>
                                             @if($hc['pn'] && $hc['has'])
@@ -252,7 +291,7 @@
                                                    target="_blank" class="btn btn-sm btn-outline-warning form-btn"
                                                    data-vendor-select="{{ $hc['vendor'] }}" data-process-key="{{ $hc['key'] }}">{{ __('Form') }}</a>
                                             @else
-                                                <span class="text-muted small">{{ __('Form') }}</span>
+                                                <span class="text-muted small bushing-form-placeholder">{{ __('Form') }}</span>
                                             @endif
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-info py-0 px-1 js-bushing-create-batch"
@@ -261,7 +300,7 @@
                                                 data-url="{{ $batchUngroupUrl }}" data-process-key="{{ $hc['key'] }}">{{ __('Ungroup') }}</button>
                                     </div>
                                 @else
-                                    <span class="text-muted small">{{ __('Form') }}</span>
+                                    <span class="text-muted small bushing-form-placeholder">{{ __('Form') }}</span>
                                 @endif
                             </th>
                         @endforeach

@@ -142,10 +142,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     $('#edit_part_number').val(c.part_number);
                     $('#edit_assy_ipl_num').val(c.assy_ipl_num);
                     $('#edit_assy_part_number').val(c.assy_part_number);
-                    $('#edit_eff_code').val(c.eff_code);
                     $('#edit_units_assy').val(c.units_assy);
                     $('#edit_log_card').prop('checked', c.log_card);
-                    $('#edit_repair').prop('checked', c.repair);
                     $('#edit_is_bush').prop('checked', c.is_bush);
                     if (c.is_bush) {
                         $('#edit_bush_ipl_container').show();
@@ -258,6 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
 (function() {
 function initTdrInlineCreate() {
     const row = document.getElementById('tdrInlineCreateRow');
+    const addRow = document.getElementById('tdrInlineAddRow');
     const addBtn = document.getElementById('tdrInlineAddBtn');
     const form = document.getElementById('tdrInlineCreateForm');
     const manualPicker = document.getElementById('tdrInlineManualPicker');
@@ -503,6 +502,18 @@ function initTdrInlineCreate() {
         setPlaceholder('description', description);
     }
 
+    function syncDescriptionFromComponent(option) {
+        if (!descriptionInput) return;
+        const nextDescription = option && option.value ? (option.dataset.title || '') : '';
+        const previousAutoDescription = descriptionInput.dataset.autoComponentDescription || '';
+        const currentDescription = descriptionInput.value || '';
+        const canReplace = !currentDescription || currentDescription === previousAutoDescription;
+        if (canReplace) {
+            descriptionInput.value = nextDescription;
+        }
+        descriptionInput.dataset.autoComponentDescription = nextDescription;
+    }
+
     function applyComponentSelection(option) {
         const selectedOption = option || componentSelect?.options[componentSelect.selectedIndex] || null;
         if (selectedOption && selectedOption.value && componentSelect.value !== selectedOption.value) {
@@ -514,6 +525,7 @@ function initTdrInlineCreate() {
                 : '';
         }
         renderComponentSelectionText(selectedOption);
+        syncDescriptionFromComponent(selectedOption);
         updateFieldVisibility();
         updatePlaceholders();
     }
@@ -528,6 +540,10 @@ function initTdrInlineCreate() {
         useTdrInput.value = '0';
         useProcessFormsInput.value = '0';
         conditionsInput.value = '';
+        if (descriptionInput) {
+            descriptionInput.value = '';
+            descriptionInput.dataset.autoComponentDescription = '';
+        }
         descriptionInput?.classList.add('d-none');
         qtyInput?.classList.add('d-none');
         orderComponentGroup?.classList.add('d-none');
@@ -544,10 +560,9 @@ function initTdrInlineCreate() {
         updatePlaceholders();
     }
 
-    function setAddButtonOpenState(isOpen) {
-        addBtn.textContent = isOpen ? '{{ __("Cancel") }}' : '{{ __("Add") }}';
-        addBtn.classList.toggle('btn-outline-info', !isOpen);
-        addBtn.classList.toggle('btn-outline-secondary', isOpen);
+    function setAddButtonVisible(isVisible) {
+        addBtn.textContent = '{{ __("Add") }}';
+        addRow?.classList.toggle('d-none', !isVisible);
     }
 
     function closeInlineRow() {
@@ -555,7 +570,17 @@ function initTdrInlineCreate() {
         row.classList.add('d-none');
         form.classList.add('d-none');
         manualPicker?.classList.add('d-none');
-        setAddButtonOpenState(false);
+        setAddButtonVisible(true);
+    }
+
+    function isInlineCreateClickTarget(target) {
+        if (!target) return false;
+        const closest = typeof target.closest === 'function' ? target.closest.bind(target) : function() { return null; };
+        return row.contains(target)
+            || addBtn.contains(target)
+            || form.contains(target)
+            || !!manualPicker?.contains(target)
+            || !!closest('.select2-container--open, .select2-dropdown, .modal');
     }
 
     function findConditionIdForCode(codeName) {
@@ -658,7 +683,9 @@ function initTdrInlineCreate() {
                 const freshInspectRows = Array.from(doc.querySelectorAll('#tdr_inspect_Table tbody tr'));
                 const currentInspectBody = document.querySelector('#tdr_inspect_Table tbody');
                 const freshRows = Array.from(doc.querySelectorAll('#tdr_process_Table tbody tr'))
-                    .filter(function(tableRow) { return tableRow.id !== 'tdrInlineCreateRow'; });
+                    .filter(function(tableRow) {
+                        return tableRow.id !== 'tdrInlineCreateRow' && tableRow.id !== 'tdrInlineAddRow';
+                    });
                 const currentBody = document.querySelector('#tdr_process_Table tbody');
                 const currentInlineRow = document.getElementById('tdrInlineCreateRow');
 
@@ -684,7 +711,9 @@ function initTdrInlineCreate() {
                 if (!currentBody || !currentInlineRow) return;
 
                 Array.from(currentBody.querySelectorAll('tr'))
-                    .filter(function(tableRow) { return tableRow.id !== 'tdrInlineCreateRow'; })
+                    .filter(function(tableRow) {
+                        return tableRow.id !== 'tdrInlineCreateRow' && tableRow.id !== 'tdrInlineAddRow';
+                    })
                     .forEach(function(tableRow) { tableRow.remove(); });
 
                 freshRows.forEach(function(tableRow) {
@@ -694,21 +723,22 @@ function initTdrInlineCreate() {
     }
 
     addBtn.addEventListener('click', function() {
-        if (!row.classList.contains('d-none')) {
-            closeInlineRow();
-            return;
-        }
-
         row.classList.remove('d-none');
         form.classList.remove('d-none');
         manualPicker?.classList.remove('d-none');
-        setAddButtonOpenState(true);
+        setAddButtonVisible(false);
         if (!initInlineSelects()) {
             setTimeout(initInlineSelects, 50);
         }
         resetInlineRow();
         initInlineSelects();
         row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    document.addEventListener('click', function(event) {
+        if (row.classList.contains('d-none')) return;
+        if (isInlineCreateClickTarget(event.target)) return;
+        closeInlineRow();
     });
 
     row.querySelectorAll('[data-tdr-inline-cell]').forEach(function(cell) {
@@ -795,10 +825,8 @@ function initTdrInlineCreate() {
             $('#edit_part_number').val(c.part_number);
             $('#edit_assy_ipl_num').val(c.assy_ipl_num);
             $('#edit_assy_part_number').val(c.assy_part_number);
-            $('#edit_eff_code').val(c.eff_code);
             $('#edit_units_assy').val(c.units_assy);
             $('#edit_log_card').prop('checked', c.log_card);
-            $('#edit_repair').prop('checked', c.repair);
             $('#edit_is_bush').prop('checked', c.is_bush);
             if (c.is_bush) {
                 $('#edit_bush_ipl_container').show();
@@ -923,7 +951,7 @@ function initTdrInlineCreate() {
 
     initInlineSelects();
     resetInlineRow();
-    setAddButtonOpenState(false);
+    setAddButtonVisible(true);
 }
 
 if (document.readyState === 'loading') {

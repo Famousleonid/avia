@@ -16,12 +16,14 @@ class WoBushingBatch extends Model
         'vendor_id',
         'date_start',
         'date_finish',
+        'date_promise',
         'working_steps_count',
     ];
 
     protected $casts = [
         'date_start' => 'date',
         'date_finish' => 'date',
+        'date_promise' => 'date',
     ];
 
     public function workorder(): BelongsTo

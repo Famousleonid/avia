@@ -4,7 +4,6 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ asset('js/tdr-processes/sortable-handler.js') }}"></script>
-<script src="{{ asset('js/tdr-processes/vendor-handler.js') }}"></script>
 <script src="{{ asset('js/tdr-processes/form-link-handler.js') }}"></script>
 <script src="{{ asset('js/tdr-processes/edit-process/edit-process.js') }}"></script>
 <script src="{{ asset('js/delete-confirm-handler.js') }}"></script>
@@ -27,7 +26,7 @@
         console[level === 'error' ? 'error' : 'log'](message);
     };
 
-    window.tdrShowConfirm = window.tdrShowConfirm || function(message, title) {
+    window.tdrShowConfirm = window.tdrShowConfirm || function(message, title, confirmLabel) {
         return new Promise(function(resolve) {
             let modal = document.getElementById('tdrShowConfirmModal');
             if (!modal) {
@@ -61,6 +60,7 @@
             modal.querySelector('.modal-title').textContent = title || '{{ __("Delete Confirmation") }}';
             modal.querySelector('.modal-body').textContent = message;
             const confirmBtn = modal.querySelector('[data-confirm-action]');
+            confirmBtn.textContent = confirmLabel || '{{ __("Delete") }}';
             let confirmed = false;
             const instance = bootstrap.Modal.getOrCreateInstance(modal);
 
@@ -672,7 +672,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         var addVendorBtn = container.querySelector('#saveVendorButtonExtra');
         var addVendorForm = container.querySelector('#addVendorFormExtra');
-        if (addVendorBtn && addVendorForm && typeof VendorHandler !== 'undefined' && ProcessesConfig.storeVendorUrl) {
+        if (addVendorBtn && addVendorForm && ProcessesConfig.storeVendorUrl) {
             addVendorBtn.onclick = function() {
                 var nameInput = addVendorForm.querySelector('input[name="name"]');
                 if (!nameInput || !nameInput.value.trim()) return;
@@ -796,11 +796,14 @@ document.addEventListener('DOMContentLoaded', function() {
         var ungroupUrl = wrapper.dataset.travelerUngroupUrl;
         var createBtn = target.querySelector('#btnCreateTraveler');
         var ungroupBtn = target.querySelector('#btnUngroupTraveler');
-        function uniqueSelectedIds() {
+        function selectedTravelerRows() {
+            return Array.from(target.querySelectorAll('.traveler-row-checkbox:checked'));
+        }
+        function selectedTravelerProcessIds(rows) {
             var ids = [];
             var seen = new Set();
-            target.querySelectorAll('.traveler-select-cb:checked').forEach(function(cb) {
-                var id = cb.getAttribute('data-tdr-process-id');
+            (rows || selectedTravelerRows()).forEach(function(box) {
+                var id = box.value || box.getAttribute('value');
                 if (id && !seen.has(id)) {
                     seen.add(id);
                     ids.push(parseInt(id, 10));
@@ -808,32 +811,125 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             return ids;
         }
-        function syncCreateBtn() {
+        function syncTravelerButtonLabel() {
             if (!createBtn) return;
-            createBtn.disabled = uniqueSelectedIds().length < 1;
+            var selectedRows = selectedTravelerRows();
+            var groupedRows = selectedRows.filter(function(box) {
+                return box.getAttribute('data-in-traveler') === '1';
+            });
+            var ungroupedRows = selectedRows.filter(function(box) {
+                return box.getAttribute('data-in-traveler') !== '1';
+            });
+
+            createBtn.textContent = groupedRows.length > 0 && ungroupedRows.length === 0
+                ? '{{ __("Ungroup") }}'
+                : '{{ __("Traveler") }}';
         }
-        target.querySelectorAll('.traveler-select-cb').forEach(function(cb) {
-            cb.addEventListener('change', syncCreateBtn);
+        function syncTravelerGroupSelection(changedBox) {
+            if (!changedBox || changedBox.getAttribute('data-in-traveler') !== '1') return;
+            var group = changedBox.getAttribute('data-traveler-group') || '';
+            if (!group || group === '0') return;
+
+            target.querySelectorAll('.traveler-row-checkbox[data-in-traveler="1"][data-traveler-group="' + group + '"]').forEach(function(box) {
+                box.checked = changedBox.checked;
+            });
+        }
+        target.querySelectorAll('.traveler-row-checkbox').forEach(function(box) {
+            box.addEventListener('change', function() {
+                syncTravelerGroupSelection(box);
+                syncTravelerButtonLabel();
+            });
         });
-        syncCreateBtn();
+        syncTravelerButtonLabel();
         if (createBtn && groupUrl) {
             createBtn.addEventListener('click', function() {
-                var ids = uniqueSelectedIds();
-                if (ids.length < 1) return;
-                fetch(groupUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify({ process_ids: ids }),
-                })
+                var selectedRows = selectedTravelerRows();
+                var groupedRows = selectedRows.filter(function(box) {
+                    return box.getAttribute('data-in-traveler') === '1';
+                });
+                var ungroupedRows = selectedRows.filter(function(box) {
+                    return box.getAttribute('data-in-traveler') !== '1';
+                });
+                if (groupedRows.length > 0 && ungroupedRows.length === 0 && ungroupUrl) {
+                    fetch(ungroupUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            process_ids: selectedTravelerProcessIds(groupedRows),
+                        }),
+                    })
+                        .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+                        .then(function(res) {
+                            if (res.ok && res.data.success) {
+                                loadProcessesAndBind(tdrId, target);
+                                if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
+                            } else {
+                                var ungroupMsg = (res.data && res.data.message) ? res.data.message : '{{ __("Request failed.") }}';
+                                window.tdrShowNotify(ungroupMsg, 'warning');
+                            }
+                        })
+                        .catch(function() {
+                            window.tdrShowNotify('{{ __("Request failed.") }}', 'error');
+                        });
+                    return;
+                }
+
+                if (groupedRows.length > 0) {
+                    window.tdrShowNotify('{{ __("Select only ungrouped rows to create a Traveler, or only grouped rows to ungroup.") }}', 'warning');
+                    return;
+                }
+
+                var ids = selectedTravelerProcessIds(ungroupedRows);
+                if (ids.length < 1) {
+                    window.tdrShowNotify('{{ __("Select rows in the Traveler column.") }}', 'warning');
+                    return;
+                }
+                function submitTravelerGroup(clearConflictingValues) {
+                    return fetch(groupUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            process_ids: ids,
+                            clear_conflicting_values: clearConflictingValues ? 1 : 0,
+                        }),
+                    });
+                }
+
+                submitTravelerGroup(false)
                     .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
                     .then(function(res) {
                         if (res.ok && res.data.success) {
                             loadProcessesAndBind(tdrId, target);
                             if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
+                        } else if (res.data && res.data.requires_confirmation) {
+                            return window.tdrShowConfirm(
+                                res.data.message || '{{ __("Selected values will be cleared before grouping. Continue?") }}',
+                                '{{ __("Create Traveler") }}',
+                                '{{ __("Create") }}'
+                            ).then(function(confirmed) {
+                                if (!confirmed) return;
+                                return submitTravelerGroup(true)
+                                    .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+                                    .then(function(confirmRes) {
+                                        if (confirmRes.ok && confirmRes.data.success) {
+                                            loadProcessesAndBind(tdrId, target);
+                                            if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
+                                        } else {
+                                            var confirmMsg = (confirmRes.data && confirmRes.data.message) ? confirmRes.data.message : '{{ __("Request failed.") }}';
+                                            window.tdrShowNotify(confirmMsg, 'warning');
+                                        }
+                                    });
+                            });
                         } else {
                             var msg = (res.data && res.data.message) ? res.data.message : '{{ __("Request failed.") }}';
                             window.tdrShowNotify(msg, 'warning');
@@ -851,6 +947,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
                         'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
                 })
                     .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
@@ -871,25 +968,7 @@ document.addEventListener('DOMContentLoaded', function() {
         target.querySelectorAll('.travel-form-link').forEach(function(link) {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
-                var row = link.closest('tr');
-                var vendorSel = row ? row.querySelector('.travel-vendor-select') : null;
-                var repInp = row ? row.querySelector('.travel-repair-num') : null;
-                if (!vendorSel || !vendorSel.value) {
-                    var m = '{{ __("Please select a vendor.") }}';
-                    window.tdrShowNotify(m, 'warning');
-                    return;
-                }
                 var u = new URL(link.getAttribute('href'), window.location.origin);
-                u.searchParams.set('vendor_id', vendorSel.value);
-                if (repInp && repInp.value.trim()) u.searchParams.set('repair_num', repInp.value.trim());
-                var seenEx = {};
-                target.querySelectorAll('.omit-traveler-form-cb:not(:checked)').forEach(function(cb) {
-                    var pid = cb.getAttribute('data-tdr-process-id');
-                    if (pid && !seenEx[pid]) {
-                        seenEx[pid] = true;
-                        u.searchParams.append('exclude_process_ids[]', pid);
-                    }
-                });
                 window.open(u.toString(), '_blank');
             });
         });
@@ -910,9 +989,26 @@ document.addEventListener('DOMContentLoaded', function() {
             if (addProcessBtn) { addProcessBtn.dataset.tdrId = tdrId; addProcessBtn.disabled = true; }
             if (compProcessesGroupFormsBtn) compProcessesGroupFormsBtn.classList.add('d-none');
         }
-        fetch(processesBodyUrl.replace('__ID__', tdrId), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
-            .then(function(r) { return r.text(); })
+        var url = processesBodyUrl.replace('__ID__', tdrId);
+        url += (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+            },
+            credentials: 'same-origin',
+            cache: 'no-store',
+        })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
             .then(function(html) {
+                if (html.indexOf('processes-modal-body') === -1 || /<\s*body[\s>]/i.test(html)) {
+                    throw new Error('Unexpected full page response for Part Processes partial');
+                }
                 target.innerHTML = html;
                 var wrapper = target.querySelector('.processes-modal-body');
                 if (isTabTarget && wrapper) {
@@ -948,7 +1044,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 }
-                if (typeof VendorHandler !== 'undefined' && ProcessesConfig.storeVendorUrl) VendorHandler.init(ProcessesConfig.storeVendorUrl);
                 bindProcessHandlers(wrapper, target);
                 if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(target);
                 initTravelerGroupHandlers(target);
@@ -969,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     addProcessBtn.onclick = function() {
                         var tdrId = this.dataset.tdrId || (wrapper && wrapper.dataset.tdrId);
                         if (!tdrId) {
-                            (typeof showNotification === 'function' ? (m) => showNotification(m, 'warning') : (window.NotificationHandler?.warning || alert))('{{ __("Please select a component first.") }}');
+                            (typeof showNotification === 'function' ? (m) => showNotification(m, 'warning') : (window.NotificationHandler?.warning || window.notifyWarn))('{{ __("Please select a component first.") }}');
                             return;
                         }
                         openAddProcessModal(tdrId);
@@ -1391,7 +1486,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!payload || payload.length < 1) {
                 var w = '{{ __("Отметьте хотя бы один компонент (радиокнопку) для Log Card.") }}';
                 if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(w, 'warning');
-                else alert(w);
+                else window.showNotification(w, 'warning');
                 return;
             }
             var metaEl = document.getElementById('log-card-tab-meta');
@@ -1427,7 +1522,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         ? res.data.message
                         : ((res.data && res.data.errors) ? Object.values(res.data.errors).flat().join(' ') : '{{ __("Could not save.") }}');
                     if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(errMsg, 'error');
-                    else alert(errMsg);
+                    else window.notifyError(errMsg);
                 })
                 .catch(function() {
                     logCardSaveBtn.disabled = false;
@@ -2116,7 +2211,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))('{{ __("An error occurred while saving.") }}');
+                    (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || window.notifyError))('{{ __("An error occurred while saving.") }}');
                     saveBtn.disabled = false;
                     saveBtn.innerHTML = '<i class="fas fa-save"></i> {{ __('Save') }}';
                 });
@@ -2181,7 +2276,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (tabTdr) { const t = new bootstrap.Tab(tabTdr); t.show(); }
                         window.location.reload();
                     } else {
-                        (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))(data.message || '{{ __("An error occurred while saving.") }}');
+                        (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || window.notifyError))(data.message || '{{ __("An error occurred while saving.") }}');
                         this.disabled = false;
                         this.innerHTML = '<i class="fas fa-check"></i> {{ __("Save") }}';
                     }
@@ -2262,13 +2357,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (tabTdr) { const t = new bootstrap.Tab(tabTdr); t.show(); }
                         window.location.replace(window.tdrShowUrl);
                     } else {
-                        (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))(data.message || '{{ __("An error occurred while saving.") }}');
+                        (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || window.notifyError))(data.message || '{{ __("An error occurred while saving.") }}');
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = '{{ __("Save Condition") }}';
                     }
                 })
                 .catch(() => {
-                    (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || alert))('{{ __("An error occurred while saving.") }}');
+                    (typeof showNotification === 'function' ? (m) => showNotification(m, 'error') : (window.NotificationHandler?.error || window.notifyError))('{{ __("An error occurred while saving.") }}');
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = '{{ __("Save Condition") }}';
                 });

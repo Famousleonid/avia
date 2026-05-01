@@ -644,7 +644,7 @@
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        alert(error.message || '{{ __("Error deleting file") }}');
+                        window.notifyError(error.message || '{{ __("Error deleting file") }}');
                     });
             }
             // Предотвращаем всплытие события
@@ -679,12 +679,12 @@
             const formData = new FormData();
 
             if (!fileInput.files.length) {
-                alert('{{ __("Please select a file") }}');
+                window.showNotification('{{ __("Please select a file") }}');
                 return;
             }
 
             if (!processType) {
-                alert('{{ __("Please select a process type") }}');
+                window.showNotification('{{ __("Please select a process type") }}');
                 return;
             }
 
@@ -731,14 +731,14 @@
                         const modal = bootstrap.Modal.getInstance(document.getElementById('csvUploadModal'));
                         modal.hide();
 
-                        alert('{{ __("File uploaded successfully") }}');
+                        window.notifySuccess('{{ __("File uploaded successfully") }}');
                         } else {
                             throw new Error(data.error || '{{ __("Error uploading file") }}');
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        alert(error.message || '{{ __("Error uploading file") }}');
+                        window.notifyError(error.message || '{{ __("Error uploading file") }}');
                     });
         }
 

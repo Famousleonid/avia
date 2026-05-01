@@ -443,7 +443,7 @@
                 </div>
                 <div class="div5 border-r-b " style="min-height: 36px; align-content: center">
                     @if($inTraveler)
-                        {{ $vendorName }}
+                        {{ $vendorName ?: ($tp->vendor?->name ?? '') }}
                     @else
                         {{ __('AT') }}
                     @endif

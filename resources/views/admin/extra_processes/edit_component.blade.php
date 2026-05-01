@@ -242,7 +242,7 @@
             const qty = document.querySelector('input[name="qty"]').value;
 
             if (!componentId) {
-                alert('Please select a component.');
+                window.showNotification('Please select a component.');
                 return;
             }
 
@@ -279,7 +279,7 @@
                 })
                 .then(data => {
                     if (data.success && data.message) {
-                        alert(data.message);
+                        window.showNotification(data.message);
                     }
                     const inModal = {{ request()->query('modal') ? 'true' : 'false' }};
                     if (data.success && inModal && window.parent !== window) {
@@ -290,7 +290,7 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error updating component: ' + error.message);
+                    window.notifyError('Error updating component: ' + error.message);
                 });
         });
 
@@ -324,17 +324,17 @@
                         modalInstance.hide();
 
                         // Показываем сообщение об успехе
-                        alert('Component created successfully!');
+                        window.notifySuccess('Component created successfully!');
 
                         // Перезагружаем страницу для обновления списка компонентов
                         window.location.reload();
                     } else {
-                        alert(data.message || 'Error creating component');
+                        window.notifyError(data.message || 'Error creating component');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error creating component: ' + error.message);
+                    window.notifyError('Error creating component: ' + error.message);
                 });
         });
     </script>

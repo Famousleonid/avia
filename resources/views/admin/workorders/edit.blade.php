@@ -467,7 +467,7 @@
                 const unitDescription = descriptionInput.value.trim();
 
                 if (!manualId || !partNumber) {
-                    alert("Please select a CMM and enter a Part Number.");
+                    window.showNotification("Please select a CMM and enter a Part Number.");
                     return;
                 }
 
@@ -534,7 +534,7 @@
                     })
                     .catch(error => {
                         hideLoadingSpinner();
-                        alert("Error: " + error.message);
+                        window.notifyError("Error: " + error.message);
                     });
             });
 

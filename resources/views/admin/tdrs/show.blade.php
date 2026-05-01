@@ -182,6 +182,37 @@
             background-color: rgba(255, 255, 255, 0.06);
             box-shadow: inset 3px 0 0 rgba(173, 181, 189, 0.5);
         }
+        .processes-modal-body .processes-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            margin: 0 1rem .35rem 0;
+        }
+        .processes-modal-body .process-action-col {
+            width: 56px;
+            min-width: 56px;
+            max-width: 56px;
+        }
+        .processes-modal-body .process-action-cell {
+            white-space: nowrap;
+            width: 56px;
+            min-width: 56px;
+            max-width: 56px;
+            padding-left: .15rem !important;
+            padding-right: .15rem !important;
+        }
+        .processes-modal-body .process-action-cell .btn {
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: .05rem .2rem !important;
+            margin: 0 !important;
+            line-height: 1;
+        }
+        .processes-modal-body .form-link,
+        .processes-modal-body .travel-form-link {
+            padding: .05rem .35rem !important;
+            line-height: 1.15;
+        }
     </style>
 
     @php
@@ -472,9 +503,6 @@
                                     </button>
                                     <button type="button" class="btn btn-outline-success btn-sm" id="compProcessesAddProcessBtn" data-tdr-id="">
                                         <i class="bi bi-plus-lg"></i> {{ __('Add Process') }}
-                                    </button>
-                                    <button type="button" class="btn btn-outline-primary btn-sm" id="compProcessesAddVendorBtn" data-bs-toggle="modal" data-bs-target="#addVendorModal">
-                                        <i class="bi bi-plus-lg"></i> {{ __('Add Vendor') }}
                                     </button>
                                 </div>
                             </div>

@@ -1010,10 +1010,10 @@
                 modal.hide();
             }
 
-            if (typeof showNotification === 'function') showNotification('Settings saved successfully!', 'success'); else alert('Settings saved successfully!');
+            if (typeof showNotification === 'function') showNotification('Settings saved successfully!', 'success'); else window.notifySuccess('Settings saved successfully!');
         } catch (e) {
             console.error('Ошибка сохранения настроек:', e);
-            if (typeof showNotification === 'function') showNotification('Error saving settings', 'error'); else alert('Error saving settings');
+            if (typeof showNotification === 'function') showNotification('Error saving settings', 'error'); else window.notifyError('Error saving settings');
         }
     };
 
@@ -1332,7 +1332,7 @@
             setTimeout(function() {
                 applyTableRowLimits(defaultSettings);
             }, 50);
-            if (typeof showNotification === 'function') showNotification('Settings reset to default values!', 'success'); else alert('Settings reset to default values!');
+            if (typeof showNotification === 'function') showNotification('Settings reset to default values!', 'success'); else window.notifySuccess('Settings reset to default values!');
         }
     };
 
