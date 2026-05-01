@@ -255,8 +255,8 @@ class MobileController extends Controller
             'detailItems' => $ctx['detailItems'],
             'machinistName' => $machinistName,
             'machiningStepMachinistNames' => $machiningStepMachinistNames,
-            'machiningPhotoCount' => $ctx['workorder']->getMedia('Machining')->count(),
-            'pdfCount' => $ctx['workorder']->getMedia('pdfs')->count(),
+            'machiningPhotoCount' => $this->workorderMediaCount($ctx['workorder'], 'Machining', 'image/'),
+            'pdfCount' => $this->workorderMediaCount($ctx['workorder'], 'pdfs'),
         ]);
     }
 
@@ -266,12 +266,11 @@ class MobileController extends Controller
             return $redirectMyWo;
         }
 
-        $ctx = $this->getMobileMachiningWorkorderContext($workorder);
-        if ($ctx instanceof RedirectResponse) {
-            return $ctx;
+        $wo = $this->getMobileMachiningMediaWorkorder($workorder);
+        if ($wo instanceof RedirectResponse) {
+            return $wo;
         }
 
-        $wo = $ctx['workorder'];
         $photos = collect();
         foreach ($wo->getMedia('Machining') as $media) {
             if (! $media->mime_type || ! str_starts_with($media->mime_type, 'image/')) {
@@ -304,12 +303,11 @@ class MobileController extends Controller
             return $redirectMyWo;
         }
 
-        $ctx = $this->getMobileMachiningWorkorderContext($workorder);
-        if ($ctx instanceof RedirectResponse) {
-            return $ctx;
+        $wo = $this->getMobileMachiningMediaWorkorder($workorder);
+        if ($wo instanceof RedirectResponse) {
+            return $wo;
         }
 
-        $wo = $ctx['workorder'];
         $pdfs = $wo->getMedia('pdfs')->map(function ($media) use ($wo) {
             $documentName = $media->getCustomProperty('document_name') ?: ($media->name ?? null);
             $label = $documentName ?: $media->file_name;
@@ -370,32 +368,11 @@ class MobileController extends Controller
                 ->toMediaCollection($category);
         }
 
-        $wo->refresh();
-        $uploaded = [];
-        foreach ($wo->getMedia($category) as $media) {
-            if (! $media->id) {
-                continue;
-            }
-            $uploaded[] = [
-                'id' => $media->id,
-                'big_url' => route('image.show.big', [
-                    'mediaId' => $media->id,
-                    'modelId' => $wo->id,
-                    'mediaName' => $category,
-                ]),
-                'thumb_url' => route('image.show.thumb', [
-                    'mediaId' => $media->id,
-                    'modelId' => $wo->id,
-                    'mediaName' => $category,
-                ]),
-            ];
-        }
-
         return response()->json([
             'success' => true,
-            'photo_count' => count($uploaded),
-            'machining_photo_count' => $wo->getMedia('Machining')->count(),
-            'pdf_count' => $wo->getMedia('pdfs')->count(),
+            'photo_count' => $this->workorderMediaCount($wo, $category, 'image/'),
+            'machining_photo_count' => $this->workorderMediaCount($wo, 'Machining', 'image/'),
+            'pdf_count' => $this->workorderMediaCount($wo, 'pdfs'),
         ]);
     }
 
@@ -454,24 +431,21 @@ class MobileController extends Controller
         $media->name = $label;
         $media->save();
 
-        $wo->refresh();
-
         return response()->json([
             'success' => true,
             'media_id' => $media->id,
-            'machining_photo_count' => $wo->getMedia('Machining')->count(),
-            'pdf_count' => $wo->getMedia('pdfs')->count(),
+            'machining_photo_count' => $this->workorderMediaCount($wo, 'Machining', 'image/'),
+            'pdf_count' => $this->workorderMediaCount($wo, 'pdfs'),
         ]);
     }
 
     public function destroyMachiningWorkorderMedia(Workorder $workorder, Media $media): RedirectResponse
     {
-        $ctx = $this->getMobileMachiningWorkorderContext($workorder);
-        if ($ctx instanceof RedirectResponse) {
-            return $ctx;
+        $wo = $this->getMobileMachiningMediaWorkorder($workorder);
+        if ($wo instanceof RedirectResponse) {
+            return $wo;
         }
 
-        $wo = $ctx['workorder'];
         abort_unless(
             (int) $media->model_id === (int) $wo->id
             && $media->model_type === $wo->getMorphClass()
@@ -489,6 +463,32 @@ class MobileController extends Controller
         $media->delete();
 
         return back()->with('success', __('Deleted.'));
+    }
+
+    private function getMobileMachiningMediaWorkorder(Workorder $workorder): RedirectResponse|Workorder
+    {
+        $user = Auth::user();
+        abort_unless($user !== null && $user->roleIs(['Machining', 'Admin', 'Manager']), 403);
+        abort_unless($workorder->isOpenForMachiningBoard(), 404);
+
+        if (! Workorder::query()->whereKey($workorder->id)->whereMachiningHasDateSent()->exists()) {
+            return redirect()
+                ->route('mobile.machining')
+                ->with('error', 'This work order is not on the machining board or has no machining steps.');
+        }
+
+        return $workorder;
+    }
+
+    private function workorderMediaCount(Workorder $workorder, string $collection, ?string $mimePrefix = null): int
+    {
+        $query = $workorder->media()->where('collection_name', $collection);
+
+        if ($mimePrefix !== null) {
+            $query->where('mime_type', 'like', $mimePrefix . '%');
+        }
+
+        return (int) $query->count();
     }
 
     /**

@@ -79,11 +79,22 @@
             border-collapse: separate;
             border-spacing: 0;
             --wo-table-border-color: rgba(255, 255, 255, 0.12);
+            --wo-table-shell-bg: linear-gradient(180deg, #151719 0%, #24282c 100%);
+            --wo-table-head-bg: linear-gradient(180deg, #131313 0%, #2E2E2E 100%);
+            --wo-table-row-bg: linear-gradient(135deg, #212529 0%, #2c3035 100%);
+            --wo-table-row-hover-bg: linear-gradient(135deg, #27313a 0%, #343a40 100%);
+            --wo-table-text-color: #f8f9fa;
             border-color: var(--wo-table-border-color);
+            background: var(--wo-table-shell-bg) !important;
         }
 
         html[data-bs-theme="light"] #show-workorder {
             --wo-table-border-color: rgba(0, 0, 0, 0.12);
+            --wo-table-shell-bg: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+            --wo-table-head-bg: linear-gradient(180deg, #f1f3f5 0%, #dee2e6 100%);
+            --wo-table-row-bg: linear-gradient(135deg, #ffffff 0%, #edf1f5 100%);
+            --wo-table-row-hover-bg: linear-gradient(135deg, #eaf4ff 0%, #ddebf8 100%);
+            --wo-table-text-color: #212529;
         }
 
         #show-workorder > :not(caption) > * > * {
@@ -273,16 +284,12 @@
             cursor: pointer;
         }
 
-        [data-bs-theme="dark"] #show-workorder {
-            background: linear-gradient(to bottom, #131313, #2E2E2E) !important;
+        #show-workorder thead th {
+            background: var(--wo-table-head-bg) !important;
         }
 
-        [data-bs-theme="dark"] #show-workorder thead th {
-            background: linear-gradient(to bottom, #131313, #2E2E2E) !important;
-        }
-
-        [data-bs-theme="dark"] .table-hover tbody tr:hover {
-            background-color: rgba(255, 255, 255, 0.1) !important;
+        #show-workorder.table-hover > tbody > tr:hover > * {
+            background: var(--wo-table-row-hover-bg) !important;
         }
 
         /* Фильтры customer / technik */
@@ -347,9 +354,10 @@
             opacity: 0.45;
         }
 
-        .table-panel td {
-            background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
-            color: #f8f9fa;
+        #show-workorder.table-panel > tbody > tr > td,
+        #show-workorder.table-panel > tbody > tr > th {
+            background: var(--wo-table-row-bg) !important;
+            color: var(--wo-table-text-color);
         }
 
         .approve-inline {

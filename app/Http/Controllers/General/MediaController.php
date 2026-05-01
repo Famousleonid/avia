@@ -111,10 +111,12 @@ class MediaController extends Controller
                 abort(404, 'Media file not found');
             }
 
-            return response()->file($originalPath);
+            $generatedThumbPath = $this->generatedThumbPath($media, $originalPath);
+
+            return $this->cachedFileResponse($generatedThumbPath ?: $originalPath);
         }
 
-        return response()->file($thumbPath);
+        return $this->cachedFileResponse($thumbPath);
     }
 
     public function showBig($mediaId, $modelId, $mediaName)
@@ -127,7 +129,86 @@ class MediaController extends Controller
             abort(404, 'Media file not found');
         }
 
-        return response()->file($path);
+        return $this->cachedFileResponse($path);
+    }
+
+    private function cachedFileResponse(string $path)
+    {
+        $response = response()->file($path);
+        $mtime = file_exists($path) ? (int) filemtime($path) : time();
+
+        $response->setPublic();
+        $response->setMaxAge(604800);
+        $response->setSharedMaxAge(604800);
+        $response->setEtag(md5($path . '|' . $mtime . '|' . (string) @filesize($path)));
+        $response->setLastModified((new \DateTimeImmutable())->setTimestamp($mtime));
+        $response->isNotModified(request());
+
+        return $response;
+    }
+
+    private function generatedThumbPath(Media $media, string $originalPath): ?string
+    {
+        if (!function_exists('imagecreatetruecolor')) {
+            return null;
+        }
+
+        $sourceMtime = file_exists($originalPath) ? (int) filemtime($originalPath) : 0;
+        $targetDir = storage_path('app/generated-thumbnails');
+        $targetPath = $targetDir . DIRECTORY_SEPARATOR . 'media_' . (int) $media->id . '_' . $sourceMtime . '.jpg';
+
+        if (file_exists($targetPath)) {
+            return $targetPath;
+        }
+
+        if (!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
+            return null;
+        }
+
+        $info = @getimagesize($originalPath);
+        if (!$info || empty($info[0]) || empty($info[1]) || empty($info['mime'])) {
+            return null;
+        }
+
+        $source = match ($info['mime']) {
+            'image/jpeg' => @imagecreatefromjpeg($originalPath),
+            'image/png' => @imagecreatefrompng($originalPath),
+            'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($originalPath) : false,
+            default => false,
+        };
+
+        if (!$source) {
+            return null;
+        }
+
+        $width = (int) imagesx($source);
+        $height = (int) imagesy($source);
+        if ($width < 1 || $height < 1) {
+            imagedestroy($source);
+
+            return null;
+        }
+
+        $maxSide = 480;
+        $scale = min($maxSide / $width, $maxSide / $height, 1);
+        $thumbWidth = max(1, (int) round($width * $scale));
+        $thumbHeight = max(1, (int) round($height * $scale));
+
+        $thumb = imagecreatetruecolor($thumbWidth, $thumbHeight);
+        if (!$thumb) {
+            imagedestroy($source);
+
+            return null;
+        }
+
+        imagecopyresampled($thumb, $source, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
+        imageinterlace($thumb, true);
+        $saved = imagejpeg($thumb, $targetPath, 75);
+
+        imagedestroy($thumb);
+        imagedestroy($source);
+
+        return $saved && file_exists($targetPath) ? $targetPath : null;
     }
 
     public function get_photos(Workorder $workorder, Request $request)

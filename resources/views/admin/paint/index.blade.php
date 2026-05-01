@@ -278,6 +278,11 @@
         .paint-wo-label {
             font-weight: 700;
         }
+        html[data-bs-theme="light"] #paint-wo-table .paint-wo-label,
+        html[data-bs-theme="light"] #paint-wo-table .paint-wo-label .text-light,
+        html[data-bs-theme="light"] #paint-wo-table .paint-wo-label .paint-wo-prefix {
+            color: #000 !important;
+        }
         .paint-detail-pill {
             display: inline-flex;
             max-width: 100%;
@@ -289,6 +294,11 @@
             background: rgba(148, 163, 184, .08);
             color: rgba(226, 232, 240, .9);
             border: 1px solid rgba(148, 163, 184, .12);
+        }
+        html[data-bs-theme="light"] #paint-wo-table .paint-detail-pill {
+            background: rgba(13, 110, 253, .06);
+            border-color: rgba(13, 110, 253, .16);
+            color: #000 !important;
         }
         .paint-row-master .paint-detail-pill {
             background: rgba(13, 202, 240, .08);
@@ -371,6 +381,12 @@
             box-shadow: inset 0 0 0 1px rgba(148, 163, 184, .06);
             transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease, transform .18s ease;
         }
+        html[data-bs-theme="light"] #paint-wo-table tbody .paint-date-display,
+        html[data-bs-theme="light"] #paint-wo-table tbody .paint-date-readonly {
+            background-color: #fff !important;
+            color: #000 !important;
+            border-color: rgba(33, 37, 41, .24) !important;
+        }
         #paint-wo-table tbody .paint-date-display:hover,
         #paint-wo-table tbody .paint-date-display:focus {
             border-color: rgba(13, 202, 240, .52) !important;
@@ -383,10 +399,19 @@
             background-color: rgba(25, 135, 84, .12) !important;
             color: rgba(229, 255, 239, .95) !important;
         }
+        html[data-bs-theme="light"] #paint-wo-table tbody .paint-date-display.has-finish,
+        html[data-bs-theme="light"] #paint-wo-table tbody .paint-date-readonly.has-finish {
+            background-color: rgba(25, 135, 84, .10) !important;
+            color: #000 !important;
+        }
         #paint-wo-table tbody .paint-date-display.paint-date-empty {
             border-style: dashed;
             background-color: rgba(13, 202, 240, .035) !important;
             color: rgba(148, 163, 184, .76) !important;
+        }
+        html[data-bs-theme="light"] #paint-wo-table tbody .paint-date-display.paint-date-empty {
+            background-color: rgba(13, 110, 253, .035) !important;
+            color: #000 !important;
         }
         #paint-wo-table td.paint-col-date-cell {
             padding-left: 2px;
