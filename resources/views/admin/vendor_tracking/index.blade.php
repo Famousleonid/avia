@@ -1088,7 +1088,7 @@
                                     @if($travelerGroup > 0) data-traveler-group="{{ $travelerGroup }}" @endif
                                     @class(['vendor-tracking-traveler-row' => $isTravelerGroup])>
                                     <td class="vendor-tracking-save-cell vendor-tracking-repair-col" data-col="repair_order">
-                                        <input type="text" class="form-control form-control-sm vendor-tracking-inline-input js-vendor-tracking-repair-order" value="{{ $row->repair_order ?? '' }}">
+                                        <input type="text" class="form-control form-control-sm vendor-tracking-inline-input js-vendor-tracking-repair-order" value="{{ $row->repair_order ?? '' }}" autocomplete="off" spellcheck="false">
                                     </td>
                                     <td class="vendor-tracking-type-col" data-col="type"><span class="fw-semibold {{ $typeTextClass }}">{{ $row->source }}</span></td>
                                     <td class="vendor-tracking-save-cell text-center" data-col="info">
@@ -2255,6 +2255,9 @@
                     return;
                 }
 
+                row._vendorTrackingSaveSeq = (row._vendorTrackingSaveSeq || 0) + 1;
+                const saveSeq = row._vendorTrackingSaveSeq;
+                const sentRepairOrder = payload.repair_order ?? '';
                 const vendorCell = row.querySelector('.js-vendor-tracking-vendor')?.closest('td');
                 const repairOrderCell = row.querySelector('.js-vendor-tracking-repair-order')?.closest('td');
                 const cells = [vendorCell, repairOrderCell].filter(Boolean);
@@ -2274,32 +2277,48 @@
                         throw data;
                     }
 
+                    if (saveSeq !== row._vendorTrackingSaveSeq) {
+                        return;
+                    }
+
                     const vendorSelect = row.querySelector('.js-vendor-tracking-vendor');
                     const repairInput = row.querySelector('.js-vendor-tracking-repair-order');
                     if (vendorSelect) {
                         vendorSelect.value = payload.vendor_id ? String(payload.vendor_id) : '';
+                        vendorSelect.dataset.lastSavedValue = vendorSelect.value;
                     }
                     if (repairInput) {
-                        repairInput.value = data.repair_order ?? '';
+                        const savedRepairOrder = data.repair_order ?? '';
+                        if (repairInput.value === sentRepairOrder) {
+                            repairInput.value = savedRepairOrder;
+                        }
+                        repairInput.dataset.lastSavedValue = savedRepairOrder;
                     }
 
                     updateRowVendorButtons(row, payload.vendor_id ? Number(payload.vendor_id) : null);
-                    rememberSavedValues(row);
                     cells.forEach(markSaved);
                 } catch (error) {
+                    if (saveSeq !== row._vendorTrackingSaveSeq) {
+                        return;
+                    }
+
                     const vendorSelect = row.querySelector('.js-vendor-tracking-vendor');
                     const repairInput = row.querySelector('.js-vendor-tracking-repair-order');
 
                     if (vendorSelect) {
                         vendorSelect.value = vendorSelect.dataset.lastSavedValue ?? '';
                     }
-                    if (repairInput) {
+                    if (repairInput && document.activeElement !== repairInput && repairInput.value === sentRepairOrder) {
                         repairInput.value = repairInput.dataset.lastSavedValue ?? '';
                     }
 
                     updateRowVendorButtons(row, vendorSelect && vendorSelect.value !== '' ? Number(vendorSelect.value) : null);
                     cells.forEach(flashError);
                 } finally {
+                    if (saveSeq !== row._vendorTrackingSaveSeq) {
+                        return;
+                    }
+
                     cells.forEach(function (cell) {
                         cell.classList.remove('is-saving');
                     });
@@ -2427,10 +2446,6 @@
                 }
 
                 window.clearTimeout(repairOrderTimers.get(input));
-                const timer = window.setTimeout(function () {
-                    flushRepairOrderSave(input);
-                }, 450);
-                repairOrderTimers.set(input, timer);
             });
 
             tbody.addEventListener('blur', function (event) {

@@ -483,7 +483,7 @@
             <div class="card-body">
                 <div class="me-3">
                     <div class="table-wrapper me-3">
-                        <table class="display table table-sm table-hover align-middle table-bordered bg-gradient sortable-table dir-table">
+                        <table class="display table table-sm table-hover align-middle bg-gradient sortable-table dir-table tdr-processes-table">
                             <thead>
                             <tr>
                                 <th class="text-primary text-center">Process Name</th>

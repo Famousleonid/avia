@@ -58,7 +58,7 @@
      data-traveler-ungroup-url="{{ route('tdr-processes.traveler-ungroup', ['tdrId' => $current_tdr->id]) }}">
     <div class="processes-toolbar"></div>
     <div class="table-wrapper me-3" style="max-height: 55vh; overflow-y: auto; overflow-x: auto;">
-        <table class="display table table-sm table-hover align-middle table-bordered bg-gradient dir-table sortable-table">
+        <table class="display table table-sm table-hover align-middle bg-gradient dir-table sortable-table tdr-processes-table">
             <thead>
             <tr>
                 <th class="text-primary text-center" style="width: 12%">Process Name</th>

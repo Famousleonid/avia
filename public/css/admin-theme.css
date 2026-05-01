@@ -191,6 +191,10 @@ html[data-bs-theme="light"] {
     --bs-table-striped-color: var(--dir-text);
 }
 
+.tdr-processes-table.dir-table {
+    border-collapse: collapse;
+}
+
 .dir-table th,
 .dir-table td {
     padding-left: 10px;

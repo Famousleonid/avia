@@ -175,11 +175,19 @@
         .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > td,
         .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > th {
             background-color: rgba(108, 117, 125, 0.12);
+            box-shadow: none;
+        }
+        .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > td:first-child,
+        .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > th:first-child {
             box-shadow: inset 3px 0 0 rgba(108, 117, 125, 0.45);
         }
         html[data-bs-theme="dark"] .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > td,
         html[data-bs-theme="dark"] .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > th {
             background-color: rgba(255, 255, 255, 0.06);
+            box-shadow: none;
+        }
+        html[data-bs-theme="dark"] .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > td:first-child,
+        html[data-bs-theme="dark"] .processes-modal-body .sortable-table > tbody > tr.traveler-block-row > th:first-child {
             box-shadow: inset 3px 0 0 rgba(173, 181, 189, 0.5);
         }
         .processes-modal-body .processes-toolbar {
