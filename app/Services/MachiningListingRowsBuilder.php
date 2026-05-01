@@ -20,6 +20,10 @@ final class MachiningListingRowsBuilder
     {
         $machiningBoardPnIds = ProcessName::machiningMachiningEcMergeProcessNameIds();
 
+        /** @var Collection<int, Workorder> $workordersById */
+        $workordersById = $workorders->keyBy(static fn (Workorder $w): int => (int) $w->id);
+        $release = app(MachiningWorkorderQueueRelease::class);
+
         $rows = $workorders->flatMap(function (Workorder $wo) use ($machiningBoardPnIds) {
             $machiningProcesses = $this->collectMachiningProcessesForRow($wo, $machiningBoardPnIds);
 
@@ -57,7 +61,8 @@ final class MachiningListingRowsBuilder
 
         $rows->each(fn (object $row) => $this->applyMachiningParentDatesToRow($row));
 
-        $this->syncMachiningQueueReleaseForFullyClosedWorkorders($rows);
+        $woFullyClosedBeforeRelease = $this->machiningFullyClosedMapForUniqueWorkordersInRows($rows, $workordersById, $release);
+        $this->syncMachiningQueueReleaseForFullyClosedWorkorders($rows, $workordersById, $woFullyClosedBeforeRelease, $release);
 
         $withQueue = $rows->filter(static fn ($r) => $r->workorder->machining_queue_order !== null)->values();
         $withoutQueue = $rows
@@ -65,7 +70,9 @@ final class MachiningListingRowsBuilder
             ->sortBy(static fn ($r) => (int) $r->workorder->number)
             ->values();
 
-        $withQueue = $this->sortMachiningRowsBucket($withQueue, true);
+        $woFullyClosedStillQueued = $this->machiningFullyClosedMapForUniqueWorkordersInRows($withQueue, $workordersById, $release);
+
+        $withQueue = $this->sortMachiningRowsBucket($withQueue, true, $woFullyClosedStillQueued);
         $withoutQueue = $this->sortMachiningRowsBucket($withoutQueue, false);
 
         $pos = 0;
@@ -91,28 +98,64 @@ final class MachiningListingRowsBuilder
 
     /**
      * @param  Collection<int, object>  $rows
+     * @param  Collection<int, Workorder>  $workordersById
+     * @param  array<int, bool>  $woFullyClosedBeforeRelease
      */
-    private function syncMachiningQueueReleaseForFullyClosedWorkorders(Collection $rows): void
-    {
+    private function syncMachiningQueueReleaseForFullyClosedWorkorders(
+        Collection $rows,
+        Collection $workordersById,
+        array $woFullyClosedBeforeRelease,
+        MachiningWorkorderQueueRelease $release,
+    ): void {
         if ($rows->isEmpty()) {
             return;
         }
 
-        $release = app(MachiningWorkorderQueueRelease::class);
         foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $woId => $_) {
-            $woModel = Workorder::query()->find((int) $woId);
-            if ($woModel === null || ! $release->machiningFullyClosed($woModel)) {
+            $woId = (int) $woId;
+            if (! ($woFullyClosedBeforeRelease[$woId] ?? false)) {
                 continue;
             }
-            $release->releaseIfFullyClosed($woModel);
+            $woModel = $workordersById->get($woId)
+                ?? $rows->first(static fn ($r) => (int) $r->workorder->id === $woId)?->workorder;
+            if ($woModel === null) {
+                continue;
+            }
+            $release->releaseIfFullyClosed($woModel, true);
         }
 
-        foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $group) {
-            $wo = $group->first()?->workorder;
+        foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $woId => $group) {
+            $woId = (int) $woId;
+            $wo = $workordersById->get($woId) ?? $group->first()?->workorder;
             if ($wo !== null) {
                 $wo->refresh();
             }
         }
+    }
+
+    /**
+     * Один вызов {@see MachiningWorkorderQueueRelease::machiningFullyClosed} на уникальный WO — без повторных find().
+     *
+     * @param  Collection<int, object>  $rows
+     * @param  Collection<int, Workorder>  $workordersById
+     * @return array<int, bool>
+     */
+    private function machiningFullyClosedMapForUniqueWorkordersInRows(
+        Collection $rows,
+        Collection $workordersById,
+        MachiningWorkorderQueueRelease $release,
+    ): array {
+        $map = [];
+        foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $woId => $group) {
+            $woId = (int) $woId;
+            $wo = $workordersById->get($woId) ?? $group->first()?->workorder;
+            if ($wo === null) {
+                continue;
+            }
+            $map[$woId] = $release->machiningFullyClosed($wo);
+        }
+
+        return $map;
     }
 
     /**
@@ -121,22 +164,28 @@ final class MachiningListingRowsBuilder
      * (если у WO есть хоть одна незакрытая линия — все её строки в «open»), чтобы части одного WO не разъезжались.
      *
      * @param  Collection<int, object>  $rows
+     * @param  array<int, bool>  $queuedWoFullyClosedMap  только если queuedBucket=true — см. {@see machiningFullyClosedMapForUniqueWorkordersInRows} по строкам очереди после refresh.
      * @return Collection<int, object>
      */
-    private function sortMachiningRowsBucket(Collection $rows, bool $queuedBucket): Collection
+    private function sortMachiningRowsBucket(Collection $rows, bool $queuedBucket, array $queuedWoFullyClosedMap = []): Collection
     {
         if ($rows->isEmpty()) {
             return $rows;
         }
 
         $rows = $rows->values();
-        $queueRelease = app(MachiningWorkorderQueueRelease::class);
 
         if ($queuedBucket) {
             $woFullyDone = [];
             foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $woId => $_) {
-                $woModel = Workorder::query()->find((int) $woId);
-                $woFullyDone[(int) $woId] = $woModel !== null && $queueRelease->machiningFullyClosed($woModel);
+                $woId = (int) $woId;
+                if (array_key_exists($woId, $queuedWoFullyClosedMap)) {
+                    $woFullyDone[$woId] = $queuedWoFullyClosedMap[$woId];
+                } else {
+                    /** Fallback: редкий случай пустой карты — сохраняем поведение. */
+                    $woModel = Workorder::query()->find($woId);
+                    $woFullyDone[$woId] = $woModel !== null && app(MachiningWorkorderQueueRelease::class)->machiningFullyClosed($woModel);
+                }
             }
             $open = $rows->filter(fn ($r) => ! $woFullyDone[(int) $r->workorder->id])->values();
             $done = $rows->filter(fn ($r) => $woFullyDone[(int) $r->workorder->id])->values();
