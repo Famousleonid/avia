@@ -239,7 +239,10 @@
                         .then(function(data) {
                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
                             if (data.success) {
-                                (window.top || window.parent).postMessage({ type: 'addProcessesSuccess' }, '*');
+                                (window.top || window.parent).postMessage({
+                                    type: 'addProcessesSuccess',
+                                    message: data.message || '{{ __("Process added successfully.") }}'
+                                }, '*');
                             } else {
                                 window.notifyError(data.message || (data.errors ? JSON.stringify(data.errors) : '') || '{{ __("Error.") }}');
                             }

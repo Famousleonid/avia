@@ -158,7 +158,7 @@
                                         @if($current_tdr_processes->process_names_id)
                                             {{-- Показываем текущие выбранные процессы при загрузке страницы --}}
                                             @php
-                                                $currentProcesses = json_decode($current_tdr_processes->processes, true) ?: [];
+                                                $currentProcesses = \App\Models\TdrProcess::normalizeStoredProcessIds($current_tdr_processes->processes);
                                                 $currentProcessNameId = $current_tdr_processes->process_names_id;
                                             @endphp
                                             @php $firstProcessId = $currentProcesses[0] ?? null; @endphp
@@ -261,7 +261,7 @@
                 ndtProcessNamesData: @json($ndtProcessNames->keyBy('id')),
                 ecEligibleProcessNameIds: @json($ecEligibleProcessNameIds ?? []),
                 processNamesData: @json($processNames->keyBy('id')),
-                currentProcesses: @json(json_decode($current_tdr_processes->processes, true) ?: [])
+                currentProcesses: @json(\App\Models\TdrProcess::normalizeStoredProcessIds($current_tdr_processes->processes))
             };
             if (window.TdrProcessEditForm) TdrProcessEditForm.init(config);
         })();

@@ -749,7 +749,11 @@
                     }
                     var tdrId = document.querySelector('input[name="tdrs_id"]')?.value;
                     if (CREATE_PROCESS_IN_MODAL && window.parent !== window && tdrId) {
-                        window.parent.postMessage({ type: 'createProcessSuccess', tdrId: tdrId }, '*');
+                        window.parent.postMessage({
+                            type: 'createProcessSuccess',
+                            tdrId: tdrId,
+                            message: data.message || '{{ __("Process added successfully.") }}'
+                        }, '*');
                     } else if (data.redirect) {
                         window.location.href = data.redirect;
                     }

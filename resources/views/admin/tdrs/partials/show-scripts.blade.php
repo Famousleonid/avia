@@ -1931,6 +1931,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (ifr) ifr.src = 'about:blank';
             loadProcessesAndBind(e.data.tdrId, activeProcessesContainer || body);
             if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
+            window.tdrShowNotify(e.data.message || '{{ __("Process added successfully.") }}', 'success', 2500);
         } else if (e.data && e.data.type === 'createProcessCancel') {
             var m = bootstrap.Modal.getInstance(document.getElementById('addPartProcessesModal'));
             if (m) m.hide();
@@ -1943,6 +1944,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (ifr) ifr.src = 'about:blank';
             loadProcessesAndBind(e.data.tdrId, activeProcessesContainer || body);
             if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
+            window.tdrShowNotify(e.data.message || '{{ __("Process updated successfully.") }}', 'success', 2500);
         } else if (e.data && e.data.type === 'editProcessCancel') {
             var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));
             if (m) m.hide();
@@ -2035,6 +2037,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (bushingTabBody) loadBushingPartial();
             var editIfr = document.getElementById('editBushingIframe');
             if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
+            window.tdrShowNotify(e.data.message || (e.data.type === 'addPartSuccess' ? '{{ __("Part added successfully.") }}' : '{{ __("Process added successfully.") }}'), 'success', 2500);
         }
     });
     document.getElementById('addPartProcessesModal')?.addEventListener('hidden.bs.modal', function() {

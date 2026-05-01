@@ -1503,9 +1503,7 @@ class TdrController extends Controller
 
         // ID операций из справочника processes, реально назначенных в JSON маршрута (отфильтрованных TdrProcess)
         $assignedCatalogProcessIds = $filteredTdrProcesses->flatMap(function ($tp) {
-            $raw = json_decode($tp->processes, true);
-
-            return is_array($raw) ? $raw : [];
+            return TdrProcess::normalizeStoredProcessIds($tp->processes);
         })->map(fn ($id) => (int) $id)->unique()->filter()->values()->all();
 
         // Модалка передаёт process_ids (id из справочника processes) — только выбранные строки на форме
@@ -1529,10 +1527,7 @@ class TdrController extends Controller
                 if (count($allowedCatalogProcessIds) === 0) {
                     return false;
                 }
-                $raw = json_decode($tp->processes, true);
-                if (!is_array($raw)) {
-                    return false;
-                }
+                $raw = TdrProcess::normalizeStoredProcessIds($tp->processes);
                 foreach ($raw as $id) {
                     if (in_array((int) $id, $allowedCatalogProcessIds, true)) {
                         return true;
@@ -1544,10 +1539,7 @@ class TdrController extends Controller
 
             $processTdrComponentsForForm = collect();
             foreach ($filteredTdrProcesses as $tp) {
-                $raw = json_decode($tp->processes, true);
-                if (!is_array($raw)) {
-                    continue;
-                }
+                $raw = TdrProcess::normalizeStoredProcessIds($tp->processes);
                 $filteredJson = array_values(array_filter(
                     $raw,
                     static fn ($pid) => in_array((int) $pid, $allowedCatalogProcessIds, true)
@@ -1556,7 +1548,7 @@ class TdrController extends Controller
                     continue;
                 }
                 $clone = clone $tp;
-                $clone->setAttribute('processes', json_encode($filteredJson));
+                $clone->setAttribute('processes', $filteredJson);
                 $processTdrComponentsForForm->push($clone);
             }
         }

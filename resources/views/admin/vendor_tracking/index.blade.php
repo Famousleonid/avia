@@ -10,6 +10,11 @@
             padding-top: 0 !important;
         }
 
+        html[data-bs-theme="light"] .content:has(.vendor-tracking-page),
+        html[data-bs-theme="light"] .content:has(.vendor-tracking-page) .content-inner {
+            background: #ffffff !important;
+        }
+
         .content-inner {
             display: block !important;
             height: auto !important;
@@ -25,6 +30,7 @@
 
         .vendor-tracking-page {
             color: #1f2937;
+            min-height: 100%;
         }
 
         .vendor-tracking-page .card {
@@ -651,6 +657,12 @@
 
         html[data-bs-theme="dark"] .vendor-tracking-page {
             color: #f8f9fa;
+            background: #232525 !important;
+        }
+
+        html[data-bs-theme="dark"] .content:has(.vendor-tracking-page),
+        html[data-bs-theme="dark"] .content:has(.vendor-tracking-page) .content-inner {
+            background: #232525 !important;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-page .card {

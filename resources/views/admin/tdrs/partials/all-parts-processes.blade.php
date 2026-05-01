@@ -38,7 +38,7 @@
                                 @php $componentProcesses = $tdrProcesses->where('tdrs_id', $tdr->id)->sortBy('sort_order'); @endphp
                                 @foreach($componentProcesses as $processes)
                                     @php
-                                        $processData = json_decode($processes->processes, true) ?: [];
+                                        $processData = \App\Models\TdrProcess::normalizeStoredProcessIds($processes->processes);
                                         $processName = $processes->processName ? $processes->processName->name : 'N/A';
                                     @endphp
                                     @if(!$processes->processName) @continue @endif

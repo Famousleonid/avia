@@ -343,7 +343,7 @@
                         continue;
                     }
                     $processNameLine = $tp->processName->name;
-                    $processData = json_decode($tp->processes, true);
+                    $processData = \App\Models\TdrProcess::normalizeStoredProcessIds($tp->processes);
                     if (!is_array($processData)) {
                         $processData = [];
                     }

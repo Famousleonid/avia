@@ -749,11 +749,11 @@ class TdrProcessController extends Controller
 
             // Если передан конкретный process_id (элемент из JSON-массива), фильтруем JSON «processes» у текущей записи
             if ($specificProcessId !== null) {
-                $currentProcesses = json_decode($current_tdrs_process->processes, true) ?: [];
+                $currentProcesses = TdrProcess::normalizeStoredProcessIds($current_tdrs_process->processes);
                 $currentProcesses = array_values(array_filter($currentProcesses, function ($pid) use ($specificProcessId) {
                     return (int) $pid === (int) $specificProcessId;
                 }));
-                $current_tdrs_process->processes = json_encode($currentProcesses);
+                $current_tdrs_process->processes = $currentProcesses;
             }
 
             $viewData += [
@@ -1240,7 +1240,7 @@ class TdrProcessController extends Controller
 
         // Сохраняем старые данные ДО обновления
         $oldProcessNamesId = $current_tdr_processes->process_names_id;
-        $oldProcesses = json_decode($current_tdr_processes->processes, true) ?: [];
+        $oldProcesses = TdrProcess::normalizeStoredProcessIds($current_tdr_processes->processes);
         $newProcessNamesId = $processData['process_names_id'];
         $ecEligibleIds = $this->getEcEligibleProcessNameIds();
 
@@ -1362,18 +1362,17 @@ class TdrProcessController extends Controller
         // Сохраняем процессы удаляемой записи для последующего удаления из EC
         $processesToRemoveFromEC = null;
         if ($isEcEligible) {
-            $processesToRemoveFromEC = json_decode($tdrProcess->processes, true) ?: [];
+            $processesToRemoveFromEC = TdrProcess::normalizeStoredProcessIds($tdrProcess->processes);
         }
 
-        // Декодируем JSON-поле processes
-        $processData = json_decode($tdrProcess->processes, true);
+        $processData = TdrProcess::normalizeStoredProcessIds($tdrProcess->processes);
 
         $jsonResponse = fn() => $request->wantsJson() || $request->ajax()
             ? response()->json(['success' => true])
             : redirect()->route('tdrs.processes', ['workorder_id' => $tdr->workorder->id])->with('success', 'Process deleted successfully.');
 
-        // Если processes пустой или не является массивом, удаляем всю запись
-        if (!is_array($processData)) {
+        // Если processes пустой, удаляем всю запись
+        if (count($processData) === 0) {
             $tdrProcess->delete();
             $isMachining = in_array((int)$tdrProcess->process_names_id, $this->getEcEligibleProcessNameIds());
             if ($isMachining && $processesToRemoveFromEC) {
@@ -1396,7 +1395,7 @@ class TdrProcessController extends Controller
             return (int)$process !== (int)$processToRemove;
         });
 
-        $tdrProcess->processes = json_encode(array_values($processData));
+        $tdrProcess->processes = array_values($processData);
         $tdrProcess->save();
 
         if ($isEcEligible && $processesToRemoveFromEC) {
@@ -2248,8 +2247,10 @@ class TdrProcessController extends Controller
         $current_wo = $current_tdr->workorder;
 
         // Получаем выбранные процессы из запроса
-        $processesJson = $request->input('processes');
-        $selectedProcesses = json_decode($processesJson, true);
+        $processesInput = $request->input('processes');
+        $selectedProcesses = is_string($processesInput)
+            ? json_decode($processesInput, true)
+            : $processesInput;
 
         if (empty($selectedProcesses) || !is_array($selectedProcesses)) {
             abort(400, 'No processes selected');
@@ -2340,11 +2341,11 @@ class TdrProcessController extends Controller
                     ->get();
 
                 // Фильтруем processes по конкретному process_id
-                $currentProcesses = json_decode($tdrProcess->processes, true) ?: [];
+                $currentProcesses = TdrProcess::normalizeStoredProcessIds($tdrProcess->processes);
                 $currentProcesses = array_values(array_filter($currentProcesses, function($pid) use ($processId) {
                     return (int)$pid === (int)$processId;
                 }));
-                $tdrProcess->processes = json_encode($currentProcesses);
+                $tdrProcess->processes = $currentProcesses;
 
                 $formData += [
                     'ndt_processes' => $ndt_processes,
@@ -2358,11 +2359,11 @@ class TdrProcessController extends Controller
                     ->get();
 
                 // Фильтруем processes по конкретному process_id
-                $currentProcesses = json_decode($tdrProcess->processes, true) ?: [];
+                $currentProcesses = TdrProcess::normalizeStoredProcessIds($tdrProcess->processes);
                 $currentProcesses = array_values(array_filter($currentProcesses, function ($pid) use ($processId) {
                     return (int) $pid === (int) $processId;
                 }));
-                $tdrProcess->processes = json_encode($currentProcesses);
+                $tdrProcess->processes = $currentProcesses;
 
                 $formData += [
                     'process_components' => $processComponents,

@@ -503,7 +503,7 @@
                                 @if($processes->tdrs_id == $current_tdr->id)
                                     @php
                                         // Декодируем JSON-поле processes
-                                        $processData = json_decode($processes->processes, true);
+                                        $processData = \App\Models\TdrProcess::normalizeStoredProcessIds($processes->processes);
                                         // Проверяем, что $processData является массивом
                                         if (!is_array($processData)) {
                                             $processData = [];

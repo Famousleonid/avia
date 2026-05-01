@@ -11,7 +11,7 @@
         if ((int) $_tp->tdrs_id !== (int) $current_tdr->id || ! $_tp->processName) {
             continue;
         }
-        $_processData = json_decode($_tp->processes, true) ?: [];
+        $_processData = \App\Models\TdrProcess::normalizeStoredProcessIds($_tp->processes);
         $_processName = $_tp->processName->name;
         $_isEc = ($ecProcessNameId !== null && (int) $_tp->process_names_id === (int) $ecProcessNameId);
         $_isNdtWithPlus = strpos($_processName, 'NDT-') === 0 && ! empty($_tp->plus_process);
@@ -75,7 +75,7 @@
             @foreach($tdrProcesses as $processes)
                 @if($processes->tdrs_id == $current_tdr->id)
                     @php
-                        $processData = json_decode($processes->processes, true) ?: [];
+                        $processData = \App\Models\TdrProcess::normalizeStoredProcessIds($processes->processes);
                         $processName = $processes->processName ? $processes->processName->name : 'N/A';
                         $isEc = ($ecProcessNameId !== null && (int)$processes->process_names_id === (int)$ecProcessNameId);
                         $hasMachiningOrRil = $tdrProcesses->contains(fn($p) => in_array((int)$p->process_names_id, $ecEligibleProcessNameIds ?? []));

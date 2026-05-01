@@ -103,7 +103,10 @@ class ExtraProcessController extends Controller
                 $componentId = (int)($data['component_id'] ?? 0);
                 $serial_num = $data['serial_num'] ?? null;
                 $qty = (int)($data['qty'] ?? 1);
-                $processesData = json_decode($data['processes'], true);
+                $processesInput = $data['processes'] ?? null;
+                $processesData = is_string($processesInput)
+                    ? json_decode($processesInput, true)
+                    : $processesInput;
 
             } else {
                 $workorderId = (int)($request->input('workorder_id'));
@@ -265,7 +268,10 @@ class ExtraProcessController extends Controller
                 $componentId = (int)($data['component_id'] ?? 0);
                 $serial_num = $data['serial_num'] ?? null;
                 $qty = (int)($data['qty'] ?? 1);
-                $processesData = json_decode($data['processes'], true);
+                $processesInput = $data['processes'] ?? null;
+                $processesData = is_string($processesInput)
+                    ? json_decode($processesInput, true)
+                    : $processesInput;
             } else {
                 $workorderId = (int)($request->input('workorder_id'));
                 $componentId = (int)($request->input('component_id'));
@@ -1118,7 +1124,10 @@ class ExtraProcessController extends Controller
                 $data = $request->json()->all();
                 $serial_num = $data['serial_num'] ?? null;
                 $qty = (int)($data['qty'] ?? 1);
-                $processesData = json_decode($data['processes'], true);
+                $processesInput = $data['processes'] ?? null;
+                $processesData = is_string($processesInput)
+                    ? json_decode($processesInput, true)
+                    : $processesInput;
             } else {
                 $serial_num = $request->input('serial_num');
                 $qty = (int)($request->input('qty', 1));

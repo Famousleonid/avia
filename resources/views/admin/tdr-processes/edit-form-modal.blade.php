@@ -28,7 +28,11 @@
                         if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origText; }
                         var data = res.data;
                         if (data.success) {
-                            window.parent.postMessage({ type: 'editProcessSuccess', tdrId: data.tdrId || form.querySelector('input[name="tdrs_id"]')?.value }, '*');
+                            window.parent.postMessage({
+                                type: 'editProcessSuccess',
+                                tdrId: data.tdrId || form.querySelector('input[name="tdrs_id"]')?.value,
+                                message: data.message || '{{ __("Process updated successfully.") }}'
+                            }, '*');
                         } else {
                             var msg = data.message || 'Error';
                             if (res.status === 422 && data.errors) {
