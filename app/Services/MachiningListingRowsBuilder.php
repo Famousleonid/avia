@@ -18,10 +18,10 @@ final class MachiningListingRowsBuilder
      */
     public function build(Collection $workorders): Collection
     {
-        $machiningProcessNameId = ProcessName::query()->where('name', 'Machining')->value('id');
+        $machiningBoardPnIds = ProcessName::machiningMachiningEcMergeProcessNameIds();
 
-        $rows = $workorders->flatMap(function (Workorder $wo) use ($machiningProcessNameId) {
-            $machiningProcesses = $this->collectMachiningProcessesForRow($wo, $machiningProcessNameId);
+        $rows = $workorders->flatMap(function (Workorder $wo) use ($machiningBoardPnIds) {
+            $machiningProcesses = $this->collectMachiningProcessesForRow($wo, $machiningBoardPnIds);
 
             $active = $machiningProcesses
                 ->filter(fn (TdrProcess $tp) => ! ($tp->ignore_row ?? false))
@@ -284,17 +284,18 @@ final class MachiningListingRowsBuilder
     }
 
     /**
+     * @param  list<int>  $machiningProcessNameIds  Machining / Machining (EC) — см. {@see ProcessName::machiningMachiningEcMergeProcessNameIds}.
      * @return Collection<int, TdrProcess>
      */
-    private function collectMachiningProcessesForRow(Workorder $wo, ?int $machiningProcessNameId): Collection
+    private function collectMachiningProcessesForRow(Workorder $wo, array $machiningProcessNameIds): Collection
     {
         $out = collect();
-        if ($machiningProcessNameId === null) {
+        if ($machiningProcessNameIds === []) {
             return $out;
         }
         foreach ($wo->tdrs as $tdr) {
             foreach ($tdr->tdrProcesses as $tp) {
-                if ((int) ($tp->process_names_id ?? 0) !== $machiningProcessNameId) {
+                if (! in_array((int) ($tp->process_names_id ?? 0), $machiningProcessNameIds, true)) {
                     continue;
                 }
                 $tp->setRelation('tdr', $tdr);

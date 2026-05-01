@@ -124,6 +124,7 @@
         initMachiningNativeDateInputs();
         initMachiningStepsCountInputs();
         initMachiningStepMachinists();
+        initMachiningStepDescriptions();
         applyMachiningExpandPrefsFromStorage();
         if (window.__machiningCanReorder) {
             initMachiningSortable();
@@ -226,6 +227,54 @@
                     });
                 }).catch(function () {
                     if (typeof window.notifyError === 'function') window.notifyError('Network error', 2500);
+                }).finally(function () {
+                    if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
+                });
+            });
+        });
+    }
+
+    function initMachiningStepDescriptions() {
+        document.querySelectorAll('.js-machining-step-description').forEach(function (ta) {
+            if (ta.dataset.machiningStepDescBound === '1') return;
+            ta.dataset.machiningStepDescBound = '1';
+            ta.dataset.original = String(ta.value || '');
+
+            ta.addEventListener('blur', function () {
+                var url = ta.getAttribute('data-step-patch-url');
+                if (!url || ta.disabled) return;
+                var cur = String(ta.value || '');
+                if (cur === String(ta.dataset.original || '')) return;
+
+                var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                if (typeof window.safeShowSpinner === 'function') window.safeShowSpinner();
+                fetch(url, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ description: cur })
+                }).then(function (r) {
+                    return r.json().then(function (d) {
+                        if (r.ok && d && d.success !== false) {
+                            ta.dataset.original = cur;
+                            return;
+                        }
+                        var msg = '';
+                        if (d && d.errors && typeof d.errors === 'object') {
+                            var kk = Object.keys(d.errors)[0];
+                            if (kk && d.errors[kk] && d.errors[kk][0]) msg = String(d.errors[kk][0]);
+                        }
+                        if (!msg) msg = (d && d.message) ? String(d.message) : 'Update failed';
+                        if (typeof window.notifyError === 'function') window.notifyError(msg, 3000);
+                        ta.value = String(ta.dataset.original || '');
+                    });
+                }).catch(function () {
+                    if (typeof window.notifyError === 'function') window.notifyError('Network error', 2500);
+                    ta.value = String(ta.dataset.original || '');
                 }).finally(function () {
                     if (typeof window.safeHideSpinner === 'function') window.safeHideSpinner();
                 });
@@ -801,6 +850,7 @@
         initMachiningNativeDateInputs();
         initMachiningStepsCountInputs();
         initMachiningStepMachinists();
+        initMachiningStepDescriptions();
         initMachiningTableFilters();
         initMachiningStepsToggle();
         initMachiningWoPartsToggle();

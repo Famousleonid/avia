@@ -156,6 +156,17 @@
             text-align: end;
             vertical-align: middle;
         }
+        /* Step note + Step N — одна строка, без переноса flex-элементов */
+        #machining-wo-table .machining-step-lead-cell .machining-step-lead-row {
+            justify-content: flex-start;
+            text-align: start;
+            min-width: 0;
+        }
+        #machining-wo-table .machining-step-lead-cell .js-machining-step-description {
+            flex: 1 1 0;
+            min-width: 0;
+            width: 0; /* вместе с flex-grow даёт сжатие в узкой ячейке без переноса строки flex */
+        }
         #machining-wo-table col.machining-col-date { width: 145px; }
         #machining-wo-table:not(.machining-table-has-drag) col.machining-col-num { width: 5.5rem; max-width: 6rem; }
         .machining-col-priority {

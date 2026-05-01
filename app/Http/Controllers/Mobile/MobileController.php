@@ -751,15 +751,15 @@ class MobileController extends Controller
      */
     private function mobileMachiningProcessCatalogForWorkorder(Workorder $workorder): array
     {
-        $machiningPnId = ProcessName::query()->where('name', 'Machining')->value('id');
-        if ($machiningPnId === null) {
+        $machiningBoardPnIds = ProcessName::machiningMachiningEcMergeProcessNameIds();
+        if ($machiningBoardPnIds === []) {
             return [];
         }
 
         $ids = [];
         foreach ($workorder->tdrs as $tdr) {
             foreach ($tdr->tdrProcesses as $tp) {
-                if ((int) ($tp->process_names_id ?? 0) !== (int) $machiningPnId) {
+                if (! in_array((int) ($tp->process_names_id ?? 0), $machiningBoardPnIds, true)) {
                     continue;
                 }
                 foreach (TdrProcess::normalizeStoredProcessIds($tp->processes) as $pid) {
@@ -776,7 +776,7 @@ class MobileController extends Controller
 
         return Process::query()
             ->whereIn('id', array_keys($ids))
-            ->where('process_names_id', (int) $machiningPnId)
+            ->whereIn('process_names_id', $machiningBoardPnIds)
             ->select(['id', 'process'])
             ->get()
             ->keyBy(static fn (Process $p): int => (int) $p->id)

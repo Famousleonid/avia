@@ -29,6 +29,8 @@
             'step'.$si,
             $finishDisp,
             (string) ($stepRow?->machinist?->name ?? ''),
+            trim((string) ($stepRow?->description ?? '')),
+            $si === 1 && $parentForSteps instanceof \App\Models\TdrProcess ? trim((string) ($parentForSteps->description ?? '')) : '',
         ]));
         $stepSearchNorm = function_exists('mb_strtolower')
             ? mb_strtolower($stepSearch, 'UTF-8')
@@ -48,7 +50,28 @@
         @if(! empty($machiningWoMasterIsExtra)) data-machining-wo-extra="1" @endif
         class="machining-row-child machining-row-unqueued {{ $isBushingRow ? 'machining-row-bushing' : '' }} {{ ! empty($collapseStepRowsDefault) ? 'd-none' : '' }}">
         <td colspan="{{ $stepLeadColspan }}" class="machining-step-lead-cell small text-secondary py-2">
-            <span class="text-info">Step {{ $si }}</span>
+            @if($stepRow)
+                <div class="d-flex align-items-center gap-2 flex-nowrap w-100 machining-step-lead-row">
+                    <label class="visually-hidden" for="mach-step-desc-{{ $stepRow->id }}">Step {{ $si }} note</label>
+                    <textarea id="mach-step-desc-{{ $stepRow->id }}"
+                              class="form-control form-control-sm js-machining-step-description flex-grow-1 min-w-0"
+                              rows="1"
+                              placeholder="Step note…"
+                              data-step-patch-url="{{ route('machining.work_steps.update', $stepRow) }}"
+                              style="min-width: 8rem; min-height: calc(1.5em + .5rem + 2px); max-height: 4rem; resize: vertical;">{{ $stepRow->description }}</textarea>
+                    <span class="text-info flex-shrink-0">Step {{ $si }}</span>
+                </div>
+            @else
+                <span class="text-info">Step {{ $si }}</span>
+            @endif
+            @if($si === 1 && $parentForSteps instanceof \App\Models\TdrProcess)
+                @php $machiningLeadDesc = trim((string) ($parentForSteps->description ?? '')); @endphp
+                @if($machiningLeadDesc !== '')
+                    <div class="small text-muted mt-1 text-wrap machining-step-parent-desc"
+                         style="max-height: 5rem; overflow-y: auto; line-height: 1.25;"
+                         title="{{ e($machiningLeadDesc) }}">{{ $machiningLeadDesc }}</div>
+                @endif
+            @endif
         </td>
         <td class="text-center machining-col-work align-middle">
             @if($stepRow)

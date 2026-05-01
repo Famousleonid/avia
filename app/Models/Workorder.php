@@ -267,8 +267,14 @@ class Workorder extends Model implements HasMedia
     public function scopeWhereMachiningHasDateSent(Builder $query): Builder
     {
         return $query->where(function (Builder $w) {
-            $w->whereHas('tdrs.tdrProcesses', function ($tp) {
-                $tp->whereHas('processName', fn ($pn) => $pn->where('name', 'Machining'))
+            $machiningPnIds = ProcessName::machiningMachiningEcMergeProcessNameIds();
+            $w->whereHas('tdrs.tdrProcesses', function ($tp) use ($machiningPnIds) {
+                if ($machiningPnIds === []) {
+                    $tp->whereRaw('1 = 0');
+
+                    return;
+                }
+                $tp->whereIn('process_names_id', $machiningPnIds)
                     ->whereNotNull('tdr_processes.date_start');
             })->orWhereHas('woBushingProcesses', function ($wbp) {
                 $wbp->where(function ($dates) {

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\MachiningWorkStep;
+use App\Models\ProcessName;
 use App\Models\TdrProcess;
 use App\Models\User;
 use App\Models\WoBushingBatch;
@@ -56,8 +57,16 @@ class MachiningWorkStepsService
         mixed $dateFinish,
         bool $dateStartPresent = false,
         mixed $dateStart = null,
+        bool $descriptionPresent = false,
+        mixed $description = null,
     ): void {
         $this->assertUserCanEditStep(auth()->user(), $step);
+
+        if ($descriptionPresent) {
+            $step->description = ($description === null || $description === '')
+                ? null
+                : trim((string) $description);
+        }
 
         if ($machinistPresent) {
             if ($machinistUserId !== null && $machinistUserId !== '' && (int) $machinistUserId > 0) {
@@ -240,6 +249,7 @@ class MachiningWorkStepsService
                 'machinist_user_id' => null,
                 'date_start' => null,
                 'date_finish' => null,
+                'description' => null,
             ]
         ));
     }
@@ -248,7 +258,7 @@ class MachiningWorkStepsService
     {
         if ($parent instanceof TdrProcess) {
             $parent->loadMissing('processName');
-            if (trim((string) ($parent->processName?->name ?? '')) !== 'Machining') {
+            if (! ProcessName::isMachiningMachiningEcMergeMember($parent->processName)) {
                 throw ValidationException::withMessages(['parent' => ['Working steps only for Machining TDR process']]);
             }
 
