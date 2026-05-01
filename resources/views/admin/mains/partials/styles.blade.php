@@ -1,5 +1,47 @@
 <style>
 
+    .dir-page {
+        --main-pane-bg: linear-gradient(135deg, #212529 0%, #2c3035 100%);
+        --main-pane-soft-bg: rgba(255,255,255,0.03);
+        --main-pane-head-bg: rgba(0, 0, 0, .12);
+        --main-pane-border: rgba(13, 202, 240, .35);
+        --main-pane-border-soft: rgba(108,117,125,.35);
+        --main-pane-text: #f8f9fa;
+        --main-pane-muted: rgba(248,249,250,.65);
+        --main-pane-control-bg: #212529;
+        --main-pane-control-text: #f8f9fa;
+        --main-tab-text: #adb5bd;
+        --main-tab-hover-text: #f8f9fa;
+        --main-tab-active-text: #f8f9fa;
+        --main-tab-active-bg: var(--main-pane-bg);
+        --main-top-card-bg: #212529;
+        --main-top-card-text: #f8f9fa;
+        --main-bush-strip-bg: rgba(255,255,255,.04);
+        --main-bush-strip-active-bg: rgba(13, 202, 240, .12);
+        --main-bush-strip-text: #e9ecef;
+    }
+
+    html[data-bs-theme="light"] .dir-page {
+        --main-pane-bg: linear-gradient(135deg, #f8f9fa 0%, #e4e9ee 100%);
+        --main-pane-soft-bg: rgba(0,0,0,0.025);
+        --main-pane-head-bg: rgba(255, 255, 255, .58);
+        --main-pane-border: rgba(13, 110, 253, .28);
+        --main-pane-border-soft: rgba(33,37,41,.18);
+        --main-pane-text: #212529;
+        --main-pane-muted: rgba(33,37,41,.62);
+        --main-pane-control-bg: #ffffff;
+        --main-pane-control-text: #212529;
+        --main-tab-text: #495057;
+        --main-tab-hover-text: #0d6efd;
+        --main-tab-active-text: #212529;
+        --main-tab-active-bg: linear-gradient(135deg, #ffffff 0%, #edf1f5 100%);
+        --main-top-card-bg: rgba(255,255,255,.82);
+        --main-top-card-text: #212529;
+        --main-bush-strip-bg: rgba(255,255,255,.72);
+        --main-bush-strip-active-bg: rgba(13, 110, 253, .10);
+        --main-bush-strip-text: #212529;
+    }
+
     .sf {
         font-size: 12px;
     }
@@ -76,7 +118,8 @@
     .finish-input.noedit,
     .finish-input.noedit + .flatpickr-input {
         pointer-events: none !important;
-        background-color: rgba(255,255,255,.08) !important;
+        background-color: var(--main-pane-soft-bg) !important;
+        color: var(--main-pane-muted) !important;
     }
 
 
@@ -89,13 +132,33 @@
     .gradient-pane,
     .gradient-table,
     .gradient-top {
-        background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
-        color: #f8f9fa;
+        background: var(--main-pane-bg);
+        color: var(--main-pane-text);
     }
 
     .gradient-table {
         border-radius: .5rem;
         overflow: hidden;
+    }
+
+    .vh-layout .card.bg-dark,
+    .vh-layout .list-group-item.bg-transparent,
+    .vh-layout .modal-content.bg-dark {
+        background-color: var(--main-top-card-bg) !important;
+        color: var(--main-top-card-text) !important;
+    }
+
+    .vh-layout .text-light,
+    .vh-layout .text-white {
+        color: var(--main-pane-text) !important;
+    }
+
+    html[data-bs-theme="light"] .vh-layout .text-white-50 {
+        color: rgba(33,37,41,.55) !important;
+    }
+
+    html[data-bs-theme="light"] .vh-layout .border-secondary {
+        border-color: var(--main-pane-border-soft) !important;
     }
 
     /* =========================================================
@@ -200,7 +263,7 @@
         align-items: center;
         min-height: 0;
         padding: 0;
-        color: #adb5bd;
+        color: var(--main-tab-text);
     }
 
     .main-tab-btn {
@@ -219,7 +282,7 @@
     }
 
     .main-tab-btn:hover {
-        color: #f8f9fa;
+        color: var(--main-tab-hover-text);
         border-top-color: rgba(13, 202, 240, .45);
     }
 
@@ -231,10 +294,10 @@
         position: relative;
         z-index: 2;
         margin-bottom: -1px;
-        color: #f8f9fa;
+        color: var(--main-tab-active-text);
         border-color: rgba(13, 202, 240, .75);
         border-bottom-color: transparent;
-        background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
+        background: var(--main-tab-active-bg);
         box-shadow: 0 -2px 8px rgba(0, 0, 0, .45), 0 0 12px rgba(0, 0, 0, .35);
     }
 
@@ -249,7 +312,7 @@
         right: 0;
         bottom: -1px;
         height: 2px;
-        background: linear-gradient(135deg, #212529 0%, #2c3035 100%);
+        background: var(--main-tab-active-bg);
     }
 
     .main-right-title-std,
@@ -387,7 +450,7 @@
         flex: 1 1 0%;
         min-height: 0;
         overflow: auto;
-        background: rgba(255,255,255,0.03);
+        background: var(--main-pane-soft-bg);
     }
 
     .main-std-processes-block.main-section-window {
@@ -407,8 +470,8 @@
         justify-content: space-between;
         gap: .5rem;
         padding: .35rem .5rem;
-        border-bottom: 1px solid rgba(13, 202, 240, .35);
-        background: rgba(0, 0, 0, .12);
+        border-bottom: 1px solid var(--main-pane-border);
+        background: var(--main-pane-head-bg);
     }
 
     /* =========================================================
@@ -470,7 +533,7 @@
         position: sticky;
         top: 0;
         z-index: 5;
-        background: rgba(0, 0, 0, .25);
+        background: var(--main-pane-head-bg);
     }
 
     .tasks-table th,
@@ -622,7 +685,7 @@
     .task-col {
         font-size: .8rem;
         font-weight: 500;
-        color: #f8f9fa;
+        color: var(--main-pane-text);
     }
 
     .task-col .arrow {
@@ -699,7 +762,7 @@
     }
 
     .dir-top-info-block {
-        background: rgba(255,255,255,.03);
+        background: var(--main-pane-soft-bg);
     }
 
     .dir-top-info-grid {
@@ -720,7 +783,7 @@
         font-size: .8rem;
         line-height: 1.1rem;
         white-space: nowrap;
-        color: #f8f9fa;
+        color: var(--main-pane-text);
         margin-bottom: .06rem;
     }
 
@@ -740,7 +803,7 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        color: #f8f9fa;
+        color: var(--main-pane-text);
         font-weight: 400;
     }
 
@@ -789,7 +852,7 @@
         white-space: pre-wrap;
         word-break: break-word;
         font-size: .75rem;
-        background: rgba(0, 0, 0, .15);
+        background: var(--main-pane-soft-bg);
         padding: .25rem .5rem;
         border-radius: .25rem;
     }
@@ -819,8 +882,8 @@
 
     /* Ignore finish state */
     .finish-input.is-ignored {
-        background-color: rgba(0, 0, 0, .35) !important;
-        color: #adb5bd !important;
+        background-color: var(--main-pane-soft-bg) !important;
+        color: var(--main-pane-muted) !important;
         cursor: not-allowed;
     }
 
@@ -830,7 +893,8 @@
 
     /* если input disabled */
     .finish-input:disabled {
-        background-color: rgba(0, 0, 0, .35) !important;
+        background-color: var(--main-pane-soft-bg) !important;
+        color: var(--main-pane-muted) !important;
         opacity: 1 !important; /* Bootstrap по умолчанию делает слишком бледным */
     }
     .is-ignored {
@@ -947,12 +1011,12 @@
         max-height: 50%;
         min-height: 0;
         overflow: auto;
-        background: rgba(255,255,255,0.03);
+        background: var(--main-pane-soft-bg);
     }
 
     .main-tasks-notes-window .main-gt-buttons {
         padding: .45rem .5rem .5rem;
-        border-bottom: 1px solid rgba(13, 202, 240, .25);
+        border-bottom: 1px solid var(--main-pane-border);
     }
 
     .main-tasks-notes-window .main-tasks-block {
@@ -961,11 +1025,11 @@
     }
 
     .wo-notes-box{
-        background: rgba(255,255,255,0.03);
+        background: var(--main-pane-soft-bg);
     }
 
     .main-tasks-notes-window .wo-notes-box {
-        border-top: 1px solid rgba(13, 202, 240, .25);
+        border-top: 1px solid var(--main-pane-border);
         border-radius: 0;
     }
 
@@ -992,7 +1056,7 @@
 
     .wo-notes-hint{
         font-size: .75rem;
-        color: rgba(248,249,250,.65);
+        color: var(--main-pane-muted);
         line-height: 1;
         white-space: nowrap;
     }
@@ -1001,6 +1065,9 @@
         font-size: .85rem;
         min-height: 8.5rem;
         resize: vertical;
+        background-color: var(--main-pane-control-bg) !important;
+        color: var(--main-pane-control-text) !important;
+        border-color: var(--main-pane-border-soft) !important;
     }
 
     /* Левая колонка: высоту ограничивает родитель; scroll живет внутри окон Tasks/Notes и Bushing отдельно. */
@@ -1022,7 +1089,7 @@
     }
 
     .wo-bushings-box{
-        background: rgba(255,255,255,0.03);
+        background: var(--main-pane-soft-bg);
     }
 
     .wo-bushings-list{
@@ -1033,7 +1100,7 @@
 
     /* WO bushing: одна «карусель» из 7 полос (аккордеон), без вложенных полос */
     .wo-bush-strip-accordion{
-        border: 1px solid rgba(255,255,255,.14);
+        border: 1px solid var(--main-pane-border-soft);
         border-radius: .35rem;
         overflow: hidden;
         min-width: 0;
@@ -1046,7 +1113,7 @@
     .wo-bush-strip-accordion .wo-bush-strip-item{
         margin: 0;
         border: 0 !important;
-        border-bottom: 1px solid rgba(255,255,255,.12) !important;
+        border-bottom: 1px solid var(--main-pane-border-soft) !important;
         border-radius: 0 !important;
     }
 
@@ -1058,8 +1125,8 @@
         width: 100%;
         display: flex !important;
         align-items: center !important;
-        background: rgba(255,255,255,.04) !important;
-        color: #e9ecef !important;
+        background: var(--main-bush-strip-bg) !important;
+        color: var(--main-bush-strip-text) !important;
         border: 0 !important;
         box-shadow: none !important;
         min-height: 2.5rem;
@@ -1067,7 +1134,11 @@
 
     .wo-bush-strip-btn:not(.collapsed){
         color: #9eeaf9 !important;
-        background: rgba(13, 202, 240, .12) !important;
+        background: var(--main-bush-strip-active-bg) !important;
+    }
+
+    html[data-bs-theme="light"] .wo-bush-strip-btn:not(.collapsed) {
+        color: #0d6efd !important;
     }
 
     .wo-bush-strip-btn::after{
@@ -1103,16 +1174,16 @@
     }
 
     .wo-bush-strip-count .wo-bush-strip-count-a{
-        color: #f8f9fa;
+        color: var(--main-pane-text);
     }
 
     .wo-bush-strip-count .wo-bush-strip-count-sep{
-        color: rgba(248,249,250,.45);
+        color: var(--main-pane-muted);
         padding: 0 .1rem;
     }
 
     .wo-bush-strip-count .wo-bush-strip-count-b{
-        color: rgba(248,249,250,.55);
+        color: var(--main-pane-muted);
     }
 
     .wo-bush-strip-count--done .wo-bush-strip-count-a,

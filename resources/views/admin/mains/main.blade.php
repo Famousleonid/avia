@@ -71,16 +71,16 @@
 
         /* WO bushing: без table-secondary — иначе hover светлый поверх table-dark */
         .wo-bushings-table.table-hover > tbody > tr:hover > td {
-            background-color: rgba(255, 255, 255, 0.075) !important;
-            color: var(--bs-table-color, #fff);
+            background-color: var(--dir-row-hover) !important;
+            color: var(--dir-text);
         }
         .wo-bushings-table tr.wo-bush-batch-row > td {
-            background-color: rgba(255, 255, 255, 0.06);
-            color: var(--bs-table-color, #fff);
+            background-color: var(--dir-row-active) !important;
+            color: var(--dir-text);
         }
         .wo-bushings-table.table-hover > tbody > tr.wo-bush-batch-row:hover > td {
-            background-color: rgba(13, 202, 240, 0.12) !important;
-            color: var(--bs-table-color, #fff);
+            background-color: var(--dir-row-active) !important;
+            color: var(--dir-text);
         }
 
     </style>
