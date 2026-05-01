@@ -1,4 +1,3 @@
-                            @php $machiningRowsSeq = $rows->values(); @endphp
                             @forelse ($rows as $row)
                                 @php
                                     $wo = $row->workorder;
@@ -6,10 +5,8 @@
                                     $machiningLineCountForWo = (int) ($machiningLinesPerWo->get($woIdInt)
                                         ?? $machiningLinesPerWo->get((string) $woIdInt)
                                         ?? 1);
-                                    $prevRow = $loop->index > 0 ? $machiningRowsSeq->get($loop->index - 1) : null;
-                                    $isFirstMachiningLineForWo = $loop->first
-                                        || $prevRow === null
-                                        || (int) $prevRow->workorder->id !== $woIdInt;
+                                    /** Совпадает с MachiningListingRowsBuilder: первое вхождение WO после concat(queued, non-queued). Иначе при разрыве между bucket строки «лишней» WO ошибочно считались заголовком. */
+                                    $isFirstMachiningLineForWo = (bool) ($row->is_queue_master ?? false);
                                     $machiningWoMasterIsExtra = ! $isFirstMachiningLineForWo && $machiningLineCountForWo > 1;
                                     $editTp = $row->edit_machining_process;
                                     $rowSource = $row->row_source ?? 'tdr';

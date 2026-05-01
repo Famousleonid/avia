@@ -59,9 +59,12 @@ final class MachiningWorkorderQueueRelease
         return $hasAny;
     }
 
-    public function releaseIfFullyClosed(Workorder $workorder): void
+    /**
+     * @param  bool  $alreadyVerifiedFullyClosed  true — вызывающий уже проверил {@see machiningFullyClosed()} (избегаем двойной работы на списке Machining).
+     */
+    public function releaseIfFullyClosed(Workorder $workorder, bool $alreadyVerifiedFullyClosed = false): void
     {
-        if (! $this->machiningFullyClosed($workorder)) {
+        if (! $alreadyVerifiedFullyClosed && ! $this->machiningFullyClosed($workorder)) {
             return;
         }
 
