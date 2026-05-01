@@ -103,6 +103,19 @@
             color: #aab9c6;
             text-align: left;
         }
+        .machining-detail-parent-desc {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 4;
+            line-clamp: 4;
+            overflow: hidden;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            font-size: .67rem;
+            line-height: 1.3;
+            color: #c5d0dc;
+            text-align: left;
+        }
     </style>
 @endsection
 
@@ -123,9 +136,9 @@
         <div class="machining-mobile-card">
             <div class="machining-detail-wo-title">
                 <span>WO {{ $workorder->number }}</span>
-                @if(filled($machinistName ?? null))
-                    <span class="text-secondary machining-detail-wo-machinist" title="{{ $machinistName }}">{{ $machinistName }}</span>
-                @endif
+{{--                @if(filled($machinistName ?? null))--}}
+{{--                    <span class="text-secondary machining-detail-wo-machinist" title="{{ $machinistName }}">{{ $machinistName }}</span>--}}
+{{--                @endif--}}
             </div>
 
             @php
@@ -167,6 +180,13 @@
                                 <div class="machining-detail-processes mt-1"
                                      title="{{ e($item->processes_label) }}">{{ $item->processes_label }}</div>
                             @endif
+                            @php
+                                $parentDescPend = ($p instanceof \App\Models\TdrProcess) ? trim((string) ($p->description ?? '')) : '';
+                            @endphp
+                            @if($parentDescPend !== '')
+                                <div class="machining-detail-parent-desc mt-1"
+                                     title="{{ e($parentDescPend) }}">{{ $parentDescPend }}</div>
+                            @endif
                         </div>
                         <div class="machining-detail-dates-step">
                             <span class="k" title="Date sent">Sent</span>
@@ -188,6 +208,7 @@
                         $pGrp = $grp->date_parent ?? null;
                         $sendDispGrp = $pGrp && $pGrp->date_start ? $fmtDisp($pGrp->date_start) : '—';
                         $nStepsGrp = $grp->steps->count();
+                        $parentDescGrp = ($pGrp instanceof \App\Models\TdrProcess) ? trim((string) ($pGrp->description ?? '')) : '';
                     @endphp
                     <div class="machining-detail-block js-detail-block" data-kind="step_group">
                         <div class="machining-detail-line">
@@ -201,6 +222,10 @@
                             @if(filled($grp->processes_label ?? ''))
                                 <div class="machining-detail-processes mt-1"
                                      title="{{ e($grp->processes_label) }}">{{ $grp->processes_label }}</div>
+                            @endif
+                            @if($parentDescGrp !== '')
+                                <div class="machining-detail-parent-desc mt-1"
+                                     title="{{ e($parentDescGrp) }}">{{ $parentDescGrp }}</div>
                             @endif
                         </div>
                         <div class="machining-detail-dates-step pb-2 mb-2 border-bottom border-secondary border-opacity-25">
@@ -299,6 +324,10 @@
                                         <span class="v">{{ $finishYmd !== '' ? $finishDisp : '—' }}</span>
                                     @endif
                                 </div>
+                                @php $machiningStepNoteGrouped = trim((string) ($step->description ?? '')); @endphp
+                                @if($machiningStepNoteGrouped !== '')
+                                    <div class="small text-secondary mt-1" style="white-space:pre-wrap;line-height:1.25;">{{ $machiningStepNoteGrouped }}</div>
+                                @endif
                             </div>
                         @endforeach
                     </div>
@@ -345,6 +374,7 @@
                     }
                     $stepMachinistDisplay = $stepMachinistName !== '' ? $stepMachinistName : ($displayMachinistId > 0 ? 'user #' . $displayMachinistId : '');
                     $showStepMachinistName = $displayMachinistId > 0 && ! $hideOwnMachinistNextToStep;
+                    $machiningParentDesc = ($p instanceof \App\Models\TdrProcess) ? trim((string) ($p->description ?? '')) : '';
                 @endphp
                 <div class="machining-detail-block js-detail-block js-machining-closed-target"
                      data-kind="step"
@@ -362,6 +392,10 @@
                         @if(filled($item->processes_label ?? ''))
                             <div class="machining-detail-processes mt-1"
                                  title="{{ e($item->processes_label) }}">{{ $item->processes_label }}</div>
+                        @endif
+                        @if($machiningParentDesc !== '')
+                            <div class="machining-detail-parent-desc mt-1"
+                                 title="{{ e($machiningParentDesc) }}">{{ $machiningParentDesc }}</div>
                         @endif
                     </div>
                     <div class="machining-detail-dates-step">
@@ -410,6 +444,10 @@
                             <span class="v">{{ $finishYmd !== '' ? $finishDisp : '—' }}</span>
                         @endif
                     </div>
+                    @php $machiningStepNote = trim((string) ($step->description ?? '')); @endphp
+                    @if($machiningStepNote !== '')
+                        <div class="small text-secondary mt-1" style="white-space:pre-wrap;line-height:1.25;">{{ $machiningStepNote }}</div>
+                    @endif
                 </div>
             @endforeach
         </div>

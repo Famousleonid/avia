@@ -13,7 +13,7 @@ class ProcessName extends Model
     public const GROUP_KEY_MERGE_MACHINING_MEC = 'MERGE:MACHINING_MEC';
 
     /** Имена process_names, которые в групповых формах считаются одной группой «обработка». */
-    public const MACHINING_EC_MERGE_NAMES = ['Machining', 'Machining (EC)'];
+    public const MACHINING_EC_MERGE_NAMES = ['Machining', 'Machining (EC)', 'Machining(EC)'];
 
     protected $fillable = [
         'name','process_sheet_name','form_number','std_days', 'notify_user_id','print_form','show_in_process_picker',
@@ -81,7 +81,8 @@ class ProcessName extends Model
             return $main;
         }
 
-        return self::where('name', 'Machining (EC)')->first();
+        return self::where('name', 'Machining (EC)')->first()
+            ?? self::where('name', 'Machining(EC)')->first();
     }
 
     /**

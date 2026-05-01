@@ -378,7 +378,7 @@
                                 $nameLength = mb_strlen($component->component->name);
                                 $fontSize = $nameLength > 20 ? round(20 / $nameLength, 2) . 'em' : '1em';
                             @endphp
-                            <span style="font-size: {{ $fontSize }};">
+                            <span style="font-size: {{ $fontSize }};line-height: 1">
                                 {{ $component->component->name }} ({{$component->component->ipl_num}})
                             </span>
                         @endif

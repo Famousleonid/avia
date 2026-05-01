@@ -74,7 +74,7 @@
                                     };
                                     $machiningDetailProcessesLabel = '';
                                     if ($editTp) {
-                                        /** JSON `tdr_processes.processes` — id в `processes`; только строки с process_names_id = Machining; текст из колонки `process`. */
+                                        /** JSON `tdr_processes.processes` — id в `processes`; строки справочника с process_names Machining / Machining (EC); текст из колонки `process`. */
                                         $catalog = $machiningProcessCatalog ?? [];
                                         $opParts = [];
                                         foreach (\App\Models\TdrProcess::normalizeStoredProcessIds($editTp->processes) as $id) {

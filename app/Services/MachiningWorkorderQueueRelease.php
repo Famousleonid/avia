@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\MachiningWorkStep;
+use App\Models\ProcessName;
 use App\Models\TdrProcess;
 use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
@@ -30,7 +31,7 @@ final class MachiningWorkorderQueueRelease
                 if ($tp->ignore_row ?? false) {
                     continue;
                 }
-                if (trim((string) ($tp->processName?->name ?? '')) !== 'Machining') {
+                if (! ProcessName::isMachiningMachiningEcMergeMember($tp->processName)) {
                     continue;
                 }
                 if (trim((string) ($tdr->component?->part_number ?? '')) === '') {

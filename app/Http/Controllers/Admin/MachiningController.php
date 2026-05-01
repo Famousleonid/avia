@@ -89,17 +89,14 @@ class MachiningController extends Controller
             ->orderBy('number', 'asc')
             ->get();
 
-        /** Строки `tdr_processes` с `process_names_id` = ProcessName «Machining». */
-        $machiningProcessNameId = ProcessName::query()->where('name', 'Machining')->value('id');
+        /** Строки `tdr_processes` с `process_names_id` = Machining или Machining (EC). */
+        $machiningBoardPnIds = ProcessName::machiningMachiningEcMergeProcessNameIds();
 
         $machiningProcessCatalogIds = [];
         foreach ($workorders as $wo) {
             foreach ($wo->tdrs as $tdr) {
                 foreach ($tdr->tdrProcesses as $tp) {
-                    if (
-                        $machiningProcessNameId === null
-                        || (int) ($tp->process_names_id ?? 0) !== (int) $machiningProcessNameId
-                    ) {
+                    if (! in_array((int) ($tp->process_names_id ?? 0), $machiningBoardPnIds, true)) {
                         continue;
                     }
                     foreach (TdrProcess::normalizeStoredProcessIds($tp->processes) as $id) {
@@ -109,11 +106,11 @@ class MachiningController extends Controller
             }
         }
         $machiningProcessCatalog = [];
-        if ($machiningProcessNameId !== null && $machiningProcessCatalogIds !== []) {
-            /** Только строки справочника `processes` с `process_names_id` = Machining (как в DataGrip). */
+        if ($machiningBoardPnIds !== [] && $machiningProcessCatalogIds !== []) {
+            /** Только строки справочника `processes` с тем же process_names_id, что у строк Machining / Machining (EC). */
             $machiningProcessCatalog = Process::query()
                 ->whereIn('id', array_keys($machiningProcessCatalogIds))
-                ->where('process_names_id', (int) $machiningProcessNameId)
+                ->whereIn('process_names_id', $machiningBoardPnIds)
                 ->select(['id', 'process'])
                 ->get()
                 ->keyBy(static fn (Process $p): int => (int) $p->id)
@@ -153,6 +150,7 @@ class MachiningController extends Controller
             'machinist_user_id' => 'sometimes|nullable|integer|exists:users,id',
             'date_finish' => 'sometimes|nullable|date',
             'date_start' => 'sometimes|nullable|date',
+            'description' => 'sometimes|nullable|string|max:65535',
         ]);
         if ($v->fails()) {
             return response()->json(['success' => false, 'errors' => $v->errors()], 422);
@@ -167,6 +165,8 @@ class MachiningController extends Controller
                 $request->input('date_finish'),
                 $request->exists('date_start'),
                 $request->input('date_start'),
+                $request->exists('description'),
+                $request->input('description'),
             );
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'errors' => $e->errors()], 422);
@@ -180,6 +180,7 @@ class MachiningController extends Controller
             'date_start' => $machiningWorkStep->date_start?->format('Y-m-d'),
             'date_finish' => $machiningWorkStep->date_finish?->format('Y-m-d'),
             'machinist_user_id' => $machiningWorkStep->machinist_user_id,
+            'description' => $machiningWorkStep->description,
             'parent_date_finish' => $parent?->date_finish?->format('Y-m-d'),
         ]);
     }

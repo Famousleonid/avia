@@ -19,6 +19,7 @@ class MachiningWorkStep extends Model
         'machinist_user_id',
         'date_start',
         'date_finish',
+        'description',
     ];
 
     protected $casts = [
@@ -50,7 +51,7 @@ class MachiningWorkStep extends Model
     {
         return LogOptions::defaults()
             ->useLogName('machining_work_step')
-            ->logOnly(['step_index', 'machinist_user_id', 'date_start', 'date_finish'])
+            ->logOnly(['step_index', 'machinist_user_id', 'date_start', 'date_finish', 'description'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
