@@ -1152,6 +1152,28 @@
                                                 $nonTravelerProcesses = $prs->filter(function ($p) {
                                                     return ! (bool) ($p->in_traveler ?? false);
                                                 })->values();
+                                                $mainProcessRows = collect();
+                                                foreach ($travelerGroups as $travelerGroup => $travelerGroupProcesses) {
+                                                    $mainProcessRows->push([
+                                                        'type' => 'traveler',
+                                                        'traveler_group' => (int) $travelerGroup,
+                                                        'processes' => $travelerGroupProcesses,
+                                                        'sort_order' => (int) ($travelerGroupProcesses->min('sort_order') ?? 999999),
+                                                        'id' => (int) ($travelerGroupProcesses->min('id') ?? 0),
+                                                    ]);
+                                                }
+                                                foreach ($nonTravelerProcesses as $pr) {
+                                                    $mainProcessRows->push([
+                                                        'type' => 'process',
+                                                        'process' => $pr,
+                                                        'sort_order' => (int) ($pr->sort_order ?? 999999),
+                                                        'id' => (int) ($pr->id ?? 0),
+                                                    ]);
+                                                }
+                                                $mainProcessRows = $mainProcessRows->sortBy([
+                                                    ['sort_order', 'asc'],
+                                                    ['id', 'asc'],
+                                                ])->values();
                                             @endphp
                                             @if($prs->isNotEmpty())
                                                 <div class="mt-2 ps-2">
@@ -1192,21 +1214,27 @@
                                                         </tr>
                                                         </thead>
                                                         <tbody>
-                                                        @foreach($travelerGroups as $travelerGroup => $travelerGroupProcesses)
-                                                            @php
-                                                                $travelerLeader = $travelerGroupProcesses->sortBy('id')->first();
-                                                                $travelerUpdatedByRow = $travelerGroupProcesses->sortByDesc(function ($p) {
-                                                                    return $p->updated_at?->timestamp ?? 0;
-                                                                })->first();
-                                                                $trClosed = $travelerGroupProcesses->every(function ($p) {
-                                                                    return ! empty($p->date_finish);
-                                                                });
-                                                                $trUserRow = $travelerUpdatedByRow ?? $travelerLeader;
-                                                                $trStartEditedBy = $travelerLeader->dateStartUpdatedBy?->name;
-                                                                $trFinishEditedBy = $travelerLeader->dateFinishUpdatedBy?->name;
-                                                                $trStartDateTitle = $trStartEditedBy ? ('Start date last edited by ' . $trStartEditedBy) : 'Start date editor: not recorded';
-                                                                $trFinishDateTitle = $trFinishEditedBy ? ('Finish date last edited by ' . $trFinishEditedBy) : 'Finish date editor: not recorded';
-                                                            @endphp
+                                                        @foreach($mainProcessRows as $mainProcessRow)
+                                                            @if($mainProcessRow['type'] === 'traveler')
+                                                                @php
+                                                                    $travelerGroup = $mainProcessRow['traveler_group'];
+                                                                    $travelerGroupProcesses = $mainProcessRow['processes'];
+                                                                    $travelerLeader = $travelerGroupProcesses->sortBy([
+                                                                        ['sort_order', 'asc'],
+                                                                        ['id', 'asc'],
+                                                                    ])->first();
+                                                                    $travelerUpdatedByRow = $travelerGroupProcesses->sortByDesc(function ($p) {
+                                                                        return $p->updated_at?->timestamp ?? 0;
+                                                                    })->first();
+                                                                    $trClosed = $travelerGroupProcesses->every(function ($p) {
+                                                                        return ! empty($p->date_finish);
+                                                                    });
+                                                                    $trUserRow = $travelerUpdatedByRow ?? $travelerLeader;
+                                                                    $trStartEditedBy = $travelerLeader->dateStartUpdatedBy?->name;
+                                                                    $trFinishEditedBy = $travelerLeader->dateFinishUpdatedBy?->name;
+                                                                    $trStartDateTitle = $trStartEditedBy ? ('Start date last edited by ' . $trStartEditedBy) : 'Start date editor: not recorded';
+                                                                    $trFinishDateTitle = $trFinishEditedBy ? ('Finish date last edited by ' . $trFinishEditedBy) : 'Finish date editor: not recorded';
+                                                                @endphp
                                                             <tr data-closed="{{ $trClosed ? 1 : 0 }}"
                                                                 data-traveler-row="1">
                                                                 <td class="text-center small text-info js-last-user"
@@ -1296,15 +1324,15 @@
                                                                     </form>
                                                                 </td>
                                                             </tr>
-                                                        @endforeach
-                                                        @foreach($nonTravelerProcesses as $pr)
-                                                            @php
-                                                                $isClosed = !empty($pr->date_finish);
-                                                                $startEditedBy = $pr->dateStartUpdatedBy?->name;
-                                                                $finishEditedBy = $pr->dateFinishUpdatedBy?->name;
-                                                                $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
-                                                                $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
-                                                            @endphp
+                                                            @else
+                                                                @php
+                                                                    $pr = $mainProcessRow['process'];
+                                                                    $isClosed = !empty($pr->date_finish);
+                                                                    $startEditedBy = $pr->dateStartUpdatedBy?->name;
+                                                                    $finishEditedBy = $pr->dateFinishUpdatedBy?->name;
+                                                                    $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
+                                                                    $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
+                                                                @endphp
 
                                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}">
                                                                 <td class="text-center small text-info js-last-user"
@@ -1400,6 +1428,7 @@
                                                                     </form>
                                                                 </td>
                                                             </tr>
+                                                            @endif
                                                         @endforeach
                                                         </tbody>
                                                     </table>

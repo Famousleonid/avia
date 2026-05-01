@@ -167,6 +167,8 @@ class VendorTrackingController extends Controller
             'part_number' => trim((string) $request->input('part_number', '')),
             'repair_order' => trim((string) $request->input('repair_order', '')),
             'sort' => $this->normalizeSort((string) $request->input('sort', 'wo')),
+            'sort_explicit' => $request->boolean('sort_user')
+                && $this->normalizeSort((string) $request->input('sort', 'wo')) !== 'wo',
             'direction' => $this->normalizeSortDirection((string) $request->input('direction', 'desc')),
         ];
 
@@ -287,17 +289,12 @@ class VendorTrackingController extends Controller
             })
             ->when($filters['repair_order'] !== '', fn ($q) => $q->where('repair_order', 'like', '%' . $filters['repair_order'] . '%'))
             ->orderBy('tdrs_id')
+            ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
 
-        $travelerTdrIds = $tdrRawRows
-            ->filter(fn (TdrProcess $row) => (bool) $row->in_traveler)
-            ->pluck('tdrs_id')
-            ->unique()
-            ->values();
-
         $tdrRows = $tdrRawRows
-            ->reject(fn (TdrProcess $row) => (bool) $row->in_traveler || $travelerTdrIds->contains($row->tdrs_id))
+            ->reject(fn (TdrProcess $row) => (bool) $row->in_traveler)
             ->map(fn (TdrProcess $row) => $this->normalizeTdrProcess($row));
 
         $tdrTravelerRows = $tdrRawRows
@@ -321,6 +318,20 @@ class VendorTrackingController extends Controller
 
     private function sortRows(Collection $rows, array $filters): Collection
     {
+        if (
+            ! (bool) ($filters['sort_explicit'] ?? false)
+            && ($filters['workorder'] ?? '') !== ''
+            && trim((string) ($filters['part_number'] ?? '')) !== ''
+        ) {
+            return $rows->sortBy([
+                ['workorder_number', 'asc'],
+                ['part_number', 'asc'],
+                ['tdr_id', 'asc'],
+                ['process_sort_order', 'asc'],
+                ['process_row_id', 'asc'],
+            ])->values();
+        }
+
         $sort = $filters['sort'] ?? 'wo';
         $direction = $filters['direction'] ?? 'desc';
 
@@ -339,7 +350,11 @@ class VendorTrackingController extends Controller
             }
 
             if ($result === 0) {
-                $result = $b->id <=> $a->id;
+                $result = ((int) ($a->process_sort_order ?? 999999)) <=> ((int) ($b->process_sort_order ?? 999999));
+            }
+
+            if ($result === 0) {
+                $result = ((int) ($a->process_row_id ?? $a->id ?? 0)) <=> ((int) ($b->process_row_id ?? $b->id ?? 0));
             }
 
             return $direction === 'asc' ? $result : -$result;
@@ -376,6 +391,10 @@ class VendorTrackingController extends Controller
 
         return (object) [
             'id' => (int) $row->id,
+            'tdr_id' => (int) ($tdr?->id ?? 0),
+            'workorder_number' => (string) ($wo?->number ?? ''),
+            'process_sort_order' => (int) ($row->sort_order ?? 999999),
+            'process_row_id' => (int) $row->id,
             'source_key' => $tdr?->component_id === null ? 'tdr_std' : 'tdr_part',
             'source' => $tdr?->component_id === null ? 'STD' : 'Part',
             'date_update_url' => route('tdrprocesses.updateDate', $row),
@@ -442,8 +461,7 @@ class VendorTrackingController extends Controller
         $travelerGroup = (int) ($leader->traveler_group ?: 1);
         $processIds = $group
             ->flatMap(function (TdrProcess $row): array {
-                $values = json_decode((string) $row->processes, true);
-                return is_array($values) ? array_map('intval', $values) : [];
+                return TdrProcess::normalizeStoredProcessIds($row->processes);
             })
             ->filter()
             ->unique()
@@ -455,12 +473,12 @@ class VendorTrackingController extends Controller
             ->sortBy('sort_order')
             ->values()
             ->map(function (TdrProcess $row) use ($processLabels, $tdr, $travelerGroup): object {
-                $values = json_decode((string) $row->processes, true);
-                $labels = collect(is_array($values) ? $values : [])
+                $values = TdrProcess::normalizeStoredProcessIds($row->processes);
+                $labels = collect($values)
                     ->map(fn ($id) => $processLabels->get((int) $id))
                     ->filter()
                     ->values();
-                $processId = collect(is_array($values) ? $values : [])
+                $processId = collect($values)
                     ->map(fn ($id) => (int) $id)
                     ->filter()
                     ->first();
@@ -488,6 +506,10 @@ class VendorTrackingController extends Controller
 
         return (object) [
             'id' => (int) $tdr->id,
+            'tdr_id' => (int) $tdr->id,
+            'workorder_number' => (string) ($wo?->number ?? ''),
+            'process_sort_order' => (int) ($group->min('sort_order') ?? 999999),
+            'process_row_id' => (int) ($group->min('id') ?? 0),
             'row_key' => 'tdr-' . (int) $tdr->id . '-traveler-' . $travelerGroup,
             'traveler_group' => $travelerGroup,
             'source_key' => 'tdr_traveler',
@@ -596,6 +618,10 @@ class VendorTrackingController extends Controller
 
         return (object) [
             'id' => (int) $row->id,
+            'tdr_id' => 0,
+            'workorder_number' => (string) ($wo?->number ?? ''),
+            'process_sort_order' => 999999,
+            'process_row_id' => (int) $row->id,
             'source_key' => 'wo_bushing_process',
             'source' => 'Bush',
             'date_update_url' => route('wo_bushing_processes.updateDate', $row),
@@ -624,6 +650,10 @@ class VendorTrackingController extends Controller
 
         return (object) [
             'id' => (int) $row->id,
+            'tdr_id' => 0,
+            'workorder_number' => (string) ($row->workorder?->number ?? ''),
+            'process_sort_order' => 999999,
+            'process_row_id' => (int) $row->id,
             'source_key' => 'wo_bushing_batch',
             'source' => 'Bush',
             'date_update_url' => route('wo_bushing_batches.updateDate', $row),

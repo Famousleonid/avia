@@ -1073,6 +1073,8 @@ class TdrProcessController extends Controller
         $query->update([
             'in_traveler' => false,
             'traveler_group' => null,
+            'date_start' => null,
+            'date_start_user_id' => null,
         ]);
 
         return response()->json(['success' => true]);

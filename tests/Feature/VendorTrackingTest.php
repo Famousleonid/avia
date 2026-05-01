@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Component;
+use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
@@ -97,6 +98,14 @@ class VendorTrackingTest extends TestCase
             'ipl_num' => '2-1',
             'eff_code' => 'ALL',
         ]);
+        $firstCatalogProcess = Process::query()->create([
+            'process_names_id' => $firstProcessName->id,
+            'process' => 'Traveler Catalog A ' . uniqid(),
+        ]);
+        $secondCatalogProcess = Process::query()->create([
+            'process_names_id' => $secondProcessName->id,
+            'process' => 'Traveler Catalog B ' . uniqid(),
+        ]);
         $tdr = Tdr::query()->create([
             'workorder_id' => $workorder->id,
             'component_id' => $component->id,
@@ -113,6 +122,7 @@ class VendorTrackingTest extends TestCase
             'vendor_id' => $vendor->id,
             'date_start' => now()->toDateString(),
             'in_traveler' => true,
+            'processes' => [$firstCatalogProcess->id],
         ]);
         $second = TdrProcess::query()->create([
             'tdrs_id' => $tdr->id,
@@ -121,6 +131,7 @@ class VendorTrackingTest extends TestCase
             'vendor_id' => $vendor->id,
             'date_start' => null,
             'in_traveler' => true,
+            'processes' => [$secondCatalogProcess->id],
         ]);
         $outsideTravelerProcessName = ProcessName::query()->create([
             'name' => 'Traveler Same Detail Outside ' . uniqid(),
@@ -143,8 +154,8 @@ class VendorTrackingTest extends TestCase
             ->assertSee($firstProcessName->name)
             ->assertSee($secondProcessName->name)
             ->assertSee($component->part_number)
-            ->assertDontSee('TR-OUTSIDE')
-            ->assertDontSee($outsideTravelerProcessName->name);
+            ->assertSee('TR-OUTSIDE')
+            ->assertSee($outsideTravelerProcessName->name);
 
         $this->actingAs($admin)
             ->patch(route('vendor-tracking.row.update'), [
@@ -164,6 +175,114 @@ class VendorTrackingTest extends TestCase
             'id' => $second->id,
             'repair_order' => 'TR-NEW',
         ]);
+    }
+
+    public function test_mains_show_interleaves_traveler_groups_by_parent_process_order(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $vendor = Vendor::query()->create(['name' => 'Traveler Order Vendor ' . uniqid()]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'TR-ORDER-' . uniqid(),
+            'name' => 'Traveler Order Component',
+            'ipl_num' => '2-2',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'TR-ORDER-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $names = collect([
+            'QA First Single',
+            'QA Second Single',
+            'QA Traveler One A',
+            'QA Traveler One B',
+            'QA Traveler Two A',
+            'QA Traveler Two B',
+            'QA Last Single',
+        ])->mapWithKeys(function (string $name) {
+            $processName = ProcessName::query()->create([
+                'name' => $name . ' ' . uniqid(),
+                'process_sheet_name' => 'QA',
+                'form_number' => 'QA',
+            ]);
+
+            return [$name => $processName];
+        });
+
+        $makeProcess = function (string $name, int $sortOrder, bool $inTraveler = false, ?int $travelerGroup = null) use ($tdr, $names, $vendor): void {
+            TdrProcess::query()->create([
+                'tdrs_id' => $tdr->id,
+                'process_names_id' => $names[$name]->id,
+                'sort_order' => $sortOrder,
+                'in_traveler' => $inTraveler,
+                'traveler_group' => $travelerGroup,
+                'vendor_id' => $vendor->id,
+                'date_start' => '2026-04-10',
+            ]);
+        };
+
+        $makeProcess('QA First Single', 1);
+        $makeProcess('QA Second Single', 2);
+        $makeProcess('QA Traveler One A', 3, true, 1);
+        $makeProcess('QA Traveler One B', 4, true, 1);
+        $makeProcess('QA Traveler Two A', 5, true, 2);
+        $makeProcess('QA Traveler Two B', 6, true, 2);
+        $makeProcess('QA Last Single', 7);
+
+        $this->actingAs($admin)
+            ->get(route('mains.show', $workorder))
+            ->assertOk()
+            ->assertSeeInOrder([
+                $names['QA First Single']->name,
+                $names['QA Second Single']->name,
+                'Traveler 1',
+                'Traveler 2',
+                $names['QA Last Single']->name,
+            ]);
+
+        $this->actingAs($admin)
+            ->get(route('vendor-tracking.index', [
+                'workorder' => $workorder->number,
+                'part_number' => $component->part_number,
+                'sources' => ['part'],
+                'sort' => 'wo',
+                'direction' => 'desc',
+                'sort_user' => 1,
+            ]))
+            ->assertOk()
+            ->assertSeeInOrder([
+                $names['QA First Single']->name,
+                $names['QA Second Single']->name,
+                'Traveler (2)',
+                'Traveler 2 (2)',
+                $names['QA Last Single']->name,
+            ]);
+
+        $this->actingAs($admin)
+            ->get(route('vendor-tracking.index', [
+                'workorder' => $workorder->number,
+                'part_number' => $component->part_number,
+                'sources' => ['part'],
+                'sort' => 'process',
+                'direction' => 'asc',
+                'sort_user' => 1,
+            ]))
+            ->assertOk()
+            ->assertSeeInOrder([
+                $names['QA First Single']->name,
+                $names['QA Last Single']->name,
+                $names['QA Second Single']->name,
+                'Traveler (2)',
+                'Traveler 2 (2)',
+            ]);
     }
 
     public function test_traveler_group_requires_confirmation_and_clears_conflicting_dates_and_ro(): void
@@ -248,6 +367,68 @@ class VendorTrackingTest extends TestCase
                 'date_start' => null,
                 'date_finish' => null,
                 'date_promise' => null,
+            ]);
+        }
+    }
+
+    public function test_traveler_ungroup_clears_group_sent_dates(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Traveler Ungroup A ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $otherProcessName = ProcessName::query()->create([
+            'name' => 'Traveler Ungroup B ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'TR-UNGROUP-' . uniqid(),
+            'name' => 'Traveler Ungroup Component',
+            'ipl_num' => '5-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'TR-UNGROUP-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $first = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'in_traveler' => true,
+            'traveler_group' => 2,
+            'date_start' => '2026-04-10',
+        ]);
+        $second = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $otherProcessName->id,
+            'in_traveler' => true,
+            'traveler_group' => 2,
+            'date_start' => '2026-04-10',
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('tdr-processes.traveler-ungroup', ['tdrId' => $tdr->id]), [
+                'traveler_group' => 2,
+            ])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        foreach ([$first, $second] as $process) {
+            $this->assertDatabaseHas('tdr_processes', [
+                'id' => $process->id,
+                'in_traveler' => false,
+                'traveler_group' => null,
+                'date_start' => null,
             ]);
         }
     }

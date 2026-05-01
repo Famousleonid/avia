@@ -233,6 +233,44 @@
         return !!url && url.indexOf(heartbeatUrl) !== -1;
     }
 
+    function getRequestHeader(input, init, name) {
+        const expected = String(name || '').toLowerCase();
+        const sources = [];
+
+        if (init && init.headers) sources.push(init.headers);
+        if (input && typeof input.headers !== 'undefined') sources.push(input.headers);
+
+        for (const headers of sources) {
+            if (!headers) continue;
+
+            if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+                const value = headers.get(name);
+                if (value !== null) return String(value);
+                continue;
+            }
+
+            if (Array.isArray(headers)) {
+                const match = headers.find((header) => String(header[0] || '').toLowerCase() === expected);
+                if (match) return String(match[1] || '');
+                continue;
+            }
+
+            if (typeof headers === 'object') {
+                const key = Object.keys(headers).find((header) => header.toLowerCase() === expected);
+                if (key) return String(headers[key] || '');
+            }
+        }
+
+        return '';
+    }
+
+    function isAjaxJsonRequest(input, init) {
+        const accept = getRequestHeader(input, init, 'Accept').toLowerCase();
+        const requestedWith = getRequestHeader(input, init, 'X-Requested-With').toLowerCase();
+
+        return requestedWith === 'xmlhttprequest' || accept.indexOf('application/json') !== -1;
+    }
+
     function redirectToLogin(reason) {
         if (redirecting) return;
         redirecting = true;
@@ -317,8 +355,9 @@
         return originalFetch(input, init).then((response) => {
             const ignoreSessionExpiry = !!(init && init.ignoreSessionExpiry);
             const heartbeatRequest = isHeartbeatRequest(input);
+            const localErrorHandler = isAjaxJsonRequest(input, init);
 
-            if (!ignoreSessionExpiry && !heartbeatRequest && isSessionExpiredResponse(response)) {
+            if (!ignoreSessionExpiry && !heartbeatRequest && !localErrorHandler && isSessionExpiredResponse(response)) {
                 redirectToLogin(response.status === 419 ? 'expired' : 'unauthenticated');
                 return response;
             }
@@ -765,10 +804,12 @@ window.hapticTap = function (pattern = 10) {
         }
         if (!gtId) return;
 
-        const btn = document.querySelector(`.js-gt-btn[data-gt-id="${gtId}"]`);
-        if (!btn) return;
-        btn.classList.toggle('btn-outline-success', allFinished);
-        btn.classList.toggle('btn-outline-danger', !allFinished);
+        const buttons = document.querySelectorAll(`.js-gt-btn[data-gt-id="${gtId}"]`);
+        if (!buttons.length) return;
+        buttons.forEach((btn) => {
+            btn.classList.toggle('btn-outline-success', allFinished);
+            btn.classList.toggle('btn-outline-danger', !allFinished);
+        });
     }
 
     function applySavedState(form, data) {

@@ -500,35 +500,34 @@
         }
 
         .vendor-tracking-page .table-responsive {
-            background: #ffffff;
+            background: #2B3035;
             border-radius: 10px;
         }
 
         .vendor-tracking-table {
-            --bs-table-bg: #ffffff;
-            --bs-table-color: #1f2937;
+            --bs-table-bg: #2B3035;
+            --bs-table-color: #f8f9fa;
             --bs-table-border-color: #d7e0ea;
-            --bs-table-hover-bg: #f8fbff;
-            --bs-table-hover-color: #111827;
             margin-bottom: 0;
+            background: #2B3035;
         }
 
         .vendor-tracking-table > thead > tr > th {
-            background: #f4f7fb;
-            color: #334155;
+            background: #2B3035;
+            color: #f8f9fa;
             border-color: #d7e0ea;
             vertical-align: middle;
         }
 
         .vendor-tracking-table > tbody > tr > td {
-            background: #ffffff;
-            color: #1f2937;
+            background: #2B3035;
+            color: #f8f9fa;
             border-color: #d7e0ea;
             vertical-align: middle;
         }
 
         .vendor-tracking-traveler-row > td {
-            background: #f8fbff !important;
+            background: #2B3035 !important;
         }
 
         .vendor-tracking-traveler-toggle {
@@ -549,19 +548,20 @@
         }
 
         .vendor-tracking-detail-cell {
-            background: #f3f7fb !important;
+            background: #2B3035 !important;
             padding: .45rem .65rem !important;
             text-align: left;
         }
 
         .vendor-tracking-detail-panel {
-            display: block;
-            max-width: 920px;
+            display: inline-block;
+            width: max-content;
+            max-width: 100%;
             min-width: 300px;
             margin-left: 0;
             margin-right: auto;
-            border: 1px solid #d7e0ea;
-            background: #ffffff;
+            --dir-table-bg: #2D2D2D;
+            background: #2D2D2D;
         }
 
         .vendor-tracking-detail-table {
@@ -572,59 +572,40 @@
             min-width: 300px;
         }
 
+        .vendor-tracking-detail-layout {
+            display: inline-grid;
+            grid-template-columns: auto max-content max-content;
+            align-items: stretch;
+            gap: 0;
+            --dir-table-bg: #2D2D2D;
+            background: #2D2D2D;
+        }
+
         .vendor-tracking-detail-table th,
         .vendor-tracking-detail-table td {
             padding: .25rem .45rem;
-            border-color: #d7e0ea;
-            background: #ffffff;
             white-space: nowrap;
         }
 
-        .vendor-tracking-detail-ro-col {
-            width: 90px;
-            min-width: 90px;
-        }
-
-        .vendor-tracking-detail-vendor-col {
-            width: 190px;
-            min-width: 190px;
-        }
-
         .vendor-tracking-detail-form-col {
-            width: 210px;
-            min-width: 210px;
+            width: 96px;
+            min-width: 96px;
             text-align: center;
         }
 
         .vendor-tracking-detail-traveler-actions {
-            display: inline-flex;
+            display: contents;
+        }
+
+        .vendor-tracking-detail-action-col {
+            display: flex;
             align-items: center;
             justify-content: center;
-            gap: .35rem;
+            padding: .25rem .45rem;
+            border: 1px solid var(--dir-border-2, #495057);
+            border-left: 0;
+            background: #2D2D2D;
             white-space: nowrap;
-        }
-
-        .vendor-tracking-detail-group-ro {
-            width: 76px;
-            min-width: 76px;
-        }
-
-        .vendor-tracking-detail-table .vendor-tracking-inline-input,
-        .vendor-tracking-detail-table .vendor-tracking-inline-select {
-            height: calc(1.65rem + 2px);
-            padding-top: .15rem;
-            padding-bottom: .15rem;
-            font-size: .78rem;
-        }
-
-        .vendor-tracking-detail-table .vendor-tracking-vendor-cell .vendor-tracking-inline-select {
-            font-size: 14px;
-        }
-
-        .vendor-tracking-detail-table thead th {
-            background: #f4f7fb;
-            color: #334155;
-            font-weight: 600;
         }
 
         .vendor-tracking-table a {
@@ -737,52 +718,51 @@
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-page .table-responsive {
-            background: transparent;
+            background: #2B3035;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-table {
-            --bs-table-bg: #232525;
+            --bs-table-bg: #2B3035;
             --bs-table-color: #f8f9fa;
             --bs-table-border-color: rgba(255, 255, 255, 0.12);
-            --bs-table-hover-bg: rgba(255, 255, 255, 0.03);
-            --bs-table-hover-color: #ffffff;
+            background: #2B3035;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-table > thead > tr > th {
-            background: #232525;
+            background: #2B3035;
             color: #adb5bd;
             border-color: rgba(255, 255, 255, 0.12);
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-table > tbody > tr > td {
-            background: #232525;
+            background: #2B3035;
             color: #f8f9fa;
             border-color: rgba(255, 255, 255, 0.12);
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-traveler-row > td {
-            background: #202a32 !important;
+            background: #2B3035 !important;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-detail-cell {
-            background: #1d252c !important;
+            background: #2B3035 !important;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-detail-panel {
-            border-color: rgba(255, 255, 255, 0.12);
-            background: #232525;
+            --dir-table-bg: #2D2D2D;
+            background: #2D2D2D;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-detail-table th,
         html[data-bs-theme="dark"] .vendor-tracking-detail-table td {
-            background: #232525;
-            border-color: rgba(255, 255, 255, 0.12);
             color: #f8f9fa;
         }
 
-        html[data-bs-theme="dark"] .vendor-tracking-detail-table thead th {
-            background: #232525;
-            color: #adb5bd;
+        html[data-bs-theme="dark"] .vendor-tracking-detail-layout,
+        html[data-bs-theme="dark"] .vendor-tracking-detail-action-col {
+            --dir-table-bg: #2D2D2D;
+            background: #2D2D2D;
+            border-color: var(--dir-border-2, #495057);
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-table a {
@@ -919,6 +899,7 @@
                 return route('vendor-tracking.index', array_merge(request()->query(), [
                     'sort' => $column,
                     'direction' => $direction,
+                    'sort_user' => 1,
                 ]));
             };
             $sortIcon = function (string $column) use ($currentSort, $currentDirection) {
@@ -1030,7 +1011,7 @@
         <div class="card bg-gradient">
             <div class="card-body p-2">
                 <div class="table-responsive">
-                    <table id="vendorTrackingTable" class="table table-sm table-bordered table-hover align-middle mb-0 vendor-tracking-table">
+                    <table id="vendorTrackingTable" class="table table-sm table-bordered align-middle mb-0 vendor-tracking-table">
                         <thead>
                             <tr class="text-muted small">
                                 <th class="vendor-tracking-repair-col" data-col="repair_order">RO</th>
@@ -1196,61 +1177,41 @@
                                     </td>
                                 </tr>
                                 @if($isTravelerGroup)
-                                    <tr class="vendor-tracking-detail-row d-none" data-traveler-detail-for="{{ $rowKey }}">
+                                    <tr class="vendor-tracking-detail-row d-none"
+                                        data-traveler-detail-for="{{ $rowKey }}"
+                                        data-row-id="{{ $row->id }}"
+                                        data-row-key="{{ $rowKey }}"
+                                        data-source-key="{{ $row->source_key }}"
+                                        @if($travelerGroup > 0) data-traveler-group="{{ $travelerGroup }}" @endif>
                                         <td class="vendor-tracking-detail-cell" colspan="16">
                                             <div class="vendor-tracking-detail-panel">
-                                                <table class="table table-sm table-bordered vendor-tracking-detail-table">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Process</th>
-                                                            <th>Name</th>
-                                                            <th class="vendor-tracking-detail-ro-col">RO</th>
-                                                            <th class="vendor-tracking-detail-vendor-col">Vendor</th>
-                                                            <th class="vendor-tracking-detail-form-col">
-                                                                <div class="vendor-tracking-detail-traveler-actions">
-                                                                    <input type="text"
-                                                                           class="form-control form-control-sm vendor-tracking-inline-input vendor-tracking-detail-group-ro js-vendor-traveler-ro-all"
-                                                                           placeholder="RO"
-                                                                           value="{{ $row->repair_order ?? '' }}"
-                                                                           autocomplete="off"
-                                                                           data-no-submit
-                                                                           onkeydown="if (event.key === 'Enter') { event.preventDefault(); }">
-                                                                    <a href="{{ route('tdr-processes.travelForm', ['id' => $row->id, 'traveler_group' => $travelerGroup]) }}" class="btn btn-sm btn-outline-primary js-vendor-tracking-form-link" target="_blank">
-                                                                        Form traveler
-                                                                    </a>
-                                                                    <button type="button" class="btn btn-sm btn-outline-warning js-vendor-traveler-ungroup" data-ungroup-url="{{ route('tdr-processes.traveler-ungroup', ['tdrId' => $row->id]) }}" data-traveler-group="{{ $travelerGroup }}">
-                                                                        Ungroup
-                                                                    </button>
-                                                                </div>
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach($travelerChildren as $child)
-                                                            @php $childVendorId = (int) ($child->vendor?->id ?? 0); @endphp
-                                                            <tr data-row-id="{{ $child->id }}" data-source-key="{{ $child->source_key }}">
-                                                                <td>{{ $child->process_name ?? '--' }}</td>
-                                                                <td>{{ $child->process_label ?? '--' }}</td>
-                                                                <td class="vendor-tracking-save-cell vendor-tracking-detail-ro-col">
-                                                                    <input type="text" class="form-control form-control-sm vendor-tracking-inline-input js-vendor-tracking-repair-order" value="{{ $child->repair_order ?? '' }}">
-                                                                </td>
-                                                                <td class="vendor-tracking-save-cell vendor-tracking-detail-vendor-col vendor-tracking-vendor-cell">
-                                                                    <div class="vendor-tracking-vendor-select-wrap">
-                                                                        <select class="form-select form-select-sm vendor-tracking-inline-select js-vendor-tracking-vendor">
-                                                                            <option value="">--</option>
-                                                                            @foreach($vendors as $vendor)
-                                                                                <option value="{{ $vendor->id }}" @selected($childVendorId === (int) $vendor->id)>{{ $vendor->name }}</option>
-                                                                            @endforeach
-                                                                        </select>
-                                                                    </div>
-                                                                </td>
-                                                                <td class="vendor-tracking-detail-form-col">
-                                                                    <a href="{{ $child->form_url }}" class="btn btn-sm btn-outline-primary js-vendor-tracking-form-link" target="_blank">Form</a>
-                                                                </td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
+                                                <div class="vendor-tracking-detail-layout">
+                                                    <table class="table table-sm table-bordered align-middle dir-table vendor-tracking-detail-table">
+                                                        <tbody>
+                                                            @foreach($travelerChildren as $child)
+                                                                <tr data-row-id="{{ $child->id }}" data-source-key="{{ $child->source_key }}">
+                                                                    <td>{{ $child->process_name ?? '--' }}</td>
+                                                                    <td>{{ $child->process_label ?? '--' }}</td>
+                                                                    <td class="vendor-tracking-detail-form-col">
+                                                                        <a href="{{ $child->form_url }}" class="btn btn-sm btn-outline-primary js-vendor-tracking-form-link" target="_blank">Form</a>
+                                                                    </td>
+                                                                </tr>
+                                                            @endforeach
+                                                        </tbody>
+                                                    </table>
+                                                    <div class="vendor-tracking-detail-traveler-actions">
+                                                        <div class="vendor-tracking-detail-action-col">
+                                                            <a href="{{ route('tdr-processes.travelForm', ['id' => $row->id, 'traveler_group' => $travelerGroup]) }}" class="btn btn-sm btn-outline-primary js-vendor-tracking-form-link" target="_blank">
+                                                                Form traveler
+                                                            </a>
+                                                        </div>
+                                                        <div class="vendor-tracking-detail-action-col">
+                                                            <button type="button" class="btn btn-sm btn-outline-warning js-vendor-traveler-ungroup" data-ungroup-url="{{ route('tdr-processes.traveler-ungroup', ['tdrId' => $row->id]) }}" data-traveler-group="{{ $travelerGroup }}">
+                                                                Ungroup
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
@@ -1354,7 +1315,9 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const updateUrl = @json(route('vendor-tracking.row.update'));
-            const csrfToken = @json(csrf_token());
+            const heartbeatUrl = @json(route('session.heartbeat'));
+            let csrfToken = @json(csrf_token());
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
             const key = 'vendorTrackingSources';
             const vendorNullKey = 'vendorTrackingIncludeVendorNull';
             const filtersStateKey = 'vendorTrackingFilters';
@@ -1800,6 +1763,78 @@
                 }, 1600);
             };
 
+            const currentCsrfToken = function () {
+                return csrfMeta?.getAttribute('content') || csrfToken;
+            };
+
+            const setCsrfToken = function (token) {
+                if (!token) {
+                    return;
+                }
+
+                csrfToken = token;
+                csrfMeta?.setAttribute('content', token);
+            };
+
+            const refreshCsrfToken = async function () {
+                try {
+                    const response = await fetch(heartbeatUrl, {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        cache: 'no-store',
+                        ignoreSessionExpiry: true,
+                    });
+
+                    if (!response.ok) {
+                        return false;
+                    }
+
+                    const data = await response.json();
+                    if (!data.csrf_token) {
+                        return false;
+                    }
+
+                    setCsrfToken(data.csrf_token);
+                    return true;
+                } catch (error) {
+                    return false;
+                }
+            };
+
+            const fetchTrackingRowUpdate = async function (row, payload) {
+                const request = function () {
+                    return fetch(updateUrl, {
+                        method: 'PATCH',
+                        credentials: 'same-origin',
+                        ignoreSessionExpiry: true,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': currentCsrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            id: Number(row.dataset.rowId),
+                            source_key: row.dataset.sourceKey,
+                            traveler_group: Number(row.dataset.travelerGroup || 0) || null,
+                            vendor_id: payload.vendor_id,
+                            repair_order: payload.repair_order,
+                        }),
+                    });
+                };
+
+                let response = await request();
+                if (response.status === 419 && await refreshCsrfToken()) {
+                    response = await request();
+                }
+
+                return response;
+            };
+
             const buildVendorUrl = function (template, vendorId) {
                 return template.replace('__VENDOR__', String(vendorId));
             };
@@ -2229,28 +2264,16 @@
                 });
 
                 try {
-                    const response = await fetch(updateUrl, {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest',
-                        },
-                        body: JSON.stringify({
-                            id: Number(row.dataset.rowId),
-                            source_key: row.dataset.sourceKey,
-                            traveler_group: Number(row.dataset.travelerGroup || 0) || null,
-                            vendor_id: payload.vendor_id,
-                            repair_order: payload.repair_order,
-                        }),
-                    });
+                    const response = await fetchTrackingRowUpdate(row, payload);
+                    const contentType = response.headers.get('Content-Type') || '';
+                    const data = contentType.indexOf('application/json') !== -1
+                        ? await response.json()
+                        : {};
 
-                    if (!response.ok) {
-                        throw new Error('Failed to save row');
+                    if (!response.ok || data.success === false) {
+                        throw data;
                     }
 
-                    const data = await response.json();
                     const vendorSelect = row.querySelector('.js-vendor-tracking-vendor');
                     const repairInput = row.querySelector('.js-vendor-tracking-repair-order');
                     if (vendorSelect) {
@@ -2284,19 +2307,6 @@
             };
 
             tbody.querySelectorAll('tr').forEach(initRow);
-
-            tbody.addEventListener('keydown', function (event) {
-                const groupRoInput = event.target.closest('.js-vendor-traveler-ro-all');
-                if (!groupRoInput || event.key !== 'Enter') {
-                    return;
-                }
-
-                event.preventDefault();
-                event.stopPropagation();
-                window.clearTimeout(repairOrderTimers.get(groupRoInput));
-                applyTravelerRoToChildren(groupRoInput);
-                groupRoInput.blur();
-            }, true);
 
             tbody.addEventListener('click', function (event) {
                 const ungroupButton = event.target.closest('.js-vendor-traveler-ungroup');
@@ -2337,7 +2347,12 @@
 
                 const formLink = event.target.closest('.js-vendor-tracking-form-link');
                 if (formLink) {
-                    const row = formLink.closest('tr[data-row-id]');
+                    const detailRow = formLink.closest('.vendor-tracking-detail-row');
+                    let row = formLink.closest('tr[data-row-id]');
+                    if (detailRow) {
+                        const rowKey = detailRow.dataset.travelerDetailFor;
+                        row = tbody.querySelector(`tr[data-row-key="${CSS.escape(rowKey)}"]`) || detailRow;
+                    }
                     const vendorSelect = row?.querySelector('.js-vendor-tracking-vendor');
                     const url = new URL(formLink.getAttribute('href'), window.location.origin);
                     if (vendorSelect && vendorSelect.value) {
@@ -2370,32 +2385,6 @@
                 toggle.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
                 toggle.title = isOpen ? 'Show traveler processes' : 'Hide traveler processes';
             });
-
-            const applyTravelerRoToChildren = function (input) {
-                if (!input) {
-                    return;
-                }
-
-                const detailRow = input.closest('.vendor-tracking-detail-row');
-                if (!detailRow) {
-                    return;
-                }
-
-                const value = input.value ?? '';
-                detailRow.querySelectorAll('tbody tr[data-row-id]').forEach(function (row) {
-                    const repairInput = row.querySelector('.js-vendor-tracking-repair-order');
-                    const vendorSelect = row.querySelector('.js-vendor-tracking-vendor');
-                    if (!repairInput || repairInput.value === value) {
-                        return;
-                    }
-
-                    repairInput.value = value;
-                    saveTrackingRow(row, {
-                        vendor_id: vendorSelect && vendorSelect.value !== '' ? Number(vendorSelect.value) : null,
-                        repair_order: value,
-                    });
-                });
-            };
 
             tbody.addEventListener('change', function (event) {
                 const vendorSelect = event.target.closest('.js-vendor-tracking-vendor');
@@ -2432,16 +2421,6 @@
             };
 
             tbody.addEventListener('input', function (event) {
-                const groupRoInput = event.target.closest('.js-vendor-traveler-ro-all');
-                if (groupRoInput) {
-                    window.clearTimeout(repairOrderTimers.get(groupRoInput));
-                    const timer = window.setTimeout(function () {
-                        applyTravelerRoToChildren(groupRoInput);
-                    }, 450);
-                    repairOrderTimers.set(groupRoInput, timer);
-                    return;
-                }
-
                 const input = event.target.closest('.js-vendor-tracking-repair-order');
                 if (!input) {
                     return;
@@ -2455,13 +2434,6 @@
             });
 
             tbody.addEventListener('blur', function (event) {
-                const groupRoInput = event.target.closest('.js-vendor-traveler-ro-all');
-                if (groupRoInput) {
-                    window.clearTimeout(repairOrderTimers.get(groupRoInput));
-                    applyTravelerRoToChildren(groupRoInput);
-                    return;
-                }
-
                 const input = event.target.closest('.js-vendor-tracking-repair-order');
                 if (!input) {
                     return;
@@ -2472,16 +2444,6 @@
             }, true);
 
             tbody.addEventListener('keydown', function (event) {
-                const groupRoInput = event.target.closest('.js-vendor-traveler-ro-all');
-                if (groupRoInput && event.key === 'Enter') {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    window.clearTimeout(repairOrderTimers.get(groupRoInput));
-                    applyTravelerRoToChildren(groupRoInput);
-                    groupRoInput.blur();
-                    return;
-                }
-
                 const input = event.target.closest('.js-vendor-tracking-repair-order');
                 if (!input || event.key !== 'Enter') {
                     return;

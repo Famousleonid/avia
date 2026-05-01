@@ -177,7 +177,9 @@ class MainController extends Controller
                                 'dateStartUpdatedBy:id,name',
                                 'dateFinishUpdatedBy:id,name',
                                 'vendor:id,name',
-                            ])->orderBy('id');
+                            ])
+                                ->orderBy('sort_order')
+                                ->orderBy('id');
                         }])
                         ->orderBy('id');
                 }])
@@ -729,6 +731,15 @@ class MainController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'No changes.',
+                    'main_id' => $main->id,
+                    'date_start' => optional($main->date_start)?->format('Y-m-d'),
+                    'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
+                    'ignore_row' => (bool) $main->ignore_row,
+                    'user_name' => $main->user?->name ?? '',
+                    'general_task_all_finished' => $this->isGeneralTaskAllFinished(
+                        (int) $main->workorder_id,
+                        (int) $main->general_task_id
+                    ),
                 ]);
             }
 

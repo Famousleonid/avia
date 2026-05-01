@@ -84,6 +84,7 @@ Route::middleware(['auth'])->get('/session/heartbeat', function (\Illuminate\Htt
     return response()->json([
         'ok' => true,
         'user_id' => $request->user()?->id,
+        'csrf_token' => csrf_token(),
         'server_time' => now()->toIso8601String(),
     ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 })->name('session.heartbeat');
