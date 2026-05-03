@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\Role;
 use App\Models\Team;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +14,13 @@ class UserAccessUpdateTest extends TestCase
 {
     use BuildsDomainData;
     use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+    }
 
     public function test_non_system_admin_cannot_open_own_user_edit_page(): void
     {
@@ -91,6 +99,7 @@ class UserAccessUpdateTest extends TestCase
             'team_id' => $team->id,
             'role_id' => $managerRole->id,
             'is_admin' => '1',
+            'can_manage_locked_manual_processes' => '1',
             'email_verified_at' => '1',
         ]);
 
@@ -103,6 +112,7 @@ class UserAccessUpdateTest extends TestCase
         $this->assertSame($managerRole->id, $target->role_id);
         $this->assertSame($team->id, $target->team_id);
         $this->assertSame(1, (int) $target->is_admin);
+        $this->assertTrue((bool) $target->can_manage_locked_manual_processes);
         $this->assertNotNull($target->email_verified_at);
     }
 
@@ -136,6 +146,7 @@ class UserAccessUpdateTest extends TestCase
             'team_id' => $team->id,
             'role_id' => $managerRole->id,
             'is_admin' => '1',
+            'can_manage_locked_manual_processes' => '1',
             'email_verified_at' => '1',
         ]);
 
@@ -145,6 +156,7 @@ class UserAccessUpdateTest extends TestCase
         $this->assertSame('target.before@example.test', $target->email);
         $this->assertNotSame($managerRole->id, $target->role_id);
         $this->assertSame(0, (int) $target->is_admin);
+        $this->assertFalse((bool) $target->can_manage_locked_manual_processes);
     }
 
     public function test_user_can_change_only_own_password_with_old_password(): void

@@ -170,7 +170,7 @@
                 <a href="{{route('codes.index')}}" class="nav-link"><i class="bi bi-dot"></i> <span>Codes</span></a>
             </li>
 
-            @if($libraryAdmin)
+            @if(auth()->user()->roleIs(['Admin', 'Manager']))
             <li class="nav-item press-spinner">
                 <a href="{{route('process_names.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Process Names</span></a>
             </li>

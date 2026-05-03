@@ -21,8 +21,8 @@ return [
     'manuals' => [
         'viewAny' => ['Admin','Manager', 'Team Leader', 'Technician'],
         'view'    => ['Admin','Manager', 'Team Leader', 'Technician'],
-        'create'  => ['Admin','Manager', 'Team Leader', 'Technician'],
-        'update'  => ['Admin','Manager', 'Team Leader', 'Technician'],
+        'create'  => ['Admin','Manager', 'Team Leader'],
+        'update'  => ['Admin','Manager', 'Team Leader'],
         'delete'  => ['Admin'],
     ],
 

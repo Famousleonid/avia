@@ -9,6 +9,16 @@ use Illuminate\Validation\Rule;
 
 class DirectoryController extends Controller
 {
+    private function authorizeDirectoryAccess(): void
+    {
+        abort_unless(auth()->check() && auth()->user()->roleIs(['Admin', 'Manager']), 403);
+    }
+
+    private function authorizeDirectoryDelete(): void
+    {
+        abort_unless(auth()->check() && auth()->user()->roleIs('Admin'), 403);
+    }
+
     // ---------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------
@@ -193,6 +203,8 @@ class DirectoryController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeDirectoryAccess();
+
         $slug = $this->slug($request);
         $dir = $this->dir($slug);
 
@@ -226,6 +238,8 @@ class DirectoryController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeDirectoryAccess();
+
         $slug = $this->slug($request);
         $dir = $this->dir($slug);
 
@@ -254,6 +268,8 @@ class DirectoryController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeDirectoryAccess();
+
         $slug = $this->slug($request);
         $dir = $this->dir($slug);
 
@@ -276,6 +292,8 @@ class DirectoryController extends Controller
 
     public function destroy(Request $request, $id)
     {
+        $this->authorizeDirectoryDelete();
+
         $slug = $this->slug($request);
         $dir = $this->dir($slug);
 
@@ -322,6 +340,8 @@ class DirectoryController extends Controller
 
     public function toggle(string $directory, int $id, string $field)
     {
+        $this->authorizeDirectoryAccess();
+
         $dir = $this->dir($directory);
         $normalizedFields = $this->normalizedFields($dir);
 

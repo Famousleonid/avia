@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
@@ -14,6 +15,13 @@ class UsersTest extends TestCase
 {
     use BuildsDomainData;
     use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+    }
 
     /**
      * @group smoke
@@ -34,6 +42,7 @@ class UsersTest extends TestCase
             'role_id' => $role->id,
             'team_id' => $team->id,
             'is_admin' => '1',
+            'can_manage_locked_manual_processes' => '1',
             'email_verified_at' => '1',
         ]);
 
@@ -46,6 +55,7 @@ class UsersTest extends TestCase
             'role_id' => $role->id,
             'team_id' => $team->id,
             'is_admin' => 1,
+            'can_manage_locked_manual_processes' => 1,
         ]);
 
         $this->assertNotNull(User::query()->where('email', 'created.user@example.test')->value('email_verified_at'));
@@ -98,6 +108,7 @@ class UsersTest extends TestCase
             'role_id' => $role->id,
             'team_id' => $team->id,
             'is_admin' => '1',
+            'can_manage_locked_manual_processes' => '1',
             'email_verified_at' => '1',
         ]);
 

@@ -61,6 +61,16 @@ class Manual extends Model implements HasMedia
         return $this->belongsToMany(Process::class, 'manual_processes', 'manual_id', 'processes_id');
     }
 
+    public function manualProcesses()
+    {
+        return $this->hasMany(ManualProcess::class, 'manual_id');
+    }
+
+    public function processNameLocks()
+    {
+        return $this->hasMany(ManualProcessNameLock::class, 'manual_id');
+    }
+
     public function builder()
     {
         return $this->belongsTo(Builder::class, 'builders_id');

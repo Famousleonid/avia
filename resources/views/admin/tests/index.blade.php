@@ -4,7 +4,7 @@
     <style>
         .qa-card {
             border: 1px solid #2d3640;
-            border-radius: 14px;
+            border-radius: 8px;
             background: #171c22;
             box-shadow: 0 14px 30px rgba(0, 0, 0, .18);
         }
@@ -31,6 +31,12 @@
             border: 1px solid rgba(220, 53, 69, .35);
         }
 
+        .qa-status-pill.running {
+            background: rgba(255, 193, 7, .16);
+            color: #ffd970;
+            border: 1px solid rgba(255, 193, 7, .35);
+        }
+
         .qa-status-pill.unknown {
             background: rgba(108, 117, 125, .16);
             color: #c8cdd3;
@@ -46,13 +52,13 @@
             overflow: auto;
             background: #0d1117;
             color: #c9d1d9;
-            border-radius: 10px;
+            border-radius: 8px;
             padding: 1rem;
             border: 1px solid #222b36;
         }
 
         .qa-hero {
-            border-radius: 18px;
+            border-radius: 8px;
             background: linear-gradient(135deg, rgba(13,110,253,.18), rgba(32,201,151,.12));
             border: 1px solid rgba(13,110,253,.18);
         }
@@ -60,17 +66,27 @@
 @endsection
 
 @section('content')
+    @php
+        $hasRunningSuites = false;
+        foreach ($suites as $suiteMeta) {
+            if (($suiteMeta['status'] ?? 'unknown') === 'running') {
+                $hasRunningSuites = true;
+                break;
+            }
+        }
+    @endphp
+
     <div class="container-fluid py-3">
         <div class="qa-hero p-4 mb-4">
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
                 <div>
                     <h2 class="mb-2 text-white">QA Test Dashboard</h2>
                     <p class="mb-0 text-white-50">
-                        Запуск smoke и полного feature-набора из админки с сохранением последнего результата.
+                        Run the smoke or full feature suite from the admin panel and keep the latest result on the page.
                     </p>
                 </div>
                 <div class="text-end text-white-50 small">
-                    Команда для cron/ручного запуска:
+                    CLI shortcuts:
                     <div><code>php artisan qa:run-tests smoke</code></div>
                     <div><code>php artisan qa:run-tests feature</code></div>
                 </div>
@@ -85,7 +101,7 @@
                     $suiteStatus = $suite['status'] ?? 'unknown';
                     $suiteSummary = $suite['summary'] ?? 'Not run yet';
                     $durationMs = $suite['duration_ms'] ?? null;
-                    $finishedAt = $suite['finished_at'] ?? '—';
+                    $finishedAt = $suite['finished_at'] ?? '-';
                     $suiteOutput = $suite['output'] ?? '';
                 @endphp
 
@@ -100,6 +116,8 @@
                                 <span class="qa-status-pill {{ $suiteStatus }}">
                                     @if($suiteStatus === 'passed')
                                         <i class="bi bi-check-circle-fill"></i>
+                                    @elseif($suiteStatus === 'running')
+                                        <i class="bi bi-arrow-repeat"></i>
                                     @elseif($suiteStatus === 'failed')
                                         <i class="bi bi-x-circle-fill"></i>
                                     @else
@@ -110,8 +128,9 @@
 
                                 <form method="POST" action="{{ route('admin.tests.run', $suiteKey) }}">
                                     @csrf
-                                    <button type="submit" class="btn btn-sm btn-outline-info">
-                                        <i class="bi bi-play-fill"></i> Запустить
+                                    <button type="submit" class="btn btn-sm btn-outline-info" {{ $suiteStatus === 'running' ? 'disabled' : '' }}>
+                                        <i class="bi {{ $suiteStatus === 'running' ? 'bi-hourglass-split' : 'bi-play-fill' }}"></i>
+                                        {{ $suiteStatus === 'running' ? 'Running...' : 'Run' }}
                                     </button>
                                 </form>
                             </div>
@@ -124,7 +143,7 @@
                             </div>
                             <div class="col-sm-4">
                                 <div class="small text-white-50">Duration</div>
-                                <div class="text-white">{{ $durationMs !== null ? number_format($durationMs) . ' ms' : '—' }}</div>
+                                <div class="text-white">{{ $durationMs !== null ? number_format($durationMs) . ' ms' : '-' }}</div>
                             </div>
                             <div class="col-sm-4">
                                 <div class="small text-white-50">Last run</div>
@@ -133,12 +152,22 @@
                         </div>
 
                         <details>
-                            <summary class="text-info mb-3" style="cursor:pointer;">Показать вывод</summary>
-                            <div class="qa-output">{{ $suiteOutput !== '' ? $suiteOutput : 'Вывод пока отсутствует.' }}</div>
+                            <summary class="text-info mb-3" style="cursor:pointer;">Show output</summary>
+                            <div class="qa-output">{{ $suiteOutput !== '' ? $suiteOutput : 'No output yet.' }}</div>
                         </details>
                     </div>
                 </div>
             @endforeach
         </div>
     </div>
+@endsection
+
+@section('scripts')
+    @if($hasRunningSuites)
+        <script>
+            window.setTimeout(function () {
+                window.location.reload();
+            }, 5000);
+        </script>
+    @endif
 @endsection

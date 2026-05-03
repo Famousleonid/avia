@@ -134,37 +134,51 @@
                         </thead>
                         <tbody>
                             @foreach($man_processes as $man_process)
+                                @php
+                                    $currentProcess = $man_process->process;
+                                    $currentProcessName = $currentProcess?->process_name;
+                                    $groupLock = $currentProcessName ? ($processNameLocks[$currentProcessName->id] ?? null) : null;
+                                    $rowLocked = $man_process->is_locked;
+                                @endphp
                                 <tr>
                                     <td class="text-center">
-                                        @foreach($processes as $process)
-                                            @if($process->id == $man_process->processes_id)
-                                                @foreach($processNames as $proName)
-                                                    @if($proName->id == $process->process_names_id)
-                                                     {{$proName->name}}
-                                                    @endif
-                                                @endforeach
-                                            @endif
-                                        @endforeach
+                                        {{ $currentProcessName?->name }}
+                                        @if($groupLock)
+                                            <div class="small text-muted">Group locked by {{ $groupLock->lockedBy?->name ?? 'Unknown user' }}</div>
+                                        @elseif($rowLocked)
+                                            <div class="small text-muted">Locked by {{ $man_process->lockedBy?->name ?? 'Unknown user' }}</div>
+                                        @endif
                                     </td>
                                     <td class="text-center">
-                                        @foreach($processes as $process)
-                                            @if($process->id == $man_process->processes_id)
-                                                <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{$process->process}}</span>
-                                            @endif
-                                        @endforeach
+                                        <span @if(strlen($currentProcess?->process ?? '') > 40) class="process-text-long" @endif>{{ $currentProcess?->process }}</span>
                                     </td>
                                     <td class="text-center">
-{{--                                        {{$man_process->id}}--}}
-                                        <a href="{{ route('manual_processes.edit', ['manual_process' => $man_process->id]) }}" class="btn btn-outline-primary btn-sm">
+                                        <a href="{{ route('manual_processes.edit', ['manual_process' => $man_process->id]) }}" class="btn btn-outline-primary btn-sm @if($rowLocked && ! $userCanManageLockedManualProcesses) disabled @endif" @if($rowLocked && ! $userCanManageLockedManualProcesses) aria-disabled="true" tabindex="-1" @endif>
                                             <i class="bi bi-pencil-square"></i>
                                         </a>
                                         <form action="{{ route('manual_processes.destroy', ['manual_process' => $man_process->id]) }}" method="POST" style="display:inline;">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this process?')">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this process?')" @disabled($rowLocked && ! $userCanManageLockedManualProcesses)>
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </form>
+                                        @if($rowLocked)
+                                            <form action="{{ route('manuals.manual-process-locks.unlock', ['manual' => $manual, 'manualProcess' => $man_process]) }}" method="POST" style="display:inline;">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary" @disabled(! $userCanManageLockedManualProcesses)>
+                                                    <i class="bi bi-unlock-fill"></i>
+                                                </button>
+                                            </form>
+                                        @else
+                                            <form action="{{ route('manuals.manual-process-locks.lock', ['manual' => $manual, 'manualProcess' => $man_process]) }}" method="POST" style="display:inline;">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary" @disabled(! $userCanManageLockedManualProcesses)>
+                                                    <i class="bi bi-lock-fill"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     </td>
                                 </tr>
                             @endforeach

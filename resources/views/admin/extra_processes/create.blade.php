@@ -345,6 +345,7 @@
                     <div class="mb-3">
                         <label for="newProcessInput" class="form-label">New Process</label>
                         <input type="text" class="form-control" id="newProcessInput" placeholder="Enter new process">
+                        <div id="processCreateRestriction" class="small text-info mt-2 d-none"></div>
                     </div>
                     <!-- Секция "Existing Processes" – подгружаются availableProcesses -->
                     <div class="mb-3">
@@ -736,6 +737,30 @@
         // Глобальная переменная для хранения ссылки на текущую строку
         let currentRow = null;
 
+        function updateExtraProcessCreateState(canCreate, message) {
+            const input = document.getElementById('newProcessInput');
+            const note = document.getElementById('processCreateRestriction');
+            const saveBtn = document.getElementById('saveProcessModal');
+
+            if (!input || !note || !saveBtn) {
+                return;
+            }
+
+            input.disabled = !canCreate;
+            if (!canCreate) {
+                input.value = '';
+                input.placeholder = 'New subprocess is locked for this process group.';
+                note.textContent = message || 'Only selecting existing processes is allowed.';
+                note.classList.remove('d-none');
+                saveBtn.textContent = 'Use Selected';
+            } else {
+                input.placeholder = 'Enter new process';
+                note.textContent = '';
+                note.classList.add('d-none');
+                saveBtn.textContent = 'Save Process';
+            }
+        }
+
         // Используем делегирование событий на контейнере
         document.getElementById('processes-container').addEventListener('click', function(e) {
             const btn = e.target.closest('.btn[data-bs-target="#addProcessModal"]');
@@ -759,6 +784,7 @@
                 })
                 .then(data => {
                     const container = document.getElementById('existingProcessContainer');
+                    updateExtraProcessCreateState(!!data.canCreateProcess, data.createProcessMessage || '');
                     container.innerHTML = '';
                     if (data.availableProcesses && data.availableProcesses.length > 0) {
                         data.availableProcesses.forEach(process => {
@@ -776,6 +802,7 @@
                 })
                 .catch(error => {
                     console.error('Error loading processes:', error);
+                    updateExtraProcessCreateState(false, 'Creating new process is temporarily unavailable.');
                     document.getElementById('existingProcessContainer').innerHTML = '<div>Error loading processes</div>';
                 });
         });
@@ -783,8 +810,10 @@
         // Обработка нажатия кнопки "Save Process" в модальном окне
         document.getElementById('saveProcessModal').addEventListener('click', function() {
             const processNameId = document.getElementById('modalProcessNameId').value;
-            const newProcess = document.getElementById('newProcessInput').value.trim();
+            const newProcessInput = document.getElementById('newProcessInput');
+            const newProcess = newProcessInput.value.trim();
             const selectedRadio = document.querySelector('#existingProcessContainer input[type="radio"]:checked');
+            const restrictionMessage = document.getElementById('processCreateRestriction')?.textContent || '';
 
             if (newProcess === '' && !selectedRadio) {
                 window.showNotification("Enter a new process or select an existing one.");
@@ -798,6 +827,11 @@
                 const saveButton = document.querySelector('button[type="submit"]');
 
                 if (newProcess !== '') {
+                    if (newProcessInput.disabled) {
+                        showNotification(restrictionMessage || 'Only selecting existing processes is allowed.', 'warning');
+                        return;
+                    }
+
                     const formData = new FormData();
                     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
                     formData.append('process_names_id', processNameId);

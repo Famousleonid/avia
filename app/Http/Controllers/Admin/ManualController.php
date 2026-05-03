@@ -7,6 +7,7 @@ use App\Models\Builder;
 use App\Models\Component;
 use App\Models\Manual;
 use App\Models\ManualProcess;
+use App\Models\ManualProcessNameLock;
 use App\Models\StdProcess;
 use App\Models\Plane;
 use App\Models\Process;
@@ -216,7 +217,7 @@ class ManualController extends Controller
 
         // Processes: процессы руководства с подгруженным именем, сортировка по ProcessName (abc)
         $manualProcesses = ManualProcess::where('manual_id', $cmm->id)
-            ->with(['process.process_name'])
+            ->with(['process.process_name', 'lockedBy'])
             ->get()
             ->sortBy(function ($mp) {
                 return $mp->process && $mp->process->process_name
@@ -224,6 +225,37 @@ class ManualController extends Controller
                     : '';
             })
             ->values();
+
+        $processNameLocks = ManualProcessNameLock::query()
+            ->where('manual_id', $cmm->id)
+            ->with('lockedBy')
+            ->get()
+            ->keyBy('process_name_id');
+
+        $manualProcessGroups = $manualProcesses
+            ->groupBy(function (ManualProcess $manualProcess) {
+                return (int) ($manualProcess->process?->process_names_id ?? 0);
+            })
+            ->map(function ($rows, $processNameId) use ($processNameLocks) {
+                /** @var \Illuminate\Support\Collection $rows */
+                $firstRow = $rows->first();
+                $processName = $firstRow?->process?->process_name;
+                $groupLock = $processNameId ? $processNameLocks->get((int) $processNameId) : null;
+
+                return [
+                    'process_name' => $processName,
+                    'group_lock' => $groupLock,
+                    'items' => $rows->sortBy(function (ManualProcess $manualProcess) {
+                        return mb_strtolower((string) ($manualProcess->process?->process ?? ''));
+                    })->values(),
+                ];
+            })
+            ->sortBy(function (array $group) {
+                return mb_strtolower((string) ($group['process_name']?->name ?? ''));
+            })
+            ->values();
+
+        $userCanManageLockedManualProcesses = auth()->user()?->canManageLockedManualProcesses() ?? false;
 
         if (in_array($manualShowTab, ['std'], true)) {
             StdProcess::syncEmptyTypesFromMedia($cmm);
@@ -264,7 +296,7 @@ class ManualController extends Controller
         ];
 
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
-        'units','parts','manualProcesses','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists'
+        'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists'
         ));
 
     }

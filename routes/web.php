@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\ExtraProcessController;
 use App\Http\Controllers\Admin\GeneralTaskController;
 use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\ManualProcessController;
+use App\Http\Controllers\Admin\ManualProcessLockController;
 use App\Http\Controllers\Admin\ProcessController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RmReportController;
@@ -307,6 +308,10 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::resource('/processes', ProcessController::class);
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::resource('/manual_processes', ManualProcessController::class);
+    Route::post('manuals/{manual}/process-name-locks/{processName}', [ManualProcessLockController::class, 'lockProcessName'])->name('manuals.process-name-locks.lock');
+    Route::delete('manuals/{manual}/process-name-locks/{processName}', [ManualProcessLockController::class, 'unlockProcessName'])->name('manuals.process-name-locks.unlock');
+    Route::post('manuals/{manual}/manual-process-locks/{manualProcess}', [ManualProcessLockController::class, 'lockManualProcess'])->name('manuals.manual-process-locks.lock');
+    Route::delete('manuals/{manual}/manual-process-locks/{manualProcess}', [ManualProcessLockController::class, 'unlockManualProcess'])->name('manuals.manual-process-locks.unlock');
 
 
     Route::resource('/log_card', LogCardController::class);

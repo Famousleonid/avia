@@ -288,6 +288,7 @@
                             <div class="mb-3">
                                 <label for="newProcessInput" class="form-label">New Process</label>
                                 <input type="text" class="form-control" id="newProcessInput" placeholder="Enter new process">
+                                <div id="processCreateRestriction" class="small text-info mt-2 d-none"></div>
                             </div>
                             <!-- Скрытое поле для хранения выбранного process_name_id -->
                             <input type="hidden" id="modalProcessNameId">
@@ -795,6 +796,8 @@
                     return response.json();
                 })
                 .then(data => {
+                    processRow.dataset.canCreateProcess = data.canCreateProcess ? '1' : '0';
+                    processRow.dataset.createProcessMessage = data.createProcessMessage || '';
                     processOptionsContainer.innerHTML = ''; // Очищаем контейнер
 
                     let hasProcesses = false;
@@ -1535,6 +1538,30 @@
         // Глобальная переменная для хранения ссылки на текущую строку (например, process-row)
         let currentRow = null;
 
+        function updateTdrProcessCreateState(canCreate, message) {
+            const input = document.getElementById('newProcessInput');
+            const note = document.getElementById('processCreateRestriction');
+            const saveBtn = document.getElementById('saveProcessModal');
+
+            if (!input || !note || !saveBtn) {
+                return;
+            }
+
+            input.disabled = !canCreate;
+            if (!canCreate) {
+                input.value = '';
+                input.placeholder = 'New subprocess is locked for this process group.';
+                note.textContent = message || 'Only existing processes can be selected.';
+                note.classList.remove('d-none');
+                saveBtn.disabled = true;
+            } else {
+                input.placeholder = 'Enter new process';
+                note.textContent = '';
+                note.classList.add('d-none');
+                saveBtn.disabled = false;
+            }
+        }
+
         // При попытке открыть модальное окно добавления спецификации — проверяем, что выбран Process Name
         document.getElementById('addProcessModal').addEventListener('show.bs.modal', function(e) {
             const triggerBtn = e.relatedTarget;
@@ -1546,7 +1573,12 @@
             if (!processNameId || processNameId === '') {
                 e.preventDefault();
                 showNotification('{{ __("Please select Process Name before adding specification.") }}', 'warning');
+                return;
             }
+
+            const canCreate = row?.dataset.canCreateProcess === '1';
+            const message = row?.dataset.createProcessMessage || '';
+            updateTdrProcessCreateState(canCreate, message);
         });
 
         // Делегирование: при клике на "+" сохраняем текущую строку и данные модального окна
@@ -1565,13 +1597,21 @@
 
             // Очищаем поле ввода нового процесса
             document.getElementById('newProcessInput').value = '';
+            updateTdrProcessCreateState(currentRow?.dataset.canCreateProcess === '1', currentRow?.dataset.createProcessMessage || '');
         });
 
 
         // Обработка нажатия кнопки "Save Process" в модальном окне
         document.getElementById('saveProcessModal').addEventListener('click', function() {
             const processNameId = document.getElementById('modalProcessNameId').value;
-            const newProcess = document.getElementById('newProcessInput').value.trim();
+            const newProcessInput = document.getElementById('newProcessInput');
+            const newProcess = newProcessInput.value.trim();
+            const restrictionMessage = document.getElementById('processCreateRestriction')?.textContent || '';
+
+            if (newProcessInput.disabled) {
+                showNotification(restrictionMessage || '{{ __("Creating new process is not allowed.") }}', 'warning');
+                return;
+            }
 
             // Требуем ввод нового процесса вручную
             if (newProcess === '') {

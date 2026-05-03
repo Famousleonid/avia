@@ -3,6 +3,9 @@
 @extends('admin.master')
 
 @section('content')
+    @php
+        $canDeleteCustomers = auth()->check() && auth()->user()->roleIs('Admin');
+    @endphp
     <style>
         .table-wrapper{
             flex: 1 1 auto;
@@ -116,11 +119,13 @@
                                         onclick="populateEditModal({{ $customer->id }}, @js($customer->name))">
                                     <i class="bi bi-pencil-square"></i>
                                 </button>
-                                <button class="btn btn-outline-danger btn-sm"
-                                        data-bs-toggle="modal" data-bs-target="#deleteModal"
-                                        onclick="populateDeleteModal({{ $customer->id }}, @js($customer->name))">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                @if($canDeleteCustomers)
+                                    <button class="btn btn-outline-danger btn-sm"
+                                            data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                            onclick="populateDeleteModal({{ $customer->id }}, @js($customer->name))">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                @endif
                             </td>
                         </tr>
                     @endforeach
@@ -178,26 +183,28 @@
         </div>
     </div>
 
-    {{-- Delete Modal --}}
-    <div class="modal fade dir-modal" id="deleteModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog dir-modal-dialog">
-            <div class="modal-content dir-modal-content">
-                <div class="modal-header dir-modal-header">
-                    <h5 id="deleteModalTitle" class="modal-title">Delete Customer</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body dir-modal-body">
-                    <p>Are you sure you want to delete this customer?</p>
-                    <form id="deleteForm" method="POST" action="{{ route('customers.destroy', ':id') }}">
-                        @csrf
-                        @method('DELETE')
-                        <input type="hidden" id="deleteId" name="id">
-                        <button type="submit" class="btn btn-outline-danger" onclick="showLoadingSpinner()">Delete</button>
-                    </form>
+    @if($canDeleteCustomers)
+        {{-- Delete Modal --}}
+        <div class="modal fade dir-modal" id="deleteModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog dir-modal-dialog">
+                <div class="modal-content dir-modal-content">
+                    <div class="modal-header dir-modal-header">
+                        <h5 id="deleteModalTitle" class="modal-title">Delete Customer</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body dir-modal-body">
+                        <p>Are you sure you want to delete this customer?</p>
+                        <form id="deleteForm" method="POST" action="{{ route('customers.destroy', ':id') }}">
+                            @csrf
+                            @method('DELETE')
+                            <input type="hidden" id="deleteId" name="id">
+                            <button type="submit" class="btn btn-outline-danger" onclick="showLoadingSpinner()">Delete</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    @endif
 @endsection
 
 @section('scripts')

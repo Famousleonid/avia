@@ -33,6 +33,23 @@ class AdminTestDashboardTest extends TestCase
         $response->assertSee('Feature Suite');
     }
 
+    public function test_system_admin_can_start_suite_in_background(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $runner = \Mockery::mock(TestSuiteRunnerService::class);
+        $runner->shouldReceive('start')->once()->with('feature')->andReturn([
+            'label' => 'Feature Suite',
+            'status' => 'running',
+            'summary' => 'Running...',
+        ]);
+        $this->app->instance(TestSuiteRunnerService::class, $runner);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.run', 'feature'));
+
+        $response->assertRedirect(route('admin.tests.index'));
+        $response->assertSessionHas('success');
+    }
+
     public function test_admin_without_is_admin_cannot_open_test_dashboard(): void
     {
         $roleOnlyAdmin = $this->createUserWithRole('Admin', ['is_admin' => 0]);

@@ -56,6 +56,7 @@ class UserController extends Controller
 
         $user = User::create($data);
         $user->is_admin = $request->boolean('is_admin');
+        $user->can_manage_locked_manual_processes = $request->boolean('can_manage_locked_manual_processes');
         $user->email_verified_at = $request->has('email_verified_at') ? now() : null;
         $user->notification_prefs = array_merge($user->notification_prefs ?? [], [
             'manuals_full_access' => $request->boolean('manuals_full_access'),
@@ -125,6 +126,7 @@ class UserController extends Controller
         }
 
         $validated['is_admin'] = $request->boolean('is_admin');
+        $validated['can_manage_locked_manual_processes'] = $request->boolean('can_manage_locked_manual_processes');
         $validated['email_verified_at'] = $request->has('email_verified_at') ? now() : null;
         $validated['notification_prefs'] = array_merge($user->notification_prefs ?? [], [
             'manuals_full_access' => $request->boolean('manuals_full_access'),

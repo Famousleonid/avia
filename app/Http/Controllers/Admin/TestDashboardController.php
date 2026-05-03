@@ -24,10 +24,10 @@ class TestDashboardController extends Controller
     {
         abort_unless(auth()->user()?->isSystemAdmin(), 403);
 
-        $result = $this->runner->run($suite);
+        $result = $this->runner->start($suite);
 
         return redirect()
             ->route('admin.tests.index')
-            ->with($result['status'] === 'passed' ? 'success' : 'warning', $result['label'] . ': ' . $result['summary']);
+            ->with('success', $result['label'] . ': started in background.');
     }
 }

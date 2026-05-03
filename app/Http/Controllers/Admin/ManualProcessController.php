@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ManualProcess;
 use App\Models\Process;
 use App\Models\ProcessName;
+use App\Services\ProcessAccessDecision;
+use App\Services\ProcessAccessGuard;
 use Illuminate\Http\Request;
 
 class ManualProcessController extends Controller
@@ -61,6 +63,14 @@ class ManualProcessController extends Controller
     public function edit($id)
     {
         $manualProcess = ManualProcess::findOrFail($id);
+        $manual = $manualProcess->manual;
+        abort_unless($manual, 404);
+        $manualProcess->load(['process.process_name', 'lockedBy']);
+        $decision = $this->guard()->canUpdateManualProcess(request()->user(), $manualProcess);
+        if (! $decision->allowed) {
+            return $this->denyDecision(request(), $decision, route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']));
+        }
+
         $process = Process::findOrFail($manualProcess->processes_id);
         $manualId = $manualProcess->manual_id;
         $processNames = ProcessName::where('id',$process->process_names_id)->first();
@@ -81,7 +91,15 @@ class ManualProcessController extends Controller
     public function update(Request $request, $id)
     {
         $manualProcess = ManualProcess::findOrFail($id);
+        $manual = $manualProcess->manual;
+        abort_unless($manual, 404);
+
         $process = Process::findOrFail($manualProcess->processes_id);
+        $manualProcess->setRelation('process', $process);
+        $decision = $this->guard()->canUpdateManualProcess($request->user(), $manualProcess);
+        if (! $decision->allowed) {
+            return $this->denyDecision($request, $decision, route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']));
+        }
 
         $manualId = $manualProcess->manual_id;
 
@@ -123,6 +141,15 @@ class ManualProcessController extends Controller
     public function destroy($id)
     {
         $manualProcess = ManualProcess::findOrFail($id);
+        $manual = $manualProcess->manual;
+        abort_unless($manual, 404);
+
+        $manualProcess->load('process');
+        $decision = $this->guard()->canDeleteManualProcess(request()->user(), $manualProcess);
+        if (! $decision->allowed) {
+            return $this->denyDecision(request(), $decision, route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']));
+        }
+
         $manualId = $manualProcess->manual_id;
         $manualProcess->delete();
 
@@ -132,5 +159,27 @@ class ManualProcessController extends Controller
         }
         return redirect()->route('processes.edit', ['id' => $manualId])
             ->with('success', 'Process deleted successfully');
+    }
+
+    private function guard(): ProcessAccessGuard
+    {
+        return app(ProcessAccessGuard::class);
+    }
+
+    private function denyDecision(Request $request, ProcessAccessDecision $decision, string $fallbackUrl)
+    {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $decision->message,
+                'reason' => $decision->reason,
+                'contacts' => $decision->contacts,
+            ], 403);
+        }
+
+        $returnTo = (string) $request->input('return_to', '');
+
+        return redirect($returnTo !== '' ? $returnTo : $fallbackUrl)
+            ->with('error', $decision->message);
     }
 }

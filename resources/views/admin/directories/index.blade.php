@@ -14,6 +14,11 @@
 @section('content')
     @php
         $isVendorDirectory = $slug === 'vendors';
+        $canDeleteDirectoryItems = auth()->check() && auth()->user()->roleIs('Admin');
+        $hideProcessNameTableFields = ! $canDeleteDirectoryItems && $slug === 'process_names'
+            ? ['notify_user_id', 'print_form']
+            : [];
+        $hideProcessNameFormFields = $hideProcessNameTableFields;
     @endphp
 
     <div class="card border-0 dir-page">
@@ -59,6 +64,7 @@
                             <thead>
                             <tr>
                                 @foreach($cfg['fields'] as $field => $label)
+                                    @continue(in_array($field, $hideProcessNameTableFields, true))
                                     <th class="text-primary sortable px-2" data-sort-field="{{ $field }}" data-direction="asc" style="{{ $field === 'print_form' ? 'width:8%; min-width:90px;' : 'min-width:140px;' }}">
                                         {{ __($label) }}
                                         <i class="bi bi-chevron-expand ms-1"></i>
@@ -86,6 +92,7 @@
                                     @endforeach
                                 >
                                     @foreach($cfg['fields'] as $field => $label)
+                                        @continue(in_array($field, $hideProcessNameTableFields, true))
                                         @php
                                             $meta = $cfg['fieldsMeta'][$field] ?? [];
                                             $type = $meta['type'] ?? 'text';
@@ -123,7 +130,9 @@
                                             @else
                                                 <button class="btn btn-outline-primary btn-sm btn-icon me-2" data-bs-toggle="modal" data-bs-target="#dirEditModal" onclick="dirOpenEdit(this.closest('tr'))" title="Edit"><i class="bi bi-pencil-square"></i></button>
                                             @endif
-                                            <button class="btn btn-outline-danger btn-sm btn-icon" data-bs-toggle="modal" data-bs-target="#dirDeleteModal" onclick="dirOpenDelete(this.closest('tr'))" title="Delete"><i class="bi bi-trash"></i></button>
+                                            @if($canDeleteDirectoryItems)
+                                                <button class="btn btn-outline-danger btn-sm btn-icon" data-bs-toggle="modal" data-bs-target="#dirDeleteModal" onclick="dirOpenDelete(this.closest('tr'))" title="Delete"><i class="bi bi-trash"></i></button>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -154,6 +163,7 @@
                     <form id="dirCreateForm" method="POST" action="{{ $cfg['baseUrl'] }}">
                         @csrf
                         @foreach($cfg['fields'] as $field => $label)
+                            @continue(in_array($field, $hideProcessNameFormFields, true))
                             @php
                                 $meta = $cfg['fieldsMeta'][$field] ?? [];
                                 $rules = $meta['rules'] ?? [];
@@ -208,6 +218,7 @@
                         @method('PUT')
                         <input type="hidden" id="dirEditId" name="id">
                         @foreach($cfg['fields'] as $field => $label)
+                            @continue(in_array($field, $hideProcessNameFormFields, true))
                             @php
                                 $meta = $cfg['fieldsMeta'][$field] ?? [];
                                 $rules = $meta['rules'] ?? [];

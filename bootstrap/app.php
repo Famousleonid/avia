@@ -1,5 +1,10 @@
 <?php
 
+if (empty($_ENV['APP_KEY']) && empty($_SERVER['APP_KEY'])) {
+    // Ensure web requests still see .env values when the runtime starts without process env vars.
+    Dotenv\Dotenv::createMutable(dirname(__DIR__))->safeLoad();
+}
+
 /*
 |--------------------------------------------------------------------------
 | Create The Application

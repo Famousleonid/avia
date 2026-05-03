@@ -136,6 +136,19 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row g-3 mt-0">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="can_manage_locked_manual_processes"
+                                       id="can_manage_locked_manual_processes"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('can_manage_locked_manual_processes') ? 'checked' : '' }}>
+                                <label for="can_manage_locked_manual_processes" class="form-check-label">Can manage locked manual processes in all manuals</label>
+                            </div>
+                        </div>
+                    </div>
 
                     {{-- Buttons --}}
                     <div class="d-flex gap-2 mt-2">

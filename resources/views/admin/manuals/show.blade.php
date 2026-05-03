@@ -91,13 +91,13 @@
             width: 100%;
         }
         #nav-processes .table th:nth-child(1),
-        #nav-processes .table td:nth-child(1) { width: 10%; }
+        #nav-processes .table td:nth-child(1) { width: 7%; }
         #nav-processes .table th:nth-child(2),
-        #nav-processes .table td:nth-child(2) { width: 15%; }
+        #nav-processes .table td:nth-child(2) { width: 23%; }
         #nav-processes .table th:nth-child(3),
-        #nav-processes .table td:nth-child(3) { width: 60%; }
+        #nav-processes .table td:nth-child(3) { width: 50%; }
         #nav-processes .table th:nth-child(4),
-        #nav-processes .table td:nth-child(4) { width: 15%; }
+        #nav-processes .table td:nth-child(4) { width: 20%; }
 
         .card shadow {
             max-width: 1200px;
@@ -177,6 +177,64 @@
             font-size: 12px;
             color: grey;
 
+        }
+        .manual-process-group-row td {
+            background: rgba(13, 110, 253, 0.08);
+            font-weight: 600;
+            padding-top: 6px;
+            padding-bottom: 6px;
+        }
+        .manual-process-child-row td:nth-child(1),
+        .manual-process-child-row td:nth-child(2) {
+            color: #6c757d;
+            border-top-color: transparent !important;
+            border-bottom-color: transparent !important;
+        }
+        .manual-process-child-row td {
+            padding-top: 5px;
+            padding-bottom: 5px;
+            line-height: 1.2;
+        }
+        .manual-process-lock-cell {
+            text-align: center;
+            white-space: nowrap;
+        }
+        .manual-process-lock-button {
+            display: inline-block;
+        }
+        .manual-process-state-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            margin-right: 6px;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+        .manual-process-state-icon.is-locked {
+            color: #f0ad4e;
+        }
+        .manual-process-name-spacer {
+            display: block;
+            min-height: 16px;
+        }
+        .manual-process-actions {
+            white-space: nowrap;
+        }
+        .manual-process-inline-text {
+            display: inline-flex;
+            align-items: center;
+            gap: 0;
+            min-height: 18px;
+        }
+        .manual-process-lock-button .btn-sm,
+        .manual-process-actions .btn-sm {
+            padding: 2px 8px;
+            font-size: 12px;
+            line-height: 1.15;
+        }
+        .manual-process-actions .bi {
+            font-size: 12px;
         }
         #nav-std .std-inner-toolbar-right {
             min-width: 0;
@@ -261,7 +319,7 @@
                 </a>
 
                 <div class="ms-3">
-                    <h5 class="ms-2 "><strong class="text-secondary">{{__('CMM:')}}</strong> <span class="manual-show-cmm-number">{{ $cmm->number }}</span></h5>
+                    <h5 class="ms-2 "><strong class="text-secondary">{{__('CMM:')}}</strong> <span class="manual-show-cmm-number text-info">{{ $cmm->number }}</span></h5>
                     <h5 class="ms-2"><strong class="text-secondary">{{__('Description:')}}</strong> {{ $cmm->title }}</h5>
                 </div>
             </div>
@@ -482,33 +540,108 @@
                         <table class="table table-hover table-bordered dir-table">
                             <thead class="bg-gradient">
                             <tr>
-                                <th class="text-center bg-gradient" scope="col">#</th>
+                                <th class="text-center bg-gradient" scope="col">Lock</th>
                                 <th class="text-center bg-gradient" scope="col">Process Name</th>
-                                <th class="text-center bg-gradient" scope="col">Processes</th>
+                                <th class="text-center bg-gradient" scope="col">Process / Specification</th>
                                 <th class="text-center bg-gradient" scope="col">Action</th>
                             </tr>
                             </thead>
                             <tbody class="text-center">
-                            @php $i=1 @endphp
-                            @foreach($manualProcesses as $mp)
-                                <tr >
-                                    <td class="align-content-center">{{$i++}}</td>
-                                    <td class="align-content-center"> {{$mp->process->process_name->name}} </td>
-                                    <td class="align-content-center text-start ps-3"> {{$mp->process->process}} </td>
-                                    <td class="align-content-center">
-                                        <a href="{{ route('manual_processes.edit', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}" class="btn btn-outline-primary btn-sm" title="{{ __('Edit') }}">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </a>
-                                        <form action="{{ route('manual_processes.destroy', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ __('Are you sure you want to delete this process?') }}');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <input type="hidden" name="return_to" value="{{ $manualUrlProcesses }}">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="{{ __('Delete') }}">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
+                            @foreach($manualProcessGroups as $group)
+                                @php
+                                    $processName = $group['process_name'];
+                                    $groupLock = $group['group_lock'];
+                                @endphp
+                                <tr class="manual-process-group-row">
+                                    <td class="align-content-center manual-process-lock-cell">
+                                        @if($processName)
+                                            <form action="{{ $groupLock
+                                                ? route('manuals.process-name-locks.unlock', ['manual' => $cmm, 'processName' => $processName])
+                                                : route('manuals.process-name-locks.lock', ['manual' => $cmm, 'processName' => $processName]) }}"
+                                                  method="POST"
+                                                  class="manual-process-lock-button">
+                                                @csrf
+                                                @if($groupLock)
+                                                    @method('DELETE')
+                                                @endif
+                                                <input type="hidden" name="return_to" value="{{ $manualUrlProcesses }}">
+                                                <button type="submit" class="btn btn-outline-secondary btn-sm" title="{{ $groupLock ? 'Unlock group' : 'Lock group' }}" @disabled(! $userCanManageLockedManualProcesses)>
+                                                    {{ $groupLock ? 'Unlock' : 'Lock' }}
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                    <td class="align-content-center text-start">
+                                        <span class="manual-process-inline-text">
+                                            @if($groupLock)
+                                                <span class="manual-process-state-icon is-locked"
+                                                      title="Locked by {{ $groupLock->lockedBy?->name ?? 'Unknown user' }}">
+                                                    <i class="bi bi-lock-fill"></i>
+                                                </span>
+                                            @endif
+                                            <span>{{ $processName?->name ?? 'Unknown Process Name' }}</span>
+                                        </span>
+                                    </td>
+                                    <td class="align-content-center text-start">
+                                        &nbsp;
+                                    </td>
+                                    <td class="align-content-center manual-process-actions">
+                                        &nbsp;
                                     </td>
                                 </tr>
+                                @foreach($group['items'] as $mp)
+                                    @php
+                                        $rowLocked = $mp->is_locked;
+                                    @endphp
+                                    <tr class="manual-process-child-row">
+                                        <td class="align-content-center manual-process-lock-cell">
+                                            <form action="{{ $rowLocked
+                                                ? route('manuals.manual-process-locks.unlock', ['manual' => $cmm, 'manualProcess' => $mp])
+                                                : route('manuals.manual-process-locks.lock', ['manual' => $cmm, 'manualProcess' => $mp]) }}"
+                                                  method="POST"
+                                                  class="manual-process-lock-button">
+                                                @csrf
+                                                @if($rowLocked)
+                                                    @method('DELETE')
+                                                @endif
+                                                <input type="hidden" name="return_to" value="{{ $manualUrlProcesses }}">
+                                                <button type="submit" class="btn btn-outline-secondary btn-sm" title="{{ $rowLocked ? 'Unlock process' : 'Lock process' }}" @disabled(! $userCanManageLockedManualProcesses)>
+                                                    {{ $rowLocked ? 'Unlock' : 'Lock' }}
+                                                </button>
+                                            </form>
+                                        </td>
+                                        <td class="align-content-center text-start ps-4">
+                                            <span class="manual-process-name-spacer"></span>
+                                        </td>
+                                        <td class="align-content-center text-start ps-3">
+                                            <span class="manual-process-inline-text">
+                                                @if($rowLocked)
+                                                    <span class="manual-process-state-icon is-locked"
+                                                          title="Locked by {{ $mp->lockedBy?->name ?? 'Unknown user' }}">
+                                                        <i class="bi bi-lock-fill"></i>
+                                                    </span>
+                                                @endif
+                                                <span>{{ $mp->process?->process }}</span>
+                                            </span>
+                                        </td>
+                                        <td class="align-content-center manual-process-actions">
+                                            <a href="{{ route('manual_processes.edit', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}"
+                                               class="btn btn-outline-primary btn-sm @if($rowLocked && ! $userCanManageLockedManualProcesses) disabled @endif"
+                                               title="{{ __('Edit') }}"
+                                               @if($rowLocked && ! $userCanManageLockedManualProcesses) aria-disabled="true" tabindex="-1" @endif>
+                                                <i class="bi bi-pencil-square"></i>
+                                            </a>
+                                            <form action="{{ route('manual_processes.destroy', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ __('Are you sure you want to delete this process?') }}');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <input type="hidden" name="return_to" value="{{ $manualUrlProcesses }}">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="{{ __('Delete') }}" @disabled($rowLocked && ! $userCanManageLockedManualProcesses)>
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @endforeach
                             @endforeach
                             </tbody>
                         </table>

@@ -20,8 +20,8 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
 {
     use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers, LogsActivity, softDeletes;
 
-    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'role_id', 'phone', 'stamp', 'team_id', 'birthday', 'notification_prefs'];
-    protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date'];
+    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'can_manage_locked_manual_processes', 'role_id', 'phone', 'stamp', 'team_id', 'birthday', 'notification_prefs'];
+    protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date', 'can_manage_locked_manual_processes' => 'boolean'];
     protected $hidden = ['password', 'remember_token'];
     protected static $logAttributes = ['name',  'phone', 'stamp'];
     protected $dates = ['deleted_at'];
@@ -39,6 +39,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
                 'role_id',
                 'team_id',
                 'is_admin',
+                'can_manage_locked_manual_processes',
                 'email',
                 'birthday',
             ])
@@ -55,6 +56,11 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     public function isSystemAdmin(): bool
     {
         return $this->isAdmin() && $this->roleIs('Admin');
+    }
+
+    public function canManageLockedManualProcesses(): bool
+    {
+        return $this->isAdmin() || (bool) $this->can_manage_locked_manual_processes;
     }
 
     public function roleName(): ?string

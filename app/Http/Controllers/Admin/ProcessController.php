@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Manual;
 use App\Models\ManualProcess;
+use App\Models\ManualProcessNameLock;
 use App\Models\Process;
 use App\Models\ProcessName;
 use Illuminate\Contracts\Foundation\Application;
@@ -12,6 +13,8 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\ProcessAccessDecision;
+use App\Services\ProcessAccessGuard;
 
 class ProcessController extends Controller
 {
@@ -63,6 +66,10 @@ class ProcessController extends Controller
         }
 
         $manual = Manual::findOrFail($manualId);
+        $decision = $this->guard()->canManageManual($request->user(), $manual);
+        if (! $decision->allowed) {
+            return $this->denyDecision($request, $decision, route('manuals.index'));
+        }
         $processNames = ProcessName::forPicker()->orderBy('name')->get();
         $processes = Process::all();
 
@@ -84,14 +91,16 @@ class ProcessController extends Controller
             'manual_id' => 'required|integer|exists:manuals,id',
         ]);
 
-        $deny = $this->denyIfCannotManageManualParts($request, (int)$validated['manual_id']);
-        if ($deny) {
-            return $deny;
-        }
-
+        $manual = Manual::findOrFail((int) $validated['manual_id']);
+        $processName = ProcessName::findOrFail((int) $validated['process_names_id']);
         // Проверяем, какой сценарий используется
         if ($request->has('selected_process_id') && $request->selected_process_id) {
             // Сценарий 1: Выбор существующего процесса
+            $decision = $this->guard()->canAttachExistingManualProcess($request->user(), $manual);
+            if (! $decision->allowed) {
+                return $this->denyDecision($request, $decision, route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']));
+            }
+
             $validated['selected_process_id'] = $request->validate([
                 'selected_process_id' => 'required|integer|exists:processes,id'
             ])['selected_process_id'];
@@ -100,6 +109,11 @@ class ProcessController extends Controller
             $process = null; // Инициализируем переменную для случая выбора существующего процесса
         } else {
             // Сценарий 2: Создание нового процесса
+            $decision = $this->guard()->canCreateProcessDefinition($request->user(), $manual, $processName);
+            if (! $decision->allowed) {
+                return $this->denyDecision($request, $decision, route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes']));
+            }
+
             $validated['process'] = $request->validate([
                 'process' => 'required|string|max:255'
             ])['process'];
@@ -156,7 +170,25 @@ class ProcessController extends Controller
 
     public function getProcesses(Request $request)
     {
+        $manual = Manual::findOrFail((int) $request->query('manualId'));
+        $decision = $this->guard()->canBrowseProcessCatalog($request->user(), $manual);
+        if (! $decision->allowed) {
+            return response()->json([
+                'success' => false,
+                'message' => $decision->message,
+                'reason' => $decision->reason,
+                'contacts' => $decision->contacts,
+            ], 403);
+        }
+
         $processNameId = $request->query('processNameId');
+        $createDecision = null;
+        if ($processNameId) {
+            $processName = ProcessName::find((int) $processNameId);
+            if ($processName) {
+                $createDecision = $this->guard()->canCreateProcessDefinition($request->user(), $manual, $processName);
+            }
+        }
         $manualId = $request->query('manualId'); // Добавляем manualId в запрос
 
         // Определяем, является ли выбранный процесс одним из вариантов Machining
@@ -210,69 +242,10 @@ class ProcessController extends Controller
         return response()->json([
             'existingProcesses' => $existingProcesses,
             'availableProcesses' => $availableProcesses,
+            'canCreateProcess' => $createDecision?->allowed ?? false,
+            'createProcessMessage' => $createDecision && ! $createDecision->allowed ? $createDecision->message : null,
         ]);
     }
-
-    /**
-     * Same rule as Add/Edit parts:
-     * - Admin can manage all manuals
-     * - if manual has no explicit responsibles -> allowed for everyone
-     * - otherwise only users from manual_user_permissions may modify
-     */
-    private function denyIfCannotManageManualParts(Request $request, int $manualId)
-    {
-        if ($manualId <= 0) {
-            return null;
-        }
-
-        $user = auth()->user();
-        $canManageAllManualParts = (bool) ($user?->roleIs('Admin') ?? false);
-        if ($canManageAllManualParts) {
-            return null;
-        }
-
-        $manualHasAnyPermissions = DB::table('manual_user_permissions')
-            ->where('manual_id', $manualId)
-            ->exists();
-        if (! $manualHasAnyPermissions) {
-            return null;
-        }
-
-        $allowedManualIds = $user?->permittedManuals()->pluck('manuals.id')->all() ?? [];
-        $isAllowed = in_array($manualId, array_map('intval', $allowedManualIds), true);
-        if ($isAllowed) {
-            return null;
-        }
-
-        $responsibleNames = Manual::query()
-            ->with(['permittedUsers' => function ($q) {
-                $q->select('users.id', 'users.name');
-            }])
-            ->find($manualId)
-            ?->permittedUsers
-            ?->pluck('name')
-            ?->filter()
-            ?->unique()
-            ?->values()
-            ?->all() ?? [];
-
-        $responsiblesText = ! empty($responsibleNames)
-            ? implode(', ', $responsibleNames)
-            : 'Admin';
-
-        $message = 'No rights to submit process Contact: '.$responsiblesText.'.';
-
-        if ($request->ajax() || $request->wantsJson()) {
-            return response()->json([
-                'success' => false,
-                'message' => $message,
-            ], 403);
-        }
-
-        return redirect()->back()->with('error', $message);
-    }
-
-
 
     /**
      * Display the specified resource.
@@ -295,12 +268,25 @@ class ProcessController extends Controller
     {
 //        dd($id);
         $manual = Manual::findorFail($id);
+        $decision = $this->guard()->canManageManual(request()->user(), $manual);
+        if (! $decision->allowed) {
+            return $this->denyDecision(request(), $decision, route('manuals.index'));
+        }
         $processNames = ProcessName::forPicker()->orderBy('name')->get();
         $processes = Process::all();
-        $man_processes = ManualProcess::where('manual_id',$id)->get();
+        $man_processes = ManualProcess::query()
+            ->where('manual_id', $id)
+            ->with(['process.process_name', 'lockedBy'])
+            ->get();
+        $processNameLocks = ManualProcessNameLock::query()
+            ->where('manual_id', $id)
+            ->with('lockedBy')
+            ->get()
+            ->keyBy('process_name_id');
+        $userCanManageLockedManualProcesses = auth()->user()?->canManageLockedManualProcesses() ?? false;
 
         return view('admin.processes.edit', compact('manual','processNames',
-            'processes','man_processes'
+            'processes','man_processes', 'processNameLocks', 'userCanManageLockedManualProcesses'
 
         ));
     }
@@ -324,9 +310,31 @@ class ProcessController extends Controller
                 ->value('manual_id');
         }
 
-        $deny = $this->denyIfCannotManageManualParts($request, $manualId);
-        if ($deny) {
-            return $deny;
+        if ($manualId <= 0) {
+            return $this->denyDecision(
+                $request,
+                ProcessAccessDecision::deny('Manual context not found for this process.', 'manual_context_missing'),
+                route('processes.index')
+            );
+        }
+
+        $linkedManualProcess = ManualProcess::query()
+            ->with('process')
+            ->where('manual_id', $manualId)
+            ->where('processes_id', $process->id)
+            ->first();
+
+        if (! $linkedManualProcess) {
+            return $this->denyDecision(
+                $request,
+                ProcessAccessDecision::deny('Manual process link not found for this process.', 'manual_process_missing'),
+                route('processes.index')
+            );
+        }
+
+        $decision = $this->guard()->canUpdateManualProcess($request->user(), $linkedManualProcess);
+        if (! $decision->allowed) {
+            return $this->denyDecision($request, $decision, route('manuals.show', ['manual' => $manualId, 'tab' => 'processes']));
         }
 
         $validated = $request->validate([
@@ -377,5 +385,27 @@ class ProcessController extends Controller
     public function destroy($id)
     {
         //
+    }
+
+    private function guard(): ProcessAccessGuard
+    {
+        return app(ProcessAccessGuard::class);
+    }
+
+    private function denyDecision(Request $request, ProcessAccessDecision $decision, string $fallbackUrl)
+    {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $decision->message,
+                'reason' => $decision->reason,
+                'contacts' => $decision->contacts,
+            ], 403);
+        }
+
+        $returnTo = (string) $request->input('return_to', '');
+
+        return redirect($returnTo !== '' ? $returnTo : $fallbackUrl)
+            ->with('error', $decision->message);
     }
 }
