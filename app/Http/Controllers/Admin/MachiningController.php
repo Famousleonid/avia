@@ -38,6 +38,8 @@ class MachiningController extends Controller
             'machiningLinesPerWo' => $data['machiningLinesPerWo'],
             'machiningMachinists' => $data['machiningMachinists'],
             'canReorderMachining' => $data['canReorderMachining'],
+            /** Иначе после AJAX-обновления tbody колонка Processes у TDR пустая (шаблон использует {@see $machiningProcessCatalog}). */
+            'machiningProcessCatalog' => $data['machiningProcessCatalog'],
         ])->render();
 
         return response()->json([

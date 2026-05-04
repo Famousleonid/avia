@@ -2,12 +2,38 @@
                                 @php
                                     $wo = $row->workorder;
                                     $woIdInt = (int) $wo->id;
-                                    $machiningLineCountForWo = (int) ($machiningLinesPerWo->get($woIdInt)
-                                        ?? $machiningLinesPerWo->get((string) $woIdInt)
-                                        ?? 1);
-                                    /** Совпадает с MachiningListingRowsBuilder: первое вхождение WO после concat(queued, non-queued). Иначе при разрыве между bucket строки «лишней» WO ошибочно считались заголовком. */
-                                    $isFirstMachiningLineForWo = (bool) ($row->is_queue_master ?? false);
-                                    $machiningWoMasterIsExtra = ! $isFirstMachiningLineForWo && $machiningLineCountForWo > 1;
+                                    /** Совпадает с {@see \App\Services\MachiningListingRowsBuilder::machiningWoUiGroupKey} — несколько `workorders.id` могут иметь один номер WO на экране. */
+                                    $woUiGroupKey = (string) ($row->wo_ui_group_key ?? '');
+                                    if ($woUiGroupKey === '') {
+                                        $woUiGroupKey = (string) ((int) ($wo->customer_id ?? 0)).':'.(string) ((int) ($wo->number ?? 0));
+                                    }
+                                    /** Шеврон «ещё части WO» — только если в группе больше одной «открытой» линии (нет пары дата старта + дата финиша). */
+                                    $matchesWoUiGroup = static function ($r) use ($woUiGroupKey): bool {
+                                        $k = (string) ($r->wo_ui_group_key ?? '');
+                                        if ($k === '') {
+                                            $w = $r->workorder;
+                                            $k = (string) ((int) ($w->customer_id ?? 0)).':'.(string) ((int) ($w->number ?? 0));
+                                        }
+
+                                        return $k === $woUiGroupKey;
+                                    };
+                                    $machiningOpenLineCountForWoGroup = $rows->filter(static function ($r) use ($matchesWoUiGroup) {
+                                        if (! $matchesWoUiGroup($r)) {
+                                            return false;
+                                        }
+
+                                        return ! ((bool) ($r->machining_row_closed ?? false));
+                                    })->count();
+                                    $showMachiningWoPartsCollapse = $machiningOpenLineCountForWoGroup > 1;
+                                    $machiningWoToggleDomId = $showMachiningWoPartsCollapse
+                                        ? 'machining-wo-toggle-'.substr(md5($woUiGroupKey), 0, 16)
+                                        : '';
+                                    /** Строка с шевроном «ещё части WO»: не всегда совпадает с мастером очереди — см. MachiningListingRowsBuilder::assignWoPartsToggleHosts. */
+                                    $isWoPartsToggleHost = (bool) ($row->is_wo_parts_toggle_host ?? false);
+                                    /** Свёрнутые «лишние» части WO — все строки кроме хоста шеврона. */
+                                    $machiningWoMasterIsExtra = $showMachiningWoPartsCollapse && ! $isWoPartsToggleHost;
+                                    /** При WO из нескольких machining-линий: 1 — строка скрывается при свёрнутом WO; только для разметки/JS. */
+                                    $machiningWoPeerAttr = $showMachiningWoPartsCollapse ? ($machiningWoMasterIsExtra ? '1' : '0') : '';
                                     $editTp = $row->edit_machining_process;
                                     $rowSource = $row->row_source ?? 'tdr';
                                     $isBushingRow = $rowSource === 'bushing';
@@ -63,11 +89,18 @@
                                     $dateFinishAction = $dateStartAction;
                                     $bushingProcessDetailFmt = static function ($wpProc): string {
                                         $p = $wpProc->process;
-                                        $pn = $p?->process_name;
+                                        if ($p === null) {
+                                            return '';
+                                        }
+                                        /** Как TDR: в колонке Processes — текст операции из `processes.process`; имя типа (Machining) не дублируем. */
+                                        $detail = trim((string) ($p->process ?? ''));
+                                        if ($detail !== '') {
+                                            return $detail;
+                                        }
+                                        $pn = $p->process_name;
                                         $prName = trim((string) ($pn->name ?? ''));
-                                        $prNum = trim((string) ($p->process ?? ''));
 
-                                        return trim(($prName !== '' ? $prName : 'Process').($prNum !== '' ? ' '.$prNum : ''));
+                                        return $prName !== '' ? $prName : 'Process';
                                     };
                                     $machiningDetailProcessesLabel = '';
                                     if ($editTp) {
@@ -89,7 +122,9 @@
                                         $bushingProcess->loadMissing(['line.processes.process.process_name']);
                                         $ln = $bushingProcess->line;
                                         if ($ln !== null) {
+                                            /** Как {@see \App\Services\MachiningBushingRowsBuilder}: только колонка machining, не все процессы линии. */
                                             $machiningDetailProcessesLabel = $ln->processes
+                                                ->filter(static fn ($wpProc) => \App\Support\WoBushingProcessColumnKey::fromProcess($wpProc->process) === 'machining')
                                                 ->sortBy(static fn ($wpProc) => [(string) ($wpProc->repair_order ?? ''), $wpProc->id])
                                                 ->map($bushingProcessDetailFmt)
                                                 ->filter()
@@ -97,14 +132,24 @@
                                                 ->implode(' · ');
                                         }
                                     } elseif ($bushingBatch) {
-                                        $bushingBatch->loadMissing(['woBushingProcesses.line.processes.process.process_name']);
+                                        /** Только machining-WP батча + строки линии с колонкой machining ({@see \App\Services\MachiningBushingRowsBuilder}). */
+                                        $bushingBatch->loadMissing([
+                                            'woBushingProcesses.process.process_name',
+                                            'woBushingProcesses.line.processes.process.process_name',
+                                        ]);
                                         $chunks = [];
-                                        foreach ($bushingBatch->woBushingProcesses->sortBy('id') as $bp) {
+                                        foreach (
+                                            $bushingBatch->woBushingProcesses
+                                                ->filter(static fn ($bp) => \App\Support\WoBushingProcessColumnKey::fromProcess($bp->process) === 'machining')
+                                                ->sortBy('id')
+                                            as $bp
+                                        ) {
                                             $ln = $bp->line;
                                             if ($ln === null) {
                                                 continue;
                                             }
                                             $chunk = $ln->processes
+                                                ->filter(static fn ($wpProc) => \App\Support\WoBushingProcessColumnKey::fromProcess($wpProc->process) === 'machining')
                                                 ->sortBy(static fn ($wpProc) => [(string) ($wpProc->repair_order ?? ''), $wpProc->id])
                                                 ->map($bushingProcessDetailFmt)
                                                 ->filter()
@@ -180,6 +225,10 @@
                                     data-machining-search="{{ $machiningSearch }}"
                                     data-machining-finish-ymd="{{ $rowFinishYmd }}"
                                     data-machining-machinist-ids="{{ $machiningMachinistIdsCsv }}"
+                                    @if($showMachiningWoPartsCollapse) data-machining-wo-collapse-key="{{ $woUiGroupKey }}" @endif
+                                    @if($machiningWoToggleDomId !== '') data-machining-wo-toggle-id="{{ $machiningWoToggleDomId }}" @endif
+                                    @if($isWoPartsToggleHost && $showMachiningWoPartsCollapse) data-machining-wo-toggle-host="1" @endif
+                                    @if($machiningWoPeerAttr !== '') data-machining-wo-peer="{{ $machiningWoPeerAttr }}" @endif
                                     @if($machiningGroupId !== '') data-machining-group="{{ $machiningGroupId }}" @endif
                                     @if($rowHasDateFinish) data-machining-closed="1" @endif
                                     @if($machiningWoMasterIsExtra) data-machining-wo-extra="1" @endif
@@ -229,10 +278,12 @@
                                         @endif
                                     </td>
                                     <td class="text-center text-light machining-wo-label machining-col-ellipsis">
-                                        @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
+                                        @if($isWoPartsToggleHost && $showMachiningWoPartsCollapse)
                                             <button type="button"
+                                                    id="{{ $machiningWoToggleDomId }}"
                                                     class="btn btn-sm btn-outline-secondary py-0 px-1 me-2
                                                     js-machining-toggle-wo-parts mb-1"
+                                                    data-machining-wo-collapse-key="{{ $woUiGroupKey }}"
                                                     data-wo-parts="{{ $woIdInt }}"
                                                     aria-expanded="false"
                                                     title="Show other machining parts for this WO"
@@ -251,7 +302,7 @@
                                         @endif
                                     </td>
                                     <td class="text-center small machining-col-wrap">{{ $wo->customer?->name ?? '' }}</td>
-                                    @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
+                                    @if($isWoPartsToggleHost && $showMachiningWoPartsCollapse)
                                         <td class="text-center small machining-col-wrap js-machining-wo-head-col">
                                             <span class="machining-wo-head-col-placeholder text-muted">...</span>
                                             <span class="machining-wo-head-col-content d-none">{{ $wo->unit?->part_number ?? '' }}
@@ -265,7 +316,7 @@
                                             <span class=" text-secondary">{{ $wo->unit?->manual?->plane?->type ?? ''}}</span>
                                         </td>
                                     @endif
-                                    @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
+                                    @if($isWoPartsToggleHost && $showMachiningWoPartsCollapse)
                                         <td class="text-center machining-col-wrap js-machining-wo-head-col">
                                             <span class="machining-wo-head-col-placeholder text-muted">...</span>
                                             <span class="machining-wo-head-col-content d-none">{{ $row->detail_name ?? 'Name' }} <br>
@@ -277,7 +328,7 @@
                                             <span class="text-secondary">{{ $row->detail_label ?? 'List' }}</span>
                                         </td>
                                     @endif
-                                    @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
+                                    @if($isWoPartsToggleHost && $showMachiningWoPartsCollapse)
                                         <td class="text-center small machining-col-wrap machining-col-processes-td js-machining-wo-head-col"
                                             @if($machiningDetailProcessesLabel !== '') title="{{ e($machiningDetailProcessesLabel) }}" @endif>
                                             <span class="machining-wo-head-col-placeholder text-muted">...</span>
@@ -293,7 +344,7 @@
                                             @endif
                                         </td>
                                     @endif
-                                    @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
+                                    @if($isWoPartsToggleHost && $showMachiningWoPartsCollapse)
                                         <td class="machining-col-date-cell js-machining-wo-head-col">
                                             <span class="machining-wo-head-col-placeholder text-muted d-block w-100 text-center">...</span>
                                             <div class="machining-wo-head-col-content d-none w-100">
@@ -397,7 +448,7 @@
                                         @endif
                                     </td>
                                     @endif
-                                    @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
+                                    @if($isWoPartsToggleHost && $showMachiningWoPartsCollapse)
                                         <td class="text-center machining-col-work align-middle js-machining-wo-head-col">
                                             <span class="machining-wo-head-col-placeholder text-muted">...</span>
                                             <div class="machining-wo-head-col-content d-none">
@@ -465,7 +516,7 @@
                                         </div>
                                         </td>
                                     @endif
-                                    @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
+                                    @if($isWoPartsToggleHost && $showMachiningWoPartsCollapse)
                                         <td class="machining-col-date-cell js-machining-wo-head-col">
                                             <span class="machining-wo-head-col-placeholder text-muted d-block w-100 text-center">...</span>
                                             <div class="machining-wo-head-col-content d-none w-100">
@@ -595,7 +646,7 @@
                                         @endif
                                     </td>
                                     @endif
-                                    @if($isFirstMachiningLineForWo && $machiningLineCountForWo > 1)
+                                    @if($isWoPartsToggleHost && $showMachiningWoPartsCollapse)
                                         <td class="machining-col-date-cell js-machining-wo-head-col">
                                             <span class="machining-wo-head-col-placeholder text-muted d-block w-100 text-center">...</span>
                                             <div class="machining-wo-head-col-content d-none w-100">
@@ -731,7 +782,10 @@
                                         'rowFinishYmd' => $rowFinishYmd,
                                         'collapseStepRowsDefault' => $collapseMachiningStepRows,
                                         'woId' => $woIdInt,
+                                        'machiningWoCollapseKey' => $showMachiningWoPartsCollapse ? $woUiGroupKey : '',
+                                        'machiningWoToggleDomId' => $machiningWoToggleDomId,
                                         'machiningWoMasterIsExtra' => $machiningWoMasterIsExtra,
+                                        'machiningWoPeerAttr' => $machiningWoPeerAttr,
                                         'isBushingRow' => $isBushingRow,
                                         'machiningMachinists' => $machiningMachinists,
                                         'canReorderMachining' => $canReorderMachining ?? false,

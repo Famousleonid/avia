@@ -75,14 +75,25 @@ final class MachiningListingRowsBuilder
         $withQueue = $this->sortMachiningRowsBucket($withQueue, true, $woFullyClosedStillQueued);
         $withoutQueue = $this->sortMachiningRowsBucket($withoutQueue, false);
 
+        $merged = $withQueue->concat($withoutQueue)->values();
+        $firstRowIndexByWoId = [];
+        foreach ($merged as $idx => $row) {
+            $woId = (int) $row->workorder->id;
+            if (! array_key_exists($woId, $firstRowIndexByWoId)) {
+                $firstRowIndexByWoId[$woId] = $idx;
+            }
+        }
+
         $pos = 0;
         $seenWo = [];
 
-        return $withQueue->concat($withoutQueue)->map(static function ($row) use (&$pos, &$seenWo) {
+        return $this->assignWoPartsToggleHosts($merged->map(static function ($row, $idx) use (&$pos, &$seenWo, $firstRowIndexByWoId): object {
             $woId = (int) $row->workorder->id;
+            /** Первая строка WO в списке — мастер очереди (drag handle и т.д.). Шеврон частей WO — {@see assignWoPartsToggleHosts}. */
+            $row->is_queue_master = isset($firstRowIndexByWoId[$woId]) && $firstRowIndexByWoId[$woId] === $idx;
+
             if (! isset($seenWo[$woId])) {
                 $seenWo[$woId] = true;
-                $row->is_queue_master = true;
                 if ($row->workorder->machining_queue_order !== null) {
                     $pos++;
                 }
@@ -93,7 +104,64 @@ final class MachiningListingRowsBuilder
             }
 
             return $row;
-        });
+        }));
+    }
+
+    /**
+     * Ключ группы для UI «несколько machining-линий одного WO»: один номер на экране может соответствовать нескольким строкам `workorders`.
+     */
+    private function machiningWoUiGroupKey(Workorder $wo): string
+    {
+        return (string) ((int) ($wo->customer_id ?? 0)).':'.(string) ((int) ($wo->number ?? 0));
+    }
+
+    /**
+     * Строка с кнопкой «части WO»: первая по списку ещё не закрытая machining-линия (чтобы при Hide closed шеврон оставался на видимой строке).
+     * Если все закрыты — первая строка WO.
+     * Группировка по {@see machiningWoUiGroupKey}, не по `workorders.id`.
+     * Шеврон — только если в группе больше одной строки, где нет пары «есть старт и есть финиш».
+     *
+     * @param  Collection<int, object>  $rows
+     * @return Collection<int, object>
+     */
+    private function assignWoPartsToggleHosts(Collection $rows): Collection
+    {
+        foreach ($rows as $row) {
+            $row->wo_ui_group_key = $this->machiningWoUiGroupKey($row->workorder);
+            /** Закрытая линия: есть и дата старта, и дата финиша ({@see rowHasMachiningDateStart}, {@see rowHasMachiningDateFinish}). */
+            $row->machining_row_closed = $this->rowMachiningLineClosed($row);
+        }
+
+        foreach ($rows->groupBy(static fn ($r) => (string) ($r->wo_ui_group_key ?? '')) as $groupKey => $group) {
+            if ($groupKey === '') {
+                foreach ($group as $row) {
+                    $row->is_wo_parts_toggle_host = false;
+                }
+
+                continue;
+            }
+
+            $openCount = $group->filter(static fn (object $r) => ! ($r->machining_row_closed ?? false))->count();
+            if ($openCount <= 1) {
+                foreach ($group as $row) {
+                    $row->is_wo_parts_toggle_host = false;
+                }
+
+                continue;
+            }
+
+            $host = $group->first(fn (object $r) => ! $this->rowMachiningLineClosed($r));
+            if ($host === null) {
+                $host = $group->first();
+            }
+
+            $hostId = spl_object_id($host);
+            foreach ($group as $row) {
+                $row->is_wo_parts_toggle_host = spl_object_id($row) === $hostId;
+            }
+        }
+
+        return $rows;
     }
 
     /**
@@ -194,7 +262,7 @@ final class MachiningListingRowsBuilder
             $woHasIncompleteLine = [];
             foreach ($rows->groupBy(static fn ($r) => (int) $r->workorder->id) as $woId => $group) {
                 $woHasIncompleteLine[(int) $woId] = $group->contains(
-                    fn ($r) => ! ($this->rowHasMachiningDateStart($r) && $this->rowHasMachiningDateFinish($r))
+                    fn ($r) => ! $this->rowMachiningLineClosed($r)
                 );
             }
             $open = $rows->filter(fn ($r) => $woHasIncompleteLine[(int) $r->workorder->id])->values();
@@ -235,6 +303,11 @@ final class MachiningListingRowsBuilder
         })->values();
 
         return $openSorted->concat($doneSorted);
+    }
+
+    private function rowMachiningLineClosed(object $row): bool
+    {
+        return $this->rowHasMachiningDateStart($row) && $this->rowHasMachiningDateFinish($row);
     }
 
     private function rowHasMachiningDateStart(object $row): bool
