@@ -47,6 +47,11 @@
             || $sidebarUser->hasFullManualsAccess()
             || $sidebarUser->permittedManuals()->exists()
         );
+    $showQualityAssuranceMenu = $sidebarUser
+        && (
+            $sidebarUser->roleIs('Admin')
+            || $sidebarUser->can('manager.qa')
+        );
 @endphp
 @if($minimalShopSidebar)
     <li class="nav-item">
@@ -92,6 +97,14 @@
             <i class="bi bi-list-check me-2"></i> <span>Training</span>
         </a>
     </li>
+
+    @if($showQualityAssuranceMenu)
+        <li class="nav-item">
+            <a class="nav-link press-spinner {{ request()->routeIs('quality.*') ? 'active' : '' }}" href="{{ route('quality.index') }}">
+                <i class="bi bi-shield-check me-2"></i> <span>Quality Assurance</span>
+            </a>
+        </li>
+    @endif
 
     @roles("Admin|Team Leader|Manager")
 

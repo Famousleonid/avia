@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\TdrController;
 use App\Http\Controllers\Admin\TdrProcessController;
 use App\Http\Controllers\Admin\ToolController;
 use App\Http\Controllers\Admin\TransferController;
+use App\Http\Controllers\Admin\QualityAssuranceController;
 use App\Http\Controllers\Admin\ManualController;
 use App\Http\Controllers\Admin\MaterialController;
 use App\Http\Controllers\Admin\UserController;
@@ -378,6 +379,16 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/vendor-tracking', [VendorTrackingController::class, 'index'])->name('vendor-tracking.index');
     Route::get('/vendor-tracking/export', [VendorTrackingController::class, 'export'])->name('vendor-tracking.export');
     Route::patch('/vendor-tracking/row', [VendorTrackingController::class, 'updateRow'])->name('vendor-tracking.row.update');
+
+    Route::get('/quality-assurance', [QualityAssuranceController::class, 'index'])->name('quality.index');
+    Route::post('/quality-assurance/workorders/{workorder}/quality-documents', [QualityAssuranceController::class, 'storeQualityDocuments'])
+        ->name('quality.documents.store');
+    Route::delete('/quality-assurance/workorders/{workorder}/quality-documents/{media}', [QualityAssuranceController::class, 'destroyQualityDocument'])
+        ->name('quality.documents.destroy');
+    Route::get('/quality-assurance/workorders/{workorder}/quality-documents/{media}', [QualityAssuranceController::class, 'showQualityDocument'])
+        ->name('quality.documents.show');
+    Route::get('/quality-assurance/workorders/{workorder}/quality-documents/{media}/download', [QualityAssuranceController::class, 'downloadQualityDocument'])
+        ->name('quality.documents.download');
 
     Route::post('/components/store_from_inspection', [ComponentController::class, 'storeFromInspection'])->name('components.storeFromInspection');
     Route::post('/components/store_from_extra', [ComponentController::class, 'storeFromExtra'])->name('components.storeFromExtra');

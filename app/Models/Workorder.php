@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\QueryException;
+use Spatie\MediaLibrary\MediaCollections\File;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
@@ -95,6 +96,24 @@ class Workorder extends Model implements HasMedia
             ->height(80)
             ->nonOptimized();
 
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('quality')
+            ->acceptsFile(function (File $file) {
+                return in_array(strtolower($file->mimeType ?? ''), [
+                    'application/pdf',
+                    'image/jpeg',
+                    'image/png',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'application/vnd.ms-excel',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'text/csv',
+                    'text/plain',
+                ], true);
+            });
     }
 
     public function getActivitylogOptions(): LogOptions

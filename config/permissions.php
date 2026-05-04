@@ -51,6 +51,9 @@ return [
         'delete'  => ['Admin','Manager'],
     ],
 
-];
+    'manager' => [
+        'qa' => ['Manager'],
+    ],
 
+];
 
