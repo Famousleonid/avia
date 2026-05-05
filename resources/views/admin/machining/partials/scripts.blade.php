@@ -107,6 +107,7 @@
         }).then(function (payload) {
             if (!payload || typeof payload.html !== 'string') throw new Error('payload');
             tb.innerHTML = payload.html;
+            regroupMachiningStepRows(tb);
             var qc = document.querySelector('.js-machining-queued-count');
             if (qc && payload.queuedCount != null) qc.textContent = String(payload.queuedCount);
             remountMachiningTableBodyPlugins();
@@ -491,7 +492,7 @@
         table.querySelectorAll('.js-machining-toggle-wo-parts').forEach(function (btn) {
             var tr = btn.closest('tr');
             if (!tr) return;
-            var expanded = btn.getAttribute('aria-expanded') !== 'false';
+            var expanded = btn.getAttribute('aria-expanded') === 'true';
             tr.querySelectorAll('td.js-machining-wo-head-col').forEach(function (td) {
                 var ph = td.querySelector('.machining-wo-head-col-placeholder');
                 var content = td.querySelector('.machining-wo-head-col-content');
@@ -515,8 +516,8 @@
             return;
         }
         table.querySelectorAll('.js-machining-toggle-wo-parts').forEach(function (btn) {
-            var wid = btn.getAttribute('data-wo-parts');
-            if (!wid || !isMachiningWoPartsExpandedPref(wid)) return;
+            var ck = btn.getAttribute('data-machining-wo-collapse-key') || btn.getAttribute('data-wo-parts');
+            if (!ck || !isMachiningWoPartsExpandedPref(ck)) return;
             setMachiningWoPartsToggleButtonUi(btn, true);
         });
         table.querySelectorAll('.js-machining-toggle-steps').forEach(function (btn) {
@@ -609,7 +610,7 @@
 
         var forceExpandWoParts = {};
         trList.forEach(function (tr, idx) {
-            if (tr.getAttribute('data-machining-wo-extra') !== '1') {
+            if (tr.getAttribute('data-machining-wo-peer') !== '1') {
                 return;
             }
             var wid = tr.getAttribute('data-wo-id');
@@ -632,16 +633,28 @@
                 var gid = tr.getAttribute('data-machining-group');
                 if (gid) {
                     var btn = table.querySelector('.js-machining-toggle-steps[data-steps-group="' + gid + '"]');
-                    toggleHidden = !!(btn && btn.getAttribute('aria-expanded') === 'false');
+                    toggleHidden = !!(btn && btn.getAttribute('aria-expanded') !== 'true');
                 }
             }
             var woPartsHidden = false;
-            if (tr.getAttribute('data-machining-wo-extra') === '1' && table) {
-                var wid = tr.getAttribute('data-wo-id');
-                if (wid) {
-                    var woBtn = table.querySelector('.js-machining-toggle-wo-parts[data-wo-parts="' + wid + '"]');
-                    woPartsHidden = !!(woBtn && woBtn.getAttribute('aria-expanded') === 'false')
-                        && !forceExpandWoParts[wid];
+            var collapseKey = tr.getAttribute('data-machining-wo-collapse-key');
+            var widWo = tr.getAttribute('data-wo-id');
+            var woPeer = tr.getAttribute('data-machining-wo-peer');
+            var toggleId = tr.getAttribute('data-machining-wo-toggle-id');
+            var forceKey = collapseKey || (widWo ? 'wo:' + widWo : '');
+            if (woPeer === '1' && table && forceKey && !forceExpandWoParts[forceKey]) {
+                var woPartsBtn = toggleId ? document.getElementById(toggleId) : null;
+                if (!woPartsBtn && widWo) {
+                    woPartsBtn = document.getElementById('machining-wo-toggle-' + widWo);
+                }
+                if (!woPartsBtn && collapseKey) {
+                    woPartsBtn = table.querySelector('.js-machining-toggle-wo-parts[data-machining-wo-collapse-key="' + collapseKey + '"]');
+                }
+                if (!woPartsBtn && widWo) {
+                    woPartsBtn = table.querySelector('.js-machining-toggle-wo-parts[data-wo-parts="' + widWo + '"]');
+                }
+                if (woPartsBtn && woPartsBtn.getAttribute('aria-expanded') !== 'true') {
+                    woPartsHidden = true;
                 }
             }
             tr.classList.toggle('d-none', filterHidden || toggleHidden || woPartsHidden);
@@ -658,7 +671,7 @@
             e.preventDefault();
             var gid = btn.getAttribute('data-steps-group');
             if (!gid) return;
-            var expanded = btn.getAttribute('aria-expanded') !== 'false';
+            var expanded = btn.getAttribute('aria-expanded') === 'true';
             var next = !expanded;
             setMachiningStepsToggleButtonUi(btn, next);
             persistMachiningStepsExpand(gid, next);
@@ -674,12 +687,12 @@
             var btn = e.target.closest('.js-machining-toggle-wo-parts');
             if (!btn || !table.contains(btn)) return;
             e.preventDefault();
-            var wid = btn.getAttribute('data-wo-parts');
-            if (!wid) return;
-            var expanded = btn.getAttribute('aria-expanded') !== 'false';
+            var ck = btn.getAttribute('data-machining-wo-collapse-key') || btn.getAttribute('data-wo-parts');
+            if (!ck) return;
+            var expanded = btn.getAttribute('aria-expanded') === 'true';
             var next = !expanded;
             setMachiningWoPartsToggleButtonUi(btn, next);
-            persistMachiningWoPartsExpand(wid, next);
+            persistMachiningWoPartsExpand(ck, next);
             applyMachiningTableFilters();
             syncMachiningWoHeadRowCellSummaries();
         });

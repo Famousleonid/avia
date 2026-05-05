@@ -43,11 +43,14 @@
     <tr @if($si === 1) id="machining-steps-body-{{ $machiningGroupId }}" @endif
         data-machining-group="{{ $machiningGroupId }}"
         data-wo-id="{{ (int) ($woId ?? 0) }}"
+        @if(($machiningWoCollapseKey ?? '') !== '') data-machining-wo-collapse-key="{{ $machiningWoCollapseKey }}" @endif
+        @if(($machiningWoToggleDomId ?? '') !== '') data-machining-wo-toggle-id="{{ $machiningWoToggleDomId }}" @endif
         data-machining-search="{{ $machiningSearch }} {{ $stepSearchNorm }}"
         data-machining-finish-ymd="{{ $rowFinishYmd ?? '' }}"
         data-machining-machinist-ids="{{ $stepMachinistCsv }}"
         @if($rowHasDateFinish) data-machining-closed="1" @endif
         @if(! empty($machiningWoMasterIsExtra)) data-machining-wo-extra="1" @endif
+        @if(($machiningWoPeerAttr ?? '') !== '') data-machining-wo-peer="{{ $machiningWoPeerAttr }}" @endif
         class="machining-row-child machining-row-unqueued {{ $isBushingRow ? 'machining-row-bushing' : '' }} {{ ! empty($collapseStepRowsDefault) ? 'd-none' : '' }}">
         <td colspan="{{ $stepLeadColspan }}" class="machining-step-lead-cell small text-secondary py-2">
             @if($stepRow)
