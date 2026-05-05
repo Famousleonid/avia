@@ -60,6 +60,22 @@ class NotificationEventRegistry
                     'actor_name',
                 ],
             ],
+            'workorder.unapproved' => [
+                'label' => 'Workorder unapproved',
+                'description' => 'A workorder approval was removed.',
+                'default_severity' => 'warning',
+                'default_title' => 'Unapproved',
+                'default_message' => 'Workorder {workorder_no} unapproved by {actor_name}.',
+                'dynamic_recipients' => [
+                    'workorder_technician' => 'Workorder technician',
+                    'system_admins' => 'System admins',
+                ],
+                'variables' => [
+                    'workorder_no',
+                    'workorder_id',
+                    'actor_name',
+                ],
+            ],
             'workorder.draft_created' => [
                 'label' => 'Draft workorder created',
                 'description' => 'A Shipping user created a draft workorder from the mobile page.',

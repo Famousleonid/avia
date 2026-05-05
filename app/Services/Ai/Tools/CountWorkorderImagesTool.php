@@ -12,11 +12,16 @@ class CountWorkorderImagesTool
     {
         $workorderId = (int)($args['workorder_id'] ?? 0);
         $workorderNumber = trim((string)($args['workorder_number'] ?? ''));
+        $mode = (string)($args['mode'] ?? '');
         $limit = (int)($args['limit'] ?? 10);
         $limit = max(1, min(50, $limit));
 
         if ($workorderId > 0 || $workorderNumber !== '') {
             return $this->singleWorkorderCount($user, $workorderId, $workorderNumber);
+        }
+
+        if ($mode === 'total') {
+            return $this->totalImagesAcrossWorkorders($user);
         }
 
         return $this->topWorkordersByImages($user, $limit);
@@ -39,6 +44,11 @@ class CountWorkorderImagesTool
                         'type' => 'string',
                         'description' => 'Human workorder number, e.g. 108400. Use this when the user names a specific WO.',
                     ],
+                    'mode' => [
+                        'type' => 'string',
+                        'enum' => ['top', 'total'],
+                        'description' => 'Use total when the user asks for the sum/total count of photos across all workorders. Use top to list workorders with the most images.',
+                    ],
                     'limit' => [
                         'type' => 'integer',
                         'description' => 'For top list mode, max number of workorders to return. Default 10, max 50.',
@@ -46,6 +56,31 @@ class CountWorkorderImagesTool
                 ],
                 'additionalProperties' => false,
             ],
+        ];
+    }
+
+    private function totalImagesAcrossWorkorders(User $user): array
+    {
+        if (! $user->can('workorders.viewAny')) {
+            return [
+                'ok' => false,
+                'message' => 'You do not have permission to view workorders.',
+            ];
+        }
+
+        $query = DB::table('media')
+            ->join('workorders', 'workorders.id', '=', 'media.model_id')
+            ->where('media.model_type', Workorder::class)
+            ->where('media.mime_type', 'like', 'image/%')
+            ->when($this->workorderMediaCollections() !== [], function ($query): void {
+                $query->whereIn('media.collection_name', $this->workorderMediaCollections());
+            });
+
+        return [
+            'ok' => true,
+            'total_images' => (int) (clone $query)->count(),
+            'workorders_with_images' => (int) (clone $query)->distinct('media.model_id')->count('media.model_id'),
+            'instruction_for_model' => 'Answer with the total_images number and workorders_with_images. This is a total across all visible workorders. Never mention internal database IDs.',
         ];
     }
 

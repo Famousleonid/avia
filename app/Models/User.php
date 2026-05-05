@@ -79,6 +79,11 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return (bool) data_get($this->notification_prefs ?? [], 'manuals_full_access', false);
     }
 
+    public function hasQualityAssuranceAccess(): bool
+    {
+        return (bool) data_get($this->notification_prefs ?? [], 'qa_access', false);
+    }
+
     public function roleIs(string|array $roles): bool
     {
         $roles = (array) $roles;

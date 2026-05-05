@@ -2,6 +2,7 @@
 
 namespace App\Services\Events;
 
+use App\Models\ProcessName;
 use App\Models\TdrProcess;
 use App\Models\User;
 use App\Services\WorkorderStdListProcessesService;
@@ -20,10 +21,14 @@ class TdrProcessOverdueStartEvent implements EventDefinition
         $stdListNames = array_values(WorkorderStdListProcessesService::NAME_BY_KEY);
         $stdListResolver = app(WorkorderStdListProcessesService::class);
         $preferredStdProcessIds = [];
+        $travelerProcessName = $this->travelerProcessName();
 
-        return TdrProcess::query()
+        $regularSubjects = TdrProcess::query()
             ->whereNotNull('date_start')
             ->whereNull('date_finish')
+            ->where(function ($query): void {
+                $query->where('in_traveler', false)->orWhereNull('in_traveler');
+            })
             ->whereHas('processName', fn ($query) => $query->whereNotNull('std_days'))
             ->whereHas('tdr.workorder')
             ->with(['processName.notifyUser', 'tdr.workorder.user', 'tdr.component'])
@@ -62,6 +67,41 @@ class TdrProcessOverdueStartEvent implements EventDefinition
                 return (int) $preferredStdProcessIds[$cacheKey] === (int) $process->getKey();
             })
             ->values();
+
+        if (! $travelerProcessName || (int) ($travelerProcessName->std_days ?? 0) <= 0) {
+            return $regularSubjects;
+        }
+
+        $travelerSubjects = TdrProcess::query()
+            ->where('in_traveler', true)
+            ->whereNotNull('date_start')
+            ->whereNull('date_finish')
+            ->whereHas('tdr.workorder')
+            ->with(['tdr.workorder.user', 'tdr.component'])
+            ->orderBy('tdrs_id')
+            ->orderBy('traveler_group')
+            ->orderBy('id')
+            ->get()
+            ->groupBy(fn (TdrProcess $process) => ((int) $process->tdrs_id) . ':' . ((int) ($process->traveler_group ?: 1)))
+            ->map(function (Collection $group) use ($travelerProcessName) {
+                $leader = $group->sortBy('id')->first();
+                if (! $leader) {
+                    return null;
+                }
+
+                $leader->setRelation('processName', $travelerProcessName);
+                $leader->setAttribute('traveler_overdue_user_ids', $group->pluck('user_id')->filter()->unique()->values()->all());
+                $leader->setAttribute('traveler_overdue_group_count', $group->count());
+
+                return $leader;
+            })
+            ->filter()
+            ->filter(fn (TdrProcess $process) => $this->isOverdue($process))
+            ->values();
+
+        return $regularSubjects
+            ->concat($travelerSubjects)
+            ->values();
     }
 
     public function recipients($subject): array
@@ -71,6 +111,13 @@ class TdrProcessOverdueStartEvent implements EventDefinition
 
         if (!empty($subject->user_id)) {
             $user = User::find($subject->user_id);
+            if ($user) {
+                $users->push($user);
+            }
+        }
+
+        foreach ((array) ($subject->traveler_overdue_user_ids ?? []) as $userId) {
+            $user = User::find((int) $userId);
             if ($user) {
                 $users->push($user);
             }
@@ -198,5 +245,25 @@ class TdrProcessOverdueStartEvent implements EventDefinition
             array_values(WorkorderStdListProcessesService::NAME_BY_KEY),
             true
         );
+    }
+
+    private function travelerProcessName(): ?ProcessName
+    {
+        return ProcessName::query()
+            ->with('notifyUser')
+            ->whereRaw('LOWER(TRIM(name)) = ?', ['traveler'])
+            ->first();
+    }
+
+    private function isOverdue(TdrProcess $process): bool
+    {
+        $std = (int) ($process->processName->std_days ?? 0);
+        if ($std <= 0 || ! $process->date_start) {
+            return false;
+        }
+
+        $deadline = Carbon::parse($process->date_start)->addDays($std)->endOfDay();
+
+        return now()->greaterThan($deadline);
     }
 }

@@ -202,6 +202,20 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row g-3 mt-0">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="qa_access"
+                                       id="qa_access"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('qa_access', $user->hasQualityAssuranceAccess()) ? 'checked' : '' }}>
+                                <label for="qa_access" class="form-check-label">Can view and use Quality Assurance page</label>
+                                <div class="form-text">Personal override for QA page access and sidebar menu visibility.</div>
+                            </div>
+                        </div>
+                    </div>
 
 
                     {{-- Password --}}

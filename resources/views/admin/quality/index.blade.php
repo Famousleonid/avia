@@ -1,467 +1,783 @@
 @extends('admin.master')
 
 @section('content')
-    @php
-        $badgeMap = [
-            'ok' => 'success',
-            'warning' => 'warning',
-            'critical' => 'danger',
-            'na' => 'secondary',
-        ];
-        $tabUrl = function (string $tab, array $extra = []) {
-            return route('quality.index', array_merge(request()->except(['tab', 'page']), ['tab' => $tab], $extra));
-        };
-        $statusOptions = [
-            'all' => 'All',
-            'ok' => 'OK',
-            'warning' => 'Warning',
-            'critical' => 'Critical',
-        ];
-    @endphp
-
     <style>
-        .qa-summary-card {
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: .9rem;
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .qa-summary-value {
-            font-size: 1.7rem;
-            font-weight: 700;
-            line-height: 1;
-        }
-
-        .qa-filter-card,
-        .qa-tab-card {
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: .9rem;
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .qa-warning-badges {
+        .qa-page {
             display: flex;
-            flex-wrap: wrap;
-            gap: .35rem;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+            flex: 1 1 auto;
+            overflow: hidden;
+            background: #2B3035;
         }
 
-        .qa-warning-badges .badge {
-            font-weight: 500;
+        .content,
+        .content-inner {
+            background: #2B3035 !important;
         }
 
-        .qa-doc-list {
+        .qa-header {
+            flex: 0 0 auto;
             display: grid;
+            grid-template-columns: max-content max-content minmax(320px, 520px) 1fr;
+            align-items: center;
+            column-gap: clamp(1rem, 3vw, 3.5rem);
+        }
+
+        .qa-current-wo {
+            min-width: 6.5rem;
+            color: var(--bs-body-color);
+        }
+
+        .qa-current-wo a {
+            color: var(--bs-body-color);
+            text-decoration: none;
+        }
+
+        .qa-current-wo a:hover .text-info {
+            text-decoration: underline;
+        }
+
+        .qa-search-row {
+            margin-left: clamp(1rem, 4vw, 4.5rem);
+        }
+
+        #qaMessage {
+            flex: 0 0 auto;
+        }
+
+        #qaResult {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .qa-workorder-layout {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .qa-workorder-layout > .qa-block {
+            flex: 0 0 auto;
+            margin-bottom: .65rem !important;
+        }
+
+        .qa-search-row {
+            display: grid;
+            grid-template-columns: max-content minmax(0, 1fr);
+            align-items: center;
+            column-gap: .65rem;
+        }
+
+        .qa-search-wrap {
+            position: relative;
+        }
+
+        .qa-search-wrap .form-control {
+            padding-right: 2.3rem;
+        }
+
+        .qa-search-clear {
+            position: absolute;
+            top: 50%;
+            right: .45rem;
+            display: none;
+            width: 1.7rem;
+            height: 1.7rem;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--bs-secondary-color);
+            transform: translateY(-50%);
+        }
+
+        .qa-search-clear.is-visible {
+            display: inline-flex;
+        }
+
+        .qa-dot-spinner {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .3rem;
+            min-height: 1.25rem;
+        }
+
+        .qa-dot-spinner span {
+            width: .42rem;
+            height: .42rem;
+            border-radius: 50%;
+            background: var(--bs-secondary-color);
+            opacity: .5;
+            animation: qaDotJump .72s ease-in-out infinite;
+        }
+
+        .qa-dot-spinner span:nth-child(2) {
+            animation-delay: .12s;
+        }
+
+        .qa-dot-spinner span:nth-child(3) {
+            animation-delay: .24s;
+        }
+
+        .qa-page-loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            z-index: 1080;
+            display: none;
+            transform: translate(-50%, -50%);
+        }
+
+        .qa-page-loading.is-visible {
+            display: flex;
+        }
+
+        @keyframes qaDotJump {
+            0%,
+            80%,
+            100% {
+                transform: translateY(0);
+                opacity: .42;
+            }
+
+            40% {
+                transform: translateY(-.35rem);
+                opacity: .95;
+            }
+        }
+
+        .qa-block {
+            border: 1px solid rgba(255, 255, 255, .08);
+            border-radius: .65rem;
+            background: rgba(255, 255, 255, .025);
+        }
+
+        .qa-block-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             gap: .75rem;
+            padding: .45rem .7rem;
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
         }
 
-        .qa-doc-item {
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: .75rem;
-            padding: .75rem;
-            background: rgba(255, 255, 255, 0.02);
+        .qa-top-row {
+            flex: 0 0 auto;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) max-content;
+            align-items: stretch;
+            gap: .75rem;
+            margin-bottom: .65rem;
         }
 
-        .qa-doc-actions {
+        .qa-top-row > .qa-block {
+            min-width: 0;
+            margin-bottom: 0 !important;
+        }
+
+        .qa-forms-block {
+            width: max-content;
+            justify-self: end;
+        }
+
+        .qa-repair-block {
+            flex: 1 1 auto !important;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            margin-bottom: 0 !important;
+        }
+
+        .qa-table-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+        }
+
+        .qa-table-scroll thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #111;
+        }
+
+        .qa-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: .35rem .75rem;
+            padding: .5rem .7rem;
+        }
+
+        .qa-info-item {
+            min-width: 0;
+            line-height: 1.25;
+        }
+
+        .qa-info-label {
+            font-size: .74rem;
+            color: var(--bs-secondary-color);
+        }
+
+        .qa-info-value {
+            overflow-wrap: anywhere;
+        }
+
+        .qa-checks-line {
+            padding: 0 .7rem .55rem;
+        }
+
+        .qa-check-separator {
+            color: var(--bs-secondary-color);
+            margin: 0 .45rem;
+        }
+
+        .qa-photo-groups {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: .65rem;
+            padding: .85rem;
+        }
+
+        .qa-photo-group {
+            border: 1px solid rgba(255, 255, 255, .1);
+            border-radius: .45rem;
+            background: rgba(0, 0, 0, .12);
+            color: var(--bs-body-color);
+            text-align: left;
+            padding: .65rem;
+        }
+
+        .qa-photo-thumb {
+            width: 78px;
+            height: 58px;
+            object-fit: cover;
+            border-radius: .35rem;
+        }
+
+        .qa-form-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: .5rem;
+            align-items: flex-start;
+            justify-content: flex-end;
+            gap: .65rem;
+            padding: .65rem .75rem;
+        }
+
+        .qa-form-paper {
+            width: 90px;
+            height: 120px;
+            flex: 0 0 auto;
+            cursor: default;
+            text-decoration: none;
+        }
+
+        .qa-form-paper svg {
+            display: block;
+            width: 90px;
+            height: 120px;
+            --paper: #d5d5d5;
+            --fold: #0d6efd;
+            --stroke: #0d6efd;
+            --text: #084298;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .18));
+        }
+
+        .qa-form-paper[href] {
+            cursor: pointer;
+        }
+
+        .qa-form-paper[href]:hover svg {
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .3));
+        }
+
+        .qa-form-paper.is-success svg {
+            --fold: #198754;
+            --stroke: #198754;
+            --text: #0f5132;
+        }
+
+        .qa-form-paper .paper {
+            fill: var(--paper);
+            stroke: var(--stroke);
+            stroke-width: 1;
+        }
+
+        .qa-form-paper .fold {
+            fill: var(--fold);
+        }
+
+        .qa-form-paper .line {
+            stroke: var(--stroke);
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .qa-form-paper foreignObject div {
+            color: var(--text);
+            font-weight: 700;
+            line-height: 1.02;
+            text-align: center;
+            overflow-wrap: anywhere;
+            hyphens: auto;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qa-empty {
+            padding: 1.5rem 1rem;
+            color: var(--bs-secondary-color);
+            text-align: center;
+        }
+
+        @media (max-width: 1199.98px) {
+            .qa-top-row {
+                grid-template-columns: 1fr;
+            }
+
+            .qa-forms-block {
+                width: 100%;
+            }
+
+            .qa-info-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .qa-header {
+                grid-template-columns: 1fr;
+                row-gap: .65rem;
+            }
+
+            .qa-info-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 
-    <div class="container-fluid px-3">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-            <div>
-                <h2 class="mb-1 text-primary">Quality Assurance</h2>
-                <div class="text-secondary small">QA dashboard for workorders, processes, photos, training and quality documents.</div>
-            </div>
-        </div>
+    <div id="qaPageLoading" class="qa-page-loading" aria-hidden="true">
+        <span class="qa-dot-spinner"><span></span><span></span><span></span></span>
+    </div>
 
-        <div class="row g-3 mb-4">
-            <div class="col-12 col-sm-6 col-xl">
-                <div class="qa-summary-card h-100 p-3">
-                    <div class="text-secondary small mb-2">Open Workorders</div>
-                    <div class="qa-summary-value text-primary">{{ $summary['open_workorders'] }}</div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-xl">
-                <div class="qa-summary-card h-100 p-3">
-                    <div class="text-secondary small mb-2">WO with QA Warnings</div>
-                    <div class="qa-summary-value text-warning">{{ $summary['qa_warnings'] }}</div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-xl">
-                <div class="qa-summary-card h-100 p-3">
-                    <div class="text-secondary small mb-2">Missing Photos</div>
-                    <div class="qa-summary-value text-danger">{{ $summary['missing_photos'] }}</div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-xl">
-                <div class="qa-summary-card h-100 p-3">
-                    <div class="text-secondary small mb-2">Overdue / Incomplete Processes</div>
-                    <div class="qa-summary-value text-warning">{{ $summary['incomplete_processes'] }}</div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-xl">
-                <div class="qa-summary-card h-100 p-3">
-                    <div class="text-secondary small mb-2">Missing RO</div>
-                    <div class="qa-summary-value text-danger">{{ $summary['missing_ro'] }}</div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-xl">
-                <div class="qa-summary-card h-100 p-3">
-                    <div class="text-secondary small mb-2">Training Alerts</div>
-                    <div class="qa-summary-value text-warning">{{ $summary['training_alerts'] }}</div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-xl">
-                <div class="qa-summary-card h-100 p-3">
-                    <div class="text-secondary small mb-2">Quality Documents</div>
-                    <div class="qa-summary-value text-success">{{ $summary['quality_documents'] }}</div>
+    <div class="container-fluid px-3 qa-page pt-1">
+        <div class="qa-header mb-2">
+            <h4 class="mb-0 text-info">Quality Assurance</h4>
+            <h5 id="qaCurrentWorkorder" class="qa-current-wo mb-0"></h5>
+            <div class="qa-search-row">
+                <label class="form-label small mb-0" for="qaWorkorderSearch">WO #</label>
+                <div class="qa-search-wrap">
+                    <input type="text" id="qaWorkorderSearch" class="form-control form-control-sm" placeholder="Enter full workorder number" autocomplete="off" inputmode="numeric">
+                    <button type="button" id="qaWorkorderSearchClear" class="qa-search-clear" aria-label="Clear search">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
                 </div>
             </div>
         </div>
 
-        <div class="qa-filter-card p-3 mb-4">
-            <form method="GET" action="{{ route('quality.index') }}">
-                <input type="hidden" name="tab" value="{{ $activeTab }}">
-                <div class="row g-3 align-items-end">
-                    <div class="col-12 col-md-3">
-                        <label class="form-label">WO #</label>
-                        <input type="text" name="q" value="{{ $filters['q'] }}" class="form-control" placeholder="Search by workorder number">
-                    </div>
-                    <div class="col-12 col-md-2">
-                        <label class="form-label">QA Status</label>
-                        <select name="status" class="form-select">
-                            @foreach($statusOptions as $value => $label)
-                                <option value="{{ $value }}" @selected($filters['status'] === $value)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-3">
-                        <label class="form-label">Customer</label>
-                        <select name="customer_id" class="form-select">
-                            <option value="">All customers</option>
-                            @foreach($customers as $customer)
-                                <option value="{{ $customer->id }}" @selected((string) $filters['customer_id'] === (string) $customer->id)>{{ $customer->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <div class="row g-2">
-                            <div class="col-6 col-lg-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="missing_photos" name="missing_photos" value="1" @checked($filters['missing_photos'])>
-                                    <label class="form-check-label" for="missing_photos">Missing photos</label>
-                                </div>
-                            </div>
-                            <div class="col-6 col-lg-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="missing_ro" name="missing_ro" value="1" @checked($filters['missing_ro'])>
-                                    <label class="form-check-label" for="missing_ro">Missing RO</label>
-                                </div>
-                            </div>
-                            <div class="col-6 col-lg-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="incomplete_processes" name="incomplete_processes" value="1" @checked($filters['incomplete_processes'])>
-                                    <label class="form-check-label" for="incomplete_processes">Incomplete processes</label>
-                                </div>
-                            </div>
-                            <div class="col-6 col-lg-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="missing_quality_documents" name="missing_quality_documents" value="1" @checked($filters['missing_quality_documents'])>
-                                    <label class="form-check-label" for="missing_quality_documents">Missing quality docs</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12 d-flex gap-2">
-                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Apply filters</button>
-                        <a href="{{ route('quality.index', ['tab' => $activeTab]) }}" class="btn btn-outline-secondary btn-sm">Reset</a>
-                    </div>
-                </div>
-            </form>
+        <div id="qaMessage" class="small text-secondary mb-2"></div>
+        <div id="qaResult">
+            <div class="qa-empty qa-block">Enter a full workorder number and press Enter.</div>
         </div>
+    </div>
 
-        <div class="qa-tab-card">
-            <ul class="nav nav-tabs px-3 pt-3 border-0">
-                <li class="nav-item"><a class="nav-link @if($activeTab === 'overview') active @endif" href="{{ $tabUrl('overview') }}">Overview</a></li>
-                <li class="nav-item"><a class="nav-link @if($activeTab === 'workorders') active @endif" href="{{ $tabUrl('workorders') }}">Workorders</a></li>
-                <li class="nav-item"><a class="nav-link @if($activeTab === 'processes') active @endif" href="{{ $tabUrl('processes') }}">Processes</a></li>
-                <li class="nav-item"><a class="nav-link @if($activeTab === 'photos') active @endif" href="{{ $tabUrl('photos') }}">Photos</a></li>
-                <li class="nav-item"><a class="nav-link @if($activeTab === 'training') active @endif" href="{{ $tabUrl('training') }}">Training</a></li>
-                <li class="nav-item"><a class="nav-link @if($activeTab === 'documents') active @endif" href="{{ $tabUrl('documents') }}">Quality Documents</a></li>
-            </ul>
-
-            <div class="p-3">
-                @if($activeTab === 'overview')
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle">
-                            <thead>
-                            <tr>
-                                <th>WO #</th>
-                                <th>Customer</th>
-                                <th>Component PN</th>
-                                <th>QA Status</th>
-                                <th>Warnings</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @forelse($overviewRows as $row)
-                                <tr>
-                                    <td><a href="{{ $row['url'] }}" class="text-decoration-none">{{ $row['number'] }}</a></td>
-                                    <td>{{ $row['customer_name'] }}</td>
-                                    <td>{{ $row['component_pn'] }}</td>
-                                    <td><span class="badge text-bg-{{ $row['status_badge'] }}">{{ strtoupper($row['status']) }}</span></td>
-                                    <td>
-                                        <div class="qa-warning-badges">
-                                            @forelse($row['all_messages'] as $message)
-                                                <span class="badge text-bg-{{ in_array($message, $row['criticals'], true) ? 'danger' : 'warning' }}">{{ $message }}</span>
-                                            @empty
-                                                <span class="badge text-bg-success">OK</span>
-                                            @endforelse
-                                        </div>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="5" class="text-center text-secondary py-4">No workorders found.</td></tr>
-                            @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                @elseif($activeTab === 'workorders')
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle">
-                            <thead>
-                            <tr>
-                                <th>WO #</th>
-                                <th>Customer</th>
-                                <th>Component PN</th>
-                                <th>Serial #</th>
-                                <th>Manual</th>
-                                <th>Open Date</th>
-                                <th>Approved</th>
-                                <th>Photos</th>
-                                <th>Processes</th>
-                                <th>Training</th>
-                                <th>Quality Docs</th>
-                                <th>QA Status</th>
-                                <th>Actions</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @forelse($workorderRows as $row)
-                                <tr>
-                                    <td><a href="{{ $row['url'] }}" class="text-decoration-none">{{ $row['number'] }}</a></td>
-                                    <td>{{ $row['customer_name'] }}</td>
-                                    <td>{{ $row['component_pn'] }}</td>
-                                    <td>{{ $row['serial_number'] }}</td>
-                                    <td>
-                                        <div>{{ $row['manual_number'] }}</div>
-                                        <div class="small text-secondary">{{ $row['manual_lib'] }} / {{ $row['manual_revision'] }}</div>
-                                    </td>
-                                    <td>{{ $row['open_date'] ?? '—' }}</td>
-                                    <td><span class="badge text-bg-{{ $row['approved'] ? 'success' : 'danger' }}">{{ $row['approved'] ? 'Present' : 'Missing' }}</span></td>
-                                    <td><span class="badge text-bg-{{ $row['photos']['missing_any'] ? 'danger' : 'success' }}">{{ $row['photos']['count'] }}</span></td>
-                                    <td><span class="badge text-bg-{{ $row['processes']['counts']['incomplete'] > 0 ? 'warning' : 'success' }}">{{ $row['processes']['counts']['total'] }}</span></td>
-                                    <td><span class="badge text-bg-{{ $badgeMap[$row['training']['status']] ?? 'secondary' }}">{{ strtoupper($row['training']['status']) }}</span></td>
-                                    <td><span class="badge text-bg-{{ $row['quality_documents']['missing'] ? 'danger' : 'success' }}">{{ $row['quality_documents']['count'] }}</span></td>
-                                    <td><span class="badge text-bg-{{ $row['status_badge'] }}">{{ strtoupper($row['status']) }}</span></td>
-                                    <td>
-                                        <a href="{{ $row['url'] }}" class="btn btn-outline-primary btn-sm">
-                                            <i class="bi bi-box-arrow-up-right"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="13" class="text-center text-secondary py-4">No workorders found.</td></tr>
-                            @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                @elseif($activeTab === 'processes')
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle">
-                            <thead>
-                            <tr>
-                                <th>WO #</th>
-                                <th>Component</th>
-                                <th>Process Name</th>
-                                <th>Date Start</th>
-                                <th>Date Finish</th>
-                                <th>RO</th>
-                                <th>Status</th>
-                                <th>Warning</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @forelse($processRows as $row)
-                                <tr>
-                                    <td><a href="{{ $row['wo_url'] }}" class="text-decoration-none">{{ $row['wo_number'] }}</a></td>
-                                    <td>{{ $row['component'] }}</td>
-                                    <td>{{ $row['process_name'] }}</td>
-                                    <td>{{ $row['date_start'] ?? '—' }}</td>
-                                    <td>{{ $row['date_finish'] ?? '—' }}</td>
-                                    <td>{{ $row['repair_order'] }}</td>
-                                    <td><span class="badge text-bg-{{ $badgeMap[$row['status']] ?? 'secondary' }}">{{ strtoupper($row['status']) }}</span></td>
-                                    <td>{{ $row['warning'] }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="8" class="text-center text-secondary py-4">No process rows found.</td></tr>
-                            @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                @elseif($activeTab === 'photos')
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle">
-                            <thead>
-                            <tr>
-                                <th>WO #</th>
-                                <th>Photos count</th>
-                                <th>Damage photos count</th>
-                                <th>Logs count</th>
-                                <th>Status</th>
-                                <th>Action / View</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @forelse($photoRows as $row)
-                                <tr>
-                                    <td><a href="{{ $row['wo_url'] }}" class="text-decoration-none">{{ $row['wo_number'] }}</a></td>
-                                    <td>{{ $row['photos_count'] }}</td>
-                                    <td>{{ $row['damage_photos_count'] }}</td>
-                                    <td>{{ $row['logs_count'] }}</td>
-                                    <td><span class="badge text-bg-{{ $badgeMap[$row['status']] ?? 'secondary' }}">{{ strtoupper($row['status']) }}</span></td>
-                                    <td>{{ $row['warning'] }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="6" class="text-center text-secondary py-4">No photo rows found.</td></tr>
-                            @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                @elseif($activeTab === 'training')
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle">
-                            <thead>
-                            <tr>
-                                <th>User / Technician</th>
-                                <th>WO #</th>
-                                <th>Last Training</th>
-                                <th>Days Since</th>
-                                <th>Status</th>
-                                <th>Warning</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @forelse($trainingRows as $row)
-                                <tr>
-                                    <td>{{ $row['user_name'] }}</td>
-                                    <td><a href="{{ $row['wo_url'] }}" class="text-decoration-none">{{ $row['wo_number'] }}</a></td>
-                                    <td>{{ $row['last_training'] ?? '—' }}</td>
-                                    <td>{{ $row['days_since'] ?? '—' }}</td>
-                                    <td><span class="badge text-bg-{{ $badgeMap[$row['status']] ?? 'secondary' }}">{{ strtoupper($row['status']) }}</span></td>
-                                    <td>{{ $row['warning'] }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="6" class="text-center text-secondary py-4">No training rows found.</td></tr>
-                            @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                @elseif($activeTab === 'documents')
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle">
-                            <thead>
-                            <tr>
-                                <th>WO #</th>
-                                <th>Customer</th>
-                                <th>Component PN</th>
-                                <th>Serial #</th>
-                                <th>Documents count</th>
-                                <th>Latest document</th>
-                                <th>Status</th>
-                                <th>Upload</th>
-                                <th>View</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            @forelse($qualityDocumentRows as $row)
-                                <tr>
-                                    <td><a href="{{ $row['wo_url'] }}" class="text-decoration-none">{{ $row['wo_number'] }}</a></td>
-                                    <td>{{ $row['customer_name'] }}</td>
-                                    <td>{{ $row['component_pn'] }}</td>
-                                    <td>{{ $row['serial_number'] }}</td>
-                                    <td>{{ $row['documents_count'] }}</td>
-                                    <td>
-                                        <div>{{ $row['latest_document'] ?? '—' }}</div>
-                                        <div class="small text-secondary">{{ $row['latest_document_at'] ?? '—' }}</div>
-                                    </td>
-                                    <td>
-                                        <span class="badge text-bg-{{ $badgeMap[$row['status']] ?? 'secondary' }}">{{ strtoupper($row['status']) }}</span>
-                                    </td>
-                                    <td style="min-width: 260px;">
-                                        <form method="POST" action="{{ route('quality.documents.store', $row['wo_id']) }}" enctype="multipart/form-data" class="d-flex flex-column gap-2">
-                                            @csrf
-                                            <input type="file" name="files[]" class="form-control form-control-sm" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.csv">
-                                            <button type="submit" class="btn btn-outline-primary btn-sm">
-                                                <i class="bi bi-upload me-1"></i>Upload document
-                                            </button>
-                                        </form>
-                                    </td>
-                                    <td style="min-width: 150px;">
-                                        <a href="{{ $tabUrl('documents', ['documents_for' => $row['wo_id']]) }}#quality-documents-list" class="btn btn-outline-secondary btn-sm">
-                                            <i class="bi bi-folder2-open me-1"></i>View documents
-                                        </a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="9" class="text-center text-secondary py-4">No quality document rows found.</td></tr>
-                            @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-
-                    @if($openDocumentWorkorderId)
-                        @php
-                            $openDocumentRow = $qualityDocumentRows->firstWhere('wo_id', $openDocumentWorkorderId);
-                        @endphp
-                        @if($openDocumentRow)
-                            <div id="quality-documents-list" class="mt-4">
-                                <h5 class="mb-3 text-primary">WO {{ $openDocumentRow['wo_number'] }} quality documents</h5>
-                                <div class="qa-doc-list">
-                                    @forelse($openDocumentRow['documents'] as $document)
-                                        <div class="qa-doc-item">
-                                            <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
-                                                <div>
-                                                    <div class="fw-semibold">{{ $document->name ?: $document->file_name }}</div>
-                                                    <div class="small text-secondary">
-                                                        {{ $document->file_name }} · {{ number_format($document->size / 1024, 1) }} KB · {{ optional($document->created_at)->format('Y-m-d H:i') }}
-                                                    </div>
-                                                    <div class="small text-secondary">
-                                                        Uploaded by: {{ $document->getCustomProperty('uploaded_by_name') ?: ('User #' . ($document->getCustomProperty('uploaded_by') ?: '—')) }}
-                                                    </div>
-                                                </div>
-                                                <div class="qa-doc-actions">
-                                                    <a href="{{ route('quality.documents.show', [$openDocumentRow['wo_id'], $document->id]) }}" target="_blank" class="btn btn-outline-primary btn-sm">Open</a>
-                                                    <a href="{{ route('quality.documents.download', [$openDocumentRow['wo_id'], $document->id]) }}" class="btn btn-outline-secondary btn-sm">Download</a>
-                                                    <form method="POST" action="{{ route('quality.documents.destroy', [$openDocumentRow['wo_id'], $document->id]) }}">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @empty
-                                        <div class="alert alert-secondary mb-0">No quality documents uploaded for this workorder.</div>
-                                    @endforelse
-                                </div>
-                            </div>
-                        @endif
-                    @endif
-                @endif
+    <div class="modal fade" id="qaPhotoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content bg-dark text-light">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="qaPhotoModalTitle">Photos</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="qaPhotoModalBody" class="d-flex flex-wrap gap-2"></div>
+                </div>
             </div>
         </div>
     </div>
+
+    <script>
+        (() => {
+            const storageKey = 'qualityAssurance.singleWorkorderSearch';
+            const searchInput = document.getElementById('qaWorkorderSearch');
+            const clearButton = document.getElementById('qaWorkorderSearchClear');
+            const currentWorkorderLabel = document.getElementById('qaCurrentWorkorder');
+            const result = document.getElementById('qaResult');
+            const message = document.getElementById('qaMessage');
+            const pageLoading = document.getElementById('qaPageLoading');
+            const photoModalEl = document.getElementById('qaPhotoModal');
+            const photoModalTitle = document.getElementById('qaPhotoModalTitle');
+            const photoModalBody = document.getElementById('qaPhotoModalBody');
+            const endpoint = @json(route('quality.workorder'));
+            const spinnerHtml = '<span class="qa-dot-spinner" aria-label="Loading"><span></span><span></span><span></span></span>';
+            let currentPhotoGroups = [];
+
+            const escapeHtml = (value) => String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+
+            const normalizeWorkorderSearch = (value) => {
+                const query = String(value ?? '').trim();
+                return /\d/.test(query) ? query.replace(/\D+/g, '') : query;
+            };
+
+            const showClear = () => {
+                clearButton.classList.toggle('is-visible', searchInput.value.trim() !== '');
+            };
+
+            const setCurrentWorkorder = (number = '', url = '') => {
+                currentWorkorderLabel.innerHTML = number
+                    ? `<a href="${escapeHtml(url || '#')}">WO <span class="text-info">${escapeHtml(number)}</span></a>`
+                    : '';
+            };
+
+            const setLoading = (loading) => {
+                pageLoading.classList.toggle('is-visible', loading);
+            };
+
+            const saveSearch = (value) => {
+                try {
+                    localStorage.setItem(storageKey, value);
+                } catch (error) {
+                    // localStorage can be unavailable in private browser modes.
+                }
+            };
+
+            const readSearch = () => {
+                try {
+                    return localStorage.getItem(storageKey) || '';
+                } catch (error) {
+                    return '';
+                }
+            };
+
+            const fieldHtml = (label, value, html = false) => `
+                <div class="qa-info-item">
+                    <div class="qa-info-label">${escapeHtml(label)}</div>
+                    <div class="qa-info-value">${html ? value : escapeHtml(value || '-')}</div>
+                </div>
+            `;
+
+            const manualHtml = (value) => {
+                const text = String(value || '-');
+                const match = text.match(/^(.*?)\s*(\([^)]*\))$/);
+
+                if (!match) {
+                    return escapeHtml(text);
+                }
+
+                return `${escapeHtml(match[1].trim())} <span class="text-secondary">${escapeHtml(match[2])}</span>`;
+            };
+
+            const checksHtml = (checks) => {
+                if (!checks || checks.length === 0) {
+                    return '';
+                }
+
+                return `
+                    <div class="qa-checks-line small">
+                        ${checks.map((check, index) => `
+                            ${index ? '<span class="qa-check-separator">&middot;</span>' : ''}
+                            <span class="${check.ok ? 'text-info' : 'text-danger'} fw-semibold">${escapeHtml(check.label)}</span>
+                        `).join('')}
+                    </div>
+                `;
+            };
+
+            const blockHtml = (title, body, titleMeta = '', className = '') => `
+                <section class="qa-block ${escapeHtml(className)} mb-3">
+                    <div class="qa-block-title">
+                        <h6 class="mb-0 text-info">${escapeHtml(title)}</h6>
+                        ${titleMeta}
+                    </div>
+                    ${body}
+                </section>
+            `;
+
+            const renderTop = (wo) => {
+                const top = wo.top || {};
+                const approvedDate = top.approved_at && top.approved_at !== '-' ? top.approved_at : '';
+                const approvalMeta = `
+                    <span class="d-inline-flex align-items-center gap-2">
+                        <span class="${top.approved ? 'text-info' : 'text-secondary'} fw-semibold">${top.approved ? 'Approved' : 'Not approved'}</span>
+                        ${approvedDate ? `<span class="small text-secondary">${escapeHtml(approvedDate)}</span>` : ''}
+                    </span>
+                `;
+                const fields = [
+                    ['WO #', wo.number],
+                    ['Customer', top.customer],
+                    ['Instruction', top.instruction],
+                    ['Technician', top.technician],
+                    ['Unit PN', top.unit],
+                    ['Serial #', top.serial],
+                    ['Manual', manualHtml(top.manual), true],
+                    ['Manual Rev.', top.manual_revision],
+                    ['Open Date', top.open_date],
+                    ['Customer PO', top.customer_po],
+                ].map(([label, value, html]) => fieldHtml(label, value, html)).join('');
+
+                return blockHtml('Workorder', `<div class="qa-info-grid">${fields}</div>${checksHtml(wo.checks)}`, approvalMeta);
+            };
+
+            const renderPhotos = (groups) => {
+                currentPhotoGroups = groups || [];
+
+                if (currentPhotoGroups.length === 0) {
+                    return blockHtml('Photos', '<div class="qa-empty">No image photos found.</div>');
+                }
+
+                const cards = currentPhotoGroups.map((group, index) => `
+                    <button type="button" class="qa-photo-group" data-photo-group="${index}">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <div class="fw-semibold">${escapeHtml(group.label)}</div>
+                                <div class="small text-secondary">${escapeHtml(group.collection)}</div>
+                            </div>
+                            <span class="text-info fw-semibold">${escapeHtml(group.count)}</span>
+                        </div>
+                    </button>
+                `).join('');
+
+                return blockHtml('Photos', `<div class="qa-photo-groups">${cards}</div>`);
+            };
+
+            const renderSubmitted = (rows) => {
+                if (!rows || rows.length === 0) {
+                    return blockHtml('Submitted WO', '<div class="qa-empty">No submitted inspections waiting for QA.</div>');
+                }
+
+                const body = `
+                    <div class="table-responsive qa-table-scroll">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th>Submitted Step</th>
+                                <th>Submitted Date</th>
+                                <th>Missing Inspection</th>
+                                <th>Component PN</th>
+                                <th>Serial #</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            ${rows.map(row => `
+                                <tr>
+                                    <td>${escapeHtml(row.submitted_step)}</td>
+                                    <td>${escapeHtml(row.submitted_date || '-')}</td>
+                                    <td><span class="text-warning fw-semibold">${escapeHtml(row.missing_inspection)}</span></td>
+                                    <td>${escapeHtml(row.component_pn)}</td>
+                                    <td>${escapeHtml(row.serial_number)}</td>
+                                </tr>
+                            `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                return blockHtml('Submitted WO', body, `<span class="text-warning fw-semibold">${rows.length}</span>`);
+            };
+
+            const renderRepairOrders = (rows) => {
+                if (!rows || rows.length === 0) {
+                    return blockHtml('Repair order', '<div class="qa-empty">No processes found.</div>');
+                }
+
+                const missing = rows.filter(row => !row.ok).length;
+                const body = `
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Process</th>
+                                <th>RO</th>
+                                <th>Date Send</th>
+                                <th>Date Receive</th>
+                                <th>Status</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            ${rows.map(row => `
+                                <tr>
+                                    <td>${escapeHtml(row.component)}</td>
+                                    <td>${escapeHtml(row.process_name)}</td>
+                                    <td>${escapeHtml(row.repair_order)}</td>
+                                    <td>${escapeHtml(row.date_start)}</td>
+                                    <td>${escapeHtml(row.date_finish)}</td>
+                                    <td><span class="${row.ok ? 'text-info' : 'text-danger'} fw-semibold">${row.ok ? 'OK' : 'Missing'}</span></td>
+                                </tr>
+                            `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                return blockHtml('Repair order', body, `<span class="${missing ? 'text-danger' : 'text-info'} fw-semibold">${missing ? `${missing} missing` : 'OK'}</span>`, 'qa-repair-block');
+            };
+
+            const fitPaperLabels = (root = document) => {
+                root.querySelectorAll('.qa-form-paper-label').forEach((label) => {
+                    label.style.fontSize = '24px';
+
+                    for (let size = 24; size >= 9; size -= 1) {
+                        label.style.fontSize = `${size}px`;
+
+                        if (label.scrollWidth <= label.clientWidth && label.scrollHeight <= label.clientHeight) {
+                            break;
+                        }
+                    }
+                });
+            };
+
+            const paperButtonHtml = (form, index) => {
+                const title = form.title || '';
+                const colorClass = index < 2 ? 'is-success' : '';
+                const url = form.url || '';
+                const tag = url ? 'a' : 'div';
+                const href = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener"` : '';
+
+                return `
+                    <${tag} class="qa-form-paper ${colorClass}"${href} title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">
+                        <svg viewBox="0 0 190 270" role="img" aria-hidden="true">
+                            <path class="paper" d="M10 10 H140 L180 50 V240 H10 Z"></path>
+                            <polygon class="fold" points="140,10 140,50 180,50"></polygon>
+                            <path class="line" d="M140 12 V50 H180"></path>
+                            <foreignObject x="14" y="56" width="162" height="150">
+                                <div class="qa-form-paper-label" xmlns="http://www.w3.org/1999/xhtml">${escapeHtml(title)}</div>
+                            </foreignObject>
+                        </svg>
+                    </${tag}>
+                `;
+            };
+
+            const renderForms = (forms) => {
+                const body = `
+                    <div class="qa-form-grid">
+                        ${(forms || []).map((form, index) => paperButtonHtml(form, index)).join('')}
+                    </div>
+                `;
+
+                return blockHtml('Forms', body, '', 'qa-forms-block');
+            };
+
+            const renderWorkorder = (wo) => {
+                setCurrentWorkorder(wo.number, wo.url);
+                result.innerHTML = `<div class="qa-workorder-layout">${[
+                    `<div class="qa-top-row">${renderTop(wo)}${renderForms(wo.forms)}</div>`,
+                    renderPhotos(wo.photos),
+                    renderSubmitted(wo.submitted),
+                    renderRepairOrders(wo.repair_orders),
+                ].join('')}</div>`;
+                fitPaperLabels(result);
+            };
+
+            const loadWorkorder = async () => {
+                const normalized = normalizeWorkorderSearch(searchInput.value);
+                searchInput.value = normalized;
+                showClear();
+                saveSearch(normalized);
+
+                if (!/^\d{6}$/.test(normalized)) {
+                    setCurrentWorkorder();
+                    message.textContent = 'Enter full 6-digit workorder number.';
+                    result.innerHTML = '<div class="qa-empty qa-block">Waiting for full workorder number.</div>';
+                    return;
+                }
+
+                setLoading(true);
+                message.innerHTML = spinnerHtml;
+
+                try {
+                    const url = new URL(endpoint, window.location.origin);
+                    url.searchParams.set('q', normalized);
+
+                    const response = await fetch(url, {
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok || !data.found) {
+                        throw new Error(data.message || 'Workorder not found.');
+                    }
+
+                    message.textContent = '';
+                    renderWorkorder(data.workorder);
+                } catch (error) {
+                    setCurrentWorkorder();
+                    message.textContent = error.message || 'Could not load workorder.';
+                    result.innerHTML = '<div class="qa-empty qa-block">No workorder loaded.</div>';
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            searchInput.value = readSearch();
+            showClear();
+
+            if (/^\d{6}$/.test(normalizeWorkorderSearch(searchInput.value))) {
+                loadWorkorder();
+            }
+
+            searchInput.addEventListener('input', () => {
+                saveSearch(normalizeWorkorderSearch(searchInput.value));
+                setCurrentWorkorder();
+                showClear();
+            });
+
+            searchInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    loadWorkorder();
+                }
+            });
+
+            clearButton.addEventListener('click', () => {
+                searchInput.value = '';
+                saveSearch('');
+                setCurrentWorkorder();
+                showClear();
+                message.textContent = '';
+                result.innerHTML = '<div class="qa-empty qa-block">Enter a full workorder number and press Enter.</div>';
+                searchInput.focus();
+            });
+
+            result.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-photo-group]');
+                if (!button) return;
+
+                const group = currentPhotoGroups[Number(button.dataset.photoGroup)];
+                if (!group) return;
+
+                photoModalTitle.textContent = `${group.label} (${group.count})`;
+                photoModalBody.innerHTML = (group.items || []).map(item => `
+                    <a href="${escapeHtml(item.big)}" data-fancybox="qa-${escapeHtml(group.collection)}" data-caption="${escapeHtml(item.name)}">
+                        <img src="${escapeHtml(item.thumb || item.big)}" class="qa-photo-thumb" alt="${escapeHtml(item.name)}" data-full-src="${escapeHtml(item.big)}">
+                    </a>
+                `).join('');
+
+                photoModalBody.querySelectorAll('img[data-full-src]').forEach((image) => {
+                    image.addEventListener('error', () => {
+                        if (image.src !== image.dataset.fullSrc) {
+                            image.src = image.dataset.fullSrc;
+                        }
+                    }, { once: true });
+                });
+
+                bootstrap.Modal.getOrCreateInstance(photoModalEl).show();
+            });
+        })();
+    </script>
 @endsection

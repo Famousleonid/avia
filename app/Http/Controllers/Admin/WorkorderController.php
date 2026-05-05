@@ -763,8 +763,9 @@ class WorkorderController extends Controller
         $users = User::query()->orderBy('name')->get(['id', 'name']);
         $open_at = format_project_date($current_wo->open_at);
         $hasTdrs = $workorder->tdrs()->exists();
+        $canChangeTechnik = auth()->user()?->hasAnyRole('Admin|Manager') ?? false;
 
-        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs'));
+        return view('admin.workorders.edit', compact('users', 'customers', 'units', 'instructions', 'current_wo', 'manuals', 'open_at','draftInstructionId','wasDraft','hasTdrs','canChangeTechnik'));
 
     }
 
@@ -880,6 +881,10 @@ class WorkorderController extends Controller
         // если изначально не Draft — всегда 0
         if (!$wasDraft) {
             $request->merge(['is_draft' => 0]);
+        }
+
+        if (! (auth()->user()?->hasAnyRole('Admin|Manager') ?? false)) {
+            $request->merge(['user_id' => $workorder->user_id]);
         }
 
         $oldUnitId = $workorder->unit_id;

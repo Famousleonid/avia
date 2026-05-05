@@ -21,8 +21,8 @@
             /*transform: scale(0.8);*/
             transform-origin: top left;
             padding: 3px;
-            /*margin-left: 10px;*/
-            /*margin-right: 10px;*/
+            margin-left: 0;
+            margin-right: auto;
 
         }
 

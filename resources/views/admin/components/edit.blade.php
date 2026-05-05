@@ -6,10 +6,6 @@
         .container {
             max-width: 700px;
         }
-        /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
-
-
-
         html[data-bs-theme="dark"]  .select2-selection--single {
             background-color: #121212 !important;
             color: gray !important;
@@ -136,16 +132,6 @@
                                                value="{{$current_component->part_number}}"
                                                required>
                                     </div >
-
-                                        <div class="mt-3">
-                                            <label for="eff_code">{{ __('EFF Code') }}</label>
-                                            <input id='eff_code' type="text"
-                                                   class="form-control mt-2"
-                                                   name="eff_code" placeholder="Enter EFF code (optional)"
-                                                   value="{{$current_component->eff_code}}">
-                                        </div>
-
-
                                     </div>
 
                                 <div class="m-3">
@@ -195,9 +181,7 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
-                        <div class="form-group mt-3" id="bush_ipl_container"
+<div class="form-group mt-3" id="bush_ipl_container"
                              style="display: {{ $current_component->is_bush ? 'block' : 'none' }};">
                             <label for="bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
                             <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
@@ -213,13 +197,6 @@
                                    value="1" {{ $current_component->log_card ? 'checked' : '' }}>
                             <label class="form-check-label" for="log_card">
                                 Log Card
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox"  id="repair" name="repair"
-                                   value="1" {{ $current_component->repair ? 'checked' : '' }}>
-                            <label class="form-check-label" for="repair">
-                                Repair
                             </label>
                         </div>
                         <div class="form-check">
@@ -246,9 +223,6 @@
 
         window.addEventListener('load', function () {
 
-
-            // --------------------------------- Select 2 --------------------------------------------------------
-
             $(document).ready(function () {
                 $('#manual_id').select2({
                     placeholder: '---',
@@ -272,12 +246,8 @@
                 }
             }
 
-            // -----------------------------------------------------------------------------------------------------
-
 
         });
-
-        // Функция для показа/скрытия поля Bush IPL Number
         function toggleBushIPL() {
             const isBushCheckbox = document.getElementById('is_bush');
             const bushIPLContainer = document.getElementById('bush_ipl_container');
@@ -289,7 +259,7 @@
             } else {
                 bushIPLContainer.style.display = 'none';
                 bushIPLInput.required = false;
-                bushIPLInput.value = ''; // Очищаем поле при скрытии
+                bushIPLInput.value = '';
             }
         }
 

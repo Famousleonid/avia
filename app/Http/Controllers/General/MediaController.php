@@ -98,7 +98,7 @@ class MediaController extends Controller
     {
         $media = Media::findOrFail($mediaId);
         if (!$media->mime_type || !str_starts_with($media->mime_type, 'image/')) {
-            abort(404);
+            return $this->fallbackImageResponse();
         }
         // путь к thumb
         $thumbPath = $media->getPath('thumb');
@@ -108,7 +108,7 @@ class MediaController extends Controller
             $originalPath = $media->getPath();
 
             if (!$originalPath || !file_exists($originalPath)) {
-                abort(404, 'Media file not found');
+                return $this->fallbackImageResponse();
             }
 
             $generatedThumbPath = $this->generatedThumbPath($media, $originalPath);
@@ -126,10 +126,15 @@ class MediaController extends Controller
         $path = $media->getPath();
 
         if (!$path || !file_exists($path)) {
-            abort(404, 'Media file not found');
+            return $this->fallbackImageResponse();
         }
 
         return $this->cachedFileResponse($path);
+    }
+
+    private function fallbackImageResponse()
+    {
+        return $this->cachedFileResponse(public_path('img/noimage.png'));
     }
 
     private function cachedFileResponse(string $path)

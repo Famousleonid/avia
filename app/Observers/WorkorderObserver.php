@@ -23,7 +23,19 @@ class WorkorderObserver
             return;
         }
 
-        if (empty($workorder->approve_at) || ! $byUser) {
+        if (! $byUser) {
+            return;
+        }
+
+        if (empty($workorder->approve_at)) {
+            if (! empty($workorder->getOriginal('approve_at'))) {
+                app(WorkorderNotifyService::class)->unapproved(
+                    $workorder,
+                    $byUser->id,
+                    $byUser->name
+                );
+            }
+
             return;
         }
 

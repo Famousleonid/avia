@@ -16,7 +16,7 @@
         }
         .cert-wrap {
             max-width: 900px;
-            margin: 0 auto;
+            margin: 0;
         }
         .cert-title-box {
             border: 3px solid #000;
@@ -44,7 +44,7 @@
             padding: 0 6px 2px;
         }
         .cert-table {
-            width: 500px;
+            width: 620px;
             max-width: 100%;
             border-collapse: collapse;
             margin: 20px auto;
@@ -54,7 +54,7 @@
         .cert-table td {
             border: 1px solid #000;
             padding: 3px 8px;
-            vertical-align: top;
+            vertical-align: middle;
             line-height: 1.2;
         }
         .cert-table th {
@@ -67,6 +67,42 @@
         .cert-table td.pn-cell {
             white-space: pre-line;
             text-align: center;
+        }
+        .cert-select-col {
+            width: 36px;
+        }
+        .cert-row-check {
+            width: 18px;
+            height: 18px;
+        }
+        .cert-manual-input {
+            width: 100%;
+            border: 1px dotted #555;
+            background: transparent;
+            font-family: inherit;
+            font-size: inherit;
+            text-align: center;
+            height: 1.2em;
+            line-height: 1.2;
+            min-height: 0;
+            padding: 0 2px;
+            box-sizing: border-box;
+            vertical-align: middle;
+            display: block;
+        }
+        .cert-manual-input:focus {
+            outline: 1px solid #0d6efd;
+        }
+        .cert-manual-print-value {
+            display: none;
+        }
+        .cert-print-only-row {
+            display: none;
+        }
+        .cert-manual-row td {
+            padding: 3px 8px;
+            line-height: 1.2;
+            vertical-align: middle;
         }
         .cert-statement {
             text-align: left;
@@ -116,6 +152,30 @@
             .no-print {
                 display: none !important;
             }
+            .cert-select-col,
+            .cert-select-cell {
+                display: none !important;
+            }
+            .cert-row-print-hidden {
+                display: none !important;
+            }
+            .cert-screen-only-row {
+                display: none !important;
+            }
+            .cert-print-only-row:not(.cert-row-print-hidden) {
+                display: table-row !important;
+            }
+            .cert-print-only-row.cert-row-print-hidden {
+                display: none !important;
+            }
+            .cert-manual-print-row td {
+                height: auto !important;
+                max-height: none !important;
+                padding: 3px 8px !important;
+                line-height: 1.2 !important;
+                vertical-align: middle !important;
+                overflow: visible !important;
+            }
             body {
                 padding: 80px 25px 32px 50px;
             }
@@ -146,6 +206,7 @@
 <body>
 <div class="no-print text-start mb-3">
     <button type="button" class="btn btn-outline-primary" onclick="window.print()">{{ __('Print Form') }}</button>
+    <span class="ms-3 small text-muted" id="certSaveStatus"></span>
 </div>
 
 <div class="cert-wrap ">
@@ -181,6 +242,7 @@
     <table class="cert-table text-center mt-3">
         <thead>
         <tr>
+            <th class="cert-select-col no-print"></th>
             <th style="width: 26%;">{{ __('PART NUMBER') }}</th>
             <th style="width: 42%;">{{ __('DESCRIPTION') }}</th>
             <th style="width: 32%;">{{ __('SERIAL NUMBER') }}</th>
@@ -188,19 +250,55 @@
         </thead>
         <tbody>
         @foreach($rows as $row)
-            <tr>
+            <tr class="cert-data-row" data-row-key="{{ $row['key'] }}">
+                <td class="cert-select-cell no-print">
+                    <input type="checkbox"
+                           class="cert-row-check"
+                           value="{{ $row['key'] }}"
+                           @checked($row['selected'])>
+                </td>
                 <td class="pn-cell text-center" style="line-height: 1.1">{{ $row['part_number'] }}</td>
                 <td class="align-middle">{{ $row['description'] }}</td>
                 <td class="sn-cell text-center" style="line-height: 1.1">{{ $row['serial_number'] }}</td>
             </tr>
         @endforeach
-        @for($i = count($rows); $i < 6; $i++)
-            <tr>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-            </tr>
-        @endfor
+        <tr class="cert-manual-row cert-screen-only-row">
+            <td class="cert-select-cell no-print">
+                <input type="checkbox"
+                       class="cert-row-check cert-manual-check"
+                       @checked($manualSelected ?? false)>
+            </td>
+            <td class="pn-cell text-center" style="line-height: 1.1">
+                <input type="text"
+                       class="cert-manual-input"
+                       data-manual-field="part_number"
+                       value="{{ $manualRow['part_number'] ?? '' }}">
+            </td>
+            <td class="align-middle">
+                <input type="text"
+                       class="cert-manual-input"
+                       data-manual-field="description"
+                       value="{{ $manualRow['description'] ?? '' }}">
+            </td>
+            <td class="sn-cell text-center" style="line-height: 1.1">
+                <input type="text"
+                       class="cert-manual-input"
+                       data-manual-field="serial_number"
+                       value="{{ $manualRow['serial_number'] ?? '' }}">
+            </td>
+        </tr>
+        <tr class="cert-manual-print-row cert-print-only-row">
+            <td class="cert-select-cell no-print"></td>
+            <td class="pn-cell text-center" style="line-height: 1.1" data-manual-print-field="part_number">
+                {{ $manualRow['part_number'] ?? '' }}
+            </td>
+            <td class="align-middle" data-manual-print-field="description">
+                {{ $manualRow['description'] ?? '' }}
+            </td>
+            <td class="sn-cell text-center" style="line-height: 1.1" data-manual-print-field="serial_number">
+                {{ $manualRow['serial_number'] ?? '' }}
+            </td>
+        </tr>
         </tbody>
     </table>
 
@@ -227,8 +325,8 @@
                            class="cert-date-input flex-grow-1"
                            id="certDestructionDate"
                            style="width: auto; min-width: 10rem; max-width: 220px; font-size: 18px"
-                           value="{{ now()->format('d/M/Y') }}"
-                           placeholder="29/Apr/2025"
+                           value="{{ $certificateDate }}"
+                           placeholder="05/May/2026"
                            inputmode="text"
                            autocomplete="off"
                            aria-label="{{ __('Date') }}">
@@ -248,5 +346,123 @@
         </div>
     </div>
 </footer>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const saveUrl = @json($saveUrl);
+        const csrf = @json(csrf_token());
+        const status = document.getElementById('certSaveStatus');
+        const table = document.querySelector('.cert-table');
+        const certificateDateInput = document.getElementById('certDestructionDate');
+        let saveTimer = null;
+
+        function selectedKeys() {
+            return Array.from(document.querySelectorAll('.cert-data-row .cert-row-check:checked'))
+                .map((input) => input.value)
+                .filter(Boolean);
+        }
+
+        function manualSelected() {
+            return Boolean(document.querySelector('.cert-manual-check')?.checked);
+        }
+
+        function manualRowData() {
+            const data = {};
+            document.querySelectorAll('.cert-manual-input[data-manual-field]').forEach((input) => {
+                data[input.dataset.manualField] = input.value || '';
+            });
+            return data;
+        }
+
+        function certificateDate() {
+            return certificateDateInput?.value || '';
+        }
+
+        function hasManualRowData() {
+            return Object.values(manualRowData()).some((value) => String(value).trim() !== '');
+        }
+
+        function updatePrintState() {
+            document.querySelectorAll('.cert-manual-input[data-manual-field]').forEach((input) => {
+                const printValue = document.querySelector(`[data-manual-print-field="${input.dataset.manualField}"]`);
+                if (printValue) {
+                    printValue.textContent = input.value || '';
+                }
+            });
+
+            document.querySelectorAll('.cert-data-row').forEach((row) => {
+                const check = row.querySelector('.cert-row-check');
+                row.classList.toggle('cert-row-print-hidden', check && !check.checked);
+            });
+
+            const manualRow = document.querySelector('.cert-manual-row');
+            if (manualRow) {
+                const hideManualPrintRow = !hasManualRowData() || !manualSelected();
+                manualRow.classList.toggle('cert-row-print-hidden', hideManualPrintRow);
+                document.querySelector('.cert-manual-print-row')?.classList.toggle('cert-row-print-hidden', hideManualPrintRow);
+            }
+        }
+
+        async function saveCertificateData() {
+            updatePrintState();
+
+            if (status) {
+                status.textContent = 'Saving...';
+            }
+
+            try {
+                const response = await fetch(saveUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        selected_keys: selectedKeys(),
+                        certificate_date: certificateDate(),
+                        manual_selected: manualSelected(),
+                        manual_row: manualRowData(),
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Save failed');
+                }
+
+                if (status) {
+                    status.textContent = 'Saved';
+                }
+            } catch (error) {
+                if (status) {
+                    status.textContent = 'Not saved';
+                }
+            }
+        }
+
+        function scheduleSave() {
+            window.clearTimeout(saveTimer);
+            saveTimer = window.setTimeout(saveCertificateData, 350);
+        }
+
+        if (table) {
+            table.addEventListener('change', function () {
+                updatePrintState();
+                scheduleSave();
+            });
+            table.addEventListener('input', function () {
+                updatePrintState();
+                scheduleSave();
+            });
+        }
+
+        if (certificateDateInput) {
+            certificateDateInput.addEventListener('input', scheduleSave);
+            certificateDateInput.addEventListener('change', scheduleSave);
+        }
+
+        window.addEventListener('beforeprint', updatePrintState);
+        updatePrintState();
+    });
+</script>
 </body>
 </html>

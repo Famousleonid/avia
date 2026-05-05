@@ -10,7 +10,7 @@
         $dataRows = count($table_data);
     } else {
         foreach ($process_tdr_components ?? [] as $component) {
-            $processData = json_decode($component->processes, true);
+            $processData = is_array($component->processes) ? $component->processes : (json_decode($component->processes ?? '[]', true) ?: []);
             $dataRows += is_array($processData) ? count($processData) : 1;
         }
     }
@@ -76,8 +76,8 @@
         @endforeach
     @else
     @foreach($process_tdr_components ?? [] as $component)
-        @php $processData = json_decode($component->processes, true); @endphp
-        @foreach($processData ?? [] as $process)
+        @php $processData = is_array($component->processes) ? $component->processes : (json_decode($component->processes ?? '[]', true) ?: []); @endphp
+        @foreach($processData as $process)
             <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}" data-stress="true">
                 <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">{{ $component->tdr->component->ipl_num }}</div>
                 <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">

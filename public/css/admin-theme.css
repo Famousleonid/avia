@@ -5,10 +5,10 @@
    ========================================================= */
 
 /* ---------- Global base background (no seams) ---------- */
-html,
-body,
-.container-fluid,
-.page-layout {
+html[data-bs-theme="dark"],
+html[data-bs-theme="dark"] body,
+html[data-bs-theme="dark"] .container-fluid,
+html[data-bs-theme="dark"] .page-layout {
     background-color: #232525 !important;
 }
 
@@ -69,7 +69,7 @@ body,
    THEME TOKENS — LIGHT
    ========================================================= */
 html[data-bs-theme="light"] {
-    --dir-bg: #C8C8C8;
+    --dir-bg: #ffffff;
 
     --dir-border: rgba(0,0,0,.10);
     --dir-border-2: rgba(0,0,0,.12);
@@ -77,16 +77,16 @@ html[data-bs-theme="light"] {
     --dir-topbar-bg: linear-gradient(180deg, rgba(233,236,239,.92), rgba(222,226,230,.88));
     --dir-panel-bg: linear-gradient(180deg, rgba(233,236,239,.92), rgba(222,226,230,.85));
 
-    --dir-table-bg: rgba(233,236,239,.98);
-    --dir-thead-bg: rgba(215,219,223,.98);
+    --dir-table-bg: #ffffff;
+    --dir-thead-bg: #f8f9fa;
 
     --dir-modal-bg: linear-gradient(180deg, rgba(222,226,230,.95), rgba(206,212,218,.90));
 
     --dir-text: rgba(33,37,41,.92);
     --dir-muted: rgba(33,37,41,.55);
 
-    --dir-input-bg: rgba(233,236,239,.85);
-    --dir-input-border: rgba(0,0,0,.15);
+    --dir-input-bg: #ffffff;
+    --dir-input-border: #dee2e6;
     --dir-input-text: rgba(33,37,41,.95);
     --dir-input-ph: rgba(33,37,41,.45);
 
@@ -594,10 +594,33 @@ html[data-bs-theme="dark"] .select2-dropdown .select2-results__option {
     color: #e9ecef !important;
 }
 
+html[data-bs-theme="dark"] .select2-dropdown .select2-results__option[aria-disabled="true"] {
+    color: #8f98a3 !important;
+    background-color: #1b1f23 !important;
+}
+
+html[data-bs-theme="dark"] .select2-dropdown .select2-results__option[aria-selected="true"],
+html[data-bs-theme="dark"] .select2-dropdown .select2-results__option--selected {
+    background-color: #20262d !important;
+    color: #f8f9fa !important;
+}
+
+html[data-bs-theme="dark"] .select2-dropdown .select2-results__option[aria-selected="true"] *,
+html[data-bs-theme="dark"] .select2-dropdown .select2-results__option--selected * {
+    color: #f8f9fa !important;
+}
+
 html[data-bs-theme="dark"] .select2-dropdown .select2-results__option--highlighted[aria-selected],
+html[data-bs-theme="dark"] .select2-dropdown .select2-results__option--highlighted.select2-results__option--selectable,
 html[data-bs-theme="dark"] .select2-dropdown .select2-results__option:hover {
-    background-color: #6ea8fe !important;
-    color: #000000 !important;
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+html[data-bs-theme="dark"] .select2-dropdown .select2-results__option--highlighted[aria-selected] *,
+html[data-bs-theme="dark"] .select2-dropdown .select2-results__option--highlighted.select2-results__option--selectable *,
+html[data-bs-theme="dark"] .select2-dropdown .select2-results__option:hover * {
+    color: #ffffff !important;
 }
 
 html[data-bs-theme="dark"] .select2-dropdown .select2-search__field {
@@ -616,11 +639,7 @@ html[data-bs-theme="dark"] .select2-dropdown .select2-results__message {
 html[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-selection--single,
 html[data-bs-theme="dark"] .select2-container--default .select2-selection--single,
 html[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-selection--multiple,
-html[data-bs-theme="dark"] .select2-container--default .select2-selection--multiple,
-html[data-bs-theme="light"] .select2-container--bootstrap-5 .select2-selection--single,
-html[data-bs-theme="light"] .select2-container--default .select2-selection--single,
-html[data-bs-theme="light"] .select2-container--bootstrap-5 .select2-selection--multiple,
-html[data-bs-theme="light"] .select2-container--default .select2-selection--multiple {
+html[data-bs-theme="dark"] .select2-container--default .select2-selection--multiple {
     background: var(--dir-input-bg) !important;
     border: 1px solid var(--dir-input-border) !important;
     border-radius: 0.375rem !important;

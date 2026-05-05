@@ -205,7 +205,7 @@
 
                                         <div class="form-group col-lg-4  mt-2">
                                             <label for="instruction_id">Technik</label>
-                                            <select name="user_id" id="user_id" class="form-select">
+                                            <select name="user_id" id="user_id" class="form-select" @disabled(! $canChangeTechnik)>
                                                 <option disabled {{ old('user_id', $current_wo->user_id) ? '' : 'selected' }} value=""> -- select an option --</option>
                                                 @foreach ($users as $user)
                                                     <option value="{{ $user->id }}"
@@ -214,6 +214,9 @@
                                                     </option>
                                                 @endforeach
                                             </select>
+                                            @unless($canChangeTechnik)
+                                                <input type="hidden" name="user_id" value="{{ $current_wo->user_id }}">
+                                            @endunless
                                         </div>
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="customer_po">Modified</label>

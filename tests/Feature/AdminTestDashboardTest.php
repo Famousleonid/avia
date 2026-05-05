@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\VerifyCsrfToken;
 use App\Services\TestSuiteRunnerService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\BuildsDomainData;
@@ -11,6 +12,13 @@ class AdminTestDashboardTest extends TestCase
 {
     use BuildsDomainData;
     use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+    }
 
     /**
      * @group smoke

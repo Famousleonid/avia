@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
     <link rel="stylesheet" href="{{ asset('css/paper-button.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
-    <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}?v={{ filemtime(public_path('css/admin-theme.css')) }}">
 
 
     <script>
@@ -66,9 +66,10 @@
 
     <style>
 
-        html, body,
-        .container-fluid,
-        .page-layout {
+        html[data-bs-theme="dark"],
+        html[data-bs-theme="dark"] body,
+        html[data-bs-theme="dark"] .container-fluid,
+        html[data-bs-theme="dark"] .page-layout {
             background-color: #232525 !important;
         }
 

@@ -238,6 +238,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/logCardForm/{id}', [TdrController::class, 'logCardForm'])->name('tdrs.logCardForm');
         Route::get('log_card/logCardForm/{id}', [LogCardController::class, 'logCardForm'])->name('log_card.logCardForm');
         Route::get('log_card/sertDistrForm/{id}', [LogCardController::class, 'sertDistrForm'])->name('log_card.sertDistrForm');
+        Route::post('log_card/sertDistrForm/{id}', [LogCardController::class, 'updateDestructionCertificate'])->name('log_card.destruction_certificate.update');
         Route::get('tdrs/woProcessForm/{id}', [TdrController::class, 'wo_Process_Form'])->name('tdrs.woProcessForm');
         Route::get('tdrs/woBoxTitle/{id}', [TdrController::class, 'wo_BoxTitle'])->name('tdrs.wo_BoxTitle');
 
@@ -381,6 +382,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/vendor-tracking/row', [VendorTrackingController::class, 'updateRow'])->name('vendor-tracking.row.update');
 
     Route::get('/quality-assurance', [QualityAssuranceController::class, 'index'])->name('quality.index');
+    Route::get('/quality-assurance/workorder', [QualityAssuranceController::class, 'workorder'])->name('quality.workorder');
+    Route::get('/quality-assurance/workorders/{workorder}/shipment-release-form', [QualityAssuranceController::class, 'shipmentReleaseForm'])
+        ->name('quality.forms.shipment_release');
     Route::post('/quality-assurance/workorders/{workorder}/quality-documents', [QualityAssuranceController::class, 'storeQualityDocuments'])
         ->name('quality.documents.store');
     Route::delete('/quality-assurance/workorders/{workorder}/quality-documents/{media}', [QualityAssuranceController::class, 'destroyQualityDocument'])

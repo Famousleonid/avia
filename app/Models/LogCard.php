@@ -11,5 +11,12 @@ class LogCard extends Model
     protected $fillable = [
         'workorder_id',
         'component_data',
+        'component_data_out',
+        'destruction_certificate_data',
+    ];
+
+    protected $casts = [
+        'component_data_out' => 'array',
+        'destruction_certificate_data' => 'array',
     ];
 }

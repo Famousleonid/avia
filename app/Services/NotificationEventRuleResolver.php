@@ -80,6 +80,14 @@ class NotificationEventRuleResolver
             }
         }
 
+        if ($key === 'tdr_process_user' && ! empty($subject->traveler_overdue_user_ids)) {
+            $users = $users->merge(
+                User::query()
+                    ->whereIn('id', array_map('intval', (array) $subject->traveler_overdue_user_ids))
+                    ->get()
+            );
+        }
+
         if ($key === 'process_notify_user' && $subject?->processName?->notifyUser) {
             $users->push($subject->processName->notifyUser);
         }

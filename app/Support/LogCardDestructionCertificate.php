@@ -2,76 +2,58 @@
 
 namespace App\Support;
 
-use App\Models\Code;
-use App\Models\Component;
 use App\Models\LogCard;
 use App\Models\Workorder;
+use App\Models\Component;
+use Carbon\Carbon;
 
 final class LogCardDestructionCertificate
 {
     /**
-     * Log Card rows that qualify for Certificate of Destruction (reason code flagged in admin).
+     * Log Card components available for Certificate of Destruction.
      *
-     * @return list<array{description: string, part_number: string, serial_number: string}>
+     * @return list<array{key: string, selected: bool, description: string, part_number: string, serial_number: string}>
      */
     public static function rowsForWorkorder(Workorder $current_wo): array
     {
-        $logCard = LogCard::where('workorder_id', $current_wo->id)->first();
+        $logCard = self::logCardForWorkorder($current_wo);
         if (! $logCard || ! $logCard->component_data) {
             return [];
         }
 
-        $componentData = is_array($logCard->component_data)
-            ? $logCard->component_data
-            : json_decode($logCard->component_data, true);
+        $componentData = self::decodeJsonish($logCard->component_data);
 
         if (! is_array($componentData)) {
             return [];
         }
 
-        $destructionCodeIds = Code::query()
-            ->where('requires_destruction_cert', true)
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        if ($destructionCodeIds === []) {
-            return [];
-        }
-
-        $manualId = $current_wo->unit->manual_id;
-        $components = Component::where('manual_id', $manualId)->get()->keyBy(fn ($c) => (int) $c->id);
+        $settings = self::settingsFor($logCard);
+        $selectedKeys = $settings['selected_keys'] ?? null;
+        $componentIds = collect($componentData)
+            ->filter(fn ($item) => is_array($item) && filled($item['component_id'] ?? null))
+            ->map(fn ($item) => (int) $item['component_id'])
+            ->unique()
+            ->values();
+        $components = Component::whereIn('id', $componentIds)->get()->keyBy(fn (Component $component) => (int) $component->id);
 
         $rows = [];
-        foreach ($componentData as $item) {
+        foreach (array_values($componentData) as $index => $item) {
             if (! is_array($item)) {
                 continue;
             }
-            $reason = $item['reason'] ?? null;
-            if ($reason === null || $reason === '') {
-                continue;
-            }
-            $rid = (int) $reason;
-            if (! in_array($rid, $destructionCodeIds, true)) {
-                continue;
-            }
 
-            $cid = $item['component_id'] ?? null;
-            if ($cid === null || $cid === '') {
-                continue;
-            }
-
-            $comp = $components->get((int) $cid);
-            if (! $comp) {
-                continue;
-            }
-
-            $hasSerialNumber = ! empty($item['serial_number']);
-            $hasAssySerialNumber = isset($item['assy_serial_number']) && ! empty($item['assy_serial_number']);
+            $hasSerialNumber = ! blank($item['serial_number'] ?? null);
+            $hasAssySerialNumber = ! blank($item['assy_serial_number'] ?? null);
+            $key = self::rowKey($item, $index);
+            $component = filled($item['component_id'] ?? null)
+                ? $components->get((int) $item['component_id'])
+                : null;
 
             $rows[] = [
-                'description' => (string) ($comp->name ?? ''),
-                'part_number' => self::formatPartNumberCell($comp, $hasSerialNumber, $hasAssySerialNumber),
+                'key' => $key,
+                'selected' => is_array($selectedKeys) ? in_array($key, $selectedKeys, true) : false,
+                'description' => (string) ($item['name'] ?? $item['description'] ?? $component?->name ?? ''),
+                'part_number' => self::formatPartNumberCell($item, $component, $hasSerialNumber, $hasAssySerialNumber),
                 'serial_number' => self::formatSerialCell($item, $hasSerialNumber, $hasAssySerialNumber),
             ];
         }
@@ -84,19 +66,96 @@ final class LogCardDestructionCertificate
         return self::rowsForWorkorder($current_wo) !== [];
     }
 
-    private static function formatPartNumberCell(Component $comp, bool $hasSerialNumber, bool $hasAssySerialNumber): string
+    public static function logCardForWorkorder(Workorder $current_wo): ?LogCard
+    {
+        return LogCard::where('workorder_id', $current_wo->id)->first();
+    }
+
+    /**
+     * @return array{selected_keys?: list<string>, certificate_date?: string, manual_selected?: bool, manual_row?: array{part_number?: string, description?: string, serial_number?: string}}
+     */
+    public static function settingsFor(?LogCard $logCard): array
+    {
+        if (! $logCard) {
+            return [];
+        }
+
+        $settings = self::decodeJsonish($logCard->destruction_certificate_data);
+
+        return is_array($settings) ? $settings : [];
+    }
+
+    /**
+     * @return array{part_number: string, description: string, serial_number: string}
+     */
+    public static function manualRowFor(?LogCard $logCard): array
+    {
+        $manualRow = self::settingsFor($logCard)['manual_row'] ?? [];
+
+        return [
+            'part_number' => (string) ($manualRow['part_number'] ?? ''),
+            'description' => (string) ($manualRow['description'] ?? ''),
+            'serial_number' => (string) ($manualRow['serial_number'] ?? ''),
+        ];
+    }
+
+    public static function manualSelectedFor(?LogCard $logCard): bool
+    {
+        return (bool) (self::settingsFor($logCard)['manual_selected'] ?? false);
+    }
+
+    public static function certificateDateFor(?LogCard $logCard): string
+    {
+        $savedDate = self::settingsFor($logCard)['certificate_date'] ?? null;
+
+        return is_string($savedDate) && trim($savedDate) !== ''
+            ? trim($savedDate)
+            : Carbon::now()->format('d/M/Y');
+    }
+
+    public static function normalizeCertificateData(array $data): array
+    {
+        $selectedKeys = collect($data['selected_keys'] ?? [])
+            ->filter(fn ($key) => is_string($key) && $key !== '')
+            ->values()
+            ->all();
+        $manualRow = is_array($data['manual_row'] ?? null) ? $data['manual_row'] : [];
+
+        return [
+            'selected_keys' => $selectedKeys,
+            'certificate_date' => self::normalizeDate((string) ($data['certificate_date'] ?? '')),
+            'manual_selected' => (bool) ($data['manual_selected'] ?? false),
+            'manual_row' => [
+                'part_number' => trim((string) ($manualRow['part_number'] ?? '')),
+                'description' => trim((string) ($manualRow['description'] ?? '')),
+                'serial_number' => trim((string) ($manualRow['serial_number'] ?? '')),
+            ],
+        ];
+    }
+
+    private static function normalizeDate(string $date): string
+    {
+        $date = trim($date);
+
+        return $date !== '' ? $date : Carbon::now()->format('d/M/Y');
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private static function formatPartNumberCell(array $item, ?Component $component, bool $hasSerialNumber, bool $hasAssySerialNumber): string
     {
         if ($hasAssySerialNumber && ! $hasSerialNumber) {
-            return (string) ($comp->assy_part_number ?? '');
+            return (string) ($item['assy_part_number'] ?? $component?->assy_part_number ?? '');
         }
         if ($hasAssySerialNumber && $hasSerialNumber) {
-            $pn = $comp->part_number ?? '';
-            $apn = $comp->assy_part_number ?? '';
+            $pn = $item['part_number'] ?? $component?->part_number ?? '';
+            $apn = $item['assy_part_number'] ?? $component?->assy_part_number ?? '';
 
             return $pn.($apn !== '' && $apn !== null ? "\n(".$apn.')' : '');
         }
 
-        return (string) ($comp->part_number ?? '');
+        return (string) ($item['part_number'] ?? $component?->part_number ?? '');
     }
 
     /**
@@ -115,5 +174,32 @@ final class LogCardDestructionCertificate
         }
 
         return (string) ($item['serial_number'] ?? '');
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private static function rowKey(array $item, int $index): string
+    {
+        return implode('|', [
+            $item['component_id'] ?? 'row',
+            trim((string) ($item['part_number'] ?? '')),
+            trim((string) ($item['serial_number'] ?? '')),
+            trim((string) ($item['assy_serial_number'] ?? '')),
+            $index,
+        ]);
+    }
+
+    private static function decodeJsonish(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        return json_decode($value, true);
     }
 }

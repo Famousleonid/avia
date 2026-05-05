@@ -6,10 +6,6 @@
             max-width: 750px;
         }
 
-        /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
-
-
-
         html[data-bs-theme="dark"]  .select2-selection--single {
             background-color: #121212 !important;
             color: gray !important;
@@ -70,7 +66,7 @@
             </div>
             <div class="card-body" id="create_div_inputs">
                 <form id="createForm" class="createForm" role="form" method="POST" action="{{route('components.store')
-                }}" enctype="multipart/form-data" id="createComponentForm">
+                }}" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="redirect" value="{{ old('redirect', request('redirect', route('components.index'))) }}">
 
@@ -130,13 +126,6 @@
                                         <input id='part_number' type="text" class="form-control"
                                                name="part_number" required>
                                     </div>
-                                    <div class="mt-2">
-                                        <label for="eff_code">{{ __('EFF Code') }}</label>
-                                        <input id='eff_code' type="text" class="form-control"
-                                               name="eff_code" placeholder="Enter EFF code (optional)">
-                                    </div>
-
-
                                 </div>
 
                                 <div class="m-3">
@@ -182,8 +171,7 @@
                                 Is Bush
                             </label>
                         </div>
-                        <!-- Bush IPL Number field - показывается только когда Is Bush отмечен -->
-                        <div class="form-group ms-3" id="bush_ipl_container" style="display: none;">
+<div class="form-group ms-3" id="bush_ipl_container" style="display: none;">
                             <div class="d-flex">
                                 <label for="bush_ipl_num">{{ __('Initial Bushing IPL Number') }}</label>
                                 <input id='bush_ipl_num' type="text" class="form-control" name="bush_ipl_num"
@@ -210,9 +198,6 @@
     <script>
 
         window.addEventListener('load', function () {
-
-
-            // --------------------------------- Select 2 --------------------------------------------------------
 
             $(document).ready(function () {
                 var inModal = {{ request()->query('modal') ? 'true' : 'false' }};
@@ -272,12 +257,8 @@
                 }
             }
 
-            // -----------------------------------------------------------------------------------------------------
-
 
         });
-
-        // Функция для показа/скрытия поля Bush IPL Number
         function toggleBushIPL() {
             const isBushCheckbox = document.getElementById('is_bush');
             const bushIPLContainer = document.getElementById('bush_ipl_container');
@@ -289,7 +270,7 @@
             } else {
                 bushIPLContainer.style.display = 'none';
                 bushIPLInput.required = false;
-                bushIPLInput.value = ''; // Очищаем поле при скрытии
+                bushIPLInput.value = '';
             }
         }
 

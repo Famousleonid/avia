@@ -41,6 +41,7 @@
     }
     $travelerFormRendered = [];
     $travelerCheckboxRendered = [];
+    $formRouteExtraParams = !empty($omitFormHeaderDate) ? ['omit_form_header_date' => 1] : [];
     $hasGroupProcessForms = collect($processGroups ?? [])->contains(function ($g) {
         return (int) ($g['count'] ?? 0) > 1;
     });
@@ -204,7 +205,7 @@
                                             <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                         @endforeach
                                     </select>
-                                    <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id]) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" target="_blank">{{ __('Form') }}</a>
+                                    <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $processes->id], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" target="_blank">{{ __('Form') }}</a>
                                 </div>
                             </td>
                             @endif
@@ -249,7 +250,7 @@
                                                     <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                                 @endforeach
                                             </select>
-                                            <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id, 'process_id' => $process]) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" data-process="{{ $process }}" target="_blank">{{ __('Form') }}</a>
+                                            <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $processes->id, 'process_id' => $process], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" data-process="{{ $process }}" target="_blank">{{ __('Form') }}</a>
                                         </div>
                                     </td>
                                     @endif
@@ -290,7 +291,7 @@
                                                 <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                             @endforeach
                                         </select>
-                                        <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id]) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" target="_blank">{{ __('Form') }}</a>
+                                        <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $processes->id], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $processes->id }}" target="_blank">{{ __('Form') }}</a>
                                     </div>
                                 </td>
                                 @endif

@@ -14,34 +14,34 @@
             overflow-y: auto;
         }
 
-        #componentsTable {
+        html[data-bs-theme="dark"] #componentsTable {
             background: transparent !important;
             color: #e6e6e6;
         }
 
-        #componentsTable tbody tr,
-        #componentsTable tbody td{
+        html[data-bs-theme="dark"] #componentsTable tbody tr,
+        html[data-bs-theme="dark"] #componentsTable tbody td{
             background: transparent !important;
             border-color: rgba(255,255,255,.08) !important;
         }
 
-        /* Лёгкая подложка на строках, чтобы читалось */
-        #componentsTable tbody tr{
+        
+        html[data-bs-theme="dark"] #componentsTable tbody tr{
             box-shadow: inset 0 0 0 9999px rgba(255,255,255,0.03);
         }
-        #componentsTable tbody tr:hover{
+        html[data-bs-theme="dark"] #componentsTable tbody tr:hover{
             box-shadow: inset 0 0 0 9999px rgba(255,255,255,0.06);
         }
 
-        /* Заголовок чуть светлее */
-        #componentsTable thead th{
+        
+        html[data-bs-theme="dark"] #componentsTable thead th{
             background: linear-gradient(180deg, #1a1d21 0%, #14161a 100%) !important;
             color: #f2f2f2 !important;
             border-color: rgba(255,255,255,.10) !important;
         }
 
-        /* Границы мягкие */
-        #componentsTable.table-bordered > :not(caption) > *{
+        
+        html[data-bs-theme="dark"] #componentsTable.table-bordered > :not(caption) > *{
             border-color: rgba(255,255,255,.10) !important;
         }
 
@@ -70,17 +70,22 @@
         }
 
         .table th:nth-child(4), .table td:nth-child(4) {
+            min-width: 190px;
+            max-width: 260px;
+        }
+
+        .table th:nth-child(5), .table td:nth-child(5) {
             min-width: 80px;
             max-width: 120px;
         }
 
-        .table th:nth-child(5), .table td:nth-child(5) {
+        .table th:nth-child(6), .table td:nth-child(6) {
             min-width: 100px;
             max-width: 150px;
         }
 
-        .table th:nth-child(6), .table td:nth-child(6) {
-            min-width: 100px;
+        .table th:nth-child(7), .table td:nth-child(7) {
+            min-width: 110px;
             max-width: 150px;
         }
 
@@ -96,10 +101,62 @@
         }
 
         @media (max-width: 1200px) {
-            .table th:nth-child(4), .table td:nth-child(4),
+            .table th:nth-child(5), .table td:nth-child(5),
             .table th:nth-child(3), .table td:nth-child(3) {
                 display: none;
             }
+        }
+
+        .assy-summary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .35rem;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .assy-summary-main {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+        }
+
+        .assy-popover-button {
+            max-width: 100%;
+            min-width: 0;
+            padding: .15rem .4rem;
+            line-height: 1.25;
+        }
+
+        .component-assy-popover {
+            --bs-popover-max-width: 520px;
+        }
+
+        .component-assy-popover .popover-body {
+            padding: .5rem;
+        }
+
+        .assy-popover-list {
+            display: grid;
+            gap: .4rem;
+            min-width: 320px;
+        }
+
+        .assy-popover-item {
+            border-bottom: 1px solid var(--bs-border-color);
+            padding-bottom: .35rem;
+        }
+
+        .assy-popover-item:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .assy-popover-notes {
+            max-width: 460px;
+            white-space: normal;
         }
 
         .table th.sortable {
@@ -125,8 +182,28 @@
             cursor: pointer;
         }
 
-        /* ===== Select2 Dark (ChatGPT-like) ===== */
-        .select2-container .select2-selection--single{
+        html[data-bs-theme="light"] #componentsTable {
+            color: var(--bs-body-color);
+        }
+
+        html[data-bs-theme="light"] #componentsTable thead th {
+            background: var(--bs-tertiary-bg) !important;
+            color: var(--bs-body-color) !important;
+        }
+
+        html[data-bs-theme="light"] #manualFilter + .select2 .select2-selection--single {
+            background: #fff !important;
+            border: 1px solid #dee2e6 !important;
+            color: #212529 !important;
+            box-shadow: none !important;
+        }
+
+        html[data-bs-theme="light"] #manualFilter + .select2 .select2-selection__rendered {
+            color: #212529 !important;
+        }
+
+        
+        html[data-bs-theme="dark"] .select2-container .select2-selection--single{
             height: 40px !important;
             background: #0f1114 !important;
             border: 1px solid rgba(255,255,255,.10) !important;
@@ -137,34 +214,34 @@
             box-shadow: inset 0 0 0 1px rgba(0,0,0,.25);
         }
 
-        .select2-container--default .select2-selection--single .select2-selection__rendered{
+        html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered{
             color: #e6e6e6 !important;
             line-height: 38px !important;
             padding-left: 12px !important;
-            padding-right: 38px !important; /* место под крестик/стрелку */
+            padding-right: 38px !important; 
         }
 
-        .select2-container--default .select2-selection--single .select2-selection__placeholder{
+        html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__placeholder{
             color: rgba(230,230,230,.55) !important;
         }
 
-        .select2-container--default .select2-selection--single .select2-selection__arrow{
+        html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__arrow{
             height: 38px !important;
             right: 8px !important;
         }
-        .select2-container--default .select2-selection--single .select2-selection__arrow b{
+        html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__arrow b{
             border-color: rgba(230,230,230,.7) transparent transparent transparent !important;
         }
 
-        /* dropdown */
-        .select2-container--default .select2-dropdown{
+        
+        html[data-bs-theme="dark"] .select2-container--default .select2-dropdown{
             background: #0f1114 !important;
             border: 1px solid rgba(255,255,255,.12) !important;
             border-radius: 12px !important;
             overflow: hidden;
         }
 
-        .select2-container--default .select2-search--dropdown .select2-search__field{
+        html[data-bs-theme="dark"] .select2-container--default .select2-search--dropdown .select2-search__field{
             background: #0b0c0e !important;
             border: 1px solid rgba(255,255,255,.10) !important;
             border-radius: 10px !important;
@@ -173,44 +250,50 @@
             outline: none !important;
         }
 
-        /* options */
-        .select2-container--default .select2-results__option{
+        
+        html[data-bs-theme="dark"] .select2-container--default .select2-results__option{
             color: #e6e6e6 !important;
             padding: 8px 12px !important;
             line-height: 1.35;
 
         }
-        .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable{
-            background: rgba(255,255,255,.08) !important;
+        html[data-bs-theme="dark"] .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable{
+            background: #0d6efd !important;
             color: #fff !important;
         }
-        .select2-container--default .select2-results__option--selected{
-            background: rgba(255,255,255,.06) !important;
+        html[data-bs-theme="dark"] .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable *{
+            color: #fff !important;
+        }
+        html[data-bs-theme="dark"] .select2-container--default .select2-results__option--selected{
+            background: #20262d !important;
+            color: #fff !important;
+        }
+        html[data-bs-theme="dark"] .select2-container--default .select2-results__option--selected *{
             color: #fff !important;
         }
 
-        /* focus */
-        .select2-container--default.select2-container--focus .select2-selection--single{
+        
+        html[data-bs-theme="dark"] .select2-container--default.select2-container--focus .select2-selection--single{
             border-color: rgba(255,255,255,.18) !important;
             box-shadow: 0 0 0 3px rgba(255,255,255,.06) !important;
         }
 
-        /* ===== Clear (крестик) — сдвинуть чуть левее ===== */
-        .select2-container--default .select2-selection--single .select2-selection__clear{
+        
+        html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__clear{
             color: rgba(230,230,230,.75) !important;
             font-size: 18px;
             line-height: 1;
             position: absolute;
-            right: 30px;            /* <-- было ближе к стрелке, делаем левее */
+            right: 30px;            
             top: 50%;
             transform: translateY(-50%);
             padding: 0 6px;
         }
-        .select2-container--default .select2-selection--single .select2-selection__clear:hover{
+        html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__clear:hover{
             color: #fff !important;
         }
 
-        /* ===== Select2 dropdown height ===== */
+        
         .select2-container--default .select2-results__options{
             max-height: 60vh !important;
             overflow-y: auto !important;
@@ -220,6 +303,29 @@
         }
         .fs-8 {
             font-size: 0.8rem;
+        }
+
+        .manual-option-lib {
+            color: #0d6efd;
+        }
+
+        .manual-option-title {
+            color: #6c757d;
+        }
+
+        html[data-bs-theme="dark"] .manual-option-lib {
+            color: #4c8bf5;
+        }
+
+        html[data-bs-theme="dark"] .manual-option-title {
+            color: #adb5bd;
+        }
+
+        html[data-bs-theme="dark"] .select2-results__option--highlighted .manual-option-lib,
+        html[data-bs-theme="dark"] .select2-results__option--highlighted .manual-option-title,
+        html[data-bs-theme="dark"] .select2-results__option--selected .manual-option-lib,
+        html[data-bs-theme="dark"] .select2-results__option--selected .manual-option-title {
+            color: #fff !important;
         }
 
         th.sortable.sorted-asc  i { transform: rotate(180deg); opacity: 1; }
@@ -240,6 +346,107 @@
             margin:auto;
         }
 
+        #createComponentOffcanvas,
+        #editComponentOffcanvas {
+            --bs-offcanvas-width: min(720px, 100vw);
+            top: .75rem;
+            bottom: 4vh;
+            height: auto;
+            max-height: calc(100vh - .75rem - 4vh);
+            display: flex;
+            flex-direction: column;
+            border-top-left-radius: .75rem;
+            border-bottom-left-radius: .75rem;
+            overflow: hidden;
+        }
+
+        #createComponentOffcanvas .offcanvas-body,
+        #editComponentOffcanvas .offcanvas-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            padding-bottom: 0;
+        }
+
+        #createComponentOffcanvas form,
+        #editComponentOffcanvas form {
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #createComponentOffcanvas .component-form-footer,
+        #editComponentOffcanvas .component-form-footer {
+            margin-top: auto !important;
+        }
+
+        body:has(#createComponentOffcanvas.show) #aiAssistantWidget,
+        body:has(#editComponentOffcanvas.show) #aiAssistantWidget {
+            display: none !important;
+        }
+
+        @media (max-height: 720px) {
+            #createComponentOffcanvas,
+            #editComponentOffcanvas {
+                top: .5rem;
+                bottom: 4vh;
+                max-height: calc(100vh - .5rem - 4vh);
+            }
+        }
+
+        .component-form-section {
+            border-top: 1px solid rgba(255,255,255,.1);
+            padding-top: 1rem;
+        }
+
+        .component-form-footer {
+            position: sticky;
+            bottom: 0;
+            z-index: 2;
+            background: #212529;
+            border-top: 1px solid rgba(255,255,255,.1);
+            margin-left: -1rem;
+            margin-right: -1rem;
+            padding: .75rem 1rem 1rem;
+        }
+
+        html[data-bs-theme="light"] .component-form-footer {
+            background: #fff;
+            border-color: #dee2e6;
+        }
+
+        .component-assembly-row {
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: .5rem;
+            padding: .6rem;
+            background: rgba(255,255,255,.025);
+        }
+
+        .component-assembly-row + .component-assembly-row {
+            margin-top: .5rem;
+        }
+
+        .component-assembly-row .form-label {
+            font-size: .8rem;
+            margin-bottom: .25rem;
+        }
+
+        .component-assembly-row .form-control {
+            min-height: 36px;
+            padding-top: .35rem;
+            padding-bottom: .35rem;
+        }
+
+        .component-assembly-row input[type="file"].form-control {
+            padding-top: .3rem;
+            padding-bottom: .3rem;
+        }
+
+        html[data-bs-theme="light"] .component-assembly-row {
+            border-color: #dee2e6;
+            background: #f8f9fa;
+        }
+
     </style>
 
 @endsection
@@ -252,7 +459,7 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap">
 
                 <h5 class="text-primary manage-header">{{__('Replaceable Parts')}}( <span class="text-success"
-                                                                          id="componentsCount">{{$components->count()}}</span>)</h5>
+                                                                          id="componentsCount">{{ $componentsTotal }}</span>)</h5>
                 <span id="manualIndicator" class="text-muted"></span>
                 <div class="d-flex my-2 gap-2 flex-wrap">
                     <!-- Filter by Manual -->
@@ -287,78 +494,276 @@
                     </a>
 
                     <!-- Add Component -->
-                    <a href="{{ route('components.create') }}" class="btn btn-outline-primary" style="height: 40px">
+                    <button type="button"
+                            class="btn btn-outline-primary"
+                            style="height: 40px"
+                            data-bs-toggle="offcanvas"
+                            data-bs-target="#createComponentOffcanvas"
+                            aria-controls="createComponentOffcanvas">
                         {{__('Add Part')}}
-                    </a>
+                    </button>
                 </div>
             </div>
 
-            @if(count($components))
-
-                <div class="table-wrapper me-3 p-2 pt-0 dir-panel" id="componentsTableWrapper" style="visibility:hidden">
+                <div class="table-wrapper me-3 p-2 pt-0 dir-panel"
+                     id="componentsTableWrapper"
+                     style="visibility:hidden"
+                     data-next-page="{{ $components->currentPage() + 1 }}"
+                     data-has-more="{{ $components->hasMorePages() ? '1' : '0' }}"
+                     data-per-page="{{ $components->perPage() }}">
                     <table id="componentsTable" class="table table-sm table-hover bg-gradient align-middle table-bordered dir-table">
                         <thead class="bg-gradient">
                         <tr>
                             <th class="text-center sortable">{{__('IPL Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                             <th class="text-center sortable">{{__('Part Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                             <th class="text-center sortable">{{__('Name')}} <i class="bi bi-chevron-expand ms-1"></i></th>
+                            <th class="text-center">{{__('Assy')}}</th>
                             <th class="text-center">{{__('Image')}}</th>
                             <th class="text-center">{{__('Manual')}}</th>
                             <th class="text-center">{{__('Action')}}</th>
                         </tr>
                         </thead>
                         <tbody>
-                        @foreach($components as $component)
-                            <tr data-manual-id="{{ $component->manual_id ?? '' }}">
-                                <td class="text-center">{{$component->ipl_num}}</td>
-                                <td class="text-center">{{$component->part_number}}</td>
-                                <td class="text-center">{{$component->name}}</td>
-                                <td class="text-center" style="width:120px;">
-                                    @if($component->getMedia('components')->isNotEmpty())
-                                        <a href="{{ $component->getFirstMediaBigUrl('components') }}" data-fancybox="gallery">
-                                            <img
-                                                src="{{ $component->getFirstMediaThumbnailUrl('components') }}"
-                                                class="component-avatar"
-                                                alt="IMG"
-                                            >
-                                        </a>
-                                    @else
-                                        <span class="text-muted small">—</span>
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    @if($component->manual)
-                                        <a href="#"
-                                           data-bs-toggle="modal"
-                                           data-bs-target="#manualModal{{ $component->manual->id }}">
-                                            {{$component->manual->number}}
-                                        </a>
-                                    @else
-                                        <span class="text-muted">—</span>
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    <a href="{{ route('components.edit',['component' => $component->id]) }}" class="btn btn-outline-primary btn-sm">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </a>
-                                    <form action="{{ route('components.destroy', $component->id) }}" method="POST" style="display:inline-block;">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Вы уверены, что хотите удалить этот компонент?');">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
-                                </td>
+                        @include('admin.components.partials.index-rows', ['components' => $components])
+                        @if($componentsTotal === 0)
+                            <tr class="components-empty-row">
+                                <td colspan="7" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
                             </tr>
-                        @endforeach
+                        @endif
                         </tbody>
                     </table>
+                    <div id="componentsLoadStatus" class="text-center text-muted small py-2"></div>
                 </div>
 
-            @else
-                <H5 CLASS="text-center">{{__('PARTS NOT FOUND')}}</H5>
-            @endif
+        </div>
 
+        <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="createComponentOffcanvas" aria-labelledby="createComponentOffcanvasLabel">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title text-primary" id="createComponentOffcanvasLabel">{{ __('Add Replaceable Part') }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
+            </div>
+            <div class="offcanvas-body">
+                <form id="createComponentDrawerForm" action="{{ route('components.store') }}" method="POST" enctype="multipart/form-data" novalidate>
+                    @csrf
+                    <div id="createComponentErrors" class="alert alert-danger d-none"></div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="drawer_manual_id" class="form-label">CMM</label>
+                            <select name="manual_id" id="drawer_manual_id" class="form-select" required>
+                                <option value="">{{ __('Select Manual') }}</option>
+                                @foreach($manuals as $manual)
+                                    <option value="{{ $manual->id }}">
+                                        {{ $manual->number }} ({{ $manual->lib ?? '-' }}) - {{ $manual->title }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="drawer_ipl_num" class="form-label">{{ __('IPL Number') }}</label>
+                            <input id="drawer_ipl_num"
+                                   type="text"
+                                   class="form-control"
+                                   name="ipl_num"
+                                   pattern="^\d+-\d+[A-Za-z]?$"
+                                   required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="drawer_part_number" class="form-label">{{ __('Part Number') }}</label>
+                            <input id="drawer_part_number" type="text" class="form-control" name="part_number" required>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="drawer_name" class="form-label">{{ __('Name') }}</label>
+                            <input id="drawer_name" type="text" class="form-control" name="name" required>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="drawer_img" class="form-label">{{ __('Image') }}</label>
+                            <input id="drawer_img" type="file" name="img" class="form-control" accept="image/*">
+                        </div>
+                    </div>
+
+                    <div class="component-form-section mt-4">
+                        <div class="d-flex flex-wrap gap-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="drawer_log_card" name="log_card">
+                                <label class="form-check-label" for="drawer_log_card">Log Card</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="drawer_is_bush" name="is_bush">
+                                <label class="form-check-label" for="drawer_is_bush">Is Bush</label>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 d-none" id="drawer_bush_ipl_container">
+                            <label for="drawer_bush_ipl_num" class="form-label">{{ __('Initial Bushing IPL Number') }}</label>
+                            <input id="drawer_bush_ipl_num"
+                                   type="text"
+                                   class="form-control"
+                                   name="bush_ipl_num"
+                                   pattern="^\d+-\d+[A-Za-z]?$">
+                        </div>
+                    </div>
+
+                    <div class="component-form-section mt-4">
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                            <h6 class="mb-0">{{ __('Assemblies') }}</h6>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="addAssemblyRowBtn">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
+                        <div id="assemblyRows"></div>
+                    </div>
+
+                    <div class="component-form-footer mt-4">
+                        <div class="d-flex align-items-center justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">{{ __('Cancel') }}</button>
+                            <button type="submit" class="btn btn-primary" id="createComponentSubmitBtn">
+                                {{ __('Save Part') }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <template id="assemblyRowTemplate">
+                    <div class="component-assembly-row" data-assembly-row>
+                        <input type="hidden" data-assembly-field="id">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small text-muted" data-assembly-title></span>
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-remove-assembly>
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label">{{ __('Assembly IPL Number') }}</label>
+                                <input type="text"
+                                       class="form-control"
+                                       data-assembly-field="assy_ipl_num"
+                                       pattern="^$|^\d+-\d+[A-Za-z]?$">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ __('Assembly Part Number') }}</label>
+                                <input type="text" class="form-control" data-assembly-field="assy_part_number">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ __('Units per Assy') }}</label>
+                                <input type="text" class="form-control" data-assembly-field="units_assy">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="file"
+                                       class="form-control"
+                                       accept="image/*"
+                                       aria-label="{{ __('Assy Image') }}"
+                                       data-assembly-field="assy_img">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text"
+                                       class="form-control"
+                                       placeholder="{{ __('Notes') }}"
+                                       aria-label="{{ __('Notes') }}"
+                                       data-assembly-field="notes">
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="editComponentOffcanvas" aria-labelledby="editComponentOffcanvasLabel">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title text-primary" id="editComponentOffcanvasLabel">{{ __('Edit Replaceable Part') }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
+            </div>
+            <div class="offcanvas-body">
+                <form id="editComponentDrawerForm" method="POST" enctype="multipart/form-data" novalidate>
+                    @csrf
+                    @method('PUT')
+                    <div id="editComponentErrors" class="alert alert-danger d-none"></div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="edit_drawer_manual_id" class="form-label">CMM</label>
+                            <select name="manual_id" id="edit_drawer_manual_id" class="form-select" required>
+                                <option value="">{{ __('Select Manual') }}</option>
+                                @foreach($manuals as $manual)
+                                    <option value="{{ $manual->id }}">
+                                        {{ $manual->number }} ({{ $manual->lib ?? '-' }}) - {{ $manual->title }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="edit_drawer_ipl_num" class="form-label">{{ __('IPL Number') }}</label>
+                            <input id="edit_drawer_ipl_num"
+                                   type="text"
+                                   class="form-control"
+                                   name="ipl_num"
+                                   pattern="^\d+-\d+[A-Za-z]?$"
+                                   required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="edit_drawer_part_number" class="form-label">{{ __('Part Number') }}</label>
+                            <input id="edit_drawer_part_number" type="text" class="form-control" name="part_number" required>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="edit_drawer_name" class="form-label">{{ __('Name') }}</label>
+                            <input id="edit_drawer_name" type="text" class="form-control" name="name" required>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="edit_drawer_img" class="form-label">{{ __('Image') }}</label>
+                            <input id="edit_drawer_img" type="file" name="img" class="form-control" accept="image/*">
+                        </div>
+                    </div>
+
+                    <div class="component-form-section mt-4">
+                        <div class="d-flex flex-wrap gap-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_drawer_log_card" name="log_card">
+                                <label class="form-check-label" for="edit_drawer_log_card">Log Card</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_drawer_is_bush" name="is_bush">
+                                <label class="form-check-label" for="edit_drawer_is_bush">Is Bush</label>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 d-none" id="edit_drawer_bush_ipl_container">
+                            <label for="edit_drawer_bush_ipl_num" class="form-label">{{ __('Initial Bushing IPL Number') }}</label>
+                            <input id="edit_drawer_bush_ipl_num"
+                                   type="text"
+                                   class="form-control"
+                                   name="bush_ipl_num"
+                                   pattern="^\d+-\d+[A-Za-z]?$">
+                        </div>
+                    </div>
+
+                    <div class="component-form-section mt-4">
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                            <h6 class="mb-0">{{ __('Assemblies') }}</h6>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="editAddAssemblyRowBtn">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
+                        <div id="editAssemblyRows"></div>
+                    </div>
+
+                    <div class="component-form-footer mt-4">
+                        <div class="d-flex align-items-center justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">{{ __('Cancel') }}</button>
+                            <button type="submit" class="btn btn-primary" id="editComponentSubmitBtn">
+                                {{ __('Save Part') }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
 
         <!-- CSV Upload Modal -->
@@ -489,7 +894,385 @@
 
             <script>
                 (() => {
+                    const drawerHelpers = {
+                        hasSelect2: () => !!(window.jQuery && typeof window.jQuery.fn?.select2 === 'function'),
+                        setErrors(errorsBox, messages) {
+                            if (!errorsBox) return;
 
+                            if (!messages.length) {
+                                errorsBox.classList.add('d-none');
+                                errorsBox.innerHTML = '';
+                                return;
+                            }
+
+                            errorsBox.innerHTML = messages.map(message => `<div>${message}</div>`).join('');
+                            errorsBox.classList.remove('d-none');
+                        },
+                        responseErrors(data, fallback) {
+                            return data.errors
+                                ? Object.values(data.errors).flat()
+                                : [data.message || fallback];
+                        },
+                        setSelectValue(select, value) {
+                            if (!select) return;
+
+                            select.value = value || '';
+                            if (this.hasSelect2()) {
+                                window.jQuery(select).val(value || '').trigger('change.select2');
+                            }
+                        },
+                        setSubmitting(form, button, savingText, isSubmitting) {
+                            if (!button) return;
+
+                            button.dataset.originalHtml ||= button.innerHTML;
+                            form.dataset.submitting = isSubmitting ? '1' : '0';
+                            button.disabled = isSubmitting;
+                            button.innerHTML = isSubmitting
+                                ? `<span class="spinner-border spinner-border-sm me-1"></span>${savingText}`
+                                : button.dataset.originalHtml;
+                        },
+                        safeHideSpinner() {
+                            if (typeof safeHideSpinner === 'function') safeHideSpinner();
+                        },
+                        makeAssemblyManager(rows, template, idPrefix) {
+                            const renumber = () => {
+                                rows?.querySelectorAll('[data-assembly-row]').forEach((row, index) => {
+                                    const title = row.querySelector('[data-assembly-title]');
+                                    if (title) title.textContent = `Assembly ${index + 1}`;
+
+                                    row.querySelectorAll('[data-assembly-field]').forEach((field) => {
+                                        const key = field.dataset.assemblyField;
+                                        field.name = `assemblies[${index}][${key}]`;
+                                        field.id = `${idPrefix}_assembly_${index}_${key}`;
+                                    });
+
+                                    row.querySelectorAll('label').forEach((label) => {
+                                        const field = label.parentElement?.querySelector('[data-assembly-field]');
+                                        if (field) label.setAttribute('for', field.id);
+                                    });
+
+                                    const removeBtn = row.querySelector('[data-remove-assembly]');
+                                    if (removeBtn) removeBtn.classList.toggle('d-none', rows.children.length <= 1);
+                                });
+                            };
+
+                            const add = (values = {}) => {
+                                if (!rows || !template) return null;
+
+                                const fragment = template.content.cloneNode(true);
+                                const row = fragment.querySelector('[data-assembly-row]');
+                                row?.querySelectorAll('[data-assembly-field]').forEach((field) => {
+                                    const key = field.dataset.assemblyField;
+                                    if (field.type !== 'file') {
+                                        field.value = values[key] ?? '';
+                                    }
+                                });
+
+                                rows.appendChild(fragment);
+                                renumber();
+
+                                return rows.lastElementChild;
+                            };
+
+                            const reset = (items = [{}]) => {
+                                if (!rows) return;
+
+                                rows.innerHTML = '';
+                                (items.length ? items : [{}]).forEach(item => add(item));
+                            };
+
+                            rows?.addEventListener('click', (event) => {
+                                const removeBtn = event.target.closest('[data-remove-assembly]');
+                                if (!removeBtn) return;
+
+                                removeBtn.closest('[data-assembly-row]')?.remove();
+                                if (!rows.children.length) {
+                                    add();
+                                } else {
+                                    renumber();
+                                }
+                            });
+
+                            return { add, reset, renumber };
+                        },
+                    };
+
+                    function initCreateComponentDrawer() {
+                        const offcanvasEl = document.getElementById('createComponentOffcanvas');
+                        const form = document.getElementById('createComponentDrawerForm');
+                        const errorsBox = document.getElementById('createComponentErrors');
+                        const submitBtn = document.getElementById('createComponentSubmitBtn');
+                        const manualSelect = document.getElementById('drawer_manual_id');
+                        const isBush = document.getElementById('drawer_is_bush');
+                        const bushContainer = document.getElementById('drawer_bush_ipl_container');
+                        const bushInput = document.getElementById('drawer_bush_ipl_num');
+                        const assemblyRows = document.getElementById('assemblyRows');
+                        const assemblyTemplate = document.getElementById('assemblyRowTemplate');
+                        const addAssemblyRowBtn = document.getElementById('addAssemblyRowBtn');
+                        const indexManualFilter = document.getElementById('manualFilter');
+
+                        if (!offcanvasEl || !form || form.dataset.bound) return;
+                        form.dataset.bound = '1';
+
+                        const hasSelect2 = drawerHelpers.hasSelect2();
+                        if (hasSelect2 && manualSelect && !window.jQuery(manualSelect).data('select2')) {
+                            window.jQuery(manualSelect).select2({
+                                theme: 'bootstrap-5',
+                                width: '100%',
+                                dropdownParent: window.jQuery(offcanvasEl),
+                                placeholder: '{{ __('Select Manual') }}',
+                                allowClear: true,
+                            });
+                        }
+
+                        const setErrors = (messages) => drawerHelpers.setErrors(errorsBox, messages);
+
+                        const syncBush = () => {
+                            const checked = !!isBush?.checked;
+                            bushContainer?.classList.toggle('d-none', !checked);
+                            if (bushInput) {
+                                bushInput.required = checked;
+                                if (!checked) bushInput.value = '';
+                            }
+                        };
+
+                        isBush?.addEventListener('change', syncBush);
+                        syncBush();
+
+                        const assemblyManager = drawerHelpers.makeAssemblyManager(assemblyRows, assemblyTemplate, 'drawer');
+                        addAssemblyRowBtn?.addEventListener('click', () => assemblyManager.add());
+                        assemblyManager.reset();
+
+                        offcanvasEl.addEventListener('show.bs.offcanvas', () => {
+                            setErrors([]);
+                            const selectedManual = indexManualFilter?.value || '';
+                            if (manualSelect && selectedManual) {
+                                drawerHelpers.setSelectValue(manualSelect, selectedManual);
+                            }
+                        });
+
+                        form.addEventListener('submit', async (event) => {
+                            event.preventDefault();
+                            if (form.dataset.submitting === '1') return;
+                            setErrors([]);
+
+                            if (!form.checkValidity()) {
+                                form.classList.add('was-validated');
+                                return;
+                            }
+
+                            drawerHelpers.setSubmitting(form, submitBtn, '{{ __('Saving...') }}', true);
+
+                            try {
+                                const response = await fetch(form.action, {
+                                    method: 'POST',
+                                    body: new FormData(form),
+                                    headers: {
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Accept': 'application/json',
+                                    },
+                                    credentials: 'same-origin',
+                                });
+
+                                const data = await response.json().catch(() => ({}));
+
+                                if (!response.ok || !data.success) {
+                                    setErrors(drawerHelpers.responseErrors(data, '{{ __('Failed to submit.') }}'));
+                                    return;
+                                }
+
+                                form.reset();
+                                form.classList.remove('was-validated');
+                                drawerHelpers.setSelectValue(manualSelect, '');
+                                assemblyManager.reset();
+                                syncBush();
+
+                                const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+                                offcanvas.hide();
+
+                                window.dispatchEvent(new CustomEvent('components:index-reload'));
+
+                                if (typeof showNotification === 'function') {
+                                    showNotification(data.message || '{{ __('Component created successfully.') }}', 'success');
+                                }
+                            } catch (err) {
+                                console.error(err);
+                                setErrors(['{{ __('Failed to submit.') }}']);
+                            } finally {
+                                drawerHelpers.setSubmitting(form, submitBtn, '{{ __('Saving...') }}', false);
+                                drawerHelpers.safeHideSpinner();
+                            }
+                        });
+                    }
+
+                    function initEditComponentDrawer() {
+                        const offcanvasEl = document.getElementById('editComponentOffcanvas');
+                        const form = document.getElementById('editComponentDrawerForm');
+                        const errorsBox = document.getElementById('editComponentErrors');
+                        const submitBtn = document.getElementById('editComponentSubmitBtn');
+                        const manualSelect = document.getElementById('edit_drawer_manual_id');
+                        const isBush = document.getElementById('edit_drawer_is_bush');
+                        const bushContainer = document.getElementById('edit_drawer_bush_ipl_container');
+                        const bushInput = document.getElementById('edit_drawer_bush_ipl_num');
+                        const assemblyRows = document.getElementById('editAssemblyRows');
+                        const assemblyTemplate = document.getElementById('assemblyRowTemplate');
+                        const addAssemblyRowBtn = document.getElementById('editAddAssemblyRowBtn');
+
+                        if (!offcanvasEl || !form || form.dataset.bound) return;
+                        form.dataset.bound = '1';
+
+                        const hasSelect2 = drawerHelpers.hasSelect2();
+                        if (hasSelect2 && manualSelect && !window.jQuery(manualSelect).data('select2')) {
+                            window.jQuery(manualSelect).select2({
+                                theme: 'bootstrap-5',
+                                width: '100%',
+                                dropdownParent: window.jQuery(offcanvasEl),
+                                placeholder: '{{ __('Select Manual') }}',
+                                allowClear: true,
+                            });
+                        }
+
+                        const setErrors = (messages) => drawerHelpers.setErrors(errorsBox, messages);
+                        const assemblyManager = drawerHelpers.makeAssemblyManager(assemblyRows, assemblyTemplate, 'edit_drawer');
+
+                        const syncBush = () => {
+                            const checked = !!isBush?.checked;
+                            bushContainer?.classList.toggle('d-none', !checked);
+                            if (bushInput) {
+                                bushInput.required = checked;
+                                if (!checked) bushInput.value = '';
+                            }
+                        };
+
+                        const setValue = (name, value) => {
+                            const field = form.elements[name];
+                            if (field) field.value = value ?? '';
+                        };
+
+                        const fillForm = (component) => {
+                            form.reset();
+                            form.classList.remove('was-validated');
+                            setErrors([]);
+
+                            drawerHelpers.setSelectValue(manualSelect, component.manual_id);
+                            setValue('ipl_num', component.ipl_num);
+                            setValue('part_number', component.part_number);
+                            setValue('name', component.name);
+                            setValue('bush_ipl_num', component.bush_ipl_num);
+                            if (isBush) isBush.checked = !!component.is_bush;
+                            const logCard = document.getElementById('edit_drawer_log_card');
+                            if (logCard) logCard.checked = !!component.log_card;
+
+                            let assemblies = Array.isArray(component.assemblies) ? component.assemblies : [];
+                            if (!assemblies.length && (component.assy_ipl_num || component.assy_part_number || component.units_assy)) {
+                                assemblies = [{
+                                    assy_ipl_num: component.assy_ipl_num,
+                                    assy_part_number: component.assy_part_number,
+                                    units_assy: component.units_assy,
+                                    notes: '',
+                                }];
+                            }
+                            assemblyManager.reset(assemblies.length ? assemblies : [{}]);
+                            syncBush();
+                        };
+
+                        addAssemblyRowBtn?.addEventListener('click', () => assemblyManager.add());
+                        isBush?.addEventListener('change', syncBush);
+                        assemblyManager.reset();
+                        syncBush();
+
+                        document.addEventListener('click', async (event) => {
+                            const button = event.target.closest('.open-edit-component-drawer');
+                            if (!button) return;
+
+                            event.preventDefault();
+                            setErrors([]);
+                            drawerHelpers.setSubmitting(form, submitBtn, '{{ __('Loading...') }}', true);
+                            bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl).show();
+
+                            try {
+                                const response = await fetch(button.dataset.componentUrl, {
+                                    headers: {
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Accept': 'application/json',
+                                    },
+                                    credentials: 'same-origin',
+                                });
+                                const data = await response.json().catch(() => ({}));
+                                if (!response.ok || !data.success) {
+                                    setErrors(drawerHelpers.responseErrors(data, '{{ __('Failed to load part.') }}'));
+                                    return;
+                                }
+
+                                form.action = button.dataset.updateUrl;
+                                fillForm(data.component);
+                            } catch (err) {
+                                console.error(err);
+                                setErrors(['{{ __('Failed to load part.') }}']);
+                            } finally {
+                                drawerHelpers.setSubmitting(form, submitBtn, '{{ __('Loading...') }}', false);
+                                drawerHelpers.safeHideSpinner();
+                            }
+                        });
+
+                        form.addEventListener('submit', async (event) => {
+                            event.preventDefault();
+                            if (form.dataset.submitting === '1') return;
+                            setErrors([]);
+
+                            if (!form.checkValidity()) {
+                                form.classList.add('was-validated');
+                                return;
+                            }
+
+                            drawerHelpers.setSubmitting(form, submitBtn, '{{ __('Saving...') }}', true);
+
+                            try {
+                                const response = await fetch(form.action, {
+                                    method: 'POST',
+                                    body: new FormData(form),
+                                    headers: {
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Accept': 'application/json',
+                                    },
+                                    credentials: 'same-origin',
+                                });
+                                const data = await response.json().catch(() => ({}));
+
+                                if (!response.ok || !data.success) {
+                                    setErrors(drawerHelpers.responseErrors(data, '{{ __('Failed to submit.') }}'));
+                                    return;
+                                }
+
+                                form.classList.remove('was-validated');
+                                bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl).hide();
+                                window.dispatchEvent(new CustomEvent('components:index-reload'));
+
+                                if (typeof showNotification === 'function') {
+                                    showNotification(data.message || '{{ __('Component updated successfully.') }}', 'success');
+                                }
+                            } catch (err) {
+                                console.error(err);
+                                setErrors(['{{ __('Failed to submit.') }}']);
+                            } finally {
+                                drawerHelpers.setSubmitting(form, submitBtn, '{{ __('Saving...') }}', false);
+                                drawerHelpers.safeHideSpinner();
+                            }
+                        });
+                    }
+
+                    const initComponentDrawers = () => {
+                        initCreateComponentDrawer();
+                        initEditComponentDrawer();
+                    };
+
+                    document.addEventListener('DOMContentLoaded', initComponentDrawers);
+                    window.addEventListener('pageshow', initComponentDrawers);
+                })();
+            </script>
+
+            <script>
+                (() => {
                     const LS = {
                         search: 'components_search',
                         manual: 'components_manual_id',
@@ -504,303 +1287,274 @@
                         return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
                     };
 
-                    function initComponentsIndex() {
-                        const LS = {
-                            search: 'components_search',
-                            manual: 'components_manual_id',
-                            sortCol: 'components_sort_col',
-                            sortDir: 'components_sort_dir',
-                            scrollY: 'components_scroll_y',
-                            scrollRestore: 'components_scroll_restore',
-                        };
-
-                        const debounce = (fn, wait = 250) => {
-                            let t;
-                            return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
-                        };
-
+                    function initComponentsInfiniteIndex() {
                         const table = document.getElementById('componentsTable');
                         const tbody = table?.querySelector('tbody');
                         const wrapper = document.getElementById('componentsTableWrapper');
-
+                        const status = document.getElementById('componentsLoadStatus');
                         const searchInput = document.getElementById('searchInput');
                         const searchClearBtn = document.getElementById('searchClearBtn');
                         const manualFilter = document.getElementById('manualFilter');
-
                         const componentsCount = document.getElementById('componentsCount');
                         const manualIndicator = document.getElementById('manualIndicator');
+                        const sortableHeaders = Array.from(table?.querySelectorAll('th.sortable') || []);
 
-                        wrapper && (wrapper.style.visibility = 'hidden');
-                        safeShowSpinner();
+                        if (!table || !tbody || !wrapper || !searchInput || !manualFilter) return;
 
-                        if (!table || !tbody || !searchInput || !manualFilter) return;
-
-                        // --- helper to show/hide table even when coming from bfcache
-                        const showUI = () => {
-                            wrapper?.classList.remove('is-preloading');
-                            if (typeof safeHideSpinner === 'function') safeHideSpinner();
+                        const state = {
+                            page: Number(wrapper.dataset.nextPage || 2),
+                            hasMore: wrapper.dataset.hasMore === '1',
+                            loading: false,
+                            perPage: Number(wrapper.dataset.perPage || 100),
+                            sortCol: Number(localStorage.getItem(LS.sortCol) || 0),
+                            sortDir: localStorage.getItem(LS.sortDir) === 'desc' ? 'desc' : 'asc',
                         };
 
-                        try {
-                            // Always start from "preloading" state, then always remove it in finally
-                            wrapper?.classList.add('is-preloading');
-                            if (typeof safeShowSpinner === 'function') safeShowSpinner();
+                        const hasSelect2 = !!(window.jQuery && typeof window.jQuery.fn?.select2 === 'function');
+                        const safeShow = () => { if (typeof safeShowSpinner === 'function') safeShowSpinner(); };
+                        const safeHide = () => { if (typeof safeHideSpinner === 'function') safeHideSpinner(); };
 
-                            // Cache rows (rebuild each init for Back/Forward safety)
-                            const rows = Array.from(tbody.querySelectorAll('tr'));
-                            const cache = rows.map((row, idx) => ({
-                                el: row,
-                                idx,
-                                manualId: row.getAttribute('data-manual-id') || '',
-                                searchText: (row.textContent || '').toLowerCase(),
-                                cells: Array.from(row.querySelectorAll('td')).map(td => (td.textContent || '').trim()),
-                            }));
+                        function formatManual(state) {
+                            if (!state.id) return state.text;
 
-                            // Select2 init once
+                            const el = state.element;
+                            const number = el.dataset.number;
+                            const lib = el.dataset.lib;
+                            const title = el.dataset.title;
 
-                            const hasSelect2 = !!(window.jQuery && typeof window.jQuery.fn?.select2 === 'function');
-                            if (hasSelect2) {
-                                const $mf = window.jQuery(manualFilter);
+                            return `
+                                <div>
+                                    <strong>${number}</strong>
+                                    ${lib ? ` <span class="manual-option-lib">&nbsp;&nbsp; (${lib}) </span>` : ''}
+                                    <span class="manual-option-title"> - ${title}</span>
+                                </div>
+                            `;
+                        }
 
-                                if (!$mf.data('select2')) {
-                                    $mf.select2({
-                                        width: '520px',
-                                        placeholder: 'All Manuals',
-                                        allowClear: true,
-                                        dropdownAutoWidth: true,
+                        function formatManualSelected(state) {
+                            return state.id ? state.element.dataset.number : state.text;
+                        }
 
-                                        templateResult: formatManual,
-                                        templateSelection: formatManualSelected,
-                                        escapeMarkup: m => m
-                                    });
-                                }
+                        function updateManualIndicator() {
+                            if (!manualIndicator) return;
+
+                            if (!manualFilter.value) {
+                                manualIndicator.textContent = '';
+                                return;
                             }
 
-                            function formatManual(state) {
-                                if (!state.id) return state.text;
+                            const optText = manualFilter.options[manualFilter.selectedIndex]?.text || '';
+                            const manualNumber = optText.split(' - ')[0].replace(/\(.+?\)/g, '').trim();
+                            manualIndicator.textContent = `Manual: ${manualNumber}`;
+                        }
 
-                                const el = state.element;
-                                const number = el.dataset.number;
-                                const lib    = el.dataset.lib;
-                                const title  = el.dataset.title;
+                        function updateSortHeaders() {
+                            sortableHeaders.forEach(th => {
+                                th.classList.remove('sorted-asc', 'sorted-desc');
+                                th.dataset.direction = '';
+                            });
 
-                                return `
-                                            <div>
-                                                <strong>${number}</strong>
-                                                ${lib ? ` <span style="color: #4c8bf5 ">&nbsp;&nbsp; (${lib}) </span>` : ''}
-                                                <span style="color:#adb5bd"> — ${title}</span>
-                                            </div>
-                                        `;
+                            const active = sortableHeaders.find(th => th.cellIndex === state.sortCol);
+                            if (active) {
+                                active.dataset.direction = state.sortDir;
+                                active.classList.add(state.sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
                             }
+                        }
 
-                            function formatManualSelected(state) {
-                                if (!state.id) return state.text;
+                        function setStatus(text) {
+                            if (status) status.textContent = text || '';
+                        }
 
-                                const el = state.element;
-                                return el.dataset.number;
-                            }
-                            function updateManualIndicator() {
-                                if (!manualIndicator) return;
+                        function initAssyPopovers(scope = tbody) {
+                            if (!window.bootstrap?.Popover) return;
 
-                                if (!manualFilter.value) {
-                                    manualIndicator.textContent = '';
-                                    return;
-                                }
+                            scope.querySelectorAll('[data-bs-toggle="popover"]').forEach((el) => {
+                                const existing = bootstrap.Popover.getInstance(el);
+                                if (existing) existing.dispose();
 
-                                const optText = manualFilter.options[manualFilter.selectedIndex]?.text || '';
-                                const manualNumber = optText.split(' - ')[0].replace(/\(.+?\)/g, '').trim();
-                                manualIndicator.textContent = `Manual: ${manualNumber}`;
-                            }
+                                new bootstrap.Popover(el, {
+                                    html: true,
+                                    container: 'body',
+                                    sanitize: false,
+                                });
+                            });
+                        }
 
-                            function applyFilter(persist = true) {
-                                const s = (searchInput.value || '').toLowerCase().trim();
-                                const m = (manualFilter.value || '').trim();
+                        function emptyRow() {
+                            return '<tr class="components-empty-row"><td colspan="7" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td></tr>';
+                        }
 
-                                if (persist) {
-                                    localStorage.setItem(LS.search, s);
-                                    localStorage.setItem(LS.manual, m);
-                                }
+                        function currentParams(page) {
+                            const params = new URLSearchParams();
+                            params.set('ajax', '1');
+                            params.set('page', String(page));
+                            params.set('per_page', String(state.perPage));
+                            params.set('sort_col', String(state.sortCol));
+                            params.set('sort_dir', state.sortDir);
 
-                                let visible = 0;
-                                for (const r of cache) {
-                                    const okSearch = !s || r.searchText.includes(s);
-                                    const okManual = !m || r.manualId === m;
-                                    const ok = okSearch && okManual;
+                            const search = (searchInput.value || '').trim();
+                            const manual = (manualFilter.value || '').trim();
+                            if (search) params.set('search', search);
+                            if (manual) params.set('manual_id', manual);
 
-                                    r.el.style.display = ok ? '' : 'none';
-                                    if (ok) visible++;
-                                }
+                            return params;
+                        }
 
-                                if (componentsCount) componentsCount.textContent = visible;
-                                updateManualIndicator();
-                            }
+                        async function loadPage(page, replace = false) {
+                            if (state.loading) return;
+                            if (!replace && !state.hasMore) return;
 
-                            const sortableHeaders = Array.from(table.querySelectorAll('th.sortable'));
+                            state.loading = true;
+                            setStatus(page === 1 ? '{{ __('Loading...') }}' : '{{ __('Loading more...') }}');
+                            safeShow();
 
-                            function smartCompare(a, b, dir, colIndex) {
-                                const A = (a.cells[colIndex] || '').trim();
-                                const B = (b.cells[colIndex] || '').trim();
-
-                                const nA = Number(A), nB = Number(B);
-                                const aNum = A !== '' && !Number.isNaN(nA);
-                                const bNum = B !== '' && !Number.isNaN(nB);
-
-                                if (aNum && bNum) return dir === 'asc' ? (nA - nB) : (nB - nA);
-
-                                const c = A.localeCompare(B, undefined, { numeric: true, sensitivity: 'base' });
-                                return dir === 'asc' ? c : -c;
-                            }
-
-                            function applySort(colIndex, dir, persist = true) {
-                                if (persist) {
-                                    localStorage.setItem(LS.sortCol, String(colIndex));
-                                    localStorage.setItem(LS.sortDir, dir);
-                                }
-
-                                const ordered = [...cache].sort((a, b) => {
-                                    const c = smartCompare(a, b, dir, colIndex);
-                                    return c !== 0 ? c : (a.idx - b.idx);
+                            try {
+                                const response = await fetch(`${window.location.pathname}?${currentParams(page).toString()}`, {
+                                    headers: {
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Accept': 'application/json',
+                                    },
+                                    credentials: 'same-origin',
                                 });
 
-                                const frag = document.createDocumentFragment();
-                                ordered.forEach(r => frag.appendChild(r.el));
-                                tbody.appendChild(frag);
+                                if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-                                sortableHeaders.forEach(th => {
-                                    th.classList.remove('sorted-asc', 'sorted-desc');
-                                    th.dataset.direction = '';
-                                });
+                                const data = await response.json();
+                                if (replace) tbody.innerHTML = '';
 
-                                const active = sortableHeaders.find(th => th.cellIndex === colIndex);
-                                if (active) {
-                                    active.dataset.direction = dir;
-                                    active.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                                if ((data.rows_html || '').trim()) {
+                                    tbody.insertAdjacentHTML('beforeend', data.rows_html);
+                                    initAssyPopovers(tbody);
+                                } else if (replace) {
+                                    tbody.innerHTML = emptyRow();
                                 }
+
+                                state.page = Number(data.next_page || page + 1);
+                                state.hasMore = !!data.has_more;
+                                wrapper.dataset.nextPage = String(state.page);
+                                wrapper.dataset.hasMore = state.hasMore ? '1' : '0';
+
+                                if (componentsCount) componentsCount.textContent = Number(data.total || 0);
+                                setStatus(state.hasMore ? '' : '{{ __('All parts loaded') }}');
+                            } catch (err) {
+                                console.error(err);
+                                setStatus('{{ __('Failed to load parts') }}');
+                            } finally {
+                                state.loading = false;
+                                safeHide();
+                            }
+                        }
+
+                        function persistFilters() {
+                            localStorage.setItem(LS.search, (searchInput.value || '').trim());
+                            localStorage.setItem(LS.manual, (manualFilter.value || '').trim());
+                            localStorage.setItem(LS.sortCol, String(state.sortCol));
+                            localStorage.setItem(LS.sortDir, state.sortDir);
+                        }
+
+                        function reloadFromFirstPage() {
+                            persistFilters();
+                            wrapper.scrollTop = 0;
+                            state.hasMore = true;
+                            state.page = 1;
+                            updateManualIndicator();
+                            updateSortHeaders();
+                            loadPage(1, true);
+                        }
+
+                        async function restoreScrollPosition() {
+                            if (localStorage.getItem(LS.scrollRestore) !== '1') return;
+                            localStorage.removeItem(LS.scrollRestore);
+
+                            const y = parseInt(localStorage.getItem(LS.scrollY) || '0', 10);
+                            if (!Number.isFinite(y) || y <= 0) return;
+
+                            while (state.hasMore && wrapper.scrollHeight < y + wrapper.clientHeight) {
+                                await loadPage(state.page, false);
                             }
 
-                            // Bind events only once per page lifetime
-                            if (!table.dataset.bound) {
-                                table.dataset.bound = '1';
+                            wrapper.scrollTop = y;
+                        }
 
-                                // Search typing
-                                searchInput.addEventListener('input', debounce(() => {
-                                    safeShowSpinner();
-                                    applyFilter(true);
-                                    requestAnimationFrame(safeHideSpinner);
-                                }, 250));
-
-                                // Clear search
-                                if (searchClearBtn) {
-                                    searchClearBtn.addEventListener('click', () => {
-                                        searchInput.value = '';
-                                        localStorage.removeItem(LS.search);
-
-                                        safeShowSpinner();
-                                        applyFilter(true);
-                                        requestAnimationFrame(safeHideSpinner);
-                                    });
-                                }
-
-                                // Manual change
-                                manualFilter.addEventListener('change', () => {
-                                    safeShowSpinner();
-                                    applyFilter(true);
-                                    requestAnimationFrame(safeHideSpinner);
-                                });
-
-                                // Select2 events (fixes "manual works only after click X")
-                                if (hasSelect2) {
-                                    window.jQuery(manualFilter).on('select2:select select2:clear', () => {
-                                        safeShowSpinner();
-                                        applyFilter(true);
-                                        requestAnimationFrame(safeHideSpinner);
-                                    });
-                                }
-
-                                // Sorting
-                                sortableHeaders.forEach(th => {
-                                    th.style.cursor = 'pointer';
-                                    th.addEventListener('click', () => {
-                                        const colIndex = th.cellIndex;
-                                        const cur = th.dataset.direction === 'asc'
-                                            ? 'asc'
-                                            : (th.dataset.direction === 'desc' ? 'desc' : '');
-                                        const next = cur === 'asc' ? 'desc' : 'asc';
-
-                                        safeShowSpinner();
-                                        applySort(colIndex, next, true);
-                                        requestAnimationFrame(safeHideSpinner);
-                                    });
-                                });
-
-                                // Scroll save + restore flag on Edit click
-                                const saveScroll = debounce(() => {
-                                    localStorage.setItem(LS.scrollY, String(window.scrollY || 0));
-                                }, 150);
-
-                                window.addEventListener('scroll', saveScroll, { passive: true });
-
-                                tbody.addEventListener('click', (e) => {
-                                    const a = e.target.closest('a');
-                                    if (!a) return;
-                                    if (!a.querySelector('.bi-pencil-square')) return;
-
-                                    localStorage.setItem(LS.scrollRestore, '1');
-                                    localStorage.setItem(LS.scrollY, String(window.scrollY || 0));
+                        if (hasSelect2) {
+                            const $mf = window.jQuery(manualFilter);
+                            if (!$mf.data('select2')) {
+                                $mf.select2({
+                                    width: '520px',
+                                    placeholder: 'All Manuals',
+                                    allowClear: true,
+                                    dropdownAutoWidth: true,
+                                    templateResult: formatManual,
+                                    templateSelection: formatManualSelected,
+                                    escapeMarkup: m => m
                                 });
                             }
+                        }
 
-                            // Restore UI state (search/manual/sort)
-                            searchInput.value = localStorage.getItem(LS.search) || '';
+                        searchInput.value = localStorage.getItem(LS.search) || '';
+                        const savedManual = localStorage.getItem(LS.manual) || '';
+                        manualFilter.value = Array.from(manualFilter.options).some(o => o.value === savedManual) ? savedManual : '';
+                        if (hasSelect2) window.jQuery(manualFilter).val(manualFilter.value).trigger('change.select2');
 
-                            const savedManual = localStorage.getItem(LS.manual) || '';
-                            manualFilter.value = Array.from(manualFilter.options).some(o => o.value === savedManual)
-                                ? savedManual
-                                : '';
+                        updateManualIndicator();
+                        updateSortHeaders();
+                        initAssyPopovers();
+                        wrapper.style.visibility = 'visible';
+
+                        if (!table.dataset.infiniteBound) {
+                            table.dataset.infiniteBound = '1';
+
+                            searchInput.addEventListener('input', debounce(reloadFromFirstPage, 250));
+
+                            searchClearBtn?.addEventListener('click', () => {
+                                searchInput.value = '';
+                                localStorage.removeItem(LS.search);
+                                reloadFromFirstPage();
+                            });
+
+                            manualFilter.addEventListener('change', reloadFromFirstPage);
 
                             if (hasSelect2) {
-                                window.jQuery(manualFilter).val(manualFilter.value).trigger('change.select2');
+                                window.jQuery(manualFilter).on('select2:select select2:clear', reloadFromFirstPage);
                             }
 
-                            const sortCol = parseInt(localStorage.getItem(LS.sortCol) || '0', 10);
-                            const sortDir = (localStorage.getItem(LS.sortDir) === 'desc') ? 'desc' : 'asc';
-                            applySort(sortCol, sortDir, false);
-
-                            applyFilter(false);
-
-                            // Restore scroll if needed (Edit -> Back)
-                            if (localStorage.getItem(LS.scrollRestore) === '1') {
-                                localStorage.removeItem(LS.scrollRestore);
-                                const y = parseInt(localStorage.getItem(LS.scrollY) || '0', 10);
-                                requestAnimationFrame(() => {
-                                    window.scrollTo({ top: Number.isFinite(y) ? y : 0, left: 0, behavior: 'instant' });
+                            sortableHeaders.forEach(th => {
+                                th.style.cursor = 'pointer';
+                                th.addEventListener('click', () => {
+                                    state.sortCol = th.cellIndex;
+                                    state.sortDir = th.dataset.direction === 'asc' ? 'desc' : 'asc';
+                                    reloadFromFirstPage();
                                 });
-                            }
+                            });
 
-                        } catch (err) {
-                            console.error(err);
-                            if (typeof showErrorMessage === 'function') {
-                                showErrorMessage('JS error on Components page');
-                            } else if (typeof showNotification === 'function') {
-                                showNotification('JS error on Components page', 'error');
-                            }
-                        } finally {
-                            // ALWAYS show UI again (critical for bfcache back)
-                            if (wrapper) wrapper.style.visibility = 'visible';
-                            safeHideSpinner();
+                            wrapper.addEventListener('scroll', debounce(() => {
+                                localStorage.setItem(LS.scrollY, String(wrapper.scrollTop || 0));
+
+                                const distanceToBottom = wrapper.scrollHeight - wrapper.scrollTop - wrapper.clientHeight;
+                                if (distanceToBottom <= 180) loadPage(state.page, false);
+                            }, 100), { passive: true });
+
+                            tbody.addEventListener('click', (e) => {
+                                const a = e.target.closest('a');
+                                if (!a || !a.querySelector('.bi-pencil-square')) return;
+
+                                localStorage.setItem(LS.scrollRestore, '1');
+                                localStorage.setItem(LS.scrollY, String(wrapper.scrollTop || 0));
+                            });
+
+                            window.addEventListener('components:index-reload', reloadFromFirstPage);
+                        }
+
+                        const hasSavedState = (searchInput.value || manualFilter.value || state.sortCol !== 0 || state.sortDir !== 'asc');
+                        if (hasSavedState) {
+                            reloadFromFirstPage();
+                        } else {
+                            restoreScrollPosition();
                         }
                     }
 
-
-                    // обычная загрузка
-                    document.addEventListener('DOMContentLoaded', initComponentsIndex);
-
-                    // Back/Forward cache: DOMContentLoaded не гарантирован — поэтому pageshow
-                    window.addEventListener('pageshow', initComponentsIndex);
-
-
-
-
+                    document.addEventListener('DOMContentLoaded', initComponentsInfiniteIndex);
+                    window.addEventListener('pageshow', initComponentsInfiniteIndex);
                 })();
             </script>
 

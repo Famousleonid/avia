@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
 use App\Models\Workorder;
 use App\Services\Quality\QualityAssuranceService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -24,12 +24,25 @@ class QualityAssuranceController extends Controller
 
     public function index(Request $request)
     {
-        $filters = $this->normalizedFilters($request);
-        $activeTab = $this->normalizeTab($request->get('tab', 'overview'));
+        return view('admin.quality.index');
+    }
 
-        $workorders = Workorder::query()
+    public function workorder(Request $request)
+    {
+        $number = $this->normalizeWorkorderSearch((string) $request->query('q', ''));
+
+        if (! preg_match('/^\d{6}$/', $number)) {
+            return response()->json([
+                'found' => false,
+                'message' => 'Enter full 6-digit workorder number.',
+                'normalized' => $number,
+            ], 422);
+        }
+
+        $workorder = Workorder::query()
             ->withDrafts()
             ->where('is_draft', false)
+            ->where('number', (int) $number)
             ->with([
                 'customer',
                 'instruction',
@@ -43,41 +56,29 @@ class QualityAssuranceController extends Controller
                 'unit.manual',
                 'user',
             ])
-            ->orderByDesc('open_at')
-            ->orderByDesc('number')
-            ->get();
+            ->first();
 
-        $qaRows = $this->qualityAssuranceService->buildWorkorderQaRows($workorders);
-        $filteredRows = $this->qualityAssuranceService->filterRows($qaRows, $filters);
-
-        $qualityDocumentRows = $this->qualityAssuranceService->buildQualityDocumentTabRows($filteredRows);
-        $documentsFor = $request->integer('documents_for');
-
-        if ($request->expectsJson()) {
+        if (! $workorder) {
             return response()->json([
-                'summary' => $this->qualityAssuranceService->buildSummary($filteredRows),
-                'count' => $filteredRows->count(),
-                'statuses' => $filteredRows->map(fn ($row) => [
-                    'id' => $row['id'],
-                    'number' => $row['number'],
-                    'status' => $row['status'],
-                    'warnings' => $row['all_messages'],
-                ])->values(),
-            ]);
+                'found' => false,
+                'message' => 'Workorder not found.',
+                'normalized' => $number,
+            ], 404);
         }
 
-        return view('admin.quality.index', [
-            'activeTab' => $activeTab,
-            'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
-            'filters' => $filters,
-            'summary' => $this->qualityAssuranceService->buildSummary($filteredRows),
-            'overviewRows' => $filteredRows,
-            'workorderRows' => $filteredRows,
-            'processRows' => $this->qualityAssuranceService->buildProcessTabRows($filteredRows),
-            'photoRows' => $this->qualityAssuranceService->buildPhotoTabRows($filteredRows),
-            'trainingRows' => $this->qualityAssuranceService->buildTrainingTabRows($filteredRows),
-            'qualityDocumentRows' => $qualityDocumentRows,
-            'openDocumentWorkorderId' => $documentsFor,
+        return response()->json([
+            'found' => true,
+            'normalized' => $number,
+            'workorder' => $this->buildSingleWorkorderPayload($workorder),
+        ]);
+    }
+
+    public function shipmentReleaseForm(Request $request, Workorder $workorder)
+    {
+        $workorder->loadMissing(['customer', 'user']);
+
+        return view('admin.quality.forms.shipmentReleaseForm', [
+            'current_wo' => $workorder,
         ]);
     }
 
@@ -153,28 +154,193 @@ class QualityAssuranceController extends Controller
         );
     }
 
-    private function normalizedFilters(Request $request): array
+    private function normalizeWorkorderSearch(string $query): string
     {
-        $status = strtolower((string) $request->get('status', 'all'));
-        if (! in_array($status, ['all', 'ok', 'warning', 'critical'], true)) {
-            $status = 'all';
-        }
+        $query = trim($query);
+
+        return preg_match('/\d/', $query) === 1
+            ? preg_replace('/\D+/', '', $query)
+            : $query;
+    }
+
+    private function buildSingleWorkorderPayload(Workorder $workorder): array
+    {
+        $qaRow = $this->qualityAssuranceService->buildWorkorderQaRows(collect([$workorder]))->first();
 
         return [
-            'q' => trim((string) $request->get('q', '')),
-            'status' => $status,
-            'customer_id' => (string) $request->get('customer_id', ''),
-            'missing_photos' => $request->boolean('missing_photos'),
-            'missing_ro' => $request->boolean('missing_ro'),
-            'incomplete_processes' => $request->boolean('incomplete_processes'),
-            'missing_quality_documents' => $request->boolean('missing_quality_documents'),
+            'id' => (int) $workorder->id,
+            'number' => (string) $workorder->number,
+            'url' => route('mains.show', $workorder->id),
+            'top' => $this->buildTopPayload($workorder, $qaRow),
+            'warnings' => $qaRow['all_messages'],
+            'checks' => $this->buildCheckPayload($qaRow),
+            'photos' => $this->buildPhotoGroupsPayload($workorder),
+            'submitted' => $this->qualityAssuranceService
+                ->buildSubmittedInspectionRows(collect([$qaRow]))
+                ->map(fn (array $row) => array_merge($row, [
+                    'open_date' => $this->formatQaDate($row['open_date'] ?? null),
+                    'submitted_date' => $this->formatQaDate($row['submitted_date'] ?? null),
+                ]))
+                ->values()
+                ->all(),
+            'repair_orders' => $this->buildRepairOrderPayload($workorder),
+            'forms' => $this->buildFormsPayload($workorder),
         ];
     }
 
-    private function normalizeTab(string $tab): string
+    private function buildCheckPayload(array $qaRow): array
     {
-        $allowedTabs = ['overview', 'workorders', 'processes', 'photos', 'training', 'documents'];
+        $messages = collect($qaRow['all_messages'] ?? []);
+        $processCounts = $qaRow['processes']['counts'] ?? [];
 
-        return in_array($tab, $allowedTabs, true) ? $tab : 'overview';
+        return [
+            [
+                'label' => 'Incomplete processes',
+                'ok' => (int) ($processCounts['incomplete'] ?? 0) === 0
+                    && (int) ($processCounts['finished_without_start'] ?? 0) === 0,
+            ],
+            [
+                'label' => 'Missing RO',
+                'ok' => (int) ($processCounts['missing_ro'] ?? 0) === 0,
+            ],
+            [
+                'label' => 'Missing TDR data',
+                'ok' => ! $messages->contains('Missing TDR data'),
+            ],
+            [
+                'label' => 'Completed task not finished',
+                'ok' => ! $messages->contains('Completed task not finished'),
+            ],
+        ];
+    }
+
+    private function buildTopPayload(Workorder $workorder, array $qaRow): array
+    {
+        $manual = $workorder->unit?->manual;
+
+        return [
+            'customer' => $workorder->customer?->name ?? '-',
+            'instruction' => $workorder->instruction?->name ?? '-',
+            'technician' => $workorder->user?->name ?? '-',
+            'unit' => $workorder->unit?->part_number ?? '-',
+            'serial' => $qaRow['serial_number'],
+            'manual' => trim((string) $qaRow['manual_number'] . ' (' . (string) $qaRow['manual_lib'] . ')'),
+            'manual_revision' => $this->formatQaDate($manual?->revision_date),
+            'open_date' => $this->formatQaDate($qaRow['open_date'] ?? null),
+            'approved' => (bool) $qaRow['approved'],
+            'approved_at' => $this->formatQaDate($qaRow['approved_at'] ?? null),
+            'done' => (bool) $qaRow['is_done'],
+            'status' => strtoupper($qaRow['status']),
+            'customer_po' => $workorder->customer_po ?: '-',
+            'description' => $workorder->description ?: '-',
+        ];
+    }
+
+    private function buildPhotoGroupsPayload(Workorder $workorder): array
+    {
+        $configuredGroups = collect(config('workorder_media.groups', []))
+            ->mapWithKeys(fn ($label, $collection) => [$collection => $label]);
+
+        return ($workorder->media ?? collect())
+            ->filter(fn (Media $media) => str_starts_with((string) $media->mime_type, 'image/'))
+            ->groupBy('collection_name')
+            ->map(function ($items, string $collection) use ($configuredGroups) {
+                return [
+                    'collection' => $collection,
+                    'label' => $configuredGroups->get($collection, Str::headline($collection)),
+                    'count' => $items->count(),
+                    'items' => $items->values()->map(function (Media $media) use ($collection) {
+                        $version = $this->mediaCacheVersion($media);
+                        $bigUrl = route('image.show.big', [
+                            'mediaId' => $media->id,
+                            'modelId' => $media->model_id,
+                            'mediaName' => $collection,
+                            'v' => $version,
+                        ]);
+
+                        return [
+                            'id' => (int) $media->id,
+                            'name' => $media->name ?: $media->file_name,
+                            'file_name' => $media->file_name,
+                            'thumb' => $collection === 'logs' ? $bigUrl : route('image.show.thumb', [
+                                'mediaId' => $media->id,
+                                'modelId' => $media->model_id,
+                                'mediaName' => $collection,
+                                'v' => $version,
+                            ]),
+                            'big' => $bigUrl,
+                        ];
+                    })->all(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function mediaCacheVersion(Media $media): int
+    {
+        $path = $media->getPath();
+
+        if ($path && file_exists($path)) {
+            return (int) filemtime($path);
+        }
+
+        return (int) ($media->updated_at?->timestamp ?? $media->id);
+    }
+
+    private function buildRepairOrderPayload(Workorder $workorder): array
+    {
+        return ($workorder->tdrs ?? collect())
+            ->flatMap(function ($tdr) {
+                return ($tdr->tdrProcesses ?? collect())->map(function ($process) use ($tdr) {
+                    return [
+                        'tdr_id' => (int) $tdr->id,
+                        'process_id' => (int) $process->id,
+                        'component' => $tdr->component?->part_number ?? '-',
+                        'process_name' => $process->processName?->name ?? '-',
+                        'repair_order' => $process->repair_order ?: '-',
+                        'date_start' => $this->formatQaDate($process->date_start),
+                        'date_finish' => $this->formatQaDate($process->date_finish),
+                        'ok' => filled($process->repair_order) && $process->date_start !== null && $process->date_finish !== null,
+                    ];
+                });
+            })
+            ->values()
+            ->all();
+    }
+
+    private function buildFormsPayload(Workorder $workorder): array
+    {
+        return collect([
+            [
+                'key' => 'certificate_of_destruction',
+                'title' => 'Certificate of Destruction',
+                'url' => route('log_card.sertDistrForm', ['id' => $workorder->id]),
+            ],
+            [
+                'key' => 'shipment',
+                'title' => 'Shipment',
+                'url' => route('quality.forms.shipment_release', ['workorder' => $workorder->id]),
+            ],
+            ['key' => 'spf', 'title' => 'SPF'],
+            [
+                'key' => 'log_card',
+                'title' => 'Log card',
+                'url' => route('log_card.logCardForm', ['id' => $workorder->id]),
+            ],
+        ])->map(fn ($form) => $form + [
+            'workorder_number' => (string) $workorder->number,
+            'status' => 'Draft',
+            'url' => null,
+        ])->values()->all();
+    }
+
+    private function formatQaDate(mixed $date): string
+    {
+        if (blank($date) || $date === '-') {
+            return '-';
+        }
+
+        return strtolower(Carbon::parse($date)->format('d.M.Y'));
     }
 }

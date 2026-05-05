@@ -193,12 +193,13 @@
             @endif
 
             <div class="p-3 mt-auto border-top border-bottom border-1">
-                @if(Auth::user()?->isSystemAdmin())
+                {{-- Tests menu is temporarily hidden for everyone. --}}
+                {{-- @if(Auth::user()?->isSystemAdmin())
                     <a class="nav-link" href="{{ route('admin.tests.index') }}">
                         <i class="bi bi-clipboard2-pulse me-2"></i>
                         <span>Tests</span>
                     </a>
-                @endif
+                @endif --}}
 
                 <a class="nav-link" href="{{ route('logout') }}"
                    onclick="event.preventDefault(); document.getElementById('logout-form-menu').submit();">
@@ -251,12 +252,13 @@
     </div>
 
     <div class="p-3 mt-auto border-top border-bottom border-1">
-        @if(Auth::user()?->isSystemAdmin())
+        {{-- Tests menu is temporarily hidden for everyone. --}}
+        {{-- @if(Auth::user()?->isSystemAdmin())
             <a class="nav-link" href="{{ route('admin.tests.index') }}">
                 <i class="bi bi-clipboard2-pulse me-2"></i>
                 <span>Tests</span>
             </a>
-        @endif
+        @endif --}}
 
         <a class="nav-link" href="{{ route('logout') }}"
            onclick="event.preventDefault(); document.getElementById('logout-form-menu-mobile').submit();">

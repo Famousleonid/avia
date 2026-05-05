@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\DateNotification;
 use App\Services\DateNotificationService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\NewMessageNotification;
 use Tests\BuildsDomainData;
@@ -13,7 +15,18 @@ use Tests\TestCase;
 class DateNotificationsTest extends TestCase
 {
     use BuildsDomainData;
-    use RefreshDatabase;
+    use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+
+        DB::table('date_notification_logs')->delete();
+        DB::table('date_notification_recipients')->delete();
+        DB::table('date_notifications')->delete();
+    }
 
     public function test_admin_can_create_date_notification(): void
     {
@@ -80,7 +93,13 @@ class DateNotificationsTest extends TestCase
 
         Notification::assertSentTo($manager, NewMessageNotification::class, 1);
         Notification::assertSentTo($systemAdmin, NewMessageNotification::class, 1);
-        $this->assertDatabaseCount('date_notification_logs', 2);
+        $this->assertSame(
+            2,
+            DB::table('date_notification_logs')
+                ->where('date_notification_id', $notification->id)
+                ->whereIn('recipient_user_id', [$manager->id, $systemAdmin->id])
+                ->count()
+        );
     }
 
     public function test_one_time_date_notification_runs_only_in_matching_year(): void
@@ -125,6 +144,7 @@ class DateNotificationsTest extends TestCase
             return $notification->payload['date_notification_id'] !== null;
         });
 
-        $this->assertDatabaseCount('date_notification_logs', 1);
+        $oneTimeNotification = DateNotification::query()->where('name', 'One time notice')->firstOrFail();
+        $this->assertSame(1, $oneTimeNotification->deliveryLogs()->count());
     }
 }

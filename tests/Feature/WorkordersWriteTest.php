@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\Workorder;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -12,6 +13,13 @@ class WorkordersWriteTest extends TestCase
 {
     use BuildsDomainData;
     use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+    }
 
     /**
      * @group smoke
@@ -332,5 +340,67 @@ class WorkordersWriteTest extends TestCase
 
         $this->assertSame(800001, (int) $workorder->number);
         $this->assertSame('After update', $workorder->description);
+    }
+
+    public function test_manager_can_change_workorder_technik_on_edit(): void
+    {
+        $manager = $this->createUserWithRole('Manager');
+        $originalTechnik = $this->createUserWithRole('Technician');
+        $newTechnik = $this->createUserWithRole('Technician', ['email' => 'new.tech.' . uniqid() . '@example.test']);
+        $instruction = $this->createInstruction(['name' => 'Repair ' . uniqid()]);
+        $customer = $this->createCustomer();
+        $unit = $this->createUnit();
+        $workorder = $this->createWorkorder([
+            'number' => 800101,
+            'instruction_id' => $instruction->id,
+            'customer_id' => $customer->id,
+            'unit_id' => $unit->id,
+            'user_id' => $originalTechnik->id,
+            'is_draft' => false,
+        ]);
+
+        $response = $this->actingAs($manager)->put(route('workorders.update', $workorder), [
+            'unit_id' => $unit->id,
+            'customer_id' => $customer->id,
+            'instruction_id' => $instruction->id,
+            'user_id' => $newTechnik->id,
+            'open_at' => now()->toDateString(),
+        ]);
+
+        $response->assertRedirect(route('workorders.index'));
+        $response->assertSessionHasNoErrors();
+
+        $this->assertSame($newTechnik->id, $workorder->fresh()->user_id);
+    }
+
+    public function test_non_manager_cannot_change_workorder_technik_on_edit_even_if_posted(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $originalTechnik = $this->createUserWithRole('Technician', ['email' => 'original.tech.' . uniqid() . '@example.test']);
+        $newTechnik = $this->createUserWithRole('Technician', ['email' => 'blocked.tech.' . uniqid() . '@example.test']);
+        $instruction = $this->createInstruction(['name' => 'Repair ' . uniqid()]);
+        $customer = $this->createCustomer();
+        $unit = $this->createUnit();
+        $workorder = $this->createWorkorder([
+            'number' => 800102,
+            'instruction_id' => $instruction->id,
+            'customer_id' => $customer->id,
+            'unit_id' => $unit->id,
+            'user_id' => $originalTechnik->id,
+            'is_draft' => false,
+        ]);
+
+        $response = $this->actingAs($technician)->put(route('workorders.update', $workorder), [
+            'unit_id' => $unit->id,
+            'customer_id' => $customer->id,
+            'instruction_id' => $instruction->id,
+            'user_id' => $newTechnik->id,
+            'open_at' => now()->toDateString(),
+        ]);
+
+        $response->assertRedirect(route('workorders.index'));
+        $response->assertSessionHasNoErrors();
+
+        $this->assertSame($originalTechnik->id, $workorder->fresh()->user_id);
     }
 }

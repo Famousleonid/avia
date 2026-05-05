@@ -98,7 +98,9 @@ class StdListOverdueEventTest extends TestCase
 
         app(EventRunner::class)->run([new TdrProcessOverdueStartEvent()]);
 
-        Notification::assertNothingSent();
+        Notification::assertNotSentTo($assignedUser, \App\Notifications\NewMessageNotification::class);
+        Notification::assertNotSentTo($notifyUser, \App\Notifications\NewMessageNotification::class);
+        Notification::assertNotSentTo($workorderOwner, \App\Notifications\NewMessageNotification::class);
     }
 
     public function test_std_overdue_message_does_not_include_component_part_details(): void
@@ -165,6 +167,104 @@ class StdListOverdueEventTest extends TestCase
         $this->assertSame('', $message['ui']['part']['name']);
         $this->assertStringNotContainsString('WASHER, FLAT', $message['text']);
         $this->assertStringNotContainsString('PN-LEGACY-5102', $message['text']);
+    }
+
+    public function test_traveler_group_overdue_uses_one_traveler_std_days_subject(): void
+    {
+        $assignedUser = $this->createUserWithRole('Technician');
+        $travelerNotifyUser = $this->createUserWithRole('Manager');
+        $workorderOwner = $this->createUserWithRole('Shipping');
+
+        $workorder = $this->createWorkorder([
+            'number' => 5103,
+            'user_id' => $workorderOwner->id,
+        ]);
+
+        $component = Component::query()->create([
+            'manual_id' => $this->createManual()->id,
+            'part_number' => 'PN-TRAVELER-5103',
+            'assy_part_number' => 'APN-TRAVELER-5103',
+            'name' => 'TRAVELER PART',
+            'ipl_num' => 'IPL-5103',
+            'assy_ipl_num' => 'AIPL-5103',
+            'eff_code' => 'ALL',
+            'units_assy' => 1,
+            'log_card' => false,
+            'repair' => false,
+            'is_bush' => false,
+        ]);
+
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'SER-TRAVELER-5103',
+            'qty' => 1,
+        ]);
+
+        $travelerProcessName = ProcessName::query()->updateOrCreate(
+            ['name' => 'Traveler'],
+            [
+                'process_sheet_name' => 'TRAVELER',
+                'form_number' => 'TRV',
+                'std_days' => 1,
+                'notify_user_id' => $travelerNotifyUser->id,
+                'print_form' => false,
+                'show_in_process_picker' => true,
+            ]
+        );
+
+        $firstProcessName = ProcessName::query()->create([
+            'name' => 'Traveler Source A ' . uniqid(),
+            'process_sheet_name' => 'Source A',
+            'form_number' => 'FORM-A',
+            'std_days' => 30,
+            'print_form' => false,
+            'show_in_process_picker' => true,
+        ]);
+
+        $secondProcessName = ProcessName::query()->create([
+            'name' => 'Traveler Source B ' . uniqid(),
+            'process_sheet_name' => 'Source B',
+            'form_number' => 'FORM-B',
+            'std_days' => 30,
+            'print_form' => false,
+            'show_in_process_picker' => true,
+        ]);
+
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstProcessName->id,
+            'date_start' => now()->subDays(3)->toDateString(),
+            'date_finish' => null,
+            'user_id' => $assignedUser->id,
+            'in_traveler' => true,
+            'traveler_group' => 1,
+        ]);
+
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $secondProcessName->id,
+            'date_start' => now()->subDays(3)->toDateString(),
+            'date_finish' => null,
+            'user_id' => $assignedUser->id,
+            'in_traveler' => true,
+            'traveler_group' => 1,
+        ]);
+
+        $event = new TdrProcessOverdueStartEvent();
+        $subjects = $event->dueSubjects()
+            ->filter(fn (TdrProcess $subject) => (int) $subject->tdr?->workorder_id === (int) $workorder->id)
+            ->values();
+
+        $this->assertCount(1, $subjects);
+        $this->assertSame($travelerProcessName->id, $subjects->first()->processName->id);
+        $this->assertSame('Traveler', $subjects->first()->processName->name);
+        $this->assertSame(2, $subjects->first()->traveler_overdue_group_count);
+
+        $message = $event->message($subjects->first());
+
+        $this->assertSame('Traveler', $message['ui']['process']['name']);
+        $this->assertSame(1, $message['ui']['std_days']);
     }
 
     protected function createRule(string $eventKey, array $recipients, array $attributes = []): NotificationEventRule

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Component;
+use App\Models\ComponentAssembly;
 use App\Models\Manual;
 use App\Models\Plane;
 use App\Models\Builder;
@@ -15,15 +16,68 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 class ComponentController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $components = Component::with('manual')->orderBy('ipl_num')->get();
+        $perPage = min(max((int) $request->integer('per_page', 100), 1), 100);
+        $sortMap = [
+            0 => 'ipl_num',
+            1 => 'part_number',
+            2 => 'name',
+        ];
+        $sortColumn = $sortMap[(int) $request->integer('sort_col', 0)] ?? 'ipl_num';
+        $sortDirection = $request->input('sort_dir') === 'desc' ? 'desc' : 'asc';
+        $search = trim((string) $request->input('search', ''));
+        $manualId = $request->input('manual_id');
+
+        $query = Component::with(['manual', 'media', 'assemblies']);
+
+        if ($manualId !== null && $manualId !== '') {
+            $query->where('manual_id', $manualId);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($query) use ($search) {
+                $query->where('ipl_num', 'like', '%'.$search.'%')
+                    ->orWhere('part_number', 'like', '%'.$search.'%')
+                    ->orWhere('name', 'like', '%'.$search.'%')
+                    ->orWhereHas('assemblies', function ($query) use ($search) {
+                        $query->where('assy_ipl_num', 'like', '%'.$search.'%')
+                            ->orWhere('assy_part_number', 'like', '%'.$search.'%')
+                            ->orWhere('units_assy', 'like', '%'.$search.'%')
+                            ->orWhere('notes', 'like', '%'.$search.'%');
+                    })
+                    ->orWhereHas('manual', function ($query) use ($search) {
+                        $query->where('number', 'like', '%'.$search.'%')
+                            ->orWhere('title', 'like', '%'.$search.'%')
+                            ->orWhere('lib', 'like', '%'.$search.'%');
+                    });
+            });
+        }
+
+        $components = $query
+            ->orderBy($sortColumn, $sortDirection)
+            ->orderBy('id')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'rows_html' => view('admin.components.partials.index-rows', [
+                    'components' => $components,
+                ])->render(),
+                'total' => $components->total(),
+                'next_page' => $components->currentPage() + 1,
+                'has_more' => $components->hasMorePages(),
+            ]);
+        }
+
+        $componentsTotal = $components->total();
         $manuals = Manual::query()->orderBy('number', 'asc')->get();
         $planes = Plane::pluck('type', 'id');
         $builders = Builder::pluck('name', 'id');
         $scopes = Scope::pluck('scope', 'id');
 
-        return view('admin.components.index', compact('components', 'manuals', 'planes', 'builders', 'scopes'));
+        return view('admin.components.index', compact('components', 'componentsTotal', 'manuals', 'planes', 'builders', 'scopes'));
     }
 
     public function create()
@@ -46,34 +100,87 @@ class ComponentController extends Controller
             'ipl_num' =>'string|max:10',
             'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
             'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
-            'eff_code' => 'nullable|string|max:100',
             'units_assy' => 'nullable|string|max:100',
+            'assemblies' => 'nullable|array',
+            'assemblies.*.assy_part_number' => 'nullable|string|max:100',
+            'assemblies.*.assy_ipl_num' => 'nullable|string|max:50',
+            'assemblies.*.units_assy' => 'nullable|string|max:100',
+            'assemblies.*.notes' => 'nullable|string|max:1000',
+            'assemblies.*.assy_img' => 'nullable|file|image|max:5120',
 
         ]);
 
-        $validated['assy_part_number'] = $request->assy_part_number;
-        $validated['eff_code'] = $request->eff_code;
-        $validated['units_assy'] = $request->units_assy;
+        $assemblies = collect($request->input('assemblies', []))
+            ->filter(function ($assembly) {
+                return filled($assembly['assy_part_number'] ?? null)
+                    || filled($assembly['assy_ipl_num'] ?? null)
+                    || filled($assembly['units_assy'] ?? null)
+                    || filled($assembly['notes'] ?? null);
+            })
+            ->values();
+        $firstAssembly = $assemblies->first();
+
+        $validated['assy_part_number'] = $request->input('assy_part_number', $firstAssembly['assy_part_number'] ?? null);
+        $validated['units_assy'] = $request->input('units_assy', $firstAssembly['units_assy'] ?? null);
+        $validated['assy_ipl_num'] = $request->input('assy_ipl_num', $firstAssembly['assy_ipl_num'] ?? null);
 
         $validated['log_card'] = $request->has('log_card') ? 1 : 0;
-        $validated['repair'] = $request->has('repair') ? 1 : 0;
         $validated['is_bush'] = $request->has('is_bush') ? 1 : 0;
         $validated['bush_ipl_num'] = $request->bush_ipl_num;
 
         $component = Component::create($validated);
 
+        if ($assemblies->isEmpty() && (
+            $request->filled('assy_part_number')
+            || $request->filled('assy_ipl_num')
+            || $request->filled('units_assy')
+        )) {
+            $assemblies = collect([[
+                'assy_part_number' => $request->input('assy_part_number'),
+                'assy_ipl_num' => $request->input('assy_ipl_num'),
+                'units_assy' => $request->input('units_assy'),
+                'notes' => null,
+            ]]);
+        }
+
+        $createdAssemblies = collect();
+        foreach ($assemblies as $index => $assemblyData) {
+            $assembly = ComponentAssembly::create([
+                'component_id' => $component->id,
+                'assy_part_number' => (string) ($assemblyData['assy_part_number'] ?? ''),
+                'assy_ipl_num' => $assemblyData['assy_ipl_num'] ?? null,
+                'units_assy' => $assemblyData['units_assy'] ?? null,
+                'notes' => $assemblyData['notes'] ?? null,
+                'sort_order' => $index,
+            ]);
+
+            if ($request->hasFile("assemblies.$index.assy_img")) {
+                $assembly->addMedia($request->file("assemblies.$index.assy_img"))->toMediaCollection('assy_components');
+            }
+
+            $createdAssemblies->push($assembly);
+        }
+
         if ($request->hasFile('img')) {
             $component->addMedia($request->file('img'))->toMediaCollection('components');
         }
         if ($request->hasFile('assy_img')) {
-
-            $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_components');
+            if ($createdAssemblies->isNotEmpty()) {
+                $createdAssemblies->first()->addMedia($request->file('assy_img'))->toMediaCollection('assy_components');
+            } else {
+                $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_components');
+            }
         }
 
         if ($request->ajax() || $request->wantsJson()) {
+            $component->load(['manual', 'media', 'assemblies']);
+
             return response()->json([
                 'success' => true,
                 'message' => __('Component created successfully.'),
+                'row_html' => view('admin.components.partials.index-rows', [
+                    'components' => collect([$component]),
+                ])->render(),
                 'redirect' => $request->input('redirect', route('components.index'))
             ]);
         }
@@ -251,24 +358,42 @@ class ComponentController extends Controller
         $component = Component::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'required',
+            'name' => 'required|string|max:250',
             'manual_id' => 'required|exists:manuals,id',
-            'part_number' =>'required',
-            'ipl_num' =>'required',
-            'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            'part_number' =>'required|string|max:50',
+            'ipl_num' =>'required|string|max:10',
+            'assy_ipl_num' => 'nullable|string|max:50|regex:/^\d+-\d+[A-Za-z]?$/',
             'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
-            'eff_code' => 'nullable|string|max:100',
             'units_assy' => 'nullable|string|max:100',
+            'img' => 'nullable|file|image|max:5120',
+            'assy_img' => 'nullable|file|image|max:5120',
+            'assemblies' => 'nullable|array',
+            'assemblies.*.id' => 'nullable|integer',
+            'assemblies.*.assy_part_number' => 'nullable|string|max:100',
+            'assemblies.*.assy_ipl_num' => 'nullable|string|max:50',
+            'assemblies.*.units_assy' => 'nullable|string|max:100',
+            'assemblies.*.notes' => 'nullable|string|max:1000',
+            'assemblies.*.assy_img' => 'nullable|file|image|max:5120',
         ]);
 
-        $validated['assy_part_number'] = $request->assy_part_number;
-        $validated['eff_code'] = $request->eff_code;
-        $validated['units_assy'] = $request->units_assy;
-        $validated['assy_ipl_num'] = $request->assy_ipl_num;
+        $assemblies = collect($request->input('assemblies', []))
+            ->filter(function ($assembly) {
+                return filled($assembly['assy_part_number'] ?? null)
+                    || filled($assembly['assy_ipl_num'] ?? null)
+                    || filled($assembly['units_assy'] ?? null)
+                    || filled($assembly['notes'] ?? null);
+            })
+            ->values();
+        $firstAssembly = $assemblies->first();
+
+        $validated['assy_part_number'] = $request->input('assy_part_number', $firstAssembly['assy_part_number'] ?? null);
+        $validated['units_assy'] = $request->input('units_assy', $firstAssembly['units_assy'] ?? null);
+        $validated['assy_ipl_num'] = $request->input('assy_ipl_num', $firstAssembly['assy_ipl_num'] ?? null);
         $validated['log_card'] = $request->has('log_card') ? 1 : 0;
-        $validated['repair'] = $request->has('repair') ? 1 : 0;
         $validated['is_bush'] = $request->has('is_bush') ? 1 : 0;
         $validated['bush_ipl_num'] = $request->bush_ipl_num;
+        unset($validated['img'], $validated['assy_img'], $validated['assemblies']);
+        $component->update($validated);
 
         if ($request->hasFile('img')) {
             if ($component->getMedia('components')->isNotEmpty()) {
@@ -283,7 +408,53 @@ class ComponentController extends Controller
 
             $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_components');
         }
-        $component->update($validated);
+
+        if ($request->has('assemblies')) {
+            $keptIds = [];
+            foreach ($assemblies as $index => $assemblyData) {
+                $assemblyId = $assemblyData['id'] ?? null;
+                $assembly = $assemblyId
+                    ? $component->assemblies()->whereKey($assemblyId)->first()
+                    : null;
+
+                if (! $assembly) {
+                    $assembly = new ComponentAssembly(['component_id' => $component->id]);
+                }
+
+                $assembly->fill([
+                    'component_id' => $component->id,
+                    'assy_part_number' => (string) ($assemblyData['assy_part_number'] ?? ''),
+                    'assy_ipl_num' => $assemblyData['assy_ipl_num'] ?? null,
+                    'units_assy' => $assemblyData['units_assy'] ?? null,
+                    'notes' => $assemblyData['notes'] ?? null,
+                    'sort_order' => $index,
+                ]);
+                $assembly->save();
+
+                if ($request->hasFile("assemblies.$index.assy_img")) {
+                    $assembly->clearMediaCollection('assy_components');
+                    $assembly->addMedia($request->file("assemblies.$index.assy_img"))->toMediaCollection('assy_components');
+                }
+
+                $keptIds[] = $assembly->id;
+            }
+
+            $component->assemblies()
+                ->when($keptIds, fn ($query) => $query->whereNotIn('id', $keptIds))
+                ->delete();
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $component->load(['manual', 'media', 'assemblies']);
+
+            return response()->json([
+                'success' => true,
+                'message' => __('Component updated successfully.'),
+                'row_html' => view('admin.components.partials.index-rows', [
+                    'components' => collect([$component]),
+                ])->render(),
+            ]);
+        }
 
         return redirect()->route('components.index')->with('success', 'Component updated successfully');
 
@@ -341,7 +512,7 @@ class ComponentController extends Controller
 
     public function showJson($id)
     {
-        $component = Component::findOrFail($id);
+        $component = Component::with(['assemblies'])->findOrFail($id);
 
         $user = auth()->user();
         $manualId = (int) ($component->manual_id ?? 0);
@@ -362,6 +533,7 @@ class ComponentController extends Controller
             'success'   => true,
             'component' => [
                 'id'               => $component->id,
+                'manual_id'        => $component->manual_id,
                 'name'             => $component->name,
                 'ipl_num'          => $component->ipl_num,
                 'part_number'      => $component->part_number,
@@ -373,6 +545,13 @@ class ComponentController extends Controller
                 'repair'           => (bool) $component->repair,
                 'is_bush'          => (bool) $component->is_bush,
                 'bush_ipl_num'     => $component->bush_ipl_num,
+                'assemblies'        => $component->assemblies->map(fn ($assembly) => [
+                    'id' => $assembly->id,
+                    'assy_part_number' => $assembly->assy_part_number,
+                    'assy_ipl_num' => $assembly->assy_ipl_num,
+                    'units_assy' => $assembly->units_assy,
+                    'notes' => $assembly->notes,
+                ])->values(),
             ],
         ]);
     }
@@ -860,10 +1039,8 @@ class ComponentController extends Controller
                         continue;
                     }
 
-                    // Check if component with the same part_number and ipl_num already exists in this manual
-                    // Приоритет поиска: сначала по точному совпадению part_number + ipl_num + manual_id
-                    $existingComponent = Component::where('part_number', $componentData['part_number'])
-                        ->where('manual_id', $manualId)
+                    // One manual can have only one component for one IPL. Part number/name may repeat or change.
+                    $existingComponent = Component::where('manual_id', $manualId)
                         ->where('ipl_num', $componentData['ipl_num'])
                         ->first();
 
@@ -914,7 +1091,7 @@ class ComponentController extends Controller
                             // Обновляем все поля из CSV файла, избегая дублирования
                             // Фильтруем пустые значения, чтобы не перезаписывать существующие данные
                             $updateData = array_intersect_key($componentData, array_flip([
-                                'name', 'assy_part_number', 'assy_ipl_num', 'eff_code',
+                                'part_number', 'name', 'assy_part_number', 'assy_ipl_num', 'eff_code',
                                 'units_assy', 'log_card', 'repair', 'is_bush', 'bush_ipl_num'
                             ]));
 
@@ -952,8 +1129,7 @@ class ComponentController extends Controller
                         // Create new component
                         try {
                             // Дополнительная проверка на уникальность перед созданием
-                            $finalCheck = Component::where('part_number', $componentData['part_number'])
-                                ->where('manual_id', $manualId)
+                            $finalCheck = Component::where('manual_id', $manualId)
                                 ->where('ipl_num', $componentData['ipl_num'])
                                 ->exists();
 

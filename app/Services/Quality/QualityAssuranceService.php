@@ -149,6 +149,7 @@ class QualityAssuranceService
                 'incomplete_processes' => $processes['counts']['incomplete'] > 0 || $processes['counts']['finished_without_start'] > 0,
                 'quality_documents' => $qualityDocuments['missing'],
             ],
+            'submitted_inspections' => $this->checkSubmittedInspections($workorder),
         ];
     }
 
@@ -329,8 +330,12 @@ class QualityAssuranceService
     public function filterRows(Collection $rows, array $filters): Collection
     {
         return $rows->filter(function (array $row) use ($filters) {
-            if ($filters['q'] !== '' && ! Str::contains((string) $row['number'], $filters['q'], true)) {
-                return false;
+            if ($filters['q'] !== '') {
+                $needle = $this->normalizeWorkorderSearch((string) $filters['q']);
+
+                if (! Str::contains((string) $row['number'], $needle, true)) {
+                    return false;
+                }
             }
 
             if ($filters['status'] !== 'all' && $row['status'] !== $filters['status']) {
@@ -341,24 +346,21 @@ class QualityAssuranceService
                 return false;
             }
 
-            if ($filters['missing_photos'] && ! $row['missing_flags']['photos']) {
-                return false;
-            }
-
-            if ($filters['missing_ro'] && ! $row['missing_flags']['ro']) {
-                return false;
-            }
-
-            if ($filters['incomplete_processes'] && ! $row['missing_flags']['incomplete_processes']) {
-                return false;
-            }
-
-            if ($filters['missing_quality_documents'] && ! $row['missing_flags']['quality_documents']) {
+            if (($filters['metric'] ?? '') !== '' && ! $this->rowMatchesMetric($row, $filters['metric'])) {
                 return false;
             }
 
             return true;
         })->values();
+    }
+
+    private function normalizeWorkorderSearch(string $query): string
+    {
+        $query = trim($query);
+
+        return preg_match('/\d/', $query) === 1
+            ? preg_replace('/\D+/', '', $query)
+            : $query;
     }
 
     public function buildSummary(Collection $rows): array
@@ -369,6 +371,7 @@ class QualityAssuranceService
             'missing_photos' => $rows->filter(fn ($row) => $row['photos']['missing_any'])->count(),
             'incomplete_processes' => $rows->filter(fn ($row) => $row['missing_flags']['incomplete_processes'])->count(),
             'missing_ro' => $rows->filter(fn ($row) => $row['missing_flags']['ro'])->count(),
+            'submitted_workorders' => $this->buildSubmittedInspectionRows($rows)->pluck('wo_id')->unique()->count(),
             'training_alerts' => $rows->filter(function ($row) {
                 return $row['training']['status'] === 'warning' || ! $row['training']['available'];
             })->count(),
@@ -396,39 +399,26 @@ class QualityAssuranceService
         })->values();
     }
 
-    public function buildTrainingTabRows(Collection $rows): Collection
+    public function buildSubmittedInspectionRows(Collection $rows): Collection
     {
-        return $rows->map(function ($row) {
-            return [
-                'user_name' => $row['training']['user_name'],
-                'wo_number' => $row['number'],
-                'wo_url' => $row['url'],
-                'last_training' => $row['training']['last_training'],
-                'days_since' => $row['training']['days_since'],
-                'status' => $row['training']['status'],
-                'warning' => $row['training']['warning'],
-            ];
-        })->values();
-    }
-
-    public function buildQualityDocumentTabRows(Collection $rows): Collection
-    {
-        return $rows->map(function ($row) {
-            return [
-                'wo_id' => $row['id'],
-                'wo_number' => $row['number'],
-                'wo_url' => $row['url'],
-                'customer_name' => $row['customer_name'],
-                'component_pn' => $row['component_pn'],
-                'serial_number' => $row['serial_number'],
-                'documents_count' => $row['quality_documents']['count'],
-                'latest_document' => $row['quality_documents']['latest_name'],
-                'latest_document_at' => $row['quality_documents']['latest_at'],
-                'documents' => $row['quality_documents']['documents'],
-                'status' => $row['quality_documents']['status'],
-                'warning' => $row['quality_documents']['warning'],
-            ];
-        })->values();
+        return $rows
+            ->flatMap(function ($row) {
+                return collect($row['submitted_inspections']['pending'] ?? [])
+                    ->map(fn ($pending) => [
+                        'wo_id' => $row['id'],
+                        'wo_number' => $row['number'],
+                        'wo_url' => $row['url'],
+                        'customer_name' => $row['customer_name'],
+                        'component_pn' => $row['component_pn'],
+                        'serial_number' => $row['serial_number'],
+                        'open_date' => $row['open_date'],
+                        'submitted_step' => $pending['submitted_step'],
+                        'submitted_date' => $pending['submitted_date'],
+                        'missing_inspection' => $pending['missing_inspection'],
+                    ]);
+            })
+            ->sortByDesc('submitted_date')
+            ->values();
     }
 
     public function statusBadgeClass(string $status): string
@@ -461,5 +451,100 @@ class QualityAssuranceService
     private function trainingKey(int $userId, int $manualId): string
     {
         return $userId . '|' . $manualId;
+    }
+
+    private function rowMatchesMetric(array $row, string $metric): bool
+    {
+        return match ($metric) {
+            'open' => ! $row['is_done'],
+            'qa_warnings' => in_array($row['status'], ['warning', 'critical'], true),
+            'submitted' => ($row['submitted_inspections']['count'] ?? 0) > 0,
+            'missing_photos' => $row['missing_flags']['photos'],
+            'missing_ro' => $row['missing_flags']['ro'],
+            default => true,
+        };
+    }
+
+    private function checkSubmittedInspections(Workorder $workorder): array
+    {
+        $mainRows = $workorder->main ?? collect();
+        $pending = [];
+
+        $postSubmitted = $this->firstMainDate($mainRows, function (?string $name) {
+            $name = $this->normalizeTaskName($name);
+
+            return Str::contains($name, 'submitted')
+                && Str::contains($name, 'inspection')
+                && ! Str::contains($name, 'final');
+        });
+
+        $postInspection = $this->firstMainDate($mainRows, fn (?string $name) => $this->normalizeTaskName($name) === 'post disassembly inspection', true);
+
+        if ($postSubmitted !== null && $postInspection === null) {
+            $pending[] = [
+                'submitted_step' => $postSubmitted['task_name'],
+                'submitted_date' => $postSubmitted['date'],
+                'missing_inspection' => 'Post Disassembly inspection',
+            ];
+        }
+
+        $finalSubmitted = $this->firstMainDate($mainRows, function (?string $name) {
+            $name = $this->normalizeTaskName($name);
+
+            return Str::contains($name, 'submitted')
+                && Str::contains($name, 'final');
+        });
+
+        $finalInspection = $this->firstMainDate($mainRows, fn (?string $name) => $this->normalizeTaskName($name) === 'final inspection', true);
+
+        if ($finalSubmitted !== null && $finalInspection === null) {
+            $pending[] = [
+                'submitted_step' => $finalSubmitted['task_name'],
+                'submitted_date' => $finalSubmitted['date'],
+                'missing_inspection' => 'Final inspection',
+            ];
+        }
+
+        return [
+            'pending' => $pending,
+            'count' => count($pending),
+        ];
+    }
+
+    private function firstMainDate(Collection $mainRows, callable $matches, bool $finishOnly = false): ?array
+    {
+        $main = $mainRows
+            ->filter(function ($main) use ($matches, $finishOnly) {
+                if ($main->ignore_row) {
+                    return false;
+                }
+
+                $date = $finishOnly ? $main->date_finish : ($main->date_finish ?? $main->date_start);
+
+                return $date !== null && $matches($main->task?->name);
+            })
+            ->sortByDesc(fn ($main) => $finishOnly ? $main->date_finish : ($main->date_finish ?? $main->date_start))
+            ->first();
+
+        if ($main === null) {
+            return null;
+        }
+
+        $date = $finishOnly ? $main->date_finish : ($main->date_finish ?? $main->date_start);
+
+        return [
+            'task_name' => $main->task?->name ?? '-',
+            'date' => $date?->format('Y-m-d'),
+        ];
+    }
+
+    private function normalizeTaskName(?string $name): string
+    {
+        $name = strtr((string) $name, [
+            'с' => 'c',
+            'С' => 'c',
+        ]);
+
+        return trim(Str::lower($name));
     }
 }

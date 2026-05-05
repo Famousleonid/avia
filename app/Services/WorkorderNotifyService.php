@@ -72,6 +72,37 @@ class WorkorderNotifyService
         $this->notifyByRules('workorder.approved', $workorder, $msg);
     }
 
+    public function unapproved(Workorder $workorder, int $byUserId, string $byUserName): void
+    {
+        $msg = [
+            'fromUserId' => $byUserId,
+            'fromName' => $byUserName,
+            'type' => 'workorder',
+            'event' => 'unapproved',
+            'severity' => 'warning',
+            'title' => 'Unapproved',
+            'text' => "Workorder {$workorder->number} unapproved by {$byUserName}",
+            'url' => route('mains.show', $workorder->id),
+            'ui' => [
+                'workorder' => [
+                    'id' => $workorder->id,
+                    'no' => $workorder->number,
+                ],
+                'actor' => [
+                    'id' => $byUserId,
+                    'name' => $byUserName,
+                ],
+            ],
+            'payload' => [
+                'workorder_id' => $workorder->id,
+                'workorder_no' => $workorder->number,
+                'unapproved_by_user_id' => $byUserId,
+            ],
+        ];
+
+        $this->notifyByRules('workorder.unapproved', $workorder, $msg);
+    }
+
     public function draftCreated(Workorder $workorder, int $byUserId, string $byUserName): void
     {
         $workorder->loadMissing(['unit', 'customer']);

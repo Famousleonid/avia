@@ -687,6 +687,8 @@ class TdrProcessController extends Controller
             ->pluck('processes_id');
 
         // Базовые данные для представления
+        $omitFormHeaderDate = $request->boolean('omit_form_header_date');
+
         $viewData = [
             'module' => 'tdr-processes',
             'current_wo' => $current_wo,
@@ -698,7 +700,7 @@ class TdrProcessController extends Controller
             'selectedVendor' => $selectedVendor,
             'formHeaderComponentName' => $current_tdr->component?->name,
             'formHeaderRepairOrder' => $current_tdrs_process->repair_order,
-            'formHeaderDate' => $current_tdrs_process->date_start ? strtolower($current_tdrs_process->date_start->format('d M Y')) : null,
+            'formHeaderDate' => $omitFormHeaderDate ? null : ($current_tdrs_process->date_start ? strtolower($current_tdrs_process->date_start->format('d M Y')) : null),
             'machining_header_manual_libs' => $this->machiningHeaderManualLibsForWorkorder($process_name, (int) $current_wo->id),
         ];
 
@@ -813,10 +815,11 @@ class TdrProcessController extends Controller
         $built = $this->buildProcessGroupsForSingleTdr($current_tdr, $tdrProcesses, $proces);
         $processGroups = $built['processGroups'];
         $totalQty = $built['totalQty'];
+        $omitFormHeaderDate = true;
 
         return view('admin.tdr-processes.partials.processes-body', compact(
             'current_tdr', 'current_wo', 'tdrProcesses', 'proces', 'vendors', 'ecEligibleProcessNameIds',
-            'processGroups', 'totalQty'
+            'processGroups', 'totalQty', 'omitFormHeaderDate'
         ));
     }
 

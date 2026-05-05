@@ -159,6 +159,83 @@ class NotificationRulesTest extends TestCase
         Notification::assertNothingSentTo($systemAdmin);
     }
 
+    public function test_unapproved_workorder_notifies_technician_and_system_admin(): void
+    {
+        Notification::fake();
+        NotificationEventRule::query()->where('event_key', 'workorder.unapproved')->delete();
+
+        $systemAdmin = $this->createUserWithRole('Admin', ['name' => 'System Admin']);
+        $roleOnlyAdmin = $this->createUserWithRole('Admin', ['name' => 'Role Admin', 'is_admin' => false]);
+        $technician = $this->createUserWithRole('Technician');
+        $manager = $this->createUserWithRole('Manager');
+
+        $workorder = $this->createWorkorder([
+            'number' => 3003,
+            'user_id' => $technician->id,
+            'approve_at' => now(),
+            'approve_name' => $manager->name,
+        ]);
+
+        $this->createRule('workorder.unapproved', [
+            ['type' => 'dynamic', 'value' => 'workorder_technician'],
+            ['type' => 'dynamic', 'value' => 'system_admins'],
+        ], [
+            'name' => 'Unapproved recipients',
+            'severity' => 'warning',
+            'title_template' => 'Unapproved',
+            'message_template' => 'Workorder {workorder_no} unapproved by {actor_name}.',
+        ]);
+
+        app(WorkorderNotifyService::class)->unapproved($workorder, $manager->id, $manager->name);
+
+        Notification::assertSentTo($technician, NewMessageNotification::class, function ($notification) use ($manager) {
+            $data = $notification->toDatabase($manager);
+
+            return $data['event'] === 'unapproved'
+                && $data['severity'] === 'warning'
+                && str_contains($data['text'], 'Workorder 3003 unapproved by ' . $manager->name);
+        });
+        Notification::assertSentTo($systemAdmin, NewMessageNotification::class);
+        Notification::assertNotSentTo($roleOnlyAdmin, NewMessageNotification::class);
+    }
+
+    public function test_unapproved_workorder_observer_fires_when_approval_is_removed(): void
+    {
+        Notification::fake();
+        NotificationEventRule::query()->where('event_key', 'workorder.unapproved')->delete();
+
+        $technician = $this->createUserWithRole('Technician');
+        $manager = $this->createUserWithRole('Manager');
+
+        $workorder = $this->createWorkorder([
+            'number' => 3004,
+            'user_id' => $technician->id,
+            'approve_at' => now(),
+            'approve_name' => 'Previous Approver',
+        ]);
+
+        $this->createRule('workorder.unapproved', [
+            ['type' => 'dynamic', 'value' => 'workorder_technician'],
+        ], [
+            'name' => 'Unapproved observer recipients',
+            'severity' => 'warning',
+            'title_template' => 'Unapproved',
+            'message_template' => 'Workorder {workorder_no} unapproved by {actor_name}.',
+        ]);
+
+        $this->actingAs($manager);
+        $workorder->approve_at = null;
+        $workorder->approve_name = null;
+        $workorder->save();
+
+        Notification::assertSentTo($technician, NewMessageNotification::class, function ($notification) use ($manager) {
+            $data = $notification->toDatabase($manager);
+
+            return $data['event'] === 'unapproved'
+                && str_contains($data['text'], 'Workorder 3004 unapproved by ' . $manager->name);
+        });
+    }
+
     public function test_assigned_workorder_rule_notifies_assigned_user_and_admin_role(): void
     {
         Notification::fake();

@@ -281,19 +281,45 @@ class LogCardController extends Controller
     }
 
     /**
-     * Printable Certificate of Destruction (Log Card rows with destruction-flagged reason codes).
+     * Printable Certificate of Destruction.
      */
     public function sertDistrForm(Request $request, $id)
     {
         $current_wo = Workorder::with('customer')->findOrFail($id);
+        $logCard = LogCardDestructionCertificate::logCardForWorkorder($current_wo);
         $rows = LogCardDestructionCertificate::rowsForWorkorder($current_wo);
-        if ($rows === []) {
-            abort(404, __('Certificate of Destruction is not available for this work order.'));
-        }
 
         return view('admin.log_card.sertDistrForm', [
             'current_wo' => $current_wo,
             'rows' => $rows,
+            'manualRow' => LogCardDestructionCertificate::manualRowFor($logCard),
+            'manualSelected' => LogCardDestructionCertificate::manualSelectedFor($logCard),
+            'certificateDate' => LogCardDestructionCertificate::certificateDateFor($logCard),
+            'saveUrl' => route('log_card.destruction_certificate.update', ['id' => $current_wo->id]),
+        ]);
+    }
+
+    public function updateDestructionCertificate(Request $request, $id)
+    {
+        $current_wo = Workorder::findOrFail($id);
+        $data = $request->validate([
+            'selected_keys' => ['nullable', 'array'],
+            'selected_keys.*' => ['string'],
+            'certificate_date' => ['nullable', 'string', 'max:32'],
+            'manual_selected' => ['nullable', 'boolean'],
+            'manual_row' => ['nullable', 'array'],
+            'manual_row.part_number' => ['nullable', 'string', 'max:255'],
+            'manual_row.description' => ['nullable', 'string', 'max:255'],
+            'manual_row.serial_number' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $logCard = LogCard::firstOrCreate(['workorder_id' => $current_wo->id]);
+        $logCard->destruction_certificate_data = LogCardDestructionCertificate::normalizeCertificateData($data);
+        $logCard->save();
+
+        return response()->json([
+            'ok' => true,
+            'data' => $logCard->destruction_certificate_data,
         ]);
     }
 
