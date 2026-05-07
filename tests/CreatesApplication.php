@@ -22,6 +22,12 @@ trait CreatesApplication
 
         $app->make(Kernel::class)->bootstrap();
 
+        $app['config']->set('app.env', 'testing');
+        $app['config']->set('database.default', 'mysql');
+        $app['config']->set('database.connections.mysql.database', 'aviatechnik_testing');
+        $app['db']->purge('mysql');
+        $app['db']->reconnect('mysql');
+
         if ($app->environment('testing')) {
             $connection = $app['config']->get('database.default');
             $database = (string) $app['config']->get("database.connections.{$connection}.database", '');
