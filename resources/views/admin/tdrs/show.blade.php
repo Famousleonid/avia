@@ -388,22 +388,6 @@
                             {{ __('Extra Processes') }}
                         </button>
                     </li>
-                    @if(count($processParts))
-                        <li class="nav-item " role="presentation" id="tab-all-parts-processes-li">
-                            <button class="nav-link " id="tab-all-parts-processes" data-bs-toggle="tab"
-                                    data-bs-target="#content-all-parts-processes" type="button" role="tab">
-                                {{ __('All Parts Processes') }}
-                            </button>
-                        </li>
-                    @endif
-
-                    <li class="nav-item" role="presentation" id="tab-extra-parts-processes-li">
-                        <button class="nav-link" id="tab-extra-parts-processes" data-bs-toggle="tab"
-                                data-bs-target="#content-extra-parts-processes" type="button" role="tab"
-                                data-base-text="{{ __('Extra Parts Processes') }}">
-                            {{ __('Extra Parts Processes') }}{{ ($hasExtraProcessRecords ?? false) ? ' *' : '' }}
-                        </button>
-                    </li>
                     @if($showLogCardTab ?? false)
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="tab-log-card" data-bs-toggle="tab" data-bs-target="#content-log-card" type="button" role="tab">{{ __('Log Card') }}</button>
@@ -426,6 +410,23 @@
                         </li>
                     @endif
                 </ul>
+                <div id="partProcessesShortcutActions" class="d-none d-flex gap-2 align-items-center ms-auto" style="margin-right: 50px;">
+                    @if(count($processParts))
+                        <button type="button"
+                                class="btn btn-outline-primary btn-sm"
+                                id="tab-all-parts-processes"
+                                data-process-shortcut-target="#content-all-parts-processes">
+                            {{ __('All Parts Processes') }}
+                        </button>
+                    @endif
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm"
+                            id="tab-extra-parts-processes"
+                            data-process-shortcut-target="#content-extra-parts-processes"
+                            data-base-text="{{ __('Fix fuckup') }}">
+                        {{ __('Fix fuckup') }}{{ ($hasExtraProcessRecords ?? false) ? ' *' : '' }}
+                    </button>
+                </div>
                 <div id="extraPartsTabActions" class="d-none d-flex gap-2 align-items-center">
                     <button type="button" class="btn btn-outline-success btn-sm" id="openAddExtraPartModalBtn" data-workorder-id="{{ $current_wo->id }}">
                         <i class="fas fa-plus"></i> {{ __('Add Extra Part') }}
@@ -440,9 +441,9 @@
                     </div>
                 @endif
                 @if($showLogCardTab ?? false)
-                <div id="logCardTabActions" class="d-none d-flex gap-2 align-items-center flex-wrap">
-                    <button type="button" id="logCardEnterDataBtn" class="btn btn-success btn-sm" data-has-log="{{ $log_card ? '1' : '0' }}" data-log-card-id="{{ $log_card->id ?? '' }}">
-                        <i class="fas fa-{{ $log_card ? 'edit' : 'keyboard' }}"></i> {{ $log_card ? __('Edit') : __('Enter Data') }}
+                <div id="logCardTabActions" class="d-none d-flex gap-2 align-items-center flex-wrap" style="margin-right: 100px;">
+                    <button type="button" id="logCardEnterDataBtn" class="btn {{ $log_card ? 'btn-danger' : 'btn-success' }} btn-sm" data-has-log="{{ $log_card ? '1' : '0' }}" data-log-card-id="{{ $log_card->id ?? '' }}">
+                        <i class="fas fa-{{ $log_card ? 'undo' : 'keyboard' }}"></i> {{ $log_card ? __('Reset Log card') : __('Create Log card') }}
                     </button>
                     <button type="button" id="logCardSaveBtn" class="btn btn-primary btn-sm d-none">
                         <i class="fas fa-save"></i> {{ __('Save') }}
@@ -546,8 +547,8 @@
                     @if($showLogCardTab ?? false)
                     <div class="tab-pane fade" id="content-log-card" role="tabpanel">
                         <div class="card bg-gradient h-100">
-                            <div class="card-body p-2 overflow-auto" id="logCardTabBody"
-                                 style="height: calc(100vh - 280px); min-height: 400px;">
+                            <div class="card-body p-2" id="logCardTabBody"
+                                 style="height: calc(100vh - 218px); min-height: 400px; overflow: hidden; display: flex; flex-direction: column;">
                                 <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
                             </div>
                         </div>

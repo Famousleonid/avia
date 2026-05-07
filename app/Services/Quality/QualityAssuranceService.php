@@ -371,7 +371,11 @@ class QualityAssuranceService
             'missing_photos' => $rows->filter(fn ($row) => $row['photos']['missing_any'])->count(),
             'incomplete_processes' => $rows->filter(fn ($row) => $row['missing_flags']['incomplete_processes'])->count(),
             'missing_ro' => $rows->filter(fn ($row) => $row['missing_flags']['ro'])->count(),
-            'submitted_workorders' => $this->buildSubmittedInspectionRows($rows)->pluck('wo_id')->unique()->count(),
+            'submitted_workorders' => $this->buildSubmittedInspectionRows($rows)
+                ->filter(fn (array $row) => filled($row['submitted_date'] ?? null))
+                ->pluck('wo_id')
+                ->unique()
+                ->count(),
             'training_alerts' => $rows->filter(function ($row) {
                 return $row['training']['status'] === 'warning' || ! $row['training']['available'];
             })->count(),
@@ -412,12 +416,15 @@ class QualityAssuranceService
                         'component_pn' => $row['component_pn'],
                         'serial_number' => $row['serial_number'],
                         'open_date' => $row['open_date'],
+                        'sort_order' => $pending['sort_order'] ?? 999,
                         'submitted_step' => $pending['submitted_step'],
                         'submitted_date' => $pending['submitted_date'],
                         'missing_inspection' => $pending['missing_inspection'],
+                        'inspection_date' => $pending['inspection_date'] ?? null,
+                        'inspection_done' => filled($pending['inspection_date'] ?? null),
                     ]);
             })
-            ->sortByDesc('submitted_date')
+            ->sortBy('sort_order')
             ->values();
     }
 
@@ -480,13 +487,13 @@ class QualityAssuranceService
 
         $postInspection = $this->firstMainDate($mainRows, fn (?string $name) => $this->normalizeTaskName($name) === 'post disassembly inspection', true);
 
-        if ($postSubmitted !== null && $postInspection === null) {
-            $pending[] = [
-                'submitted_step' => $postSubmitted['task_name'],
-                'submitted_date' => $postSubmitted['date'],
-                'missing_inspection' => 'Post Disassembly inspection',
-            ];
-        }
+        $pending[] = [
+            'sort_order' => 1,
+            'submitted_step' => 'WO Submitted to inspection',
+            'submitted_date' => $postSubmitted['date'] ?? null,
+            'missing_inspection' => 'Post Disassembly inspection',
+            'inspection_date' => $postInspection['date'] ?? null,
+        ];
 
         $finalSubmitted = $this->firstMainDate($mainRows, function (?string $name) {
             $name = $this->normalizeTaskName($name);
@@ -497,17 +504,17 @@ class QualityAssuranceService
 
         $finalInspection = $this->firstMainDate($mainRows, fn (?string $name) => $this->normalizeTaskName($name) === 'final inspection', true);
 
-        if ($finalSubmitted !== null && $finalInspection === null) {
-            $pending[] = [
-                'submitted_step' => $finalSubmitted['task_name'],
-                'submitted_date' => $finalSubmitted['date'],
-                'missing_inspection' => 'Final inspection',
-            ];
-        }
+        $pending[] = [
+            'sort_order' => 2,
+            'submitted_step' => 'WO Submitted for Final Inspection',
+            'submitted_date' => $finalSubmitted['date'] ?? null,
+            'missing_inspection' => 'Final inspection',
+            'inspection_date' => $finalInspection['date'] ?? null,
+        ];
 
         return [
             'pending' => $pending,
-            'count' => count($pending),
+            'count' => collect($pending)->filter(fn (array $row) => filled($row['submitted_date'] ?? null))->count(),
         ];
     }
 

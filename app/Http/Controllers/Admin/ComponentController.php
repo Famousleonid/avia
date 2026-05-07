@@ -9,6 +9,8 @@ use App\Models\Manual;
 use App\Models\Plane;
 use App\Models\Builder;
 use App\Models\Scope;
+use App\Services\ManualPartAccessGuard;
+use App\Services\ProcessAccessDecision;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
@@ -16,6 +18,94 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 class ComponentController extends Controller
 {
+    private const COMPONENT_FLAGS = [
+        'log_card',
+        'is_bush',
+        'kit',
+        'ndt_list',
+        'cad_list',
+        'stress_relief_list',
+        'paint_list',
+    ];
+
+    private function fillComponentFlagsFromRequest(array $data, Request $request): array
+    {
+        foreach (self::COMPONENT_FLAGS as $field) {
+            $data[$field] = $request->boolean($field);
+        }
+
+        return $data;
+    }
+
+    private function componentFlagLabels(): array
+    {
+        return [
+            'log_card' => 'LC',
+            'is_bush' => 'Bush',
+            'kit' => 'Kit',
+            'ndt_list' => 'NDT',
+            'cad_list' => 'CAD',
+            'stress_relief_list' => 'Stress',
+            'paint_list' => 'Paint',
+        ];
+    }
+
+    private function partAccessGuard(): ManualPartAccessGuard
+    {
+        return app(ManualPartAccessGuard::class);
+    }
+
+    private function denyManualPartDecision(Request $request, ProcessAccessDecision $decision, ?string $fallbackUrl = null)
+    {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $decision->message,
+                'reason' => $decision->reason,
+                'contacts' => $decision->contacts,
+            ], 403);
+        }
+
+        $redirect = (string) $request->input('redirect', '');
+        if ($redirect !== '') {
+            return redirect($redirect)->with('error', $decision->message);
+        }
+
+        $returnTo = (string) $request->input('return_to', '');
+        if ($returnTo !== '') {
+            return redirect($returnTo)->with('error', $decision->message);
+        }
+
+        if ($fallbackUrl) {
+            return redirect($fallbackUrl)->with('error', $decision->message);
+        }
+
+        return redirect()->back()->with('error', $decision->message);
+    }
+
+    private function denyIfManualPartsLocked(Request $request, Manual $manual, ?string $fallbackUrl = null)
+    {
+        $decision = $this->partAccessGuard()->canManageManualParts($request->user(), $manual);
+
+        if ($decision->allowed) {
+            return null;
+        }
+
+        return $this->denyManualPartDecision($request, $decision, $fallbackUrl);
+    }
+
+    private function denyIfComponentPartsLocked(Request $request, Component $component, ?string $fallbackUrl = null)
+    {
+        $component->loadMissing('manual.partLock.lockedBy');
+        $decision = $this->partAccessGuard()->canMutateComponent($request->user(), $component);
+
+        if ($decision->allowed) {
+            return null;
+        }
+
+        return $this->denyManualPartDecision($request, $decision, $fallbackUrl);
+    }
+
     public function index(Request $request)
     {
         $perPage = min(max((int) $request->integer('per_page', 100), 1), 100);
@@ -29,7 +119,7 @@ class ComponentController extends Controller
         $search = trim((string) $request->input('search', ''));
         $manualId = $request->input('manual_id');
 
-        $query = Component::with(['manual', 'media', 'assemblies']);
+        $query = Component::with(['manual.partLock.lockedBy', 'media', 'assemblies']);
 
         if ($manualId !== null && $manualId !== '') {
             $query->where('manual_id', $manualId);
@@ -54,8 +144,9 @@ class ComponentController extends Controller
             });
         }
 
+        $this->applyComponentIndexSorting($query, $sortColumn, $sortDirection);
+
         $components = $query
-            ->orderBy($sortColumn, $sortDirection)
             ->orderBy('id')
             ->paginate($perPage)
             ->withQueryString();
@@ -72,12 +163,31 @@ class ComponentController extends Controller
         }
 
         $componentsTotal = $components->total();
-        $manuals = Manual::query()->orderBy('number', 'asc')->get();
+        $manuals = Manual::query()->with('partLock.lockedBy')->orderBy('number', 'asc')->get();
         $planes = Plane::pluck('type', 'id');
         $builders = Builder::pluck('name', 'id');
         $scopes = Scope::pluck('scope', 'id');
 
         return view('admin.components.index', compact('components', 'componentsTotal', 'manuals', 'planes', 'builders', 'scopes'));
+    }
+
+    private function applyComponentIndexSorting($query, string $sortColumn, string $sortDirection): void
+    {
+        if ($sortColumn !== 'ipl_num') {
+            $query->orderBy($sortColumn, $sortDirection);
+
+            return;
+        }
+
+        $direction = $sortDirection === 'desc' ? 'desc' : 'asc';
+        $ipl = "TRIM(COALESCE(ipl_num, ''))";
+        $afterDash = "SUBSTRING_INDEX({$ipl}, '-', -1)";
+
+        $query
+            ->orderByRaw("({$ipl} REGEXP '^[0-9]+-[0-9]+[A-Za-z]*$') desc")
+            ->orderByRaw("CAST(SUBSTRING_INDEX({$ipl}, '-', 1) AS UNSIGNED) {$direction}")
+            ->orderByRaw("CAST(REGEXP_REPLACE({$afterDash}, '[^0-9].*$', '') AS UNSIGNED) {$direction}")
+            ->orderByRaw("REGEXP_REPLACE({$afterDash}, '^[0-9]+', '') {$direction}");
     }
 
     public function create()
@@ -110,6 +220,11 @@ class ComponentController extends Controller
 
         ]);
 
+        $manual = Manual::with('partLock.lockedBy')->findOrFail((int) $validated['manual_id']);
+        if ($deny = $this->denyIfManualPartsLocked($request, $manual)) {
+            return $deny;
+        }
+
         $assemblies = collect($request->input('assemblies', []))
             ->filter(function ($assembly) {
                 return filled($assembly['assy_part_number'] ?? null)
@@ -124,8 +239,7 @@ class ComponentController extends Controller
         $validated['units_assy'] = $request->input('units_assy', $firstAssembly['units_assy'] ?? null);
         $validated['assy_ipl_num'] = $request->input('assy_ipl_num', $firstAssembly['assy_ipl_num'] ?? null);
 
-        $validated['log_card'] = $request->has('log_card') ? 1 : 0;
-        $validated['is_bush'] = $request->has('is_bush') ? 1 : 0;
+        $validated = $this->fillComponentFlagsFromRequest($validated, $request);
         $validated['bush_ipl_num'] = $request->bush_ipl_num;
 
         $component = Component::create($validated);
@@ -173,11 +287,12 @@ class ComponentController extends Controller
         }
 
         if ($request->ajax() || $request->wantsJson()) {
-            $component->load(['manual', 'media', 'assemblies']);
+            $component->load(['manual.partLock.lockedBy', 'media', 'assemblies']);
 
             return response()->json([
                 'success' => true,
                 'message' => __('Component created successfully.'),
+                'component_id' => $component->id,
                 'row_html' => view('admin.components.partials.index-rows', [
                     'components' => collect([$component]),
                 ])->render(),
@@ -210,6 +325,10 @@ class ComponentController extends Controller
             ]);
             $user = auth()->user();
             $manualId = (int) $validated['manual_id'];
+            $manual = Manual::with('partLock.lockedBy')->findOrFail($manualId);
+            if ($deny = $this->denyIfManualPartsLocked($request, $manual, route('tdrs.inspection.component', ['workorder_id' => $current_wo]))) {
+                return $deny;
+            }
             $manualHasAnyPermissions = DB::table('manual_user_permissions')
                 ->where('manual_id', $manualId)
                 ->exists();
@@ -225,9 +344,7 @@ class ComponentController extends Controller
             $validated['assy_part_number'] = $request->assy_part_number;
             $validated['eff_code'] = $request->eff_code;
             $validated['units_assy'] = $request->units_assy;
-            $validated['log_card'] = $request->has('log_card') ? 1 : 0;
-            $validated['repair'] = $request->has('repair') ? 1 : 0;
-            $validated['is_bush'] = $request->has('is_bush') ? 1 : 0;
+            $validated = $this->fillComponentFlagsFromRequest($validated, $request);
             $validated['bush_ipl_num'] = $request->bush_ipl_num;
 
             // Создание нового компонента
@@ -279,6 +396,10 @@ class ComponentController extends Controller
             ]);
             $user = auth()->user();
             $manualId = (int) $validated['manual_id'];
+            $manual = Manual::with('partLock.lockedBy')->findOrFail($manualId);
+            if ($deny = $this->denyIfManualPartsLocked($request, $manual)) {
+                return $deny;
+            }
             $manualHasAnyPermissions = DB::table('manual_user_permissions')
                 ->where('manual_id', $manualId)
                 ->exists();
@@ -294,9 +415,7 @@ class ComponentController extends Controller
             $validated['assy_part_number'] = $request->assy_part_number;
             $validated['eff_code'] = $request->eff_code;
             $validated['units_assy'] = $request->units_assy;
-            $validated['log_card'] = $request->has('log_card') ? 1 : 0;
-            $validated['repair'] = $request->has('repair') ? 1 : 0;
-            $validated['is_bush'] = $request->has('is_bush') ? 1 : 0;
+            $validated = $this->fillComponentFlagsFromRequest($validated, $request);
             $validated['bush_ipl_num'] = $request->bush_ipl_num;
 
             // Создание нового компонента
@@ -332,16 +451,12 @@ class ComponentController extends Controller
 
     public function show($id)
     {
-        $manual = Manual::findOrFail($id);
+        Manual::findOrFail($id);
 
-        // Get components with custom sorting for IPL numbers
-        $components = $manual->components()
-            ->orderByRaw("CAST(SUBSTRING_INDEX(ipl_num, '-', 1) AS UNSIGNED)")
-            ->orderByRaw("CAST(REGEXP_REPLACE(SUBSTRING_INDEX(ipl_num, '-', -1), '[^0-9]', '') AS UNSIGNED)")
-            ->orderByRaw("REGEXP_REPLACE(SUBSTRING_INDEX(ipl_num, '-', -1), '[0-9]', '')")
-            ->get();
-
-        return view('admin.components.show', compact('manual', 'components'));
+        return redirect()->route('manuals.show', [
+            'manual' => $id,
+            'tab' => 'parts',
+        ]);
     }
 
     public function edit($id)
@@ -356,6 +471,9 @@ class ComponentController extends Controller
     public function update(Request $request, $id)
     {
         $component = Component::findOrFail($id);
+        if ($deny = $this->denyIfComponentPartsLocked($request, $component)) {
+            return $deny;
+        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:250',
@@ -375,6 +493,12 @@ class ComponentController extends Controller
             'assemblies.*.notes' => 'nullable|string|max:1000',
             'assemblies.*.assy_img' => 'nullable|file|image|max:5120',
         ]);
+        if ((int) $validated['manual_id'] !== (int) $component->manual_id) {
+            $targetManual = Manual::with('partLock.lockedBy')->findOrFail((int) $validated['manual_id']);
+            if ($deny = $this->denyIfManualPartsLocked($request, $targetManual)) {
+                return $deny;
+            }
+        }
 
         $assemblies = collect($request->input('assemblies', []))
             ->filter(function ($assembly) {
@@ -389,8 +513,7 @@ class ComponentController extends Controller
         $validated['assy_part_number'] = $request->input('assy_part_number', $firstAssembly['assy_part_number'] ?? null);
         $validated['units_assy'] = $request->input('units_assy', $firstAssembly['units_assy'] ?? null);
         $validated['assy_ipl_num'] = $request->input('assy_ipl_num', $firstAssembly['assy_ipl_num'] ?? null);
-        $validated['log_card'] = $request->has('log_card') ? 1 : 0;
-        $validated['is_bush'] = $request->has('is_bush') ? 1 : 0;
+        $validated = $this->fillComponentFlagsFromRequest($validated, $request);
         $validated['bush_ipl_num'] = $request->bush_ipl_num;
         unset($validated['img'], $validated['assy_img'], $validated['assemblies']);
         $component->update($validated);
@@ -450,6 +573,7 @@ class ComponentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => __('Component updated successfully.'),
+                'component_id' => $component->id,
                 'row_html' => view('admin.components.partials.index-rows', [
                     'components' => collect([$component]),
                 ])->render(),
@@ -460,14 +584,50 @@ class ComponentController extends Controller
 
     }
 
+    public function updateFlags(Request $request, Component $component)
+    {
+        if ($deny = $this->denyIfComponentPartsLocked($request, $component)) {
+            return $deny;
+        }
+
+        $validated = $request->validate([
+            'field' => 'required|string|in:'.implode(',', self::COMPONENT_FLAGS),
+            'value' => 'required|boolean',
+            'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+        ]);
+
+        $updates = [
+            $validated['field'] => (bool) $validated['value'],
+        ];
+
+        if ($validated['field'] === 'is_bush') {
+            $updates['bush_ipl_num'] = $request->boolean('value')
+                ? ($validated['bush_ipl_num'] ?? null)
+                : null;
+        }
+
+        $component->forceFill($updates)->save();
+
+        return response()->json([
+            'success' => true,
+            'field' => $validated['field'],
+            'value' => (bool) $component->{$validated['field']},
+            'label' => $this->componentFlagLabels()[$validated['field']] ?? $validated['field'],
+            'bush_ipl_num' => $component->bush_ipl_num,
+        ]);
+    }
+
     /**
      * Обновить один Component (part) по ID — для модалки на manual.show (вкладка Parts).
      * Принимает те же поля, что и create: ipl_num, assy_ipl_num, part_number, assy_part_number,
-     * name, units_assy, eff_code, log_card, repair, is_bush, bush_ipl_num, опционально img, assy_img.
+     * name, units_assy, eff_code, log_card, is_bush, bush_ipl_num, optional img, assy_img.
      */
     public function updateSingle(Request $request, $id)
     {
         $component = Component::findOrFail($id);
+        if ($deny = $this->denyIfComponentPartsLocked($request, $component)) {
+            return $deny;
+        }
 
         $validated = $request->validate([
             'ipl_num'          => 'required|string|max:50',
@@ -483,9 +643,7 @@ class ComponentController extends Controller
         ]);
 
         $validated['assy_ipl_num'] = $request->input('assy_ipl_num');
-        $validated['log_card']     = $request->has('log_card') ? 1 : 0;
-        $validated['repair']       = $request->has('repair') ? 1 : 0;
-        $validated['is_bush']      = $request->has('is_bush') ? 1 : 0;
+        $validated = $this->fillComponentFlagsFromRequest($validated, $request);
         $validated['bush_ipl_num'] = $request->input('bush_ipl_num');
 
         unset($validated['img'], $validated['assy_img']);
@@ -542,8 +700,12 @@ class ComponentController extends Controller
                 'eff_code'         => $component->eff_code,
                 'units_assy'       => $component->units_assy,
                 'log_card'         => (bool) $component->log_card,
-                'repair'           => (bool) $component->repair,
                 'is_bush'          => (bool) $component->is_bush,
+                'kit'              => (bool) $component->kit,
+                'ndt_list'         => (bool) $component->ndt_list,
+                'cad_list'         => (bool) $component->cad_list,
+                'stress_relief_list' => (bool) $component->stress_relief_list,
+                'paint_list'       => (bool) $component->paint_list,
                 'bush_ipl_num'     => $component->bush_ipl_num,
                 'assemblies'        => $component->assemblies->map(fn ($assembly) => [
                     'id' => $assembly->id,
@@ -558,6 +720,9 @@ class ComponentController extends Controller
     public function updateFromInspection(Request $request, $id)
     {
         $component = Component::findOrFail($id);
+        if ($deny = $this->denyIfComponentPartsLocked($request, $component)) {
+            return $deny;
+        }
 
         $validated = $request->validate([
             'name'         => 'required|string|max:250',
@@ -571,6 +736,12 @@ class ComponentController extends Controller
         ]);
         $user = auth()->user();
         $manualId = (int) $validated['manual_id'];
+        if ((int) $manualId !== (int) $component->manual_id) {
+            $targetManual = Manual::with('partLock.lockedBy')->findOrFail($manualId);
+            if ($deny = $this->denyIfManualPartsLocked($request, $targetManual, route('tdrs.inspection.component', ['workorder_id' => $request->workorder_id]))) {
+                return $deny;
+            }
+        }
 
         $manualHasAnyPermissions = DB::table('manual_user_permissions')
             ->where('manual_id', $manualId)
@@ -589,9 +760,7 @@ class ComponentController extends Controller
         $validated['eff_code']         = $request->eff_code;
         $validated['units_assy']       = $request->units_assy;
         $validated['assy_ipl_num']     = $request->assy_ipl_num;
-        $validated['log_card']         = $request->has('log_card') ? 1 : 0;
-        $validated['repair']           = $request->has('repair') ? 1 : 0;
-        $validated['is_bush']          = $request->has('is_bush') ? 1 : 0;
+        $validated = $this->fillComponentFlagsFromRequest($validated, $request);
         $validated['bush_ipl_num']     = $request->bush_ipl_num;
 
         if ($request->hasFile('img')) {
@@ -619,6 +788,9 @@ class ComponentController extends Controller
     public function destroy(Request $request, $id)
     {
         $component = Component::findOrFail($id);
+        if ($deny = $this->denyIfComponentPartsLocked($request, $component)) {
+            return $deny;
+        }
         $user = auth()->user();
         $manualId = (int) ($component->manual_id ?? 0);
 
@@ -675,7 +847,10 @@ class ComponentController extends Controller
             }
 
             // Find the manual
-            $manual = Manual::findOrFail($manualId);
+            $manual = Manual::with('partLock.lockedBy')->findOrFail($manualId);
+            if ($deny = $this->denyIfManualPartsLocked($request, $manual)) {
+                return $deny;
+            }
 
             // Check if manual has media collections
             if (!method_exists($manual, 'addMedia')) {
@@ -1022,8 +1197,12 @@ class ComponentController extends Controller
                         'eff_code' => isset($rowData['eff_code']) ? trim($rowData['eff_code']) : null,
                         'units_assy' => isset($rowData['units_assy']) ? trim($rowData['units_assy']) : null,
                         'log_card' => isset($rowData['log_card']) ? (int)($rowData['log_card'] == '1' || $rowData['log_card'] == 'true') : 0,
-                        'repair' => isset($rowData['repair']) ? (int)($rowData['repair'] == '1' || $rowData['repair'] == 'true') : 0,
                         'is_bush' => isset($rowData['is_bush']) ? (int)($rowData['is_bush'] == '1' || $rowData['is_bush'] == 'true') : 0,
+                        'kit' => isset($rowData['kit']) ? (int)($rowData['kit'] == '1' || $rowData['kit'] == 'true') : 0,
+                        'ndt_list' => isset($rowData['ndt_list']) ? (int)($rowData['ndt_list'] == '1' || $rowData['ndt_list'] == 'true') : 0,
+                        'cad_list' => isset($rowData['cad_list']) ? (int)($rowData['cad_list'] == '1' || $rowData['cad_list'] == 'true') : 0,
+                        'stress_relief_list' => isset($rowData['stress_relief_list']) ? (int)($rowData['stress_relief_list'] == '1' || $rowData['stress_relief_list'] == 'true') : 0,
+                        'paint_list' => isset($rowData['paint_list']) ? (int)($rowData['paint_list'] == '1' || $rowData['paint_list'] == 'true') : 0,
                         'bush_ipl_num' => isset($rowData['bush_ipl_num']) ? trim($rowData['bush_ipl_num']) : null,
                     ];
 
@@ -1092,12 +1271,12 @@ class ComponentController extends Controller
                             // Фильтруем пустые значения, чтобы не перезаписывать существующие данные
                             $updateData = array_intersect_key($componentData, array_flip([
                                 'part_number', 'name', 'assy_part_number', 'assy_ipl_num', 'eff_code',
-                                'units_assy', 'log_card', 'repair', 'is_bush', 'bush_ipl_num'
+                                'units_assy', 'log_card', 'is_bush', 'kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list', 'bush_ipl_num'
                             ]));
 
                             // Убираем пустые строки и null значения, но оставляем 0 для boolean полей
                             $updateData = array_filter($updateData, function($value, $key) {
-                                if (in_array($key, ['log_card', 'repair', 'is_bush'])) {
+                                if (in_array($key, self::COMPONENT_FLAGS, true)) {
                                     return $value !== null; // Оставляем 0 для boolean полей
                                 }
                                 return $value !== null && $value !== ''; // Убираем пустые строки для текстовых полей
@@ -1225,8 +1404,12 @@ class ComponentController extends Controller
                 'eff_code',
                 'units_assy',
                 'log_card',
-                'repair',
                 'is_bush',
+                'kit',
+                'ndt_list',
+                'cad_list',
+                'stress_relief_list',
+                'paint_list',
                 'bush_ipl_num'
             ]);
 
@@ -1240,6 +1423,10 @@ class ComponentController extends Controller
                 'EFF001',
                 'UNITS001',
                 '1',
+                '0',
+                '0',
+                '1',
+                '0',
                 '0',
                 '0',
                 ''
@@ -1256,6 +1443,10 @@ class ComponentController extends Controller
                 '0',
                 '1',
                 '1',
+                '0',
+                '1',
+                '0',
+                '0',
                 '789-012B'
             ]);
 
@@ -1306,7 +1497,10 @@ class ComponentController extends Controller
     public function editCsv($manual_id, $file_id)
     {
         try {
-            $manual = Manual::findOrFail($manual_id);
+            $manual = Manual::with('partLock.lockedBy')->findOrFail($manual_id);
+            if ($deny = $this->denyIfManualPartsLocked(request(), $manual)) {
+                return $deny;
+            }
             $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
 
             if (!$csvFile) {
@@ -1346,7 +1540,10 @@ class ComponentController extends Controller
     public function updateCsv(Request $request, $manual_id, $file_id)
     {
         try {
-            $manual = Manual::findOrFail($manual_id);
+            $manual = Manual::with('partLock.lockedBy')->findOrFail($manual_id);
+            if ($deny = $this->denyIfManualPartsLocked($request, $manual)) {
+                return $deny;
+            }
             $csvFile = $manual->getMedia('component_csv_files')->find($file_id);
 
             if (!$csvFile) {
@@ -1453,8 +1650,12 @@ class ComponentController extends Controller
                         'eff_code' => isset($rowData['eff_code']) ? trim($rowData['eff_code']) : null,
                         'units_assy' => isset($rowData['units_assy']) ? trim($rowData['units_assy']) : null,
                         'log_card' => isset($rowData['log_card']) ? (int)($rowData['log_card'] == '1' || $rowData['log_card'] == 'true') : 0,
-                        'repair' => isset($rowData['repair']) ? (int)($rowData['repair'] == '1' || $rowData['repair'] == 'true') : 0,
                         'is_bush' => isset($rowData['is_bush']) ? (int)($rowData['is_bush'] == '1' || $rowData['is_bush'] == 'true') : 0,
+                        'kit' => isset($rowData['kit']) ? (int)($rowData['kit'] == '1' || $rowData['kit'] == 'true') : 0,
+                        'ndt_list' => isset($rowData['ndt_list']) ? (int)($rowData['ndt_list'] == '1' || $rowData['ndt_list'] == 'true') : 0,
+                        'cad_list' => isset($rowData['cad_list']) ? (int)($rowData['cad_list'] == '1' || $rowData['cad_list'] == 'true') : 0,
+                        'stress_relief_list' => isset($rowData['stress_relief_list']) ? (int)($rowData['stress_relief_list'] == '1' || $rowData['stress_relief_list'] == 'true') : 0,
+                        'paint_list' => isset($rowData['paint_list']) ? (int)($rowData['paint_list'] == '1' || $rowData['paint_list'] == 'true') : 0,
                         'bush_ipl_num' => isset($rowData['bush_ipl_num']) ? trim($rowData['bush_ipl_num']) : null,
                     ];
 
@@ -1485,7 +1686,7 @@ class ComponentController extends Controller
                         try {
                             $updateData = array_intersect_key($componentData, array_flip([
                                 'part_number', 'name', 'assy_part_number', 'assy_ipl_num', 'eff_code',
-                                'units_assy', 'log_card', 'repair', 'is_bush', 'bush_ipl_num'
+                                'units_assy', 'log_card', 'is_bush', 'kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list', 'bush_ipl_num'
                             ]));
 
                             // Убираем пустые строки и null значения, но оставляем 0 для boolean полей
@@ -1494,7 +1695,7 @@ class ComponentController extends Controller
                                 if ($key === 'part_number') {
                                     return true; // Всегда обновляем part_number, даже если пустой
                                 }
-                                if (in_array($key, ['log_card', 'repair', 'is_bush'])) {
+                                if (in_array($key, self::COMPONENT_FLAGS, true)) {
                                     return $value !== null;
                                 }
                                 return $value !== null && $value !== '';

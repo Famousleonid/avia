@@ -6,6 +6,13 @@
     <title>Special Process Form </title>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     @include('shared.spec-process-forms._styles')
+    @php
+        $technicianFullName = trim((string) optional($current_wo->user)->name);
+        $technicianNameParts = preg_split('/\s+/', $technicianFullName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $technicianFirstName = count($technicianNameParts) > 1
+            ? $technicianNameParts[1]
+            : ($technicianNameParts[0] ?? '');
+    @endphp
 
     <style>
         body {
@@ -340,7 +347,7 @@
             </div>
             <div class="text-center fs-7" style="width: 305px;height: 20px"></div>
             <div class="text-end pt-2 fs-8" style="width: 75px;height: 10px">Technician</div>
-            <div class="border-b" style="width: 120px"></div>
+            <div class="border-b text-center" style="width: 120px">{{ $technicianFirstName }}</div>
             <div class="border-l-t-r" style="width: 40px;height: 28px"></div>
         </div>
 

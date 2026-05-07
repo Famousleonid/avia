@@ -25,12 +25,26 @@ class Component extends Model implements  hasMedia
         'eff_code',
         'units_assy',
         'log_card',
-        'repair',
         'manual_id',
         'img',
         'assy_img',
         'bush_ipl_num',
         'is_bush',
+        'kit',
+        'ndt_list',
+        'cad_list',
+        'stress_relief_list',
+        'paint_list',
+    ];
+
+    protected $casts = [
+        'log_card' => 'boolean',
+        'is_bush' => 'boolean',
+        'kit' => 'boolean',
+        'ndt_list' => 'boolean',
+        'cad_list' => 'boolean',
+        'stress_relief_list' => 'boolean',
+        'paint_list' => 'boolean',
     ];
 
     public function getActivitylogOptions(): LogOptions

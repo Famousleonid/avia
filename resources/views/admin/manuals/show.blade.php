@@ -1,4 +1,4 @@
-@extends('admin.master')
+﻿@extends('admin.master')
 
 @section('content')
     @php
@@ -18,23 +18,23 @@
         $manualUrlProcesses = route('manuals.show', ['manual' => $cmm, 'tab' => 'processes']);
     @endphp
     <style>
-        /* Общие настройки таблиц */
+        /* ÐžÐ±Ñ‰Ð¸Ðµ Ð½Ð°ÑÑ‚Ñ€Ð¾Ð¹ÐºÐ¸ Ñ‚Ð°Ð±Ð»Ð¸Ñ† */
         .table{
             align-content: center;
         }
-        /* Фиксированная раскладка — ширины колонок берутся из th/col/CSS */
+        /* Ð¤Ð¸ÐºÑÐ¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ð°Ñ Ñ€Ð°ÑÐºÐ»Ð°Ð´ÐºÐ° â€” ÑˆÐ¸Ñ€Ð¸Ð½Ñ‹ ÐºÐ¾Ð»Ð¾Ð½Ð¾Ðº Ð±ÐµÑ€ÑƒÑ‚ÑÑ Ð¸Ð· th/col/CSS */
         #nav-components .table,
         #nav-parts .table,
         #nav-processes .table {
             table-layout: fixed;
         }
 
-        /* Ширина таблицы во вкладке Components */
+        /* Ð¨Ð¸Ñ€Ð¸Ð½Ð° Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñ‹ Ð²Ð¾ Ð²ÐºÐ»Ð°Ð´ÐºÐµ Components */
         #nav-components .table {
             width: 50%;
         }
 
-        /* Колонки Components: # | Components PN | EFF Code | Action */
+        /* ÐšÐ¾Ð»Ð¾Ð½ÐºÐ¸ Components: # | Components PN | EFF Code | Action */
         #nav-components .table th:nth-child(1),
         #nav-components .table td:nth-child(1) { width: 50px; }
         #nav-components .table th:nth-child(2),
@@ -50,27 +50,27 @@
             align-items: center;
         }
 
-        /* Ширина таблицы во вкладке Parts */
+        /* Ð¨Ð¸Ñ€Ð¸Ð½Ð° Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñ‹ Ð²Ð¾ Ð²ÐºÐ»Ð°Ð´ÐºÐµ Parts */
         #nav-parts .table {
             width: 100%;
         }
-        /* Колонки Parts: IPL Number | ASSy IPL | Part Number | ASSy Part Number | Name | QTY | Name | Action */
-        #nav-parts .table th:nth-child(1),
-        #nav-parts .table td:nth-child(1) { width: 10%; }
-        #nav-parts .table th:nth-child(2),
-        #nav-parts .table td:nth-child(2) { width: 10%; }
-        #nav-parts .table th:nth-child(3),
-        #nav-parts .table td:nth-child(3) { width: 15%; }
-        #nav-parts .table th:nth-child(4),
-        #nav-parts .table td:nth-child(4) { width: 15%; }
-        #nav-parts .table th:nth-child(5),
-        #nav-parts .table td:nth-child(5) { width: 30%; }
-        #nav-parts .table th:nth-child(6),
-        #nav-parts .table td:nth-child(6) { width: 6%; }
-        #nav-parts .table th:nth-child(7),
-        #nav-parts .table td:nth-child(7) { width: 6%; }
-        #nav-parts .table th:nth-child(8),
-        #nav-parts .table td:nth-child(8) { width: 8%; }
+        #manualPartsTable th:nth-child(1),
+        #manualPartsTable td:nth-child(1) { width: 9%; }
+        #manualPartsTable th:nth-child(2),
+        #manualPartsTable td:nth-child(2) { width: 13%; }
+        #manualPartsTable th:nth-child(3),
+        #manualPartsTable td:nth-child(3) { width: 26%; }
+        #manualPartsTable th:nth-child(4),
+        #manualPartsTable td:nth-child(4) { width: 16%; }
+        #manualPartsTable th:nth-child(5),
+        #manualPartsTable td:nth-child(5) { width: 5%; }
+        #manualPartsTable th:nth-child(13),
+        #manualPartsTable td:nth-child(13) { width: 7%; }
+
+        #manualPartsTable {
+            min-width: 1260px;
+            width: max(100%, 1260px);
+        }
 
         #nav-parts .table th,
         #nav-parts .table td {
@@ -85,6 +85,207 @@
         #nav-parts .table img {
             width: 32px;
             height: 32px;
+        }
+
+        #manualCreateComponentOffcanvas,
+        #manualEditComponentOffcanvas {
+            --bs-offcanvas-width: min(720px, 100vw);
+            top: .75rem;
+            bottom: 4vh;
+            height: auto;
+            max-height: calc(100vh - .75rem - 4vh);
+            display: flex;
+            flex-direction: column;
+            border-top-left-radius: .75rem;
+            border-bottom-left-radius: .75rem;
+            overflow: hidden;
+        }
+
+        #manualCreateComponentOffcanvas .offcanvas-body,
+        #manualEditComponentOffcanvas .offcanvas-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            padding-bottom: 0;
+        }
+
+        #manualCreateComponentOffcanvas form,
+        #manualEditComponentOffcanvas form {
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .manual-component-form-section {
+            border-top: 1px solid rgba(255,255,255,.1);
+            padding-top: 1rem;
+        }
+
+        .manual-component-form-footer {
+            margin-top: auto !important;
+            position: sticky;
+            bottom: 0;
+            z-index: 2;
+            background: #212529;
+            border-top: 1px solid rgba(255,255,255,.1);
+            margin-left: -1rem;
+            margin-right: -1rem;
+            padding: .75rem 1rem 1rem;
+        }
+
+        html[data-bs-theme="light"] .manual-component-form-footer {
+            background: #fff;
+            border-color: #dee2e6;
+        }
+
+        .manual-component-assembly-row {
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: .5rem;
+            padding: .6rem;
+            background: rgba(255,255,255,.025);
+        }
+
+        .manual-component-assembly-row + .manual-component-assembly-row {
+            margin-top: .5rem;
+        }
+
+        .manual-component-assembly-row .form-label {
+            font-size: .8rem;
+            margin-bottom: .25rem;
+        }
+
+        .component-avatar {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            min-height: 40px;
+            max-width: 40px;
+            max-height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            display: block;
+            margin: auto;
+        }
+
+        .assy-popover-button {
+            max-width: 100%;
+            min-width: 0;
+            padding: .15rem .4rem;
+            line-height: 1.25;
+        }
+
+        .assy-summary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .35rem;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .assy-summary-main {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+        }
+
+        .component-assy-popover {
+            --bs-popover-max-width: 520px;
+        }
+
+        .component-assy-popover .popover-body {
+            padding: .5rem;
+        }
+
+        .assy-popover-list {
+            display: grid;
+            gap: .4rem;
+            min-width: 320px;
+        }
+
+        .assy-popover-item {
+            border-bottom: 1px solid var(--bs-border-color);
+            padding-bottom: .35rem;
+        }
+
+        .assy-popover-item:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .assy-popover-notes {
+            max-width: 460px;
+            white-space: normal;
+        }
+
+        #manualPartsTable th.sortable {
+            cursor: pointer;
+        }
+
+        #manualPartsTable th.sortable.sorted-asc i {
+            transform: rotate(180deg);
+            opacity: 1;
+        }
+
+        #manualPartsTable th.sortable.sorted-desc i {
+            transform: rotate(0deg);
+            opacity: 1;
+        }
+
+        #manualPartsTable th.sortable i {
+            transition: transform .15s ease, opacity .15s ease;
+            opacity: .6;
+        }
+
+        #manualPartsTable .component-flag-head,
+        #manualPartsTable .component-flag-cell {
+            width: 46px !important;
+            min-width: 46px !important;
+            max-width: 46px !important;
+            padding-left: 4px;
+            padding-right: 4px;
+            text-align: center;
+        }
+
+        #manualPartsTable .component-flag-head {
+            color: #fff !important;
+            font-size: .72rem;
+            font-weight: 400;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
+        }
+
+        #manualPartsTable .component-flag-toggle {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        #manualPartsTable col.manual-part-flag-col {
+            width: 46px !important;
+            min-width: 46px !important;
+            max-width: 46px !important;
+        }
+
+        #manualPartsTable col.manual-part-action-col {
+            width: 86px !important;
+            min-width: 86px !important;
+            max-width: 86px !important;
+        }
+
+        #manualPartsTable th:nth-child(13),
+        #manualPartsTable td:nth-child(13) {
+            width: 86px !important;
+            min-width: 86px !important;
+            max-width: 86px !important;
+        }
+
+        body:has(#manualCreateComponentOffcanvas.show) #aiAssistantWidget,
+        body:has(#manualEditComponentOffcanvas.show) #aiAssistantWidget {
+            display: none !important;
         }
 
         #nav-processes .table {
@@ -133,7 +334,7 @@
 
         }
 
-        #nav-parts table:not(.dir-table) thead th {
+        #manualPartsTable thead th {
             position: sticky;
             top: 0;
             z-index: 2;
@@ -214,6 +415,11 @@
         .manual-process-state-icon.is-locked {
             color: #f0ad4e;
         }
+        .manual-part-lock-icon {
+            color: #f0ad4e;
+            font-size: 13px;
+            vertical-align: middle;
+        }
         .manual-process-name-spacer {
             display: block;
             min-height: 16px;
@@ -251,7 +457,7 @@
             font-size: 12px;
             color: grey;
         }
-        /* Просмотр STD CSV в модалке: прокрутка + фиксированный заголовок */
+        /* ÐŸÑ€Ð¾ÑÐ¼Ð¾Ñ‚Ñ€ STD CSV Ð² Ð¼Ð¾Ð´Ð°Ð»ÐºÐµ: Ð¿Ñ€Ð¾ÐºÑ€ÑƒÑ‚ÐºÐ° + Ñ„Ð¸ÐºÑÐ¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ð¹ Ð·Ð°Ð³Ð¾Ð»Ð¾Ð²Ð¾Ðº */
         #nav-tabContent .table,
         #nav-tabContent .table th,
         #nav-tabContent .table td,
@@ -309,8 +515,66 @@
         html.manual-show-tabs-pending #manual-show-tabs-overlay {
             display: flex;
         }
+        html.manual-show-tabs-pending #nav-tab,
+        html.manual-show-tabs-pending #nav-tab-actions,
+        html.manual-show-tabs-pending #nav-tabContent {
+            visibility: hidden;
+        }
+
+        .manual-show-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .manual-show-card > .card-header {
+            flex: 0 0 auto;
+        }
+
+        .manual-show-card > .card-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .manual-show-card nav {
+            flex: 0 0 auto;
+        }
+
+        .manual-show-card #nav-tabContent {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .manual-show-card #nav-tabContent > .tab-pane {
+            min-height: 0;
+            flex: 1 1 auto;
+        }
+
+        .manual-show-card #nav-tabContent > .tab-pane.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .manual-show-card #nav-components .component-table-container,
+        .manual-show-card #nav-parts .parts-table-container,
+        .manual-show-card #nav-processes .process-table-container,
+        .manual-show-card #nav-std .std-table-container {
+            flex: 1 1 auto;
+            min-height: 0;
+            height: auto;
+            max-height: none;
+            overflow: auto;
+        }
     </style>
-    <div class="card shadow">
+    <div class="card shadow manual-show-card">
         <div class="card-header m-2 ">
             <div class="me-2 d-flex ">
                 <a href="{{ $cmm->getFirstMediaBigUrl('manuals') }}" data-fancybox="gallery">
@@ -381,7 +645,12 @@
                         <button class="nav-link @if($manualShowTab === 'components') active @endif" id="nav-components-tab" data-bs-toggle="tab" data-bs-target="#nav-components"
                                 type="button" role="tab" aria-controls="nav-components" aria-selected="{{ $manualShowTab === 'components' ? 'true' : 'false' }}">Components</button>
                         <button class="nav-link @if($manualShowTab === 'parts') active @endif" id="nav-parts-tab" data-bs-toggle="tab" data-bs-target="#nav-parts"
-                                type="button" role="tab" aria-controls="nav-parts" aria-selected="{{ $manualShowTab === 'parts' ? 'true' : 'false' }}">Parts</button>
+                                type="button" role="tab" aria-controls="nav-parts" aria-selected="{{ $manualShowTab === 'parts' ? 'true' : 'false' }}">
+                            Parts
+                            @if($manualPartsLocked)
+                                <i class="bi bi-lock-fill manual-part-lock-icon ms-1" title="Locked by {{ $manualPartLock->lockedBy?->name ?? 'Unknown user' }}"></i>
+                            @endif
+                        </button>
                         <button class="nav-link @if($manualShowTab === 'processes') active @endif" id="nav-processes-tab" data-bs-toggle="tab" data-bs-target="#nav-processes"
                                 type="button" role="tab" aria-controls="nav-processes" aria-selected="{{ $manualShowTab === 'processes' ? 'true' : 'false' }}">Processes</button>
                         <button class="nav-link @if($manualShowTab === 'std') active @endif" id="nav-std-tab" data-bs-toggle="tab" data-bs-target="#nav-std"
@@ -401,23 +670,56 @@
                             {{ __('Update Components') }}
                         </button>
                         <div class="d-none" data-tab-target="#nav-parts">
-                            <input type="text" style="width: 260px"
-                                   id="parts-search"
-                                   class="form-control form-control-sm"
-                                   placeholder="Search parts...">
+                            <div class="input-group input-group-sm" style="width: 260px">
+                                <input type="text"
+                                       id="parts-search"
+                                       class="form-control"
+                                       placeholder="Search parts...">
+                                <button type="button"
+                                        class="btn btn-outline-secondary"
+                                        id="parts-search-clear"
+                                        aria-label="{{ __('Clear search') }}"
+                                        title="{{ __('Clear search') }}">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
                         </div>
-                        <a href="{{ route('components.create', ['manual_id' => $cmm->id, 'redirect' => $manualUrlParts]) }}"
-                           class="btn btn-outline-primary btn-sm d-none"
-                           data-tab-target="#nav-parts">
-                            {{ __('Add Parts') }}
-                        </a>
                         <button type="button"
-                                class="btn btn-outline-success btn-sm d-none"
+                           class="btn btn-outline-info btn-sm d-none"
+                           data-tab-target="#nav-parts"
+                           data-bs-toggle="offcanvas"
+                           data-bs-target="#manualCreateComponentOffcanvas"
+                           aria-controls="manualCreateComponentOffcanvas"
+                           @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)
+                           @if($manualPartsLocked && ! $userCanManageLockedManualParts) title="{{ __('Manual parts are locked') }}" @endif>
+                            {{ __('Add Parts') }}
+                        </button>
+                        <button type="button"
+                                class="btn btn-outline-primary btn-sm d-none"
                                 data-tab-target="#nav-parts"
                                 data-bs-toggle="modal"
-                                data-bs-target="#uploadCsvModal">
+                                data-bs-target="#uploadCsvModal"
+                                @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)
+                                @if($manualPartsLocked && ! $userCanManageLockedManualParts) title="{{ __('Manual parts are locked') }}" @endif>
                             <i class="bi bi-upload"></i> {{__('Upload CSV')}}
                         </button>
+                        <form action="{{ $manualPartsLocked ? route('manuals.part-lock.unlock', ['manual' => $cmm]) : route('manuals.part-lock.lock', ['manual' => $cmm]) }}"
+                              method="POST"
+                              class="d-none m-0"
+                              data-tab-target="#nav-parts">
+                            @csrf
+                            @if($manualPartsLocked)
+                                @method('DELETE')
+                            @endif
+                            <input type="hidden" name="return_to" value="{{ $manualUrlParts }}">
+                            <button type="submit"
+                                    class="btn btn-outline-secondary btn-sm"
+                                    @disabled(! $userCanManageLockedManualParts)
+                                    title="{{ $manualPartsLocked ? __('Unlock parts') : __('Lock parts') }}">
+                                <i class="bi {{ $manualPartsLocked ? 'bi-unlock' : 'bi-lock-fill' }}"></i>
+                                {{ $manualPartsLocked ? __('Unlock Parts') : __('Lock Parts') }}
+                            </button>
+                        </form>
                         <a href="{{ route('processes.create', ['manual_id' => $cmm->id, 'return_to' => $manualUrlProcesses]) }}"
                            class="btn btn-outline-primary btn-sm d-none"
                            data-tab-target="#nav-processes">
@@ -427,7 +729,7 @@
                                 data-tab-target="#nav-std"
                                 data-bs-toggle="modal"
                                 data-bs-target="#stdCsvUploadModal">
-                            <i class="fas fa-upload"></i> {{__('Add CSV Files') }} <span class="small text-muted">(→ STD)</span>
+                            <i class="fas fa-upload"></i> {{__('Add CSV Files') }} <span class="small text-muted">(â†’ STD)</span>
                         </button>
                     </div>
                 </div>
@@ -466,70 +768,51 @@
                 </div>
                 <div class="tab-pane fade @if($manualShowTab === 'parts') show active @endif" id="nav-parts" role="tabpanel" aria-labelledby="nav-parts-tab" tabindex="0">
                     <div class="parts-table-container m-2">
-                        <table class="table table-hover table-bordered dir-table">
+                        <table class="table table-sm table-hover table-bordered dir-table align-middle" id="manualPartsTable">
+                            <colgroup>
+                                <col style="width: 9%;">
+                                <col style="width: 13%;">
+                                <col style="width: 26%;">
+                                <col style="width: 16%;">
+                                <col style="width: 5%;">
+                                <col class="manual-part-flag-col" style="width: 46px;">
+                                <col class="manual-part-flag-col" style="width: 46px;">
+                                <col class="manual-part-flag-col" style="width: 46px;">
+                                <col class="manual-part-flag-col" style="width: 46px;">
+                                <col class="manual-part-flag-col" style="width: 46px;">
+                                <col class="manual-part-flag-col" style="width: 46px;">
+                                <col class="manual-part-flag-col" style="width: 46px;">
+                                <col class="manual-part-action-col" style="width: 86px;">
+                            </colgroup>
                             <thead class="bg-gradient">
                             <tr>
-                                <th class="text-center bg-gradient align-content-center" >IPL Number</th>
-                                <th class="text-center bg-gradient align-content-center" > ASSy IPL Number</th>
-                                <th class="text-center bg-gradient align-content-center" >Part Number</th>
-                                <th class="text-center bg-gradient align-content-center" > ASSy Part Number</th>
-                                <th class="text-center bg-gradient align-content-center" >Name</th>
-                                <th class="text-center bg-gradient align-content-center" >QTY </th>
-                                <th class="text-center bg-gradient align-content-center" >Image</th>
-                                <th class="text-center bg-gradient align-content-center" >Action</th>
+                                <th class="text-center bg-gradient align-content-center sortable">IPL Number <i class="bi bi-chevron-expand ms-1"></i></th>
+                                <th class="text-center bg-gradient align-content-center sortable">Part Number <i class="bi bi-chevron-expand ms-1"></i></th>
+                                <th class="text-center bg-gradient align-content-center sortable">Name <i class="bi bi-chevron-expand ms-1"></i></th>
+                                <th class="text-center bg-gradient align-content-center">Assy</th>
+                                <th class="text-center bg-gradient align-content-center">Image</th>
+                                <th class="text-center bg-gradient align-content-center component-flag-head" title="Log Card">LC</th>
+                                <th class="text-center bg-gradient align-content-center component-flag-head" title="Bushing">Bush</th>
+                                <th class="text-center bg-gradient align-content-center component-flag-head" title="Kit">Kit</th>
+                                <th class="text-center bg-gradient align-content-center component-flag-head" title="NDT List">NDT</th>
+                                <th class="text-center bg-gradient align-content-center component-flag-head" title="CAD List">CAD</th>
+                                <th class="text-center bg-gradient align-content-center component-flag-head" title="Stress Relief List">Stress</th>
+                                <th class="text-center bg-gradient align-content-center component-flag-head" title="Paint List">Paint</th>
+                                <th class="text-center bg-gradient align-content-center">Action</th>
                             </tr>
                             </thead>
-                            <tbody class="text-center" >
-                            @foreach($parts as $p)
-                                <tr id="manual-part-row-{{ $p->id }}">
-                                    <td class="align-content-center">{{$p->ipl_num}}</td>
-                                    <td class="align-content-center"> {{$p->assy_ipl_num}} </td>
-                                    <td class="align-content-center"> {{$p->part_number}} </td>
-                                    <td class="align-content-center" >{{$p->assy_part_number}} </td>
-                                    <td class="align-content-center text-start ps-4">{{$p->name}} </td>
-                                    <td class="align-content-center">{{$p->units_assy}} </td>
-                                    <td class="align-content-center">
-                                        @if($p->getMedia('components')->isNotEmpty())
-                                            <a href="{{ $p->getFirstMediaBigUrl('components') }}" data-fancybox="gallery">
-                                                <img class="rounded-circle" src="{{ $p->getFirstMediaThumbnailUrl('components') }}" width="40" height="40" alt="IMG"/>
-                                            </a>
-                                        @else
-                                            <span class="text-muted small">—</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        <button type="button"
-                                                class="btn btn-outline-primary btn-sm btn-edit-part"
-                                                data-part-id="{{ $p->id }}"
-                                                data-ipl-num="{{ $p->ipl_num }}"
-                                                data-assy-ipl-num="{{ $p->assy_ipl_num ?? '' }}"
-                                                data-part-number="{{ $p->part_number }}"
-                                                data-assy-part-number="{{ $p->assy_part_number ?? '' }}"
-                                                data-name="{{ $p->name }}"
-                                                data-units-assy="{{ $p->units_assy ?? '' }}"
-                                                data-eff-code="{{ $p->eff_code ?? '' }}"
-                                                data-log-card="{{ $p->log_card ? '1' : '0' }}"
-                                                data-repair="{{ $p->repair ? '1' : '0' }}"
-                                                data-is-bush="{{ $p->is_bush ? '1' : '0' }}"
-                                                data-bush-ipl-num="{{ $p->bush_ipl_num ?? '' }}"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#editPartModal">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </button>
-                                        <form action="{{ route('components.destroy', $p->id) }}"
-                                              method="POST"
-                                              style="display:inline-block;"
-                                              class="form-destroy-part">
-                                            @csrf
-                                            @method('DELETE')
-                                            <input type="hidden" name="redirect" value="{{ $manualUrlParts }}">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Вы уверены, что хотите удалить эту запчасть (part)?');">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endforeach
+                            <tbody class="text-center">
+                                @include('admin.components.partials.index-rows', [
+                                    'components' => $parts,
+                                    'showManualColumn' => false,
+                                    'editButtonClass' => 'open-manual-edit-component-drawer',
+                                    'deleteRedirect' => $manualUrlParts,
+                                ])
+                                @if($parts->isEmpty())
+                                    <tr class="components-empty-row">
+                                        <td colspan="13" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
+                                    </tr>
+                                @endif
                             </tbody>
                         </table>
                         </div>
@@ -667,7 +950,215 @@
 
     </div>
 
-    {{-- Модальное окно Edit Unit (Update Components) — CMM image, part numbers list, Add PN, Update --}}
+    <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="manualCreateComponentOffcanvas" aria-labelledby="manualCreateComponentOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title text-primary" id="manualCreateComponentOffcanvasLabel">{{ __('Add Replaceable Part') }}</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
+        </div>
+        <div class="offcanvas-body">
+            <form id="manualCreateComponentDrawerForm" action="{{ route('components.store') }}" method="POST" enctype="multipart/form-data" novalidate>
+                @csrf
+                <input type="hidden" name="manual_id" value="{{ $cmm->id }}">
+                <input type="hidden" name="redirect" value="{{ $manualUrlParts }}">
+                <div id="manualCreateComponentErrors" class="alert alert-danger d-none"></div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="manual_drawer_ipl_num" class="form-label">{{ __('IPL Number') }}</label>
+                        <input id="manual_drawer_ipl_num" type="text" class="form-control" name="ipl_num" pattern="^\d+-\d+[A-Za-z]?$" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="manual_drawer_part_number" class="form-label">{{ __('Part Number') }}</label>
+                        <input id="manual_drawer_part_number" type="text" class="form-control" name="part_number" required>
+                    </div>
+                    <div class="col-12">
+                        <label for="manual_drawer_name" class="form-label">{{ __('Name') }}</label>
+                        <input id="manual_drawer_name" type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="col-12">
+                        <label for="manual_drawer_img" class="form-label">{{ __('Image') }}</label>
+                        <input id="manual_drawer_img" type="file" name="img" class="form-control" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="manual-component-form-section mt-4">
+                    <div class="d-flex flex-wrap gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_drawer_log_card" name="log_card">
+                            <label class="form-check-label" for="manual_drawer_log_card">Log Card</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_drawer_is_bush" name="is_bush">
+                            <label class="form-check-label" for="manual_drawer_is_bush">Is Bush</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_drawer_kit" name="kit">
+                            <label class="form-check-label" for="manual_drawer_kit">Kit</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_drawer_ndt_list" name="ndt_list">
+                            <label class="form-check-label" for="manual_drawer_ndt_list">NDT List</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_drawer_cad_list" name="cad_list">
+                            <label class="form-check-label" for="manual_drawer_cad_list">CAD List</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_drawer_stress_relief_list" name="stress_relief_list">
+                            <label class="form-check-label" for="manual_drawer_stress_relief_list">Stress Relief</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_drawer_paint_list" name="paint_list">
+                            <label class="form-check-label" for="manual_drawer_paint_list">Paint List</label>
+                        </div>
+                    </div>
+                    <div class="mt-3 d-none" id="manual_drawer_bush_ipl_container">
+                        <label for="manual_drawer_bush_ipl_num" class="form-label">{{ __('Initial Bushing IPL Number') }}</label>
+                        <input id="manual_drawer_bush_ipl_num" type="text" class="form-control" name="bush_ipl_num" pattern="^\d+-\d+[A-Za-z]?$">
+                    </div>
+                </div>
+
+                <div class="manual-component-form-section mt-4">
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                        <h6 class="mb-0">{{ __('Assemblies') }}</h6>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="manualAddAssemblyRowBtn">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    <div id="manualAssemblyRows"></div>
+                </div>
+
+                <div class="manual-component-form-footer mt-4">
+                    <div class="d-flex align-items-center justify-content-end gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">{{ __('Cancel') }}</button>
+                        <button type="submit" class="btn btn-primary" id="manualCreateComponentSubmitBtn">{{ __('Save Part') }}</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="manualEditComponentOffcanvas" aria-labelledby="manualEditComponentOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title text-primary" id="manualEditComponentOffcanvasLabel">{{ __('Edit Replaceable Part') }}</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ __('Close') }}"></button>
+        </div>
+        <div class="offcanvas-body">
+            <form id="manualEditComponentDrawerForm" method="POST" enctype="multipart/form-data" novalidate>
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="manual_id" value="{{ $cmm->id }}">
+                <input type="hidden" name="redirect" value="{{ $manualUrlParts }}">
+                <div id="manualEditComponentErrors" class="alert alert-danger d-none"></div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="manual_edit_drawer_ipl_num" class="form-label">{{ __('IPL Number') }}</label>
+                        <input id="manual_edit_drawer_ipl_num" type="text" class="form-control" name="ipl_num" pattern="^\d+-\d+[A-Za-z]?$" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="manual_edit_drawer_part_number" class="form-label">{{ __('Part Number') }}</label>
+                        <input id="manual_edit_drawer_part_number" type="text" class="form-control" name="part_number" required>
+                    </div>
+                    <div class="col-12">
+                        <label for="manual_edit_drawer_name" class="form-label">{{ __('Name') }}</label>
+                        <input id="manual_edit_drawer_name" type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="col-12">
+                        <label for="manual_edit_drawer_img" class="form-label">{{ __('Image') }}</label>
+                        <input id="manual_edit_drawer_img" type="file" name="img" class="form-control" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="manual-component-form-section mt-4">
+                    <div class="d-flex flex-wrap gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_edit_drawer_log_card" name="log_card">
+                            <label class="form-check-label" for="manual_edit_drawer_log_card">Log Card</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_edit_drawer_is_bush" name="is_bush">
+                            <label class="form-check-label" for="manual_edit_drawer_is_bush">Is Bush</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_edit_drawer_kit" name="kit">
+                            <label class="form-check-label" for="manual_edit_drawer_kit">Kit</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_edit_drawer_ndt_list" name="ndt_list">
+                            <label class="form-check-label" for="manual_edit_drawer_ndt_list">NDT List</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_edit_drawer_cad_list" name="cad_list">
+                            <label class="form-check-label" for="manual_edit_drawer_cad_list">CAD List</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_edit_drawer_stress_relief_list" name="stress_relief_list">
+                            <label class="form-check-label" for="manual_edit_drawer_stress_relief_list">Stress Relief</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_edit_drawer_paint_list" name="paint_list">
+                            <label class="form-check-label" for="manual_edit_drawer_paint_list">Paint List</label>
+                        </div>
+                    </div>
+                    <div class="mt-3 d-none" id="manual_edit_drawer_bush_ipl_container">
+                        <label for="manual_edit_drawer_bush_ipl_num" class="form-label">{{ __('Initial Bushing IPL Number') }}</label>
+                        <input id="manual_edit_drawer_bush_ipl_num" type="text" class="form-control" name="bush_ipl_num" pattern="^\d+-\d+[A-Za-z]?$">
+                    </div>
+                </div>
+
+                <div class="manual-component-form-section mt-4">
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                        <h6 class="mb-0">{{ __('Assemblies') }}</h6>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="manualEditAddAssemblyRowBtn">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    <div id="manualEditAssemblyRows"></div>
+                </div>
+
+                <div class="manual-component-form-footer mt-4">
+                    <div class="d-flex align-items-center justify-content-end gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">{{ __('Cancel') }}</button>
+                        <button type="submit" class="btn btn-primary" id="manualEditComponentSubmitBtn">{{ __('Save Part') }}</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <template id="manualAssemblyRowTemplate">
+        <div class="manual-component-assembly-row" data-assembly-row>
+            <input type="hidden" data-assembly-field="id">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="small text-muted" data-assembly-title></span>
+                <button type="button" class="btn btn-outline-danger btn-sm" data-remove-assembly>
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label class="form-label">{{ __('Assembly IPL Number') }}</label>
+                    <input type="text" class="form-control" data-assembly-field="assy_ipl_num" pattern="^$|^\d+-\d+[A-Za-z]?$">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{{ __('Assembly Part Number') }}</label>
+                    <input type="text" class="form-control" data-assembly-field="assy_part_number">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{{ __('Units per Assy') }}</label>
+                    <input type="text" class="form-control" data-assembly-field="units_assy">
+                </div>
+                <div class="col-md-6">
+                    <input type="file" class="form-control" accept="image/*" aria-label="{{ __('Assy Image') }}" data-assembly-field="assy_img">
+                </div>
+                <div class="col-md-6">
+                    <input type="text" class="form-control" placeholder="{{ __('Notes') }}" aria-label="{{ __('Notes') }}" data-assembly-field="notes">
+                </div>
+            </div>
+        </div>
+    </template>
+{{-- ????????? ???? Edit Unit (Update Components) — CMM image, part numbers list, Add PN, Update --}}
     <div class="modal fade" id="editUnitModal" tabindex="-1" role="dialog" aria-labelledby="editUnitModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -698,92 +1189,7 @@
         </div>
     </div>
 
-    {{-- Модальное окно редактирования Part (Component) — все поля как в Add Parts --}}
-    <div class="modal fade" id="editPartModal" tabindex="-1" aria-labelledby="editPartModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editPartModalLabel">{{ __('Edit Part') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editPartForm">
-                        <div class="mb-3">
-                            <label for="edit-part-name" class="form-label">{{ __('Name') }}</label>
-                            <input type="text" class="form-control" id="edit-part-name" name="name" required>
-                        </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="edit-part-ipl-num" class="form-label">{{ __('IPL Number') }}</label>
-                                <input type="text" class="form-control" id="edit-part-ipl-num" name="ipl_num"
-                                       pattern="^\d+-\d+[A-Za-z]?$"
-                                       title="Формат: число-число (например 1-200A)" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">{{ __('Image') }}</label>
-                                <input type="file" class="form-control" name="img" accept="image/*">
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit-part-part-number" class="form-label">{{ __('Part Number') }}</label>
-                                <input type="text" class="form-control" id="edit-part-part-number" name="part_number" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit-part-eff-code" class="form-label">{{ __('EFF Code') }}</label>
-                                <input type="text" class="form-control" id="edit-part-eff-code" name="eff_code" placeholder="{{ __('optional') }}">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="edit-part-assy-ipl-num" class="form-label">{{ __('Assembly IPL Number') }}</label>
-                                <input type="text" class="form-control" id="edit-part-assy-ipl-num" name="assy_ipl_num"
-                                       pattern="^$|^\d+-\d+[A-Za-z]?$"
-                                       title="Формат: число-число или пусто">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">{{ __('Assy Image') }}</label>
-                                <input type="file" class="form-control" name="assy_img" accept="image/*">
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit-part-assy-part-number" class="form-label">{{ __('Assembly Part Number') }}</label>
-                                <input type="text" class="form-control" id="edit-part-assy-part-number" name="assy_part_number">
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit-part-units-assy" class="form-label">{{ __('Units per Assy') }}</label>
-                                <input type="text" class="form-control" id="edit-part-units-assy" name="units_assy">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="d-flex flex-wrap align-items-center gap-3 mt-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="edit-part-log-card" name="log_card" value="1">
-                            <label class="form-check-label" for="edit-part-log-card">{{ __('Log Card') }}</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="edit-part-repair" name="repair" value="1">
-                            <label class="form-check-label" for="edit-part-repair">{{ __('Repair') }}</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="edit-part-is-bush" name="is_bush" value="1">
-                            <label class="form-check-label" for="edit-part-is-bush">{{ __('Is Bush') }}</label>
-                        </div>
-                        <div class="form-group" id="edit-part-bush-ipl-container" style="display: none;">
-                            <label for="edit-part-bush-ipl-num" class="form-label me-2">{{ __('Initial Bushing IPL Number') }}</label>
-                            <input type="text" class="form-control d-inline-block" id="edit-part-bush-ipl-num" name="bush_ipl_num"
-                                   pattern="^\d+-\d+[A-Za-z]?$" style="width: 120px;">
-                        </div>
-                    </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
-                    <button type="button" class="btn btn-primary" id="modal-btn-update-part" data-part-id="">{{ __('Save') }}</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Модальное окно загрузки STD Processes CSV (NDT, CAD, Stress, Paint) --}}
+    
     <div class="modal fade" id="stdCsvUploadModal" tabindex="-1" aria-labelledby="stdCsvUploadModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -819,7 +1225,7 @@
         </div>
     </div>
 
-    {{-- Модальное окно просмотра STD Process CSV (в том же окне, прокрутка, фиксированный заголовок) --}}
+    {{-- ÐœÐ¾Ð´Ð°Ð»ÑŒÐ½Ð¾Ðµ Ð¾ÐºÐ½Ð¾ Ð¿Ñ€Ð¾ÑÐ¼Ð¾Ñ‚Ñ€Ð° STD Process CSV (Ð² Ñ‚Ð¾Ð¼ Ð¶Ðµ Ð¾ÐºÐ½Ðµ, Ð¿Ñ€Ð¾ÐºÑ€ÑƒÑ‚ÐºÐ°, Ñ„Ð¸ÐºÑÐ¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ð¹ Ð·Ð°Ð³Ð¾Ð»Ð¾Ð²Ð¾Ðº) --}}
     <div class="modal fade" id="stdCsvViewModal" tabindex="-1" aria-labelledby="stdCsvViewModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
@@ -861,10 +1267,10 @@
                             <form action="{{ route('components.upload-csv') }}" method="POST" enctype="multipart/form-data" id="csvUploadForm">
                                 @csrf
 
-                                {{-- фиксируем manual --}}
+                                {{-- Ñ„Ð¸ÐºÑÐ¸Ñ€ÑƒÐµÐ¼ manual --}}
                                 <input type="hidden" name="manual_id" value="{{ $cmm->id }}">
 
-                                {{-- КУДА вернуться после успешной загрузки --}}
+                                {{-- ÐšÐ£Ð”Ð Ð²ÐµÑ€Ð½ÑƒÑ‚ÑŒÑÑ Ð¿Ð¾ÑÐ»Ðµ ÑƒÑÐ¿ÐµÑˆÐ½Ð¾Ð¹ Ð·Ð°Ð³Ñ€ÑƒÐ·ÐºÐ¸ --}}
                                 <input type="hidden" name="redirect"
                                        value="{{ $manualUrlParts }}">
 
@@ -900,8 +1306,8 @@
                                         <li><strong>ipl_num</strong> - {{__('IPL number (required)')}}</li>
                                         <li><strong>assy_ipl_num</strong> - {{__('Assembly IPL number (optional)')}}</li>
                                         <li><strong>log_card</strong> - {{__('Log card (0 or 1, optional)')}}</li>
-                                        <li><strong>repair</strong> - {{__('Repair flag (0 or 1, optional)')}}</li>
                                         <li><strong>is_bush</strong> - {{__('Is bushing (0 or 1, optional)')}}</li>
+                                        <li><strong>kit</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
                                         <li><strong>bush_ipl_num</strong> - {{__('Bushing IPL number (optional)')}}</li>
                                     </ul>
                                     <div class="alert alert-info mt-3 mb-0">
@@ -924,7 +1330,7 @@
     </div>
 
     <script>
-        // STD Processes CSV: просмотр в модалке (то же окно, прокрутка, фиксированный заголовок)
+        // STD Processes CSV: Ð¿Ñ€Ð¾ÑÐ¼Ð¾Ñ‚Ñ€ Ð² Ð¼Ð¾Ð´Ð°Ð»ÐºÐµ (Ñ‚Ð¾ Ð¶Ðµ Ð¾ÐºÐ½Ð¾, Ð¿Ñ€Ð¾ÐºÑ€ÑƒÑ‚ÐºÐ°, Ñ„Ð¸ÐºÑÐ¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ð¹ Ð·Ð°Ð³Ð¾Ð»Ð¾Ð²Ð¾Ðº)
         function openStdCsvView(fileId, fileName) {
             var modal = document.getElementById('stdCsvViewModal');
             var titleEl = document.getElementById('stdCsvViewModalLabel');
@@ -988,7 +1394,7 @@
             badge.textContent = n;
         }
 
-        // STD Processes CSV: удаление файла
+        // STD Processes CSV: ÑƒÐ´Ð°Ð»ÐµÐ½Ð¸Ðµ Ñ„Ð°Ð¹Ð»Ð°
         function deleteStdCsvFile(url, buttonEl) {
             if (!confirm('{{ __("Are you sure you want to delete this file?") }}')) return;
             fetch(url, {
@@ -1026,8 +1432,8 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            // STD Processes CSV: загрузка файла
-            // Просмотр STD CSV по клику (в т.ч. для динамически добавленных строк)
+            // STD Processes CSV: Ð·Ð°Ð³Ñ€ÑƒÐ·ÐºÐ° Ñ„Ð°Ð¹Ð»Ð°
+            // ÐŸÑ€Ð¾ÑÐ¼Ð¾Ñ‚Ñ€ STD CSV Ð¿Ð¾ ÐºÐ»Ð¸ÐºÑƒ (Ð² Ñ‚.Ñ‡. Ð´Ð»Ñ Ð´Ð¸Ð½Ð°Ð¼Ð¸Ñ‡ÐµÑÐºÐ¸ Ð´Ð¾Ð±Ð°Ð²Ð»ÐµÐ½Ð½Ñ‹Ñ… ÑÑ‚Ñ€Ð¾Ðº)
             document.addEventListener('click', function (e) {
                 var btn = e.target.closest('.std-csv-view-btn');
                 if (!btn) return;
@@ -1078,24 +1484,472 @@
                 });
             }
 
-            // Поиск по Parts
+            // ÐŸÐ¾Ð¸ÑÐº Ð¿Ð¾ Parts
             const input = document.getElementById('parts-search');
-            const table = document.querySelector('#nav-parts table');
+            const clearInput = document.getElementById('parts-search-clear');
+            const table = document.getElementById('manualPartsTable');
 
             if (input && table) {
-                const rows = table.querySelectorAll('tbody tr');
+                const tbody = table.querySelector('tbody');
+                const sortableHeaders = Array.from(table.querySelectorAll('th.sortable'));
+                const partsSearchStorageKey = 'manual.show.partsSearch.' + @json((int) $cmm->id);
+                let sortCol = 0;
+                let sortDir = 'asc';
+                let searchFrame = null;
 
-                input.addEventListener('input', function () {
-                    const query = this.value.trim().toLowerCase();
+                try {
+                    input.value = localStorage.getItem(partsSearchStorageKey) || '';
+                } catch (e) {}
 
-                    rows.forEach(function (row) {
-                        const text = row.innerText.toLowerCase();
-                        row.style.display = text.includes(query) ? '' : 'none';
+                function visiblePartRows() {
+                    return Array.from(tbody?.querySelectorAll('tr') || []).filter(function (row) {
+                        return !row.classList.contains('components-empty-row');
                     });
+                }
+
+                function partRowCellText(row, columnIndex) {
+                    return (row.children[columnIndex]?.textContent || '').trim();
+                }
+
+                function iplSortKey(value) {
+                    const match = String(value || '').trim().match(/^(\d+)-(\d+)([A-Za-z]*)$/);
+                    if (!match) {
+                        return [1, 0, 0, String(value || '').trim().toUpperCase()];
+                    }
+
+                    return [
+                        0,
+                        Number(match[1]),
+                        Number(match[2]),
+                        match[3].toUpperCase(),
+                    ];
+                }
+
+                function compareIplValues(a, b) {
+                    const ak = iplSortKey(a);
+                    const bk = iplSortKey(b);
+
+                    for (let i = 0; i < ak.length; i++) {
+                        if (typeof ak[i] === 'number' || typeof bk[i] === 'number') {
+                            const diff = Number(ak[i]) - Number(bk[i]);
+                            if (diff !== 0) return diff;
+                        } else {
+                            const diff = String(ak[i]).localeCompare(String(bk[i]));
+                            if (diff !== 0) return diff;
+                        }
+                    }
+
+                    return 0;
+                }
+
+                function partRowSearchText(row) {
+                    if (!row.dataset.searchText) {
+                        row.dataset.searchText = [
+                            partRowCellText(row, 0),
+                            partRowCellText(row, 1),
+                            partRowCellText(row, 2),
+                            partRowCellText(row, 3),
+                        ].join(' ').toLowerCase();
+                    }
+
+                    return row.dataset.searchText;
+                }
+
+                function applyPartsSearch() {
+                    const query = input.value.trim().toLowerCase();
+
+                    visiblePartRows().forEach(function (row) {
+                        const visible = !query || partRowSearchText(row).includes(query);
+                        if (row.hidden === visible) {
+                            row.hidden = !visible;
+                        }
+                    });
+                }
+
+                function queuePartsSearch() {
+                    if (searchFrame) {
+                        cancelAnimationFrame(searchFrame);
+                    }
+                    try {
+                        if (input.value) {
+                            localStorage.setItem(partsSearchStorageKey, input.value);
+                        } else {
+                            localStorage.removeItem(partsSearchStorageKey);
+                        }
+                    } catch (e) {}
+                    searchFrame = requestAnimationFrame(function () {
+                        searchFrame = null;
+                        applyPartsSearch();
+                    });
+                }
+
+                function updateSortHeaders() {
+                    sortableHeaders.forEach(function (th) {
+                        th.classList.remove('sorted-asc', 'sorted-desc');
+                    });
+                    const active = sortableHeaders.find(function (th) {
+                        return th.cellIndex === sortCol;
+                    });
+                    if (active) active.classList.add(sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                }
+
+                function sortPartsTable(columnIndex) {
+                    if (!tbody) return;
+                    if (sortCol === columnIndex) {
+                        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortCol = columnIndex;
+                        sortDir = 'asc';
+                    }
+
+                    visiblePartRows()
+                        .sort(function (a, b) {
+                            const av = partRowCellText(a, columnIndex).toLowerCase();
+                            const bv = partRowCellText(b, columnIndex).toLowerCase();
+                            const result = columnIndex === 0
+                                ? compareIplValues(av, bv)
+                                : av.localeCompare(bv, undefined, { numeric: true });
+
+                            return sortDir === 'asc' ? result : -result;
+                        })
+                        .forEach(function (row) {
+                            tbody.appendChild(row);
+                        });
+
+                    updateSortHeaders();
+                    applyPartsSearch();
+                }
+
+                input.addEventListener('input', queuePartsSearch);
+                clearInput?.addEventListener('click', function () {
+                    input.value = '';
+                    try {
+                        localStorage.removeItem(partsSearchStorageKey);
+                    } catch (e) {}
+                    applyPartsSearch();
+                    input.focus();
+                });
+                sortableHeaders.forEach(function (th) {
+                    th.addEventListener('click', function () {
+                        sortPartsTable(th.cellIndex);
+                    });
+                });
+                updateSortHeaders();
+                applyPartsSearch();
+            }
+
+            // ÐŸÐµÑ€ÐµÐºÐ»ÑŽÑ‡ÐµÐ½Ð¸Ðµ ÐºÐ½Ð¾Ð¿Ð¾Ðº "Add ..." Ð² Ð½Ð°Ð²Ð¸Ð³Ð°Ñ†Ð¸Ð¸ Ð²ÐºÐ»Ð°Ð´Ð¾Ðº
+            document.querySelectorAll('#nav-parts [data-bs-toggle="popover"]').forEach(function (el) {
+                if (window.bootstrap && bootstrap.Popover) {
+                    bootstrap.Popover.getOrCreateInstance(el, { sanitize: false });
+                }
+            });
+
+            async function updateManualPartFlag(input) {
+                var previous = !input.checked;
+                var bushIplNum = input.dataset.bushIplNum || '';
+
+                if (input.dataset.field === 'is_bush') {
+                    if (input.checked) {
+                        var entered = typeof window.inputDialog === 'function'
+                            ? await window.inputDialog({
+                                title: '{{ __('Initial Bushing IPL Number') }}',
+                                message: '{{ __('Enter initial bushing IPL number.') }} {{ __('For example:') }} 1-230A',
+                                value: bushIplNum,
+                                okText: '{{ __('Save') }}',
+                                cancelText: '{{ __('Cancel') }}',
+                                pattern: '^\\d+-\\d+[A-Za-z]?$',
+                                invalidMessage: '{{ __('Initial Bushing IPL Number format is invalid.') }}',
+                            })
+                            : null;
+                        if (entered === null) {
+                            input.checked = previous;
+                            return;
+                        }
+                        bushIplNum = entered.trim();
+                    } else {
+                        if (bushIplNum && typeof window.confirmDialog === 'function') {
+                            var confirmed = await window.confirmDialog({
+                                title: '{{ __('Clear Bushing IPL?') }}',
+                                message: '{{ __('The entered Initial Bushing IPL Number will be cleared.') }}',
+                                okText: '{{ __('Clear') }}',
+                                cancelText: '{{ __('Cancel') }}',
+                                danger: true,
+                            });
+                            if (!confirmed) {
+                                input.checked = previous;
+                                return;
+                            }
+                        }
+                        bushIplNum = '';
+                    }
+                }
+
+                input.disabled = true;
+
+                try {
+                    var payload = {
+                        field: input.dataset.field,
+                        value: input.checked ? 1 : 0,
+                    };
+
+                    if (input.dataset.field === 'is_bush') {
+                        payload.bush_ipl_num = bushIplNum;
+                    }
+
+                    var response = await fetch(input.dataset.url, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify(payload),
+                    });
+
+                    var data = await response.json().catch(function () { return {}; });
+                    if (!response.ok || !data.success) {
+                        throw new Error(data.message || '{{ __('Failed to update flag') }}');
+                    }
+                    if (input.dataset.field === 'is_bush') {
+                        input.dataset.bushIplNum = data.bush_ipl_num || '';
+                        input.title = data.bush_ipl_num || 'Bush';
+                    }
+                } catch (err) {
+                    console.error(err);
+                    input.checked = previous;
+                    if (typeof showNotification === 'function') {
+                        showNotification(err.message || '{{ __('Failed to update flag') }}', 'error');
+                    }
+                } finally {
+                    input.disabled = false;
+                }
+            }
+
+            document.getElementById('manualPartsTable')?.addEventListener('change', function (event) {
+                var input = event.target.closest('.component-flag-toggle');
+                if (!input) return;
+                updateManualPartFlag(input);
+            });
+
+            function manualDrawerSetErrors(box, messages) {
+                if (!box) return;
+                var list = Array.isArray(messages) ? messages.filter(Boolean) : [];
+                box.classList.toggle('d-none', list.length === 0);
+                box.innerHTML = list.map(function (message) {
+                    return '<div>' + String(message) + '</div>';
+                }).join('');
+            }
+
+            function manualDrawerResponseErrors(data, fallback) {
+                if (data && data.errors) return Object.values(data.errors).flat();
+                if (data && data.message) return [data.message];
+                return [fallback];
+            }
+
+            function manualDrawerSetSubmitting(button, text, busy) {
+                if (!button) return;
+                if (busy) {
+                    button.dataset.originalText = button.innerHTML;
+                    button.disabled = true;
+                    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>' + text;
+                } else {
+                    button.disabled = false;
+                    if (button.dataset.originalText) button.innerHTML = button.dataset.originalText;
+                }
+            }
+
+            function manualSyncBush(isBush, container) {
+                if (!isBush || !container) return;
+                container.classList.toggle('d-none', !isBush.checked);
+            }
+
+            function makeManualAssemblyManager(rowsEl, templateEl) {
+                function refreshNames() {
+                    rowsEl.querySelectorAll('[data-assembly-row]').forEach(function (row, index) {
+                        row.querySelectorAll('[data-assembly-field]').forEach(function (field) {
+                            var name = field.getAttribute('data-assembly-field');
+                            field.name = 'assemblies[' + index + '][' + name + ']';
+                        });
+                        var title = row.querySelector('[data-assembly-title]');
+                        if (title) title.textContent = 'Assy #' + (index + 1);
+                    });
+                }
+
+                function add(data) {
+                    data = data || {};
+                    var fragment = templateEl.content.cloneNode(true);
+                    var row = fragment.querySelector('[data-assembly-row]');
+                    row.querySelectorAll('[data-assembly-field]').forEach(function (field) {
+                        var key = field.getAttribute('data-assembly-field');
+                        if (field.type !== 'file') field.value = data[key] || '';
+                    });
+                    row.querySelector('[data-remove-assembly]')?.addEventListener('click', function () {
+                        row.remove();
+                        refreshNames();
+                    });
+                    rowsEl.appendChild(fragment);
+                    refreshNames();
+                }
+
+                function reset(items) {
+                    rowsEl.innerHTML = '';
+                    var list = Array.isArray(items) && items.length ? items : [{}];
+                    list.forEach(add);
+                    refreshNames();
+                }
+
+                return { add: add, reset: reset, refreshNames: refreshNames };
+            }
+
+            function initManualComponentDrawer(config) {
+                var offcanvasEl = document.getElementById(config.offcanvasId);
+                var form = document.getElementById(config.formId);
+                var errorsBox = document.getElementById(config.errorsId);
+                var submitBtn = document.getElementById(config.submitId);
+                var isBush = document.getElementById(config.isBushId);
+                var bushContainer = document.getElementById(config.bushContainerId);
+                var rowsEl = document.getElementById(config.rowsId);
+                var addAssemblyBtn = document.getElementById(config.addAssemblyBtnId);
+                var templateEl = document.getElementById('manualAssemblyRowTemplate');
+                if (!offcanvasEl || !form || form.dataset.bound || !rowsEl || !templateEl) return null;
+                form.dataset.bound = '1';
+
+                var assemblies = makeManualAssemblyManager(rowsEl, templateEl);
+                addAssemblyBtn?.addEventListener('click', function () { assemblies.add(); });
+                isBush?.addEventListener('change', function () { manualSyncBush(isBush, bushContainer); });
+
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    manualDrawerSetErrors(errorsBox, []);
+                    if (!form.checkValidity()) {
+                        form.classList.add('was-validated');
+                        return;
+                    }
+                    assemblies.refreshNames();
+                    manualDrawerSetSubmitting(submitBtn, '{{ __("Saving...") }}', true);
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                        credentials: 'same-origin',
+                    })
+                        .then(function (response) {
+                            return response.json().then(function (data) {
+                                return { ok: response.ok, data: data };
+                            }).catch(function () {
+                                return { ok: response.ok, data: {} };
+                            });
+                        })
+                        .then(function (result) {
+                            if (!result.ok || !result.data.success) {
+                                manualDrawerSetErrors(errorsBox, manualDrawerResponseErrors(result.data, '{{ __("Failed to submit.") }}'));
+                                return;
+                            }
+                            bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl).hide();
+                            window.location.href = @json($manualUrlParts) + '&part_id=' + encodeURIComponent(result.data.component_id || config.loadedId || '');
+                        })
+                        .catch(function () {
+                            manualDrawerSetErrors(errorsBox, ['{{ __("Failed to submit.") }}']);
+                        })
+                        .finally(function () {
+                            manualDrawerSetSubmitting(submitBtn, '{{ __("Saving...") }}', false);
+                            if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+                        });
+                });
+
+                return { form: form, offcanvasEl: offcanvasEl, assemblies: assemblies, isBush: isBush, bushContainer: bushContainer, errorsBox: errorsBox, config: config };
+            }
+
+            var manualCreateDrawer = initManualComponentDrawer({
+                offcanvasId: 'manualCreateComponentOffcanvas',
+                formId: 'manualCreateComponentDrawerForm',
+                errorsId: 'manualCreateComponentErrors',
+                submitId: 'manualCreateComponentSubmitBtn',
+                isBushId: 'manual_drawer_is_bush',
+                bushContainerId: 'manual_drawer_bush_ipl_container',
+                rowsId: 'manualAssemblyRows',
+                addAssemblyBtnId: 'manualAddAssemblyRowBtn'
+            });
+
+            if (manualCreateDrawer) {
+                manualCreateDrawer.offcanvasEl.addEventListener('show.bs.offcanvas', function () {
+                    manualCreateDrawer.form.reset();
+                    manualCreateDrawer.form.classList.remove('was-validated');
+                    manualCreateDrawer.assemblies.reset([{}]);
+                    manualDrawerSetErrors(manualCreateDrawer.errorsBox, []);
+                    manualSyncBush(manualCreateDrawer.isBush, manualCreateDrawer.bushContainer);
                 });
             }
 
-            // Переключение кнопок "Add ..." в навигации вкладок
+            var manualEditDrawer = initManualComponentDrawer({
+                offcanvasId: 'manualEditComponentOffcanvas',
+                formId: 'manualEditComponentDrawerForm',
+                errorsId: 'manualEditComponentErrors',
+                submitId: 'manualEditComponentSubmitBtn',
+                isBushId: 'manual_edit_drawer_is_bush',
+                bushContainerId: 'manual_edit_drawer_bush_ipl_container',
+                rowsId: 'manualEditAssemblyRows',
+                addAssemblyBtnId: 'manualEditAddAssemblyRowBtn'
+            });
+
+            function manualEditSetValue(name, value) {
+                var field = manualEditDrawer?.form.querySelector('[name="' + name + '"]');
+                if (field) field.value = value || '';
+            }
+
+            document.addEventListener('click', function (event) {
+                var button = event.target.closest('.open-manual-edit-component-drawer');
+                if (!button || !manualEditDrawer) return;
+                event.preventDefault();
+                manualDrawerSetErrors(manualEditDrawer.errorsBox, []);
+                manualEditDrawer.config.loadedId = '';
+                manualEditDrawer.form.action = button.dataset.updateUrl || '';
+                bootstrap.Offcanvas.getOrCreateInstance(manualEditDrawer.offcanvasEl).show();
+
+                fetch(button.dataset.componentUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    credentials: 'same-origin',
+                })
+                    .then(function (response) {
+                        return response.json().then(function (data) {
+                            return { ok: response.ok, data: data };
+                        });
+                    })
+                    .then(function (result) {
+                        if (!result.ok || !result.data.success) {
+                            manualDrawerSetErrors(manualEditDrawer.errorsBox, manualDrawerResponseErrors(result.data, '{{ __("Failed to load part.") }}'));
+                            return;
+                        }
+                        var component = result.data.component || {};
+                        manualEditDrawer.config.loadedId = component.id || '';
+                        manualEditSetValue('ipl_num', component.ipl_num);
+                        manualEditSetValue('part_number', component.part_number);
+                        manualEditSetValue('name', component.name);
+                        manualEditSetValue('bush_ipl_num', component.bush_ipl_num);
+                        if (manualEditDrawer.isBush) manualEditDrawer.isBush.checked = !!component.is_bush;
+                        var logCard = document.getElementById('manual_edit_drawer_log_card');
+                        if (logCard) logCard.checked = !!component.log_card;
+                        ['kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].forEach(function (field) {
+                            var checkbox = document.getElementById('manual_edit_drawer_' + field);
+                            if (checkbox) checkbox.checked = !!component[field];
+                        });
+                        manualSyncBush(manualEditDrawer.isBush, manualEditDrawer.bushContainer);
+                        manualEditDrawer.assemblies.reset(Array.isArray(component.assemblies) ? component.assemblies : []);
+                    })
+                    .catch(function () {
+                        manualDrawerSetErrors(manualEditDrawer.errorsBox, ['{{ __("Failed to load part.") }}']);
+                    })
+                    .finally(function () {
+                        if (typeof hideLoadingSpinner === 'function') hideLoadingSpinner();
+                    });
+            });
+
             const navTabs = document.querySelectorAll('#nav-tab .nav-link');
             const actions = document.querySelectorAll('#nav-tab-actions [data-tab-target]');
 
@@ -1235,7 +2089,7 @@
                 finishManualShowTabsBoot();
             }
 
-            // Обновляем при переключении вкладок (Bootstrap event)
+            // ÐžÐ±Ð½Ð¾Ð²Ð»ÑÐµÐ¼ Ð¿Ñ€Ð¸ Ð¿ÐµÑ€ÐµÐºÐ»ÑŽÑ‡ÐµÐ½Ð¸Ð¸ Ð²ÐºÐ»Ð°Ð´Ð¾Ðº (Bootstrap event)
             navTabs.forEach(function (tab) {
                 tab.addEventListener('shown.bs.tab', function (event) {
                     const target = event.target.getAttribute('data-bs-target');
@@ -1384,7 +2238,7 @@
                             showNotification('{{ __("Units updated successfully") }}', 'success');
                             var modalInstance = bootstrap.Modal.getInstance(editUnitModal);
                             if (modalInstance) modalInstance.hide();
-                            // Обновляем только таблицу Components без перезагрузки
+                            // ÐžÐ±Ð½Ð¾Ð²Ð»ÑÐµÐ¼ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñƒ Components Ð±ÐµÐ· Ð¿ÐµÑ€ÐµÐ·Ð°Ð³Ñ€ÑƒÐ·ÐºÐ¸
                             var unitsUrl = '{{ route("units.show", $cmm->id) }}';
                             fetch(unitsUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                                 .then(function (r) { return r.json(); })
@@ -1414,85 +2268,13 @@
                 });
             }
 
-            // Редактирование Part (Component) — вкладка Parts (все поля как в Add Parts)
-            const editPartButtons = document.querySelectorAll('.btn-edit-part');
-            const editPartModalBtn = document.getElementById('modal-btn-update-part');
-            const editPartForm = document.getElementById('editPartForm');
-            const editPartBushContainer = document.getElementById('edit-part-bush-ipl-container');
-            const editPartIsBush = document.getElementById('edit-part-is-bush');
-
-            function setEditPartBushVisibility() {
-                if (editPartBushContainer) {
-                    editPartBushContainer.style.display = editPartIsBush && editPartIsBush.checked ? 'block' : 'none';
-                }
-            }
-
-            if (editPartIsBush) {
-                editPartIsBush.addEventListener('change', setEditPartBushVisibility);
-            }
-
-            editPartButtons.forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    const id = this.getAttribute('data-part-id');
-                    document.getElementById('edit-part-ipl-num').value = this.getAttribute('data-ipl-num') || '';
-                    document.getElementById('edit-part-assy-ipl-num').value = this.getAttribute('data-assy-ipl-num') || '';
-                    document.getElementById('edit-part-part-number').value = this.getAttribute('data-part-number') || '';
-                    document.getElementById('edit-part-assy-part-number').value = this.getAttribute('data-assy-part-number') || '';
-                    document.getElementById('edit-part-name').value = this.getAttribute('data-name') || '';
-                    document.getElementById('edit-part-units-assy').value = this.getAttribute('data-units-assy') || '';
-                    document.getElementById('edit-part-eff-code').value = this.getAttribute('data-eff-code') || '';
-                    document.getElementById('edit-part-log-card').checked = this.getAttribute('data-log-card') === '1';
-                    document.getElementById('edit-part-repair').checked = this.getAttribute('data-repair') === '1';
-                    document.getElementById('edit-part-is-bush').checked = this.getAttribute('data-is-bush') === '1';
-                    document.getElementById('edit-part-bush-ipl-num').value = this.getAttribute('data-bush-ipl-num') || '';
-                    setEditPartBushVisibility();
-                    if (editPartModalBtn) editPartModalBtn.setAttribute('data-part-id', id);
-                });
-            });
-
-            if (editPartModalBtn && editPartForm) {
-                editPartModalBtn.addEventListener('click', function () {
-                    const partId = this.getAttribute('data-part-id');
-                    const iplNum = document.getElementById('edit-part-ipl-num').value.trim();
-                    const partNumber = document.getElementById('edit-part-part-number').value.trim();
-                    const name = document.getElementById('edit-part-name').value.trim();
-                    if (!iplNum || !partNumber || !name) {
-                        showNotification('Fill in the required fields: IPL Number, Part Number, Name', 'warning');
-                        return;
-                    }
-                    const formData = new FormData(editPartForm);
-                    formData.append('_token', '{{ csrf_token() }}');
-                    formData.append('_method', 'PATCH');
-                    fetch('{{ url('/components') }}/' + partId + '/single', {
-                        method: 'POST',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                        },
-                        body: formData,
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data && data.success) {
-                                const modalEl = document.getElementById('editPartModal');
-                                const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                                if (modalInstance) modalInstance.hide();
-                                window.location.href = @json($manualUrlParts) + '&part_id=' + encodeURIComponent(partId);
-                            } else {
-                    showNotification(data && data.message ? data.message : 'Error while updating part', 'error');
-                            }
-                        })
-                        .catch(function (err) {
-                showNotification('Error while updating part', 'error');
-                        });
-                });
-            }
         });
     </script>
 
 @endsection
 
 @section('scripts')
-    {{-- Контекст CMM для AI: номер и название — без manual_id в ответах пользователю --}}
+    {{-- ÐšÐ¾Ð½Ñ‚ÐµÐºÑÑ‚ CMM Ð´Ð»Ñ AI: Ð½Ð¾Ð¼ÐµÑ€ Ð¸ Ð½Ð°Ð·Ð²Ð°Ð½Ð¸Ðµ â€” Ð±ÐµÐ· manual_id Ð² Ð¾Ñ‚Ð²ÐµÑ‚Ð°Ñ… Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»ÑŽ --}}
     <script>
         window.aiCurrentManual = @json([
             'number' => $cmm->number ?? '',

@@ -1,5 +1,23 @@
+@php
+    $showManualColumn = $showManualColumn ?? true;
+    $editButtonClass = $editButtonClass ?? 'open-edit-component-drawer';
+    $deleteRedirect = $deleteRedirect ?? null;
+    $componentFlags = [
+        'log_card' => 'LC',
+        'is_bush' => 'Bush',
+        'kit' => 'Kit',
+        'ndt_list' => 'NDT',
+        'cad_list' => 'CAD',
+        'stress_relief_list' => 'Stress',
+        'paint_list' => 'Paint',
+    ];
+@endphp
+
 @foreach($components as $component)
     @php
+        $manualPartLock = $component->manual?->partLock;
+        $canManageLockedManualParts = auth()->user()?->canManageLockedManualParts() ?? false;
+        $partMutationLocked = $manualPartLock && ! $canManageLockedManualParts;
         $assemblyRows = $component->relationLoaded('assemblies')
             ? $component->assemblies
             : collect();
@@ -7,18 +25,6 @@
             return filled($assembly->assy_ipl_num ?? null)
                 || filled($assembly->assy_part_number ?? null);
         })->values();
-
-        if ($assemblyRows->isEmpty() && (
-            filled($component->assy_ipl_num)
-            || filled($component->assy_part_number)
-        )) {
-            $assemblyRows = collect([(object) [
-                'assy_ipl_num' => $component->assy_ipl_num,
-                'assy_part_number' => $component->assy_part_number,
-                'units_assy' => $component->units_assy,
-                'notes' => null,
-            ]]);
-        }
 
         $firstAssembly = $assemblyRows->first();
         $popoverHtml = '<div class="assy-popover-list">';
@@ -41,7 +47,7 @@
         }
         $popoverHtml .= '</div>';
     @endphp
-    <tr data-manual-id="{{ $component->manual_id ?? '' }}">
+    <tr data-manual-id="{{ $component->manual_id ?? '' }}" @if(! $showManualColumn) id="manual-part-row-{{ $component->id }}" @endif>
         <td class="text-center">{{ $component->ipl_num }}</td>
         <td class="text-center">{{ $component->part_number }}</td>
         <td class="text-center">{{ $component->name }}</td>
@@ -87,29 +93,55 @@
                 <span class="text-muted small">-</span>
             @endif
         </td>
-        <td class="text-center">
-            @if($component->manual)
-                <a href="#"
-                   data-bs-toggle="modal"
-                   data-bs-target="#manualModal{{ $component->manual->id }}">
-                    {{ $component->manual->number }}
-                </a>
-            @else
-                <span class="text-muted">-</span>
-            @endif
-        </td>
+        @foreach($componentFlags as $flagField => $flagLabel)
+            @php
+                $flagTitle = $flagField === 'is_bush' && filled($component->bush_ipl_num)
+                    ? $component->bush_ipl_num
+                    : $flagLabel;
+            @endphp
+            <td class="text-center component-flag-cell">
+                <input type="checkbox"
+                       class="form-check-input component-flag-toggle"
+                       title="{{ $flagTitle }}"
+                       aria-label="{{ $flagLabel }}"
+                       data-component-id="{{ $component->id }}"
+                       data-field="{{ $flagField }}"
+                       data-bush-ipl-num="{{ $flagField === 'is_bush' ? $component->bush_ipl_num : '' }}"
+                       data-url="{{ route('components.updateFlags', ['component' => $component->id]) }}"
+                       @disabled($partMutationLocked)
+                       @checked((bool) ($component->{$flagField} ?? false))>
+            </td>
+        @endforeach
+        @if($showManualColumn)
+            <td class="text-center">
+                @if($component->manual)
+                    <a href="#"
+                       data-bs-toggle="modal"
+                       data-bs-target="#manualModal{{ $component->manual->id }}">
+                        {{ $component->manual->number }}
+                    </a>
+                @else
+                    <span class="text-muted">-</span>
+                @endif
+            </td>
+        @endif
         <td class="text-center">
             <div class="d-inline-flex align-items-center justify-content-center gap-2">
                 <button type="button"
-                        class="btn btn-outline-primary btn-sm open-edit-component-drawer"
+                        class="btn btn-outline-primary btn-sm {{ $editButtonClass }}"
                         data-component-url="{{ route('components.showJson', ['component' => $component->id]) }}"
-                        data-update-url="{{ route('components.update', ['component' => $component->id]) }}">
+                        data-update-url="{{ route('components.update', ['component' => $component->id]) }}"
+                        @disabled($partMutationLocked)
+                        @if($partMutationLocked) title="{{ __('Manual parts are locked') }}" @endif>
                     <i class="bi bi-pencil-square"></i>
                 </button>
                 <form action="{{ route('components.destroy', $component->id) }}" method="POST" class="m-0">
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to delete this component?');">
+                    @if($deleteRedirect)
+                        <input type="hidden" name="redirect" value="{{ $deleteRedirect }}">
+                    @endif
+                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to delete this component?');" @disabled($partMutationLocked) @if($partMutationLocked) title="{{ __('Manual parts are locked') }}" @endif>
                         <i class="bi bi-trash"></i>
                     </button>
                 </form>

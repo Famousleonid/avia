@@ -213,16 +213,16 @@
             width: 99px;
         }
         .fs-9 {
-            font-size: 0.9rem; /* или любое другое подходящее значение */
+            font-size: 1rem; /* или любое другое подходящее значение */
         }
         .fs-8 {
-            font-size: 0.8rem; /* или любое другое подходящее значение */
+            font-size: 0.9rem; /* или любое другое подходящее значение */
         }
         .fs-7 {
-            font-size: 0.7rem; /* или любое другое подходящее значение */
+            font-size: 0.8rem; /* или любое другое подходящее значение */
         }
         .fs-75 {
-            font-size: 0.75rem; /* или любое другое подходящее значение */
+            font-size: 0.85rem; /* или любое другое подходящее значение */
         }
         .fs-6 {
             font-size: 0.6rem; /* или любое другое подходящее значение */
@@ -691,7 +691,8 @@
                 $comp = $components->firstWhere('id', $item['component_id']);
                 $hasSerialNumber = !empty($item['serial_number']);
                 $hasAssySerialNumber = isset($item['assy_serial_number']) && !empty($item['assy_serial_number']);
-                $hasAssyPartNumber = $comp && $comp->assy_part_number;
+                $assyPartNumber = $item['assy_part_number'] ?? ($comp->assy_part_number ?? '');
+                $hasAssyPartNumber = $assyPartNumber !== '';
             @endphp
 
             <div class="div13 border-l-b-r text-center pt-1 fs-7" style="min-height: 30px">
@@ -703,11 +704,11 @@
             </div>
             <div class="div14 border-b-r text-center pt-1 fs-7" style="line-height: 1.2">
                 @if($hasAssySerialNumber && !$hasSerialNumber)
-                    {{ $comp ? $comp->assy_part_number : '' }}
+                    {{ $assyPartNumber }}
                 @else
                     @if($hasAssySerialNumber && $hasSerialNumber)
                         {{ $comp ? $comp->part_number : '' }}
-                        ({{ $comp->assy_part_number}})
+                        ({{ $assyPartNumber }})
                     @else
                         {{ $comp ? $comp->part_number : '' }}
                     @endif
@@ -739,7 +740,7 @@
 
             @if($hasAssyPartNumber && $hasAssySerialNumber && $hasSerialNumber)
                 <div class="div17 border-b-r text-center pt-1 fs-7" style="grid-column: span 5 / span 5;">
-                    {{__(' ASSY PN ')}} {{$comp->assy_part_number}}{{__('  ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
+                    {{__(' ASSY PN ')}} {{$assyPartNumber}}{{__('  ASSY SN ')}} {{$item['assy_serial_number'] ?? ''}}
                 </div>
                 <div class="div22 border-b-r text-center pt-1 fs-75" >
                     @if($item['reason'])
@@ -892,3 +893,5 @@
 
 
 </html>
+
+

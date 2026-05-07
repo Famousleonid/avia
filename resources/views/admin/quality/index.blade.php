@@ -208,6 +208,55 @@
             background: #111;
         }
 
+        .qa-submitted-block table > :not(caption) > * > *,
+        .qa-repair-block table > :not(caption) > * > * {
+            background-color: #1d2020 !important;
+        }
+
+        .qa-submitted-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: .75rem;
+            padding: .75rem;
+        }
+
+        .qa-submitted-card {
+            min-width: 0;
+            border: 1px solid rgba(255, 255, 255, .08);
+            border-radius: .55rem;
+            background: #1d2020;
+            padding: .75rem .85rem;
+        }
+
+        .qa-submitted-card-line {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) max-content;
+            align-items: baseline;
+            gap: .75rem;
+            min-width: 0;
+        }
+
+        .qa-submitted-card-line + .qa-submitted-card-line {
+            margin-top: .55rem;
+            padding-top: .55rem;
+            border-top: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .qa-submitted-card-title {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .qa-submitted-card-date {
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .qa-block.is-highlighted {
+            outline: 2px solid var(--bs-info);
+            outline-offset: 2px;
+        }
+
         .qa-info-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -233,16 +282,33 @@
             padding: 0 .7rem .55rem;
         }
 
+        .qa-check-button {
+            border: 0;
+            background: transparent;
+            padding: 0;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .qa-check-button:hover,
+        .qa-check-button:focus {
+            text-decoration: underline;
+        }
+
         .qa-check-separator {
             color: var(--bs-secondary-color);
             margin: 0 .45rem;
         }
 
+        .qa-photo-row {
+            padding: .85rem;
+        }
+
         .qa-photo-groups {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: .65rem;
-            padding: .85rem;
+            grid-template-columns: repeat(var(--qa-photo-count, 10), minmax(0, 1fr));
+            gap: .6rem;
+            min-width: 0;
         }
 
         .qa-photo-group {
@@ -251,7 +317,28 @@
             background: rgba(0, 0, 0, .12);
             color: var(--bs-body-color);
             text-align: left;
-            padding: .65rem;
+            min-width: 0;
+            padding: .6rem .55rem;
+        }
+
+        .qa-photo-group.is-empty {
+            cursor: default;
+        }
+
+        .qa-photo-group-title,
+        .qa-photo-group-key {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .qa-photo-group-title {
+            font-size: .86rem;
+            line-height: 1.15;
+        }
+
+        .qa-photo-group-key {
+            font-size: .72rem;
+            line-height: 1.05;
         }
 
         .qa-photo-thumb {
@@ -339,6 +426,41 @@
             text-align: center;
         }
 
+        html[data-bs-theme="light"] .qa-page,
+        html[data-bs-theme="light"] .content,
+        html[data-bs-theme="light"] .content-inner {
+            background: var(--bs-body-bg) !important;
+        }
+
+        html[data-bs-theme="light"] .qa-block,
+        html[data-bs-theme="light"] .qa-photo-group,
+        html[data-bs-theme="light"] .qa-submitted-card {
+            background: var(--bs-body-bg);
+            border-color: var(--bs-border-color);
+        }
+
+        html[data-bs-theme="light"] .qa-block-title,
+        html[data-bs-theme="light"] .qa-submitted-card-line + .qa-submitted-card-line {
+            border-bottom-color: var(--bs-border-color);
+            border-top-color: var(--bs-border-color);
+        }
+
+        html[data-bs-theme="light"] .qa-table-scroll thead th,
+        html[data-bs-theme="light"] .qa-submitted-block table > :not(caption) > * > *,
+        html[data-bs-theme="light"] .qa-repair-block table > :not(caption) > * > * {
+            background-color: var(--bs-body-bg) !important;
+            color: var(--bs-body-color);
+        }
+
+        html[data-bs-theme="light"] #qaPhotoModal .modal-content {
+            background: var(--bs-body-bg) !important;
+            color: var(--bs-body-color) !important;
+        }
+
+        html[data-bs-theme="light"] #qaPhotoModal .btn-close {
+            filter: none;
+        }
+
         @media (max-width: 1199.98px) {
             .qa-top-row {
                 grid-template-columns: 1fr;
@@ -361,6 +483,18 @@
 
             .qa-info-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .qa-submitted-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .qa-photo-groups {
+                overflow-x: auto;
+            }
+
+            .qa-photo-group {
+                min-width: 6.5rem;
             }
         }
     </style>
@@ -489,14 +623,18 @@
                     <div class="qa-checks-line small">
                         ${checks.map((check, index) => `
                             ${index ? '<span class="qa-check-separator">&middot;</span>' : ''}
-                            <span class="${check.ok ? 'text-info' : 'text-danger'} fw-semibold">${escapeHtml(check.label)}</span>
+                            <button type="button"
+                                    class="qa-check-button ${check.ok ? 'text-success' : 'text-danger'} fw-semibold"
+                                    data-qa-scroll="${escapeHtml(check.target || '')}">
+                                ${escapeHtml(check.label)}
+                            </button>
                         `).join('')}
                     </div>
                 `;
             };
 
-            const blockHtml = (title, body, titleMeta = '', className = '') => `
-                <section class="qa-block ${escapeHtml(className)} mb-3">
+            const blockHtml = (title, body, titleMeta = '', className = '', id = '') => `
+                <section ${id ? `id="${escapeHtml(id)}"` : ''} class="qa-block ${escapeHtml(className)} mb-3">
                     <div class="qa-block-title">
                         <h6 class="mb-0 text-info">${escapeHtml(title)}</h6>
                         ${titleMeta}
@@ -538,53 +676,55 @@
                 }
 
                 const cards = currentPhotoGroups.map((group, index) => `
-                    <button type="button" class="qa-photo-group" data-photo-group="${index}">
+                    <button type="button" class="qa-photo-group ${Number(group.count) === 0 ? 'is-empty' : ''}" data-photo-group="${index}">
                         <div class="d-flex justify-content-between align-items-start gap-2">
                             <div>
-                                <div class="fw-semibold">${escapeHtml(group.label)}</div>
-                                <div class="small text-secondary">${escapeHtml(group.collection)}</div>
+                                <div class="qa-photo-group-title fw-semibold">${escapeHtml(group.label)}</div>
+                                <div class="qa-photo-group-key text-secondary">${escapeHtml(group.collection)}</div>
                             </div>
-                            <span class="text-info fw-semibold">${escapeHtml(group.count)}</span>
+                            <span class="${Number(group.count) === 0 ? 'text-warning' : 'text-info'} fw-semibold">${escapeHtml(group.count)}</span>
                         </div>
                     </button>
                 `).join('');
 
-                return blockHtml('Photos', `<div class="qa-photo-groups">${cards}</div>`);
+                return blockHtml('Photos', `<div class="qa-photo-row"><div class="qa-photo-groups" style="--qa-photo-count: ${currentPhotoGroups.length || 1};">${cards}</div></div>`);
             };
 
             const renderSubmitted = (rows) => {
                 if (!rows || rows.length === 0) {
-                    return blockHtml('Submitted WO', '<div class="qa-empty">No submitted inspections waiting for QA.</div>');
+                    return blockHtml('Submitted WO', '<div class="qa-empty">No submitted inspections waiting for QA.</div>', '', 'qa-submitted-block', 'qaSubmittedBlock');
                 }
 
+                const isComplete = rows.every(row =>
+                    row.submitted_date && row.submitted_date !== '-'
+                    && row.inspection_date && row.inspection_date !== '-'
+                );
+
                 const body = `
-                    <div class="table-responsive qa-table-scroll">
-                        <table class="table table-sm table-hover align-middle mb-0">
-                            <thead>
-                            <tr>
-                                <th>Submitted Step</th>
-                                <th>Submitted Date</th>
-                                <th>Missing Inspection</th>
-                                <th>Component PN</th>
-                                <th>Serial #</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            ${rows.map(row => `
-                                <tr>
-                                    <td>${escapeHtml(row.submitted_step)}</td>
-                                    <td>${escapeHtml(row.submitted_date || '-')}</td>
-                                    <td><span class="text-warning fw-semibold">${escapeHtml(row.missing_inspection)}</span></td>
-                                    <td>${escapeHtml(row.component_pn)}</td>
-                                    <td>${escapeHtml(row.serial_number)}</td>
-                                </tr>
-                            `).join('')}
-                            </tbody>
-                        </table>
+                    <div class="qa-submitted-cards">
+                        ${rows.map(row => {
+                            const submittedDateClass = row.submitted_date && row.submitted_date !== '-' ? 'text-success' : 'text-danger';
+                            const inspectionDateClass = row.inspection_done ? 'text-success' : 'text-warning';
+                            const submittedDateText = row.submitted_date && row.submitted_date !== '-' ? row.submitted_date : 'Missing';
+                            const inspectionDateText = row.inspection_date && row.inspection_date !== '-' ? row.inspection_date : 'Missing';
+
+                            return `
+                            <div class="qa-submitted-card">
+                                <div class="qa-submitted-card-line">
+                                    <div class="qa-submitted-card-title fw-semibold">${escapeHtml(row.submitted_step)}</div>
+                                    <div class="qa-submitted-card-date ${submittedDateClass}">${escapeHtml(submittedDateText)}</div>
+                                </div>
+                                <div class="qa-submitted-card-line">
+                                    <div class="qa-submitted-card-title fw-semibold">${escapeHtml(row.missing_inspection)}</div>
+                                    <div class="qa-submitted-card-date ${inspectionDateClass}">${escapeHtml(inspectionDateText)}</div>
+                                </div>
+                            </div>
+                        `;
+                        }).join('')}
                     </div>
                 `;
 
-                return blockHtml('Submitted WO', body, `<span class="text-warning fw-semibold">${rows.length}</span>`);
+                return blockHtml('Submitted WO', body, `<span class="${isComplete ? 'text-success' : 'text-danger'} fw-semibold">${isComplete ? 'OK' : 'Missing date'}</span>`, 'qa-submitted-block', 'qaSubmittedBlock');
             };
 
             const renderRepairOrders = (rows) => {
@@ -614,7 +754,7 @@
                                     <td>${escapeHtml(row.repair_order)}</td>
                                     <td>${escapeHtml(row.date_start)}</td>
                                     <td>${escapeHtml(row.date_finish)}</td>
-                                    <td><span class="${row.ok ? 'text-info' : 'text-danger'} fw-semibold">${row.ok ? 'OK' : 'Missing'}</span></td>
+                                    <td><span class="${row.ok ? 'text-success' : 'text-danger'} fw-semibold">${row.ok ? 'OK' : 'Missing'}</span></td>
                                 </tr>
                             `).join('')}
                             </tbody>
@@ -622,7 +762,7 @@
                     </div>
                 `;
 
-                return blockHtml('Repair order', body, `<span class="${missing ? 'text-danger' : 'text-info'} fw-semibold">${missing ? `${missing} missing` : 'OK'}</span>`, 'qa-repair-block');
+                return blockHtml('Repair order', body, `<span class="${missing ? 'text-danger' : 'text-success'} fw-semibold">${missing ? `${missing} missing` : 'OK'}</span>`, 'qa-repair-block', 'qaRepairBlock');
             };
 
             const fitPaperLabels = (root = document) => {
@@ -755,11 +895,26 @@
             });
 
             result.addEventListener('click', (event) => {
+                const scrollButton = event.target.closest('[data-qa-scroll]');
+                if (scrollButton) {
+                    const targetId = scrollButton.getAttribute('data-qa-scroll');
+                    const target = targetId ? document.getElementById(targetId) : null;
+
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        target.classList.add('is-highlighted');
+                        window.setTimeout(() => target.classList.remove('is-highlighted'), 1400);
+                    }
+
+                    return;
+                }
+
                 const button = event.target.closest('[data-photo-group]');
                 if (!button) return;
 
                 const group = currentPhotoGroups[Number(button.dataset.photoGroup)];
                 if (!group) return;
+                if (Number(group.count) === 0) return;
 
                 photoModalTitle.textContent = `${group.label} (${group.count})`;
                 photoModalBody.innerHTML = (group.items || []).map(item => `

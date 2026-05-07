@@ -89,6 +89,29 @@
             max-width: 150px;
         }
 
+        #componentsTable .component-flag-head,
+        #componentsTable .component-flag-cell {
+            width: 42px;
+            min-width: 42px;
+            max-width: 42px;
+            padding-left: 4px;
+            padding-right: 4px;
+            text-align: center;
+        }
+
+        #componentsTable .component-flag-head {
+            color: #fff !important;
+            font-size: .72rem;
+            font-weight: 400;
+            line-height: 1.1;
+        }
+
+        #componentsTable .component-flag-toggle {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
 
         .table thead th {
             position: sticky;
@@ -328,6 +351,19 @@
             color: #fff !important;
         }
 
+        .manual-selection-lib {
+            color: #6c757d;
+        }
+        .manual-part-lock-icon {
+            color: #f0ad4e;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+
+        html[data-bs-theme="dark"] .manual-selection-lib {
+            color: #adb5bd;
+        }
+
         th.sortable.sorted-asc  i { transform: rotate(180deg); opacity: 1; }
         th.sortable.sorted-desc i { transform: rotate(0deg);   opacity: 1; }
         th.sortable i { transition: transform .15s ease, opacity .15s ease; opacity: .6; }
@@ -447,6 +483,25 @@
             background: #f8f9fa;
         }
 
+        .components-header-title {
+            font-size: 1.1rem;
+        }
+
+        .components-filter-bar {
+            margin-right: 3rem;
+        }
+
+        .components-manual-filter {
+            display: flex;
+            align-items: center;
+            gap: .35rem;
+        }
+
+        .components-manual-filter .form-label {
+            margin-bottom: 0;
+            white-space: nowrap;
+        }
+
     </style>
 
 @endsection
@@ -456,14 +511,19 @@
 
     <div class="card dir-page">
         <div class="card-header my-0 ">
-            <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div class="d-flex align-items-center flex-wrap gap-3">
 
-                <h5 class="text-primary manage-header">{{__('Replaceable Parts')}}( <span class="text-success"
+                <h5 class="text-primary manage-header components-header-title mb-0 me-3">{{__('Replaceable Parts')}}( <span class="text-success"
                                                                           id="componentsCount">{{ $componentsTotal }}</span>)</h5>
-                <span id="manualIndicator" class="text-muted"></span>
-                <div class="d-flex my-2 gap-2 flex-wrap">
+                <div class="components-filter-bar d-flex my-2 gap-2 flex-wrap align-items-center">
                     <!-- Filter by Manual -->
-                    <div>
+                    <div class="components-manual-filter">
+                        <label for="manualFilter" class="form-label text-muted">
+                            {{ __('Manual') }}:
+                            <i id="componentsManualLockIcon"
+                               class="bi bi-lock-fill manual-part-lock-icon ms-1 d-none"
+                               title="{{ __('Manual parts are locked') }}"></i>
+                        </label>
                         <select id="manualFilter" class="form-select" style="height:40px;width:460px;">
                             <option value="">{{ __('All Manuals') }}</option>
 
@@ -473,6 +533,8 @@
                                     data-number="{{ $manual->number }}"
                                     data-lib="{{ $manual->lib }}"
                                     data-title="{{ $manual->title }}"
+                                    data-parts-locked="{{ $manual->partLock ? '1' : '0' }}"
+                                    data-locked-by="{{ $manual->partLock?->lockedBy?->name ?? '' }}"
                                 >
                                     {{ $manual->number }} ({{ $manual->lib ?? '—' }}) - {{ $manual->title }}
                                 </option>
@@ -488,21 +550,36 @@
                         </button>
                     </div>
 
-                    <!-- CSV Components -->
-                    <a href="{{ route('components.csv-components') }}" class="btn btn-outline-info" style="height: 40px">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> {{__('CSV Parts')}}
-                    </a>
-
                     <!-- Add Component -->
                     <button type="button"
-                            class="btn btn-outline-primary"
+                            id="addPartButton"
+                            class="btn btn-outline-info"
                             style="height: 40px"
                             data-bs-toggle="offcanvas"
                             data-bs-target="#createComponentOffcanvas"
                             aria-controls="createComponentOffcanvas">
                         {{__('Add Part')}}
                     </button>
+
+                    <!-- CSV Components -->
+                    <a href="{{ route('components.csv-components') }}" class="btn btn-outline-primary ms-5" style="height: 40px">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> {{__('CSV Parts')}}
+                    </a>
                 </div>
+                <script>
+                    (() => {
+                        try {
+                            const savedSearch = localStorage.getItem('components_search') || '';
+                            const savedManual = localStorage.getItem('components_manual_id') || '';
+                            const searchInput = document.getElementById('searchInput');
+                            const manualFilter = document.getElementById('manualFilter');
+                            if (searchInput) searchInput.value = savedSearch;
+                            if (manualFilter && Array.from(manualFilter.options).some(option => option.value === savedManual)) {
+                                manualFilter.value = savedManual;
+                            }
+                        } catch (e) {}
+                    })();
+                </script>
             </div>
 
                 <div class="table-wrapper me-3 p-2 pt-0 dir-panel"
@@ -519,6 +596,13 @@
                             <th class="text-center sortable">{{__('Name')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                             <th class="text-center">{{__('Assy')}}</th>
                             <th class="text-center">{{__('Image')}}</th>
+                            <th class="text-center component-flag-head" title="Log Card">LC</th>
+                            <th class="text-center component-flag-head" title="Bushing">Bush</th>
+                            <th class="text-center component-flag-head" title="Kit">Kit</th>
+                            <th class="text-center component-flag-head" title="NDT List">NDT</th>
+                            <th class="text-center component-flag-head" title="CAD List">CAD</th>
+                            <th class="text-center component-flag-head" title="Stress Relief List">Stress</th>
+                            <th class="text-center component-flag-head" title="Paint List">Paint</th>
                             <th class="text-center">{{__('Manual')}}</th>
                             <th class="text-center">{{__('Action')}}</th>
                         </tr>
@@ -527,7 +611,7 @@
                         @include('admin.components.partials.index-rows', ['components' => $components])
                         @if($componentsTotal === 0)
                             <tr class="components-empty-row">
-                                <td colspan="7" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
+                                <td colspan="14" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
                             </tr>
                         @endif
                         </tbody>
@@ -595,6 +679,26 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="drawer_is_bush" name="is_bush">
                                 <label class="form-check-label" for="drawer_is_bush">Is Bush</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="drawer_kit" name="kit">
+                                <label class="form-check-label" for="drawer_kit">Kit</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="drawer_ndt_list" name="ndt_list">
+                                <label class="form-check-label" for="drawer_ndt_list">NDT List</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="drawer_cad_list" name="cad_list">
+                                <label class="form-check-label" for="drawer_cad_list">CAD List</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="drawer_stress_relief_list" name="stress_relief_list">
+                                <label class="form-check-label" for="drawer_stress_relief_list">Stress Relief</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="drawer_paint_list" name="paint_list">
+                                <label class="form-check-label" for="drawer_paint_list">Paint List</label>
                             </div>
                         </div>
 
@@ -732,6 +836,26 @@
                                 <input class="form-check-input" type="checkbox" id="edit_drawer_is_bush" name="is_bush">
                                 <label class="form-check-label" for="edit_drawer_is_bush">Is Bush</label>
                             </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_drawer_kit" name="kit">
+                                <label class="form-check-label" for="edit_drawer_kit">Kit</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_drawer_ndt_list" name="ndt_list">
+                                <label class="form-check-label" for="edit_drawer_ndt_list">NDT List</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_drawer_cad_list" name="cad_list">
+                                <label class="form-check-label" for="edit_drawer_cad_list">CAD List</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_drawer_stress_relief_list" name="stress_relief_list">
+                                <label class="form-check-label" for="edit_drawer_stress_relief_list">Stress Relief</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_drawer_paint_list" name="paint_list">
+                                <label class="form-check-label" for="edit_drawer_paint_list">Paint List</label>
+                            </div>
                         </div>
 
                         <div class="mt-3 d-none" id="edit_drawer_bush_ipl_container">
@@ -820,8 +944,8 @@
                                             <li><strong>ipl_num</strong> - {{__('IPL number (required)')}}</li>
                                             <li><strong>assy_ipl_num</strong> - {{__('Assembly IPL number (optional)')}}</li>
                                             <li><strong>log_card</strong> - {{__('Log card (0 or 1, optional)')}}</li>
-                                            <li><strong>repair</strong> - {{__('Repair flag (0 or 1, optional)')}}</li>
                                             <li><strong>is_bush</strong> - {{__('Is bushing (0 or 1, optional)')}}</li>
+                                            <li><strong>kit</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
                                             <li><strong>bush_ipl_num</strong> - {{__('Bushing IPL number (optional)')}}</li>
                                         </ul>
                                         <div class="alert alert-info mt-3 mb-0">
@@ -1162,6 +1286,10 @@
                             if (isBush) isBush.checked = !!component.is_bush;
                             const logCard = document.getElementById('edit_drawer_log_card');
                             if (logCard) logCard.checked = !!component.log_card;
+                            ['kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].forEach((field) => {
+                                const checkbox = document.getElementById(`edit_drawer_${field}`);
+                                if (checkbox) checkbox.checked = !!component[field];
+                            });
 
                             let assemblies = Array.isArray(component.assemblies) ? component.assemblies : [];
                             if (!assemblies.length && (component.assy_ipl_num || component.assy_part_number || component.units_assy)) {
@@ -1287,7 +1415,7 @@
                         return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
                     };
 
-                    function initComponentsInfiniteIndex() {
+                    async function initComponentsInfiniteIndex() {
                         const table = document.getElementById('componentsTable');
                         const tbody = table?.querySelector('tbody');
                         const wrapper = document.getElementById('componentsTableWrapper');
@@ -1295,8 +1423,9 @@
                         const searchInput = document.getElementById('searchInput');
                         const searchClearBtn = document.getElementById('searchClearBtn');
                         const manualFilter = document.getElementById('manualFilter');
+                        const manualLockIcon = document.getElementById('componentsManualLockIcon');
+                        const addPartButton = document.getElementById('addPartButton');
                         const componentsCount = document.getElementById('componentsCount');
-                        const manualIndicator = document.getElementById('manualIndicator');
                         const sortableHeaders = Array.from(table?.querySelectorAll('th.sortable') || []);
 
                         if (!table || !tbody || !wrapper || !searchInput || !manualFilter) return;
@@ -1321,31 +1450,40 @@
                             const number = el.dataset.number;
                             const lib = el.dataset.lib;
                             const title = el.dataset.title;
+                            const locked = el.dataset.partsLocked === '1';
 
                             return `
                                 <div>
                                     <strong>${number}</strong>
                                     ${lib ? ` <span class="manual-option-lib">&nbsp;&nbsp; (${lib}) </span>` : ''}
                                     <span class="manual-option-title"> - ${title}</span>
+                                    ${locked ? '<i class="bi bi-lock-fill manual-part-lock-icon ms-2"></i>' : ''}
                                 </div>
                             `;
                         }
 
                         function formatManualSelected(state) {
-                            return state.id ? state.element.dataset.number : state.text;
+                            if (!state.id) return state.text;
+
+                            const number = state.element.dataset.number || '';
+                            const lib = state.element.dataset.lib || '';
+                            const locked = state.element.dataset.partsLocked === '1';
+                            const text = lib ? `${number} <span class="manual-selection-lib">(${lib})</span>` : number;
+                            return text + (locked ? '<i class="bi bi-lock-fill manual-part-lock-icon ms-2"></i>' : '');
                         }
 
-                        function updateManualIndicator() {
-                            if (!manualIndicator) return;
-
-                            if (!manualFilter.value) {
-                                manualIndicator.textContent = '';
-                                return;
+                        function updateManualPartLockUi() {
+                            const option = manualFilter.selectedOptions?.[0] || null;
+                            const locked = !!(option && option.value && option.dataset.partsLocked === '1');
+                            const lockedBy = option?.dataset.lockedBy || '';
+                            if (manualLockIcon) {
+                                manualLockIcon.classList.toggle('d-none', !locked);
+                                manualLockIcon.title = lockedBy ? `Locked by ${lockedBy}` : '{{ __('Manual parts are locked') }}';
                             }
-
-                            const optText = manualFilter.options[manualFilter.selectedIndex]?.text || '';
-                            const manualNumber = optText.split(' - ')[0].replace(/\(.+?\)/g, '').trim();
-                            manualIndicator.textContent = `Manual: ${manualNumber}`;
+                            if (addPartButton) {
+                                addPartButton.disabled = locked && !@json(auth()->user()?->canManageLockedManualParts() ?? false);
+                                addPartButton.title = addPartButton.disabled ? '{{ __('Manual parts are locked') }}' : '';
+                            }
                         }
 
                         function updateSortHeaders() {
@@ -1380,8 +1518,91 @@
                             });
                         }
 
+                        async function updateComponentFlag(input) {
+                            const previous = !input.checked;
+                            let bushIplNum = input.dataset.bushIplNum || '';
+
+                            if (input.dataset.field === 'is_bush') {
+                                if (input.checked) {
+                                    const entered = typeof window.inputDialog === 'function'
+                                        ? await window.inputDialog({
+                                            title: '{{ __('Initial Bushing IPL Number') }}',
+                                            message: '{{ __('Enter initial bushing IPL number.') }} {{ __('For example:') }} 1-230A',
+                                            value: bushIplNum,
+                                            okText: '{{ __('Save') }}',
+                                            cancelText: '{{ __('Cancel') }}',
+                                            pattern: '^\\d+-\\d+[A-Za-z]?$',
+                                            invalidMessage: '{{ __('Initial Bushing IPL Number format is invalid.') }}',
+                                        })
+                                        : null;
+                                    if (entered === null) {
+                                        input.checked = previous;
+                                        return;
+                                    }
+                                    bushIplNum = entered.trim();
+                                } else {
+                                    if (bushIplNum && typeof window.confirmDialog === 'function') {
+                                        const confirmed = await window.confirmDialog({
+                                            title: '{{ __('Clear Bushing IPL?') }}',
+                                            message: '{{ __('The entered Initial Bushing IPL Number will be cleared.') }}',
+                                            okText: '{{ __('Clear') }}',
+                                            cancelText: '{{ __('Cancel') }}',
+                                            danger: true,
+                                        });
+                                        if (!confirmed) {
+                                            input.checked = previous;
+                                            return;
+                                        }
+                                    }
+                                    bushIplNum = '';
+                                }
+                            }
+
+                            input.disabled = true;
+
+                            try {
+                                const payload = {
+                                    field: input.dataset.field,
+                                    value: input.checked ? 1 : 0,
+                                };
+
+                                if (input.dataset.field === 'is_bush') {
+                                    payload.bush_ipl_num = bushIplNum;
+                                }
+
+                                const response = await fetch(input.dataset.url, {
+                                    method: 'PATCH',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                        'Accept': 'application/json',
+                                    },
+                                    credentials: 'same-origin',
+                                    body: JSON.stringify(payload),
+                                });
+
+                                const data = await response.json().catch(() => ({}));
+                                if (!response.ok || !data.success) {
+                                    throw new Error(data.message || '{{ __('Failed to update flag') }}');
+                                }
+                                if (input.dataset.field === 'is_bush') {
+                                    input.dataset.bushIplNum = data.bush_ipl_num || '';
+                                    input.title = data.bush_ipl_num || 'Bush';
+                                }
+                            } catch (err) {
+                                console.error(err);
+                                input.checked = previous;
+                                if (typeof showNotification === 'function') {
+                                    showNotification(err.message || '{{ __('Failed to update flag') }}', 'error');
+                                }
+                            } finally {
+                                input.disabled = false;
+                            }
+                        }
+
                         function emptyRow() {
-                            return '<tr class="components-empty-row"><td colspan="7" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td></tr>';
+                            return '<tr class="components-empty-row"><td colspan="14" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td></tr>';
                         }
 
                         function currentParams(page) {
@@ -1457,9 +1678,8 @@
                             wrapper.scrollTop = 0;
                             state.hasMore = true;
                             state.page = 1;
-                            updateManualIndicator();
                             updateSortHeaders();
-                            loadPage(1, true);
+                            return loadPage(1, true);
                         }
 
                         async function restoreScrollPosition() {
@@ -1495,11 +1715,10 @@
                         const savedManual = localStorage.getItem(LS.manual) || '';
                         manualFilter.value = Array.from(manualFilter.options).some(o => o.value === savedManual) ? savedManual : '';
                         if (hasSelect2) window.jQuery(manualFilter).val(manualFilter.value).trigger('change.select2');
+                        updateManualPartLockUi();
 
-                        updateManualIndicator();
                         updateSortHeaders();
                         initAssyPopovers();
-                        wrapper.style.visibility = 'visible';
 
                         if (!table.dataset.infiniteBound) {
                             table.dataset.infiniteBound = '1';
@@ -1512,10 +1731,16 @@
                                 reloadFromFirstPage();
                             });
 
-                            manualFilter.addEventListener('change', reloadFromFirstPage);
+                            manualFilter.addEventListener('change', () => {
+                                updateManualPartLockUi();
+                                reloadFromFirstPage();
+                            });
 
                             if (hasSelect2) {
-                                window.jQuery(manualFilter).on('select2:select select2:clear', reloadFromFirstPage);
+                                window.jQuery(manualFilter).on('select2:select select2:clear', () => {
+                                    updateManualPartLockUi();
+                                    reloadFromFirstPage();
+                                });
                             }
 
                             sortableHeaders.forEach(th => {
@@ -1542,13 +1767,21 @@
                                 localStorage.setItem(LS.scrollY, String(wrapper.scrollTop || 0));
                             });
 
+                            tbody.addEventListener('change', (e) => {
+                                const input = e.target.closest('.component-flag-toggle');
+                                if (!input) return;
+                                updateComponentFlag(input);
+                            });
+
                             window.addEventListener('components:index-reload', reloadFromFirstPage);
                         }
 
                         const hasSavedState = (searchInput.value || manualFilter.value || state.sortCol !== 0 || state.sortDir !== 'asc');
                         if (hasSavedState) {
-                            reloadFromFirstPage();
+                            await reloadFromFirstPage();
+                            wrapper.style.visibility = 'visible';
                         } else {
+                            wrapper.style.visibility = 'visible';
                             restoreScrollPosition();
                         }
                     }

@@ -148,6 +148,17 @@
                                 <label for="can_manage_locked_manual_processes" class="form-check-label">Can manage locked manual processes in all manuals</label>
                             </div>
                         </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="can_manage_locked_manual_parts"
+                                       id="can_manage_locked_manual_parts"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('can_manage_locked_manual_parts') ? 'checked' : '' }}>
+                                <label for="can_manage_locked_manual_parts" class="form-check-label">Can manage locked manual parts in all manuals</label>
+                            </div>
+                        </div>
                     </div>
 
                     {{-- Buttons --}}

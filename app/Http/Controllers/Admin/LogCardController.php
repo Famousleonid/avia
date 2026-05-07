@@ -75,6 +75,7 @@ class LogCardController extends Controller
                 'current_wo',
                 'log_card',
                 'codes',
+                'componentData',
                 'presetByIplGroup',
                 'separateQueue',
                 'tabMeta'
@@ -124,7 +125,8 @@ class LogCardController extends Controller
         $necessary = Necessary::where('name', 'Order New')->first();
         $code = Code::where('name', 'Missing')->first();
 
-        $components = Component::where('manual_id', $manual_id)
+        $components = Component::with(['assemblies'])
+            ->where('manual_id', $manual_id)
             ->where('log_card', 1)
             ->orderBy('ipl_num', 'asc')
             ->get();
@@ -618,7 +620,22 @@ class LogCardController extends Controller
      */
     public function destroy($id)
     {
-        //
+        $log_card = LogCard::findOrFail($id);
+        $workorderId = $log_card->workorder_id;
+        $log_card->delete();
+
+        request()->session()->flash('success', 'Log Card reset successfully!');
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Log Card reset successfully!',
+                'workorder_id' => $workorderId,
+            ]);
+        }
+
+        return redirect()->route('tdrs.show', ['id' => $workorderId])
+            ->with('success', 'Log Card reset successfully!');
     }
 
     /**

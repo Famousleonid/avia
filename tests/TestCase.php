@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\File;
@@ -13,6 +14,8 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->withoutMiddleware(VerifyCsrfToken::class);
 
         $runtimePath = base_path('codex-test-runtime');
         $viewPath = $runtimePath . DIRECTORY_SEPARATOR . 'views';

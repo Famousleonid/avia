@@ -67,12 +67,11 @@ class AuditDuplicateComponents extends Command
                 'pn' => $component['part_number'],
                 'ipl' => $component['ipl_num'],
                 'log' => $component['log_card'] ? 'yes' : 'no',
-                'repair' => $component['repair'] ? 'yes' : 'no',
                 'refs' => $component['total_refs'],
                 'ref detail' => $this->formatRefs($component['refs']),
             ])->all();
 
-            $this->table(['id', 'name', 'pn', 'ipl', 'log', 'repair', 'refs', 'ref detail'], $rows);
+            $this->table(['id', 'name', 'pn', 'ipl', 'log', 'refs', 'ref detail'], $rows);
 
             if ($report['suggested_canonical_id']) {
                 $this->line('Suggested canonical by most refs: '.$report['suggested_canonical_id']);
@@ -132,7 +131,6 @@ class AuditDuplicateComponents extends Command
                     'ipl_num' => (string) $component->ipl_num,
                     'manual_id' => (int) $component->manual_id,
                     'log_card' => (bool) $component->log_card,
-                    'repair' => (bool) $component->repair,
                     'refs' => $refs,
                     'total_refs' => array_sum($refs),
                     'created_at' => (string) $component->created_at,

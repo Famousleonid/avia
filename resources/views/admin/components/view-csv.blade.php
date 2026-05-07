@@ -52,7 +52,7 @@
                                             @foreach($headers as $colIndex => $header)
                                                 <td class="text-center">
                                                     @if(isset($row[$colIndex]))
-                                                        @if(in_array($header, ['log_card', 'repair', 'is_bush']))
+                                                        @if(in_array($header, ['log_card', 'is_bush', 'kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list']))
                                                             @if($row[$colIndex] == '1' || $row[$colIndex] == 'true')
                                                                 <span class="badge bg-success">Yes</span>
                                                             @else

@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\GeneralTaskController;
 use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\ManualProcessController;
 use App\Http\Controllers\Admin\ManualProcessLockController;
+use App\Http\Controllers\Admin\ManualPartLockController;
 use App\Http\Controllers\Admin\ProcessController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RmReportController;
@@ -303,6 +304,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     // Components editing from inspection
     Route::get('/components/{component}/json', [ComponentController::class, 'showJson'])->name('components.showJson');
+    Route::patch('/components/{component}/flags', [ComponentController::class, 'updateFlags'])->name('components.updateFlags');
     Route::post('/components/{component}/update-from-inspection', [ComponentController::class, 'updateFromInspection'])->name('components.updateFromInspection');
 
     Route::patch('/components/{component}/single', [ComponentController::class, 'updateSingle'])->name('components.updateSingle');
@@ -314,6 +316,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::delete('manuals/{manual}/process-name-locks/{processName}', [ManualProcessLockController::class, 'unlockProcessName'])->name('manuals.process-name-locks.unlock');
     Route::post('manuals/{manual}/manual-process-locks/{manualProcess}', [ManualProcessLockController::class, 'lockManualProcess'])->name('manuals.manual-process-locks.lock');
     Route::delete('manuals/{manual}/manual-process-locks/{manualProcess}', [ManualProcessLockController::class, 'unlockManualProcess'])->name('manuals.manual-process-locks.unlock');
+    Route::post('manuals/{manual}/part-lock', [ManualPartLockController::class, 'lock'])->name('manuals.part-lock.lock');
+    Route::delete('manuals/{manual}/part-lock', [ManualPartLockController::class, 'unlock'])->name('manuals.part-lock.unlock');
 
 
     Route::resource('/log_card', LogCardController::class);
@@ -385,6 +389,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/quality-assurance/workorder', [QualityAssuranceController::class, 'workorder'])->name('quality.workorder');
     Route::get('/quality-assurance/workorders/{workorder}/shipment-release-form', [QualityAssuranceController::class, 'shipmentReleaseForm'])
         ->name('quality.forms.shipment_release');
+    Route::get('/quality-assurance/workorders/{workorder}/log-card-form', [QualityAssuranceController::class, 'logCardForm'])
+        ->name('quality.forms.log_card');
     Route::post('/quality-assurance/workorders/{workorder}/quality-documents', [QualityAssuranceController::class, 'storeQualityDocuments'])
         ->name('quality.documents.store');
     Route::delete('/quality-assurance/workorders/{workorder}/quality-documents/{media}', [QualityAssuranceController::class, 'destroyQualityDocument'])

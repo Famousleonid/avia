@@ -42,8 +42,14 @@ class ManualController extends Controller
         }
 
         $cmms = $query->get();
+        $planes = Plane::all();
+        $builders = Builder::all();
+        $scopes = Scope::all();
+        $users = auth()->user()?->roleIs('Admin')
+            ? User::orderBy('name')->get(['id', 'name', 'email'])
+            : collect();
 
-        return view('admin.manuals.index', compact('cmms'));
+        return view('admin.manuals.index', compact('cmms', 'planes', 'builders', 'scopes', 'users'));
 
     }
 
@@ -109,7 +115,7 @@ class ManualController extends Controller
             'csv_process_types.*' => 'nullable|in:ndt,cad,stress_relief,log,other',
         ]);
 
-        DB::transaction(function () use ($request) {
+        $manual = DB::transaction(function () use ($request) {
             // Создаем новый CMM
             $manual = Manual::create($request->only([
                 'number', 'title', 'revision_date', 'unit_name','unit_name_training','training_hours','ovh_life','reg_sb',
@@ -159,6 +165,8 @@ class ManualController extends Controller
 
                 }
             }
+
+            return $manual;
         });
 
         $message = 'CMM created successfully';
@@ -171,6 +179,14 @@ class ManualController extends Controller
             }
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'manual_id' => $manual->id,
+            ]);
+        }
+
         return redirect()->route('manuals.index')->with('success', $message);
     }
 
@@ -180,6 +196,7 @@ class ManualController extends Controller
     {
         $cmm = Manual::findOrFail($id);
         $this->ensureManualAccess($cmm);
+        $cmm->load('partLock.lockedBy');
 
         $manualTabKeys = ['components', 'parts', 'processes', 'std'];
         $manualShowTab = in_array(request('tab'), $manualTabKeys, true) ? request('tab') : 'components';
@@ -192,7 +209,7 @@ class ManualController extends Controller
         $units = Unit::where('manual_id', $cmm->id)->get();
 
 // Parts (sorted by IPL Number in natural order: 1-10, 1-20, 1-20A, 1-30, ...)
-        $parts = Component::where('manual_id', $cmm->id)->get()->sortBy(function ($part) {
+        $parts = Component::with(['assemblies', 'manual.partLock.lockedBy'])->where('manual_id', $cmm->id)->get()->sortBy(function ($part) {
             $ipl = $part->ipl_num ?? '';
 
             // Ожидаемый формат: "1-10", "1-20A" и т.п.
@@ -212,6 +229,13 @@ class ManualController extends Controller
 
             // Keep the full suffix so 6-70RS sorts before 6-70RS20.
             return sprintf('%06d-%04d-%06d-%04d-%s', $section, $sectionSuffixVal, $number, $suffixVal, $suffix);
+        })->values();
+
+        $parts = $parts->sort(function (Component $a, Component $b) {
+            $aKey = $this->componentIplSortKey($a->ipl_num);
+            $bKey = $this->componentIplSortKey($b->ipl_num);
+
+            return $aKey <=> $bKey ?: $a->id <=> $b->id;
         })->values();
 
 
@@ -256,6 +280,9 @@ class ManualController extends Controller
             ->values();
 
         $userCanManageLockedManualProcesses = auth()->user()?->canManageLockedManualProcesses() ?? false;
+        $userCanManageLockedManualParts = auth()->user()?->canManageLockedManualParts() ?? false;
+        $manualPartLock = $cmm->partLock;
+        $manualPartsLocked = $manualPartLock !== null;
 
         if (in_array($manualShowTab, ['std'], true)) {
             StdProcess::syncEmptyTypesFromMedia($cmm);
@@ -296,7 +323,7 @@ class ManualController extends Controller
         ];
 
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
-        'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists'
+        'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists'
         ));
 
     }
@@ -313,6 +340,32 @@ class ManualController extends Controller
             ->pluck('users.id')
             ->map(fn ($id) => (int) $id)
             ->all();
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'manual' => [
+                    'id' => $cmm->id,
+                    'number' => $cmm->number,
+                    'title' => $cmm->title,
+                    'revision_date' => $cmm->revision_date,
+                    'unit_name' => $cmm->unit_name,
+                    'unit_name_training' => $cmm->unit_name_training,
+                    'training_hours' => $cmm->training_hours,
+                    'ovh_life' => $cmm->ovh_life,
+                    'reg_sb' => $cmm->reg_sb,
+                    'planes_id' => $cmm->planes_id,
+                    'builders_id' => $cmm->builders_id,
+                    'scopes_id' => $cmm->scopes_id,
+                    'lib' => $cmm->lib,
+                    'units' => $cmm->units->map(fn ($unit) => [
+                        'part_number' => $unit->part_number,
+                        'name' => $unit->name,
+                    ])->values(),
+                    'permitted_user_ids' => $permittedUserIds,
+                ],
+            ]);
+        }
 
         return view('admin.manuals.edit', compact('cmm', 'planes', 'builders', 'scopes', 'users', 'permittedUserIds'));
     }
@@ -362,7 +415,7 @@ class ManualController extends Controller
         // CSV файлы теперь загружаются только через AJAX (ManualCsvController)
         // Удаляем обработку csv_files из основной формы
 
-        $cmm->update($validatedData);
+        $cmm->update(collect($validatedData)->except('permitted_user_ids')->all());
 
         // Обновляем units если они предоставлены
         if ($request->has('units') && is_array($request->units)) {
@@ -436,6 +489,13 @@ class ManualController extends Controller
             $cmm->permittedUsers()->sync($request->input('permitted_user_ids', []));
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+            ]);
+        }
+
         return redirect()->route('manuals.index')->with('success', $message);
     }
 
@@ -466,6 +526,22 @@ class ManualController extends Controller
 
         $allowed = $manual->permittedUsers()->where('users.id', $user->id)->exists();
         abort_unless($allowed, 403);
+    }
+
+    private function componentIplSortKey(?string $ipl): array
+    {
+        $value = trim((string) $ipl);
+
+        if (! preg_match('/^(\d+)-(\d+)([A-Za-z]*)$/', $value, $matches)) {
+            return [1, 0, 0, strtoupper($value)];
+        }
+
+        return [
+            0,
+            (int) $matches[1],
+            (int) $matches[2],
+            strtoupper($matches[3] ?? ''),
+        ];
     }
 }
 

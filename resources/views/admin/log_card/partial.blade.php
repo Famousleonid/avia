@@ -1,192 +1,146 @@
 @php
     $hasRows = $groupedComponents->isNotEmpty() || $separateComponents->isNotEmpty();
+    $componentData = isset($componentData) && is_array($componentData) ? $componentData : [];
+    $hasSavedLogCard = $log_card && !empty($componentData);
 @endphp
 
-<div id="log-card-partial-shell" class="log-card-partial log-card-shell"
+<div id="log-card-partial-shell" class="log-card-partial"
      data-workorder-id="{{ $current_wo->id }}"
-     data-log-card-id="{{ $log_card->id ?? '' }}">
+     data-log-card-id="{{ $log_card->id ?? '' }}"
+     data-state="{{ $hasSavedLogCard ? 'saved' : 'draft' }}">
     <script type="application/json" id="log-card-tab-meta">@json($tabMeta)</script>
 
     <style>
-        .log-card-shell.log-card-shell--editing .lc-when-view { display: none !important; }
-        .log-card-shell:not(.log-card-shell--editing) .lc-when-edit { display: none !important; }
-        /* Multi-variant IPL: in view mode one summary row only; detail rows visible in Edit */
-        .log-card-shell:not(.log-card-shell--editing) tr.lc-variant-detail-collapsed-empty { display: none !important; }
-        .log-card-shell.log-card-shell--editing tr.lc-variant-summary-empty-single,
-        .log-card-shell.log-card-shell--editing tr.lc-variant-summary-selected { display: none !important; }
-        .log-card-partial .table-scroll-container { max-height: calc(100vh - 320px); overflow-y: auto; }
+        .log-card-partial .table-scroll-container {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: none;
+            overflow-y: auto;
+        }
+        .log-card-partial {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            width: 100%;
+        }
         .log-card-partial .table-scroll-container thead th {
-            position: sticky; top: 0; z-index: 5; background: var(--bs-table-bg, #031e3a);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            background: var(--bs-table-bg, #031e3a);
+        }
+        .log-card-partial .lc-option-line {
+            display: flex;
+            gap: .45rem;
+            align-items: flex-start;
+        }
+        .log-card-partial .lc-option-line .form-check-input {
+            margin-top: .15rem;
+        }
+        .log-card-partial .lc-assy-choice {
+            margin-top: 0;
+            padding-top: 0;
+        }
+        .log-card-partial .lc-assy-choice .form-check {
+            margin-bottom: .15rem;
+        }
+        .log-card-partial .lc-assy-choice label {
+            cursor: pointer;
+        }
+        .log-card-partial .lc-inline-input {
+            min-width: 130px;
         }
     </style>
 
-    @if(!$hasRows)
+    @if(!$hasRows && !$hasSavedLogCard)
         <p class="text-center text-muted mt-3">{{ __('No components with log_card=1 for this manual.') }}</p>
-    @else
+    @elseif(!$hasSavedLogCard)
         <div class="table-responsive table-scroll-container">
             <table class="table table-bordered table-hover dir-table align-middle bg-gradient">
                 <thead class="table-dark">
                     <tr>
-                        <th class="text-primary text-center">{{ __('Description') }}</th>
-                        <th class="text-primary text-center">{{ __('Part Number') }} / {{ __('Assy PN') }}</th>
-                        <th class="text-primary text-center lc-when-edit">{{ __('Select') }}</th>
-                        <th class="text-primary text-center">{{ __('Serial Number') }}</th>
-                        <th class="text-primary text-center">{{ __('ASSY Serial Number') }}</th>
-                        <th class="text-primary text-center">{{ __('Reason to Removed') }}</th>
+                        <th class="text-primary text-center" style="width: 55%;">{{ __('Description') }} / {{ __('Part Number') }}</th>
+                        <th class="text-primary text-center">{{ __('Assy') }} ({{ __('IPL') }} / {{ __('Part Number') }})</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($groupedComponents as $groupIndex => $group)
                         @php
-                            $iplKey = $group['ipl_group'];
-                            $preset = $presetByIplGroup[$iplKey] ?? null;
-                            $savedCid = isset($preset['component_id']) ? (int) $preset['component_id'] : null;
                             $compList = $group['components'];
                             $onlyOne = $compList->count() === 1;
-                            $firstEntity = $compList->first();
-                            $defaultCid = $firstEntity['component']->id ?? null;
-                            $effectiveCid = $savedCid ?: ($onlyOne ? $defaultCid : null);
-                            $sn = $preset['serial_number'] ?? '';
-                            $asy = $preset['assy_serial_number'] ?? '';
-                            $rid = $preset['reason'] ?? '';
-                            $descComponent = $firstEntity['component'];
-                            if ($effectiveCid) {
-                                $hit = $compList->first(static function ($x) use ($effectiveCid) {
-                                    return (int) $x['component']->id === (int) $effectiveCid;
-                                });
-                                if ($hit) {
-                                    $descComponent = $hit['component'];
-                                }
-                            }
-                            $compactVariantView = ! $log_card && ($group['has_multiple'] ?? false);
-                            $collapseDetailInView = ($group['has_multiple'] ?? false)
-                                && ((! $log_card) || ($log_card && $effectiveCid));
-                            $summaryComponentPlaceholder = null;
-                            if ($compactVariantView) {
-                                $summaryComponentPlaceholder = $group['components']
-                                    ->sortBy(static function ($x) {
-                                        return $x['component']->ipl_num ?? '';
-                                    })
-                                    ->last()['component'];
-                            }
                         @endphp
-                        @if($compactVariantView && $summaryComponentPlaceholder)
-                            <tr class="lc-variant-summary-empty-single lc-when-view">
-                                <td class="align-middle">
-                                    {{ $summaryComponentPlaceholder->name }} ({{ $summaryComponentPlaceholder->ipl_num }})
-                                    <br><span class="text-muted small">{{ __(':count IPL variants — :hint', ['count' => $group['count'], 'hint' => __('Use Enter Data to choose the variant.')]) }}</span>
-                                </td>
-                                <td class="text-start ps-3">
-                                    {{ $summaryComponentPlaceholder->part_number }}
-                                    @if($summaryComponentPlaceholder->assy_part_number)
-                                        / {{ $summaryComponentPlaceholder->assy_part_number }}
-                                    @endif
-                                </td>
-                                {{-- Same as other rows: column must use lc-when-edit so hide in view matches thead "Select" --}}
-                                <td class="lc-when-edit"></td>
-                                <td>{{ $sn }}</td>
-                                <td>{{ $asy }}</td>
-                                <td>@php $codSv = $rid ? $codes->firstWhere('id', $rid) : null; @endphp {{ $codSv ? $codSv->name : '' }}</td>
-                            </tr>
-                        @elseif($collapseDetailInView && $log_card && $effectiveCid)
-                            <tr class="lc-variant-summary-selected lc-when-view">
-                                <td class="align-middle">{{ $descComponent->name }} ({{ $descComponent->ipl_num }})</td>
-                                <td class="text-start ps-3">
-                                    {{ $descComponent->part_number }}
-                                    @if($descComponent->assy_part_number)
-                                        / {{ $descComponent->assy_part_number }}
-                                    @endif
-                                </td>
-                                <td class="lc-when-edit"></td>
-                                <td>{{ $sn }}</td>
-                                <td>{{ $asy }}</td>
-                                <td>
-                                    @php $codSv = $rid ? $codes->firstWhere('id', $rid) : null; @endphp
-                                    {{ $codSv ? $codSv->name : '' }}
-                                </td>
-                            </tr>
-                        @endif
-                        @foreach($group['components'] as $i => $componentData)
+                        @foreach($compList as $i => $componentDataRow)
                             @php
-                                $component = $componentData['component'];
-                                $reasonDef = $componentData['reason_for_remove'] ?? '';
-                                $isChecked = $effectiveCid && (int) $component->id === (int) $effectiveCid;
-                                if (!$savedCid && $onlyOne) {
-                                    $isChecked = true;
-                                }
+                                $component = $componentDataRow['component'];
+                                $assemblyRows = ($component->relationLoaded('assemblies') ? $component->assemblies : collect())
+                                    ->filter(function ($assembly) {
+                                        return filled($assembly->assy_part_number ?? null)
+                                            || filled($assembly->assy_ipl_num ?? null);
+                                    })
+                                    ->values();
+                                $defaultAssemblyId = $assemblyRows->first()->id ?? null;
+                                $componentInputName = 'lc_selected_component['.$groupIndex.']';
+                                $assemblyInputName = 'lc_selected_assembly['.$groupIndex.']';
                             @endphp
-                            <tr @if(!empty($collapseDetailInView)) class="lc-variant-detail-collapsed-empty" @endif>
-                                @if($i === 0)
-                                    <td rowspan="{{ $group['count'] }}" class="align-middle">
-                                        <span class="lc-when-view">{{ $descComponent->name }} ({{ $descComponent->ipl_num }})</span>
-                                        <span class="lc-when-edit">{{ $descComponent->name }} ({{ $descComponent->ipl_num }})</span>
-                                    </td>
-                                @endif
-                                <td class="text-start ps-3">
-                                    {{ $component->part_number }}
-                                    @if($component->assy_part_number)
-                                        / {{ $component->assy_part_number }}
+                            <tr>
+                                <td>
+                                    @if($onlyOne)
+                                        <input type="hidden"
+                                               name="{{ $componentInputName }}"
+                                               value="{{ $component->id }}"
+                                               data-ipl-group="{{ $group['ipl_group'] }}">
+                                        {{ $component->name }} ({{ $component->ipl_num }}) / {{ $component->part_number }}
+                                    @else
+                                        <label class="lc-option-line mb-0">
+                                            <input type="radio"
+                                                   class="form-check-input lc-comp-radio"
+                                                   name="{{ $componentInputName }}"
+                                                   value="{{ $component->id }}"
+                                                   data-ipl-group="{{ $group['ipl_group'] }}"
+                                                   @checked($i === 0)>
+                                            <span>{{ $component->name }} ({{ $component->ipl_num }}) / {{ $component->part_number }}</span>
+                                        </label>
                                     @endif
                                 </td>
-                                @if($group['has_multiple'])
-                                    <td class="text-center lc-when-edit">
-                                        <input type="radio"
-                                               class="lc-comp-radio component-radio"
-                                               name="lc_selected_component[{{ $groupIndex }}]"
-                                               value="{{ $component->id }}"
-                                               {{ $isChecked ? 'checked' : '' }}>
-                                    </td>
-                                @elseif($i === 0)
-                                    <td class="text-center lc-when-edit">
-                                        @foreach($group['components'] as $solo)
-                                            <input type="hidden" name="lc_selected_component[{{ $groupIndex }}]" value="{{ $solo['component']->id }}">
-                                        @endforeach
-                                        <span class="text-muted small">—</span>
-                                    </td>
-                                @endif
-                                @if($i === 0)
-                                    <td class="align-middle" rowspan="{{ $group['count'] }}">
-                                        <span class="lc-when-view">{{ $sn }}</span>
-                                        <span class="lc-when-edit">
-                                            <input type="text"
-                                                   class="form-control form-control-sm serial-number-input lc-sn"
-                                                   data-group-index="{{ $groupIndex }}"
-                                                   name="lc_serial_numbers[{{ $groupIndex }}]"
-                                                   value="{{ $sn }}"
-                                                   placeholder="{{ __('Serial Number') }}">
-                                        </span>
-                                    </td>
-                                    <td class="align-middle" rowspan="{{ $group['count'] }}">
-                                        <span class="lc-when-view">{{ $asy }}</span>
-                                        <span class="lc-when-edit">
-                                            @if($descComponent->assy_part_number)
-                                                <input type="text"
-                                                       class="form-control form-control-sm lc-assy-sn"
-                                                       data-group-index="{{ $groupIndex }}"
-                                                       name="lc_assy_serial_numbers[{{ $groupIndex }}]"
-                                                       value="{{ $asy }}"
-                                                       placeholder="{{ __('ASSY Serial Number') }}">
-                                            @endif
-                                        </span>
-                                    </td>
-                                    <td class="align-middle" rowspan="{{ $group['count'] }}">
-                                        @php
-                                            $codV = $rid ? $codes->firstWhere('id', $rid) : null;
-                                            $reasonLabelView = $codV ? $codV->name : '';
-                                        @endphp
-                                        <span class="lc-when-view">{{ $reasonLabelView }}</span>
-                                        <span class="lc-when-edit">
-                                            <select class="form-control form-control-sm reason-select lc-reason"
-                                                    name="lc_reasons[{{ $groupIndex }}]"
-                                                    data-group-index="{{ $groupIndex }}">
-                                                <option value="">{{ __('Reason (Optional)') }}</option>
-                                                @foreach($codes as $c)
-                                                    <option value="{{ $c->id }}" @selected((string)$rid === (string)$c->id)>{{ $c->name }}</option>
+                                <td class="text-start ps-3">
+                                    @if($assemblyRows->isNotEmpty())
+                                        <div class="lc-assy-choice" data-component-id="{{ $component->id }}">
+                                            @if($assemblyRows->count() > 1)
+                                                @foreach($assemblyRows as $assembly)
+                                                    @php $assyId = 'lc-assy-'.$groupIndex.'-'.$assembly->id; @endphp
+                                                    <div class="form-check">
+                                                       <input type="radio"
+                                                              id="{{ $assyId }}"
+                                                               class="form-check-input lc-assy-radio {{ (!$onlyOne && $i !== 0) ? 'd-none' : '' }}"
+                                                               name="{{ $assemblyInputName }}"
+                                                               value="{{ $assembly->id }}"
+                                                               data-component-id="{{ $component->id }}"
+                                                               data-assy-part-number="{{ $assembly->assy_part_number }}"
+                                                               data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
+                                                               data-units-assy="{{ $assembly->units_assy }}"
+                                                               @checked(($onlyOne || $i === 0) && (int) $defaultAssemblyId === (int) $assembly->id)>
+                                                        <label class="form-check-label small" for="{{ $assyId }}">
+                                                            {{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}
+                                                        </label>
+                                                    </div>
                                                 @endforeach
-                                            </select>
-                                        </span>
-                                    </td>
-                                @endif
+                                            @else
+                                                @php $assembly = $assemblyRows->first(); @endphp
+                                                <input type="hidden"
+                                                       name="{{ $assemblyInputName }}"
+                                                       value="{{ $assembly->id }}"
+                                                       data-component-id="{{ $component->id }}"
+                                                       data-assy-part-number="{{ $assembly->assy_part_number }}"
+                                                       data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
+                                                       data-units-assy="{{ $assembly->units_assy }}">
+                                                <div class="small text-muted">{{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}</div>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     @endforeach
@@ -194,67 +148,144 @@
                     @foreach($separateComponents as $index => $row)
                         @php
                             $component = $row['component'];
-                            $preset = $separateQueue[$index] ?? null;
-                            $sn = $preset['serial_number'] ?? '';
-                            $asy = $preset['assy_serial_number'] ?? '';
-                            $rid = $preset['reason'] ?? '';
-                            $reasonDef = $row['reason_for_remove'] ?? '';
-                            $unitIndex = $row['unit_index'];
-                            $unitsAssy = $row['units_assy'];
-                            $codS = $rid ? $codes->firstWhere('id', $rid) : null;
-                            $reasonLabelView = $codS ? $codS->name : '';
+                            $assemblyRows = ($component->relationLoaded('assemblies') ? $component->assemblies : collect())
+                                ->filter(function ($assembly) {
+                                    return filled($assembly->assy_part_number ?? null)
+                                        || filled($assembly->assy_ipl_num ?? null);
+                                })
+                                ->values();
+                            $assemblyInputName = 'lc_selected_assembly[separate_'.$index.']';
                         @endphp
                         <tr>
                             <td>
-                                <span class="lc-when-view">{{ $component->name }} ({{ $component->ipl_num }})<br>
-                                    <small class="text-muted">{{ __('Unit') }} {{ $unitIndex }} {{ __('of') }} {{ $unitsAssy }}</small>
-                                </span>
-                                <span class="lc-when-edit">{{ $component->name }} ({{ $component->ipl_num }})<br>
-                                    <small class="text-muted">{{ __('Unit') }} {{ $unitIndex }} {{ __('of') }} {{ $unitsAssy }}</small>
-                                </span>
+                                <input type="hidden"
+                                       name="lc_selected_component[separate_{{ $index }}]"
+                                       value="{{ $component->id }}"
+                                       data-unit-index="{{ $row['unit_index'] }}"
+                                       data-units-assy="{{ $row['units_assy'] }}">
+                                {{ $component->name }} ({{ $component->ipl_num }}) / {{ $component->part_number }}
+                                <br><small class="text-muted">{{ __('Unit') }} {{ $row['unit_index'] }} {{ __('of') }} {{ $row['units_assy'] }}</small>
                             </td>
                             <td class="text-start ps-3">
-                                {{ $component->part_number }}
-                                @if($component->assy_part_number)
-                                    / {{ $component->assy_part_number }}
+                                @if($assemblyRows->isNotEmpty())
+                                    <div class="lc-assy-choice" data-component-id="{{ $component->id }}">
+                                        @if($assemblyRows->count() > 1)
+                                            @foreach($assemblyRows as $assembly)
+                                                @php $assyId = 'lc-assy-separate-'.$index.'-'.$assembly->id; @endphp
+                                                <div class="form-check">
+                                                    <input type="radio"
+                                                           id="{{ $assyId }}"
+                                                           class="form-check-input lc-assy-radio"
+                                                           name="{{ $assemblyInputName }}"
+                                                           value="{{ $assembly->id }}"
+                                                           data-component-id="{{ $component->id }}"
+                                                           data-assy-part-number="{{ $assembly->assy_part_number }}"
+                                                           data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
+                                                           data-units-assy="{{ $assembly->units_assy }}"
+                                                           @checked($loop->first)>
+                                                    <label class="form-check-label small" for="{{ $assyId }}">
+                                                        {{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}
+                                                    </label>
+                                                </div>
+                                            @endforeach
+                                        @else
+                                            @php $assembly = $assemblyRows->first(); @endphp
+                                            <input type="hidden"
+                                                   name="{{ $assemblyInputName }}"
+                                                   value="{{ $assembly->id }}"
+                                                   data-component-id="{{ $component->id }}"
+                                                   data-assy-part-number="{{ $assembly->assy_part_number }}"
+                                                   data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
+                                                   data-units-assy="{{ $assembly->units_assy }}">
+                                            <div class="small text-muted">{{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}</div>
+                                        @endif
+                                    </div>
+                                @else
+                                    <span class="text-muted">-</span>
                                 @endif
                             </td>
-                            <td class="text-center lc-when-edit">
-                                <input type="hidden" name="lc_selected_component[separate_{{ $index }}]" value="{{ $component->id }}">
-                                <span class="text-muted small">—</span>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @else
+        <div class="table-responsive table-scroll-container">
+            <table class="table table-bordered table-hover dir-table align-middle bg-gradient">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="text-primary text-center">{{ __('Description') }} / {{ __('Part Number') }}</th>
+                        <th class="text-primary text-center">{{ __('Serial Number') }}</th>
+                        <th class="text-primary text-center">{{ __('Part Number Assy') }}</th>
+                        <th class="text-primary text-center">{{ __('ASSY Serial Number') }}</th>
+                        <th class="text-primary text-center">{{ __('Reason to Removed') }}</th>
+                        <th class="text-primary text-center">{{ __('New Serial Number') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($componentData as $index => $item)
+                        @php
+                            $component = $components->firstWhere('id', (int) ($item['component_id'] ?? 0));
+                            if (!$component) {
+                                continue;
+                            }
+                            $assemblyId = $item['component_assembly_id'] ?? '';
+                            $assyPartNumber = $item['assy_part_number'] ?? '';
+                            $assyIplNum = $item['assy_ipl_num'] ?? '';
+                            if (!$assyPartNumber && $assemblyId && $component->relationLoaded('assemblies')) {
+                                $assembly = $component->assemblies->firstWhere('id', (int) $assemblyId);
+                                $assyPartNumber = $assembly->assy_part_number ?? '';
+                                $assyIplNum = $assembly->assy_ipl_num ?? $assyIplNum;
+                            }
+                        @endphp
+                        <tr class="lc-saved-row"
+                            data-component-id="{{ $component->id }}"
+                            data-ipl-group="{{ $item['ipl_group'] ?? '' }}"
+                            data-component-assembly-id="{{ $assemblyId }}"
+                            data-assy-part-number="{{ $assyPartNumber }}"
+                            data-assy-ipl-num="{{ $assyIplNum }}"
+                            data-units-assy="{{ $item['units_assy'] ?? '' }}">
+                            <td>
+                                {{ $component->name }} ({{ $component->ipl_num }}) / {{ $component->part_number }}
+                                @if(!empty($item['unit_index']) && !empty($item['units_assy']))
+                                    <br><small class="text-muted">{{ __('Unit') }} {{ $item['unit_index'] }} {{ __('of') }} {{ $item['units_assy'] }}</small>
+                                @endif
                             </td>
                             <td>
-                                <span class="lc-when-view">{{ $sn }}</span>
-                                <span class="lc-when-edit">
-                                    <input type="text"
-                                           class="form-control form-control-sm lc-sn"
-                                           name="lc_serial_numbers[separate_{{ $index }}]"
-                                           value="{{ $sn }}"
-                                           placeholder="{{ __('Serial Number') }}">
-                                </span>
+                                <input type="text"
+                                       class="form-control form-control-sm lc-inline-input lc-saved-field"
+                                       name="serial_number"
+                                       value="{{ $item['serial_number'] ?? '' }}"
+                                       placeholder="{{ __('Serial Number') }}">
+                            </td>
+                            <td class="text-start ps-3">
+                                @if($assyPartNumber || $assyIplNum)
+                                    {{ $assyPartNumber ?: $assyIplNum }}
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
                             </td>
                             <td>
-                                <span class="lc-when-view">{{ $asy }}</span>
-                                <span class="lc-when-edit">
-                                    @if($component->assy_part_number)
-                                        <input type="text"
-                                               class="form-control form-control-sm lc-assy-sn"
-                                               name="lc_assy_serial_numbers[separate_{{ $index }}]"
-                                               value="{{ $asy }}"
-                                               placeholder="{{ __('ASSY Serial Number') }}">
-                                    @endif
-                                </span>
+                                <input type="text"
+                                       class="form-control form-control-sm lc-inline-input lc-saved-field"
+                                       name="assy_serial_number"
+                                       value="{{ $item['assy_serial_number'] ?? '' }}"
+                                       placeholder="{{ __('ASSY Serial Number') }}">
                             </td>
                             <td>
-                                <span class="lc-when-view">{{ $reasonLabelView }}</span>
-                                <span class="lc-when-edit">
-                                    <select class="form-control form-control-sm reason-select lc-reason" name="lc_reasons[separate_{{ $index }}]">
-                                        <option value="">{{ __('Reason (Optional)') }}</option>
-                                        @foreach($codes as $c)
-                                            <option value="{{ $c->id }}" @selected((string)$rid === (string)$c->id)>{{ $c->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </span>
+                                <select class="form-control form-control-sm lc-inline-input lc-saved-field" name="reason">
+                                    <option value="">{{ __('Reason') }}</option>
+                                    @foreach($codes as $c)
+                                        <option value="{{ $c->id }}" @selected((string) ($item['reason'] ?? '') === (string) $c->id)>{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text"
+                                       class="form-control form-control-sm lc-inline-input lc-saved-field"
+                                       name="new_serial_number"
+                                       value="{{ $item['new_serial_number'] ?? '' }}"
+                                       placeholder="{{ __('New Serial Number') }}">
                             </td>
                         </tr>
                     @endforeach

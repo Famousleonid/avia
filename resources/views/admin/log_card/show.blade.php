@@ -195,6 +195,7 @@
                         $comp = $components->firstWhere('id', $item['component_id']);
                         $hasSerialNumber = !empty($item['serial_number']);
                         $hasAssySerialNumber = isset($item['assy_serial_number']) && !empty($item['assy_serial_number']);
+                        $assyPartNumber = $item['assy_part_number'] ?? ($comp->assy_part_number ?? '');
                     @endphp
 
                     <tr>
@@ -206,7 +207,7 @@
                         </td>
                         <td class="text-start ps-3">
                             @if($hasAssySerialNumber && !$hasSerialNumber)
-                                {{ $comp ? $comp->assy_part_number : '' }}
+                                {{ $assyPartNumber }}
                             @else
                                 {{ $comp ? $comp->part_number : '' }}
                             @endif

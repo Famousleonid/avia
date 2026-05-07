@@ -697,6 +697,125 @@ window.confirmDialog = function ({
     });
 };
 
+window.inputDialog = function ({
+                                   title = 'Input',
+                                   message = '',
+                                   value = '',
+                                   placeholder = '',
+                                   okText = 'OK',
+                                   cancelText = 'Cancel',
+                                   pattern = null,
+                                   invalidMessage = 'Invalid value'
+                               } = {}) {
+    return new Promise((resolve) => {
+        let modalEl = document.getElementById('globalInputModal');
+        if (!modalEl) {
+            modalEl = document.createElement('div');
+            modalEl.id = 'globalInputModal';
+            modalEl.className = 'modal fade';
+            modalEl.tabIndex = -1;
+            modalEl.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+          <div class="modal-content bg-dark text-light border border-secondary">
+            <div class="modal-header">
+              <h5 class="modal-title" id="globalInputTitle"></h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="small text-secondary mb-2" id="globalInputMessage"></div>
+              <input type="text" class="form-control" id="globalInputField">
+              <div class="invalid-feedback" id="globalInputInvalid"></div>
+            </div>
+            <div class="modal-footer py-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-cancel></button>
+              <button type="button" class="btn btn-info btn-sm" data-ok></button>
+            </div>
+          </div>
+        </div>
+      `;
+            document.body.appendChild(modalEl);
+        }
+
+        const titleEl = modalEl.querySelector('#globalInputTitle');
+        const messageEl = modalEl.querySelector('#globalInputMessage');
+        const inputEl = modalEl.querySelector('#globalInputField');
+        const invalidEl = modalEl.querySelector('#globalInputInvalid');
+        const okBtn = modalEl.querySelector('[data-ok]');
+        const cancelBtn = modalEl.querySelector('[data-cancel]');
+        const regex = pattern ? new RegExp(pattern) : null;
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        messageEl.classList.toggle('d-none', !message);
+        inputEl.value = value || '';
+        inputEl.placeholder = placeholder || '';
+        inputEl.classList.remove('is-invalid');
+        invalidEl.textContent = invalidMessage;
+        cancelBtn.textContent = cancelText;
+        okBtn.textContent = okText;
+
+        const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static' });
+        let resolved = false;
+
+        const cleanup = () => {
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            modalEl.removeEventListener('shown.bs.modal', onShown);
+            modalEl.removeEventListener('hidden.bs.modal', onHidden);
+            inputEl.removeEventListener('keydown', onKeydown);
+            inputEl.removeEventListener('input', clearInvalid);
+        };
+
+        const finish = (val) => {
+            if (resolved) return;
+            resolved = true;
+            cleanup();
+            resolve(val);
+        };
+
+        const clearInvalid = () => inputEl.classList.remove('is-invalid');
+
+        const onOk = () => {
+            const nextValue = inputEl.value.trim();
+            if (regex && !regex.test(nextValue)) {
+                inputEl.classList.add('is-invalid');
+                inputEl.focus();
+                return;
+            }
+            if (typeof window.hapticTap === 'function') window.hapticTap(20);
+            bsModal.hide();
+            finish(nextValue);
+        };
+
+        const onCancel = () => {
+            if (typeof window.hapticTap === 'function') window.hapticTap(10);
+            bsModal.hide();
+            finish(null);
+        };
+
+        const onHidden = () => finish(null);
+        const onShown = () => {
+            inputEl.focus();
+            inputEl.select();
+        };
+        const onKeydown = (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                onOk();
+            }
+        };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        modalEl.addEventListener('shown.bs.modal', onShown);
+        modalEl.addEventListener('hidden.bs.modal', onHidden);
+        inputEl.addEventListener('keydown', onKeydown);
+        inputEl.addEventListener('input', clearInvalid);
+
+        bsModal.show();
+    });
+};
+
 
 
 

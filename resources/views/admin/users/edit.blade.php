@@ -201,6 +201,18 @@
                                 <div class="form-text">Allows this user to lock, unlock, update and delete processes that are blocked by a lock.</div>
                             </div>
                         </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="can_manage_locked_manual_parts"
+                                       id="can_manage_locked_manual_parts"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('can_manage_locked_manual_parts', $user->can_manage_locked_manual_parts) ? 'checked' : '' }}>
+                                <label for="can_manage_locked_manual_parts" class="form-check-label">Can manage locked manual parts in all manuals</label>
+                                <div class="form-text">Allows this user to lock, unlock, create, update and delete parts that are blocked by a lock.</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="row g-3 mt-0">
                         <div class="col-12">

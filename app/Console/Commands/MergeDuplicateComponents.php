@@ -81,13 +81,12 @@ class MergeDuplicateComponents extends Command
             $report['ipl_num'] ?? '*',
             $report['qty'],
         ));
-        $this->table(['id', 'name', 'pn', 'ipl', 'log', 'repair', 'refs', 'ref detail'], collect($report['components'])->map(fn ($component) => [
+        $this->table(['id', 'name', 'pn', 'ipl', 'log', 'refs', 'ref detail'], collect($report['components'])->map(fn ($component) => [
             'id' => $component['id'],
             'name' => $component['name'],
             'pn' => $component['part_number'],
             'ipl' => $component['ipl_num'],
             'log' => $component['log_card'] ? 'yes' : 'no',
-            'repair' => $component['repair'] ? 'yes' : 'no',
             'refs' => $component['total_refs'],
             'ref detail' => $this->formatRefs($component['refs']),
         ])->all());
@@ -171,7 +170,6 @@ class MergeDuplicateComponents extends Command
                     'part_number' => (string) $component->part_number,
                     'ipl_num' => (string) $component->ipl_num,
                     'log_card' => (bool) $component->log_card,
-                    'repair' => (bool) $component->repair,
                     'is_bush' => (bool) $component->is_bush,
                     'bush_ipl_num' => (string) $component->bush_ipl_num,
                     'refs' => $refs,
@@ -371,7 +369,7 @@ class MergeDuplicateComponents extends Command
     private function mergeCanonicalFields(Component $canonical, Component $duplicate): int
     {
         $updates = [];
-        foreach (['log_card', 'repair', 'is_bush'] as $field) {
+        foreach (['log_card', 'is_bush', 'kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'] as $field) {
             if (! $canonical->{$field} && $duplicate->{$field}) {
                 $updates[$field] = true;
             }

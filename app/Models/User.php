@@ -20,8 +20,8 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
 {
     use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers, LogsActivity, softDeletes;
 
-    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'can_manage_locked_manual_processes', 'role_id', 'phone', 'stamp', 'team_id', 'birthday', 'notification_prefs'];
-    protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date', 'can_manage_locked_manual_processes' => 'boolean'];
+    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'can_manage_locked_manual_processes', 'can_manage_locked_manual_parts', 'role_id', 'phone', 'stamp', 'team_id', 'birthday', 'notification_prefs'];
+    protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date', 'can_manage_locked_manual_processes' => 'boolean', 'can_manage_locked_manual_parts' => 'boolean'];
     protected $hidden = ['password', 'remember_token'];
     protected static $logAttributes = ['name',  'phone', 'stamp'];
     protected $dates = ['deleted_at'];
@@ -40,6 +40,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
                 'team_id',
                 'is_admin',
                 'can_manage_locked_manual_processes',
+                'can_manage_locked_manual_parts',
                 'email',
                 'birthday',
             ])
@@ -61,6 +62,11 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     public function canManageLockedManualProcesses(): bool
     {
         return $this->isAdmin() || (bool) $this->can_manage_locked_manual_processes;
+    }
+
+    public function canManageLockedManualParts(): bool
+    {
+        return $this->isAdmin() || (bool) $this->can_manage_locked_manual_parts;
     }
 
     public function roleName(): ?string

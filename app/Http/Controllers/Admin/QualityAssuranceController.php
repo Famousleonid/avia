@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Code;
+use App\Models\Component;
+use App\Models\LogCard;
+use App\Models\Manual;
 use App\Models\Workorder;
 use App\Services\Quality\QualityAssuranceService;
 use Carbon\Carbon;
@@ -79,6 +83,32 @@ class QualityAssuranceController extends Controller
 
         return view('admin.quality.forms.shipmentReleaseForm', [
             'current_wo' => $workorder,
+        ]);
+    }
+
+    public function logCardForm(Request $request, Workorder $workorder)
+    {
+        $workorder->loadMissing(['unit.manuals']);
+        $manualId = $workorder->unit->manual_id;
+        $manuals = Manual::where('id', $manualId)->with('builder')->get();
+        $components = Component::where('manual_id', $manualId)->get();
+        $log_card = LogCard::where('workorder_id', $workorder->id)->first();
+        $componentData = [];
+
+        if ($log_card && $log_card->component_data) {
+            $componentData = is_array($log_card->component_data)
+                ? $log_card->component_data
+                : json_decode($log_card->component_data, true);
+        }
+
+        $componentData = is_array($componentData) ? $componentData : [];
+
+        return view('admin.quality.forms.logCardDoubleForm', [
+            'current_wo' => $workorder,
+            'manuals' => $manuals,
+            'components' => $components,
+            'componentData' => $componentData,
+            'codes' => Code::all(),
         ]);
     }
 
@@ -180,6 +210,7 @@ class QualityAssuranceController extends Controller
                 ->map(fn (array $row) => array_merge($row, [
                     'open_date' => $this->formatQaDate($row['open_date'] ?? null),
                     'submitted_date' => $this->formatQaDate($row['submitted_date'] ?? null),
+                    'inspection_date' => $this->formatQaDate($row['inspection_date'] ?? null),
                 ]))
                 ->values()
                 ->all(),
@@ -192,24 +223,31 @@ class QualityAssuranceController extends Controller
     {
         $messages = collect($qaRow['all_messages'] ?? []);
         $processCounts = $qaRow['processes']['counts'] ?? [];
+        $submittedRows = collect($qaRow['submitted_inspections']['pending'] ?? []);
 
         return [
+            [
+                'label' => 'Submitted WO',
+                'ok' => $submittedRows->isNotEmpty()
+                    && $submittedRows->every(fn (array $row) => filled($row['submitted_date'] ?? null)
+                        && filled($row['inspection_date'] ?? null)),
+                'target' => 'qaSubmittedBlock',
+            ],
             [
                 'label' => 'Incomplete processes',
                 'ok' => (int) ($processCounts['incomplete'] ?? 0) === 0
                     && (int) ($processCounts['finished_without_start'] ?? 0) === 0,
+                'target' => 'qaRepairBlock',
             ],
             [
                 'label' => 'Missing RO',
                 'ok' => (int) ($processCounts['missing_ro'] ?? 0) === 0,
-            ],
-            [
-                'label' => 'Missing TDR data',
-                'ok' => ! $messages->contains('Missing TDR data'),
+                'target' => 'qaRepairBlock',
             ],
             [
                 'label' => 'Completed task not finished',
                 'ok' => ! $messages->contains('Completed task not finished'),
+                'target' => 'qaRepairBlock',
             ],
         ];
     }
@@ -241,13 +279,18 @@ class QualityAssuranceController extends Controller
         $configuredGroups = collect(config('workorder_media.groups', []))
             ->mapWithKeys(fn ($label, $collection) => [$collection => $label]);
 
-        return ($workorder->media ?? collect())
+        $groupedMedia = collect(($workorder->media ?? collect())
             ->filter(fn (Media $media) => str_starts_with((string) $media->mime_type, 'image/'))
             ->groupBy('collection_name')
-            ->map(function ($items, string $collection) use ($configuredGroups) {
+            ->all());
+
+        $configuredPayload = $configuredGroups
+            ->map(function (string $label, string $collection) use ($groupedMedia) {
+                $items = $groupedMedia->get($collection, collect());
+
                 return [
                     'collection' => $collection,
-                    'label' => $configuredGroups->get($collection, Str::headline($collection)),
+                    'label' => $label,
                     'count' => $items->count(),
                     'items' => $items->values()->map(function (Media $media) use ($collection) {
                         $version = $this->mediaCacheVersion($media);
@@ -272,7 +315,42 @@ class QualityAssuranceController extends Controller
                         ];
                     })->all(),
                 ];
-            })
+            });
+
+        $extraPayload = $groupedMedia
+            ->except($configuredGroups->keys()->all())
+            ->map(function ($items, string $collection) {
+                return [
+                    'collection' => $collection,
+                    'label' => Str::headline($collection),
+                    'count' => $items->count(),
+                    'items' => $items->values()->map(function (Media $media) use ($collection) {
+                        $version = $this->mediaCacheVersion($media);
+                        $bigUrl = route('image.show.big', [
+                            'mediaId' => $media->id,
+                            'modelId' => $media->model_id,
+                            'mediaName' => $collection,
+                            'v' => $version,
+                        ]);
+
+                        return [
+                            'id' => (int) $media->id,
+                            'name' => $media->name ?: $media->file_name,
+                            'file_name' => $media->file_name,
+                            'thumb' => $collection === 'logs' ? $bigUrl : route('image.show.thumb', [
+                                'mediaId' => $media->id,
+                                'modelId' => $media->model_id,
+                                'mediaName' => $collection,
+                                'v' => $version,
+                            ]),
+                            'big' => $bigUrl,
+                        ];
+                    })->all(),
+                ];
+            });
+
+        return $configuredPayload
+            ->merge($extraPayload)
             ->values()
             ->all();
     }
@@ -311,6 +389,9 @@ class QualityAssuranceController extends Controller
 
     private function buildFormsPayload(Workorder $workorder): array
     {
+        $hasProcessFormTdrs = ($workorder->tdrs ?? collect())
+            ->contains(fn ($tdr) => (bool) $tdr->use_process_forms);
+
         return collect([
             [
                 'key' => 'certificate_of_destruction',
@@ -322,11 +403,15 @@ class QualityAssuranceController extends Controller
                 'title' => 'Shipment',
                 'url' => route('quality.forms.shipment_release', ['workorder' => $workorder->id]),
             ],
-            ['key' => 'spf', 'title' => 'SPF'],
+            [
+                'key' => 'spf',
+                'title' => 'SPF',
+                'url' => route($hasProcessFormTdrs ? 'tdrs.specProcessForm' : 'tdrs.specProcessFormEmp', ['id' => $workorder->id]),
+            ],
             [
                 'key' => 'log_card',
                 'title' => 'Log card',
-                'url' => route('log_card.logCardForm', ['id' => $workorder->id]),
+                'url' => route('quality.forms.log_card', ['workorder' => $workorder->id]),
             ],
         ])->map(fn ($form) => $form + [
             'workorder_number' => (string) $workorder->number,

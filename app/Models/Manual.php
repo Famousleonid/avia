@@ -71,6 +71,11 @@ class Manual extends Model implements HasMedia
         return $this->hasMany(ManualProcessNameLock::class, 'manual_id');
     }
 
+    public function partLock()
+    {
+        return $this->hasOne(ManualPartLock::class, 'manual_id');
+    }
+
     public function builder()
     {
         return $this->belongsTo(Builder::class, 'builders_id');

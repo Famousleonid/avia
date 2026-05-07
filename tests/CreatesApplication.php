@@ -7,6 +7,8 @@ use RuntimeException;
 
 trait CreatesApplication
 {
+    private static bool $testingDatabaseMigrated = false;
+
     /**
      * Creates the application.
      *
@@ -14,6 +16,8 @@ trait CreatesApplication
      */
     public function createApplication()
     {
+        $this->forceTestingEnvironment();
+
         $app = require __DIR__.'/../bootstrap/app.php';
 
         $app->make(Kernel::class)->bootstrap();
@@ -39,9 +43,32 @@ trait CreatesApplication
                     $database
                 ));
             }
+
+            if (! self::$testingDatabaseMigrated) {
+                $app->make(Kernel::class)->call('migrate:fresh', [
+                    '--force' => true,
+                ]);
+
+                self::$testingDatabaseMigrated = true;
+            }
         }
 
         return $app;
+    }
+
+    private function forceTestingEnvironment(): void
+    {
+        $values = [
+            'APP_ENV' => 'testing',
+            'DB_CONNECTION' => 'mysql',
+            'DB_DATABASE' => 'aviatechnik_testing',
+        ];
+
+        foreach ($values as $key => $value) {
+            $_ENV[$key] = $value;
+            $_SERVER[$key] = $value;
+            putenv("{$key}={$value}");
+        }
     }
 
     private function readEnvValue(string $path, string $key): ?string

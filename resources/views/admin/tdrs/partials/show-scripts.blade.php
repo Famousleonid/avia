@@ -107,8 +107,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var TAB_STORAGE_KEY = 'tdr_show_active_tab_wo_{{ $current_wo->id }}';
     var PERSISTENT_TAB_IDS = [
         'tab-tdr',
-        'tab-all-parts-processes',
-        'tab-extra-parts-processes',
         'tab-log-card',
         'tab-bushing',
         'tab-rm-reports',
@@ -140,6 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var activeProcessesContainer = body;
     var tabLi = document.getElementById('tab-part-processes-li');
     var tabBtn = document.getElementById('tab-part-processes');
+    var partProcessesShortcutActions = document.getElementById('partProcessesShortcutActions');
     var woNum = document.getElementById('compProcessesWoNumber');
     var itemName = document.getElementById('compProcessesName');
     var itemIpl = document.getElementById('compProcessesIpl');
@@ -179,6 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var stdProcessesPartialUrl = @json($current_wo->instruction_id == 1 ? route('ndt-cad-csv.partial', ['workorder' => $current_wo->id]) : null);
     var logCardStoreUrl = '{{ route("log_card.store") }}';
     var logCardUpdateUrlTemplate = '{{ route('log_card.update', ['log_card' => 9999991]) }}'.replace('9999991', '__LC__');
+    var logCardDeleteUrlTemplate = '{{ route('log_card.destroy', ['log_card' => 9999991]) }}'.replace('9999991', '__LC__');
     var editBushingUrl = '{{ route("wo_bushings.edit", ["wo_bushing" => "__ID__"]) }}';
     var getProcessesBaseUrl = '{{ url("/get-processes") }}';
 
@@ -307,40 +307,100 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    var logCardTabEditing = false;
-
     function logCardTabCsrfToken() {
         var m = document.querySelector('meta[name="csrf-token"]');
         return m ? m.content : '';
     }
 
+    function syncPartProcessesShortcutActions() {
+        if (!partProcessesShortcutActions) return;
+        var show = !!tabLi && !tabLi.classList.contains('d-none');
+        partProcessesShortcutActions.classList.toggle('d-none', !show);
+    }
+
+    function syncProcessShortcutButtonState(targetSelector) {
+        if (!partProcessesShortcutActions) return;
+        partProcessesShortcutActions.querySelectorAll('[data-process-shortcut-target]').forEach(function(btn) {
+            var isActive = targetSelector && btn.dataset.processShortcutTarget === targetSelector;
+            btn.classList.toggle('active', !!isActive);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+    }
+
+    function showOnlyTdrTabPane(targetSelector) {
+        if (!targetSelector) return;
+        var pane = document.querySelector(targetSelector);
+        if (!pane) return;
+        if (tdrShowTabContentEl) {
+            Array.prototype.forEach.call(tdrShowTabContentEl.children, function(item) {
+                if (item.classList && item.classList.contains('tab-pane') && item !== pane) {
+                    item.classList.remove('show', 'active');
+                }
+            });
+        }
+        pane.classList.add('show', 'active');
+    }
+
+    function activateDetachedTabPane(targetSelector) {
+        if (!targetSelector) return;
+        if (tdrShowTabListEl) {
+            tdrShowTabListEl.querySelectorAll('.nav-link.active').forEach(function(item) {
+                item.classList.remove('active');
+                item.setAttribute('aria-selected', 'false');
+            });
+        }
+        showOnlyTdrTabPane(targetSelector);
+    }
+
+    function openProcessShortcutPane(targetSelector) {
+        if (!targetSelector) return;
+        if (tabLi) tabLi.classList.remove('d-none');
+        syncPartProcessesShortcutActions();
+        syncProcessShortcutButtonState(targetSelector);
+        if (logCardTabActions) logCardTabActions.classList.add('d-none');
+        if (bushingTabActions) bushingTabActions.classList.add('d-none');
+        if (transfersTabActions) transfersTabActions.classList.add('d-none');
+
+        if (targetSelector.indexOf('content-all-parts-processes') !== -1) {
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.remove('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
+            syncAllPartsGroupFormsBtnVisibility();
+            if (allPartsBody && !allPartsBody.dataset.loaded) {
+                allPartsBody.dataset.loaded = '1';
+                loadAllPartsProcesses();
+            }
+        } else if (targetSelector.indexOf('content-extra-parts-processes') !== -1) {
+            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
+            if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
+            if (extraPartsBody && !extraPartsBody.dataset.loaded) {
+                extraPartsBody.dataset.loaded = '1';
+                loadExtraPartProcesses();
+            } else {
+                updateExtraPartsTabAsterisk();
+                updateExtraGroupFormsButtonVisibility();
+            }
+        }
+
+        activateDetachedTabPane(targetSelector);
+    }
+
+    if (partProcessesShortcutActions) {
+        partProcessesShortcutActions.addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-process-shortcut-target]');
+            if (!btn) return;
+            e.preventDefault();
+            openProcessShortcutPane(btn.dataset.processShortcutTarget);
+        });
+    }
+
     function logCardTabClearEditingUi() {
-        var shell = document.getElementById('log-card-partial-shell');
-        if (shell) shell.classList.remove('log-card-shell--editing');
-        logCardTabEditing = false;
         var prim = document.getElementById('logCardEnterDataBtn');
         var sv = document.getElementById('logCardSaveBtn');
         var cx = document.getElementById('logCardCancelBtn');
         if (prim) prim.classList.remove('d-none');
         if (sv) sv.classList.add('d-none');
         if (cx) cx.classList.add('d-none');
-    }
-
-    function syncLogCardSaveBtnLabelFromMeta() {
-        var sv = document.getElementById('logCardSaveBtn');
-        var metaEl = document.getElementById('log-card-tab-meta');
-        if (!sv || !metaEl) return;
-        var meta = {};
-        try {
-            meta = JSON.parse(metaEl.textContent || '{}');
-        } catch (e) {
-            meta = {};
-        }
-        if (meta.log_card_id) {
-            sv.innerHTML = '<i class="fas fa-save"></i> {{ __("Update") }}';
-        } else {
-            sv.innerHTML = '<i class="fas fa-save"></i> {{ __("Save") }}';
-        }
     }
 
     function syncLogCardToolbarFromPartial() {
@@ -351,13 +411,21 @@ document.addEventListener('DOMContentLoaded', function() {
             if (lid) {
                 btn.setAttribute('data-log-card-id', lid);
                 btn.setAttribute('data-has-log', '1');
-                btn.innerHTML = '<i class="fas fa-edit"></i> {{ __("Edit") }}';
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-danger');
+                btn.innerHTML = '<i class="fas fa-undo"></i> {{ __("Reset Log card") }}';
             } else {
                 btn.setAttribute('data-log-card-id', '');
                 btn.setAttribute('data-has-log', '0');
-                btn.innerHTML = '<i class="fas fa-keyboard"></i> {{ __("Enter Data") }}';
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-success');
+                btn.innerHTML = '<i class="fas fa-keyboard"></i> {{ __("Create Log card") }}';
             }
         }
+        var sv = document.getElementById('logCardSaveBtn');
+        var cx = document.getElementById('logCardCancelBtn');
+        if (sv) sv.classList.add('d-none');
+        if (cx) cx.classList.add('d-none');
         var paperWrap = document.getElementById('logCardFormPaperWrap');
         if (paperWrap && shell) {
             if (lid) {
@@ -366,7 +434,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 paperWrap.classList.add('d-none');
             }
         }
-        syncLogCardSaveBtnLabelFromMeta();
     }
 
     function logCardTabFindByName(root, fieldName) {
@@ -378,10 +445,66 @@ document.addEventListener('DOMContentLoaded', function() {
         return null;
     }
 
+    function logCardTabSelectedAssembly(root, groupKey, componentId) {
+        if (!root || !groupKey || !componentId) return null;
+        var name = 'lc_selected_assembly[' + groupKey + ']';
+        var all = Array.prototype.filter.call(root.querySelectorAll('input'), function(input) {
+            return input.name === name && String(input.dataset.componentId || '') === String(componentId);
+        });
+        var fallback = null;
+        for (var i = 0; i < all.length; i++) {
+            if (!fallback) fallback = all[i];
+            if ((all[i].type === 'radio' && all[i].checked) || all[i].type === 'hidden') {
+                return all[i];
+            }
+        }
+
+        return fallback;
+    }
+
+    function logCardTabAssemblyPayload(input) {
+        if (!input || !input.value) return {};
+
+        return {
+            component_assembly_id: input.value,
+            assy_part_number: input.dataset.assyPartNumber || '',
+            assy_ipl_num: input.dataset.assyIplNum || '',
+            units_assy: input.dataset.unitsAssy || ''
+        };
+    }
+
+    function logCardTabSavedPayload(root) {
+        if (!root) return null;
+        var data = [];
+        root.querySelectorAll('tr.lc-saved-row').forEach(function(row) {
+            var item = {
+                component_id: row.dataset.componentId || '',
+                serial_number: '',
+                assy_serial_number: '',
+                reason: '',
+                new_serial_number: ''
+            };
+            if (row.dataset.iplGroup) item.ipl_group = row.dataset.iplGroup;
+            if (row.dataset.componentAssemblyId) item.component_assembly_id = row.dataset.componentAssemblyId;
+            if (row.dataset.assyPartNumber) item.assy_part_number = row.dataset.assyPartNumber;
+            if (row.dataset.assyIplNum) item.assy_ipl_num = row.dataset.assyIplNum;
+            if (row.dataset.unitsAssy) item.units_assy = row.dataset.unitsAssy;
+            row.querySelectorAll('input, select').forEach(function(field) {
+                if (field.name) item[field.name] = field.value || '';
+            });
+            if (item.component_id) data.push(item);
+        });
+
+        return data.length ? data : null;
+    }
+
     function logCardTabBuildPayload() {
         var metaEl = document.getElementById('log-card-tab-meta');
         var root = document.getElementById('log-card-partial-shell');
         if (!metaEl || !root) return null;
+        if (root.dataset.state === 'saved') {
+            return logCardTabSavedPayload(root);
+        }
         var meta;
         try { meta = JSON.parse(metaEl.textContent); } catch (e) { return null; }
         var groupMap = meta.group_map || {};
@@ -407,13 +530,16 @@ document.addEventListener('DOMContentLoaded', function() {
             var snEl = logCardTabFindByName(root, 'lc_serial_numbers[' + gix + ']');
             var asEl = logCardTabFindByName(root, 'lc_assy_serial_numbers[' + gix + ']');
             var rsEl = logCardTabFindByName(root, 'lc_reasons[' + gix + ']');
-            data.push({
+            var row = {
                 component_id: sel.value,
                 ipl_group: ipl,
                 serial_number: snEl ? snEl.value : '',
                 assy_serial_number: asEl ? asEl.value : '',
-                reason: rsEl && rsEl.value ? rsEl.value : ''
-            });
+                reason: rsEl && rsEl.value ? rsEl.value : '',
+                new_serial_number: ''
+            };
+            Object.assign(row, logCardTabAssemblyPayload(logCardTabSelectedAssembly(root, gix, sel.value)));
+            data.push(row);
         });
         var sepKeys = [];
         root.querySelectorAll('input[type="hidden"][name*="separate_"]').forEach(function(inp) {
@@ -431,14 +557,39 @@ document.addEventListener('DOMContentLoaded', function() {
             var snEl = logCardTabFindByName(root, 'lc_serial_numbers[' + sk + ']');
             var asEl = logCardTabFindByName(root, 'lc_assy_serial_numbers[' + sk + ']');
             var rsEl = logCardTabFindByName(root, 'lc_reasons[' + sk + ']');
-            data.push({
+            var row = {
                 component_id: hs.value,
                 serial_number: snEl ? snEl.value : '',
                 assy_serial_number: asEl ? asEl.value : '',
-                reason: rsEl && rsEl.value ? rsEl.value : ''
-            });
+                reason: rsEl && rsEl.value ? rsEl.value : '',
+                new_serial_number: ''
+            };
+            if (hs.dataset.unitIndex) row.unit_index = hs.dataset.unitIndex;
+            if (hs.dataset.unitsAssy) row.units_assy = hs.dataset.unitsAssy;
+            Object.assign(row, logCardTabAssemblyPayload(logCardTabSelectedAssembly(root, sk, hs.value)));
+            data.push(row);
         });
         return data.length ? data : null;
+    }
+
+    function syncLogCardDraftAssyChoices(root) {
+        if (!root || root.dataset.state !== 'draft') return;
+
+        root.querySelectorAll('.lc-assy-choice[data-component-id]').forEach(function(choice) {
+            var componentId = choice.dataset.componentId || '';
+            var selector = 'input[name^="lc_selected_component"][value="' + componentId.replace(/"/g, '\\"') + '"]';
+            var componentInput = root.querySelector(selector);
+            var isSelected = !!componentInput && (componentInput.type === 'hidden' || componentInput.checked);
+
+            choice.querySelectorAll('.lc-assy-radio').forEach(function(radio) {
+                radio.classList.toggle('d-none', !isSelected);
+            });
+            if (isSelected) {
+                var checked = choice.querySelector('input[type="radio"]:checked');
+                var firstRadio = choice.querySelector('input[type="radio"]');
+                if (!checked && firstRadio) firstRadio.checked = true;
+            }
+        });
     }
 
     function loadLogCardPartial() {
@@ -452,6 +603,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(function(html) {
                 logCardTabBody.innerHTML = html;
                 syncLogCardToolbarFromPartial();
+                syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
             })
             .catch(function(err) {
                 logCardTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
@@ -1138,6 +1290,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var tdrId = btn.dataset.tdrId;
             if (!tdrId) return;
             if (tabLi) tabLi.classList.remove('d-none');
+            syncPartProcessesShortcutActions();
             loadProcessesAndBind(tdrId);
             if (tabBtn) {
                 var tab = new bootstrap.Tab(tabBtn);
@@ -1170,6 +1323,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var btn = e.target.closest('.open-part-processes-tab');
             if (!btn || !btn.dataset.tdrId) return;
             if (tabLi) tabLi.classList.remove('d-none');
+            syncPartProcessesShortcutActions();
             loadProcessesAndBind(btn.dataset.tdrId);
             if (tabBtn) { var tab = new bootstrap.Tab(tabBtn); tab.show(); }
         });
@@ -1457,87 +1611,143 @@ document.addEventListener('DOMContentLoaded', function() {
     var logCardEnterBtn = document.getElementById('logCardEnterDataBtn');
     var logCardSaveBtn = document.getElementById('logCardSaveBtn');
     var logCardCancelBtn = document.getElementById('logCardCancelBtn');
+    var logCardInlineSaveTimer = null;
+
+    function logCardTabPersistPayload(payload, options) {
+        options = options || {};
+        if (!payload || payload.length < 1) {
+            var warning = '{{ __("Отметьте хотя бы один компонент для Log Card.") }}';
+            if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(warning, 'warning');
+            else if (window.showNotification) window.showNotification(warning, 'warning');
+            return Promise.resolve(false);
+        }
+
+        var metaEl = document.getElementById('log-card-tab-meta');
+        var meta;
+        try { meta = metaEl ? JSON.parse(metaEl.textContent) : {}; } catch (e2) { meta = {}; }
+
+        var fd = new FormData();
+        fd.append('_token', logCardTabCsrfToken());
+        fd.append('workorder_id', String(meta.workorder_id || ''));
+        fd.append('component_data', JSON.stringify(payload));
+        if (meta.log_card_id) fd.append('_method', 'PUT');
+
+        var url = meta.log_card_id
+            ? logCardUpdateUrlTemplate.replace('__LC__', String(meta.log_card_id))
+            : logCardStoreUrl;
+
+        return fetch(url, {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        })
+            .then(function(r) {
+                return r.json().then(function(data) {
+                    return { ok: r.ok, data: data };
+                }).catch(function() {
+                    return { ok: r.ok, data: {} };
+                });
+            })
+            .then(function(res) {
+                if (res.ok && res.data && res.data.success) {
+                    if (options.reload) loadLogCardPartial();
+                    if (options.notify && typeof window.tdrShowNotify === 'function') {
+                        window.tdrShowNotify(res.data.message || '{{ __("Saved.") }}', 'success');
+                    }
+                    return true;
+                }
+                var errMsg = (res.data && res.data.message)
+                    ? res.data.message
+                    : ((res.data && res.data.errors) ? Object.values(res.data.errors).flat().join(' ') : '{{ __("Could not save.") }}');
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(errMsg, 'error');
+                else if (window.notifyError) window.notifyError(errMsg);
+                return false;
+            })
+            .catch(function() {
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify('{{ __("Request failed.") }}', 'error');
+                return false;
+            });
+    }
+
+    function logCardTabReset(logCardId) {
+        var fd = new FormData();
+        fd.append('_token', logCardTabCsrfToken());
+        fd.append('_method', 'DELETE');
+
+        return fetch(logCardDeleteUrlTemplate.replace('__LC__', String(logCardId)), {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        })
+            .then(function(r) {
+                return r.json().then(function(data) {
+                    return { ok: r.ok, data: data };
+                }).catch(function() {
+                    return { ok: r.ok, data: {} };
+                });
+            })
+            .then(function(res) {
+                if (res.ok && res.data && res.data.success) {
+                    loadLogCardPartial();
+                    if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(res.data.message || '{{ __("Reset.") }}', 'success');
+                    return true;
+                }
+                var msg = (res.data && res.data.message) ? res.data.message : '{{ __("Could not reset Log Card.") }}';
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(msg, 'error');
+                return false;
+            })
+            .catch(function() {
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify('{{ __("Request failed.") }}', 'error');
+                return false;
+            });
+    }
+
     if (logCardEnterBtn) {
         logCardEnterBtn.addEventListener('click', function() {
-            if (logCardTabEditing) return;
-            var shell = document.getElementById('log-card-partial-shell');
-            if (shell) {
-                shell.classList.add('log-card-shell--editing');
-                logCardTabEditing = true;
-            }
-            logCardEnterBtn.classList.add('d-none');
-            if (logCardSaveBtn) {
-                syncLogCardSaveBtnLabelFromMeta();
-                logCardSaveBtn.classList.remove('d-none');
-            }
-            if (logCardCancelBtn) logCardCancelBtn.classList.remove('d-none');
-        });
-    }
-    if (logCardCancelBtn) {
-        logCardCancelBtn.addEventListener('click', function() {
-            if (!logCardTabEditing) return;
-            logCardTabClearEditingUi();
-            loadLogCardPartial();
-        });
-    }
-    if (logCardSaveBtn) {
-        logCardSaveBtn.addEventListener('click', function() {
-            var payload = logCardTabBuildPayload();
-            if (!payload || payload.length < 1) {
-                var w = '{{ __("Отметьте хотя бы один компонент (радиокнопку) для Log Card.") }}';
-                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(w, 'warning');
-                else window.showNotification(w, 'warning');
+            var logCardId = logCardEnterBtn.getAttribute('data-log-card-id') || '';
+            if (logCardId) {
+                window.tdrShowConfirm(
+                    '{{ __("Reset Log Card for this workorder? This will delete the saved row and return to component selection.") }}',
+                    '{{ __("Reset Log Card") }}',
+                    '{{ __("Reset") }}'
+                ).then(function(confirmed) {
+                    if (!confirmed) return;
+                    logCardEnterBtn.disabled = true;
+                    logCardEnterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Resetting...") }}';
+                    logCardTabReset(logCardId).finally(function() {
+                        logCardEnterBtn.disabled = false;
+                    });
+                });
                 return;
             }
-            var metaEl = document.getElementById('log-card-tab-meta');
-            var meta;
-            try { meta = metaEl ? JSON.parse(metaEl.textContent) : {}; } catch (e2) { meta = {}; }
-            var woId = meta.workorder_id;
-            var fd = new FormData();
-            fd.append('_token', logCardTabCsrfToken());
-            fd.append('workorder_id', String(woId));
-            fd.append('component_data', JSON.stringify(payload));
-            var isUpdate = !!meta.log_card_id;
-            var url = isUpdate ? logCardUpdateUrlTemplate.replace('__LC__', String(meta.log_card_id)) : logCardStoreUrl;
-            if (isUpdate) {
-                fd.append('_method', 'PUT');
-            }
-            logCardSaveBtn.disabled = true;
-            fetch(url, {
-                method: 'POST',
-                body: fd,
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-                credentials: 'same-origin'
-            })
-                .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, status: r.status, data: data }; }).catch(function() { return { ok: r.ok, status: r.status, data: {} }; }); })
-                .then(function(res) {
-                    logCardSaveBtn.disabled = false;
-                    if (res.ok && res.data && res.data.success) {
-                        logCardTabClearEditingUi();
-                        loadLogCardPartial();
-                        if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(res.data.message || '{{ __("Saved.") }}', 'success');
-                        return;
-                    }
-                    var errMsg = (res.data && res.data.message)
-                        ? res.data.message
-                        : ((res.data && res.data.errors) ? Object.values(res.data.errors).flat().join(' ') : '{{ __("Could not save.") }}');
-                    if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(errMsg, 'error');
-                    else window.notifyError(errMsg);
-                })
-                .catch(function() {
-                    logCardSaveBtn.disabled = false;
-                    if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify('{{ __("Request failed.") }}', 'error');
-                });
+
+            logCardEnterBtn.disabled = true;
+            logCardEnterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Creating...") }}';
+            logCardTabPersistPayload(logCardTabBuildPayload(), { reload: true, notify: true }).finally(function() {
+                logCardEnterBtn.disabled = false;
+            });
         });
     }
-    var tabLogCardBtn = document.getElementById('tab-log-card');
-    if (tabLogCardBtn) {
-        tabLogCardBtn.addEventListener('hide.bs.tab', function() {
-            if (logCardTabEditing) {
-                logCardTabClearEditingUi();
-                loadLogCardPartial();
-            }
+
+    if (logCardTabBody) {
+        logCardTabBody.addEventListener('change', function(e) {
+            var componentRadio = e.target.closest && e.target.closest('.lc-comp-radio');
+            if (!componentRadio) return;
+            syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
         });
+
+        function logCardQueueInlineSave(e) {
+            var field = e.target.closest && e.target.closest('.lc-saved-field');
+            if (!field) return;
+            clearTimeout(logCardInlineSaveTimer);
+            logCardInlineSaveTimer = setTimeout(function() {
+                logCardTabPersistPayload(logCardTabBuildPayload(), { reload: false, notify: false });
+            }, 350);
+        }
+        logCardTabBody.addEventListener('change', logCardQueueInlineSave);
+        logCardTabBody.addEventListener('input', logCardQueueInlineSave);
     }
     document.addEventListener('click', function(e) {
         var snLink = e.target.closest && e.target.closest('.transfers-partial .change-sn-link');
@@ -1644,7 +1854,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         var target = (e.target.getAttribute && e.target.getAttribute('data-bs-target')) || (e.target.getAttribute && e.target.getAttribute('href'));
-        if (target && String(target).indexOf('content-part-processes') !== -1) {
+        var targetName = target ? String(target) : '';
+        showOnlyTdrTabPane(targetName);
+        if (targetName.indexOf('content-all-parts-processes') === -1 && targetName.indexOf('content-extra-parts-processes') === -1) {
+            syncProcessShortcutButtonState('');
+        }
+        if (target && targetName.indexOf('content-part-processes') !== -1) {
+            syncPartProcessesShortcutActions();
             if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
@@ -1653,7 +1869,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (rmReportsTabBody) rmReportsTabBody.dataset.loaded = '';
             return;
         }
-        if (target && String(target).indexOf('content-all-parts-processes') !== -1) {
+        if (target && targetName.indexOf('content-all-parts-processes') !== -1) {
+            syncProcessShortcutButtonState('#content-all-parts-processes');
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.remove('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
@@ -1665,7 +1883,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 allPartsBody.dataset.loaded = '1';
                 loadAllPartsProcesses();
             }
-        } else if (target && String(target).indexOf('content-extra-parts-processes') !== -1) {
+        } else if (target && targetName.indexOf('content-extra-parts-processes') !== -1) {
+            syncProcessShortcutButtonState('#content-extra-parts-processes');
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
@@ -1679,6 +1899,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateExtraGroupFormsButtonVisibility();
             }
         } else if (target && String(target).indexOf('content-log-card') !== -1) {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
@@ -1690,6 +1911,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadLogCardPartial();
             }
         } else if (target && String(target).indexOf('content-bushing') !== -1) {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
@@ -1701,6 +1923,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadBushingPartial();
             }
         } else if (target && String(target).indexOf('content-rm-reports') !== -1) {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
@@ -1712,6 +1935,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadRmReportsPartial();
             }
         } else if (target && String(target).indexOf('content-std-processes') !== -1) {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
@@ -1723,6 +1947,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadStdProcessesPartial();
             }
         } else if (target && String(target).indexOf('content-transfers') !== -1) {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
@@ -1734,6 +1959,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadTransfersPartial();
             }
         } else if (target && String(target).indexOf('content-extra-processes') !== -1) {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
@@ -1741,6 +1967,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
             if (transfersTabActions) transfersTabActions.classList.add('d-none');
         } else {
+            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
             if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
@@ -1750,6 +1977,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (target && String(target).indexOf('content-part-processes') === -1) {
             if (tabLi) tabLi.classList.add('d-none');
+            syncPartProcessesShortcutActions();
             if (body) body.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Click a component processes button to load.") }}</div>';
         }
         if (target && String(target).indexOf('content-extra-processes') === -1) {
@@ -2374,4 +2602,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 </script>
+
 
