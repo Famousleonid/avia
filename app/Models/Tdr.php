@@ -12,7 +12,28 @@ class Tdr extends Model
 {
     use HasFactory, LogsActivity, SoftDeletes;
 
+    public const TYPE_COMPONENT_TDR = 'component_tdr';
+    public const TYPE_UNIT_INSPECTION = 'unit_inspection';
+    public const TYPE_STD_LIST_CARRIER = 'std_list_carrier';
+    public const TYPE_ORDER_NEW = 'order_new';
+    public const TYPE_MANUFACTURE_ORDER = 'manufacture_order';
+    public const TYPE_MANUFACTURE_REPAIR = 'manufacture_repair';
+    public const TYPE_TRANSFER_CLONE = 'transfer_clone';
+    public const TYPE_UNKNOWN = 'unknown';
+
+    public const TYPE_OPTIONS = [
+        self::TYPE_COMPONENT_TDR,
+        self::TYPE_UNIT_INSPECTION,
+        self::TYPE_STD_LIST_CARRIER,
+        self::TYPE_ORDER_NEW,
+        self::TYPE_MANUFACTURE_ORDER,
+        self::TYPE_MANUFACTURE_REPAIR,
+        self::TYPE_TRANSFER_CLONE,
+        self::TYPE_UNKNOWN,
+    ];
+
     protected $fillable = [
+        'tdr_type',
         'workorder_id',
         'component_id',
         'order_component_id',
@@ -29,6 +50,12 @@ class Tdr extends Model
         'use_process_forms',
     ];
 
+    protected $casts = [
+        'received' => 'date',
+        'use_tdr' => 'boolean',
+        'use_process_forms' => 'boolean',
+    ];
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -37,6 +64,92 @@ class Tdr extends Model
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
+
+    public function scopeForWorkorder($query, int $workorderId)
+    {
+        return $query->where('workorder_id', $workorderId);
+    }
+
+    public function scopeOfType($query, string $type)
+    {
+        return $query->where('tdr_type', $type);
+    }
+
+    public function scopeComponentTdrs($query)
+    {
+        return $query->where('tdr_type', self::TYPE_COMPONENT_TDR);
+    }
+
+    public function scopeUnitInspections($query)
+    {
+        return $query->where('tdr_type', self::TYPE_UNIT_INSPECTION);
+    }
+
+    public function scopeStdListCarriers($query)
+    {
+        return $query->where('tdr_type', self::TYPE_STD_LIST_CARRIER);
+    }
+
+    public function scopeOrderNewRows($query)
+    {
+        return $query->where('tdr_type', self::TYPE_ORDER_NEW);
+    }
+
+    public function isComponentTdr(): bool
+    {
+        return $this->tdr_type === self::TYPE_COMPONENT_TDR;
+    }
+
+    public function isUnitInspection(): bool
+    {
+        return $this->tdr_type === self::TYPE_UNIT_INSPECTION;
+    }
+
+    public function isStdListCarrier(): bool
+    {
+        return $this->tdr_type === self::TYPE_STD_LIST_CARRIER;
+    }
+
+    public function isOrderNew(): bool
+    {
+        return $this->tdr_type === self::TYPE_ORDER_NEW;
+    }
+
+    public function inferType(?string $manufactureCodeId = null, ?string $orderNewNecessaryId = null, ?string $repairNecessaryId = null): string
+    {
+        $description = trim((string) $this->description);
+        if ($this->component_id === null && $description === 'STD List carrier') {
+            return self::TYPE_STD_LIST_CARRIER;
+        }
+
+        if ($this->component_id === null && $this->conditions_id !== null) {
+            return self::TYPE_UNIT_INSPECTION;
+        }
+
+        $codeId = $this->codes_id !== null ? (string) $this->codes_id : null;
+        $necessaryId = $this->necessaries_id !== null ? (string) $this->necessaries_id : null;
+
+        if ($manufactureCodeId !== null && $codeId === $manufactureCodeId) {
+            if ($orderNewNecessaryId !== null && $necessaryId === $orderNewNecessaryId) {
+                return self::TYPE_MANUFACTURE_ORDER;
+            }
+
+            if ($repairNecessaryId !== null && $necessaryId === $repairNecessaryId) {
+                return self::TYPE_MANUFACTURE_REPAIR;
+            }
+        }
+
+        if ($this->component_id !== null && $orderNewNecessaryId !== null && $necessaryId === $orderNewNecessaryId) {
+            return self::TYPE_ORDER_NEW;
+        }
+
+        if ($this->component_id !== null) {
+            return self::TYPE_COMPONENT_TDR;
+        }
+
+        return self::TYPE_UNKNOWN;
+    }
+
     public function workorder()
     {
         return $this->belongsTo(Workorder::class, 'workorder_id');
