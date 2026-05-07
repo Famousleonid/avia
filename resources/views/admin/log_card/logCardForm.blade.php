@@ -587,10 +587,12 @@
                 $hasSerialNumber = !empty($item['serial_number']);
                 $hasAssySerialNumber = isset($item['assy_serial_number']) && !empty($item['assy_serial_number']);
                 $hasAssyPartNumber = $comp && $comp->assy_part_number;
+                $displayName = $item['name'] ?? $item['description'] ?? ($comp->name ?? '');
+                $displayPartNumber = $item['part_number'] ?? ($comp->part_number ?? '');
             @endphp
 
             <div class="div13 border-l-b-r text-start align-content-center ps-2 pt-1 fs-7" style="min-height: 30px" >
-                {{$comp->name}}
+                {{ $displayName }}
 {{--                {{ $comp ? $comp->name : '' }}--}}
 {{--                @if($hasAssySerialNumber && !$hasSerialNumber)--}}
 {{--                    , S/A--}}
@@ -603,10 +605,10 @@
                     {{ $comp ? $comp->assy_part_number : '' }}
                 @else
                     @if($hasAssySerialNumber && $hasSerialNumber)
-                        {{ $comp ? $comp->part_number : '' }}
+                        {{ $displayPartNumber }}
                         ({{ $comp->assy_part_number}})
                     @else
-                        {{ $comp ? $comp->part_number : '' }}
+                        {{ $displayPartNumber }}
                     @endif
 
                 @endif

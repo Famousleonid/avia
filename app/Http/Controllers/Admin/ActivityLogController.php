@@ -17,6 +17,7 @@ use App\Models\Plane;
 use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Scope;
+use App\Models\StdProcess;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
@@ -138,6 +139,7 @@ class ActivityLogController extends Controller
             'order_component_id' => [],
             'process_names_id' => [],
             'processes_id' => [],
+            'std_process_id' => [],
             'tdrs_id' => [],
             'tdr_process_id' => [],
             'codes_id' => [],
@@ -185,6 +187,10 @@ class ActivityLogController extends Controller
 
             if ($activity->subject_type === Tdr::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
                 $idBuckets['tdrs_id'][] = (int) $activity->subject_id;
+            }
+
+            if ($activity->subject_type === StdProcess::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
+                $idBuckets['std_process_id'][] = (int) $activity->subject_id;
             }
 
             if ($activity->subject_type === TdrProcess::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
@@ -251,36 +257,45 @@ class ActivityLogController extends Controller
             ->mapWithKeys(fn(Process $p) => [$p->id => (string)$p->process])
             ->all();
 
-        $tdrMap = Tdr::query()
+        $stdProcessMap = StdProcess::query()
+            ->whereIn('id', array_unique($idBuckets['std_process_id']))
+            ->with('manual:id,number,lib')
+            ->get(['id', 'manual_id', 'std', 'ipl_num', 'part_number', 'description', 'process'])
+            ->mapWithKeys(fn (StdProcess $stdProcess) => [$stdProcess->id => $this->formatStdProcessActivityLabel($stdProcess)])
+            ->all();
+
+        $tdrMap = Tdr::withTrashed()
             ->whereIn('id', array_unique($idBuckets['tdrs_id']))
-            ->with(['component:id,name,part_number', 'workorder:id,number'])
-            ->get(['id', 'component_id', 'workorder_id'])
-            ->mapWithKeys(function (Tdr $t) {
-                $componentLabel = trim(((string) ($t->component?->part_number ?? '')).' '.((string) ($t->component?->name ?? '')));
-                $label = $componentLabel !== '' ? "tdr: {$componentLabel}" : "tdr id: {$t->id}";
-                if ($t->workorder?->number) {
-                    $label .= '   wo: '.$t->workorder->number;
-                }
-                return [$t->id => $label];
-            })
+            ->with([
+                'component' => fn ($query) => $query->withTrashed()->with('manual:id,number,lib'),
+                'orderComponent' => fn ($query) => $query->withTrashed()->with('manual:id,number,lib'),
+                'workorder' => fn ($query) => $query->withTrashed()->select(['id', 'number']),
+                'codes:id,name,code',
+                'conditions:id,name',
+                'necessaries:id,name',
+            ])
+            ->get(['id', 'component_id', 'order_component_id', 'workorder_id', 'codes_id', 'conditions_id', 'necessaries_id', 'description', 'deleted_at'])
+            ->mapWithKeys(fn (Tdr $t) => [$t->id => $this->formatTdrActivityLabel($t)])
             ->all();
 
         $tdrProcessMap = TdrProcess::query()
             ->whereIn('id', array_unique($idBuckets['tdr_process_id']))
             ->with([
-                'tdr.component:id,name,part_number',
-                'tdr.workorder:id,number',
+                'tdr' => fn ($query) => $query->withTrashed()
+                    ->with([
+                        'component' => fn ($componentQuery) => $componentQuery->withTrashed()->with('manual:id,number,lib'),
+                        'orderComponent' => fn ($componentQuery) => $componentQuery->withTrashed()->with('manual:id,number,lib'),
+                        'workorder' => fn ($workorderQuery) => $workorderQuery->withTrashed()->select(['id', 'number']),
+                        'codes:id,name,code',
+                        'conditions:id,name',
+                        'necessaries:id,name',
+                    ]),
                 'processName:id,name',
             ])
             ->get(['id', 'tdrs_id', 'process_names_id'])
             ->mapWithKeys(function (TdrProcess $tdrProcess) {
                 $tdr = $tdrProcess->tdr;
-                $componentLabel = trim(((string) ($tdr?->component?->part_number ?? '')).' '.((string) ($tdr?->component?->name ?? '')));
-                $tdrLabel = $componentLabel !== '' ? "tdr: {$componentLabel}" : null;
-
-                if ($tdrLabel !== null && $tdr?->workorder?->number) {
-                    $tdrLabel .= '   wo: '.$tdr->workorder->number;
-                }
+                $tdrLabel = $tdr ? $this->formatTdrActivityLabel($tdr) : null;
 
                 $processLabel = trim((string) ($tdrProcess->processName?->name ?? ''));
                 $parts = array_values(array_filter([$tdrLabel, $processLabel], fn ($value) => filled($value)));
@@ -394,6 +409,7 @@ class ActivityLogController extends Controller
             'componentMap',
             'processNameMap',
             'processMap',
+            'stdProcessMap',
             'tdrMap',
             'tdrProcessMap',
             'codeMap',
@@ -440,5 +456,100 @@ class ActivityLogController extends Controller
             ->with('success', "Deleted {$deleted} log entries older than {$days} days.")
             ->with('purge_deleted_count', $deleted)
             ->with('purge_days', $days);
+    }
+
+    private function formatTdrActivityLabel(Tdr $tdr): string
+    {
+        $component = $tdr->component ?? $tdr->orderComponent;
+        $componentPrefix = $tdr->component ? 'component' : ($tdr->orderComponent ? 'order component' : null);
+
+        $componentParts = [];
+        if ($component) {
+            $componentParts[] = trim((string) ($component->ipl_num ?? ''));
+            $componentParts[] = trim((string) ($component->part_number ?? ''));
+            $componentParts[] = trim((string) ($component->name ?? ''));
+        }
+
+        $componentLabel = trim(implode(' / ', array_values(array_filter($componentParts, fn ($value) => filled($value)))));
+        if ($componentLabel === '') {
+            $componentLabel = trim((string) $tdr->description);
+            $componentPrefix = $componentLabel !== '' ? 'description' : null;
+        }
+
+        $parts = ['tdr'];
+
+        if ($tdr->workorder?->number) {
+            $parts[] = 'wo: '.$tdr->workorder->number;
+        }
+
+        if ($componentPrefix && $componentLabel !== '') {
+            $parts[] = $componentPrefix.': '.$componentLabel;
+        }
+
+        if ($component?->manual) {
+            $manualNumber = trim((string) $component->manual->number);
+            $manualLib = trim((string) $component->manual->lib);
+            $manualLabel = trim($manualNumber.($manualLib !== '' ? " (lib {$manualLib})" : ''));
+            if ($manualLabel !== '') {
+                $parts[] = 'manual: '.$manualLabel;
+            }
+        }
+
+        if ($tdr->codes) {
+            $codeLabel = trim(trim((string) $tdr->codes->code).' '.trim((string) $tdr->codes->name));
+            if ($codeLabel !== '') {
+                $parts[] = 'code: '.$codeLabel;
+            }
+        }
+
+        if ($tdr->conditions?->name) {
+            $parts[] = 'condition: '.$tdr->conditions->name;
+        }
+
+        if ($tdr->necessaries?->name) {
+            $parts[] = 'necessary: '.$tdr->necessaries->name;
+        }
+
+        if ($tdr->trashed()) {
+            $parts[] = 'deleted';
+        }
+
+        return implode('   ', $parts);
+    }
+
+    private function formatStdProcessActivityLabel(StdProcess $stdProcess): string
+    {
+        $parts = ['std process'];
+
+        $std = trim((string) $stdProcess->std);
+        if ($std !== '') {
+            $parts[] = 'type: '.strtoupper($std);
+        }
+
+        if ($stdProcess->manual) {
+            $manualNumber = trim((string) $stdProcess->manual->number);
+            $manualLib = trim((string) $stdProcess->manual->lib);
+            $manualLabel = trim($manualNumber.($manualLib !== '' ? " (lib {$manualLib})" : ''));
+            if ($manualLabel !== '') {
+                $parts[] = 'manual: '.$manualLabel;
+            }
+        }
+
+        $itemLabel = trim(implode(' / ', array_values(array_filter([
+            trim((string) $stdProcess->ipl_num),
+            trim((string) $stdProcess->part_number),
+            trim((string) $stdProcess->description),
+        ], fn ($value) => filled($value)))));
+
+        if ($itemLabel !== '') {
+            $parts[] = 'part: '.$itemLabel;
+        }
+
+        $process = trim((string) $stdProcess->process);
+        if ($process !== '') {
+            $parts[] = 'process: '.$process;
+        }
+
+        return implode('   ', $parts);
     }
 }

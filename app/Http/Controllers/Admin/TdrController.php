@@ -929,6 +929,7 @@ class TdrController extends Controller
                 ->where('use_tdr', true)
                 ->where('use_process_forms', false)
                 ->whereNull('component_id')
+                ->whereNotNull('conditions_id')
                 ->get()
                 ->keyBy('conditions_id');
 
@@ -4009,7 +4010,10 @@ class TdrController extends Controller
         // Log::info('Workorder ID: ' . $workorderId);
 
         // Удалить связанные записи из tdr_processes
-        TdrProcess::where('tdrs_id', $id)->delete();
+        TdrProcess::where('tdrs_id', $id)
+            ->get()
+            ->each
+            ->delete();
         // Log::info('Удалены связанные процессы для TDR с ID: ' . $id);
 
         // Определяем component_id для поиска transfers

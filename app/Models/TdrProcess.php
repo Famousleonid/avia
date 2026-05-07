@@ -150,11 +150,21 @@ class TdrProcess extends Model
         return LogOptions::defaults()
             ->useLogName('tdr_process')
             ->logOnly([
+                'tdrs_id',
+                'process_names_id',
+                'plus_process',
+                'processes',
+                'description',
+                'notes',
                 'date_start',
                 'date_finish',
                 'date_promise',
                 'repair_order',
                 'vendor_id',
+                'ignore_row',
+                'in_traveler',
+                'traveler_group',
+                'user_id',
             ])
             ->logOnlyDirty()                // логировать ТОЛЬКО изменившиеся поля
             ->dontSubmitEmptyLogs();        // не создавать пустые записи

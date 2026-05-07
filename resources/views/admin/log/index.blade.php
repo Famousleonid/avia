@@ -298,8 +298,103 @@
                                             ->implode("\n");
                                     };
 
+                                    $tdrActivityFallback = function (array $old, array $new) use ($formatValue): ?string {
+                                        $row = array_merge($old, $new);
+                                        $parts = ['tdr'];
+
+                                        foreach ([
+                                            'workorder_id' => 'workorder',
+                                            'component_id' => 'component',
+                                            'order_component_id' => 'order component',
+                                            'serial_number' => 'serial number',
+                                            'assy_serial_number' => 'assy serial number',
+                                            'codes_id' => 'code',
+                                            'conditions_id' => 'condition',
+                                            'necessaries_id' => 'necessary',
+                                            'description' => 'description',
+                                        ] as $key => $label) {
+                                            if (! array_key_exists($key, $row) || $row[$key] === null || $row[$key] === '') {
+                                                continue;
+                                            }
+
+                                            $value = $formatValue($key, $row[$key]);
+                                            if ($value !== '' && $value !== 'null') {
+                                                $parts[] = $label.': '.$value;
+                                            }
+                                        }
+
+                                        return count($parts) > 1 ? implode('   ', $parts) : null;
+                                    };
+
+                                    $stdProcessActivityFallback = function (array $old, array $new) use ($formatValue): ?string {
+                                        $row = array_merge($old, $new);
+                                        $parts = ['std process'];
+
+                                        foreach ([
+                                            'std' => 'type',
+                                            'manual_id' => 'manual',
+                                            'ipl_num' => 'ipl',
+                                            'part_number' => 'part number',
+                                            'description' => 'description',
+                                            'process' => 'process',
+                                        ] as $key => $label) {
+                                            if (! array_key_exists($key, $row) || $row[$key] === null || $row[$key] === '') {
+                                                continue;
+                                            }
+
+                                            $value = $key === 'std'
+                                                ? strtoupper((string) $row[$key])
+                                                : $formatValue($key, $row[$key]);
+                                            if ($value !== '' && $value !== 'null') {
+                                                $parts[] = $label.': '.$value;
+                                            }
+                                        }
+
+                                        return count($parts) > 1 ? implode('   ', $parts) : null;
+                                    };
+
                                     $oldText = $old ? $renderProps($old) : '—';
                                     $newText = $new ? $renderProps($new) : '—';
+                                    $eventText = (string) $a->event;
+                                    $eventClass = match ($a->event) {
+                                        'created' => 'bg-success',
+                                        'updated' => 'bg-warning text-dark',
+                                        'deleted' => 'bg-danger',
+                                        default => 'bg-secondary',
+                                    };
+
+                                    $isBlankActivityValue = function ($value): bool {
+                                        return $value === null || trim((string) $value) === '';
+                                    };
+
+                                    $firstEnteredRows = [];
+                                    if (
+                                        $a->subject_type === \App\Models\TdrProcess::class
+                                        && $a->event === 'updated'
+                                    ) {
+                                        foreach ([
+                                            'date_start',
+                                            'date_finish',
+                                            'date_promise',
+                                            'repair_order',
+                                            'vendor_id',
+                                        ] as $firstEntryKey) {
+                                            if (
+                                                array_key_exists($firstEntryKey, $new)
+                                                && $isBlankActivityValue($old[$firstEntryKey] ?? null)
+                                                && ! $isBlankActivityValue($new[$firstEntryKey])
+                                            ) {
+                                                $firstEnteredRows[] = $keyLabel($firstEntryKey).': '.$formatValue($firstEntryKey, $new[$firstEntryKey]);
+                                            }
+                                        }
+                                    }
+
+                                    if ($firstEnteredRows !== []) {
+                                        $eventText = 'first entered';
+                                        $eventClass = 'bg-info text-dark';
+                                        $oldText = 'previously empty';
+                                        $newText = "first entered:\n".implode("\n", $firstEnteredRows);
+                                    }
 
                                     $subjectId = is_numeric($a->subject_id) ? (int)$a->subject_id : null;
                                     $subjectName = class_basename($a->subject_type);
@@ -318,7 +413,9 @@
                                         $label = $componentMap[$subjectId] ?? $fallback;
                                         $objectText = filled($label) ? "component: {$label}" : $objectText;
                                     } elseif ($a->subject_type === \App\Models\Tdr::class && $subjectId) {
-                                        $objectText = $tdrMap[$subjectId] ?? $objectText;
+                                        $objectText = $tdrMap[$subjectId] ?? $tdrActivityFallback($old, $new) ?? $objectText;
+                                    } elseif ($a->subject_type === \App\Models\StdProcess::class && $subjectId) {
+                                        $objectText = $stdProcessMap[$subjectId] ?? $stdProcessActivityFallback($old, $new) ?? $objectText;
                                     } elseif ($a->subject_type === \App\Models\Workorder::class && $subjectId) {
                                         $label = $workorderMap[$subjectId] ?? ($subject->number ?? null);
                                         $objectText = $label ? "wo: {$label}" : $objectText;
@@ -421,13 +518,8 @@
                                         <pre class="mb-0" style="white-space:pre-wrap;word-break:break-word;">{{ $objectText }}</pre>
                                     </td>
                                     <td class="text-center">
-                                    <span class="badge
-                                        @if($a->event === 'created') bg-success
-                                        @elseif($a->event === 'updated') bg-warning text-dark
-                                        @elseif($a->event === 'deleted') bg-danger
-                                        @else bg-secondary
-                                        @endif">
-                                        {{ $a->event }}
+                                    <span class="badge {{ $eventClass }}">
+                                        {{ $eventText }}
                                     </span>
                                     </td>
                                     <td class="props small">

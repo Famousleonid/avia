@@ -391,6 +391,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         ->name('quality.forms.shipment_release');
     Route::get('/quality-assurance/workorders/{workorder}/log-card-form', [QualityAssuranceController::class, 'logCardForm'])
         ->name('quality.forms.log_card');
+    Route::post('/quality-assurance/workorders/{workorder}/log-card-form', [QualityAssuranceController::class, 'updateLogCardForm'])
+        ->name('quality.forms.log_card.update');
     Route::post('/quality-assurance/workorders/{workorder}/quality-documents', [QualityAssuranceController::class, 'storeQualityDocuments'])
         ->name('quality.documents.store');
     Route::delete('/quality-assurance/workorders/{workorder}/quality-documents/{media}', [QualityAssuranceController::class, 'destroyQualityDocument'])

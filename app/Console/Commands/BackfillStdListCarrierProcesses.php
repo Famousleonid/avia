@@ -113,7 +113,10 @@ class BackfillStdListCarrierProcesses extends Command
 
                 $carrier->fill($payload);
                 $isDirty = ! $carrierExists || $carrier->isDirty();
-                $willDeleteLegacy = $deleteLegacy && $preferred->id !== $carrier->id;
+                $duplicateCount = $deleteLegacy
+                    ? $service->stdListProcessRowsForWorkorder($workorder, (int) $processName->id)->count()
+                    : 0;
+                $willDeleteLegacy = $deleteLegacy && ($preferred->id !== $carrier->id || $duplicateCount > 1);
 
                 if (! $isDirty && ! $willDeleteLegacy) {
                     continue;
@@ -133,14 +136,15 @@ class BackfillStdListCarrierProcesses extends Command
                 $this->line('  carrier before: ' . json_encode($carrierOriginal));
 
                 if ($write) {
-                    DB::transaction(function () use ($carrier, $preferred, $deleteLegacy, &$deletedRows): void {
+                    DB::transaction(function () use ($carrier, $deleteLegacy, $service, $workorder, $processName, &$deletedRows): void {
                         $carrier->save();
 
-                        if ($deleteLegacy && $preferred->id !== $carrier->id) {
-                            TdrProcess::query()
-                                ->where('id', $preferred->id)
-                                ->delete();
-                            $deletedRows++;
+                        if ($deleteLegacy) {
+                            $deletedRows += $service->deleteDuplicateStdListProcesses(
+                                $workorder,
+                                (int) $processName->id,
+                                (int) $carrier->id
+                            );
                         }
                     });
                 }

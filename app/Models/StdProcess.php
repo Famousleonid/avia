@@ -6,9 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class StdProcess extends Model
 {
+    use LogsActivity;
+
     public const STD_NDT = 'ndt';
 
     public const STD_CAD = 'cad';
@@ -34,6 +38,15 @@ class StdProcess extends Model
     protected $casts = [
         'qty' => 'integer',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('std_process')
+            ->logOnly($this->fillable)
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
     public function manual(): BelongsTo
     {
@@ -162,7 +175,12 @@ class StdProcess extends Model
         self::assertValidStd($std);
 
         DB::transaction(function () use ($manualId, $std, $rows) {
-            self::query()->where('manual_id', $manualId)->where('std', $std)->delete();
+            self::query()
+                ->where('manual_id', $manualId)
+                ->where('std', $std)
+                ->get()
+                ->each
+                ->delete();
 
             foreach ($rows as $row) {
                 if (empty($row['ipl_num'])) {
@@ -449,6 +467,11 @@ class StdProcess extends Model
     public static function deleteForManualAndStd(int $manualId, string $std): void
     {
         self::assertValidStd($std);
-        self::query()->where('manual_id', $manualId)->where('std', $std)->delete();
+        self::query()
+            ->where('manual_id', $manualId)
+            ->where('std', $std)
+            ->get()
+            ->each
+            ->delete();
     }
 }

@@ -93,23 +93,135 @@ class QualityAssuranceController extends Controller
         $manuals = Manual::where('id', $manualId)->with('builder')->get();
         $components = Component::where('manual_id', $manualId)->get();
         $log_card = LogCard::where('workorder_id', $workorder->id)->first();
-        $componentData = [];
+        $componentData = $this->decodeLogCardRows($log_card?->component_data);
+        $componentDataOut = $this->decodeLogCardRows($log_card?->component_data_out);
 
-        if ($log_card && $log_card->component_data) {
-            $componentData = is_array($log_card->component_data)
-                ? $log_card->component_data
-                : json_decode($log_card->component_data, true);
+        if ($componentDataOut === [] && $componentData !== []) {
+            $componentDataOut = $componentData;
         }
-
-        $componentData = is_array($componentData) ? $componentData : [];
 
         return view('admin.quality.forms.logCardDoubleForm', [
             'current_wo' => $workorder,
             'manuals' => $manuals,
             'components' => $components,
             'componentData' => $componentData,
+            'componentDataOut' => $componentDataOut,
             'codes' => Code::all(),
         ]);
+    }
+
+    public function updateLogCardForm(Request $request, Workorder $workorder)
+    {
+        $data = $request->validate([
+            'side' => ['required', 'in:left,right'],
+            'section' => ['required', 'in:aircraft,primary,note'],
+            'row' => ['required', 'integer', 'min:0', 'max:200'],
+            'field' => ['required', 'string', 'max:60'],
+            'value' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $primaryFields = [
+            'description',
+            'part_number',
+            'serial_number',
+            'fit_date',
+            'fit_cso',
+            'fit_csn',
+            'removed_date',
+            'removed_cso',
+            'removed_csn',
+            'reason',
+        ];
+
+        $aircraftFields = [
+            'fit_date',
+            'fit_cso',
+            'fit_csn',
+            'fit_cycles',
+            'removed_date',
+            'removed_cso',
+            'removed_csn',
+            'removed_cycles',
+            'reason',
+        ];
+
+        $noteFields = ['note6_text', 'note6_enabled'];
+        $allowedFields = match ($data['section']) {
+            'aircraft' => $aircraftFields,
+            'note' => $noteFields,
+            default => $primaryFields,
+        };
+        abort_unless(in_array($data['field'], $allowedFields, true), 422);
+
+        $logCard = LogCard::firstOrCreate(['workorder_id' => $workorder->id]);
+        $sourceRows = $this->decodeLogCardRows($logCard->component_data);
+        $targetColumn = $data['side'] === 'right' ? 'component_data_out' : 'component_data';
+        $rows = $data['side'] === 'right'
+            ? $this->decodeLogCardRows($logCard->component_data_out)
+            : $sourceRows;
+
+        if ($rows === [] && $sourceRows !== []) {
+            $rows = $sourceRows;
+        }
+
+        if ($data['section'] === 'aircraft') {
+            $rows[0] ??= [];
+            $rows[0]['qa_aircraft_records'] ??= [];
+            $rows[0]['qa_aircraft_records'][(int) $data['row']][$data['field']] = trim((string) ($data['value'] ?? ''));
+        } elseif ($data['section'] === 'note') {
+            $rows[0] ??= [];
+            $rows[0]['qa_note6_text'] = $data['field'] === 'note6_text'
+                ? trim((string) ($data['value'] ?? ''))
+                : ($rows[0]['qa_note6_text'] ?? 'The Log Card was created refer to client\'s provided documents.');
+            if ($data['field'] === 'note6_enabled') {
+                $rows[0]['qa_note6_enabled'] = in_array((string) ($data['value'] ?? ''), ['1', 'true', 'on', 'yes'], true);
+            }
+        } else {
+            $rows[(int) $data['row']] ??= [];
+            $value = trim((string) ($data['value'] ?? ''));
+            if ($data['side'] === 'left') {
+                $fieldMap = [
+                    'description' => 'name',
+                    'part_number' => 'part_number',
+                    'serial_number' => 'serial_number',
+                    'reason' => 'reason',
+                ];
+                if (array_key_exists($data['field'], $fieldMap)) {
+                    $rows[(int) $data['row']][$fieldMap[$data['field']]] = $value;
+                } else {
+                    $rows[(int) $data['row']]['qa_'.$data['field']] = $value;
+                }
+            } else {
+                $rows[(int) $data['row']]['qa_'.$data['field']] = $value;
+            }
+        }
+
+        $logCard->{$targetColumn} = $targetColumn === 'component_data'
+            ? json_encode(array_values($rows), JSON_UNESCAPED_UNICODE)
+            : array_values($rows);
+        $logCard->save();
+
+        return response()->json([
+            'success' => true,
+            'field' => $data['field'],
+            'value' => trim((string) ($data['value'] ?? '')),
+        ]);
+    }
+
+    private function decodeLogCardRows(mixed $value): array
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return collect($value)
+            ->filter(fn ($row, $key) => is_int($key) && is_array($row))
+            ->values()
+            ->all();
     }
 
     public function storeQualityDocuments(Request $request, Workorder $workorder)

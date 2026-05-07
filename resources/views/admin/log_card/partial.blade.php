@@ -246,7 +246,7 @@
                             data-assy-ipl-num="{{ $assyIplNum }}"
                             data-units-assy="{{ $item['units_assy'] ?? '' }}">
                             <td>
-                                {{ $component->name }} ({{ $component->ipl_num }}) / {{ $component->part_number }}
+                                {{ $item['name'] ?? $item['description'] ?? $component->name }} ({{ $component->ipl_num }}) / {{ $item['part_number'] ?? $component->part_number }}
                                 @if(!empty($item['unit_index']) && !empty($item['units_assy']))
                                     <br><small class="text-muted">{{ __('Unit') }} {{ $item['unit_index'] }} {{ __('of') }} {{ $item['units_assy'] }}</small>
                                 @endif

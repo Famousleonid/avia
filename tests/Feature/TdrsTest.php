@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Code;
 use App\Models\Component;
+use App\Models\Condition;
 use App\Models\Necessary;
 use App\Models\Tdr;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -78,5 +79,56 @@ class TdrsTest extends TestCase
 
         $tdr->refresh();
         $this->assertSame('PO-999', $tdr->po_num);
+    }
+
+    public function test_store_unit_inspections_does_not_delete_blank_workorder_level_tdr(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        $blankTdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => null,
+            'conditions_id' => null,
+            'codes_id' => null,
+            'necessaries_id' => null,
+            'description' => null,
+            'serial_number' => 'NSN',
+            'assy_serial_number' => ' ',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => false,
+        ]);
+
+        $condition = Condition::query()->create([
+            'name' => 'BUSHINGS WORN BEYOND LIMITS AS INDICATED ON PARTS LIST',
+            'unit' => 1,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('tdrs.store.unit-inspections'), [
+            'workorder_id' => $workorder->id,
+            'conditions' => [
+                $condition->id => [
+                    'selected' => '1',
+                    'notes' => '',
+                ],
+            ],
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('tdrs', [
+            'id' => $blankTdr->id,
+            'deleted_at' => null,
+        ]);
+        $this->assertDatabaseHas('tdrs', [
+            'workorder_id' => $workorder->id,
+            'component_id' => null,
+            'conditions_id' => $condition->id,
+            'use_tdr' => true,
+            'use_process_forms' => false,
+            'deleted_at' => null,
+        ]);
     }
 }
