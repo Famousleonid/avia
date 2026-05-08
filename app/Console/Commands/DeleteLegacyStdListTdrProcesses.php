@@ -11,6 +11,7 @@ use Illuminate\Console\Command;
 
 class DeleteLegacyStdListTdrProcesses extends Command
 {
+    // TODO(tdr-refactor): Remove this cleanup helper after legacy STD tdr_process rows are no longer present in any deployed database.
     protected $signature = 'std-list:delete-legacy-tdr-processes
         {--workorder= : Single workorder ID}
         {--include-orphans : Delete STD List tdr_processes with NULL tdrs_id too}

@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 
 class DeleteLegacyUnitInspectionTdrs extends Command
 {
+    // TODO(tdr-refactor): Remove this cleanup helper after legacy unit inspection TDR rows are no longer present in any deployed database.
     protected $signature = 'unit-inspections:delete-legacy-tdrs
         {--workorder= : Single workorder ID}
         {--write : Soft-delete legacy TDR rows. Default is dry-run}';

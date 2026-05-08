@@ -61,6 +61,7 @@ class TdrUnitInspectionController extends Controller
 
                 $processedConditionIds[] = $conditionId;
                 $notes = $conditionData['notes'] ?? '';
+                // TODO(tdr-refactor): Remove the tdr_id alias after old modal payloads are no longer supported.
                 $inspectionId = $conditionData['inspection_id'] ?? $conditionData['tdr_id'] ?? null;
 
                 $condition = Condition::query()->find($conditionId);

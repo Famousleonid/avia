@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 class BackfillWorkorderStdProcesses extends Command
 {
+    // TODO(tdr-refactor): Remove this migration helper after production has been backfilled and verified.
     protected $signature = 'std-list:backfill-workorder-processes
         {--workorder= : Single workorder ID}
         {--write : Persist changes. Default is dry-run}

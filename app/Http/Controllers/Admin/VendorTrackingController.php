@@ -244,6 +244,7 @@ class VendorTrackingController extends Controller
     private function collectRows(array $filters): Collection
     {
         $stdProcessNameIds = $this->stdProcessNameIds();
+        // TODO(tdr-refactor): Split vendor tracking into source-specific builders and remove the tdr_std compatibility path after legacy STD rows are deleted everywhere.
         $tdrRawRows = TdrProcess::query()
             ->with([
                 'vendor:' . $this->vendorSelectColumns(),
@@ -429,6 +430,7 @@ class VendorTrackingController extends Controller
 
     private function normalizeTdrProcess(TdrProcess $row): object
     {
+        // TODO(tdr-refactor): Make the source explicit instead of inferring STD vs Part from a nullable component_id.
         $tdr = $row->tdr;
         $wo = $tdr?->workorder;
         $component = $tdr?->component;

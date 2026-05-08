@@ -35,6 +35,7 @@ class WorkorderStdListProcessesService
             ->first();
 
         if ($tdr === null) {
+            // TODO(tdr-refactor): Drop this legacy blank-row carrier fallback once all STD list writes use workorder_std_processes directly.
             $tdr = Tdr::query()
                 ->where('workorder_id', $wid)
                 ->legacyBlankWorkorderRows()
@@ -126,6 +127,7 @@ class WorkorderStdListProcessesService
             ]);
 
             if (! $row->exists) {
+                // TODO(tdr-refactor): Remove lazy legacy hydration after the deployment backfill is mandatory and verified.
                 $preferred = $this->findPreferredStdListProcessForWorkorder($workorder, (int) $pn->id);
                 $row->fill($preferred
                     ? $this->workorderStdPayloadFromLegacy($preferred, $key)
@@ -164,6 +166,7 @@ class WorkorderStdListProcessesService
 
     public function findPreferredStdListProcessForWorkorder(Workorder $workorder, int $processNameId): ?TdrProcess
     {
+        // TODO(tdr-refactor): Delete this legacy ranking once STD list tdr_process rows are no longer kept as a fallback source.
         /** @var EloquentCollection<int, TdrProcess> $rows */
         $rows = $this->stdListProcessRowsForWorkorder($workorder, $processNameId);
 

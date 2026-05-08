@@ -251,6 +251,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/transfers-partial/{workorder}', [TransferController::class, 'partial'])->name('transfers.partial');
 
 
+        // TODO(tdr-refactor): Move TDR feature routes into dedicated route groups when the controller split is complete.
         Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrUnitInspectionController::class, 'create'])->name('tdrs.inspection.unit');
         Route::get('/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
         Route::get('tdrs/{workorder_id}/ndt-std', [TdrPrintFormController::class, 'ndtStd'])->name('tdrs.ndtStd');
@@ -354,6 +355,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/wo-bushing-batches/{woBushingBatch}/repair-order', [MainController::class, 'updateWoBushingBatchRepairOrder'])->name('wo_bushing_batches.updateRepairOrder');
     Route::patch('/wo-bushing-batches/{woBushingBatch}/dates', [MainController::class, 'updateWoBushingBatchDate'])->name('wo_bushing_batches.updateDate');
 
+    // TODO(tdr-refactor): Remove legacy tdrprocesses vendor-tracking endpoints after all STD and traveler writes have dedicated controllers.
     Route::patch('/tdr-processes/{tdrProcess}/dates', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
     Route::patch('/workorder-std-processes/{stdProcess}/dates', [WorkorderStdProcessController::class, 'updateDate'])->name('workorder_std_processes.updateDate');
     Route::patch('/workorder-std-processes/{stdProcess}/repair-order', [WorkorderStdProcessController::class, 'updateRepairOrder'])->name('workorder_std_processes.updateRepairOrder');
@@ -363,6 +365,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/tdr-processes/{tdrProcess}/repair-order', [MainController::class, 'updateRepairOrder'])->name('tdrprocesses.updateRepairOrder');
     Route::patch('/tdr-processes/{tdrProcess}/ignore-row', [MainController::class, 'updateIgnoreRow'])->name('tdrprocesses.updateIgnoreRow');
 
+    // TODO(tdr-refactor): Normalize extra_processes route names and remove compatibility routes once all blade/js callers are updated.
     Route::get('/extra_processes/create/{id}', [ExtraProcessController::class, 'create'])->name('extra_process.create');
     Route::get('/extra_processes/create_processes/{workorderId}/{componentId}', [ExtraProcessController::class, 'createProcesses'])->name('extra_processes.create_processes');
     Route::post('/extra_processes/store_processes', [ExtraProcessController::class, 'storeProcesses'])->name('extra_processes.store_processes');

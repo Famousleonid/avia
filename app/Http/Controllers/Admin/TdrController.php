@@ -536,6 +536,7 @@ class TdrController extends Controller
         $necessary = Necessary::where('name', 'Order New')->first();
         $repairNecessary = Necessary::where('name', 'Repair')->first();
 
+        // TODO(tdr-refactor): Remove this legacy tdrs.store compatibility branch after the UI posts unit inspections only to TdrUnitInspectionController.
         $isDetachedUnitInspection = empty($validated['component_id'])
             && empty($validated['order_component_id'])
             && empty($validated['codes_id'])

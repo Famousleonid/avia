@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class BackfillWorkorderUnitInspections extends Command
 {
+    // TODO(tdr-refactor): Remove this migration helper after production has been backfilled and verified.
     protected $signature = 'unit-inspections:backfill-workorder-inspections
         {--workorder= : Single workorder ID}
         {--with-trashed : Include soft-deleted source TDR rows}

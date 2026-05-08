@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var compProcessesGroupFormsBtn = document.getElementById('compProcessesGroupFormsBtn');
     var allPartsProcessesUrl = '{{ route("tdrs.processesPartial", ["workorder_id" => $current_wo->id]) }}';
     var allPartsBody = document.getElementById('allPartsProcessesTabBody');
-    {{-- Имя extra_processes.partial: не используем route(), чтобы не падать при устаревшем route:cache; путь совпадает с routes/web.php --}}
+    {{-- TODO(tdr-refactor): Replace this hardcoded compatibility URL with route() after route-cache drift is no longer a deploy risk. --}}
     var extraPartsProcessesUrl = @json(url('/extra_processes/partial/'.$current_wo->id));
     var extraPartsBody = document.getElementById('extraPartsProcessesTabBody');
     var extraProcessesTabBody = document.getElementById('extraProcessesTabBody');

@@ -89,8 +89,7 @@
 @section('content')
     @php
         $canManageVendorTracking = auth()->check() && auth()->user()->hasAnyRole('Admin|Manager');
-        // TODO(main-vendor-tracking-columns): временно тестируем mains без RO/Vendor колонок.
-        // Потом решить: вернуть эти колонки, переключив флаг в true, или удалить связанный UI окончательно.
+        // TODO(main-vendor-tracking-columns): Decide whether to restore RO/Vendor columns here or remove the related UI permanently.
         $showMainRoVendorColumns = false;
         $vendors = $vendors ?? collect();
     @endphp
@@ -1860,8 +1859,6 @@
             });
         });
     </script>
-    {{-- TODO(remove): дубль inline AJAX (submitMainInlineForm, refreshFinishInputState, clearFlatpickrField,
-         отдельные listeners для js-main-inline-ajax) заменён на window.ajaxSubmit в public/js/main.js.
-         Удалите этот комментарий после проверки, что везде достаточно классов js-ajax + js-main-inline-ajax. --}}
+    {{-- TODO(remove): Remove this note after verifying window.ajaxSubmit covers all js-ajax + js-main-inline-ajax flows. --}}
 
 @endsection
