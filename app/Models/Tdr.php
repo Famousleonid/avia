@@ -95,6 +95,36 @@ class Tdr extends Model
         return $query->where('tdr_type', self::TYPE_ORDER_NEW);
     }
 
+    public function scopeManufactureOrderRows($query)
+    {
+        return $query->where('tdr_type', self::TYPE_MANUFACTURE_ORDER);
+    }
+
+    public function scopeManufactureRepairRows($query)
+    {
+        return $query->where('tdr_type', self::TYPE_MANUFACTURE_REPAIR);
+    }
+
+    public function scopeUnknownRows($query)
+    {
+        return $query->where('tdr_type', self::TYPE_UNKNOWN);
+    }
+
+    public function scopeLegacyBlankWorkorderRows($query)
+    {
+        return $query->where(function ($query): void {
+            $query->whereNull('tdr_type')->orWhere('tdr_type', self::TYPE_UNKNOWN);
+        })
+            ->whereNull('component_id')
+            ->whereNull('order_component_id')
+            ->whereNull('codes_id')
+            ->whereNull('conditions_id')
+            ->whereNull('necessaries_id')
+            ->where(function ($query): void {
+                $query->whereNull('description')->orWhere('description', '');
+            });
+    }
+
     public function isComponentTdr(): bool
     {
         return $this->tdr_type === self::TYPE_COMPONENT_TDR;
@@ -113,6 +143,21 @@ class Tdr extends Model
     public function isOrderNew(): bool
     {
         return $this->tdr_type === self::TYPE_ORDER_NEW;
+    }
+
+    public function isManufactureOrder(): bool
+    {
+        return $this->tdr_type === self::TYPE_MANUFACTURE_ORDER;
+    }
+
+    public function isManufactureRepair(): bool
+    {
+        return $this->tdr_type === self::TYPE_MANUFACTURE_REPAIR;
+    }
+
+    public function isUnknownType(): bool
+    {
+        return $this->tdr_type === self::TYPE_UNKNOWN;
     }
 
     public function inferType(?string $manufactureCodeId = null, ?string $orderNewNecessaryId = null, ?string $repairNecessaryId = null): string

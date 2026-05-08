@@ -23,7 +23,10 @@ use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Models\Workorder;
+use App\Models\WorkorderStdProcess;
+use App\Models\WorkorderUnitInspection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
@@ -138,13 +141,22 @@ class ActivityLogController extends Controller
             'component_id' => [],
             'order_component_id' => [],
             'process_names_id' => [],
+            'process_name_id' => [],
             'processes_id' => [],
             'std_process_id' => [],
             'tdrs_id' => [],
             'tdr_process_id' => [],
+            'workorder_std_process_id' => [],
+            'workorder_unit_inspection_id' => [],
+            'source_tdr_id' => [],
+            'source_tdr_process_id' => [],
             'codes_id' => [],
             'conditions_id' => [],
+            'condition_id' => [],
             'necessaries_id' => [],
+            'vendor_id' => [],
+            'date_start_user_id' => [],
+            'date_finish_user_id' => [],
             'builders_id' => [],
             'planes_id' => [],
             'scopes_id' => [],
@@ -197,6 +209,15 @@ class ActivityLogController extends Controller
                 $idBuckets['tdr_process_id'][] = (int) $activity->subject_id;
             }
 
+            if ($activity->subject_type === WorkorderStdProcess::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
+                $idBuckets['workorder_std_process_id'][] = (int) $activity->subject_id;
+            }
+
+            if ($activity->subject_type === WorkorderUnitInspection::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
+                $idBuckets['workorder_unit_inspection_id'][] = (int) $activity->subject_id;
+                $idBuckets['condition_id'][] = (int) ($flat['condition_id'] ?? 0);
+            }
+
             if (isset($activity->subject) && isset($activity->subject->workorder_id)) {
                 $subjectWorkorderId = $activity->subject->workorder_id;
                 if (is_numeric($subjectWorkorderId) && (int)$subjectWorkorderId > 0) {
@@ -245,8 +266,9 @@ class ActivityLogController extends Controller
             ->mapWithKeys(fn(Component $c) => [$c->id => trim(((string)$c->part_number).' '.$c->name)])
             ->all();
 
+        $processNameIds = array_values(array_unique(array_merge($idBuckets['process_names_id'], $idBuckets['process_name_id'])));
         $processNameMap = ProcessName::query()
-            ->whereIn('id', array_unique($idBuckets['process_names_id']))
+            ->whereIn('id', $processNameIds)
             ->get(['id', 'name'])
             ->mapWithKeys(fn(ProcessName $p) => [$p->id => (string)$p->name])
             ->all();
@@ -264,8 +286,9 @@ class ActivityLogController extends Controller
             ->mapWithKeys(fn (StdProcess $stdProcess) => [$stdProcess->id => $this->formatStdProcessActivityLabel($stdProcess)])
             ->all();
 
+        $tdrIds = array_values(array_unique(array_merge($idBuckets['tdrs_id'], $idBuckets['source_tdr_id'])));
         $tdrMap = Tdr::withTrashed()
-            ->whereIn('id', array_unique($idBuckets['tdrs_id']))
+            ->whereIn('id', $tdrIds)
             ->with([
                 'component' => fn ($query) => $query->withTrashed()->with('manual:id,number,lib'),
                 'orderComponent' => fn ($query) => $query->withTrashed()->with('manual:id,number,lib'),
@@ -278,8 +301,9 @@ class ActivityLogController extends Controller
             ->mapWithKeys(fn (Tdr $t) => [$t->id => $this->formatTdrActivityLabel($t)])
             ->all();
 
+        $tdrProcessIds = array_values(array_unique(array_merge($idBuckets['tdr_process_id'], $idBuckets['source_tdr_process_id'])));
         $tdrProcessMap = TdrProcess::query()
-            ->whereIn('id', array_unique($idBuckets['tdr_process_id']))
+            ->whereIn('id', $tdrProcessIds)
             ->with([
                 'tdr' => fn ($query) => $query->withTrashed()
                     ->with([
@@ -308,16 +332,66 @@ class ActivityLogController extends Controller
             })
             ->all();
 
+        $workorderStdProcessMap = WorkorderStdProcess::query()
+            ->whereIn('id', array_unique($idBuckets['workorder_std_process_id']))
+            ->with([
+                'workorder' => fn ($query) => $query->withTrashed()->select(['id', 'number']),
+                'processName:id,name',
+                'vendor:id,name',
+            ])
+            ->get(['id', 'workorder_id', 'std_type', 'process_name_id', 'vendor_id', 'repair_order'])
+            ->mapWithKeys(function (WorkorderStdProcess $stdProcess) {
+                $parts = [
+                    'STD '.strtoupper((string) $stdProcess->std_type),
+                    $stdProcess->workorder?->number ? 'WO '.$stdProcess->workorder->number : null,
+                    $stdProcess->processName?->name,
+                    filled($stdProcess->repair_order) ? 'RO '.$stdProcess->repair_order : null,
+                    $stdProcess->vendor?->name,
+                ];
+
+                return [
+                    $stdProcess->id => 'workorder std process: '.implode('   ', array_values(array_filter($parts, fn ($value) => filled($value)))),
+                ];
+            })
+            ->all();
+
+        $workorderUnitInspectionMap = WorkorderUnitInspection::query()
+            ->whereIn('id', array_unique($idBuckets['workorder_unit_inspection_id']))
+            ->with([
+                'workorder' => fn ($query) => $query->withTrashed()->select(['id', 'number']),
+                'condition:id,name',
+            ])
+            ->get(['id', 'workorder_id', 'condition_id', 'notes'])
+            ->mapWithKeys(function (WorkorderUnitInspection $inspection) {
+                $parts = [
+                    $inspection->workorder?->number ? 'WO '.$inspection->workorder->number : null,
+                    $inspection->condition?->name,
+                    filled($inspection->notes) ? $inspection->notes : null,
+                ];
+
+                return [
+                    $inspection->id => 'workorder unit inspection: '.implode('   ', array_values(array_filter($parts, fn ($value) => filled($value)))),
+                ];
+            })
+            ->all();
+
         $codeMap = Code::query()
             ->whereIn('id', array_unique($idBuckets['codes_id']))
             ->get(['id', 'name', 'code'])
             ->mapWithKeys(fn(Code $c) => [$c->id => trim(((string)$c->code).' '.$c->name)])
             ->all();
 
+        $conditionIds = array_values(array_unique(array_merge($idBuckets['conditions_id'], $idBuckets['condition_id'])));
         $conditionMap = Condition::query()
-            ->whereIn('id', array_unique($idBuckets['conditions_id']))
+            ->whereIn('id', $conditionIds)
             ->get(['id', 'name'])
             ->mapWithKeys(fn(Condition $c) => [$c->id => (string)$c->name])
+            ->all();
+
+        $vendorMap = Vendor::query()
+            ->whereIn('id', array_unique($idBuckets['vendor_id']))
+            ->get(['id', 'name'])
+            ->mapWithKeys(fn(Vendor $v) => [$v->id => (string)$v->name])
             ->all();
 
         $necessaryMap = Necessary::query()
@@ -362,8 +436,13 @@ class ActivityLogController extends Controller
             ->mapWithKeys(fn(Customer $c) => [$c->id => (string)$c->name])
             ->all();
 
+        $doneUserIds = array_values(array_unique(array_merge(
+            $idBuckets['done_user_id'],
+            $idBuckets['date_start_user_id'],
+            $idBuckets['date_finish_user_id'],
+        )));
         $doneUserMap = User::query()
-            ->whereIn('id', array_unique($idBuckets['done_user_id']))
+            ->whereIn('id', $doneUserIds)
             ->get(['id', 'name'])
             ->mapWithKeys(fn(User $u) => [$u->id => (string)$u->name])
             ->all();
@@ -412,8 +491,11 @@ class ActivityLogController extends Controller
             'stdProcessMap',
             'tdrMap',
             'tdrProcessMap',
+            'workorderStdProcessMap',
+            'workorderUnitInspectionMap',
             'codeMap',
             'conditionMap',
+            'vendorMap',
             'necessaryMap',
             'builderMap',
             'planeMap',

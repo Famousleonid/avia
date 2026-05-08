@@ -891,8 +891,8 @@
 
     <div class="container-fluid vendor-tracking-page my-1">
         @php
-            $currentSort = $filters['sort'] ?? 'wo';
-            $currentDirection = $filters['direction'] ?? 'desc';
+            $currentSort = $filters['sort'] ?? 'sent_date';
+            $currentDirection = $filters['direction'] ?? 'asc';
             $sortUrl = function (string $column) use ($currentSort, $currentDirection) {
                 $direction = $currentSort === $column && $currentDirection === 'asc' ? 'desc' : 'asc';
 
@@ -1052,7 +1052,12 @@
                                         <i class="bi {{ $sortIcon('process') }} vendor-tracking-sort-icon"></i>
                                     </a>
                                 </th>
-                                <th class="text-center vendor-tracking-date-col" data-col="sent">Sent (edit)</th>
+                                <th class="text-center vendor-tracking-date-col" data-col="sent">
+                                    <a href="{{ $sortUrl('sent_date') }}" class="vendor-tracking-sort-link {{ $currentSort === 'sent_date' ? 'is-active' : '' }}">
+                                        <span>Sent (edit)</span>
+                                        <i class="bi {{ $sortIcon('sent_date') }} vendor-tracking-sort-icon"></i>
+                                    </a>
+                                </th>
                                 <th class="text-center vendor-tracking-date-col" data-col="returned">Returned (edit)</th>
                                 <th class="text-center vendor-tracking-date-col" data-col="ecd">ECD</th>
                                 <th class="text-center" data-col="days">Days</th>

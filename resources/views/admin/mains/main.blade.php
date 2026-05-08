@@ -1013,7 +1013,7 @@
                                                 <td class="text-center align-middle std-ignore-cell">
                                                     @if(in_array($key, ['ndt', 'cad', 'stress', 'paint'], true))
                                                         <form method="POST"
-                                                              action="{{ route('tdrprocesses.updateIgnoreRow', $pr) }}"
+                                                              action="{{ route('workorder_std_processes.updateIgnoreRow', $pr) }}"
                                                               class="js-ajax d-inline"
                                                               data-success="Row ignored"
                                                               data-no-spinner>
@@ -1048,7 +1048,7 @@
                                                 @if($canManageVendorTracking && $showMainRoVendorColumns)
                                                 <td>
                                                     <form method="POST"
-                                                          action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
+                                                          action="{{ route('workorder_std_processes.updateRepairOrder', $pr) }}"
                                                           class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
                                                           data-no-spinner>
                                                         @csrf
@@ -1066,7 +1066,7 @@
                                                 </td>
                                                 <td>
                                                     <form method="POST"
-                                                          action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
+                                                          action="{{ route('workorder_std_processes.updateRepairOrder', $pr) }}"
                                                           class="auto-submit-form js-ajax"
                                                           data-no-spinner>
                                                         @csrf
@@ -1084,7 +1084,7 @@
                                                 @endif
                                                 <td class="main-date-cell">
                                                     <form method="POST"
-                                                          action="{{ route('tdrprocesses.updateDate', $pr) }}"
+                                                          action="{{ route('workorder_std_processes.updateDate', $pr) }}"
                                                           class="auto-submit-form js-ajax"
                                                           data-no-spinner>
                                                         @csrf
@@ -1100,7 +1100,7 @@
                                                 </td>
                                                 <td class="main-date-cell">
                                                     <form method="POST"
-                                                          action="{{ route('tdrprocesses.updateDate', $pr) }}"
+                                                          action="{{ route('workorder_std_processes.updateDate', $pr) }}"
                                                           class="auto-submit-form js-ajax"
                                                           data-no-spinner>
                                                         @csrf

@@ -10,6 +10,8 @@ use App\Models\TdrProcess;
 use App\Models\Vendor;
 use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
+use App\Models\WorkorderStdProcess;
+use App\Services\WorkorderStdListProcessesService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -40,6 +42,7 @@ class VendorTrackingController extends Controller
     private const SOURCE_MAP = [
         'tdr_std' => TdrProcess::class,
         'tdr_part' => TdrProcess::class,
+        'workorder_std_process' => WorkorderStdProcess::class,
         'wo_bushing_process' => WoBushingProcess::class,
         'wo_bushing_batch' => WoBushingBatch::class,
     ];
@@ -127,12 +130,12 @@ class VendorTrackingController extends Controller
 
         abort_unless($modelClass !== null, 422, 'Unknown vendor tracking source.');
 
-        /** @var TdrProcess|WoBushingProcess|WoBushingBatch $row */
+        /** @var TdrProcess|WorkorderStdProcess|WoBushingProcess|WoBushingBatch $row */
         $row = $modelClass::query()->findOrFail($data['id']);
         $row->vendor_id = $data['vendor_id'] ?? null;
         $row->repair_order = $this->normalizeRepairOrder($data['repair_order'] ?? null);
 
-        if ($row instanceof TdrProcess && auth()->id()) {
+        if (($row instanceof TdrProcess || $row instanceof WorkorderStdProcess) && auth()->id()) {
             $row->user_id = auth()->id();
         }
 
@@ -166,10 +169,10 @@ class VendorTrackingController extends Controller
             'workorder' => $this->normalizeWorkorderFilter((string) $request->input('workorder', '')),
             'part_number' => trim((string) $request->input('part_number', '')),
             'repair_order' => trim((string) $request->input('repair_order', '')),
-            'sort' => $this->normalizeSort((string) $request->input('sort', 'wo')),
+            'sort' => $this->normalizeSort((string) $request->input('sort', 'sent_date')),
             'sort_explicit' => $request->boolean('sort_user')
-                && $this->normalizeSort((string) $request->input('sort', 'wo')) !== 'wo',
-            'direction' => $this->normalizeSortDirection((string) $request->input('direction', 'desc')),
+                && ! in_array($this->normalizeSort((string) $request->input('sort', 'sent_date')), ['sent_date', 'wo'], true),
+            'direction' => $this->normalizeSortDirection((string) $request->input('direction', 'asc')),
         ];
 
         if (! in_array($filters['status'], ['open', 'returned', 'all'], true)) {
@@ -190,9 +193,9 @@ class VendorTrackingController extends Controller
 
     private function normalizeSort(string $value): string
     {
-        return in_array($value, ['vendor', 'type', 'wo', 'ipl', 'process'], true)
+        return in_array($value, ['vendor', 'type', 'wo', 'ipl', 'process', 'sent_date'], true)
             ? $value
-            : 'wo';
+            : 'sent_date';
     }
 
     private function normalizeSortDirection(string $value): string
@@ -240,6 +243,7 @@ class VendorTrackingController extends Controller
 
     private function collectRows(array $filters): Collection
     {
+        $stdProcessNameIds = $this->stdProcessNameIds();
         $tdrRawRows = TdrProcess::query()
             ->with([
                 'vendor:' . $this->vendorSelectColumns(),
@@ -256,6 +260,7 @@ class VendorTrackingController extends Controller
                 $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
             })
             ->whereHas('tdr.workorder')
+            ->when($stdProcessNameIds->isNotEmpty(), fn ($q) => $q->whereNotIn('process_names_id', $stdProcessNameIds))
             ->when($filters['vendor_id'] > 0, fn ($q) => $q->where('vendor_id', $filters['vendor_id']))
             ->when($filters['status'] === 'open', fn ($q) => $q->whereNotNull('date_start')->whereNull('date_finish'))
             ->when($filters['status'] === 'returned', fn ($q) => $q->whereNotNull('date_finish'))
@@ -303,12 +308,14 @@ class VendorTrackingController extends Controller
             ->map(fn (Collection $group) => $this->normalizeTdrTravelerGroup($this->loadFullTravelerGroup($group)))
             ->values();
 
+        $stdRows = in_array('std', $filters['sources'], true) ? $this->workorderStdProcessRows($filters) : collect();
         $bushingProcessRows = in_array('bushing', $filters['sources'], true) ? $this->bushingProcessRows($filters) : collect();
         $bushingBatchRows = in_array('bushing', $filters['sources'], true) ? $this->bushingBatchRows($filters) : collect();
 
         return $this->sortRows(
             $tdrRows
                 ->concat($tdrTravelerRows)
+                ->concat($stdRows)
                 ->concat($bushingProcessRows)
                 ->concat($bushingBatchRows)
                 ->values(),
@@ -332,8 +339,8 @@ class VendorTrackingController extends Controller
             ])->values();
         }
 
-        $sort = $filters['sort'] ?? 'wo';
-        $direction = $filters['direction'] ?? 'desc';
+        $sort = $filters['sort'] ?? 'sent_date';
+        $direction = $filters['direction'] ?? 'asc';
 
         return $rows->sort(function ($a, $b) use ($sort, $direction): int {
             $result = match ($sort) {
@@ -341,6 +348,7 @@ class VendorTrackingController extends Controller
                 'type' => $this->compareText($a->source ?? null, $b->source ?? null),
                 'ipl' => $this->compareText($a->ipl_num ?? null, $b->ipl_num ?? null),
                 'process' => $this->compareText($a->process_name ?? null, $b->process_name ?? null),
+                'sent_date' => $this->compareDate($a->date_start ?? null, $b->date_start ?? null),
                 'wo' => $this->compareText($a->workorder?->number ?? null, $b->workorder?->number ?? null, true),
                 default => 0,
             };
@@ -359,6 +367,42 @@ class VendorTrackingController extends Controller
 
             return $direction === 'asc' ? $result : -$result;
         })->values();
+    }
+
+    private function compareDate(mixed $left, mixed $right): int
+    {
+        $leftTimestamp = $this->dateTimestamp($left);
+        $rightTimestamp = $this->dateTimestamp($right);
+
+        if ($leftTimestamp === null && $rightTimestamp === null) {
+            return 0;
+        }
+
+        if ($leftTimestamp === null) {
+            return 1;
+        }
+
+        if ($rightTimestamp === null) {
+            return -1;
+        }
+
+        return $leftTimestamp <=> $rightTimestamp;
+    }
+
+    private function dateTimestamp(mixed $value): ?int
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->getTimestamp();
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        $timestamp = strtotime($value);
+
+        return $timestamp === false ? null : $timestamp;
     }
 
     private function compareText(?string $left, ?string $right, bool $natural = false): int
@@ -406,6 +450,73 @@ class VendorTrackingController extends Controller
             'part_name' => $component?->name,
             'serial' => $tdr?->serial_number ?: $tdr?->assy_serial_number,
             'process_name' => $row->processName?->name ?? null,
+            'repair_order' => $row->repair_order,
+            'date_start' => $row->date_start,
+            'date_finish' => $row->date_finish,
+            'date_promise' => $row->date_promise,
+            'is_returned' => ! empty($row->date_finish),
+        ];
+    }
+
+    private function stdProcessNameIds(): Collection
+    {
+        return \App\Models\ProcessName::query()
+            ->whereIn('name', array_values(WorkorderStdListProcessesService::NAME_BY_KEY))
+            ->pluck('id');
+    }
+
+    private function workorderStdProcessRows(array $filters): Collection
+    {
+        return WorkorderStdProcess::query()
+            ->with([
+                'vendor:' . $this->vendorSelectColumns(),
+                'processName:id,name',
+                'workorder:id,number,customer_id',
+                'workorder.customer:id,name',
+            ])
+            ->where(function ($q) use ($filters): void {
+                $this->applyVendorFilter($q, $filters);
+            })
+            ->where(function ($q): void {
+                $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
+            })
+            ->whereHas('workorder')
+            ->when($filters['vendor_id'] > 0, fn ($q) => $q->where('vendor_id', $filters['vendor_id']))
+            ->when($filters['status'] === 'open', fn ($q) => $q->whereNotNull('date_start')->whereNull('date_finish'))
+            ->when($filters['status'] === 'returned', fn ($q) => $q->whereNotNull('date_finish'))
+            ->when($filters['workorder'] !== '', function ($q) use ($filters): void {
+                $q->whereHas('workorder', fn ($wq) => $wq->where('number', 'like', '%' . $filters['workorder'] . '%'));
+            })
+            ->when((int) ($filters['customer_id'] ?? 0) > 0, function ($q) use ($filters): void {
+                $q->whereHas('workorder', fn ($wq) => $wq->where('customer_id', (int) $filters['customer_id']));
+            })
+            ->when($filters['part_number'] !== '', fn ($q) => $q->whereRaw('1 = 0'))
+            ->when($filters['repair_order'] !== '', fn ($q) => $q->where('repair_order', 'like', '%' . $filters['repair_order'] . '%'))
+            ->get()
+            ->map(fn (WorkorderStdProcess $row) => $this->normalizeWorkorderStdProcess($row));
+    }
+
+    private function normalizeWorkorderStdProcess(WorkorderStdProcess $row): object
+    {
+        $wo = $row->workorder;
+
+        return (object) [
+            'id' => (int) $row->id,
+            'tdr_id' => 0,
+            'workorder_number' => (string) ($wo?->number ?? ''),
+            'process_sort_order' => (int) array_search($row->std_type, array_keys(WorkorderStdListProcessesService::NAME_BY_KEY), true),
+            'process_row_id' => (int) $row->id,
+            'source_key' => 'workorder_std_process',
+            'source' => 'STD',
+            'date_update_url' => route('workorder_std_processes.updateDate', $row),
+            'vendor' => $row->vendor,
+            'workorder' => $wo,
+            'customer' => $wo?->customer,
+            'ipl_num' => null,
+            'part_number' => null,
+            'part_name' => null,
+            'serial' => null,
+            'process_name' => $row->processName?->name ?? strtoupper((string) $row->std_type),
             'repair_order' => $row->repair_order,
             'date_start' => $row->date_start,
             'date_finish' => $row->date_finish,
@@ -689,11 +800,20 @@ class VendorTrackingController extends Controller
 
     private function totalRowsCount(): int
     {
+        $stdProcessNameIds = $this->stdProcessNameIds();
         $tdrCount = TdrProcess::query()
             ->where(function ($q): void {
                 $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
             })
             ->whereHas('tdr.workorder')
+            ->when($stdProcessNameIds->isNotEmpty(), fn ($q) => $q->whereNotIn('process_names_id', $stdProcessNameIds))
+            ->count();
+
+        $stdCount = WorkorderStdProcess::query()
+            ->where(function ($q): void {
+                $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
+            })
+            ->whereHas('workorder')
             ->count();
 
         $bushingProcessCount = 0;
@@ -716,7 +836,7 @@ class VendorTrackingController extends Controller
                 ->count();
         }
 
-        return $tdrCount + $bushingProcessCount + $bushingBatchCount;
+        return $tdrCount + $stdCount + $bushingProcessCount + $bushingBatchCount;
     }
 
     private function normalizeRepairOrder(?string $value): ?string

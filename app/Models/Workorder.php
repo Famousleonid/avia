@@ -38,6 +38,16 @@ class Workorder extends Model implements HasMedia
         return $this->hasMany(Tdr::class,'workorder_id');
     }
 
+    public function stdProcesses(): HasMany
+    {
+        return $this->hasMany(WorkorderStdProcess::class);
+    }
+
+    public function unitInspections(): HasMany
+    {
+        return $this->hasMany(WorkorderUnitInspection::class);
+    }
+
     public function woBushingLines(): HasMany
     {
         return $this->hasMany(WoBushingLine::class);

@@ -17,6 +17,8 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RmReportController;
 use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\TdrController;
+use App\Http\Controllers\Admin\TdrPrintFormController;
+use App\Http\Controllers\Admin\TdrUnitInspectionController;
 use App\Http\Controllers\Admin\TdrProcessController;
 use App\Http\Controllers\Admin\ToolController;
 use App\Http\Controllers\Admin\TransferController;
@@ -30,6 +32,7 @@ use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\VendorTrackingController;
 use App\Http\Controllers\Admin\WorkorderController;
+use App\Http\Controllers\Admin\WorkorderStdProcessController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\NdtCadCsvController;
 use App\Http\Controllers\Admin\MachiningController;
@@ -236,37 +239,38 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/processes/{workorder_id}',[TdrController::class, 'processes'])->name('tdrs.processes');
         Route::get('tdrs/{id}/group-forms/{processNameId}', [TdrController::class, 'showGroupForms'])->name('tdrs.show_group_forms');
         Route::get('/tdrs/inspection/{workorder_id}',[TdrController::class, 'inspection'])->name('tdrs.inspection');
-        Route::get('tdrs/logCardForm/{id}', [TdrController::class, 'logCardForm'])->name('tdrs.logCardForm');
+        Route::get('tdrs/logCardForm/{id}', [TdrPrintFormController::class, 'logCardForm'])->name('tdrs.logCardForm');
         Route::get('log_card/logCardForm/{id}', [LogCardController::class, 'logCardForm'])->name('log_card.logCardForm');
         Route::get('log_card/sertDistrForm/{id}', [LogCardController::class, 'sertDistrForm'])->name('log_card.sertDistrForm');
         Route::post('log_card/sertDistrForm/{id}', [LogCardController::class, 'updateDestructionCertificate'])->name('log_card.destruction_certificate.update');
-        Route::get('tdrs/woProcessForm/{id}', [TdrController::class, 'wo_Process_Form'])->name('tdrs.woProcessForm');
-        Route::get('tdrs/woBoxTitle/{id}', [TdrController::class, 'wo_BoxTitle'])->name('tdrs.wo_BoxTitle');
+        Route::get('tdrs/woProcessForm/{id}', [TdrPrintFormController::class, 'wo_Process_Form'])->name('tdrs.woProcessForm');
+        Route::get('tdrs/woBoxTitle/{id}', [TdrPrintFormController::class, 'wo_BoxTitle'])->name('tdrs.wo_BoxTitle');
 
     Route::get('tdrs/processes-partial/{workorder_id}', [TdrController::class, 'processesPartial'])->name('tdrs.processesPartial');
         Route::get('tdrs/log-card-partial/{workorder_id}', [LogCardController::class, 'partial'])->name('log_card.partial');
         Route::get('tdrs/transfers-partial/{workorder}', [TransferController::class, 'partial'])->name('transfers.partial');
 
 
-        Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrController::class, 'inspectionUnit'])->name('tdrs.inspection.unit');
+        Route::get('/tdrs/inspection/unit/{workorder_id}', [TdrUnitInspectionController::class, 'create'])->name('tdrs.inspection.unit');
         Route::get('/tdrs/inspection/component/{workorder_id}', [TdrController::class, 'inspectionComponent'])->name('tdrs.inspection.component');
-        Route::get('tdrs/{workorder_id}/ndt-std', [TdrController::class, 'ndtStd'])->name('tdrs.ndtStd');
-        Route::get('tdrs/{workorder_id}/cad-std', [TdrController::class, 'cadStd'])->name('tdrs.cadStd');
-        Route::get('tdrs/{workorder_id}/paint-std', [TdrController::class, 'paintStd'])->name('tdrs.paintStd');
-        Route::get('tdrs/{workorder_id}/stress-std', [TdrController::class, 'stressStd'])->name('tdrs.stressStd');
+        Route::get('tdrs/{workorder_id}/ndt-std', [TdrPrintFormController::class, 'ndtStd'])->name('tdrs.ndtStd');
+        Route::get('tdrs/{workorder_id}/cad-std', [TdrPrintFormController::class, 'cadStd'])->name('tdrs.cadStd');
+        Route::get('tdrs/{workorder_id}/paint-std', [TdrPrintFormController::class, 'paintStd'])->name('tdrs.paintStd');
+        Route::get('tdrs/{workorder_id}/stress-std', [TdrPrintFormController::class, 'stressStd'])->name('tdrs.stressStd');
         Route::get('tdrs/{workorder_id}/machining-form', [TdrController::class, 'machiningForm'])->name('tdrs.machiningForm');
-        Route::get('tdrs/{workorder_id}/ndt-form', [TdrController::class, 'ndtForm'])->name('tdrs.ndtForm');
+        Route::get('tdrs/{workorder_id}/ndt-form', [TdrPrintFormController::class, 'ndtForm'])->name('tdrs.ndtForm');
         Route::get('tdrs/{workorder_id}/passivation-form', [TdrController::class, 'passivationForm'])->name('tdrs.passivationForm');
         Route::get('tdrs/{workorder_id}/cad-form', [TdrController::class, 'cadForm'])->name('tdrs.cadForm');
         Route::get('tdrs/{workorder_id}/xylan-form', [TdrController::class, 'xylanForm'])->name('tdrs.xylanForm');
         Route::get('tdrs/{workorder_id}/spec-process', [TdrController::class, 'specProcess'])->name('tdrs.specProcess');
         Route::post('tdrs/store-processes', [TdrController::class, 'storeProcesses'])->name('tdrs.storeProcesses');
-        Route::post('tdrs/store-unit-inspections', [TdrController::class, 'storeUnitInspections'])->name('tdrs.store.unit-inspections');
+        Route::post('tdrs/store-unit-inspections', [TdrUnitInspectionController::class, 'store'])->name('tdrs.store.unit-inspections');
+        Route::delete('workorder-unit-inspections/{inspection}', [TdrUnitInspectionController::class, 'destroy'])->name('workorder-unit-inspections.destroy');
         Route::get('tdrs/get-components-by-manual', [TdrController::class, 'getComponentsByManual'])->name('tdrs.get-components-by-manual');
-        Route::get('tdrs/tdrForm/{id}', [TdrController::class, 'tdrForm'])->name('tdrs.tdrForm');
-        Route::get('tdrs/prlForm/{id}', [TdrController::class, 'prlForm'])->name('tdrs.prlForm');
-        Route::get('tdrs/specProcessForm/{id}', [TdrController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
-    Route::get('tdrs/specProcessFormEmp/{id}', [TdrController::class, 'specProcessFormEmp'])->name('tdrs.specProcessFormEmp');
+        Route::get('tdrs/tdrForm/{id}', [TdrPrintFormController::class, 'tdrForm'])->name('tdrs.tdrForm');
+        Route::get('tdrs/prlForm/{id}', [TdrPrintFormController::class, 'prlForm'])->name('tdrs.prlForm');
+        Route::get('tdrs/specProcessForm/{id}', [TdrPrintFormController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
+    Route::get('tdrs/specProcessFormEmp/{id}', [TdrPrintFormController::class, 'specProcessFormEmp'])->name('tdrs.specProcessFormEmp');
         Route::post('tdrs/update-part-field/{id}', [TdrController::class, 'updatePartField'])->name('tdrs.updatePartField');
 
         Route::get('transfers/{workorder}', [TransferController::class, 'show'])->name('transfers.show');
@@ -309,7 +313,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     Route::patch('/components/{component}/single', [ComponentController::class, 'updateSingle'])->name('components.updateSingle');
     Route::resource('/components', ComponentController::class);
-    Route::resource('/processes', ProcessController::class);
+    Route::resource('/processes', ProcessController::class)->except(['create', 'edit']);
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::resource('/manual_processes', ManualProcessController::class);
     Route::post('manuals/{manual}/process-name-locks/{processName}', [ManualProcessLockController::class, 'lockProcessName'])->name('manuals.process-name-locks.lock');
@@ -320,7 +324,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::delete('manuals/{manual}/part-lock', [ManualPartLockController::class, 'unlock'])->name('manuals.part-lock.unlock');
 
 
-    Route::resource('/log_card', LogCardController::class);
+    Route::resource('/log_card', LogCardController::class)->except(['create', 'edit', 'show']);
 
 
 
@@ -351,6 +355,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/wo-bushing-batches/{woBushingBatch}/dates', [MainController::class, 'updateWoBushingBatchDate'])->name('wo_bushing_batches.updateDate');
 
     Route::patch('/tdr-processes/{tdrProcess}/dates', [TdrProcessController::class, 'updateDate'])->name('tdrprocesses.updateDate');
+    Route::patch('/workorder-std-processes/{stdProcess}/dates', [WorkorderStdProcessController::class, 'updateDate'])->name('workorder_std_processes.updateDate');
+    Route::patch('/workorder-std-processes/{stdProcess}/repair-order', [WorkorderStdProcessController::class, 'updateRepairOrder'])->name('workorder_std_processes.updateRepairOrder');
+    Route::patch('/workorder-std-processes/{stdProcess}/ignore-row', [WorkorderStdProcessController::class, 'updateIgnoreRow'])->name('workorder_std_processes.updateIgnoreRow');
     Route::patch('/tdrs/{tdr}/traveler-group/dates', [TdrProcessController::class, 'updateTravelerGroupDates'])->name('tdrprocesses.updateTravelerGroupDates');
     Route::patch('/tdrs/{tdr}/traveler-group/repair-order', [MainController::class, 'updateTravelerGroupRepairOrder'])->name('tdrprocesses.updateTravelerGroupRepairOrder');
     Route::patch('/tdr-processes/{tdrProcess}/repair-order', [MainController::class, 'updateRepairOrder'])->name('tdrprocesses.updateRepairOrder');
@@ -369,7 +376,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/extra_processes/{id}/group-forms/{processNameId}', [ExtraProcessController::class, 'showGroupForms'])->name('extra_processes.show_group_forms');
     Route::get('/extra_processes/{id}/edit_component', [ExtraProcessController::class, 'editComponent'])->name('extra_processes.edit_component');
     Route::put('/extra_processes/{id}/update_component', [ExtraProcessController::class, 'updateComponent'])->name('extra_processes.update_component');
-    Route::resource('/extra_processes', ExtraProcessController::class)->except(['create']);
+    Route::resource('/extra_processes', ExtraProcessController::class)->except(['create', 'show', 'edit']);
 
     Route::get('log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
     Route::get('log_card/edit/{id}', [LogCardController::class, 'edit'])->name('log_card.edit');
@@ -532,13 +539,14 @@ Route::middleware(['auth', 'verified', 'desktop'])
         Route::patch('{directory}/toggle/{id}/{field}', [DirectoryController::class, 'toggle'])->name('directories.toggle');
 
         foreach (array_keys(config('directories')) as $slug) {
+            $storeRouteName = $slug === 'vendors' ? 'directories.vendors.store' : "{$slug}.store";
 
             Route::resource($slug, DirectoryController::class)
                 ->only(['index', 'store', 'update', 'destroy'])
                 ->parameters([$slug => 'id']) // чтобы было {id}, а не {role}/{plane}
                 ->names([
                     'index'   => "{$slug}.index",
-                    'store'   => "{$slug}.store",
+                    'store'   => $storeRouteName,
                     'update'  => "{$slug}.update",
                     'destroy' => "{$slug}.destroy",
                 ]);

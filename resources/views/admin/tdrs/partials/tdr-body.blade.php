@@ -377,14 +377,14 @@
                         </td>
                     </tr>
                 @endif
-                @foreach($inspectsUnit->whereNull('component_id') as $tdr)
+                @foreach($inspectsUnit as $inspection)
                     <tr>
                         <td class="text-center fs-8" >
                             @php
-                                $conditionName = $tdr->conditions->name ?? null;
+                                $conditionName = $inspection->condition->name ?? null;
                                 if (!$conditionName) {
                                     foreach($conditions as $condition) {
-                                        if ($condition->id == $tdr->conditions_id) {
+                                        if ($condition->id == $inspection->condition_id) {
                                             $conditionName = $condition->name;
                                             break;
                                         }
@@ -394,23 +394,24 @@
                                 $isNoteCondition = $conditionName && preg_match('/^note\s+\d+$/i', $conditionName);
                             @endphp
                             @if(!$isNoteCondition)
-                                @if($tdr->conditions)
-                                    {{ empty($tdr->conditions->name) ? __('(No name)') : $tdr->conditions->name }}
+                                @if($inspection->condition)
+                                    {{ empty($inspection->condition->name) ? __('(No name)') : $inspection->condition->name }}
                                 @else
                                     @foreach($conditions as $condition)
-                                        @if($condition->id == $tdr->conditions_id)
+                                        @if($condition->id == $inspection->condition_id)
                                             {{ empty($condition->name) ? __('(No name)') : $condition->name }}
                                             @break
                                         @endif
                                     @endforeach
                                 @endif
                             @endif
-                            @if($tdr->description)
-                                {{ $isNoteCondition ? $tdr->description : '(' . $tdr->description . ')' }}
+                            @if($inspection->notes)
+                                {{ $isNoteCondition ? $inspection->notes : '(' . $inspection->notes . ')' }}
                             @endif
                         </td>
                         <td class="p-0 text-center img-icon">
-                            <form action="{{ route('tdrs.destroy', $tdr->id) }}" method="POST">
+                            @admin
+                            <form action="{{ route('workorder-unit-inspections.destroy', $inspection) }}" method="POST">
                                 @csrf
                                 @method('DELETE')
                                 <input type="hidden" name="return_to" value="show">
@@ -423,6 +424,7 @@
                                     <i class="bi bi-trash3"></i>
                                 </button>
                             </form>
+                            @endadmin
                         </td>
                     </tr>
                 @endforeach

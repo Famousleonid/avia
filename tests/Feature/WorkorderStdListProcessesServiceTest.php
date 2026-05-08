@@ -74,9 +74,15 @@ class WorkorderStdListProcessesServiceTest extends TestCase
         $resolved = app(WorkorderStdListProcessesService::class)->resolveForWorkorder($workorder);
 
         $this->assertNotNull($resolved);
-        $this->assertSame($legacyProcess->id, $resolved->get('paint')?->id);
+        $this->assertSame($legacyProcess->id, $resolved->get('paint')?->source_tdr_process_id);
         $this->assertSame('2026-04-01', $resolved->get('paint')?->date_start?->format('Y-m-d'));
         $this->assertSame('2026-04-05', $resolved->get('paint')?->date_finish?->format('Y-m-d'));
+        $this->assertDatabaseHas('workorder_std_processes', [
+            'workorder_id' => $workorder->id,
+            'std_type' => 'paint',
+            'process_name_id' => $processName->id,
+            'source_tdr_process_id' => $legacyProcess->id,
+        ]);
     }
 
     public function test_service_does_not_use_condition_tdr_as_std_list_carrier(): void
@@ -120,10 +126,15 @@ class WorkorderStdListProcessesServiceTest extends TestCase
         $resolved = app(WorkorderStdListProcessesService::class)->resolveForWorkorder($workorder);
 
         $this->assertNotNull($resolved);
-        $this->assertNotSame($wrongProcess->id, $resolved->get('ndt')?->id);
+        $this->assertSame($wrongProcess->id, $resolved->get('ndt')?->source_tdr_process_id);
         $this->assertSame('R8826', $resolved->get('ndt')?->repair_order);
         $this->assertSame('2026-05-07', $resolved->get('ndt')?->date_start?->format('Y-m-d'));
-        $this->assertSame(WorkorderStdListProcessesService::CARRIER_DESCRIPTION, $resolved->get('ndt')?->tdr?->description);
-        $this->assertNull($resolved->get('ndt')?->tdr?->conditions_id);
+        $this->assertDatabaseHas('workorder_std_processes', [
+            'workorder_id' => $workorder->id,
+            'std_type' => 'ndt',
+            'process_name_id' => $processName->id,
+            'source_tdr_process_id' => $wrongProcess->id,
+            'repair_order' => 'R8826',
+        ]);
     }
 }

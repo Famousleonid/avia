@@ -1929,6 +1929,7 @@ class TdrProcessController extends Controller
         return back()->with('success', 'Process dates updated');
     }
 
+
     private function updateTravelerProcessDateFields(Request $request, TdrProcess $tdrProcess, array $data, bool $isAjax)
     {
         if (! array_key_exists('date_start', $data) && ! array_key_exists('date_finish', $data) && ! array_key_exists('date_promise', $data)) {

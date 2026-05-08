@@ -2410,11 +2410,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (checkbox.checked) {
                         const conditionId = checkbox.getAttribute('data-condition-id');
                         const notesInput = document.querySelector(`input[name="conditions[${conditionId}][notes]"]`);
-                        const tdrIdInput = document.querySelector(`input[name="conditions[${conditionId}][tdr_id]"]`);
+                        const inspectionIdInput = document.querySelector(`input[name="conditions[${conditionId}][inspection_id]"]`);
                         conditionsData[conditionId] = {
                             selected: true,
                             notes: notesInput ? notesInput.value : '',
-                            tdr_id: tdrIdInput ? tdrIdInput.value : null
+                            inspection_id: inspectionIdInput ? inspectionIdInput.value : null
                         };
                     }
                 });

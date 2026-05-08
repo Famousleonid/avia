@@ -1,0 +1,174 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\WorkorderStdProcess;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+
+class WorkorderStdProcessController extends Controller
+{
+    public function updateDate(Request $request, WorkorderStdProcess $stdProcess)
+    {
+        $isAjax = $request->ajax()
+            || $request->expectsJson()
+            || $request->header('X-Requested-With') === 'XMLHttpRequest';
+
+        $v = Validator::make($request->all(), [
+            'date_start' => ['nullable', 'date'],
+            'date_finish' => ['nullable', 'date'],
+            'date_promise' => ['nullable', 'date'],
+        ]);
+
+        if ($v->fails()) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $v->errors()], 422);
+            }
+
+            return back()->withErrors($v)->withInput();
+        }
+
+        $data = $v->validated();
+
+        if (! array_key_exists('date_start', $data) && ! array_key_exists('date_finish', $data) && ! array_key_exists('date_promise', $data)) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'message' => 'No date fields'], 422);
+            }
+
+            return back()->withErrors(['date' => 'No date fields'])->withInput();
+        }
+
+        $currentStart = $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null;
+        $effectiveStart = array_key_exists('date_start', $data)
+            ? ($data['date_start'] ?: null)
+            : $currentStart;
+
+        if (! empty($data['date_finish']) && ! $effectiveStart) {
+            $errors = ['date_finish' => ['The start date must be filled in before setting the end date.']];
+
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $errors], 422);
+            }
+
+            return back()->withErrors($errors)->withInput();
+        }
+
+        if (! empty($data['date_finish']) && $effectiveStart && Carbon::parse($data['date_finish'])->lt(Carbon::parse($effectiveStart))) {
+            $errors = ['date_finish' => ['The end date cannot be earlier than the start date.']];
+
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $errors], 422);
+            }
+
+            return back()->withErrors($errors)->withInput();
+        }
+
+        $oldStart = $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null;
+        $oldFinish = $stdProcess->date_finish ? $stdProcess->date_finish->format('Y-m-d') : null;
+        $authId = auth()->id();
+
+        if (array_key_exists('date_start', $data)) {
+            $nextStart = $data['date_start'] ?: null;
+            $stdProcess->date_start = $nextStart;
+            if ($oldStart !== $nextStart) {
+                $stdProcess->date_start_user_id = $authId;
+            }
+
+            if ($nextStart === null) {
+                $stdProcess->date_finish = null;
+                if ($oldFinish !== null) {
+                    $stdProcess->date_finish_user_id = $authId;
+                }
+            }
+        }
+
+        if (array_key_exists('date_finish', $data)) {
+            $nextFinish = $data['date_finish'] ?: null;
+            $stdProcess->date_finish = $nextFinish;
+            if ($oldFinish !== $nextFinish) {
+                $stdProcess->date_finish_user_id = $authId;
+            }
+        }
+
+        if (array_key_exists('date_promise', $data)) {
+            $stdProcess->date_promise = $data['date_promise'] ?: null;
+        }
+
+        $stdProcess->user_id = $authId;
+        $stdProcess->save();
+
+        if ($isAjax) {
+            $stdProcess->loadMissing(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name']);
+
+            return response()->json([
+                'success' => true,
+                'user' => auth()->user()->name ?? 'system',
+                'date_start' => $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null,
+                'date_finish' => $stdProcess->date_finish ? $stdProcess->date_finish->format('Y-m-d') : null,
+                'date_promise' => $stdProcess->date_promise ? $stdProcess->date_promise->format('Y-m-d') : null,
+                'date_start_user' => $stdProcess->dateStartUpdatedBy?->name,
+                'date_finish_user' => $stdProcess->dateFinishUpdatedBy?->name,
+            ], 200);
+        }
+
+        return back()->with('success', 'STD process dates updated');
+    }
+
+    public function updateRepairOrder(Request $request, WorkorderStdProcess $stdProcess)
+    {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $request->validate([
+            'repair_order' => 'nullable|string|max:255',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
+        ]);
+
+        if ($request->has('repair_order')) {
+            $stdProcess->repair_order = $request->repair_order;
+        }
+        if ($request->has('vendor_id')) {
+            $stdProcess->vendor_id = $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null;
+        }
+        $stdProcess->user_id = auth()->id();
+        $stdProcess->save();
+        $stdProcess->load('vendor:id,name');
+
+        return response()->json([
+            'success' => true,
+            'user' => auth()->user()?->name ?? 'system',
+            'repair_order' => $stdProcess->repair_order,
+            'vendor_id' => $stdProcess->vendor_id,
+            'vendor_name' => $stdProcess->vendor?->name,
+            'updated_at' => now()->format('d.m.Y H:i'),
+        ]);
+    }
+
+    public function updateIgnoreRow(Request $request, WorkorderStdProcess $stdProcess)
+    {
+        abort_unless(auth()->check(), 403);
+
+        $data = $request->validate([
+            'ignore_row' => ['required', 'boolean'],
+        ]);
+
+        $stdProcess->ignore_row = (bool) $data['ignore_row'];
+        $stdProcess->user_id = auth()->id();
+        $stdProcess->save();
+
+        $rowName = $stdProcess->processName()->value('name') ?? 'STD Process';
+        $updatedAt = now()->format('d ') . Str::lower(now()->format('M')) . now()->format(' Y');
+
+        return response()->json([
+            'success' => true,
+            'message' => $stdProcess->ignore_row
+                ? "Row ignored ({$rowName}) {$updatedAt}"
+                : "Row restored ({$rowName}) {$updatedAt}",
+            'ignore_row' => (bool) $stdProcess->ignore_row,
+            'user' => auth()->user()?->name ?? 'system',
+            'updated_at' => $updatedAt,
+        ]);
+    }
+}

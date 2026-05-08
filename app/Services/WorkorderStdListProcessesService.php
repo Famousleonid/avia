@@ -9,6 +9,7 @@ use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Workorder;
+use App\Models\WorkorderStdProcess;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 
@@ -29,21 +30,14 @@ class WorkorderStdListProcessesService
 
         $tdr = Tdr::query()
             ->where('workorder_id', $wid)
-            ->whereNull('component_id')
-            ->where('description', self::CARRIER_DESCRIPTION)
+            ->stdListCarriers()
             ->orderBy('id')
             ->first();
 
         if ($tdr === null) {
             $tdr = Tdr::query()
                 ->where('workorder_id', $wid)
-                ->whereNull('component_id')
-                ->whereNull('codes_id')
-                ->whereNull('conditions_id')
-                ->whereNull('necessaries_id')
-                ->where(function ($query): void {
-                    $query->whereNull('description')->orWhere('description', '');
-                })
+                ->legacyBlankWorkorderRows()
                 ->orderBy('id')
                 ->first();
         }
@@ -65,15 +59,17 @@ class WorkorderStdListProcessesService
 
     public function isStdListCarrierTdr(?Tdr $tdr): bool
     {
-        if (! $tdr || $tdr->component_id !== null) {
+        if (! $tdr) {
             return false;
         }
 
-        if ((string) ($tdr->description ?? '') === self::CARRIER_DESCRIPTION) {
+        if ($tdr->isStdListCarrier()) {
             return true;
         }
 
-        return $tdr->codes_id === null
+        return in_array($tdr->tdr_type, [null, Tdr::TYPE_UNKNOWN], true)
+            && $tdr->component_id === null
+            && $tdr->codes_id === null
             && $tdr->conditions_id === null
             && $tdr->necessaries_id === null
             && trim((string) ($tdr->description ?? '')) === '';
@@ -98,12 +94,12 @@ class WorkorderStdListProcessesService
             ->whereHas('tdr', function ($query) use ($workorder): void {
                 $query->where('workorder_id', (int) $workorder->id);
             })
-            ->with('tdr:id,workorder_id,component_id,codes_id,conditions_id,necessaries_id,description')
+            ->with('tdr:id,tdr_type,workorder_id,component_id,codes_id,conditions_id,necessaries_id,description')
             ->get();
     }
 
     /**
-     * @return Collection<string, TdrProcess>|null
+     * @return Collection<string, WorkorderStdProcess>|null
      */
     public function resolveForWorkorder(Workorder $workorder): ?Collection
     {
@@ -118,30 +114,52 @@ class WorkorderStdListProcessesService
             ->keyBy('name');
 
         $out = collect();
-        $carrierTdr = null;
         foreach (self::NAME_BY_KEY as $key => $name) {
             $pn = $processNames->get($name);
             if (! $pn) {
                 continue;
             }
 
-            $tp = $this->findPreferredSafeStdListProcessForWorkorder($workorder, (int) $pn->id);
-            if (! $tp) {
-                $carrierTdr ??= $this->ensureStdListCarrierTdr($workorder);
-                $tp = TdrProcess::firstOrCreate(
-                    [
-                        'tdrs_id' => $carrierTdr->id,
-                        'process_names_id' => $pn->id,
-                    ],
-                    []
+            $row = WorkorderStdProcess::query()->firstOrNew([
+                'workorder_id' => (int) $workorder->id,
+                'process_name_id' => (int) $pn->id,
+            ]);
+
+            if (! $row->exists) {
+                $preferred = $this->findPreferredStdListProcessForWorkorder($workorder, (int) $pn->id);
+                $row->fill($preferred
+                    ? $this->workorderStdPayloadFromLegacy($preferred, $key)
+                    : ['std_type' => $key]
                 );
+                $row->save();
             }
 
-            $tp->load(['processName', 'updatedBy', 'dateStartUpdatedBy', 'dateFinishUpdatedBy', 'vendor:id,name']);
-            $out->put($key, $tp);
+            $row->load(['processName', 'updatedBy', 'dateStartUpdatedBy', 'dateFinishUpdatedBy', 'vendor:id,name', 'workorder:id,number,customer_id']);
+            $out->put($key, $row);
         }
 
         return $out->isEmpty() ? null : $out;
+    }
+
+    public function workorderStdPayloadFromLegacy(TdrProcess $legacy, string $stdType): array
+    {
+        return [
+            'std_type' => $stdType,
+            'source_tdr_id' => $legacy->tdrs_id,
+            'source_tdr_process_id' => $legacy->id,
+            'processes' => $legacy->processes,
+            'description' => $legacy->description,
+            'notes' => $legacy->notes,
+            'repair_order' => $legacy->repair_order,
+            'vendor_id' => $legacy->vendor_id,
+            'date_start' => $legacy->date_start,
+            'date_start_user_id' => $legacy->date_start_user_id,
+            'date_finish' => $legacy->date_finish,
+            'date_finish_user_id' => $legacy->date_finish_user_id,
+            'date_promise' => $legacy->date_promise,
+            'ignore_row' => (bool) $legacy->ignore_row,
+            'user_id' => $legacy->user_id,
+        ];
     }
 
     public function findPreferredStdListProcessForWorkorder(Workorder $workorder, int $processNameId): ?TdrProcess
@@ -199,6 +217,7 @@ class WorkorderStdListProcessesService
     private function carrierTdrDefaults(): array
     {
         return [
+            'tdr_type' => Tdr::TYPE_STD_LIST_CARRIER,
             'description' => self::CARRIER_DESCRIPTION,
             'codes_id' => null,
             'conditions_id' => null,

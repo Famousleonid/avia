@@ -139,11 +139,18 @@
                                             'component_id' => 'component',
                                             'order_component_id' => 'order component',
                                             'process_names_id' => 'process name',
+                                            'process_name_id' => 'process name',
                                             'processes_id' => 'process',
                                             'tdrs_id' => 'tdr',
+                                            'source_tdr_id' => 'source tdr',
+                                            'source_tdr_process_id' => 'source tdr process',
                                             'codes_id' => 'code',
                                             'conditions_id' => 'condition',
+                                            'condition_id' => 'condition',
                                             'necessaries_id' => 'necessary',
+                                            'vendor_id' => 'vendor',
+                                            'date_start_user_id' => 'sent date user',
+                                            'date_finish_user_id' => 'back date user',
                                             'builders_id' => 'builder',
                                             'planes_id' => 'plane',
                                             'scopes_id' => 'scope',
@@ -167,8 +174,11 @@
                                         $processMap,
                                         $tdrMap,
                                         $tdrProcessMap,
+                                        $workorderStdProcessMap,
+                                        $workorderUnitInspectionMap,
                                         $codeMap,
                                         $conditionMap,
+                                        $vendorMap,
                                         $necessaryMap,
                                         $builderMap,
                                         $planeMap,
@@ -217,7 +227,7 @@
                                             return $componentMap[$id] ?? "component id {$id}";
                                         }
 
-                                        if ($key === 'process_names_id' && is_numeric($value)) {
+                                        if (($key === 'process_names_id' || $key === 'process_name_id') && is_numeric($value)) {
                                             $id = (int)$value;
                                             return $processNameMap[$id] ?? "process_name id {$id}";
                                         }
@@ -227,9 +237,14 @@
                                             return $processMap[$id] ?? "process id {$id}";
                                         }
 
-                                        if ($key === 'tdrs_id' && is_numeric($value)) {
+                                        if (($key === 'tdrs_id' || $key === 'source_tdr_id') && is_numeric($value)) {
                                             $id = (int)$value;
                                             return $tdrMap[$id] ?? "tdr id {$id}";
+                                        }
+
+                                        if ($key === 'source_tdr_process_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $tdrProcessMap[$id] ?? "tdr process id {$id}";
                                         }
 
                                         if ($key === 'codes_id' && is_numeric($value)) {
@@ -237,9 +252,14 @@
                                             return $codeMap[$id] ?? "code id {$id}";
                                         }
 
-                                        if ($key === 'conditions_id' && is_numeric($value)) {
+                                        if (($key === 'conditions_id' || $key === 'condition_id') && is_numeric($value)) {
                                             $id = (int)$value;
                                             return $conditionMap[$id] ?? "condition id {$id}";
+                                        }
+
+                                        if ($key === 'vendor_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $vendorMap[$id] ?? "vendor id {$id}";
                                         }
 
                                         if ($key === 'necessaries_id' && is_numeric($value)) {
@@ -277,7 +297,7 @@
                                             return $customerMap[$id] ?? "customer id {$id}";
                                         }
 
-                                        if ($key === 'done_user_id' && is_numeric($value)) {
+                                        if (($key === 'done_user_id' || $key === 'date_start_user_id' || $key === 'date_finish_user_id') && is_numeric($value)) {
                                             $id = (int)$value;
                                             return $doneUserMap[$id] ?? "user id {$id}";
                                         }
@@ -369,7 +389,7 @@
 
                                     $firstEnteredRows = [];
                                     if (
-                                        $a->subject_type === \App\Models\TdrProcess::class
+                                        in_array($a->subject_type, [\App\Models\TdrProcess::class, \App\Models\WorkorderStdProcess::class], true)
                                         && $a->event === 'updated'
                                     ) {
                                         foreach ([
@@ -494,6 +514,26 @@
                                         $parts = array_values(array_filter([$tdrLabel, $processLabel], fn ($value) => filled($value)));
                                         $fallback = $parts !== [] ? 'tdr process: '.implode('   process: ', $parts) : null;
                                         $objectText = $tdrProcessMap[$subjectId] ?? $fallback ?? $objectText;
+                                    } elseif ($a->subject_type === \App\Models\WorkorderStdProcess::class && $subjectId) {
+                                        $row = array_merge($old, $new);
+                                        $parts = [
+                                            isset($row['std_type']) ? 'STD '.strtoupper((string) $row['std_type']) : null,
+                                            isset($row['workorder_id']) ? $formatValue('workorder_id', $row['workorder_id']) : null,
+                                            isset($row['process_name_id']) ? $formatValue('process_name_id', $row['process_name_id']) : null,
+                                            filled($row['repair_order'] ?? null) ? 'RO '.$row['repair_order'] : null,
+                                            isset($row['vendor_id']) ? $formatValue('vendor_id', $row['vendor_id']) : null,
+                                        ];
+                                        $fallback = 'workorder std process: '.implode('   ', array_values(array_filter($parts, fn ($value) => filled($value))));
+                                        $objectText = $workorderStdProcessMap[$subjectId] ?? $fallback ?? $objectText;
+                                    } elseif ($a->subject_type === \App\Models\WorkorderUnitInspection::class && $subjectId) {
+                                        $row = array_merge($old, $new);
+                                        $parts = [
+                                            isset($row['workorder_id']) ? $formatValue('workorder_id', $row['workorder_id']) : null,
+                                            isset($row['condition_id']) ? $formatValue('condition_id', $row['condition_id']) : null,
+                                            filled($row['notes'] ?? null) ? $row['notes'] : null,
+                                        ];
+                                        $fallback = 'workorder unit inspection: '.implode('   ', array_values(array_filter($parts, fn ($value) => filled($value))));
+                                        $objectText = $workorderUnitInspectionMap[$subjectId] ?? $fallback ?? $objectText;
                                     }
 
                                     $workorderId = null;

@@ -245,9 +245,9 @@
                             <tbody>
                             @php
                                 $existingInspections = [];
-                                foreach($tdrs as $tdr) {
-                                    if($tdr->use_tdr == true && $tdr->use_process_forms != true && $tdr->conditions_id) {
-                                        $existingInspections[$tdr->conditions_id] = ['id' => $tdr->id, 'description' => $tdr->description ?? ''];
+                                foreach($inspectsUnit as $inspection) {
+                                    if($inspection->condition_id) {
+                                        $existingInspections[$inspection->condition_id] = ['id' => $inspection->id, 'notes' => $inspection->notes ?? ''];
                                     }
                                 }
                             @endphp
@@ -255,14 +255,14 @@
                                 @if($unit_condition->name != 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')
                                     @php
                                         $isChecked = isset($existingInspections[$unit_condition->id]);
-                                        $existingDescription = $isChecked ? $existingInspections[$unit_condition->id]['description'] : '';
-                                        $existingTdrId = $isChecked ? $existingInspections[$unit_condition->id]['id'] : null;
+                                        $existingNotes = $isChecked ? $existingInspections[$unit_condition->id]['notes'] : '';
+                                        $existingInspectionId = $isChecked ? $existingInspections[$unit_condition->id]['id'] : null;
                                     @endphp
                                     <tr>
                                         <td class="text-center align-middle">
                                             <input type="checkbox" class="form-check-input condition-checkbox" name="conditions[{{ $unit_condition->id }}][selected]" value="1" data-condition-id="{{ $unit_condition->id }}" {{ $isChecked ? 'checked' : '' }}>
-                                            @if($existingTdrId)
-                                                <input type="hidden" name="conditions[{{ $unit_condition->id }}][tdr_id]" value="{{ $existingTdrId }}">
+                                            @if($existingInspectionId)
+                                                <input type="hidden" name="conditions[{{ $unit_condition->id }}][inspection_id]" value="{{ $existingInspectionId }}">
                                             @endif
                                         </td>
                                         <td class="align-middle">
@@ -271,7 +271,7 @@
                                             </label>
                                         </td>
                                         <td class="align-middle">
-                                            <input type="text" class="form-control form-control-sm condition-notes" name="conditions[{{ $unit_condition->id }}][notes]" id="condition_{{ $unit_condition->id }}" value="{{ $existingDescription }}" placeholder="{{ __('Enter notes...') }}">
+                                            <input type="text" class="form-control form-control-sm condition-notes" name="conditions[{{ $unit_condition->id }}][notes]" id="condition_{{ $unit_condition->id }}" value="{{ $existingNotes }}" placeholder="{{ __('Enter notes...') }}">
                                         </td>
                                     </tr>
                                 @endif

@@ -1336,6 +1336,7 @@ class MainController extends Controller
         ]);
     }
 
+
     public function activity(Main $main)
     {
         $logs = Activity::query()
