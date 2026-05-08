@@ -513,22 +513,22 @@
                     // Получаем компонент (orderComponent или component)
                     if ($isArray) {
                         $component = $tdr['orderComponent'] ?? $tdr['component'] ?? null;
+                        $selectedAssembly = $tdr['orderComponentAssembly'] ?? null;
                     } else {
                         $component = $tdr->orderComponent ?? $tdr->component;
+                        $selectedAssembly = $tdr->orderComponentAssembly ?? null;
                     }
 
                     // Используем assy_ipl_num если он есть и не пустой, иначе ipl_num
                     $ipl_num = '';
-                    if ($component) {
-                        if (is_object($component)) {
-                            $ipl_num = (isset($component->assy_ipl_num) && $component->assy_ipl_num !== null && $component->assy_ipl_num !== '')
-                                ? $component->assy_ipl_num
-                                : ($component->ipl_num ?? '');
-                        } else {
-                            $ipl_num = (isset($component['assy_ipl_num']) && $component['assy_ipl_num'] !== null && $component['assy_ipl_num'] !== '')
-                                ? $component['assy_ipl_num']
-                                : ($component['ipl_num'] ?? '');
-                        }
+                    if ($selectedAssembly) {
+                        $ipl_num = is_object($selectedAssembly)
+                            ? ($selectedAssembly->assy_ipl_num ?? '')
+                            : ($selectedAssembly['assy_ipl_num'] ?? '');
+                    } elseif ($component) {
+                        $ipl_num = is_object($component)
+                            ? ($component->ipl_num ?? '')
+                            : ($component['ipl_num'] ?? '');
                     }
                     $ipl_parts = explode('-', $ipl_num);
                     $first_part = $ipl_parts[0] ?? '';
@@ -586,8 +586,7 @@
                                 @php
                                     if ($component) {
                                         $componentName = is_object($component) ? ($component->name ?? '') : ($component['name'] ?? '');
-                                        $assyPartNumber = is_object($component) ? ($component->assy_part_number ?? '') : ($component['assy_part_number'] ?? '');
-                                        echo $assyPartNumber ? $componentName . ' ASSY' : $componentName;
+                                        echo $selectedAssembly ? $componentName . ' ASSY' : $componentName;
                                     }
                                 @endphp
                             </div>
@@ -595,7 +594,9 @@
                                 @if($component)
                                     <h6>
                                         @php
-                                            $assyPartNumber = is_object($component) ? ($component->assy_part_number ?? '') : ($component['assy_part_number'] ?? '');
+                                            $assyPartNumber = $selectedAssembly
+                                                ? (is_object($selectedAssembly) ? ($selectedAssembly->assy_part_number ?? '') : ($selectedAssembly['assy_part_number'] ?? ''))
+                                                : '';
                                             $partNumber = is_object($component) ? ($component->part_number ?? '') : ($component['part_number'] ?? '');
                                         @endphp
                                         {{ (!empty($assyPartNumber)) ? $assyPartNumber : $partNumber }}

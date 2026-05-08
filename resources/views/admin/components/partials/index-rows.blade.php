@@ -27,6 +27,7 @@
         })->values();
 
         $firstAssembly = $assemblyRows->first();
+        $unitsAssy = trim((string) ($component->units_assy ?? ''));
         $popoverHtml = '<div class="assy-popover-list">';
         foreach ($assemblyRows as $assemblyIndex => $assembly) {
             $assyIpl = trim((string) ($assembly->assy_ipl_num ?? ''));
@@ -80,6 +81,7 @@
                 <span class="text-muted small">-</span>
             @endif
         </td>
+        <td class="text-center">{{ $unitsAssy !== '' ? $unitsAssy : '-' }}</td>
         <td class="text-center" style="width:120px;">
             @if($component->getMedia('components')->isNotEmpty())
                 <a href="{{ $component->getFirstMediaBigUrl('components') }}" data-fancybox="gallery">

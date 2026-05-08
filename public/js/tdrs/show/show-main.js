@@ -65,6 +65,12 @@ function initTdrsShow() {
     // Очистка при закрытии основного модального окна PDF Library
     const pdfModal = document.getElementById('pdfModal');
     if (pdfModal) {
+        pdfModal.addEventListener('hide.bs.modal', function () {
+            if (typeof PdfUploadHandler !== 'undefined') {
+                PdfUploadHandler.resetUploadUi();
+            }
+        });
+
         pdfModal.addEventListener('hidden.bs.modal', function () {
             // Очищаем iframe просмотра PDF, если он был открыт
             if (typeof PdfViewerHandler !== 'undefined') {

@@ -524,6 +524,7 @@ class TdrController extends Controller
             'qty' => 'nullable|integer|min:1',
             'description' => 'nullable|string|max:1000',
             'order_component_id' => 'nullable|exists:components,id',
+            'order_component_assembly_id' => 'nullable|exists:component_assemblies,id',
         ]);
 
         // Установка значений по умолчанию для флагов
@@ -715,6 +716,19 @@ class TdrController extends Controller
         $codeIdInt = $code ? (int) $code->id : null;
         $necessaryIdInt = $necessary ? (int) $necessary->id : null;
 
+        if (! empty($validated['order_component_assembly_id'])) {
+            $assemblyBelongsToOrderComponent = \App\Models\ComponentAssembly::query()
+                ->whereKey((int) $validated['order_component_assembly_id'])
+                ->where('component_id', (int) ($validated['order_component_id'] ?? 0))
+                ->exists();
+
+            if (! $assemblyBelongsToOrderComponent) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['order_component_assembly_id' => __('Selected assembly does not belong to the selected order component')]);
+            }
+        }
+
         if (
             $necessaryIdInt !== null
             && $validatedNecessaryId === $necessaryIdInt
@@ -764,6 +778,7 @@ class TdrController extends Controller
                 'use_tdr' => $use_tdr,
                 'use_process_forms' => $use_process_forms,
                 'order_component_id' => $validated['order_component_id'],
+                'order_component_assembly_id' => $validated['order_component_assembly_id'] ?? null,
             ];
             $tdr = Tdr::create(['tdr_type' => $this->inferTdrTypeFromPayload($tdrPayload, $manufactureCode, $necessary, $repairNecessary)] + $tdrPayload);
 
@@ -1656,7 +1671,9 @@ class TdrController extends Controller
         $showDestructionCert = LogCardDestructionCertificate::availableFor($current_wo);
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
         $hasBushings = Component::where('manual_id', $manual_id)->where('is_bush', 1)->exists();
-        $components = Component::where('manual_id', $manual_id)->get();
+        $components = Component::where('manual_id', $manual_id)
+            ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
+            ->get();
         $code = Code::where('name', 'Missing')->first();
         $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
         $conditions = Condition::all();
@@ -1698,7 +1715,8 @@ class TdrController extends Controller
             })
             ->with([
                 'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number'); },
-                'orderComponent' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number'); }
+                'orderComponent' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number'); },
+                'orderComponentAssembly' => function($query) { $query->select('id', 'component_id', 'assy_part_number', 'assy_ipl_num'); }
             ])
             ->get();
 
@@ -1726,6 +1744,8 @@ class TdrController extends Controller
             ->whereNotNull('order_component_id')
             ->with(['codes', 'orderComponent' => function($query) {
                 $query->select('id', 'name', 'part_number', 'ipl_num');
+            }, 'orderComponentAssembly' => function($query) {
+                $query->select('id', 'component_id', 'assy_part_number', 'assy_ipl_num');
             }])
             ->get();
 
@@ -1733,7 +1753,8 @@ class TdrController extends Controller
             ->where('necessaries_id', $necessary->id)
             ->with([
                 'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); },
-                'orderComponent' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); }
+                'orderComponent' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); },
+                'orderComponentAssembly' => function($query) { $query->select('id', 'component_id', 'assy_part_number', 'assy_ipl_num'); }
             ])
             ->get();
 

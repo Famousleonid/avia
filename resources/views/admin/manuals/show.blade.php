@@ -61,15 +61,17 @@
         #manualPartsTable th:nth-child(3),
         #manualPartsTable td:nth-child(3) { width: 26%; }
         #manualPartsTable th:nth-child(4),
-        #manualPartsTable td:nth-child(4) { width: 16%; }
+        #manualPartsTable td:nth-child(4) { width: 14%; }
         #manualPartsTable th:nth-child(5),
-        #manualPartsTable td:nth-child(5) { width: 5%; }
-        #manualPartsTable th:nth-child(13),
-        #manualPartsTable td:nth-child(13) { width: 7%; }
+        #manualPartsTable td:nth-child(5) { width: 7%; }
+        #manualPartsTable th:nth-child(6),
+        #manualPartsTable td:nth-child(6) { width: 5%; }
+        #manualPartsTable th:nth-child(14),
+        #manualPartsTable td:nth-child(14) { width: 7%; }
 
         #manualPartsTable {
-            min-width: 1260px;
-            width: max(100%, 1260px);
+            min-width: 1340px;
+            width: max(100%, 1340px);
         }
 
         #nav-parts .table th,
@@ -276,8 +278,8 @@
             max-width: 86px !important;
         }
 
-        #manualPartsTable th:nth-child(13),
-        #manualPartsTable td:nth-child(13) {
+        #manualPartsTable th:nth-child(14),
+        #manualPartsTable td:nth-child(14) {
             width: 86px !important;
             min-width: 86px !important;
             max-width: 86px !important;
@@ -773,7 +775,8 @@
                                 <col style="width: 9%;">
                                 <col style="width: 13%;">
                                 <col style="width: 26%;">
-                                <col style="width: 16%;">
+                                <col style="width: 14%;">
+                                <col style="width: 7%;">
                                 <col style="width: 5%;">
                                 <col class="manual-part-flag-col" style="width: 46px;">
                                 <col class="manual-part-flag-col" style="width: 46px;">
@@ -790,6 +793,7 @@
                                 <th class="text-center bg-gradient align-content-center sortable">Part Number <i class="bi bi-chevron-expand ms-1"></i></th>
                                 <th class="text-center bg-gradient align-content-center sortable">Name <i class="bi bi-chevron-expand ms-1"></i></th>
                                 <th class="text-center bg-gradient align-content-center">Assy</th>
+                                <th class="text-center bg-gradient align-content-center">Units per assy</th>
                                 <th class="text-center bg-gradient align-content-center">Image</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Log Card">LC</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Bushing">Bush</th>
@@ -810,7 +814,7 @@
                                 ])
                                 @if($parts->isEmpty())
                                     <tr class="components-empty-row">
-                                        <td colspan="13" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
+                                        <td colspan="14" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
@@ -975,7 +979,11 @@
                         <label for="manual_drawer_name" class="form-label">{{ __('Name') }}</label>
                         <input id="manual_drawer_name" type="text" class="form-control" name="name" required>
                     </div>
-                    <div class="col-12">
+                    <div class="col-md-6">
+                        <label for="manual_drawer_units_assy" class="form-label">{{ __('Units per Assy') }}</label>
+                        <input id="manual_drawer_units_assy" type="text" class="form-control" name="units_assy">
+                    </div>
+                    <div class="col-md-6">
                         <label for="manual_drawer_img" class="form-label">{{ __('Image') }}</label>
                         <input id="manual_drawer_img" type="file" name="img" class="form-control" accept="image/*">
                     </div>
@@ -1064,7 +1072,11 @@
                         <label for="manual_edit_drawer_name" class="form-label">{{ __('Name') }}</label>
                         <input id="manual_edit_drawer_name" type="text" class="form-control" name="name" required>
                     </div>
-                    <div class="col-12">
+                    <div class="col-md-6">
+                        <label for="manual_edit_drawer_units_assy" class="form-label">{{ __('Units per Assy') }}</label>
+                        <input id="manual_edit_drawer_units_assy" type="text" class="form-control" name="units_assy">
+                    </div>
+                    <div class="col-md-6">
                         <label for="manual_edit_drawer_img" class="form-label">{{ __('Image') }}</label>
                         <input id="manual_edit_drawer_img" type="file" name="img" class="form-control" accept="image/*">
                     </div>
@@ -1930,6 +1942,7 @@
                         manualEditDrawer.config.loadedId = component.id || '';
                         manualEditSetValue('ipl_num', component.ipl_num);
                         manualEditSetValue('part_number', component.part_number);
+                        manualEditSetValue('units_assy', component.units_assy);
                         manualEditSetValue('name', component.name);
                         manualEditSetValue('bush_ipl_num', component.bush_ipl_num);
                         if (manualEditDrawer.isBush) manualEditDrawer.isBush.checked = !!component.is_bush;

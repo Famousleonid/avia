@@ -326,7 +326,6 @@
     #tdr_inline_order_component_group {
         align-items: center;
         display: flex;
-        gap: .35rem;
         max-width: 100%;
     }
 
@@ -336,17 +335,94 @@
 
     #tdr_inline_order_component_group .select2-container,
     #tdr_inline_order_component_id {
-        min-width: min(24ch, 100%) !important;
+        min-width: 0 !important;
         max-width: 100% !important;
-        width: min(28ch, 100%) !important;
+        width: 100% !important;
+    }
+
+    #tdrInlineCreateRow.tdr-inline-order-has-selection #tdr_inline_order_component_group .select2-selection__rendered {
+        color: transparent !important;
+        position: relative;
+    }
+
+    #tdrInlineCreateRow.tdr-inline-order-has-selection #tdr_inline_order_component_group .select2-selection__rendered::after {
+        color: var(--bs-info);
+        content: "Select";
+        left: 0;
+        line-height: 1.2;
+        position: absolute;
+        right: 0;
+        text-align: center;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    body.tdr-inline-order-select2-open .select2-container--open {
+        min-width: min(560px, 90vw) !important;
+        width: min(560px, 90vw) !important;
+    }
+
+    body.tdr-inline-order-select2-open .select2-container--open .select2-dropdown {
+        min-width: min(560px, 90vw) !important;
+        width: 100% !important;
     }
 
     #tdr_inline_order_qty_mount {
-        flex: 0 0 7ch;
+        align-items: center;
+        display: flex;
+        gap: .55rem;
+        justify-content: flex-start;
+        min-height: 32px;
+        width: 100%;
+    }
+
+    #tdrInlineCreateRow [data-inline-step="description"] {
+        overflow: visible;
+        white-space: normal;
+    }
+
+    #tdr_inline_order_qty_mount .tdr-inline-order-selected {
+        border: 1px dotted var(--bs-info);
+        border-radius: .35rem;
+        color: var(--bs-body-color);
+        flex: 1 1 auto;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.15;
+        min-width: 0;
+        min-height: 32px;
+        padding: .35rem .45rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        white-space: normal;
+    }
+
+    #tdr_inline_order_qty_mount .tdr-inline-qty-control {
+        align-items: center;
+        display: inline-flex;
+        flex: 0 0 auto;
+        gap: .28rem;
+        white-space: nowrap;
+    }
+
+    #tdr_inline_order_qty_mount .tdr-inline-qty-label {
+        color: var(--bs-info);
+        font-size: 11px;
+        line-height: 1;
+        margin: 0;
+        white-space: nowrap;
     }
 
     #tdr_inline_order_qty_mount #tdr_inline_qty {
-        max-width: 7ch !important;
+        max-width: 8ch !important;
+    }
+
+    #tdrInlineCreateRow .tdr-inline-save-btn {
+        min-height: 32px;
+        min-width: 74px;
+        padding: .34rem .72rem;
     }
 
     #tdr_inline_serial_number,
@@ -383,6 +459,19 @@
                             <img src="{{ asset('img/missing.gif') }}" alt="missing" class="d-block"
                                  style="width: 55px;"
                                  data-bs-toggle="modal" data-bs-target="#missingModal{{$current_wo->number}}">
+                        </td>
+                    </tr>
+                @endif
+                @if($hasOrderedParts ?? false)
+                    <tr>
+                        <td class="text-center">
+                            <span class="position-relative d-inline-block">
+                                ORDERED PARTS
+                                <sup class="badge bg-primary rounded-pill position-absolute" style="top: 0.1em; right: -3.0em; font-size: 0.65em;">{{ $orderedPartsCount ?? 0 }}</sup>
+                            </span>
+                        </td>
+                        <td class="p-0 text-center img-icon" style="height: 55px; width: 55px; overflow: hidden;">
+                            <img src="{{ asset('img/pay.gif')}}" alt="order" style="height: 55px; width: 55px; object-fit: cover; display: block;" data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
                         </td>
                     </tr>
                 @endif
@@ -435,19 +524,6 @@
                         </td>
                     </tr>
                 @endforeach
-                @if($hasOrderedParts ?? false)
-                    <tr>
-                        <td class="text-center">
-                            <span class="position-relative d-inline-block">
-                                ORDERED PARTS
-                                <sup class="badge bg-primary rounded-pill position-absolute" style="top: 0.1em; right: -3.0em; font-size: 0.65em;">{{ $orderedPartsCount ?? 0 }}</sup>
-                            </span>
-                        </td>
-                        <td class="p-0 text-center img-icon" style="height: 55px; width: 55px; overflow: hidden;">
-                            <img src="{{ asset('img/pay.gif')}}" alt="order" style="height: 55px; width: 55px; object-fit: cover; display: block;" data-bs-toggle="modal" data-bs-target="#orderModal{{$current_wo->number}}">
-                        </td>
-                    </tr>
-                @endif
                 </tbody>
             </table>
         </div>
@@ -460,6 +536,8 @@
             <input type="hidden" name="use_tdr" id="tdr_inline_use_tdr" value="0">
             <input type="hidden" name="use_process_forms" id="tdr_inline_use_process_forms" value="0">
             <input type="hidden" name="conditions_id" id="tdr_inline_conditions_id" value="">
+            <input type="hidden" name="order_component_id" id="tdr_inline_order_component_id_value" value="">
+            <input type="hidden" name="order_component_assembly_id" id="tdr_inline_order_component_assembly_id" value="">
         </form>
         <div class="tdr-show-right-toolbar d-flex align-items-end justify-content-between">
             <div id="tdrInlineManualPicker" class="tdr-inline-manual-picker d-none">
@@ -569,11 +647,25 @@
                             <select name="component_id" id="tdr_inline_component_id" class="form-control form-control-sm" form="tdrInlineCreateForm">
                                 <option selected value="">---</option>
                                 @foreach($components as $component)
+                                    @php
+                                        $componentAssembliesJson = $component->assemblies
+                                            ->map(function ($assembly) {
+                                                return [
+                                                    'id' => $assembly->id,
+                                                    'assy_part_number' => $assembly->assy_part_number,
+                                                    'assy_ipl_num' => $assembly->assy_ipl_num,
+                                                    'units_assy' => $assembly->units_assy,
+                                                ];
+                                            })
+                                            ->values()
+                                            ->toJson();
+                                    @endphp
                                     <option value="{{ $component->id }}"
                                             data-has_assy="{{ ($component->assy_part_number || $component->assemblies->isNotEmpty()) ? 'true' : 'false' }}"
                                             data-title="{{ $component->name }}"
                                             data-ipl="{{ $component->ipl_num }}"
-                                            data-part-number="{{ $component->part_number }}">
+                                            data-part-number="{{ $component->part_number }}"
+                                            data-assemblies='{{ $componentAssembliesJson }}'>
                                         {{ $component->ipl_num }} : {{ $component->part_number }} - {{ $component->name }}
                                     </option>
                                 @endforeach
@@ -620,32 +712,16 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <div id="tdr_inline_order_component_group" class="d-none">
-                                <select name="order_component_id" id="tdr_inline_order_component_id" class="form-control form-control-sm" form="tdrInlineCreateForm">
-                                    <option selected value="">---</option>
-                                    @foreach($components as $component)
-                                        @php
-                                            $assemblyLabels = $component->assemblies
-                                                ->map(fn($assembly) => trim(implode(' ', array_filter([
-                                                    $assembly->assy_ipl_num,
-                                                    $assembly->units_assy ?: $assembly->assy_part_number,
-                                                ]))))
-                                                ->filter()
-                                                ->values();
-                                            $orderLabel = trim($component->name . ($assemblyLabels->isNotEmpty() ? ' | Assy: ' . $assemblyLabels->implode(', ') : ''));
-                                        @endphp
-                                        <option value="{{ $component->id }}" data-title="{{ $orderLabel }}">
-                                            {{ $orderLabel }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <div id="tdr_inline_order_qty_mount"></div>
-                            </div>
                         </div>
                     </td>
                     <td class="tdr-inline-cell tdr-inline-cell-disabled" data-tdr-inline-cell data-inline-step="serial">
                         <div class="tdr-inline-placeholder text-info"></div>
                         <div class="tdr-inline-field d-none">
+                            <div id="tdr_inline_order_component_group" class="d-none">
+                                <select id="tdr_inline_order_component_id" class="form-control form-control-sm">
+                                    <option selected value="">---</option>
+                                </select>
+                            </div>
                             <input type="text" name="serial_number" id="tdr_inline_serial_number" class="form-control form-control-sm mb-1" form="tdrInlineCreateForm" placeholder="{{ __('Serial Number') }}">
                             <input type="text" name="assy_serial_number" id="tdr_inline_assy_serial_number" class="form-control form-control-sm d-none" form="tdrInlineCreateForm" placeholder="{{ __('Assy Serial Number') }}">
                         </div>
@@ -653,13 +729,19 @@
                     <td class="tdr-inline-cell tdr-inline-cell-disabled" data-tdr-inline-cell data-inline-step="description">
                         <div class="tdr-inline-placeholder text-info"></div>
                         <div class="tdr-inline-field d-none">
+                            <div id="tdr_inline_order_qty_mount" class="d-none">
+                                <span id="tdr_inline_order_selected_text" class="tdr-inline-order-selected"></span>
+                                <span class="tdr-inline-qty-control">
+                                    <label for="tdr_inline_qty" class="tdr-inline-qty-label">{{ __('QTY') }}</label>
+                                </span>
+                            </div>
                             <input type="text" name="description" id="tdr_inline_description" class="form-control form-control-sm d-none mb-1" form="tdrInlineCreateForm" placeholder="{{ __('Description') }}">
                         </div>
                     </td>
                     <td class="text-center text-muted"></td>
                     <td class="text-center tdr-action-cell">
                         <div class="d-flex justify-content-center">
-                            <button type="submit" form="tdrInlineCreateForm" class="btn btn-outline-primary btn-sm">{{ __('Save') }}</button>
+                            <button type="submit" form="tdrInlineCreateForm" class="btn btn-outline-primary tdr-inline-save-btn">{{ __('Save') }}</button>
                         </div>
                     </td>
                 </tr>

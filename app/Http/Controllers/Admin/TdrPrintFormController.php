@@ -64,7 +64,7 @@ class TdrPrintFormController extends Controller
                 // Добавляем manual_id в select и загружаем связь manual
                 $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
                       ->with('manual:id,number'); // Загружаем только id и number из Manual
-            }])
+            }, 'orderComponentAssembly'])
             ->get();
 
         // Получаем TDR записи без order_component_id
@@ -109,13 +109,15 @@ class TdrPrintFormController extends Controller
             // Если manual одинаковые или оба null, сравниваем по IPL номерам
             $componentA = $a->orderComponent ?? $a->component;
             $componentB = $b->orderComponent ?? $b->component;
+            $assemblyA = $a->orderComponentAssembly ?? null;
+            $assemblyB = $b->orderComponentAssembly ?? null;
 
             // Используем assy_ipl_num если есть, иначе ipl_num
-            $iplA = ($componentA && isset($componentA->assy_ipl_num) && $componentA->assy_ipl_num !== null && $componentA->assy_ipl_num !== '')
-                ? $componentA->assy_ipl_num
+            $iplA = ($assemblyA && $assemblyA->assy_ipl_num)
+                ? $assemblyA->assy_ipl_num
                 : ($componentA->ipl_num ?? '');
-            $iplB = ($componentB && isset($componentB->assy_ipl_num) && $componentB->assy_ipl_num !== null && $componentB->assy_ipl_num !== '')
-                ? $componentB->assy_ipl_num
+            $iplB = ($assemblyB && $assemblyB->assy_ipl_num)
+                ? $assemblyB->assy_ipl_num
                 : ($componentB->ipl_num ?? '');
 
             // Разбиваем IPL номер на части (например, "1-65" -> ["1", "65"])

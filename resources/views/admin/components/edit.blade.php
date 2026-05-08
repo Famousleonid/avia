@@ -148,21 +148,6 @@
 
                                     </div>
 
-                                    <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
-                                        <div class="form-group mt-3">
-                                            <strong>{{__(' Assy Image:')}}</strong>
-                                            <div class="d-flex mt-2">
-                                                <a href="{{ $current_component->getFirstMediaBigUrl('assy_component') }}" data-fancybox="gallery">
-                                                    <img class="me-1" src="{{
-                                                      $current_component->getFirstMediaThumbnailUrl('assy_component') }}" width="40"
-                                                         height="40" alt="IMG"/>
-                                                </a>
-                                            <input type="file"
-                                                   name="assy_img"
-                                                   class="form-control "
-                                                   placeholder="Image">
-                                        </div> </div>
-                                    </div>
                                     <div class="mt-3">
                                         <label for="assy_part_number">{{ __(' Assembly Part Number') }}</label>
                                         <input id='assy_part_number'
@@ -171,12 +156,30 @@
                                                name="assy_part_number"
                                                value="{{$current_component->assy_part_number}}">
                                     </div>
-                                    <div class="mt-3">
-                                        <label for="units_assy">{{ __('Units per Assy') }}</label>
-                                        <input id='units_assy' type="text"
-                                               class="form-control mt-2"
-                                               name="units_assy" placeholder="Enter units per assembly"
-                                               value="{{$current_component->units_assy}}">
+                                    <div class="row g-2 mt-3">
+                                        <div class="col-md-6">
+                                            <label for="units_assy">{{ __('Units per Assy') }}</label>
+                                            <input id='units_assy' type="text"
+                                                   class="form-control mt-2"
+                                                   name="units_assy" placeholder="Enter units per assembly"
+                                                   value="{{$current_component->units_assy}}">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <strong>{{__(' Assy Image:')}}</strong>
+                                                <div class="d-flex mt-2">
+                                                    <a href="{{ $current_component->getFirstMediaBigUrl('assy_component') }}" data-fancybox="gallery">
+                                                        <img class="me-1" src="{{
+                                                          $current_component->getFirstMediaThumbnailUrl('assy_component') }}" width="40"
+                                                             height="40" alt="IMG"/>
+                                                    </a>
+                                                    <input type="file"
+                                                           name="assy_img"
+                                                           class="form-control "
+                                                           placeholder="Image">
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

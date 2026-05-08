@@ -131,7 +131,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     var editTdrModal = document.getElementById('editTdrModal');
     var processesBodyUrl = '{{ route("tdr-processes.processesBody", ["tdrId" => "__ID__"]) }}';
-    var createProcessesUrl = '{{ route("tdr-processes.createProcesses", ["tdrId" => "__ID__"]) }}';
+    var storeProcessUrl = '{{ route("tdr-processes.store") }}';
+    var processOptionsUrl = '{{ route("processes.getProcesses") }}';
     var editFormUrl = '{{ route("tdr-processes.editForm", ["id" => "__ID__"]) }}';
     var updateOrderUrl = '{{ route("tdr-processes.update-order") }}';
     var body = document.getElementById('componentProcessesTabBody');
@@ -1143,7 +1144,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         var url = processesBodyUrl.replace('__ID__', tdrId);
         url += (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
-        fetch(url, {
+        return fetch(url, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'text/html',
@@ -1162,77 +1163,311 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error('Unexpected full page response for Part Processes partial');
                 }
                 target.innerHTML = html;
-                var wrapper = target.querySelector('.processes-modal-body');
-                if (isTabTarget && wrapper) {
-                    if (woNum) woNum.textContent = wrapper.dataset.woNumber || '-';
-                    if (itemName) itemName.textContent = wrapper.dataset.componentName || 'N/A';
-                    if (itemIpl) itemIpl.textContent = wrapper.dataset.componentIpl || 'N/A';
-                    if (itemPn) itemPn.textContent = wrapper.dataset.componentPn || 'N/A';
-                    if (itemSn) itemSn.textContent = wrapper.dataset.serialNumber || 'N/A';
-                }
-                var processesWrapper = target.querySelector('.processes-modal-body');
-                if (typeof Sortable !== 'undefined' && typeof SortableHandler !== 'undefined') {
-                    if (!processesWrapper || processesWrapper.dataset.travelerBlock !== '1') {
-                        if (isTabTarget) {
-                            SortableHandler.init(updateOrderUrl);
-                        } else {
-                            var modalSortableBody = target.querySelector('#sortable-tbody');
-                            if (modalSortableBody) {
-                                Sortable.create(modalSortableBody, {
-                                    animation: 150,
-                                    ghostClass: 'dragging',
-                                    dragClass: 'dragging',
-                                    filter: '.disabled',
-                                    onEnd: function(evt) {
-                                        var newOrder = Array.from(evt.to.children)
-                                            .filter(function(row) { return !row.querySelector('.disabled') || !row.querySelector('[aria-disabled="true"]'); })
-                                            .map(function(row, index) {
-                                                return { id: row.getAttribute('data-id'), sort_order: index + 1 };
-                                            });
-                                        SortableHandler.updateProcessOrder(newOrder, updateOrderUrl);
-                                    }
-                                });
+                try {
+                    var wrapper = target.querySelector('.processes-modal-body');
+                    if (isTabTarget && wrapper) {
+                        if (woNum) woNum.textContent = wrapper.dataset.woNumber || '-';
+                        if (itemName) itemName.textContent = wrapper.dataset.componentName || 'N/A';
+                        if (itemIpl) itemIpl.textContent = wrapper.dataset.componentIpl || 'N/A';
+                        if (itemPn) itemPn.textContent = wrapper.dataset.componentPn || 'N/A';
+                        if (itemSn) itemSn.textContent = wrapper.dataset.serialNumber || 'N/A';
+                    }
+                    var processesWrapper = target.querySelector('.processes-modal-body');
+                    if (typeof Sortable !== 'undefined' && typeof SortableHandler !== 'undefined') {
+                        if (!processesWrapper || processesWrapper.dataset.travelerBlock !== '1') {
+                            if (isTabTarget) {
+                                SortableHandler.init(updateOrderUrl);
+                            } else {
+                                var modalSortableBody = target.querySelector('#sortable-tbody');
+                                if (modalSortableBody) {
+                                    Sortable.create(modalSortableBody, {
+                                        animation: 150,
+                                        ghostClass: 'dragging',
+                                        dragClass: 'dragging',
+                                        filter: '.disabled',
+                                        onEnd: function(evt) {
+                                            var newOrder = Array.from(evt.to.children)
+                                                .filter(function(row) { return !row.querySelector('.disabled') || !row.querySelector('[aria-disabled="true"]'); })
+                                                .map(function(row, index) {
+                                                    return { id: row.getAttribute('data-id'), sort_order: index + 1 };
+                                                });
+                                            SortableHandler.updateProcessOrder(newOrder, updateOrderUrl);
+                                        }
+                                    });
+                                }
                             }
                         }
                     }
-                }
-                bindProcessHandlers(wrapper, target);
-                if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(target);
-                initTravelerGroupHandlers(target);
-                if (isTabTarget && compProcessesGroupFormsBtn) {
-                    var processesWrapperForGroup = target.querySelector('.processes-modal-body');
-                    var allowGroupForms = processesWrapperForGroup
-                        && processesWrapperForGroup.getAttribute('data-group-process-forms') === '1';
-                    var partGroupModal = target.querySelector('#partProcessesGroupFormsModal');
-                    if (allowGroupForms && partGroupModal) {
-                        compProcessesGroupFormsBtn.classList.remove('d-none');
-                        initPartProcessesGroupForms(partGroupModal);
-                    } else {
-                        compProcessesGroupFormsBtn.classList.add('d-none');
-                    }
-                }
-                if (isTabTarget && addProcessBtn) {
-                    addProcessBtn.disabled = false;
-                    addProcessBtn.onclick = function() {
-                        var tdrId = this.dataset.tdrId || (wrapper && wrapper.dataset.tdrId);
-                        if (!tdrId) {
-                            (typeof showNotification === 'function' ? (m) => showNotification(m, 'warning') : (window.NotificationHandler?.warning || window.notifyWarn))('{{ __("Please select a component first.") }}');
-                            return;
+                    bindProcessHandlers(wrapper, target);
+                    if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(target);
+                    initTravelerGroupHandlers(target);
+                    if (isTabTarget && compProcessesGroupFormsBtn) {
+                        var processesWrapperForGroup = target.querySelector('.processes-modal-body');
+                        var allowGroupForms = processesWrapperForGroup
+                            && processesWrapperForGroup.getAttribute('data-group-process-forms') === '1';
+                        var partGroupModal = target.querySelector('#partProcessesGroupFormsModal');
+                        if (allowGroupForms && partGroupModal) {
+                            compProcessesGroupFormsBtn.classList.remove('d-none');
+                            initPartProcessesGroupForms(partGroupModal);
+                        } else {
+                            compProcessesGroupFormsBtn.classList.add('d-none');
                         }
-                        openAddProcessModal(tdrId);
-                    };
+                    }
+                    if (isTabTarget && addProcessBtn) {
+                        addProcessBtn.disabled = false;
+                        addProcessBtn.onclick = function() {
+                            var inlineAddBtn = target.querySelector('[data-inline-process-add]');
+                            if (!inlineAddBtn) {
+                                (typeof showNotification === 'function' ? (m) => showNotification(m, 'warning') : (window.NotificationHandler?.warning || window.notifyWarn))('{{ __("Please select a component first.") }}');
+                                return;
+                            }
+                            inlineAddBtn.click();
+                        };
+                    }
+                } catch (initError) {
+                    console.error('Part Processes init failed:', initError);
+                    if (isTabTarget && addProcessBtn) addProcessBtn.disabled = false;
                 }
             })
-            .catch(function() {
-                target.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load processes.") }}</div>';
+            .catch(function(error) {
+                console.error('Part Processes fetch failed:', error);
+                target.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load processes.") }}<div class="small mt-1">' + (error && error.message ? error.message : '') + '</div></div>';
                 if (isTabTarget && addProcessBtn) addProcessBtn.disabled = false;
                 if (isTabTarget && compProcessesGroupFormsBtn) compProcessesGroupFormsBtn.classList.add('d-none');
             });
     }
 
+    function initInlineProcessCreate(wrapper, container) {
+        if (!wrapper || !container || wrapper.dataset.inlineProcessInitialized === '1') return;
+        wrapper.dataset.inlineProcessInitialized = '1';
+
+        var addRow = container.querySelector('.tdr-process-inline-add-row');
+        var createRow = container.querySelector('[data-inline-process-row]');
+        var addBtn = container.querySelector('[data-inline-process-add]');
+        var nameSelect = container.querySelector('[data-inline-process-name]');
+        var processOptions = container.querySelector('[data-inline-process-options]');
+        var processText = container.querySelector('[data-inline-process-text]');
+        var descriptionInput = container.querySelector('[data-inline-process-description]');
+        var saveBtn = container.querySelector('[data-inline-process-save]');
+        var selectedProcessId = '';
+        var closeInlineProcessTimer = null;
+
+        if (!addRow || !createRow || !addBtn || !nameSelect || !saveBtn) return;
+
+        function resetInlineProcessRow() {
+            selectedProcessId = '';
+            nameSelect.value = '';
+            if (processOptions) {
+                processOptions.innerHTML = '';
+                processOptions.classList.add('d-none');
+            }
+            if (processText) {
+                processText.textContent = '{{ __("Select process name") }}';
+                processText.classList.add('text-muted');
+                processText.classList.remove('d-none');
+            }
+            if (descriptionInput) descriptionInput.value = '';
+            saveBtn.disabled = false;
+            saveBtn.textContent = '{{ __("Save") }}';
+        }
+
+        function closeInlineProcessRow() {
+            resetInlineProcessRow();
+            createRow.classList.add('d-none');
+            addRow.classList.remove('d-none');
+        }
+
+        function scheduleInlineProcessClose() {
+            window.clearTimeout(closeInlineProcessTimer);
+            closeInlineProcessTimer = window.setTimeout(function() {
+                if (createRow.classList.contains('d-none')) return;
+                if (createRow.matches(':hover')) return;
+                if (createRow.contains(document.activeElement)) return;
+                closeInlineProcessRow();
+            }, 220);
+        }
+
+        createRow.addEventListener('mouseenter', function() {
+            window.clearTimeout(closeInlineProcessTimer);
+        });
+
+        createRow.addEventListener('mouseleave', scheduleInlineProcessClose);
+        createRow.addEventListener('focusout', function() {
+            window.setTimeout(scheduleInlineProcessClose, 0);
+        });
+
+        addBtn.addEventListener('click', function() {
+            resetInlineProcessRow();
+            createRow.classList.remove('d-none');
+            addRow.classList.add('d-none');
+            nameSelect.focus();
+        });
+
+        nameSelect.addEventListener('change', function() {
+            selectedProcessId = '';
+            var processNameId = nameSelect.value;
+            var manualId = wrapper.dataset.manualId || '';
+            if (!processNameId) {
+                if (processOptions) {
+                    processOptions.innerHTML = '';
+                    processOptions.classList.add('d-none');
+                }
+                if (processText) {
+                    processText.textContent = '{{ __("Select process name") }}';
+                    processText.classList.add('text-muted');
+                    processText.classList.remove('d-none');
+                }
+                saveBtn.disabled = false;
+                return;
+            }
+
+            if (processText) {
+                processText.textContent = '{{ __("Loading...") }}';
+                processText.classList.add('text-muted');
+                processText.classList.remove('d-none');
+            }
+            if (processOptions) {
+                processOptions.innerHTML = '';
+                processOptions.classList.add('d-none');
+            }
+            saveBtn.disabled = true;
+
+            var url = new URL(processOptionsUrl, window.location.origin);
+            url.searchParams.set('processNameId', processNameId);
+            url.searchParams.set('manualId', manualId);
+
+            fetch(url.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                credentials: 'same-origin',
+            })
+                .then(function(response) {
+                    return response.json().catch(function() { return {}; }).then(function(data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function(result) {
+                    if (!result.ok) {
+                        throw new Error(result.data.message || result.data.error || '{{ __("Failed to load processes.") }}');
+                    }
+                    var processes = result.data.existingProcesses || [];
+                    if (!processes.length) {
+                        selectedProcessId = '';
+                        if (processText) {
+                            processText.textContent = '{{ __("No process found") }}';
+                            processText.classList.add('text-muted');
+                            processText.classList.remove('d-none');
+                        }
+                        saveBtn.disabled = false;
+                        return;
+                    }
+
+                    if (processOptions) {
+                        processOptions.innerHTML = '';
+                        processes.forEach(function(process) {
+                            var label = document.createElement('label');
+                            label.className = 'tdr-process-inline-option';
+
+                            var input = document.createElement('input');
+                            input.type = 'radio';
+                            input.name = 'inline_process_' + wrapper.dataset.tdrId;
+                            input.value = String(process.id);
+
+                            var text = document.createElement('span');
+                            text.textContent = process.process || ('#' + process.id);
+
+                            label.appendChild(input);
+                            label.appendChild(text);
+                            processOptions.appendChild(label);
+
+                            input.addEventListener('change', function() {
+                                selectedProcessId = input.checked ? input.value : '';
+                            });
+                        });
+                        if (processes.length === 1) {
+                            var onlyInput = processOptions.querySelector('input[type="radio"]');
+                            if (onlyInput) {
+                                onlyInput.checked = true;
+                                selectedProcessId = onlyInput.value;
+                            }
+                        }
+                        processOptions.classList.remove('d-none');
+                    } else {
+                        selectedProcessId = processes.length === 1 ? String(processes[0].id) : '';
+                    }
+                    if (processText) {
+                        processText.classList.add('d-none');
+                    }
+                    saveBtn.disabled = false;
+                })
+                .catch(function(error) {
+                    selectedProcessId = '';
+                    if (processText) {
+                        processText.textContent = error.message || '{{ __("Failed to load processes.") }}';
+                        processText.classList.add('text-muted');
+                        processText.classList.remove('d-none');
+                    }
+                    if (processOptions) {
+                        processOptions.innerHTML = '';
+                        processOptions.classList.add('d-none');
+                    }
+                    saveBtn.disabled = false;
+                });
+        });
+
+        saveBtn.addEventListener('click', function() {
+            var processNameId = nameSelect.value;
+            if (!processNameId || !selectedProcessId) {
+                window.tdrShowNotify('{{ __("Select process and process name.") }}', 'warning');
+                return;
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = '{{ __("Saving...") }}';
+
+            fetch(storeProcessUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    tdrs_id: wrapper.dataset.tdrId,
+                    processes: [{
+                        process_names_id: processNameId,
+                        processes: [selectedProcessId],
+                        description: descriptionInput ? descriptionInput.value : '',
+                        in_traveler: 0
+                    }]
+                })
+            })
+                .then(function(response) {
+                    return response.json().catch(function() { return {}; }).then(function(data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function(result) {
+                    if (!result.ok) {
+                        throw new Error(result.data.error || result.data.message || '{{ __("Save failed.") }}');
+                    }
+                    window.tdrShowNotify(result.data.message || '{{ __("Process added successfully.") }}', 'success', 2000);
+                    loadProcessesAndBind(wrapper.dataset.tdrId, container);
+                    if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
+                })
+                .catch(function(error) {
+                    window.tdrShowNotify(error.message || '{{ __("Save failed.") }}', 'error');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = '{{ __("Save") }}';
+                });
+        });
+    }
+
     function bindProcessHandlers(wrapper, container) {
         var target = container || body;
         if (!target) return;
+        initInlineProcessCreate(wrapper, target);
         target.querySelectorAll('.load-edit-process').forEach(function(b) {
             b.addEventListener('click', function() {
                 var tdrProcessId = this.dataset.tdrProcessId;
@@ -1298,34 +1533,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    function openAddProcessModal(tdrId) {
-        var iframe = document.getElementById('addPartProcessesIframe');
-        var modal = document.getElementById('addPartProcessesModal');
-        if (iframe && modal && tdrId) {
-            iframe.src = createProcessesUrl.replace('__ID__', tdrId) + '?modal=1';
-            var inst = bootstrap.Modal.getOrCreateInstance(modal);
-            inst.show();
-            modal.addEventListener('shown.bs.modal', function setAddModalZ() {
-                modal.style.zIndex = '1080';
-                var backdrops = document.querySelectorAll('.modal-backdrop');
-                if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1075';
-            }, { once: true });
-        }
-    }
     if (allPartsBody) {
         allPartsBody.addEventListener('click', function(e) {
-            var addBtn = e.target.closest('.open-add-process-modal');
-            if (addBtn && addBtn.dataset.tdrId) {
-                e.preventDefault();
-                openAddProcessModal(addBtn.dataset.tdrId);
-                return;
-            }
             var btn = e.target.closest('.open-part-processes-tab');
             if (!btn || !btn.dataset.tdrId) return;
             if (tabLi) tabLi.classList.remove('d-none');
             syncPartProcessesShortcutActions();
-            loadProcessesAndBind(btn.dataset.tdrId);
+            var shouldOpenInlineAdd = btn.dataset.openInlineProcessAdd === '1';
+            var loading = loadProcessesAndBind(btn.dataset.tdrId);
             if (tabBtn) { var tab = new bootstrap.Tab(tabBtn); tab.show(); }
+            if (shouldOpenInlineAdd && loading && typeof loading.then === 'function') {
+                loading.then(function() {
+                    body?.querySelector('[data-inline-process-add]')?.click();
+                });
+            }
         });
     }
     var logCardTabActions = document.getElementById('logCardTabActions');
@@ -2153,18 +2374,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.addEventListener('message', function(e) {
         if (e.data && e.data.type === 'createProcessSuccess' && e.data.tdrId) {
-            var m = bootstrap.Modal.getInstance(document.getElementById('addPartProcessesModal'));
-            if (m) m.hide();
-            var ifr = document.getElementById('addPartProcessesIframe');
-            if (ifr) ifr.src = 'about:blank';
             loadProcessesAndBind(e.data.tdrId, activeProcessesContainer || body);
             if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
             window.tdrShowNotify(e.data.message || '{{ __("Process added successfully.") }}', 'success', 2500);
         } else if (e.data && e.data.type === 'createProcessCancel') {
-            var m = bootstrap.Modal.getInstance(document.getElementById('addPartProcessesModal'));
-            if (m) m.hide();
-            var ifr = document.getElementById('addPartProcessesIframe');
-            if (ifr) ifr.src = 'about:blank';
+            return;
         } else if (e.data && e.data.type === 'editProcessSuccess' && e.data.tdrId) {
             var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));
             if (m) m.hide();
@@ -2267,10 +2481,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (editIfr && editIfr.src && editIfr.src !== 'about:blank') { try { editIfr.contentWindow.location.reload(); } catch(e){} }
             window.tdrShowNotify(e.data.message || (e.data.type === 'addPartSuccess' ? '{{ __("Part added successfully.") }}' : '{{ __("Process added successfully.") }}'), 'success', 2500);
         }
-    });
-    document.getElementById('addPartProcessesModal')?.addEventListener('hidden.bs.modal', function() {
-        var ifr = document.getElementById('addPartProcessesIframe');
-        if (ifr) ifr.src = 'about:blank';
     });
     document.getElementById('editTdrProcessModal')?.addEventListener('hidden.bs.modal', function() {
         var ifr = document.getElementById('editTdrProcessIframe');

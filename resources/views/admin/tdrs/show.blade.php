@@ -52,6 +52,30 @@
         }
         .tdr-show-back-text .t1{ font-size: 1rem; opacity: .95; }
         .tdr-show-back-text .t2{ font-size: 1.3rem; font-weight: 700; }
+        .tdr-show-paper-strip {
+            align-items: flex-start !important;
+        }
+        .tdr-pdf-paper-wrap {
+            display: flex;
+            align-items: flex-start;
+            line-height: 0;
+        }
+        .tdr-pdf-paper-wrap .paper-btn {
+            display: block;
+        }
+        #pdfCountBadge {
+            align-items: center;
+            color: #000;
+            display: flex;
+            font-size: .7rem;
+            height: 20px;
+            justify-content: center;
+            left: 2px;
+            min-width: 20px;
+            padding: 0 5px;
+            right: auto;
+            top: -5px;
+        }
         #tdrShowTabList {
             --tdr-tabs-bg: #212529;
             border-bottom: 0 !important;
@@ -132,10 +156,10 @@
             color: #e9ecef !important;
             border: 1px solid #495057 !important;
         }
-        /* Add Part Processes & Edit Part Process modals (iframe) - ensure on top */
-        #addPartProcessesModal, #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal, #partProcessesGroupFormsModal { z-index: 1080 !important; }
+        /* Edit Part Process and related modals (iframe) - ensure on top */
+        #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal, #partProcessesGroupFormsModal { z-index: 1080 !important; }
         #addProcessesModal.modal.show, #addPartModal.modal.show { z-index: 1090 !important; }
-        #addPartProcessesModal ~ .modal-backdrop, #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop, #partProcessesGroupFormsModal ~ .modal-backdrop { z-index: 1075 !important; }
+        #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop, #partProcessesGroupFormsModal ~ .modal-backdrop { z-index: 1075 !important; }
 
         #partProcessesGroupFormsModal .modal-dialog {
             max-height: 80vh;
@@ -196,15 +220,16 @@
             margin: 0 1rem .35rem 0;
         }
         .processes-modal-body .process-action-col {
-            width: 56px;
-            min-width: 56px;
-            max-width: 56px;
+            width: 78px;
+            min-width: 78px;
+            max-width: 78px;
+            white-space: nowrap;
         }
         .processes-modal-body .process-action-cell {
             white-space: nowrap;
-            width: 56px;
-            min-width: 56px;
-            max-width: 56px;
+            width: 78px;
+            min-width: 78px;
+            max-width: 78px;
             padding-left: .15rem !important;
             padding-right: .15rem !important;
         }
@@ -257,18 +282,18 @@
                             </span>
                         </a>
                     </div>
-                    <div class="ps-2 d-flex align-items-center ms-3">
-                        <div class="me-2 position-relative">
-                            <button class="btn btn-outline-warning ms-2 open-pdf-modal text-center"
-                                    title="{{ __('PDF Library') }}"
-                                    style="height: 55px;width: 55px;align-content: center"
-                                    data-id="{{ $current_wo->id }}"
-                                    data-number="{{ $current_wo->number }}">
-                                <i class="bi bi-file-earmark-pdf" style="font-size: 26px;"></i>
-                            </button>
+                    <div class="ps-2 d-flex align-items-start ms-3 tdr-show-paper-strip">
+                        <div class="me-4 position-relative tdr-pdf-paper-wrap">
+                            <x-paper-button text="PDF"
+                                            color="outline-warning"
+                                            class="open-pdf-modal"
+                                            title="{{ __('PDF Library') }}"
+                                            ariaLabel="{{ __('PDF Library') }}"
+                                            data-id="{{ $current_wo->id }}"
+                                            data-number="{{ $current_wo->number }}" />
                             <span id="pdfCountBadge"
                                   class="badge bg-warning rounded-pill position-absolute d-none"
-                                  style="top: -5px; right: -5px; min-width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; color: black; font-size: 0.7rem; padding: 0 5px;"></span>
+                                  style="top: -5px; left: 2px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: black; font-size: 0.7rem; padding: 0 5px;"></span>
                         </div>
                         {{-- x-paper buttons --}}
                         @if(count($tdrs))
@@ -496,17 +521,16 @@
                     <div class="tab-pane fade" id="content-part-processes" role="tabpanel">
                         <div class="card bg-gradient h-100">
                             <div class="card-header d-flex flex-wrap align-items-center gap-2">
-                                <div>
+                                <div class="d-flex flex-wrap align-items-baseline gap-2">
                                     <h6 class="mb-0">{{ __('Part Processes') }}, {{ __('Work Order') }}: <span id="compProcessesWoNumber" class="text-primary">-</span></h6>
-                                    <small class="text-muted">ITEM: <span id="compProcessesName">-</span> | IPL: <span id="compProcessesIpl">-</span> | PN: <span id="compProcessesPn">-</span> | SN: <span id="compProcessesSn">-</span></small>
+                                    <small class="text-muted">
+                                        ITEM: <span id="compProcessesName" class="text-white">-</span> | IPL: <span id="compProcessesIpl">-</span> | PN: <span id="compProcessesPn">-</span> | SN: <span id="compProcessesSn">-</span>
+                                    </small>
                                 </div>
                                 <div class="d-flex gap-2 ms-md-auto flex-wrap align-items-center">
                                     <button type="button" class="btn btn-outline-primary btn-sm d-none" id="compProcessesGroupFormsBtn"
                                             data-bs-toggle="modal" data-bs-target="#partProcessesGroupFormsModal">
                                         <i class="fas fa-print"></i> {{ __('Group Process Forms') }}
-                                    </button>
-                                    <button type="button" class="btn btn-outline-success btn-sm" id="compProcessesAddProcessBtn" data-tdr-id="">
-                                        <i class="bi bi-plus-lg"></i> {{ __('Add Process') }}
                                     </button>
                                 </div>
                             </div>

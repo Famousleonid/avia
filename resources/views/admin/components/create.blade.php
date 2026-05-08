@@ -135,21 +135,23 @@
                                                pattern="^$|^\d+-\d+[A-Za-z]?$"
                                                title="The format should be: number-number (for example: 1-200A, 1001-100, 5-398B) or leave empty">
                                     </div>
-                                    <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
-                                        <div class="form-group">
-                                            <strong>{{__(' Assy Image:')}}</strong>
-                                            <input type="file" name="assy_img" class="form-control" placeholder="Image">
-                                        </div>
-                                    </div>
                                     <div class="mt-2">
                                         <label for="assy_part_number">{{ __(' Assembly Part Number') }}</label>
                                         <input id='assy_part_number' type="text" class="form-control"
                                                name="assy_part_number" >
                                     </div>
-                                    <div class="mt-2">
-                                        <label for="units_assy">{{ __('Units per Assy') }}</label>
-                                        <input id='units_assy' type="text" class="form-control"
-                                               name="units_assy" placeholder="Enter units per assembly">
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-md-6">
+                                            <label for="units_assy">{{ __('Units per Assy') }}</label>
+                                            <input id='units_assy' type="text" class="form-control"
+                                                   name="units_assy" placeholder="Enter units per assembly">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <strong>{{__(' Assy Image:')}}</strong>
+                                                <input type="file" name="assy_img" class="form-control" placeholder="Image">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

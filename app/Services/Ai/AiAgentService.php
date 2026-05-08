@@ -10,6 +10,7 @@ use App\Services\Ai\Tools\CountWorkorderImagesTool;
 use App\Services\Ai\Tools\CreateWorkorderNoteTool;
 use App\Services\Ai\Tools\FindWorkorderTool;
 use App\Services\Ai\Tools\LookupManualEditPermissionsTool;
+use App\Services\Ai\Tools\LookupSerialNumberTool;
 use App\Services\Ai\Tools\LookupWorkorderPartsTool;
 use App\Services\Ai\Tools\SearchMyWorkordersByOpenProcessTool;
 use App\Services\Ai\Tools\SearchWorkordersByOpenProcessTool;
@@ -29,6 +30,7 @@ class AiAgentService
         protected SearchWorkordersByOpenProcessTool $searchWorkordersByOpenProcessTool,
         protected LookupManualEditPermissionsTool $lookupManualEditPermissionsTool,
         protected CountWorkorderImagesTool $countWorkorderImagesTool,
+        protected LookupSerialNumberTool $lookupSerialNumberTool,
     ) {
     }
 
@@ -50,6 +52,17 @@ class AiAgentService
             'page_context' => $pageContext,
         ]);
 
+        if ($serialReply = $this->tryHandleSerialLookup($user, $userMessage)) {
+            $this->storeMessage($user->id, $sessionKey, 'assistant', $serialReply);
+
+            return [
+                'ok' => true,
+                'reply' => $serialReply,
+                'requires_confirmation' => false,
+                'action' => null,
+            ];
+        }
+
         $history = $this->buildConversationHistory($user->id, $sessionKey);
 
         $tools = [
@@ -62,6 +75,7 @@ class AiAgentService
             $this->lookupWorkorderPartsTool->schema(),
             $this->lookupManualEditPermissionsTool->schema(),
             $this->countWorkorderImagesTool->schema(),
+            $this->lookupSerialNumberTool->schema(),
         ];
 
         $systemPrompt = $this->systemPrompt($user, $pageContext, $userMessage);
@@ -194,11 +208,109 @@ class AiAgentService
             'lookupWorkorderParts' => $this->lookupWorkorderPartsTool->run($user, $arguments),
             'lookupManualEditPermissions' => $this->lookupManualEditPermissionsTool->run($user, $arguments),
             'countWorkorderImages' => $this->countWorkorderImagesTool->run($user, $arguments),
+            'lookupSerialNumber' => $this->lookupSerialNumberTool->run($user, $arguments),
             default => [
                 'ok' => false,
                 'message' => "Unknown tool: {$toolName}",
             ],
         };
+    }
+
+    protected function tryHandleSerialLookup(User $user, string $userMessage): ?string
+    {
+        $serial = $this->extractSerialLookupCandidate($userMessage);
+        if ($serial === null) {
+            return null;
+        }
+
+        $result = $this->lookupSerialNumberTool->run($user, [
+            'serial_number' => $serial,
+            'limit' => 20,
+        ]);
+
+        return $this->formatSerialLookupReply($userMessage, $serial, $result);
+    }
+
+    protected function extractSerialLookupCandidate(string $message): ?string
+    {
+        $text = trim($message);
+        if ($text === '') {
+            return null;
+        }
+
+        $hasSerialIntent = (bool) preg_match('/\b(s\/?n|sn|serial(?:\s+number)?)\b|серийн|серийник|s\/n/ui', $text);
+        if (! $hasSerialIntent) {
+            return null;
+        }
+
+        if (preg_match('/(?:\b(?:s\/?n|sn|serial(?:\s+number)?)\b|серийн(?:ый|ого|ому|ым|ом|ая|ую|ые|ых)?(?:\s+номер)?|серийник)\s*[:#№-]?\s*([A-Za-z0-9][A-Za-z0-9._\/-]{0,80})/ui', $text, $match)) {
+            $candidate = $this->cleanSerialLookupCandidate((string) $match[1]);
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        if (preg_match_all('/[A-Za-z0-9][A-Za-z0-9._\/-]{0,80}/u', $text, $matches)) {
+            $skip = ['sn', 's', 'n', 'serial', 'number', 'find', 'lookup'];
+            $tokens = array_values(array_filter($matches[0], function (string $token) use ($skip) {
+                $normalized = mb_strtolower(trim($token, " \t\n\r\0\x0B:;,.!?()[]{}"));
+
+                return $normalized !== '' && ! in_array($normalized, $skip, true);
+            }));
+
+            if ($tokens !== []) {
+                return $this->cleanSerialLookupCandidate((string) end($tokens));
+            }
+        }
+
+        return null;
+    }
+
+    protected function cleanSerialLookupCandidate(string $candidate): string
+    {
+        return trim($candidate, " \t\n\r\0\x0B:;,.!?()[]{}<>\"'");
+    }
+
+    protected function formatSerialLookupReply(string $userMessage, string $serial, array $result): string
+    {
+        $isRussian = (bool) preg_match('/\p{Cyrillic}/u', $userMessage);
+        $matches = collect($result['matches'] ?? []);
+
+        if (! ($result['ok'] ?? false)) {
+            return $isRussian
+                ? "Не получилось выполнить поиск по S/N {$serial}: ".(string)($result['message'] ?? 'ошибка поиска.')
+                : "Could not search S/N {$serial}: ".(string)($result['message'] ?? 'search error.');
+        }
+
+        if ($matches->isEmpty()) {
+            return $isRussian
+                ? "По S/N {$serial} совпадений не найдено."
+                : "No matches found for S/N {$serial}.";
+        }
+
+        $lines = [$isRussian ? "Нашёл по S/N {$serial}:" : "Found matches for S/N {$serial}:"];
+
+        foreach ($matches as $match) {
+            $woNumber = $match['workorder_number'] ?? null;
+            $url = $match['open_url'] ?? null;
+            $woText = $woNumber
+                ? ($url ? "[WO {$woNumber}]({$url})" : "WO {$woNumber}")
+                : ($isRussian ? 'WO не привязан' : 'No linked WO');
+
+            $details = array_filter([
+                $match['source'] ?? null,
+                $match['part_name'] ?? null,
+                ! empty($match['part_number']) ? 'P/N '.$match['part_number'] : null,
+                ! empty($match['ipl_num']) ? 'IPL '.$match['ipl_num'] : null,
+                ! empty($match['serial_number']) ? 'S/N '.$match['serial_number'] : null,
+                ($match['match_type'] ?? null) === 'partial' ? ($isRussian ? 'частичное совпадение' : 'partial match') : null,
+                $match['note'] ?? null,
+            ]);
+
+            $lines[] = '- '.$woText.' — '.implode(', ', $details);
+        }
+
+        return implode("\n", $lines);
     }
 
     protected function callOpenAi(array $input, array $tools, ?string $previousResponseId = null): array
@@ -506,6 +618,7 @@ What you can actually do in THIS app (strict — if the user asks «what can you
 - lookupWorkorderParts: look up manual/parts lines for a workorder (read-only).
 - lookupManualEditPermissions: from manual_user_permissions — which CMM manuals a user may edit, who may edit a manual, list all manuals with responsible users, and map manual number ↔ LIB (by manual number or LIB fragments); read-only.
 - countWorkorderImages: count images/photos for one workorder, list top workorders with the most images/photos, or return the total/sum of all workorder photos across workorders; return links to open the main page when listing workorders (read-only).
+- lookupSerialNumber: find a serial number / S/N across the app and tell which WO it belongs to. Search workorders, TDR rows, unit inspections, extra process parts, and paint/lost-part records. If a match has no direct WO link, say so plainly.
 - UI navigation help: explain where to click in the admin interface using ONLY the «UI NAVIGATION MAP» block below (no tools; no invented menus).
 - Plus: plain-language conversation without accessing the database when no tool is needed.
 
@@ -524,6 +637,7 @@ Important behavior:
 - If the question needs real data from the system, use tools.
 - If the user wants a list of workorders matching text, use searchWorkorders (all WO fields + related customer/unit/instruction/user). Format each line as: `[WO <number>](open_url) — description…` (link text = WO number only). Optionally add a second markdown link to open the Workorder table with search pre-filled if origin is in context (`…/workorders?q=…`). Missing photos does not affect workorder status or whether it is closed.
 - If the user asks about number of pictures/photos/images on workorders, use countWorkorderImages. For "sum/total across all workorders", call it with `mode: "total"` and answer with the total image count plus how many workorders have images. For "top 10 with most pictures", call it with limit 10 and format each result as `[WO <number>](url) — <N> images`.
+- If the user asks to find a part/unit by serial number, S/N, SN, or asks which workorder a serial belongs to, use lookupSerialNumber. Format matches as `[WO <number>](url) — <source>, <part name>, P/N <part_number>, IPL <ipl_num>, S/N <serial>` when fields exist. If there are multiple matches, list them briefly. If no match is found, say no matching serial number was found.
 - If the user asks to create or modify something, first confirm details.
 - If a tool returns an error, explain it plainly in human language.
 - For write actions, request explicit UI confirmation first. Never execute write action immediately after tool proposal.

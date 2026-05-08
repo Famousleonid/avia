@@ -37,6 +37,7 @@ class Tdr extends Model
         'workorder_id',
         'component_id',
         'order_component_id',
+        'order_component_assembly_id',
         'serial_number',
         'assy_serial_number',
         'codes_id',
@@ -208,6 +209,11 @@ class Tdr extends Model
     public function orderComponent()
     {
         return $this->belongsTo(Component::class, 'order_component_id');
+    }
+
+    public function orderComponentAssembly()
+    {
+        return $this->belongsTo(ComponentAssembly::class, 'order_component_assembly_id');
     }
 
     public function conditions()

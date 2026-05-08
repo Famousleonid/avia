@@ -595,6 +595,7 @@
                             <th class="text-center sortable">{{__('Part Number')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                             <th class="text-center sortable">{{__('Name')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                             <th class="text-center">{{__('Assy')}}</th>
+                            <th class="text-center">{{__('Units per assy')}}</th>
                             <th class="text-center">{{__('Image')}}</th>
                             <th class="text-center component-flag-head" title="Log Card">LC</th>
                             <th class="text-center component-flag-head" title="Bushing">Bush</th>
@@ -611,7 +612,7 @@
                         @include('admin.components.partials.index-rows', ['components' => $components])
                         @if($componentsTotal === 0)
                             <tr class="components-empty-row">
-                                <td colspan="14" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
+                                <td colspan="15" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
                             </tr>
                         @endif
                         </tbody>
@@ -664,7 +665,12 @@
                             <input id="drawer_name" type="text" class="form-control" name="name" required>
                         </div>
 
-                        <div class="col-12">
+                        <div class="col-md-6">
+                            <label for="drawer_units_assy" class="form-label">{{ __('Units per Assy') }}</label>
+                            <input id="drawer_units_assy" type="text" class="form-control" name="units_assy">
+                        </div>
+
+                        <div class="col-md-6">
                             <label for="drawer_img" class="form-label">{{ __('Image') }}</label>
                             <input id="drawer_img" type="file" name="img" class="form-control" accept="image/*">
                         </div>
@@ -820,7 +826,12 @@
                             <input id="edit_drawer_name" type="text" class="form-control" name="name" required>
                         </div>
 
-                        <div class="col-12">
+                        <div class="col-md-6">
+                            <label for="edit_drawer_units_assy" class="form-label">{{ __('Units per Assy') }}</label>
+                            <input id="edit_drawer_units_assy" type="text" class="form-control" name="units_assy">
+                        </div>
+
+                        <div class="col-md-6">
                             <label for="edit_drawer_img" class="form-label">{{ __('Image') }}</label>
                             <input id="edit_drawer_img" type="file" name="img" class="form-control" accept="image/*">
                         </div>
@@ -1281,6 +1292,7 @@
                             drawerHelpers.setSelectValue(manualSelect, component.manual_id);
                             setValue('ipl_num', component.ipl_num);
                             setValue('part_number', component.part_number);
+                            setValue('units_assy', component.units_assy);
                             setValue('name', component.name);
                             setValue('bush_ipl_num', component.bush_ipl_num);
                             if (isBush) isBush.checked = !!component.is_bush;
@@ -1292,14 +1304,6 @@
                             });
 
                             let assemblies = Array.isArray(component.assemblies) ? component.assemblies : [];
-                            if (!assemblies.length && (component.assy_ipl_num || component.assy_part_number || component.units_assy)) {
-                                assemblies = [{
-                                    assy_ipl_num: component.assy_ipl_num,
-                                    assy_part_number: component.assy_part_number,
-                                    units_assy: component.units_assy,
-                                    notes: '',
-                                }];
-                            }
                             assemblyManager.reset(assemblies.length ? assemblies : [{}]);
                             syncBush();
                         };

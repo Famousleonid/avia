@@ -277,12 +277,18 @@ function initTdrInlineCreate() {
     const codeSelect = document.getElementById('tdr_inline_codes_id');
     const necessarySelect = document.getElementById('tdr_inline_necessaries_id');
     const orderComponentSelect = document.getElementById('tdr_inline_order_component_id');
+    const orderComponentIdInput = document.getElementById('tdr_inline_order_component_id_value');
+    const orderComponentAssemblyInput = document.getElementById('tdr_inline_order_component_assembly_id');
     const orderComponentGroup = document.getElementById('tdr_inline_order_component_group');
     const descriptionInput = document.getElementById('tdr_inline_description');
     const qtyInput = document.getElementById('tdr_inline_qty');
     const qtyOriginalParent = qtyInput?.parentElement || null;
     const qtyOriginalNextSibling = qtyInput?.nextSibling || null;
     const orderQtyMount = document.getElementById('tdr_inline_order_qty_mount');
+    const orderQtyControl = orderQtyMount?.querySelector('.tdr-inline-qty-control') || null;
+    const orderQtyLabel = orderQtyMount?.querySelector('.tdr-inline-qty-label') || null;
+    const orderSelectedText = document.getElementById('tdr_inline_order_selected_text');
+    const serialInput = document.getElementById('tdr_inline_serial_number');
     const assySerialInput = document.getElementById('tdr_inline_assy_serial_number');
     const useTdrInput = document.getElementById('tdr_inline_use_tdr');
     const useProcessFormsInput = document.getElementById('tdr_inline_use_process_forms');
@@ -303,6 +309,10 @@ function initTdrInlineCreate() {
         const option = select.options[select.selectedIndex];
         if (!option || !option.value) return '';
         return partNumberFromOption(option);
+    }
+
+    function selectedComponentOption() {
+        return componentSelect?.options[componentSelect.selectedIndex] || null;
     }
 
     function partNumberFromOption(option) {
@@ -343,11 +353,17 @@ function initTdrInlineCreate() {
         if (!orderComponentSelect) return;
         const option = orderComponentSelect.options[orderComponentSelect.selectedIndex];
         const text = (option?.text || '').toString().trim();
-        const width = text ? Math.min(Math.max(text.length + 2, 18), 34) + 'ch' : '24ch';
-        orderComponentSelect.style.width = width;
+        const longestText = Array.from(orderComponentSelect.options)
+            .map(function(item) { return (item.text || '').trim(); })
+            .reduce(function(longest, current) {
+                return current.length > longest.length ? current : longest;
+            }, text);
+        const width = longestText ? Math.min(Math.max(longestText.length + 3, 32), 72) + 'ch' : '36ch';
+        orderComponentSelect.style.removeProperty('width');
         const container = document.querySelector('#tdr_inline_order_component_group .select2-container');
         if (container) {
-            container.style.width = width;
+            container.style.removeProperty('width');
+            container.style.removeProperty('min-width');
         }
         const rendered = document.querySelector('#tdr_inline_order_component_group .select2-selection__rendered');
         if (rendered && text) {
@@ -356,12 +372,122 @@ function initTdrInlineCreate() {
         }
     }
 
+    function openOrderComponentSelect() {
+        if (!orderComponentSelect || orderComponentGroup?.classList.contains('d-none')) return;
+        if ($ && $.fn.select2 && $(orderComponentSelect).hasClass('select2-hidden-accessible')) {
+            $(orderComponentSelect).select2('open');
+            return;
+        }
+        orderComponentSelect.focus();
+        orderComponentSelect.size = Math.min(Math.max(orderComponentSelect.options.length, 2), 8);
+    }
+
+    function scheduleOpenOrderComponentSelect() {
+        requestAnimationFrame(function() {
+            setTimeout(openOrderComponentSelect, 30);
+        });
+    }
+
+    function orderComponentDisplay(componentLike) {
+        const ipl = componentLike?.ipl_num || componentLike?.assy_ipl_num || '';
+        const partNumber = componentLike?.part_number || componentLike?.assy_part_number || '';
+        const suffix = componentLike?.is_assy ? ' (assy)' : '';
+        const name = (componentLike?.name || '') + suffix;
+        const left = [ipl, partNumber].filter(Boolean).join(' : ');
+        return [left, name].filter(Boolean).join(' - ').trim();
+    }
+
+    function componentAssembliesFromOption(option) {
+        if (!option || !option.value) return [];
+        try {
+            const parsed = JSON.parse(option.dataset.assemblies || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function setOrderComponentChoiceFromSelection() {
+        if (!orderComponentSelect) return;
+        const option = orderComponentSelect.options[orderComponentSelect.selectedIndex];
+        if (orderComponentIdInput) orderComponentIdInput.value = option?.dataset?.componentId || '';
+        if (orderComponentAssemblyInput) orderComponentAssemblyInput.value = option?.dataset?.assemblyId || '';
+    }
+
+    function updateOrderSelectionPreview() {
+        if (!orderSelectedText || !orderComponentSelect) return;
+        const option = orderComponentSelect.options[orderComponentSelect.selectedIndex];
+        const select2Data = $ && $.fn.select2 && $(orderComponentSelect).hasClass('select2-hidden-accessible')
+            ? ($(orderComponentSelect).select2('data') || [])[0]
+            : null;
+        const text = option && option.value ? ((option.text || select2Data?.text || '').trim()) : '';
+        orderSelectedText.textContent = text;
+        orderSelectedText.title = text;
+        row.classList.toggle('tdr-inline-order-has-selection', !!text);
+    }
+
+    function populateOrderComponentChoices(option) {
+        if (!orderComponentSelect) return;
+        const selectedOption = option || selectedComponentOption();
+        const componentId = selectedOption?.value || '';
+        const componentName = selectedOption?.dataset?.title || '';
+        const assemblies = componentAssembliesFromOption(selectedOption);
+
+        const previousComponentId = orderComponentIdInput?.value || '';
+        const previousAssemblyId = orderComponentAssemblyInput?.value || '';
+        orderComponentSelect.replaceChildren(new Option('---', ''));
+
+        if (componentId) {
+            const componentOption = new Option(orderComponentDisplay({
+                ipl_num: selectedOption?.dataset?.ipl || '',
+                part_number: selectedOption?.dataset?.partNumber || '',
+                name: componentName
+            }), 'component:' + componentId);
+            componentOption.dataset.componentId = componentId;
+            componentOption.dataset.assemblyId = '';
+            orderComponentSelect.appendChild(componentOption);
+
+            assemblies.forEach(function(assembly) {
+                const label = orderComponentDisplay({
+                    assy_ipl_num: assembly.assy_ipl_num || '',
+                    assy_part_number: assembly.assy_part_number || '',
+                    name: componentName,
+                    is_assy: true
+                });
+                if (!label) return;
+                const assemblyOption = new Option(label, 'assembly:' + (assembly.id || ''));
+                assemblyOption.dataset.componentId = componentId;
+                assemblyOption.dataset.assemblyId = assembly.id || '';
+                orderComponentSelect.appendChild(assemblyOption);
+            });
+        }
+
+        const optionToRestore = previousAssemblyId
+            ? Array.from(orderComponentSelect.options).find(function(item) {
+                return (item.dataset.assemblyId || '') === previousAssemblyId;
+            })
+            : Array.from(orderComponentSelect.options).find(function(item) {
+                return previousComponentId && (item.dataset.componentId || '') === previousComponentId && !(item.dataset.assemblyId || '');
+            });
+
+        orderComponentSelect.value = optionToRestore ? optionToRestore.value : '';
+        if (optionToRestore) {
+            optionToRestore.selected = true;
+        }
+        if ($ && $.fn.select2) {
+            $(orderComponentSelect).trigger('change.select2');
+        }
+        setOrderComponentChoiceFromSelection();
+        updateOrderSelectionPreview();
+        updateOrderComponentWidth();
+    }
+
     function moveQtyInputToOrderGroup(isOrderNew) {
         if (!qtyInput || !qtyOriginalParent) return;
 
-        if (isOrderNew && orderQtyMount && qtyInput.parentElement !== orderQtyMount) {
-            orderQtyMount.appendChild(qtyInput);
-            qtyInput.style.maxWidth = '7ch';
+        if (isOrderNew && orderQtyControl && qtyInput.parentElement !== orderQtyControl) {
+            orderQtyControl.appendChild(qtyInput);
+            qtyInput.style.maxWidth = '8ch';
             return;
         }
 
@@ -485,7 +611,7 @@ function initTdrInlineCreate() {
         const partText = componentOption && componentOption.value
             ? (componentOption.dataset.partNumber || '{{ __("P/N") }}')
             : '{{ __("P/N") }}';
-        const serial = document.getElementById('tdr_inline_serial_number')?.value || '';
+        const serial = serialInput?.value || '';
         const code = selectedTitle(codeSelect) || '{{ __("Click code") }}';
         const necessary = selectedTitle(necessarySelect) || '{{ __("Click necessary") }}';
 
@@ -499,19 +625,6 @@ function initTdrInlineCreate() {
         setPlaceholder('necessary', necessary);
         setPlaceholder('serial', serial || '{{ __("S/N") }}');
         setPlaceholder('description', description);
-    }
-
-    function orderComponentDisplay(component) {
-        if (!component) return '';
-        const assemblies = Array.isArray(component.assemblies) ? component.assemblies : [];
-        const assemblyLabels = assemblies.map(function(assembly) {
-            return [
-                assembly.assy_ipl_num || '',
-                assembly.units_assy || assembly.assy_part_number || ''
-            ].filter(Boolean).join(' ').trim();
-        }).filter(Boolean);
-        return (component.name || '').toString().trim()
-            + (assemblyLabels.length ? ' | Assy: ' + assemblyLabels.join(', ') : '');
     }
 
     function syncDescriptionFromComponent(option) {
@@ -538,6 +651,7 @@ function initTdrInlineCreate() {
         }
         renderComponentSelectionText(selectedOption);
         syncDescriptionFromComponent(selectedOption);
+        populateOrderComponentChoices(selectedOption);
         updateFieldVisibility();
         updatePlaceholders();
     }
@@ -549,6 +663,9 @@ function initTdrInlineCreate() {
         setSelectValue(codeSelect, '');
         setSelectValue(necessarySelect, '');
         setSelectValue(orderComponentSelect, '');
+        if (orderComponentIdInput) orderComponentIdInput.value = '';
+        if (orderComponentAssemblyInput) orderComponentAssemblyInput.value = '';
+        populateOrderComponentChoices(null);
         useTdrInput.value = '0';
         useProcessFormsInput.value = '0';
         conditionsInput.value = '';
@@ -559,6 +676,13 @@ function initTdrInlineCreate() {
         descriptionInput?.classList.add('d-none');
         qtyInput?.classList.add('d-none');
         orderComponentGroup?.classList.add('d-none');
+        orderQtyMount?.classList.add('d-none');
+        orderQtyLabel?.classList.add('d-none');
+        if (orderSelectedText) {
+            orderSelectedText.textContent = '';
+            orderSelectedText.removeAttribute('title');
+        }
+        row.classList.remove('tdr-inline-order-has-selection');
         moveQtyInputToOrderGroup(false);
         assySerialInput?.classList.add('d-none');
         row.querySelectorAll('.tdr-inline-field').forEach(function(field) { field.classList.add('d-none'); });
@@ -621,28 +745,43 @@ function initTdrInlineCreate() {
         const hasNecessary = showNecessary && necessaryName;
         const showOrderPicker = hasComponent && (isMissing || isOrderNew);
         const showDescriptionInput = hasComponent && !showOrderPicker && (isManufacture || hasNecessary);
-        const showQty = hasComponent && (isManufacture || isMissing || isOrderNew);
+        const showQty = hasComponent && ((isManufacture && !showOrderPicker) || showOrderPicker);
         const showSerial = hasNecessary && !isOrderNew;
 
         setInlineCellVisible('code', hasComponent);
-        setInlineCellVisible('necessary', !!showNecessary || showOrderPicker);
-        setInlinePlaceholderVisible('description', hasComponent && !showOrderPicker);
-        setInlineCellVisible('serial', !!showSerial);
+        setInlineCellVisible('necessary', !!showNecessary);
+        setInlineCellVisible('serial', !!showSerial || showOrderPicker);
+        setInlineCellVisible('description', !!showOrderPicker || !!showDescriptionInput);
 
         if (showDescriptionInput) {
             revealField(inlineCell('description'));
         } else if (showOrderPicker && descriptionInput) {
             descriptionInput.value = '';
             descriptionInput.dataset.autoComponentDescription = '';
+            if (serialInput) serialInput.value = '';
+            if (assySerialInput) assySerialInput.value = '';
         }
         descriptionInput?.classList.toggle('d-none', !showDescriptionInput);
         qtyInput?.classList.toggle('d-none', !showQty);
         orderComponentGroup?.classList.toggle('d-none', !showOrderPicker);
+        orderQtyMount?.classList.toggle('d-none', !showOrderPicker);
+        orderQtyLabel?.classList.toggle('d-none', !showOrderPicker);
         moveQtyInputToOrderGroup(showOrderPicker);
+        serialInput?.classList.toggle('d-none', showOrderPicker || !showSerial);
         assySerialInput?.classList.toggle('d-none', !(showSerial && hasAssy));
+        if (showOrderPicker && !orderComponentSelect?.value) {
+            scheduleOpenOrderComponentSelect();
+        }
 
         if (!showOrderPicker) {
+            if (orderComponentSelect) orderComponentSelect.size = 0;
             setSelectValue(orderComponentSelect, '');
+            if (orderComponentIdInput) orderComponentIdInput.value = '';
+            if (orderComponentAssemblyInput) orderComponentAssemblyInput.value = '';
+            updateOrderSelectionPreview();
+        }
+        if (!showOrderPicker && !showDescriptionInput) {
+            setInlineCellVisible('description', false);
         }
 
         updatePlaceholders();
@@ -659,21 +798,27 @@ function initTdrInlineCreate() {
                 $(componentSelect).empty().append('<option value="">---</option>');
                 $(orderComponentSelect).empty().append('<option value="">---</option>');
                 components.forEach(function(component) {
-                    const hasAssy = (component.assy_part_number || (Array.isArray(component.assemblies) && component.assemblies.length)) ? 'true' : 'false';
+                    const assemblies = Array.isArray(component.assemblies) ? component.assemblies : [];
+                    const hasAssy = (component.assy_part_number || assemblies.length) ? 'true' : 'false';
                     const title = component.name || '';
                     const ipl = component.ipl_num || '';
                     const partNumber = component.part_number || '';
                     $(componentSelect).append(
-                        '<option value="' + component.id + '" data-has_assy="' + hasAssy + '" data-title="' + title + '" data-ipl="' + ipl + '" data-part-number="' + partNumber + '">' +
-                        ipl + ' : ' + partNumber + ' - ' + title + '</option>'
-                    );
-                    const orderLabel = orderComponentDisplay(component);
-                    $(orderComponentSelect).append(
-                        $('<option>').val(component.id).text(orderLabel).attr('data-title', orderLabel)
+                        $('<option>')
+                            .val(component.id)
+                            .text(ipl + ' : ' + partNumber + ' - ' + title)
+                            .attr('data-has_assy', hasAssy)
+                            .attr('data-title', title)
+                            .attr('data-ipl', ipl)
+                            .attr('data-part-number', partNumber)
+                            .attr('data-assemblies', JSON.stringify(assemblies))
                     );
                 });
                 setSelectValue(componentSelect, '');
                 setSelectValue(orderComponentSelect, '');
+                if (orderComponentIdInput) orderComponentIdInput.value = '';
+                if (orderComponentAssemblyInput) orderComponentAssemblyInput.value = '';
+                populateOrderComponentChoices(null);
                 updatePlaceholders();
             }
         });
@@ -778,6 +923,19 @@ function initTdrInlineCreate() {
         });
     }
 
+    if ($ && $.fn.select2 && orderComponentSelect) {
+        $(orderComponentSelect).on('select2:select', function() {
+            setOrderComponentChoiceFromSelection();
+            updateOrderSelectionPreview();
+            updateOrderComponentWidth();
+        });
+        $(orderComponentSelect).on('select2:clear', function() {
+            setOrderComponentChoiceFromSelection();
+            updateOrderSelectionPreview();
+            updateOrderComponentWidth();
+        });
+    }
+
     if ($ && $.fn.select2) {
         $(manualSelect)
             .add(componentSelect)
@@ -785,6 +943,7 @@ function initTdrInlineCreate() {
             .on('select2:open', function() {
                 document.body.classList.add('tdr-inline-select2-dropdown-open');
                 document.body.classList.toggle('tdr-inline-component-select2-open', this === componentSelect);
+                document.body.classList.toggle('tdr-inline-order-select2-open', this === orderComponentSelect);
                 const searchContainer = document.querySelector('.select2-container--open .select2-search--dropdown');
                 const searchField = document.querySelector('.select2-container--open .select2-search__field');
                 searchContainer?.classList.remove('select2-search--hide');
@@ -797,6 +956,7 @@ function initTdrInlineCreate() {
             .on('select2:close', function() {
                 document.body.classList.remove('tdr-inline-select2-dropdown-open');
                 document.body.classList.remove('tdr-inline-component-select2-open');
+                document.body.classList.remove('tdr-inline-order-select2-open');
             });
     }
 
@@ -808,8 +968,12 @@ function initTdrInlineCreate() {
     codeSelect?.addEventListener('change', handleCodeChange);
 
     necessarySelect?.addEventListener('change', updateFieldVisibility);
-    orderComponentSelect?.addEventListener('change', updateOrderComponentWidth);
-    document.getElementById('tdr_inline_serial_number')?.addEventListener('input', updatePlaceholders);
+    orderComponentSelect?.addEventListener('change', function() {
+        setOrderComponentChoiceFromSelection();
+        updateOrderSelectionPreview();
+        updateOrderComponentWidth();
+    });
+    serialInput?.addEventListener('input', updatePlaceholders);
 
     manualSelect?.addEventListener('change', function() {
         const manualId = manualSelect.value || defaultManualId;
@@ -893,23 +1057,31 @@ function initTdrInlineCreate() {
         if (codeName === 'manufacture') {
             setSelectValue(necessarySelect, '');
             setSelectValue(orderComponentSelect, '');
+            if (orderComponentIdInput) orderComponentIdInput.value = '';
+            if (orderComponentAssemblyInput) orderComponentAssemblyInput.value = '';
         } else if (codeName === 'missing') {
             useTdrInput.value = '0';
             useProcessFormsInput.value = '0';
             if (descriptionInput) descriptionInput.value = '';
+            if (serialInput) serialInput.value = '';
+            if (assySerialInput) assySerialInput.value = '';
             if (orderNewNecessaryId) setSelectValue(necessarySelect, orderNewNecessaryId);
             conditionsInput.value = missingConditionId || '';
         } else if (codeName && necessaryName === 'order new') {
             useTdrInput.value = '1';
             useProcessFormsInput.value = '0';
             if (descriptionInput) descriptionInput.value = '';
+            if (serialInput) serialInput.value = '';
+            if (assySerialInput) assySerialInput.value = '';
             conditionsInput.value = findConditionIdForCode(codeName);
         } else if (codeName) {
             useTdrInput.value = '1';
             useProcessFormsInput.value = '1';
         }
 
-        if ((codeName === 'missing' || necessaryName === 'order new') && !orderComponentSelect?.value) {
+        setOrderComponentChoiceFromSelection();
+
+        if ((codeName === 'missing' || necessaryName === 'order new') && !orderComponentIdInput?.value) {
             event.preventDefault();
             (window.tdrShowNotify || function(m) { console.warn(m); })('{{ __("Select order component.") }}', 'warning');
             return;

@@ -58,7 +58,8 @@
                             </td>
                             <td class="text-center">
                                 <div class="d-flex gap-1 justify-content-center">
-                                    <button type="button" class="btn btn-outline-success btn-sm open-add-process-modal"
+                                    <button type="button" class="btn btn-outline-success btn-sm open-part-processes-tab"
+                                        data-open-inline-process-add="1"
                                         data-tdr-id="{{ $tdr->id }}">{{ __('Add') }}</button>
                                     <button type="button" class="btn btn-outline-primary btn-sm open-part-processes-tab"
                                         data-tdr-id="{{ $tdr->id }}">{{ __('Processes') }}</button>

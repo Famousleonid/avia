@@ -70,6 +70,37 @@
             flex: 0 0 145px;
         }
 
+        .vendor-tracking-filter-clear-wrap {
+            position: relative;
+        }
+
+        .vendor-tracking-filter-clear-wrap .form-control {
+            padding-right: 1.85rem;
+        }
+
+        .vendor-tracking-filter-clear {
+            align-items: center;
+            background: transparent;
+            border: 0;
+            color: #6c757d;
+            display: none;
+            height: 100%;
+            justify-content: center;
+            padding: 0 .45rem;
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+
+        .vendor-tracking-filter-clear-wrap.has-value .vendor-tracking-filter-clear {
+            display: inline-flex;
+        }
+
+        .vendor-tracking-filter-clear:hover,
+        .vendor-tracking-filter-clear:focus {
+            color: var(--bs-info);
+        }
+
         .vendor-tracking-filter-vnull {
             flex: 0 0 125px;
             margin-left: 2.75rem;
@@ -97,6 +128,21 @@
 
         .vendor-tracking-check .form-check-label {
             margin: 0;
+        }
+
+        .vendor-tracking-page .vendor-tracking-filter-active {
+            border-color: var(--bs-info) !important;
+            box-shadow: 0 0 0 .14rem rgba(13, 202, 240, .18) !important;
+        }
+
+        .vendor-tracking-check.is-filter-active .form-check-input {
+            border-color: var(--bs-info) !important;
+            box-shadow: 0 0 0 .14rem rgba(13, 202, 240, .18) !important;
+        }
+
+        .vendor-tracking-check.is-filter-active .form-check-label {
+            color: var(--bs-info);
+            font-weight: 600;
         }
 
         .vendor-tracking-wo-link {
@@ -133,6 +179,28 @@
             bottom: 0;
             height: 1px;
             background: #d7e0ea;
+        }
+
+        .vendor-tracking-results-card {
+            min-height: var(--vendor-tracking-results-min-height, 420px);
+        }
+
+        .vendor-tracking-results-card.is-filtering {
+            opacity: .74;
+            transition: opacity .12s ease;
+        }
+
+        .vendor-tracking-results-card.is-filtering .table-responsive {
+            min-height: var(--vendor-tracking-table-min-height, 360px);
+        }
+
+        .vendor-tracking-table.is-column-settings-pending {
+            opacity: 0;
+        }
+
+        .vendor-tracking-table.is-column-settings-ready {
+            opacity: 1;
+            transition: opacity .08s ease;
         }
 
         .vendor-tracking-counts {
@@ -779,6 +847,15 @@
             color: #adb5bd !important;
         }
 
+        html[data-bs-theme="dark"] .vendor-tracking-page .vendor-tracking-filter-active {
+            border-color: #0dcaf0 !important;
+            box-shadow: 0 0 0 .14rem rgba(13, 202, 240, .24) !important;
+        }
+
+        html[data-bs-theme="dark"] .vendor-tracking-filter-clear {
+            color: #adb5bd;
+        }
+
         html[data-bs-theme="dark"] #vendorTrackingSettingsModal .modal-content,
         html[data-bs-theme="dark"] #vendorInfoModal .modal-content {
             background: #232525;
@@ -932,7 +1009,7 @@
 
             <div class="card bg-gradient mb-2">
                 <div class="card-body">
-                    <form method="GET" action="{{ route('vendor-tracking.index') }}" class="vendor-tracking-filters d-flex gap-2 align-items-end">
+                    <form method="GET" action="{{ route('vendor-tracking.index') }}" class="vendor-tracking-filters d-flex gap-2 align-items-end" data-no-spinner>
                         <div class="vendor-tracking-filter-vendor">
                             <label class="form-label small text-muted">Vendor</label>
                             <select name="vendor_id" class="form-select form-select-sm">
@@ -964,17 +1041,32 @@
 
                         <div class="vendor-tracking-filter-text">
                             <label class="form-label small text-muted">Workorder</label>
-                            <input name="workorder" class="form-control form-control-sm" value="{{ $filters['workorder'] }}" placeholder="WO no">
+                            <div class="vendor-tracking-filter-clear-wrap">
+                                <input name="workorder" class="form-control form-control-sm" value="{{ $filters['workorder'] }}" placeholder="WO no">
+                                <button type="button" class="vendor-tracking-filter-clear" data-clear-filter="workorder" title="Clear workorder" aria-label="Clear workorder">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="vendor-tracking-filter-text">
                             <label class="form-label small text-muted">Part number</label>
-                            <input name="part_number" class="form-control form-control-sm" value="{{ $filters['part_number'] }}" placeholder="P/N">
+                            <div class="vendor-tracking-filter-clear-wrap">
+                                <input name="part_number" class="form-control form-control-sm" value="{{ $filters['part_number'] }}" placeholder="P/N">
+                                <button type="button" class="vendor-tracking-filter-clear" data-clear-filter="part_number" title="Clear part number" aria-label="Clear part number">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="vendor-tracking-filter-text">
                             <label class="form-label small text-muted">Repair order</label>
-                            <input name="repair_order" class="form-control form-control-sm" value="{{ $filters['repair_order'] }}" placeholder="RO">
+                            <div class="vendor-tracking-filter-clear-wrap">
+                                <input name="repair_order" class="form-control form-control-sm" value="{{ $filters['repair_order'] }}" placeholder="RO">
+                                <button type="button" class="vendor-tracking-filter-clear" data-clear-filter="repair_order" title="Clear repair order" aria-label="Clear repair order">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="vendor-tracking-filter-vnull">
@@ -1008,10 +1100,10 @@
             </div>
         </div>
 
-        <div class="card bg-gradient">
+        <div class="card bg-gradient vendor-tracking-results-card" id="vendorTrackingResultsCard">
             <div class="card-body p-2">
                 <div class="table-responsive">
-                    <table id="vendorTrackingTable" class="table table-sm table-bordered align-middle mb-0 vendor-tracking-table">
+                    <table id="vendorTrackingTable" class="table table-sm table-bordered align-middle mb-0 vendor-tracking-table is-column-settings-pending">
                         <thead>
                             <tr class="text-muted small">
                                 <th class="vendor-tracking-repair-col" data-col="repair_order">RO</th>
@@ -1359,7 +1451,10 @@
             const vendorNullBox = document.getElementById('vendorTrackingIncludeNull');
             const autoSubmitFields = Array.from(form?.querySelectorAll('select[name="vendor_id"], select[name="customer_id"], select[name="status"]') || []);
             const textFields = Array.from(form?.querySelectorAll('input[name="workorder"], input[name="part_number"], input[name="repair_order"]') || []);
+            const clearFilterButtons = Array.from(form?.querySelectorAll('.vendor-tracking-filter-clear') || []);
+            const vendorTrackingTable = document.getElementById('vendorTrackingTable');
             const tbody = document.getElementById('vendorTrackingBody');
+            const resultsCard = document.getElementById('vendorTrackingResultsCard');
             const paginationWrap = document.getElementById('vendorTrackingPagination');
             const loadMoreIndicator = document.getElementById('vendorTrackingLoadMore');
             const exportBtn = document.getElementById('vendorTrackingExportBtn');
@@ -1408,12 +1503,68 @@
                 };
             }
 
+            function setActiveFilterClass(element, active) {
+                element?.classList.toggle('vendor-tracking-filter-active', Boolean(active));
+            }
+
+            function updateActiveFilterStyles() {
+                const vendorSelect = form?.querySelector('select[name="vendor_id"]');
+                const customerSelect = form?.querySelector('select[name="customer_id"]');
+                const statusSelect = form?.querySelector('select[name="status"]');
+
+                setActiveFilterClass(vendorSelect, vendorSelect && vendorSelect.value !== '0');
+                setActiveFilterClass(customerSelect, customerSelect && customerSelect.value !== '0');
+                setActiveFilterClass(statusSelect, statusSelect && statusSelect.value !== 'all');
+
+                textFields.forEach(function (field) {
+                    setActiveFilterClass(field, field.value.trim() !== '');
+                    field.closest('.vendor-tracking-filter-clear-wrap')
+                        ?.classList.toggle('has-value', field.value.trim() !== '');
+                });
+
+                vendorNullBox
+                    ?.closest('.vendor-tracking-check')
+                    ?.classList.toggle('is-filter-active', Boolean(vendorNullBox.checked));
+
+                const allSourcesSelected = boxes.length > 0 && boxes.every(function (box) {
+                    return box.checked;
+                });
+
+                boxes.forEach(function (box) {
+                    box.closest('.vendor-tracking-check')
+                        ?.classList.toggle('is-filter-active', !allSourcesSelected && box.checked);
+                });
+            }
+
             function persistSources() {
                 localStorage.setItem(key, JSON.stringify(selectedSources()));
                 if (vendorNullBox) {
                     localStorage.setItem(vendorNullKey, vendorNullBox.checked ? 'true' : 'false');
                 }
                 localStorage.setItem(filtersStateKey, JSON.stringify(collectFilterState()));
+                updateActiveFilterStyles();
+            }
+
+            function markFilteringBeforeSubmit() {
+                if (typeof window.safeHideSpinner === 'function') {
+                    window.safeHideSpinner();
+                }
+
+                if (!resultsCard) {
+                    return;
+                }
+
+                const tableWrap = resultsCard.querySelector('.table-responsive');
+                resultsCard.style.setProperty('--vendor-tracking-results-min-height', Math.ceil(resultsCard.getBoundingClientRect().height) + 'px');
+                if (tableWrap) {
+                    resultsCard.style.setProperty('--vendor-tracking-table-min-height', Math.ceil(tableWrap.getBoundingClientRect().height) + 'px');
+                }
+                resultsCard.classList.add('is-filtering');
+            }
+
+            function submitFilters() {
+                markFilteringBeforeSubmit();
+                form.requestSubmit();
             }
 
             function sanitizeColumns(selected, allowed, fallback, required) {
@@ -1610,6 +1761,8 @@
                 });
 
                 updateEmptyStateColspan();
+                vendorTrackingTable?.classList.remove('is-column-settings-pending');
+                vendorTrackingTable?.classList.add('is-column-settings-ready');
             }
 
             function openSettingsModal() {
@@ -1692,16 +1845,19 @@
                     }
 
                     persistSources();
-                    form.submit();
+                    submitFilters();
                 });
             });
 
-            form.addEventListener('submit', persistSources);
+            form.addEventListener('submit', function () {
+                persistSources();
+                markFilteringBeforeSubmit();
+            });
 
             autoSubmitFields.forEach(field => {
                 field.addEventListener('change', function () {
                     persistSources();
-                    form.submit();
+                    submitFilters();
                 });
             });
 
@@ -1714,15 +1870,30 @@
 
                     event.preventDefault();
                     persistSources();
-                    form.requestSubmit();
+                    submitFilters();
+                });
+            });
+
+            clearFilterButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const fieldName = button.dataset.clearFilter || '';
+                    const field = fieldName ? form.querySelector(`input[name="${fieldName}"]`) : null;
+                    if (!field || field.value === '') {
+                        return;
+                    }
+
+                    field.value = '';
+                    persistSources();
+                    submitFilters();
                 });
             });
 
             vendorNullBox?.addEventListener('change', function () {
                 persistSources();
-                form.submit();
+                submitFilters();
             });
 
+            updateActiveFilterStyles();
             persistSources();
 
             settingsBtn?.addEventListener('click', openSettingsModal);

@@ -19,11 +19,17 @@
                     </thead>
                     <tbody>
                     @foreach($missingParts as $part)
-                        @php $currentComponent = $part->orderComponent ?? $part->component; @endphp
+                        @php
+                            $currentComponent = $part->orderComponent ?? $part->component;
+                            $currentAssembly = $part->orderComponentAssembly;
+                            $displayIpl = $currentAssembly->assy_ipl_num ?? $currentComponent->ipl_num ?? '';
+                            $displayName = trim(($currentComponent->name ?? '') . ($currentAssembly ? ' (assy)' : ''));
+                            $displayPartNumber = $currentAssembly->assy_part_number ?? $currentComponent->part_number ?? '';
+                        @endphp
                         <tr>
-                            <td class="p-2">{{ $currentComponent->ipl_num ?? '' }}</td>
-                            <td class="p-2">{{ $currentComponent->name ?? '' }}</td>
-                            <td class="p-2">{{ $currentComponent->part_number ?? '' }}</td>
+                            <td class="p-2">{{ $displayIpl }}</td>
+                            <td class="p-2">{{ $displayName }}</td>
+                            <td class="p-2">{{ $displayPartNumber }}</td>
                             <td class="p-2 text-center">{{ $part->qty }}</td>
                             <td class="p-2 text-center">
                                 <form action="{{ route('tdrs.destroy', $part->id) }}" method="POST">
@@ -76,11 +82,17 @@
                         </thead>
                         <tbody>
                         @foreach($ordersPartsNew as $part)
-                            @php $orderPartFormId = 'orderPartForm'.$part->id; @endphp
+                            @php
+                                $orderPartFormId = 'orderPartForm'.$part->id;
+                                $currentAssembly = $part->orderComponentAssembly;
+                                $displayIpl = $currentAssembly->assy_ipl_num ?? $part->orderComponent->ipl_num ?? '';
+                                $displayName = trim(($part->orderComponent->name ?? '') . ($currentAssembly ? ' (assy)' : ''));
+                                $displayPartNumber = $currentAssembly->assy_part_number ?? $part->orderComponent->part_number ?? '';
+                            @endphp
                             <tr>
-                                <td class="p-2">{{ $part->orderComponent->ipl_num ?? '' }}</td>
-                                <td class="p-2">{{ $part->orderComponent->name ?? '' }}</td>
-                                <td class="p-2">{{ $part->orderComponent->part_number ?? '' }}</td>
+                                <td class="p-2">{{ $displayIpl }}</td>
+                                <td class="p-2">{{ $displayName }}</td>
+                                <td class="p-2">{{ $displayPartNumber }}</td>
                                 <td class="p-2 align-middle" style="min-width: 10rem;">
                                     <textarea name="description" rows="1" class="form-control form-control-sm" form="{{ $orderPartFormId }}"
                                               placeholder="{{ __('Description') }}">{{ $part->description ?? '' }}</textarea>
@@ -134,36 +146,224 @@
     </div>
 </div>
 
+<style>
+    .pdf-library-modal .modal-content {
+        background: #252a2e;
+        border: 1px solid rgba(13, 202, 240, .22);
+        border-radius: 8px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
+    }
+    .pdf-library-modal .modal-header,
+    .pdf-library-modal .modal-footer { border-color: rgba(148, 163, 184, .18); }
+    .pdf-upload-panel {
+        background: #1d2226;
+        border: 1px solid rgba(148, 163, 184, .22);
+        border-radius: 8px;
+        padding: 14px;
+    }
+    .pdf-upload-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        align-items: stretch;
+    }
+    .pdf-upload-panel .form-label {
+        color: #9fb3bb;
+        font-size: .76rem;
+        margin-bottom: .28rem;
+    }
+    .pdf-upload-panel .form-control {
+        background-color: #15191c;
+        border-color: rgba(13, 202, 240, .28);
+        color: #e8f6f8;
+        min-height: 38px;
+    }
+    .pdf-drop-zone {
+        min-height: 126px;
+        border: 1px dashed rgba(13, 202, 240, .55);
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(13, 202, 240, .07), rgba(13, 202, 240, .02));
+        color: #d7e7eb;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 18px;
+        position: relative;
+        transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+    }
+    .pdf-drop-zone:hover,
+    .pdf-drop-zone.is-dragover {
+        border-color: #0dcaf0;
+        background: rgba(13, 202, 240, .12);
+        box-shadow: 0 0 0 .15rem rgba(13, 202, 240, .12);
+    }
+    .pdf-drop-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffc107;
+        background: rgba(255, 193, 7, .12);
+        border: 1px solid rgba(255, 193, 7, .32);
+        flex: 0 0 auto;
+        font-size: 1.35rem;
+    }
+    .pdf-drop-title { color: #f5fbfc; font-weight: 600; line-height: 1.15; }
+    .pdf-drop-meta,
+    .pdf-selected-file { color: #9fb3bb; font-size: .78rem; }
+    .pdf-selected-file {
+        margin-top: 6px;
+        min-height: 18px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .pdf-upload-progress {
+        display: none;
+        margin-top: 10px;
+        width: min(420px, 100%);
+    }
+    .pdf-upload-progress.is-visible {
+        display: block;
+    }
+    .pdf-upload-progress-track {
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, .22);
+    }
+    .pdf-upload-progress-bar {
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #0dcaf0, #ffc107);
+        transition: width .12s ease;
+    }
+    .pdf-upload-progress-label {
+        color: #c8d6da;
+        font-size: .76rem;
+        margin-top: 5px;
+    }
+    .pdf-upload-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: stretch;
+    }
+    .pdf-library-list {
+        display: grid;
+        gap: 8px;
+    }
+    .pdf-list-row {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        background: #1d2226;
+        border: 1px solid rgba(148, 163, 184, .2);
+        border-radius: 8px;
+        padding: 10px 12px;
+        transition: border-color .15s ease, background-color .15s ease;
+    }
+    .pdf-list-row:hover {
+        background: #20272b;
+        border-color: rgba(13, 202, 240, .38);
+    }
+    .pdf-list-icon {
+        width: 36px;
+        height: 42px;
+        border: 1px solid #ffc107;
+        border-radius: 5px;
+        color: #ffc107;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        background: rgba(255, 193, 7, .08);
+        font-weight: 700;
+        font-size: .7rem;
+    }
+    .pdf-list-icon::after {
+        content: "";
+        position: absolute;
+        top: -1px;
+        right: -1px;
+        width: 12px;
+        height: 12px;
+        border-left: 1px solid #ffc107;
+        border-bottom: 1px solid #ffc107;
+        background: #252a2e;
+        clip-path: polygon(0 0, 100% 100%, 100% 0);
+    }
+    .pdf-list-title {
+        color: #f3f8fa;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .pdf-list-meta {
+        color: #9fb3bb;
+        font-size: .78rem;
+        margin-top: 2px;
+    }
+    .pdf-list-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .pdf-list-actions .btn {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+    @media (max-width: 1100px) {
+        .pdf-list-row { grid-template-columns: 38px minmax(0, 1fr); }
+        .pdf-list-actions { grid-column: 2; justify-content: flex-start; }
+    }
+</style>
+
 {{-- PDF Library Modal (same as show) --}}
-<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+<div class="modal fade pdf-library-modal" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content" style="background-color: #343A40">
+        <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title text-info" id="pdfModalLabel">PDF Library - Workorder W<span id="pdfModalWorkorderNumber"></span></h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-4">
-                    <div class="card bg-dark border-secondary">
-                        <div class="card-body d-flex">
-                            <h6 class="text-primary mb-3 me-4">Upload PDF Files</h6>
-                            <form id="pdfUploadForm" enctype="multipart/form-data" data-no-spinner>
-                                <div class="ms-3">
-                                    <div class="d-flex">
-                                        <label for="pdfDocumentName" class="form-label me-2">Document Name</label>
-                                        <input type="text" class="form-control" id="pdfDocumentName" name="document_name" placeholder="Enter document name (optional)" style="width: 400px" maxlength="255">
-                                    </div>
-                                    <div class="input-group mt-2 ms-4 d-flex" style="height: 40px">
-                                        <input type="file" class="form-control" id="pdfFileInput" name="pdf" accept=".pdf" style="width: 385px" required>
-                                        <button class="btn btn-primary" type="submit" id="uploadPdfBtn"><i class="bi bi-upload"></i> Upload</button>
-                                        <small class="text-muted ms-3">Max size: 10MB. Upload one file at a time.</small>
-                                    </div>
-                                </div>
-                            </form>
+                <div id="pdfUploadForm" class="pdf-upload-panel mb-4" data-no-spinner>
+                    <div class="pdf-upload-grid">
+                        <div>
+                            <label for="pdfFileInput" class="form-label">PDF File</label>
+                            <label for="pdfFileInput" class="pdf-drop-zone" id="pdfDropZone">
+                                <span class="pdf-drop-icon"><i class="bi bi-file-earmark-pdf"></i></span>
+                                <span class="min-w-0">
+                                    <span class="pdf-drop-title d-block">Drop PDF here or click to upload</span>
+                                    <span class="pdf-drop-meta d-block">The file is saved with its original name. One PDF, max 10MB.</span>
+                                    <span class="pdf-selected-file d-block" id="pdfSelectedFile">No file selected</span>
+                                    <span class="pdf-upload-progress" id="pdfUploadProgress">
+                                        <span class="pdf-upload-progress-track">
+                                            <span class="pdf-upload-progress-bar" id="pdfUploadProgressBar"></span>
+                                        </span>
+                                        <span class="pdf-upload-progress-label" id="pdfUploadProgressLabel">Waiting for file</span>
+                                    </span>
+                                </span>
+                            </label>
+                            <input type="file" class="visually-hidden" id="pdfFileInput" name="pdf" accept="application/pdf,.pdf" required>
+                        </div>
+                        <div class="pdf-upload-actions">
+                            <button class="btn btn-outline-secondary d-none" type="button" id="clearPdfFileBtn">Cancel upload</button>
                         </div>
                     </div>
                 </div>
-                <div id="pdfListContainer" class="row g-3"></div>
+                <div id="pdfListContainer" class="pdf-library-list"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -388,21 +588,6 @@
 </div>
 
 @include('admin.tdrs.partials.component-inspection-modals')
-
-{{-- Add Part Processes Modal (iframe) --}}
-<div class="modal fade" id="addPartProcessesModal" tabindex="-1" aria-labelledby="addPartProcessesModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: 880px; width: 95%; height: 80vh;">
-        <div class="modal-content bg-gradient" style="height: 80vh;">
-            <div class="modal-header">
-                <h6 class="modal-title text-info" id="addPartProcessesModalLabel">{{ __('Add Part Process') }}</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0 overflow-hidden" style="height: calc(80vh - 60px);">
-                <iframe id="addPartProcessesIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
-            </div>
-        </div>
-    </div>
-</div>
 
 {{-- Edit Tdr Process Modal (iframe, like Add Process) --}}
 <div class="modal fade" id="editTdrProcessModal" tabindex="-1" aria-labelledby="editTdrProcessModalLabel" aria-hidden="true">

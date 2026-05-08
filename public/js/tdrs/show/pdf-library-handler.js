@@ -43,7 +43,7 @@ const PdfLibraryHandler = {
             }
 
             if (!data.pdfs || data.pdfs.length === 0) {
-                container.innerHTML = '<div class="col-12"><p class="text-muted text-center">No PDF files uploaded yet.</p></div>';
+                container.innerHTML = '<div class="text-muted text-center py-4">No PDF files uploaded yet.</div>';
                 if (typeof hideLoadingSpinner === 'function') {
                     hideLoadingSpinner();
                 }
@@ -65,34 +65,36 @@ const PdfLibraryHandler = {
                 const displayTitle = pdf.name && pdf.name !== pdf.file_name ? `${pdf.name} (${pdf.file_name})` : pdf.file_name;
 
                 html += `
-                    <div class="col-md-6 col-lg-4 col-xl-3">
-                        <div class="card bg-secondary border-primary pdf-card" data-pdf-id="${pdf.id}">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h6 class="card-title text-truncate mb-0" style="max-width: 150px;"
-                                    title="${displayTitle}">
-                                        <i class="bi bi-file-earmark-pdf text-danger"></i> ${displayName}
-                                    </h6>
-                                    <button class="btn btn-sm btn-danger delete-pdf-btn" data-id="${pdf.id}" title="Delete">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                                <p class="text-muted small mb-2">
-                                    <i class="bi bi-file-text"></i> ${fileSize}<br>
-                                    <i class="bi bi-calendar"></i> ${uploadDate}
-                                </p>
-                                <div class="d-grid gap-2">
-                                    <button class="btn btn-sm btn-primary view-pdf-btn"
-                                            data-url="${pdf.url}"
-                                            data-download="${pdf.download_url}"
-                                            data-name="${displayName}">
-                                        <i class="bi bi-eye"></i> View PDF
-                                    </button>
-                                    <a href="${pdf.download_url}" class="btn btn-sm btn-outline-success" download>
-                                        <i class="bi bi-download"></i> Download
-                                    </a>
-                                </div>
-                            </div>
+                    <div class="pdf-list-row pdf-card" data-pdf-id="${pdf.id}">
+                        <div class="pdf-list-icon" aria-hidden="true">PDF</div>
+                        <div class="min-w-0">
+                            <div class="pdf-list-title" title="${displayTitle}">${displayName}</div>
+                            <div class="pdf-list-meta">${fileSize} · ${uploadDate}</div>
+                        </div>
+                        <div class="pdf-list-actions">
+                            <button class="btn btn-sm btn-outline-info view-pdf-btn"
+                                    type="button"
+                                    data-url="${pdf.url}"
+                                    data-download="${pdf.download_url}"
+                                    data-name="${displayName}"
+                                    title="View PDF"
+                                    aria-label="View PDF">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <a href="${pdf.download_url}"
+                               class="btn btn-sm btn-outline-success"
+                               download
+                               title="Download"
+                               aria-label="Download">
+                                <i class="bi bi-download"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger delete-pdf-btn"
+                                    type="button"
+                                    data-id="${pdf.id}"
+                                    title="Delete"
+                                    aria-label="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
                         </div>
                     </div>
                 `;

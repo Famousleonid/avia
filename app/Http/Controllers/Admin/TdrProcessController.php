@@ -388,6 +388,7 @@ class TdrProcessController extends Controller
                 'sort_order' => $maxSortOrder + $sortOrderCounter + 1, // Устанавливаем sort_order в конец списка
                 'date_start' => null,
                 'date_finish' => null,
+                'in_traveler' => filter_var($data['in_traveler'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'ec' => $ecValue, // Добавляем поле EC
                 'standalone_ec_only' => $isStandaloneEcRow,
                 'description' => $data['description'] ?? null, // Добавляем поле description (необязательное)
@@ -808,6 +809,8 @@ class TdrProcessController extends Controller
     {
         $current_tdr = Tdr::with(['workorder', 'component'])->findOrFail($tdrId);
         $current_wo = $current_tdr->workorder_id ? Workorder::find($current_tdr->workorder_id) : null;
+        $manual_id = $current_wo?->unit?->manual_id;
+        $processNames = ProcessName::forPicker()->orderBy('name')->get();
         $tdrProcesses = TdrProcess::where('tdrs_id', $current_tdr->id)->with('processName')->orderBy('sort_order')->get();
         $proces = Process::all();
         $vendors = Vendor::all();
@@ -819,7 +822,7 @@ class TdrProcessController extends Controller
 
         return view('admin.tdr-processes.partials.processes-body', compact(
             'current_tdr', 'current_wo', 'tdrProcesses', 'proces', 'vendors', 'ecEligibleProcessNameIds',
-            'processGroups', 'totalQty', 'omitFormHeaderDate'
+            'processGroups', 'totalQty', 'omitFormHeaderDate', 'manual_id', 'processNames'
         ));
     }
 

@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\MachiningController;
 use App\Http\Controllers\Admin\PaintController;
 use App\Http\Controllers\Admin\ManualStdProcessController;
 use App\Http\Controllers\Admin\NotificationEventRuleController;
+use App\Http\Controllers\Admin\PageVisitStatController;
 use App\Http\Controllers\Admin\DateNotificationController;
 use App\Http\Controllers\Front\FrontController;
 use App\Http\Controllers\General\MediaController;
@@ -85,6 +86,10 @@ Route::middleware(['auth', 'verified', 'desktop'])->group(function () {
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/password', [ProfileController::class, 'changePassword'])->name('profile.password');
 });
+
+Route::get('/stat', [PageVisitStatController::class, 'index'])
+    ->middleware(['auth', 'verified', 'desktop', 'isAdmin'])
+    ->name('admin.page-visits.index');
 
 Route::middleware(['auth'])->get('/session/heartbeat', function (\Illuminate\Http\Request $request) {
     return response()->json([
