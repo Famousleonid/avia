@@ -324,20 +324,29 @@
     }
 
     #tdr_inline_order_component_group {
-        display: inline-block;
+        align-items: center;
+        display: flex;
+        gap: .35rem;
         max-width: 100%;
     }
 
-    #tdr_inline_order_component_group .form-label {
-        font-size: 10px;
-        line-height: 1.1;
+    #tdr_inline_order_component_group.d-none {
+        display: none !important;
     }
 
     #tdr_inline_order_component_group .select2-container,
     #tdr_inline_order_component_id {
-        min-width: 8ch !important;
+        min-width: min(24ch, 100%) !important;
         max-width: 100% !important;
-        width: auto !important;
+        width: min(28ch, 100%) !important;
+    }
+
+    #tdr_inline_order_qty_mount {
+        flex: 0 0 7ch;
+    }
+
+    #tdr_inline_order_qty_mount #tdr_inline_qty {
+        max-width: 7ch !important;
     }
 
     #tdr_inline_serial_number,
@@ -561,7 +570,7 @@
                                 <option selected value="">---</option>
                                 @foreach($components as $component)
                                     <option value="{{ $component->id }}"
-                                            data-has_assy="{{ $component->assy_part_number ? 'true' : 'false' }}"
+                                            data-has_assy="{{ ($component->assy_part_number || $component->assemblies->isNotEmpty()) ? 'true' : 'false' }}"
                                             data-title="{{ $component->name }}"
                                             data-ipl="{{ $component->ipl_num }}"
                                             data-part-number="{{ $component->part_number }}">
@@ -612,16 +621,25 @@
                                 @endforeach
                             </select>
                             <div id="tdr_inline_order_component_group" class="d-none">
-                                <label for="tdr_inline_order_component_id" class="form-label mb-1 small text-muted">{{ __('Order Component') }}</label>
                                 <select name="order_component_id" id="tdr_inline_order_component_id" class="form-control form-control-sm" form="tdrInlineCreateForm">
                                     <option selected value="">---</option>
                                     @foreach($components as $component)
-                                        <option value="{{ $component->id }}">
-                                            {{ $component->assy_part_number ?: $component->part_number }} - {{ $component->name }} ({{ $component->ipl_num }})
+                                        @php
+                                            $assemblyLabels = $component->assemblies
+                                                ->map(fn($assembly) => trim(implode(' ', array_filter([
+                                                    $assembly->assy_ipl_num,
+                                                    $assembly->units_assy ?: $assembly->assy_part_number,
+                                                ]))))
+                                                ->filter()
+                                                ->values();
+                                            $orderLabel = trim($component->name . ($assemblyLabels->isNotEmpty() ? ' | Assy: ' . $assemblyLabels->implode(', ') : ''));
+                                        @endphp
+                                        <option value="{{ $component->id }}" data-title="{{ $orderLabel }}">
+                                            {{ $orderLabel }}
                                         </option>
                                     @endforeach
                                 </select>
-                                <div id="tdr_inline_order_qty_mount" class="mt-1"></div>
+                                <div id="tdr_inline_order_qty_mount"></div>
                             </div>
                         </div>
                     </td>

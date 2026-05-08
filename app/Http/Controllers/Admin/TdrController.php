@@ -454,7 +454,8 @@ class TdrController extends Controller
 
         // Компоненты для данного manual
         $components = Component::where('manual_id', $manual_id)
-            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num')
+            ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
+            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy')
             ->get();
 
         // Условия для Component - без фильтрации
@@ -490,7 +491,8 @@ class TdrController extends Controller
         }
 
         $components = Component::where('manual_id', $manual_id)
-            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num')
+            ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
+            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy')
             ->get();
 
         return response()->json(['components' => $components]);
@@ -672,6 +674,12 @@ class TdrController extends Controller
                     ->withErrors(['necessaries_id' => 'Necessary is required for Missing code']);
             }
 
+            if (empty($validated['order_component_id'])) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['order_component_id' => __('Order component is required for Missing code')]);
+            }
+
             if (!$necessary || $validated['necessaries_id'] != $necessary->id) {
                 return redirect()->back()
                     ->withInput()
@@ -706,6 +714,18 @@ class TdrController extends Controller
         $validatedNecessaryId = $validated['necessaries_id'] ? (int) $validated['necessaries_id'] : null;
         $codeIdInt = $code ? (int) $code->id : null;
         $necessaryIdInt = $necessary ? (int) $necessary->id : null;
+
+        if (
+            $necessaryIdInt !== null
+            && $validatedNecessaryId === $necessaryIdInt
+            && $codeIdInt !== null
+            && $validatedCodesId !== $codeIdInt
+            && empty($validated['order_component_id'])
+        ) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['order_component_id' => __('Order component is required for Order New')]);
+        }
 
         // Проверяем наличие записей с Missing до создания (для оптимизации)
         $hasExistingMissing = false;
@@ -1167,7 +1187,9 @@ class TdrController extends Controller
         $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
 
         // Извлекаем компоненты, которые связаны с этим manual_id
-        $components = Component::where('manual_id', $manual_id)->get();
+        $components = Component::where('manual_id', $manual_id)
+            ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
+            ->get();
 
         // Ограничиваем процессы только текущим Workorder: берём id связанных TDR
         $tdrIds = Tdr::where('workorder_id', $current_wo->id)
@@ -1213,7 +1235,9 @@ class TdrController extends Controller
         $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
 
         // Извлекаем компоненты, которые связаны с этим manual_id
-        $components = Component::where('manual_id', $manual_id)->get();
+        $components = Component::where('manual_id', $manual_id)
+            ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
+            ->get();
 
         // Ограничиваем процессы только текущим Workorder: берём id связанных TDR
         $tdrIds = Tdr::where('workorder_id', $current_wo->id)
@@ -1329,7 +1353,9 @@ class TdrController extends Controller
         }
 
         // Получаем связанные данные
-        $components = Component::where('manual_id', $manual_id)->get();
+        $components = Component::where('manual_id', $manual_id)
+            ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
+            ->get();
         $manualProcesses = ManualProcess::where('manual_id', $manual_id)
             ->pluck('processes_id');
 

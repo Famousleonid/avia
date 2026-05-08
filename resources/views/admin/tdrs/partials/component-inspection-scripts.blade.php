@@ -343,17 +343,16 @@ function initTdrInlineCreate() {
         if (!orderComponentSelect) return;
         const option = orderComponentSelect.options[orderComponentSelect.selectedIndex];
         const text = (option?.text || '').toString().trim();
-        const partNumber = text.split(' - ')[0].trim();
-        const width = partNumber ? Math.min(Math.max(partNumber.length + 2, 8), 18) + 'ch' : '8ch';
+        const width = text ? Math.min(Math.max(text.length + 2, 18), 34) + 'ch' : '24ch';
         orderComponentSelect.style.width = width;
         const container = document.querySelector('#tdr_inline_order_component_group .select2-container');
         if (container) {
             container.style.width = width;
         }
         const rendered = document.querySelector('#tdr_inline_order_component_group .select2-selection__rendered');
-        if (rendered && partNumber) {
-            rendered.textContent = partNumber;
-            rendered.title = partNumber;
+        if (rendered && text) {
+            rendered.textContent = text;
+            rendered.title = text;
         }
     }
 
@@ -362,7 +361,7 @@ function initTdrInlineCreate() {
 
         if (isOrderNew && orderQtyMount && qtyInput.parentElement !== orderQtyMount) {
             orderQtyMount.appendChild(qtyInput);
-            qtyInput.style.maxWidth = '8ch';
+            qtyInput.style.maxWidth = '7ch';
             return;
         }
 
@@ -502,6 +501,19 @@ function initTdrInlineCreate() {
         setPlaceholder('description', description);
     }
 
+    function orderComponentDisplay(component) {
+        if (!component) return '';
+        const assemblies = Array.isArray(component.assemblies) ? component.assemblies : [];
+        const assemblyLabels = assemblies.map(function(assembly) {
+            return [
+                assembly.assy_ipl_num || '',
+                assembly.units_assy || assembly.assy_part_number || ''
+            ].filter(Boolean).join(' ').trim();
+        }).filter(Boolean);
+        return (component.name || '').toString().trim()
+            + (assemblyLabels.length ? ' | Assy: ' + assemblyLabels.join(', ') : '');
+    }
+
     function syncDescriptionFromComponent(option) {
         if (!descriptionInput) return;
         const nextDescription = option && option.value ? (option.dataset.title || '') : '';
@@ -607,28 +619,29 @@ function initTdrInlineCreate() {
         const isOrderNew = necessaryName === 'order new';
         const showNecessary = hasComponent && codeName && !isMissing && !isManufacture;
         const hasNecessary = showNecessary && necessaryName;
-        const showDescriptionInput = hasComponent && (isManufacture || hasNecessary);
+        const showOrderPicker = hasComponent && (isMissing || isOrderNew);
+        const showDescriptionInput = hasComponent && !showOrderPicker && (isManufacture || hasNecessary);
         const showQty = hasComponent && (isManufacture || isMissing || isOrderNew);
         const showSerial = hasNecessary && !isOrderNew;
 
         setInlineCellVisible('code', hasComponent);
-        setInlineCellVisible('necessary', !!showNecessary);
-        setInlinePlaceholderVisible('description', hasComponent);
+        setInlineCellVisible('necessary', !!showNecessary || showOrderPicker);
+        setInlinePlaceholderVisible('description', hasComponent && !showOrderPicker);
         setInlineCellVisible('serial', !!showSerial);
 
         if (showDescriptionInput) {
             revealField(inlineCell('description'));
+        } else if (showOrderPicker && descriptionInput) {
+            descriptionInput.value = '';
+            descriptionInput.dataset.autoComponentDescription = '';
         }
         descriptionInput?.classList.toggle('d-none', !showDescriptionInput);
         qtyInput?.classList.toggle('d-none', !showQty);
-        orderComponentGroup?.classList.toggle('d-none', !isOrderNew);
-        moveQtyInputToOrderGroup(isOrderNew);
+        orderComponentGroup?.classList.toggle('d-none', !showOrderPicker);
+        moveQtyInputToOrderGroup(showOrderPicker);
         assySerialInput?.classList.toggle('d-none', !(showSerial && hasAssy));
 
-        if (isOrderNew && componentSelect?.value && !orderComponentSelect?.value) {
-            setSelectValue(orderComponentSelect, componentSelect.value);
-        }
-        if (!isOrderNew) {
+        if (!showOrderPicker) {
             setSelectValue(orderComponentSelect, '');
         }
 
@@ -646,7 +659,7 @@ function initTdrInlineCreate() {
                 $(componentSelect).empty().append('<option value="">---</option>');
                 $(orderComponentSelect).empty().append('<option value="">---</option>');
                 components.forEach(function(component) {
-                    const hasAssy = component.assy_part_number ? 'true' : 'false';
+                    const hasAssy = (component.assy_part_number || (Array.isArray(component.assemblies) && component.assemblies.length)) ? 'true' : 'false';
                     const title = component.name || '';
                     const ipl = component.ipl_num || '';
                     const partNumber = component.part_number || '';
@@ -654,8 +667,9 @@ function initTdrInlineCreate() {
                         '<option value="' + component.id + '" data-has_assy="' + hasAssy + '" data-title="' + title + '" data-ipl="' + ipl + '" data-part-number="' + partNumber + '">' +
                         ipl + ' : ' + partNumber + ' - ' + title + '</option>'
                     );
+                    const orderLabel = orderComponentDisplay(component);
                     $(orderComponentSelect).append(
-                        '<option value="' + component.id + '">' + (component.assy_part_number || partNumber) + ' - ' + title + ' (' + ipl + ')</option>'
+                        $('<option>').val(component.id).text(orderLabel).attr('data-title', orderLabel)
                     );
                 });
                 setSelectValue(componentSelect, '');
@@ -882,18 +896,23 @@ function initTdrInlineCreate() {
         } else if (codeName === 'missing') {
             useTdrInput.value = '0';
             useProcessFormsInput.value = '0';
+            if (descriptionInput) descriptionInput.value = '';
             if (orderNewNecessaryId) setSelectValue(necessarySelect, orderNewNecessaryId);
             conditionsInput.value = missingConditionId || '';
         } else if (codeName && necessaryName === 'order new') {
             useTdrInput.value = '1';
             useProcessFormsInput.value = '0';
-            if (componentSelect?.value && !orderComponentSelect?.value) {
-                setSelectValue(orderComponentSelect, componentSelect.value);
-            }
+            if (descriptionInput) descriptionInput.value = '';
             conditionsInput.value = findConditionIdForCode(codeName);
         } else if (codeName) {
             useTdrInput.value = '1';
             useProcessFormsInput.value = '1';
+        }
+
+        if ((codeName === 'missing' || necessaryName === 'order new') && !orderComponentSelect?.value) {
+            event.preventDefault();
+            (window.tdrShowNotify || function(m) { console.warn(m); })('{{ __("Select order component.") }}', 'warning');
+            return;
         }
 
         event.preventDefault();
