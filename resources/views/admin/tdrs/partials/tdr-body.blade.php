@@ -101,7 +101,7 @@
 
     #tdr_inspect_Table .tdr-unit-trash-btn .bi-trash3 {
         color: var(--bs-danger);
-        font-size: 1rem;
+        font-size: .82rem;
     }
 
     .tdr-show-right-pane {
@@ -410,7 +410,6 @@
                             @endif
                         </td>
                         <td class="p-0 text-center img-icon">
-                            @admin
                             <form action="{{ route('workorder-unit-inspections.destroy', $inspection) }}" method="POST">
                                 @csrf
                                 @method('DELETE')
@@ -424,7 +423,6 @@
                                     <i class="bi bi-trash3"></i>
                                 </button>
                             </form>
-                            @endadmin
                         </td>
                     </tr>
                 @endforeach
