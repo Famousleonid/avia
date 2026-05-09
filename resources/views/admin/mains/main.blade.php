@@ -92,6 +92,7 @@
         // TODO(main-vendor-tracking-columns): Decide whether to restore RO/Vendor columns here or remove the related UI permanently.
         $showMainRoVendorColumns = false;
         $vendors = $vendors ?? collect();
+        $processSequenceGuard = app(\App\Services\ProcessSequenceGuard::class);
     @endphp
 
     <div class="card dir-page">
@@ -285,10 +286,13 @@
                         const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
                         const woId = '{{ (int)($current_workorder->id ?? 0) }}';
                         const key = woId ? `avia_main_tab_wo_${woId}` : 'avia_main_tab_default';
+                        const hashMatch = window.location.hash.match(/^#qa-main:(.+)$/);
+                        const hashTab = hashMatch ? new URLSearchParams(hashMatch[1]).get('tab') : '';
                         let tab = 'overview';
                         try {
                             tab = localStorage.getItem(key) || tab;
                         } catch (e) {}
+                        if (hashTab && allowedTabs.includes(hashTab)) tab = hashTab;
                         if (!allowedTabs.includes(tab)) tab = 'overview';
                         document.documentElement.setAttribute('data-main-tab', tab);
                     })();
@@ -393,7 +397,7 @@
 
                                                     @endphp
 
-                                                    <tr class="align-middle">
+                                                    <tr class="align-middle" data-main-task-id="{{ (int) $task->id }}">
                                                         {{-- чекбокс ignore --}}
                                                         <td class="text-center align-middle task-ignore-cell">
 
@@ -452,8 +456,7 @@
                                                         {{-- task --}}
                                                         <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }}"
                                                             title="{{ $main?->task?->name ?? $task->name }}">
-                                                             <span class="text-truncate d-inline-block"
-                                                                   style="max-width: 200px;">
+                                                             <span class="text-truncate d-block w-100">
                                                              {{ $main?->task?->name ?? $task->name }}</span>
                                                         </td>
 
@@ -1006,6 +1009,10 @@
                                                 $finishEditedBy = $pr->dateFinishUpdatedBy?->name;
                                                 $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
                                                 $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
+                                                $stdSequenceState = $processSequenceGuard->stdInputState($pr);
+                                                $stdStartDisabled = $isIgnoredStd || $stdSequenceState['date_start_disabled'];
+                                                $stdFinishDisabled = $isIgnoredStd || $stdSequenceState['date_finish_disabled'];
+                                                $stdSequenceReason = $stdSequenceState['reason'] ?? '';
                                             @endphp
                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}" data-std-row="1"
                                                 class="{{ $isIgnoredStd ? 'text-muted std-ignored-row' : '' }}">
@@ -1092,8 +1099,9 @@
                                                                class="form-control form-control-sm finish-input js-std-editable {{ $isIgnoredStd ? 'is-ignored' : '' }}"
                                                                value="{{ $pr->date_start?->format('Y-m-d') }}"
                                                                data-original="{{ $pr->date_start?->format('Y-m-d') ?? '' }}"
-                                                               title="{{ $startDateTitle }}"
+                                                               title="{{ $stdStartDisabled && $stdSequenceReason !== '' ? $stdSequenceReason : $startDateTitle }}"
                                                                placeholder="..."
+                                                               @if($stdStartDisabled && ! $isIgnoredStd) data-fp-locked readonly @endif
                                                                @if($isIgnoredStd) disabled @endif>
                                                     </form>
                                                 </td>
@@ -1108,8 +1116,9 @@
                                                                class="form-control form-control-sm finish-input js-std-editable {{ $isIgnoredStd ? 'is-ignored' : '' }}"
                                                                value="{{ $pr->date_finish?->format('Y-m-d') }}"
                                                                data-original="{{ $pr->date_finish?->format('Y-m-d') ?? '' }}"
-                                                               title="{{ $finishDateTitle }}"
+                                                               title="{{ $stdFinishDisabled && $stdSequenceReason !== '' ? $stdSequenceReason : $finishDateTitle }}"
                                                                placeholder="..."
+                                                               @if($stdFinishDisabled && ! $isIgnoredStd) data-fp-locked readonly @endif
                                                                @if($isIgnoredStd) disabled @endif>
                                                     </form>
                                                 </td>
@@ -1233,9 +1242,14 @@
                                                                     $trFinishEditedBy = $travelerLeader->dateFinishUpdatedBy?->name;
                                                                     $trStartDateTitle = $trStartEditedBy ? ('Start date last edited by ' . $trStartEditedBy) : 'Start date editor: not recorded';
                                                                     $trFinishDateTitle = $trFinishEditedBy ? ('Finish date last edited by ' . $trFinishEditedBy) : 'Finish date editor: not recorded';
+                                                                    $trSequenceState = $processSequenceGuard->travelerGroupInputState($tdr, (int) $travelerGroup);
+                                                                    $trStartDisabled = $trSequenceState['date_start_disabled'];
+                                                                    $trFinishDisabled = $trSequenceState['date_finish_disabled'];
+                                                                    $trSequenceReason = $trSequenceState['reason'] ?? '';
                                                                 @endphp
                                                             <tr data-closed="{{ $trClosed ? 1 : 0 }}"
-                                                                data-traveler-row="1">
+                                                                data-traveler-row="1"
+                                                                data-qa-process-id="{{ (int) ($travelerLeader->id ?? 0) }}">
                                                                 <td class="text-center small text-info js-last-user"
                                                                     data-tippy-content="
                                                                     <span style='color:#adb5bd'>Updated by:</span>
@@ -1302,8 +1316,9 @@
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $travelerLeader->date_start?->format('Y-m-d') }}"
                                                                                data-original="{{ $travelerLeader->date_start?->format('Y-m-d') ?? '' }}"
-                                                                               title="{{ $trStartDateTitle }}"
-                                                                               placeholder="...">
+                                                                               title="{{ $trStartDisabled && $trSequenceReason !== '' ? $trSequenceReason : $trStartDateTitle }}"
+                                                                               placeholder="..."
+                                                                               @if($trStartDisabled) data-fp-locked readonly @endif>
                                                                     </form>
                                                                 </td>
                                                                 <td class="main-date-cell">
@@ -1318,8 +1333,9 @@
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $travelerLeader->date_finish?->format('Y-m-d') }}"
                                                                                data-original="{{ $travelerLeader->date_finish?->format('Y-m-d') ?? '' }}"
-                                                                               title="{{ $trFinishDateTitle }}"
-                                                                               placeholder="...">
+                                                                               title="{{ $trFinishDisabled && $trSequenceReason !== '' ? $trSequenceReason : $trFinishDateTitle }}"
+                                                                               placeholder="..."
+                                                                               @if($trFinishDisabled) data-fp-locked readonly @endif>
                                                                     </form>
                                                                 </td>
                                                             </tr>
@@ -1331,9 +1347,13 @@
                                                                     $finishEditedBy = $pr->dateFinishUpdatedBy?->name;
                                                                     $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
                                                                     $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
+                                                                    $processSequenceState = $processSequenceGuard->tdrInputState($pr);
+                                                                    $processStartDisabled = $processSequenceState['date_start_disabled'];
+                                                                    $processFinishDisabled = $processSequenceState['date_finish_disabled'];
+                                                                    $processSequenceReason = $processSequenceState['reason'] ?? '';
                                                                 @endphp
 
-                                                            <tr data-closed="{{ $isClosed ? 1 : 0 }}">
+                                                            <tr data-closed="{{ $isClosed ? 1 : 0 }}" data-qa-process-id="{{ (int) $pr->id }}">
                                                                 <td class="text-center small text-info js-last-user"
                                                                     data-tippy-content="
                                                                     <span style='color:#adb5bd'>Updated by:</span>
@@ -1407,8 +1427,9 @@
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $pr->date_start?->format('Y-m-d') }}"
                                                                                data-original="{{ $pr->date_start?->format('Y-m-d') ?? '' }}"
-                                                                               title="{{ $startDateTitle }}"
-                                                                               placeholder="...">
+                                                                               title="{{ $processStartDisabled && $processSequenceReason !== '' ? $processSequenceReason : $startDateTitle }}"
+                                                                               placeholder="..."
+                                                                               @if($processStartDisabled) data-fp-locked readonly @endif>
                                                                     </form>
                                                                 </td>
                                                                 <td class="main-date-cell">
@@ -1422,8 +1443,9 @@
                                                                                class="form-control form-control-sm finish-input"
                                                                                value="{{ $pr->date_finish?->format('Y-m-d') }}"
                                                                                data-original="{{ $pr->date_finish?->format('Y-m-d') ?? '' }}"
-                                                                               title="{{ $finishDateTitle }}"
-                                                                               placeholder="...">
+                                                                               title="{{ $processFinishDisabled && $processSequenceReason !== '' ? $processSequenceReason : $finishDateTitle }}"
+                                                                               placeholder="..."
+                                                                               @if($processFinishDisabled) data-fp-locked readonly @endif>
                                                                     </form>
                                                                 </td>
                                                             </tr>
@@ -1628,7 +1650,51 @@
                     document.addEventListener('pointercancel', onUp);
                 });
 
+                function readQaMainTarget() {
+                    const match = window.location.hash.match(/^#qa-main:(.+)$/);
+                    return match ? new URLSearchParams(match[1]) : null;
+                }
+
+                function focusQaMainTarget() {
+                    const params = readQaMainTarget();
+                    if (!params) return;
+
+                    const tab = params.get('tab') || 'overview';
+                    activateMainTab(tab, { save: false });
+
+                    window.setTimeout(() => {
+                        const field = params.get('field') || '';
+                        const esc = (value) => window.CSS?.escape ? CSS.escape(value) : String(value).replace(/"/g, '\\"');
+                        let target = null;
+                        const taskId = params.get('task');
+                        const processId = params.get('process');
+
+                        if (taskId) {
+                            target = document.querySelector(`[data-main-task-id="${esc(taskId)}"] [name="${esc(field)}"]`);
+                        } else if (processId) {
+                            target = document.querySelector(`[data-qa-process-id="${esc(processId)}"] [name="${esc(field)}"]`);
+                        }
+
+                        if (!target) return;
+
+                        const gtId = target.closest('form')?.dataset.gtId;
+                        if (gtId) {
+                            document.querySelector(`.js-gt-btn[data-gt-id="${esc(gtId)}"]`)?.click();
+                        }
+
+                        window.setTimeout(() => {
+                            const visibleTarget = target._flatpickr?.altInput || target;
+                            visibleTarget.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                            visibleTarget.classList.add('qa-main-target-highlight');
+                            visibleTarget.focus?.({ preventScroll: true });
+                            window.setTimeout(() => visibleTarget.classList.remove('qa-main-target-highlight'), 4600);
+                        }, 120);
+                    }, 450);
+                }
+
                 activateMainTab(readTab(), { save: false });
+                focusQaMainTarget();
+                window.addEventListener('hashchange', focusQaMainTarget);
             })();
 
             window.applyStdIgnoreState = function (checkbox) {

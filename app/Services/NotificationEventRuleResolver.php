@@ -93,7 +93,31 @@ class NotificationEventRuleResolver
         }
 
         if ($key === 'workorder_technician') {
-            $user = $subject?->tdr?->workorder?->user ?? $subject?->user ?? null;
+            $user = $subject?->tdr?->workorder?->user ?? $subject?->workorder?->user ?? $subject?->user ?? null;
+            if ($user) {
+                $users->push($user);
+            }
+        }
+
+        if ($key === 'previous_date_start_user') {
+            $userId = (int) (
+                Arr::get($message, 'payload.previous_date_start_user_id')
+                ?? Arr::get($message, 'ui.process.previous_date_start_user_id')
+                ?? 0
+            );
+            $user = $userId > 0 ? User::find($userId) : null;
+            if ($user) {
+                $users->push($user);
+            }
+        }
+
+        if ($key === 'next_date_start_user') {
+            $userId = (int) (
+                Arr::get($message, 'payload.next_date_start_user_id')
+                ?? Arr::get($message, 'ui.process.next_date_start_user_id')
+                ?? 0
+            );
+            $user = $userId > 0 ? User::find($userId) : null;
             if ($user) {
                 $users->push($user);
             }
@@ -175,6 +199,7 @@ class NotificationEventRuleResolver
             'workorder_no' => (string) (Arr::get($message, 'ui.workorder.no') ?? Arr::get($message, 'payload.workorder_no') ?? ''),
             'owner_name' => (string) (Arr::get($message, 'ui.workorder.owner_name') ?? ''),
             'process_name' => (string) (Arr::get($message, 'ui.process.name') ?? ''),
+            'previous_process_name' => (string) (Arr::get($message, 'ui.process.previous_name') ?? Arr::get($message, 'payload.previous_process_name') ?? ''),
             'part_number' => (string) (Arr::get($message, 'ui.part.number') ?? ''),
             'serial_number' => (string) (Arr::get($message, 'ui.unit.serial_number') ?? ''),
             'customer_name' => (string) (Arr::get($message, 'ui.customer.name') ?? ''),

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\WorkorderStdProcess;
+use App\Services\ProcessSequenceGuard;
+use App\Services\ProcessSequenceNotifier;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -41,6 +43,14 @@ class WorkorderStdProcessController extends Controller
             return back()->withErrors(['date' => 'No date fields'])->withInput();
         }
 
+        if ($errors = app(ProcessSequenceGuard::class)->validateStdDateUpdate($stdProcess, $data)) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $errors], 422);
+            }
+
+            return back()->withErrors($errors)->withInput();
+        }
+
         $currentStart = $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null;
         $effectiveStart = array_key_exists('date_start', $data)
             ? ($data['date_start'] ?: null)
@@ -69,6 +79,7 @@ class WorkorderStdProcessController extends Controller
         $oldStart = $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null;
         $oldFinish = $stdProcess->date_finish ? $stdProcess->date_finish->format('Y-m-d') : null;
         $authId = auth()->id();
+        $nextProcessForNotification = app(ProcessSequenceGuard::class)->nextAfterStdProcess($stdProcess);
 
         if (array_key_exists('date_start', $data)) {
             $nextStart = $data['date_start'] ?: null;
@@ -99,6 +110,11 @@ class WorkorderStdProcessController extends Controller
 
         $stdProcess->user_id = $authId;
         $stdProcess->save();
+
+        $newFinishForNotification = $stdProcess->date_finish ? $stdProcess->date_finish->format('Y-m-d') : null;
+        if ($oldFinish === null && $newFinishForNotification !== null) {
+            app(ProcessSequenceNotifier::class)->notifyReady($nextProcessForNotification, $stdProcess);
+        }
 
         if ($isAjax) {
             $stdProcess->loadMissing(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name']);

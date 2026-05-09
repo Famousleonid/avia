@@ -419,8 +419,10 @@ class QualityAssuranceService
                         'sort_order' => $pending['sort_order'] ?? 999,
                         'submitted_step' => $pending['submitted_step'],
                         'submitted_date' => $pending['submitted_date'],
+                        'submitted_task_id' => $pending['submitted_task_id'] ?? null,
                         'missing_inspection' => $pending['missing_inspection'],
                         'inspection_date' => $pending['inspection_date'] ?? null,
+                        'inspection_task_id' => $pending['inspection_task_id'] ?? null,
                         'inspection_done' => filled($pending['inspection_date'] ?? null),
                     ]);
             })
@@ -491,8 +493,16 @@ class QualityAssuranceService
             'sort_order' => 1,
             'submitted_step' => 'WO Submitted to inspection',
             'submitted_date' => $postSubmitted['date'] ?? null,
+            'submitted_task_id' => $this->firstMainTarget($mainRows, function (?string $name) {
+                $name = $this->normalizeTaskName($name);
+
+                return Str::contains($name, 'submitted')
+                    && Str::contains($name, 'inspection')
+                    && ! Str::contains($name, 'final');
+            })['task_id'] ?? null,
             'missing_inspection' => 'Post Disassembly inspection',
             'inspection_date' => $postInspection['date'] ?? null,
+            'inspection_task_id' => $this->firstMainTarget($mainRows, fn (?string $name) => $this->normalizeTaskName($name) === 'post disassembly inspection')['task_id'] ?? null,
         ];
 
         $finalSubmitted = $this->firstMainDate($mainRows, function (?string $name) {
@@ -508,8 +518,15 @@ class QualityAssuranceService
             'sort_order' => 2,
             'submitted_step' => 'WO Submitted for Final Inspection',
             'submitted_date' => $finalSubmitted['date'] ?? null,
+            'submitted_task_id' => $this->firstMainTarget($mainRows, function (?string $name) {
+                $name = $this->normalizeTaskName($name);
+
+                return Str::contains($name, 'submitted')
+                    && Str::contains($name, 'final');
+            })['task_id'] ?? null,
             'missing_inspection' => 'Final inspection',
             'inspection_date' => $finalInspection['date'] ?? null,
+            'inspection_task_id' => $this->firstMainTarget($mainRows, fn (?string $name) => $this->normalizeTaskName($name) === 'final inspection')['task_id'] ?? null,
         ];
 
         return [
@@ -542,6 +559,23 @@ class QualityAssuranceService
         return [
             'task_name' => $main->task?->name ?? '-',
             'date' => $date?->format('Y-m-d'),
+        ];
+    }
+
+    private function firstMainTarget(Collection $mainRows, callable $matches): ?array
+    {
+        $main = $mainRows
+            ->filter(fn ($main) => $matches($main->task?->name))
+            ->sortBy(fn ($main) => $main->task?->sort_order ?? $main->task_id ?? 999999)
+            ->first();
+
+        if ($main === null) {
+            return null;
+        }
+
+        return [
+            'main_id' => $main->id,
+            'task_id' => $main->task_id,
         ];
     }
 

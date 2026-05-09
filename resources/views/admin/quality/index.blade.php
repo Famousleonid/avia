@@ -633,6 +633,15 @@
                 `;
             };
 
+            const mainLinkHtml = (text, url, className = '') => {
+                const safeText = escapeHtml(text);
+                if (!url || url === '#') {
+                    return safeText;
+                }
+
+                return `<a href="${escapeHtml(url)}" class="${escapeHtml(className)}" title="Open in Main">${safeText}</a>`;
+            };
+
             const blockHtml = (title, body, titleMeta = '', className = '', id = '') => `
                 <section ${id ? `id="${escapeHtml(id)}"` : ''} class="qa-block ${escapeHtml(className)} mb-3">
                     <div class="qa-block-title">
@@ -707,16 +716,22 @@
                             const inspectionDateClass = row.inspection_done ? 'text-success' : 'text-warning';
                             const submittedDateText = row.submitted_date && row.submitted_date !== '-' ? row.submitted_date : 'Missing';
                             const inspectionDateText = row.inspection_date && row.inspection_date !== '-' ? row.inspection_date : 'Missing';
+                            const submittedDateHtml = submittedDateText === 'Missing'
+                                ? mainLinkHtml(submittedDateText, row.submitted_url, submittedDateClass)
+                                : escapeHtml(submittedDateText);
+                            const inspectionDateHtml = inspectionDateText === 'Missing'
+                                ? mainLinkHtml(inspectionDateText, row.inspection_url, inspectionDateClass)
+                                : escapeHtml(inspectionDateText);
 
                             return `
                             <div class="qa-submitted-card">
                                 <div class="qa-submitted-card-line">
                                     <div class="qa-submitted-card-title fw-semibold">${escapeHtml(row.submitted_step)}</div>
-                                    <div class="qa-submitted-card-date ${submittedDateClass}">${escapeHtml(submittedDateText)}</div>
+                                    <div class="qa-submitted-card-date ${submittedDateClass}">${submittedDateHtml}</div>
                                 </div>
                                 <div class="qa-submitted-card-line">
                                     <div class="qa-submitted-card-title fw-semibold">${escapeHtml(row.missing_inspection)}</div>
-                                    <div class="qa-submitted-card-date ${inspectionDateClass}">${escapeHtml(inspectionDateText)}</div>
+                                    <div class="qa-submitted-card-date ${inspectionDateClass}">${inspectionDateHtml}</div>
                                 </div>
                             </div>
                         `;
@@ -747,16 +762,22 @@
                             </tr>
                             </thead>
                             <tbody>
-                            ${rows.map(row => `
+                            ${rows.map(row => {
+                                const repairOrderMissing = !row.repair_order || row.repair_order === '-';
+                                const dateStartMissing = !row.date_start || row.date_start === '-';
+                                const dateFinishMissing = !row.date_finish || row.date_finish === '-';
+
+                                return `
                                 <tr>
                                     <td>${escapeHtml(row.component)}</td>
                                     <td>${escapeHtml(row.process_name)}</td>
-                                    <td>${escapeHtml(row.repair_order)}</td>
-                                    <td>${escapeHtml(row.date_start)}</td>
-                                    <td>${escapeHtml(row.date_finish)}</td>
+                                    <td>${repairOrderMissing ? '<span class="text-danger fw-semibold">Missing</span>' : escapeHtml(row.repair_order)}</td>
+                                    <td>${dateStartMissing ? mainLinkHtml('Missing', row.date_start_url, 'text-danger fw-semibold') : escapeHtml(row.date_start)}</td>
+                                    <td>${dateFinishMissing ? mainLinkHtml('Missing', row.date_finish_url, 'text-danger fw-semibold') : escapeHtml(row.date_finish)}</td>
                                     <td><span class="${row.ok ? 'text-success' : 'text-danger'} fw-semibold">${row.ok ? 'OK' : 'Missing'}</span></td>
                                 </tr>
-                            `).join('')}
+                            `;
+                            }).join('')}
                             </tbody>
                         </table>
                     </div>

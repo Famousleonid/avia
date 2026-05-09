@@ -57,6 +57,59 @@
             font-family: Arial, sans-serif;
         }
 
+        .qa-color-toolbar {
+            position: fixed;
+            left: 50%;
+            bottom: 10px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 9px;
+            border: 1px solid #59626c;
+            border-radius: 6px;
+            background: rgba(30, 36, 42, .94);
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            transform: translateX(-50%);
+            box-shadow: 0 5px 18px rgba(0, 0, 0, .28);
+        }
+
+        .qa-color-swatch {
+            width: 22px;
+            height: 22px;
+            border: 1px solid rgba(255, 255, 255, .76);
+            border-radius: 4px;
+            padding: 0;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .qa-color-swatch.is-selected {
+            outline: 2px solid #fff;
+            outline-offset: 2px;
+        }
+
+        .qa-color-picker {
+            width: 30px;
+            height: 24px;
+            border: 1px solid rgba(255, 255, 255, .76);
+            border-radius: 4px;
+            padding: 1px;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        .qa-color-clear {
+            border: 1px solid rgba(255, 255, 255, .65);
+            border-radius: 4px;
+            padding: 2px 7px;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+        }
+
         .qa-card-side-label {
             display: block;
             width: min(172px, 58%);
@@ -107,7 +160,25 @@
             grid-template-columns: 1fr 1.25fr 1fr;
             gap: 8px;
             align-items: start;
-            min-height: 76px;
+            height: 86px;
+        }
+
+        .qa-log-card-top > div {
+            min-height: 86px;
+        }
+
+        .qa-log-card-top > div:first-child,
+        .qa-log-card-top > div:nth-child(2) {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .qa-log-card-top > div:first-child .qa-field:first-of-type {
+            margin-top: auto;
+        }
+
+        .qa-title-fields {
+            margin-top: auto;
         }
 
         .qa-logo {
@@ -148,6 +219,7 @@
             border-bottom: 0;
             text-align: center;
             font-weight: 700;
+            margin-top: 8px;
             padding: 4px 3px;
             font-size: clamp(.65rem, .82vw, .86rem);
         }
@@ -222,6 +294,11 @@
             background: #ffb3b3;
         }
 
+        .qa-colored-cell {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+        }
+
         .qa-notes {
             display: grid;
             grid-template-columns: 70px minmax(0, 1fr);
@@ -277,6 +354,8 @@
             }
 
             body {
+                height: auto;
+                overflow: visible;
                 background: #fff;
             }
 
@@ -290,6 +369,8 @@
 
             .qa-log-card-frame {
                 display: none;
+                position: static;
+                min-height: 0;
                 border: 0;
                 border-radius: 0;
                 padding: 0;
@@ -299,7 +380,13 @@
             }
 
             .qa-log-card-scroll {
+                display: block;
+                height: auto;
                 overflow: visible;
+            }
+
+            .qa-log-card-pages {
+                display: block;
             }
 
             body.print-left #qaLogCardLeftWrap,
@@ -308,6 +395,10 @@
             }
 
             .qa-log-card-print {
+                display: none;
+            }
+
+            .qa-color-toolbar {
                 display: none;
             }
 
@@ -323,18 +414,33 @@
                 display: none;
             }
 
+            .qa-section-title {
+                margin-top: 0;
+            }
+
             .qa-editable,
             .qa-edit-saving,
             .qa-edit-saved,
             .qa-edit-error {
-                background: transparent;
+                background: transparent !important;
+                font-size: calc(1em + 2px);
                 box-shadow: none;
             }
 
+            .qa-colored-cell {
+                background-color: transparent !important;
+                print-color-adjust: economy;
+                -webkit-print-color-adjust: economy;
+            }
+
             .qa-log-card-page {
+                display: block;
+                width: 100%;
                 min-height: auto;
-                page-break-after: always;
+                overflow: visible;
                 padding: 2mm;
+                break-after: page;
+                page-break-after: always;
             }
 
             .qa-log-card-page:last-child {
@@ -377,6 +483,7 @@
             'removed_cso' => $item['qa_removed_cso'] ?? ($item['removed_cso'] ?? ''),
             'removed_csn' => $item['qa_removed_csn'] ?? ($item['removed_csn'] ?? ''),
             'reason' => $item['qa_reason'] ?? ($reasonCode?->name ?? ($item['reason'] ?? '')),
+            'cell_colors' => is_array($item['qa_cell_colors'] ?? null) ? $item['qa_cell_colors'] : [],
         ];
         })->values();
     };
@@ -404,6 +511,81 @@
         });
     };
 
+    $aircraftColorsFor = function (array $items) {
+        $stored = $items[0]['qa_aircraft_cell_colors'] ?? [];
+        return is_array($stored) ? $stored : [];
+    };
+
+    $cellStyle = function (?string $color) {
+        return preg_match('/^#[0-9A-Fa-f]{6}$/', (string) $color)
+            ? 'background-color: ' . strtolower($color) . ';'
+            : '';
+    };
+
+    $primaryCellFields = [
+        'description' => false,
+        'part_number' => true,
+        'serial_number' => true,
+        'fit_date' => true,
+        'fit_cso' => true,
+        'fit_csn' => true,
+        'removed_date' => true,
+        'removed_cso' => true,
+        'removed_csn' => true,
+        'reason' => true,
+    ];
+
+    $primaryRowUnits = function (array $row) {
+        $lineCapacities = [
+            'description' => 25,
+            'part_number' => 18,
+            'serial_number' => 18,
+            'fit_date' => 12,
+            'fit_cso' => 12,
+            'fit_csn' => 12,
+            'removed_date' => 12,
+            'removed_cso' => 12,
+            'removed_csn' => 12,
+            'reason' => 20,
+        ];
+
+        $lines = collect($lineCapacities)->map(function ($capacity, $field) use ($row) {
+            $length = mb_strlen(trim((string) ($row[$field] ?? '')));
+            return max(1, (int) ceil($length / $capacity));
+        })->max();
+
+        return max(1, min(4, $lines));
+    };
+
+    $paginatePrimaryRows = function ($rows) use ($primaryRowUnits) {
+        $pages = collect();
+        $pageRows = collect();
+        $usedUnits = 0;
+        $maxUnits = 12;
+
+        foreach ($rows as $row) {
+            $units = $primaryRowUnits($row);
+            if ($pageRows->isNotEmpty() && $usedUnits + $units > $maxUnits) {
+                $pages->push([
+                    'rows' => $pageRows,
+                    'blank_count' => max(0, $maxUnits - $usedUnits),
+                ]);
+                $pageRows = collect();
+                $usedUnits = 0;
+            }
+
+            $pageRows->push($row);
+            $usedUnits += $units;
+        }
+
+        $pages->push([
+            'rows' => $pageRows,
+            'blank_count' => max(0, $maxUnits - $usedUnits),
+        ]);
+
+        return $pages;
+    };
+
     $cardSides = [
         'left' => [
             'label' => 'Left',
@@ -411,35 +593,51 @@
             'stamp' => asset('img/quality/qa-stamp-as-received.svg'),
             'rows' => $buildRows($componentData),
             'aircraft_rows' => $aircraftRowsFor($componentData),
+            'aircraft_colors' => $aircraftColorsFor($componentData),
             'note6_text' => $componentData[0]['qa_note6_text'] ?? "The Log Card was created refer to client's provided documents.",
             'note6_enabled' => $componentData[0]['qa_note6_enabled'] ?? true,
         ],
         'right' => [
             'label' => 'Right',
-            'heading' => 'Outgoing',
-            'stamp' => asset('img/quality/qa-stamp-outgoing.svg'),
+            'heading' => 'As dispach',
+            'stamp' => asset('img/quality/qa-stamp-as-dispach.svg'),
             'rows' => $buildRows($componentDataOut),
             'aircraft_rows' => $aircraftRowsFor($componentDataOut),
+            'aircraft_colors' => $aircraftColorsFor($componentDataOut),
             'note6_text' => $componentDataOut[0]['qa_note6_text'] ?? "The Log Card was created refer to client's provided documents.",
             'note6_enabled' => $componentDataOut[0]['qa_note6_enabled'] ?? true,
         ],
     ];
 @endphp
 
+<div class="qa-color-toolbar" aria-label="Cell background color tools">
+    <span>Ctrl + click</span>
+    @foreach(['#fff3bf', '#d3f9d8', '#d0ebff', '#ffd8d8'] as $color)
+        <button type="button"
+                class="qa-color-swatch"
+                data-qa-color="{{ $color }}"
+                style="background-color: {{ $color }}"
+                title="{{ $color }}"></button>
+    @endforeach
+    <input type="color" class="qa-color-picker" value="#fff3bf" title="Custom color">
+    <button type="button" class="qa-color-clear" data-qa-color="">Clear</button>
+</div>
+
 <main class="qa-log-card-stage">
 @foreach($cardSides as $side => $card)
     @php
         $label = $card['label'];
-        $pages = $card['rows']->chunk(12)->values();
-        if ($pages->isEmpty()) {
-            $pages = collect([collect()]);
-        }
+        $pages = $paginatePrimaryRows($card['rows']);
     @endphp
     <section id="qaLogCard{{ $label }}Wrap" class="qa-log-card-frame" data-side="{{ $side }}">
         <button class="btn btn-outline-info btn-sm qa-log-card-print" type="button" data-print-side="{{ $side }}">Print {{ $label }}</button>
         <div class="qa-log-card-scroll">
     <div class="qa-log-card-pages">
-        @foreach($pages as $pageIndex => $pageRows)
+        @foreach($pages as $pageIndex => $page)
+            @php
+                $pageRows = $page['rows'];
+                $blankCount = $page['blank_count'];
+            @endphp
             <article class="qa-log-card-page">
                 <header class="qa-log-card-top">
                     <div>
@@ -449,8 +647,10 @@
                     </div>
                     <div>
                         <h1 class="qa-title">LANDING GEAR LOG CARD</h1>
-                        <div class="qa-small qa-field"><span>PART NO:</span><span>{{ $current_wo->unit->part_number }}</span></div>
-                        <div class="qa-small qa-field"><span>SERIAL NO:</span><span>{{ $current_wo->serial_number }}</span></div>
+                        <div class="qa-title-fields">
+                            <div class="qa-small qa-field"><span>PART NO:</span><span>{{ $current_wo->unit->part_number }}</span></div>
+                            <div class="qa-small qa-field"><span>SERIAL NO:</span><span>{{ $current_wo->serial_number }}</span></div>
+                        </div>
                         <img class="qa-card-side-label" src="{{ $card['stamp'] }}" alt="{{ $card['heading'] }} stamp">
                     </div>
                     <div>
@@ -485,7 +685,12 @@
                         <tr>
                             <td></td>
                             @foreach(['fit_date', 'fit_cso', 'fit_csn', 'fit_cycles', 'removed_date', 'removed_cso', 'removed_csn', 'removed_cycles', 'reason'] as $field)
-                                <td class="qa-center qa-editable"
+                                @php
+                                    $cellColor = $card['aircraft_colors'][$aircraftIndex][$field] ?? '';
+                                    $style = $cellStyle($cellColor);
+                                @endphp
+                                <td class="qa-center qa-editable{{ $style ? ' qa-colored-cell' : '' }}"
+                                    style="{{ $style }}"
                                     contenteditable="true"
                                     data-qa-edit
                                     data-side="{{ $side }}"
@@ -528,19 +733,23 @@
                     <tbody>
                     @foreach($pageRows as $row)
                         <tr>
-                            <td class="qa-editable" contenteditable="true" data-qa-edit data-side="{{ $side }}" data-section="primary" data-row="{{ $row['source_index'] }}" data-field="description">{{ $row['description'] }}</td>
-                            <td class="qa-center qa-editable" contenteditable="true" data-qa-edit data-side="{{ $side }}" data-section="primary" data-row="{{ $row['source_index'] }}" data-field="part_number">{{ $row['part_number'] }}</td>
-                            <td class="qa-center qa-editable" contenteditable="true" data-qa-edit data-side="{{ $side }}" data-section="primary" data-row="{{ $row['source_index'] }}" data-field="serial_number">{{ $row['serial_number'] }}</td>
-                            <td class="qa-center qa-editable" contenteditable="true" data-qa-edit data-side="{{ $side }}" data-section="primary" data-row="{{ $row['source_index'] }}" data-field="fit_date">{{ $row['fit_date'] }}</td>
-                            <td class="qa-center qa-editable" contenteditable="true" data-qa-edit data-side="{{ $side }}" data-section="primary" data-row="{{ $row['source_index'] }}" data-field="fit_cso">{{ $row['fit_cso'] }}</td>
-                            <td class="qa-center qa-editable" contenteditable="true" data-qa-edit data-side="{{ $side }}" data-section="primary" data-row="{{ $row['source_index'] }}" data-field="fit_csn">{{ $row['fit_csn'] }}</td>
-                            <td class="qa-center qa-editable" contenteditable="true" data-qa-edit data-side="{{ $side }}" data-section="primary" data-row="{{ $row['source_index'] }}" data-field="removed_date">{{ $row['removed_date'] }}</td>
-                            <td class="qa-center qa-editable" contenteditable="true" data-qa-edit data-side="{{ $side }}" data-section="primary" data-row="{{ $row['source_index'] }}" data-field="removed_cso">{{ $row['removed_cso'] }}</td>
-                            <td class="qa-center qa-editable" contenteditable="true" data-qa-edit data-side="{{ $side }}" data-section="primary" data-row="{{ $row['source_index'] }}" data-field="removed_csn">{{ $row['removed_csn'] }}</td>
-                            <td class="qa-center qa-editable" contenteditable="true" data-qa-edit data-side="{{ $side }}" data-section="primary" data-row="{{ $row['source_index'] }}" data-field="reason">{{ $row['reason'] }}</td>
+                            @foreach($primaryCellFields as $field => $center)
+                                @php
+                                    $cellColor = $row['cell_colors'][$field] ?? '';
+                                    $style = $cellStyle($cellColor);
+                                @endphp
+                                <td class="{{ $center ? 'qa-center ' : '' }}qa-editable{{ $style ? ' qa-colored-cell' : '' }}"
+                                    style="{{ $style }}"
+                                    contenteditable="true"
+                                    data-qa-edit
+                                    data-side="{{ $side }}"
+                                    data-section="primary"
+                                    data-row="{{ $row['source_index'] }}"
+                                    data-field="{{ $field }}">{{ $row[$field] }}</td>
+                            @endforeach
                         </tr>
                     @endforeach
-                    @for($i = $pageRows->count(); $i < 12; $i++)
+                    @for($i = 0; $i < $blankCount; $i++)
                         <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
                     @endfor
                     </tbody>
@@ -591,6 +800,26 @@
         const saveUrl = @json(route('quality.forms.log_card.update', ['workorder' => $current_wo->id]));
         const csrfToken = @json(csrf_token());
         const timers = new WeakMap();
+        const swatches = Array.from(document.querySelectorAll('[data-qa-color]'));
+        const customColor = document.querySelector('.qa-color-picker');
+        let selectedColor = swatches[0]?.dataset.qaColor || '#fff3bf';
+
+        const setSelectedColor = (color) => {
+            selectedColor = color;
+            swatches.forEach((swatch) => {
+                swatch.classList.toggle('is-selected', swatch.dataset.qaColor === color);
+            });
+            if (customColor && color) {
+                customColor.value = color;
+            }
+        };
+
+        swatches.forEach((swatch) => {
+            swatch.addEventListener('click', () => setSelectedColor(swatch.dataset.qaColor || ''));
+        });
+
+        customColor?.addEventListener('input', () => setSelectedColor(customColor.value));
+        setSelectedColor(selectedColor);
 
         document.querySelectorAll('[data-print-side]').forEach((button) => {
             button.addEventListener('click', () => {
@@ -643,7 +872,57 @@
             }
         };
 
+        const saveCellBackground = async (cell, color) => {
+            cell.style.backgroundColor = color || '';
+            cell.classList.toggle('qa-colored-cell', Boolean(color));
+            cell.classList.remove('qa-edit-error', 'qa-edit-saved');
+            cell.classList.add('qa-edit-saving');
+
+            try {
+                const response = await fetch(saveUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({
+                        side: cell.dataset.side,
+                        section: cell.dataset.section,
+                        row: Number(cell.dataset.row || 0),
+                        field: cell.dataset.field,
+                        style: 'background',
+                        value: color || '',
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Save failed');
+                }
+
+                cell.classList.remove('qa-edit-saving');
+                cell.classList.add('qa-edit-saved');
+                window.setTimeout(() => {
+                    cell.classList.remove('qa-edit-saved');
+                }, 500);
+            } catch (error) {
+                cell.classList.remove('qa-edit-saving');
+                cell.classList.add('qa-edit-error');
+            }
+        };
+
         document.querySelectorAll('[data-qa-edit]').forEach((cell) => {
+            cell.addEventListener('click', (event) => {
+                if (!event.ctrlKey || event.button !== 0 || cell.tagName !== 'TD') {
+                    return;
+                }
+
+                event.preventDefault();
+                window.clearTimeout(timers.get(cell));
+                saveCellBackground(cell, selectedColor);
+                cell.blur();
+            });
+
             cell.addEventListener('input', () => {
                 window.clearTimeout(timers.get(cell));
                 timers.set(cell, window.setTimeout(() => saveCell(cell), 650));

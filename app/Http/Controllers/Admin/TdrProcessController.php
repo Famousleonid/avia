@@ -15,6 +15,8 @@ use App\Models\Vendor;
 use App\Models\Workorder;
 use App\Services\MachiningWorkorderQueueRelease;
 use App\Services\PaintIndexRowsBuilder;
+use App\Services\ProcessSequenceGuard;
+use App\Services\ProcessSequenceNotifier;
 use Carbon\Carbon;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
@@ -1704,6 +1706,14 @@ class TdrProcessController extends Controller
             return $this->updateTravelerProcessDateFields($request, $tdrProcess, $data, $isAjax);
         }
 
+        if ($errors = app(ProcessSequenceGuard::class)->validateTdrProcessDateUpdate($tdrProcess, $data)) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $errors], 422);
+            }
+
+            return back()->withErrors($errors)->withInput();
+        }
+
         // текущий start из БД
         $currentStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
 
@@ -1743,6 +1753,7 @@ class TdrProcessController extends Controller
         $oldStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
         $oldFinish = $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null;
         $authId = auth()->id();
+        $nextProcessForNotification = app(ProcessSequenceGuard::class)->nextAfterTdrProcess($tdrProcess);
 
         // 4) Обновляем только те поля, которые реально пришли в запросе
         if (array_key_exists('date_start', $data)) {
@@ -1793,6 +1804,11 @@ class TdrProcessController extends Controller
         $tdrProcess->user_id = $authId;
 
         $tdrProcess->save();
+
+        $newFinishForNotification = $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null;
+        if ($oldFinish === null && $newFinishForNotification !== null) {
+            app(ProcessSequenceNotifier::class)->notifyReady($nextProcessForNotification, $tdrProcess);
+        }
 
         if ($fromPaintIndex) {
             $newStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
@@ -1945,6 +1961,15 @@ class TdrProcessController extends Controller
 
         $travelerGroup = (int) ($tdrProcess->traveler_group ?: 1);
 
+        $tdr = Tdr::query()->find((int) $tdrProcess->tdrs_id);
+        if ($tdr && ($errors = app(ProcessSequenceGuard::class)->validateTravelerGroupDateUpdate($tdr, $travelerGroup, $data))) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $errors], 422);
+            }
+
+            return back()->withErrors($errors)->withInput();
+        }
+
         $processes = TdrProcess::query()
             ->where('tdrs_id', (int) $tdrProcess->tdrs_id)
             ->where('in_traveler', true)
@@ -1994,6 +2019,10 @@ class TdrProcessController extends Controller
         }
 
         $uid = auth()->id();
+        $wasClosed = $processes->every(fn (TdrProcess $process): bool => ! empty($process->date_finish));
+        $nextProcessForNotification = $tdr
+            ? app(ProcessSequenceGuard::class)->nextAfterTravelerGroup($tdr, $travelerGroup)
+            : null;
 
         DB::transaction(function () use ($processes, $data, $uid): void {
             foreach ($processes as $process) {
@@ -2044,6 +2073,10 @@ class TdrProcessController extends Controller
             ->with(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name'])
             ->orderBy('id')
             ->first();
+
+        if (! $wasClosed && $processes->fresh()->every(fn (TdrProcess $process): bool => ! empty($process->date_finish))) {
+            app(ProcessSequenceNotifier::class)->notifyReady($nextProcessForNotification, $leader ?? $tdrProcess);
+        }
 
         if ($isAjax) {
             return response()->json([
@@ -2112,8 +2145,18 @@ class TdrProcessController extends Controller
             return back()->withErrors(['date' => 'No date fields'])->withInput();
         }
 
+        if ($errors = app(ProcessSequenceGuard::class)->validateTravelerGroupDateUpdate($tdr, $travelerGroup, $data)) {
+            if ($isAjax) {
+                return response()->json(['success' => false, 'errors' => $errors], 422);
+            }
+
+            return back()->withErrors($errors)->withInput();
+        }
+
         return DB::transaction(function () use ($data, $tdr, $isAjax, $processes, $travelerGroup) {
             $uid = auth()->id();
+            $wasClosed = $processes->every(fn (TdrProcess $process): bool => ! empty($process->date_finish));
+            $nextProcessForNotification = app(ProcessSequenceGuard::class)->nextAfterTravelerGroup($tdr, $travelerGroup);
 
             if (array_key_exists('date_start', $data)) {
                 $newStart = $data['date_start'] !== null && $data['date_start'] !== ''
@@ -2226,6 +2269,19 @@ class TdrProcessController extends Controller
                     ->with(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name'])
                     ->orderBy('id')
                     ->first();
+
+                if (! $wasClosed) {
+                    $freshClosed = TdrProcess::query()
+                        ->where('tdrs_id', (int) $tdr->id)
+                        ->where('in_traveler', true)
+                        ->when($travelerGroup > 0, fn ($query) => $query->where('traveler_group', $travelerGroup))
+                        ->get()
+                        ->every(fn (TdrProcess $process): bool => ! empty($process->date_finish));
+
+                    if ($freshClosed) {
+                        app(ProcessSequenceNotifier::class)->notifyReady($nextProcessForNotification, $leader);
+                    }
+                }
 
                 return response()->json([
                     'success'          => true,

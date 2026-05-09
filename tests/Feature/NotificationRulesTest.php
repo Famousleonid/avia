@@ -7,6 +7,7 @@ use App\Models\NotificationEventRule;
 use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
+use App\Models\WorkorderStdProcess;
 use App\Notifications\NewMessageNotification;
 use App\Services\Events\BirthdayInTwoDaysEvent;
 use App\Services\Events\BirthdayTodayEvent;
@@ -424,6 +425,300 @@ class NotificationRulesTest extends TestCase
         $this->assertSame(false, data_get($activity->properties->toArray(), 'after.enabled'));
     }
 
+    public function test_parts_process_cannot_start_until_previous_process_is_returned(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder();
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'SEQ-' . uniqid(),
+            'name' => 'Sequence Component',
+            'ipl_num' => '1-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'SEQ',
+            'qty' => 1,
+        ]);
+        $firstName = $this->createProcessName('Sequence First');
+        $secondName = $this->createProcessName('Sequence Second');
+
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstName->id,
+            'sort_order' => 1,
+            'date_start' => '2026-05-01',
+        ]);
+        $second = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $secondName->id,
+            'sort_order' => 2,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrprocesses.updateDate', $second), [
+                'date_start' => '2026-05-02',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('date_start');
+    }
+
+    public function test_parts_process_locks_previous_dates_after_next_process_started(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder();
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'LOCK-' . uniqid(),
+            'name' => 'Lock Component',
+            'ipl_num' => '2-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'LOCK',
+            'qty' => 1,
+        ]);
+        $firstName = $this->createProcessName('Lock First');
+        $secondName = $this->createProcessName('Lock Second');
+
+        $first = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstName->id,
+            'sort_order' => 1,
+            'date_start' => '2026-05-01',
+            'date_finish' => '2026-05-02',
+        ]);
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $secondName->id,
+            'sort_order' => 2,
+            'date_start' => '2026-05-03',
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrprocesses.updateDate', $first), [
+                'date_finish' => '2026-05-04',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('date_start');
+    }
+
+    public function test_parts_process_allows_backfilling_gap_when_later_process_already_has_dates(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder();
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'GAP-' . uniqid(),
+            'name' => 'Gap Component',
+            'ipl_num' => '2-2',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'GAP',
+            'qty' => 1,
+        ]);
+        $firstName = $this->createProcessName('Gap First');
+        $secondName = $this->createProcessName('Gap Second');
+        $thirdName = $this->createProcessName('Gap Third');
+
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstName->id,
+            'sort_order' => 1,
+            'date_start' => '2026-05-01',
+            'date_finish' => '2026-05-02',
+        ]);
+        $second = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $secondName->id,
+            'sort_order' => 2,
+        ]);
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $thirdName->id,
+            'sort_order' => 3,
+            'date_start' => '2026-05-05',
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrprocesses.updateDate', $second), [
+                'date_start' => '2026-05-03',
+            ])
+            ->assertOk();
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrprocesses.updateDate', $second->fresh()), [
+                'date_finish' => '2026-05-04',
+            ])
+            ->assertOk();
+    }
+
+    public function test_parts_process_rejects_dates_outside_sequence_order(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder();
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'SEQ-' . uniqid(),
+            'name' => 'Sequence Component',
+            'ipl_num' => '3-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'SEQ',
+            'qty' => 1,
+        ]);
+        $firstName = $this->createProcessName('Sequence First');
+        $secondName = $this->createProcessName('Sequence Second');
+        $thirdName = $this->createProcessName('Sequence Third');
+
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstName->id,
+            'sort_order' => 1,
+            'date_start' => '2026-05-01',
+            'date_finish' => '2026-05-02',
+        ]);
+        $second = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $secondName->id,
+            'sort_order' => 2,
+            'date_start' => '2026-05-03',
+        ]);
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $thirdName->id,
+            'sort_order' => 3,
+            'date_start' => '2026-05-05',
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrprocesses.updateDate', $second), [
+                'date_finish' => '2026-05-06',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('date_finish');
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrprocesses.updateDate', $second), [
+                'date_start' => '2026-05-01',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('date_start');
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrprocesses.updateDate', $second), [
+                'date_finish' => '2026-05-05',
+            ])
+            ->assertOk();
+    }
+
+    public function test_returning_process_notifies_that_next_process_is_ready(): void
+    {
+        Notification::fake();
+
+        $admin = $this->createUserWithRole('Admin');
+        $notifyUser = $this->createUserWithRole('Manager');
+        $sentAuthor = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder();
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'READY-' . uniqid(),
+            'name' => 'Ready Component',
+            'ipl_num' => '3-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'READY',
+            'qty' => 1,
+        ]);
+        $firstName = $this->createProcessName('Ready First');
+        $secondName = $this->createProcessName('Ready Second', ['notify_user_id' => $notifyUser->id]);
+
+        $first = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstName->id,
+            'sort_order' => 1,
+            'date_start' => '2026-05-01',
+            'date_start_user_id' => $sentAuthor->id,
+        ]);
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $secondName->id,
+            'sort_order' => 2,
+        ]);
+
+        $this->createRule('tdr_process.ready_for_next', [
+            ['type' => 'dynamic', 'value' => 'process_notify_user'],
+            ['type' => 'dynamic', 'value' => 'previous_date_start_user'],
+        ], [
+            'name' => 'Next process ready',
+            'title_template' => 'Next process ready',
+            'message_template' => 'WO {workorder_no}: {process_name} after {previous_process_name}.',
+            'exclude_actor' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrprocesses.updateDate', $first), [
+                'date_finish' => '2026-05-02',
+            ])
+            ->assertOk();
+
+        Notification::assertSentTo($notifyUser, NewMessageNotification::class, function ($notification) use ($admin) {
+            $data = $notification->toDatabase($admin);
+
+            return $data['event'] === 'process_ready_for_next'
+                && $data['title'] === 'Next process ready'
+                && str_contains($data['text'], 'Ready Second')
+                && str_contains($data['text'], 'Ready First');
+        });
+
+        Notification::assertSentTo($sentAuthor, NewMessageNotification::class, function ($notification) use ($sentAuthor) {
+            $data = $notification->toDatabase($sentAuthor);
+
+            return $data['event'] === 'process_ready_for_next'
+                && $data['payload']['previous_date_start_user_id'] === $sentAuthor->id;
+        });
+    }
+
+    public function test_std_process_cannot_start_until_previous_std_process_is_returned(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder();
+        $ndtName = $this->createProcessName('STD NDT List', ['show_in_process_picker' => false]);
+        $cadName = $this->createProcessName('STD CAD List', ['show_in_process_picker' => false]);
+
+        WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'ndt',
+            'process_name_id' => $ndtName->id,
+            'date_start' => '2026-05-01',
+        ]);
+        $cad = WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'cad',
+            'process_name_id' => $cadName->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('workorder_std_processes.updateDate', $cad), [
+                'date_start' => '2026-05-02',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('date_start');
+    }
+
     protected function createRule(string $eventKey, array $recipients, array $attributes = []): NotificationEventRule
     {
         $defaults = [
@@ -449,5 +744,17 @@ class NotificationRulesTest extends TestCase
         }
 
         return $rule;
+    }
+
+    protected function createProcessName(string $name, array $attributes = []): ProcessName
+    {
+        return ProcessName::query()->create(array_merge([
+            'name' => $name . ' ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+            'std_days' => 1,
+            'print_form' => false,
+            'show_in_process_picker' => true,
+        ], $attributes));
     }
 }

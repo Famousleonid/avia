@@ -29,6 +29,28 @@ class NotificationEventRegistry
                     'overdue_days',
                 ],
             ],
+            'tdr_process.ready_for_next' => [
+                'label' => 'Process ready for next step',
+                'description' => 'A process was returned and the next process in the sequence can start.',
+                'default_severity' => 'info',
+                'default_title' => 'Send detail to next process',
+                'default_message' => 'WO {workorder_no}: send the detail to {process_name}. Previous process {previous_process_name} was returned.',
+                'dynamic_recipients' => [
+                    'tdr_process_user' => 'Next process assigned user',
+                    'process_notify_user' => 'Next process responsible user',
+                    'previous_date_start_user' => 'Previous sent date author',
+                    'next_date_start_user' => 'Next sent date author',
+                    'workorder_technician' => 'Workorder technician',
+                    'system_admins' => 'System admins',
+                ],
+                'variables' => [
+                    'workorder_no',
+                    'workorder_id',
+                    'process_name',
+                    'previous_process_name',
+                    'actor_name',
+                ],
+            ],
             'workorder.assigned' => [
                 'label' => 'Workorder assigned',
                 'description' => 'A workorder was assigned to a user.',

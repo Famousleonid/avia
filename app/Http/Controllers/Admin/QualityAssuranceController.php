@@ -118,6 +118,7 @@ class QualityAssuranceController extends Controller
             'row' => ['required', 'integer', 'min:0', 'max:200'],
             'field' => ['required', 'string', 'max:60'],
             'value' => ['nullable', 'string', 'max:255'],
+            'style' => ['nullable', 'in:text,background'],
         ]);
 
         $primaryFields = [
@@ -164,7 +165,31 @@ class QualityAssuranceController extends Controller
             $rows = $sourceRows;
         }
 
-        if ($data['section'] === 'aircraft') {
+        $style = $data['style'] ?? 'text';
+        if ($style === 'background') {
+            abort_unless(in_array($data['section'], ['aircraft', 'primary'], true), 422);
+            $color = trim((string) ($data['value'] ?? ''));
+            abort_unless($color === '' || preg_match('/^#[0-9A-Fa-f]{6}$/', $color), 422);
+            $color = strtolower($color);
+
+            if ($data['section'] === 'aircraft') {
+                $rows[0] ??= [];
+                $rows[0]['qa_aircraft_cell_colors'] ??= [];
+                if ($color === '') {
+                    unset($rows[0]['qa_aircraft_cell_colors'][(int) $data['row']][$data['field']]);
+                } else {
+                    $rows[0]['qa_aircraft_cell_colors'][(int) $data['row']][$data['field']] = $color;
+                }
+            } else {
+                $rows[(int) $data['row']] ??= [];
+                $rows[(int) $data['row']]['qa_cell_colors'] ??= [];
+                if ($color === '') {
+                    unset($rows[(int) $data['row']]['qa_cell_colors'][$data['field']]);
+                } else {
+                    $rows[(int) $data['row']]['qa_cell_colors'][$data['field']] = $color;
+                }
+            }
+        } elseif ($data['section'] === 'aircraft') {
             $rows[0] ??= [];
             $rows[0]['qa_aircraft_records'] ??= [];
             $rows[0]['qa_aircraft_records'][(int) $data['row']][$data['field']] = trim((string) ($data['value'] ?? ''));
@@ -204,6 +229,7 @@ class QualityAssuranceController extends Controller
         return response()->json([
             'success' => true,
             'field' => $data['field'],
+            'style' => $style,
             'value' => trim((string) ($data['value'] ?? '')),
         ]);
     }
@@ -319,11 +345,23 @@ class QualityAssuranceController extends Controller
             'photos' => $this->buildPhotoGroupsPayload($workorder),
             'submitted' => $this->qualityAssuranceService
                 ->buildSubmittedInspectionRows(collect([$qaRow]))
-                ->map(fn (array $row) => array_merge($row, [
-                    'open_date' => $this->formatQaDate($row['open_date'] ?? null),
-                    'submitted_date' => $this->formatQaDate($row['submitted_date'] ?? null),
-                    'inspection_date' => $this->formatQaDate($row['inspection_date'] ?? null),
-                ]))
+                ->map(function (array $row) use ($workorder) {
+                    return array_merge($row, [
+                        'open_date' => $this->formatQaDate($row['open_date'] ?? null),
+                        'submitted_date' => $this->formatQaDate($row['submitted_date'] ?? null),
+                        'inspection_date' => $this->formatQaDate($row['inspection_date'] ?? null),
+                        'submitted_url' => $this->mainTargetUrl($workorder, [
+                            'tab' => 'tasks',
+                            'task' => $row['submitted_task_id'] ?? null,
+                            'field' => 'date_finish',
+                        ]),
+                        'inspection_url' => $this->mainTargetUrl($workorder, [
+                            'tab' => 'tasks',
+                            'task' => $row['inspection_task_id'] ?? null,
+                            'field' => 'date_finish',
+                        ]),
+                    ]);
+                })
                 ->values()
                 ->all(),
             'repair_orders' => $this->buildRepairOrderPayload($workorder),
@@ -481,8 +519,8 @@ class QualityAssuranceController extends Controller
     private function buildRepairOrderPayload(Workorder $workorder): array
     {
         return ($workorder->tdrs ?? collect())
-            ->flatMap(function ($tdr) {
-                return ($tdr->tdrProcesses ?? collect())->map(function ($process) use ($tdr) {
+            ->flatMap(function ($tdr) use ($workorder) {
+                return ($tdr->tdrProcesses ?? collect())->map(function ($process) use ($tdr, $workorder) {
                     return [
                         'tdr_id' => (int) $tdr->id,
                         'process_id' => (int) $process->id,
@@ -492,6 +530,21 @@ class QualityAssuranceController extends Controller
                         'date_start' => $this->formatQaDate($process->date_start),
                         'date_finish' => $this->formatQaDate($process->date_finish),
                         'ok' => filled($process->repair_order) && $process->date_start !== null && $process->date_finish !== null,
+                        'repair_order_url' => $this->mainTargetUrl($workorder, [
+                            'tab' => 'parts',
+                            'process' => $process->id,
+                            'field' => 'repair_order',
+                        ]),
+                        'date_start_url' => $this->mainTargetUrl($workorder, [
+                            'tab' => 'parts',
+                            'process' => $process->id,
+                            'field' => 'date_start',
+                        ]),
+                        'date_finish_url' => $this->mainTargetUrl($workorder, [
+                            'tab' => 'parts',
+                            'process' => $process->id,
+                            'field' => 'date_finish',
+                        ]),
                     ];
                 });
             })
@@ -501,10 +554,12 @@ class QualityAssuranceController extends Controller
 
     private function buildFormsPayload(Workorder $workorder): array
     {
-        $hasProcessFormTdrs = ($workorder->tdrs ?? collect())
-            ->contains(fn ($tdr) => (bool) $tdr->use_process_forms);
-
         return collect([
+            [
+                'key' => 'log_card',
+                'title' => 'Log card',
+                'url' => route('quality.forms.log_card', ['workorder' => $workorder->id]),
+            ],
             [
                 'key' => 'certificate_of_destruction',
                 'title' => 'Certificate of Destruction',
@@ -514,16 +569,6 @@ class QualityAssuranceController extends Controller
                 'key' => 'shipment',
                 'title' => 'Shipment',
                 'url' => route('quality.forms.shipment_release', ['workorder' => $workorder->id]),
-            ],
-            [
-                'key' => 'spf',
-                'title' => 'SPF',
-                'url' => route($hasProcessFormTdrs ? 'tdrs.specProcessForm' : 'tdrs.specProcessFormEmp', ['id' => $workorder->id]),
-            ],
-            [
-                'key' => 'log_card',
-                'title' => 'Log card',
-                'url' => route('quality.forms.log_card', ['workorder' => $workorder->id]),
             ],
         ])->map(fn ($form) => $form + [
             'workorder_number' => (string) $workorder->number,
@@ -539,5 +584,16 @@ class QualityAssuranceController extends Controller
         }
 
         return strtolower(Carbon::parse($date)->format('d.M.Y'));
+    }
+
+    private function mainTargetUrl(?Workorder $workorder, array $params): string
+    {
+        if (! $workorder) {
+            return '#';
+        }
+
+        $params = array_filter($params, fn ($value) => filled($value));
+
+        return route('mains.show', $workorder->id) . '#qa-main:' . http_build_query($params);
     }
 }

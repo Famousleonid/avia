@@ -266,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 onChange(selectedDates, dateStr, instance) {
 
-                    if (isLocked) return; // 🔒 не сабмитим
+                    if (src.hasAttribute('data-fp-locked')) return; // 🔒 не сабмитим
 
                     const filled = String(dateStr || '').trim() !== '';
                     if (src.classList.contains('finish-input')) {
@@ -314,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         btn.addEventListener('click', (e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            if (src.disabled || isLocked) return;
+                            if (src.disabled || src.hasAttribute('data-fp-locked')) return;
                             try { instance.open(); } catch (_) {}
                         });
                         parent.appendChild(btn);

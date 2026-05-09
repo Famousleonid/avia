@@ -86,7 +86,7 @@
                                     <span class="me-2 badge bg-{{ $rule?->enabled ? 'success' : 'secondary' }}">
                                         {{ $rule?->enabled ? 'On' : 'Off' }}
                                     </span>
-                                    <span class="me-3">{{ $meta['label'] }}</span>
+                                    <span class="me-3">{{ $meta['label'] ?? $eventKey }}</span>
                                     <span class="text-muted small rule-summary">{{ $recipientSummary($rule) }}</span>
                                 </button>
                             </h2>
@@ -121,8 +121,10 @@
                                                             type="button"
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#useConfirmDelete"
-                                                            data-title="Delete Notification">
-                                                        Delete Notification
+                                                            data-title="Reset Notification"
+                                                            data-message="Reset this notification to the default empty state?"
+                                                            data-confirm-label="Reset">
+                                                        Reset Notification
                                                     </button>
                                                 </form>
                                             @endif
@@ -155,11 +157,20 @@
                 deleteForm = button ? button.closest('form') : null;
 
                 const title = button ? button.getAttribute('data-title') : null;
+                const message = button ? button.getAttribute('data-message') : null;
+                const confirmLabel = button ? button.getAttribute('data-confirm-label') : null;
                 const modalTitle = modal.querySelector('#confirmDeleteLabel');
+                const modalBody = modal.querySelector('.modal-body');
 
                 if (modalTitle) {
                     modalTitle.textContent = title || 'Delete Confirmation';
                 }
+
+                if (modalBody && message) {
+                    modalBody.textContent = message;
+                }
+
+                confirmDeleteBtn.textContent = confirmLabel || 'Delete';
             });
 
             confirmDeleteBtn.addEventListener('click', function () {

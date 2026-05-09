@@ -286,6 +286,16 @@
         border-top-color: rgba(13, 202, 240, .45);
     }
 
+    .qa-main-target-highlight {
+        animation: qa-main-target-pulse 1.45s ease-in-out 3;
+        box-shadow: 0 0 0 3px rgba(255, 193, 7, .72) !important;
+    }
+
+    @keyframes qa-main-target-pulse {
+        0%, 100% { box-shadow: 0 0 0 3px rgba(255, 193, 7, .2); }
+        50% { box-shadow: 0 0 0 5px rgba(255, 193, 7, .9); }
+    }
+
     html[data-main-tab="overview"] .main-tab-btn[data-main-tab="overview"],
     html[data-main-tab="tasks"] .main-tab-btn[data-main-tab="tasks"],
     html[data-main-tab="std"] .main-tab-btn[data-main-tab="std"],

@@ -1,13 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="286" height="112" viewBox="0 0 286 112" role="img" aria-labelledby="stamp-title stamp-desc">
-    <title id="stamp-title">Outgoing QA stamp</title>
-    <desc id="stamp-desc">Distressed blue rectangular stamp reading OUTGOING.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="116" viewBox="0 0 340 116" role="img" aria-labelledby="stamp-title stamp-desc">
+    <title id="stamp-title">As Dispach QA stamp</title>
+    <desc id="stamp-desc">Distressed blue rectangular stamp reading AS DISPACH.</desc>
     <defs>
         <filter id="soft-ink" x="-8%" y="-14%" width="116%" height="128%">
             <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="2" seed="41" result="noise"/>
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.05" xChannelSelector="R" yChannelSelector="G"/>
         </filter>
         <mask id="stamp-wear" maskUnits="userSpaceOnUse">
-            <rect width="286" height="112" fill="#fff"/>
+            <rect width="340" height="116" fill="#fff"/>
             <g fill="#000" opacity=".84">
                 <path d="M29 32h55v6H29zM129 28h38v5h-38zM202 39h48v6h-48z" transform="rotate(7 143 56)"/>
                 <path d="M22 66h42v4H22zM91 75h63v5H91zM181 69h64v5h-64zM237 83h24v4h-24z" transform="rotate(7 143 56)"/>
@@ -25,18 +25,18 @@
             </g>
         </mask>
     </defs>
-    <g transform="rotate(7 143 56)" mask="url(#stamp-wear)" filter="url(#soft-ink)" fill="none" stroke="#9cc4ff" stroke-linejoin="round" stroke-linecap="round">
-        <rect x="18" y="22" width="250" height="68" rx="3" stroke-width="7"/>
-        <rect x="31" y="34" width="224" height="44" rx="1.5" stroke-width="2.5" opacity=".46"/>
-        <text x="143" y="67"
+    <g transform="rotate(7 170 58)" mask="url(#stamp-wear)" filter="url(#soft-ink)" fill="none" stroke="#9cc4ff" stroke-linejoin="round" stroke-linecap="round">
+        <rect x="18" y="22" width="304" height="68" rx="3" stroke-width="7"/>
+        <rect x="31" y="34" width="278" height="44" rx="1.5" stroke-width="2.5" opacity=".46"/>
+        <text x="170" y="67"
               fill="#9cc4ff"
               stroke="none"
               text-anchor="middle"
               font-family="Rockwell, 'Roboto Slab', Georgia, serif"
               font-size="37"
               font-weight="900"
-              letter-spacing="3.6">OUTGOING</text>
-        <path d="M35 84c38 5 69 5 101 2 39-3 79-2 116 2" stroke-width="2" opacity=".22"/>
-        <path d="M39 30c31-4 67-5 103-2 35 3 72 2 107-2" stroke-width="1.8" opacity=".18"/>
+              letter-spacing="3.2">AS DISPACH</text>
+        <path d="M35 84c47 5 83 5 123 2 48-3 96-2 145 2" stroke-width="2" opacity=".22"/>
+        <path d="M39 30c39-4 84-5 128-2 43 3 88 2 130-2" stroke-width="1.8" opacity=".18"/>
     </g>
 </svg>

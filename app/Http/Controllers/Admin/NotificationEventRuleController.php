@@ -88,7 +88,7 @@ class NotificationEventRuleController extends Controller
 
         return redirect()
             ->route('admin.notification-rules.index')
-            ->with('success', 'Notification rule deleted.');
+            ->with('success', 'Notification reset.');
     }
 
     protected function validated(Request $request): array

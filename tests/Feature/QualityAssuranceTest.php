@@ -97,6 +97,8 @@ class QualityAssuranceTest extends TestCase
                 'forms',
             ],
         ]);
+        $this->assertSame('log_card', $response->json('workorder.forms.0.key'));
+        $this->assertNotContains('spf', collect($response->json('workorder.forms'))->pluck('key')->all());
     }
 
     public function test_technician_cannot_open_quality_dashboard(): void
@@ -106,6 +108,31 @@ class QualityAssuranceTest extends TestCase
         $response = $this->actingAs($technician)->getJson(route('quality.index'));
 
         $response->assertForbidden();
+    }
+
+    public function test_log_card_cell_background_color_is_saved_in_json(): void
+    {
+        $manager = $this->createUserWithRole('Manager');
+        $workorder = $this->createWorkorder();
+        LogCard::create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                ['name' => 'Bolt'],
+            ]),
+        ]);
+
+        $response = $this->actingAs($manager)->postJson(route('quality.forms.log_card.update', $workorder), [
+            'side' => 'left',
+            'section' => 'primary',
+            'row' => 0,
+            'field' => 'description',
+            'style' => 'background',
+            'value' => '#d3f9d8',
+        ]);
+
+        $response->assertOk();
+        $rows = json_decode(LogCard::where('workorder_id', $workorder->id)->first()->component_data, true);
+        $this->assertSame('#d3f9d8', $rows[0]['qa_cell_colors']['description']);
     }
 
     public function test_manager_can_upload_quality_documents_to_workorder(): void

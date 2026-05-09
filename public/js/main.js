@@ -605,7 +605,7 @@ window.notify = function (message, type = 'info', durationMs = 6000) {
 };
 
 window.notifySuccess = (msg, ms) => window.notify(msg, 'success', ms ?? 6000);
-window.notifyError   = (msg, ms) => window.notify(msg, 'error',   ms ?? 6000);
+window.notifyError   = (msg, ms) => window.notify(msg, 'error',   ms ?? 5000);
 window.notifyInfo    = (msg, ms) => window.notify(msg, 'info',    ms ?? 6000);
 window.notifyWarn    = (msg, ms) => window.notify(msg, 'warning', ms ?? 6000);
 
@@ -931,6 +931,142 @@ window.hapticTap = function (pattern = 10) {
         });
     }
 
+    function setProcessDateInputLocked(input, locked, reason) {
+        if (!input || input.disabled || input.classList.contains('is-ignored')) return;
+
+        if (!input.dataset.userTitle && input.title && input.title !== reason) {
+            input.dataset.userTitle = input.title;
+        }
+
+        input.toggleAttribute('data-fp-locked', locked);
+        input.readOnly = locked;
+        if (reason !== undefined) {
+            input.title = locked && reason ? reason : (input.dataset.userTitle || input.title || '');
+        }
+
+        const fp = input._flatpickr;
+        if (fp) {
+            try {
+                fp.set('clickOpens', !locked);
+                fp.set('allowInput', !locked);
+            } catch (_) {}
+
+            const alt = fp.altInput;
+            if (alt) {
+                alt.readOnly = locked;
+                alt.classList.toggle('fp-locked', locked);
+                alt.style.cursor = locked ? 'not-allowed' : '';
+                if (locked) {
+                    alt.setAttribute('tabindex', '-1');
+                } else {
+                    alt.removeAttribute('tabindex');
+                }
+                if (reason !== undefined) {
+                    alt.title = locked && reason ? reason : (input.dataset.userTitle || input.title || '');
+                }
+            }
+        }
+    }
+
+    function dateValue(row, name) {
+        return String(row?.querySelector(`input.finish-input[name="${name}"]`)?.value || '').trim();
+    }
+
+    function rowHasAnyDate(row) {
+        return dateValue(row, 'date_start') !== '' || dateValue(row, 'date_finish') !== '';
+    }
+
+    function rowComplete(row) {
+        return dateValue(row, 'date_start') !== '' && dateValue(row, 'date_finish') !== '';
+    }
+
+    function refreshProcessSequenceDateLocks(form) {
+        const table = form?.closest?.('.main-std-processes-block table, .main-parts-processes-block table');
+        if (!table) return;
+
+        const rows = Array.from(table.querySelectorAll('tbody > tr'))
+            .filter((row) => row.querySelector('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]'));
+
+        rows.forEach((row, index) => {
+            const isIgnored = row.classList.contains('std-ignored-row');
+            if (isIgnored) return;
+
+            const previousComplete = rows.slice(0, index).every(rowComplete);
+            const hasLaterDates = rows.slice(index + 1).some(rowHasAnyDate);
+            const lockedBack = hasLaterDates && rowComplete(row);
+            const blockedForward = !previousComplete && !hasLaterDates;
+            const locked = lockedBack || blockedForward;
+            const reason = lockedBack
+                ? 'A later process already has dates.'
+                : (blockedForward ? 'Previous processes must be completed first.' : '');
+
+            row.querySelectorAll('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]').forEach((input) => {
+                setProcessDateInputLocked(input, locked, reason);
+            });
+        });
+    }
+
+    function applyRowDateSavedState(form, data) {
+        if (!data || (!Object.prototype.hasOwnProperty.call(data, 'date_start') && !Object.prototype.hasOwnProperty.call(data, 'date_finish'))) {
+            return false;
+        }
+
+        const table = form?.closest?.('.main-std-processes-block table, .main-parts-processes-block table');
+        if (!table) return false;
+
+        const tr = form.closest('tr');
+        if (!tr || !table.contains(tr)) return false;
+
+        tr.querySelectorAll('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]').forEach(inp => {
+            const field = inp.name;
+            const fpInst = inp._flatpickr;
+            const userField = field === 'date_start' ? 'date_start_user' : 'date_finish_user';
+
+            if (Object.prototype.hasOwnProperty.call(data, field)) {
+                const v = data[field] ?? '';
+                inp.value = v;
+                if (fpInst) {
+                    if (v) {
+                        fpInst.setDate(v, false, 'Y-m-d');
+                    } else {
+                        fpInst.clear(false);
+                    }
+                }
+            }
+
+            if (Object.prototype.hasOwnProperty.call(data, userField)) {
+                const label = field === 'date_start' ? 'Start date' : 'Finish date';
+                const userName = data[userField] || '';
+                const title = userName
+                    ? `${label} last edited by ${userName}`
+                    : `${label} editor: not recorded`;
+                inp.title = title;
+                inp.dataset.userTitle = title;
+                if (fpInst?.altInput) fpInst.altInput.title = title;
+            }
+
+            const hasValue = String(inp.value ?? '').trim() !== '';
+            inp.classList.toggle('has-finish', hasValue);
+            if (inp.classList && inp.classList.contains('paint-native-date')) {
+                inp.classList.toggle('paint-date-empty', !hasValue);
+            }
+
+            const alt = fpInst?.altInput;
+            if (alt && alt.classList.contains('finish-input')) {
+                alt.classList.toggle('has-finish', hasValue);
+            }
+
+            inp.classList.add('is-saved-field');
+            setTimeout(() => inp.classList.remove('is-saved-field'), 800);
+
+            inp.dataset.original = inp.value ?? '';
+        });
+
+        tr.setAttribute('data-closed', rowComplete(tr) ? '1' : '0');
+        refreshProcessSequenceDateLocks(form);
+        return true;
+    }
+
     function applySavedState(form, data) {
         const tr = form.closest('tr');
         const userCell = tr?.querySelector('.js-last-user');
@@ -946,7 +1082,9 @@ window.hapticTap = function (pattern = 10) {
             repairInp.dataset.original = repairInp.value ?? '';
         }
 
-        form.querySelectorAll('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]').forEach(inp => {
+        const rowDatesUpdated = applyRowDateSavedState(form, data);
+
+        if (!rowDatesUpdated) form.querySelectorAll('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]').forEach(inp => {
             const field = inp.name;
             const fpInst = inp._flatpickr;
             const userField = field === 'date_start' ? 'date_start_user' : 'date_finish_user';
@@ -957,7 +1095,7 @@ window.hapticTap = function (pattern = 10) {
                     if (v) {
                         fpInst.setDate(v, false, 'Y-m-d');
                     } else {
-                        fpInst.clear();
+                        fpInst.clear(false);
                     }
                 }
             }
@@ -1042,7 +1180,7 @@ window.hapticTap = function (pattern = 10) {
                 // 1) toast (у тебя уже есть готовый notifyError)
                 const firstMsg = data?.errors ? Object.values(data.errors)?.[0]?.[0] : 'Validation error';
                 if (firstMsg && typeof window.notifyError === 'function') {
-                    window.notifyError(firstMsg, 2500);
+                    window.notifyError(firstMsg, 5000);
                 }
 
                 // 2) сразу очистить невалидные поля (flatpickr + data-original)
@@ -1106,7 +1244,7 @@ window.hapticTap = function (pattern = 10) {
 
         } catch (e) {
             console.error(e);
-            if (typeof window.notifyError === 'function') window.notifyError('Request failed', 2500);
+            if (typeof window.notifyError === 'function') window.notifyError('Request failed', 5000);
         } finally {
             if (form.querySelector('textarea[name="notes"]')) setNotesSaving(form, false);
             form.classList.remove('is-saving');
