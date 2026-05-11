@@ -238,32 +238,59 @@ class AiAgentService
             return null;
         }
 
-        $hasSerialIntent = (bool) preg_match('/\b(s\/?n|sn|serial(?:\s+number)?)\b|серийн|серийник|s\/n/ui', $text);
+        $serialLabel = '(?<![A-Za-z0-9._\/-])(?:s\/?n|sn|serial(?:\s+number)?|серийн\p{L}*(?:\s+номер)?|серийник)(?![A-Za-z0-9._\/-])';
+        $hasSerialIntent = (bool) preg_match('/'.$serialLabel.'/ui', $text);
+        $hasLogCardIntent = (bool) preg_match('/\b(?:log\s*card|rdrs?)\b/ui', $text);
         if (! $hasSerialIntent) {
-            return null;
+            if (! $hasLogCardIntent) {
+                return null;
+            }
+
+            $logCardCandidate = $this->bestSerialLookupToken($text);
+            return $logCardCandidate !== '' ? $logCardCandidate : null;
         }
 
-        if (preg_match('/(?:\b(?:s\/?n|sn|serial(?:\s+number)?)\b|серийн(?:ый|ого|ому|ым|ом|ая|ую|ые|ых)?(?:\s+номер)?|серийник)\s*[:#№-]?\s*([A-Za-z0-9][A-Za-z0-9._\/-]{0,80})/ui', $text, $match)) {
+        $filler = '(?:part|component|detail|details|детал[ьи]|компонент\p{L}*)';
+        if (preg_match('/'.$serialLabel.'\s*[:#№-]?\s*(?:'.$filler.'\s*)?[:#№-]?\s*([A-Za-z0-9][A-Za-z0-9._\/-]{0,80})/ui', $text, $match)) {
             $candidate = $this->cleanSerialLookupCandidate((string) $match[1]);
             if ($candidate !== '') {
+                $tokenCandidate = $this->bestSerialLookupToken($text);
+                if (
+                    $tokenCandidate !== ''
+                    && strlen($tokenCandidate) > strlen($candidate)
+                    && str_contains(mb_strtolower($tokenCandidate), mb_strtolower($candidate))
+                ) {
+                    return $tokenCandidate;
+                }
+
                 return $candidate;
             }
         }
 
-        if (preg_match_all('/[A-Za-z0-9][A-Za-z0-9._\/-]{0,80}/u', $text, $matches)) {
-            $skip = ['sn', 's', 'n', 'serial', 'number', 'find', 'lookup'];
-            $tokens = array_values(array_filter($matches[0], function (string $token) use ($skip) {
-                $normalized = mb_strtolower(trim($token, " \t\n\r\0\x0B:;,.!?()[]{}"));
-
-                return $normalized !== '' && ! in_array($normalized, $skip, true);
-            }));
-
-            if ($tokens !== []) {
-                return $this->cleanSerialLookupCandidate((string) end($tokens));
-            }
+        $tokenCandidate = $this->bestSerialLookupToken($text);
+        if ($tokenCandidate !== '') {
+            return $tokenCandidate;
         }
 
         return null;
+    }
+
+    protected function bestSerialLookupToken(string $text): string
+    {
+        if (! preg_match_all('/[A-Za-z0-9][A-Za-z0-9._\/-]{0,80}/u', $text, $matches)) {
+            return '';
+        }
+
+        $skip = ['sn', 's', 'n', 'serial', 'number', 'find', 'lookup', 'part', 'component', 'detail', 'details'];
+        $tokens = array_values(array_filter($matches[0], function (string $token) use ($skip) {
+            $normalized = mb_strtolower(trim($token, " \t\n\r\0\x0B:;,.!?()[]{}"));
+
+            return $normalized !== '' && ! in_array($normalized, $skip, true);
+        }));
+
+        return $tokens === []
+            ? ''
+            : $this->cleanSerialLookupCandidate((string) end($tokens));
     }
 
     protected function cleanSerialLookupCandidate(string $candidate): string
@@ -618,7 +645,7 @@ What you can actually do in THIS app (strict — if the user asks «what can you
 - lookupWorkorderParts: look up manual/parts lines for a workorder (read-only).
 - lookupManualEditPermissions: from manual_user_permissions — which CMM manuals a user may edit, who may edit a manual, list all manuals with responsible users, and map manual number ↔ LIB (by manual number or LIB fragments); read-only.
 - countWorkorderImages: count images/photos for one workorder, list top workorders with the most images/photos, or return the total/sum of all workorder photos across workorders; return links to open the main page when listing workorders (read-only).
-- lookupSerialNumber: find a serial number / S/N across the app and tell which WO it belongs to. Search workorders, TDR rows, unit inspections, extra process parts, and paint/lost-part records. If a match has no direct WO link, say so plainly.
+- lookupSerialNumber: find a serial number / S/N across the app and tell which WO it belongs to. Search workorders, TDR rows, unit inspections, Log Card received/dispatched rows, extra process parts, and paint/lost-part records. If a match has no direct WO link, say so plainly.
 - UI navigation help: explain where to click in the admin interface using ONLY the «UI NAVIGATION MAP» block below (no tools; no invented menus).
 - Plus: plain-language conversation without accessing the database when no tool is needed.
 

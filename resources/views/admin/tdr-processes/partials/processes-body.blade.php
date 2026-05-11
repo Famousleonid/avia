@@ -58,6 +58,37 @@
         background-color: rgba(13, 202, 240, .07) !important;
         color: inherit;
     }
+    .dir-table.table-hover > tbody > .tdr-process-inline-create-row:hover > td,
+    .dir-table.table-hover > tbody > .tdr-process-inline-create-row:hover > th,
+    .dir-table > tbody > .tdr-process-inline-create-row:focus-within > td,
+    .dir-table > tbody > .tdr-process-inline-create-row:focus-within > th {
+        background-color: rgba(13, 202, 240, .07) !important;
+        color: var(--dir-text) !important;
+    }
+    .processes-modal-body .tdr-processes-table.dir-table.sortable-table.table-hover > tbody > tr.tdr-process-inline-create-row:hover > td,
+    .processes-modal-body .tdr-processes-table.dir-table.sortable-table.table-hover > tbody > tr.tdr-process-inline-create-row:hover > th,
+    .processes-modal-body .tdr-processes-table.dir-table.sortable-table > tbody > tr.tdr-process-inline-create-row:focus-within > td,
+    .processes-modal-body .tdr-processes-table.dir-table.sortable-table > tbody > tr.tdr-process-inline-create-row:focus-within > th {
+        --bs-table-hover-bg: rgba(13, 202, 240, .07);
+        --bs-table-hover-color: var(--dir-text);
+        --bs-table-active-bg: rgba(13, 202, 240, .07);
+        --bs-table-active-color: var(--dir-text);
+        background-color: rgba(13, 202, 240, .07) !important;
+        color: var(--dir-text) !important;
+        box-shadow: none !important;
+    }
+    .dir-table.table-hover > tbody > .tdr-process-inline-create-row:hover > td:first-child::before,
+    .dir-table.table-hover > tbody > .tdr-process-inline-create-row:hover > th:first-child::before,
+    .dir-table > tbody > .tdr-process-inline-create-row:focus-within > td:first-child::before,
+    .dir-table > tbody > .tdr-process-inline-create-row:focus-within > th:first-child::before {
+        background: transparent !important;
+    }
+    .processes-modal-body .tdr-processes-table.dir-table.sortable-table.table-hover > tbody > tr.tdr-process-inline-create-row:hover > td:first-child::before,
+    .processes-modal-body .tdr-processes-table.dir-table.sortable-table.table-hover > tbody > tr.tdr-process-inline-create-row:hover > th:first-child::before,
+    .processes-modal-body .tdr-processes-table.dir-table.sortable-table > tbody > tr.tdr-process-inline-create-row:focus-within > td:first-child::before,
+    .processes-modal-body .tdr-processes-table.dir-table.sortable-table > tbody > tr.tdr-process-inline-create-row:focus-within > th:first-child::before {
+        background: transparent !important;
+    }
     .tdr-process-inline-create-row .form-select,
     .tdr-process-inline-create-row .form-control,
     .tdr-process-inline-process-text {
@@ -87,12 +118,22 @@
         white-space: nowrap;
     }
     .tdr-process-inline-options {
+        background: var(--dir-table-bg);
         border: 1px dotted var(--bs-info);
         border-radius: .35rem;
-        max-height: 140px;
+        box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
+        left: .55rem;
+        max-height: min(240px, 45vh);
         min-height: 32px;
         overflow-y: auto;
         padding: .25rem .4rem;
+        position: absolute;
+        right: .55rem;
+        bottom: calc(100% + 6px);
+        z-index: 30;
+    }
+    .tdr-process-inline-process-cell {
+        position: relative;
     }
     .tdr-process-inline-option {
         align-items: center;
@@ -124,7 +165,7 @@
      data-traveler-group-url="{{ route('tdr-processes.traveler-group', ['tdrId' => $current_tdr->id]) }}"
      data-traveler-ungroup-url="{{ route('tdr-processes.traveler-ungroup', ['tdrId' => $current_tdr->id]) }}">
     <div class="processes-toolbar"></div>
-    <div class="table-wrapper me-3" style="max-height: 55vh; overflow-y: auto; overflow-x: auto;">
+    <div class="table-wrapper me-3">
         <table class="display table table-sm table-hover align-middle bg-gradient dir-table sortable-table tdr-processes-table">
             <colgroup>
                 <col style="width: 12%">
@@ -383,12 +424,12 @@
                         @endforeach
                     </select>
                 </td>
-                <td>
+                <td class="tdr-process-inline-process-cell">
                     <div class="tdr-process-inline-options d-none" data-inline-process-options></div>
                     <div class="tdr-process-inline-process-text text-center text-muted" data-inline-process-text>{{ __('Select process name') }}</div>
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm" data-inline-process-description placeholder="{{ __('Description') }}">
+                    <input type="text" class="form-control form-control-sm" data-inline-process-description placeholder="{{ __('Page & Fig') }}">
                 </td>
                 <td></td>
                 <td class="text-center">

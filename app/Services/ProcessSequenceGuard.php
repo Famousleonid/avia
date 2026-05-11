@@ -31,6 +31,10 @@ class ProcessSequenceGuard
             return null;
         }
 
+        if ($this->isTdrProcessSequenceExempt($process)) {
+            return null;
+        }
+
         $units = $this->tdrUnits((int) $process->tdrs_id);
         $index = $this->findUnitIndex($units, (int) $process->id);
 
@@ -66,6 +70,10 @@ class ProcessSequenceGuard
 
     public function tdrInputState(TdrProcess $process): array
     {
+        if ($this->isTdrProcessSequenceExempt($process)) {
+            return $this->unlockedInputState('Excluded from process sequence.');
+        }
+
         $units = $this->tdrUnits((int) $process->tdrs_id);
         $index = $this->findUnitIndex($units, (int) $process->id);
 
@@ -133,6 +141,12 @@ class ProcessSequenceGuard
             return ['date_start' => ['This process is locked because a later process already has dates.']];
         }
 
+        if (array_key_exists('date_start', $data)
+            && $currentFinish
+            && ($data['date_start'] ?: null) !== ($currentStart ?: null)) {
+            return ['date_start' => ['The sent date is locked because the returned date is already set.']];
+        }
+
         if (! $state['previous_complete'] && ! $state['has_later_dates']) {
             return ['date_start' => ['Previous processes must have sent and returned dates before this process can be started.']];
         }
@@ -191,16 +205,31 @@ class ProcessSequenceGuard
             ->contains(fn (array $unit): bool => $this->unitHasAnyDate($unit));
         $lockedBack = $hasLaterDates && $this->unitComplete($units[$index]);
         $blockedForward = ! $previousComplete && ! $hasLaterDates;
+        $startLockedByFinish = ! empty($units[$index]['date_finish']);
 
         return [
             'previous_complete' => $previousComplete,
             'has_later_dates' => $hasLaterDates,
             'locked_back' => $lockedBack,
-            'date_start_disabled' => $lockedBack || $blockedForward,
+            'date_start_disabled' => $lockedBack || $blockedForward || $startLockedByFinish,
             'date_finish_disabled' => $lockedBack || $blockedForward,
             'reason' => $lockedBack
                 ? 'A later process already has dates.'
-                : ($blockedForward ? 'Previous processes must be completed first.' : ''),
+                : ($blockedForward
+                    ? 'Previous processes must be completed first.'
+                    : ($startLockedByFinish ? 'Returned date already exists.' : '')),
+        ];
+    }
+
+    private function unlockedInputState(string $reason = ''): array
+    {
+        return [
+            'previous_complete' => true,
+            'has_later_dates' => false,
+            'locked_back' => false,
+            'date_start_disabled' => false,
+            'date_finish_disabled' => false,
+            'reason' => $reason,
         ];
     }
 
@@ -217,6 +246,7 @@ class ProcessSequenceGuard
             ->orderBy('id')
             ->get()
             ->filter(fn (TdrProcess $process): bool => optional($process->processName)->show_in_process_picker !== false
+                && ! $this->isTdrProcessSequenceExempt($process)
                 && ! (bool) ($process->ignore_row ?? false))
             ->groupBy(function (TdrProcess $process): string {
                 if ($process->in_traveler) {
@@ -289,6 +319,11 @@ class ProcessSequenceGuard
         $index = $units->search(fn (array $unit): bool => in_array($processId, $unit['ids'], true));
 
         return $index === false ? null : (int) $index;
+    }
+
+    private function isTdrProcessSequenceExempt(TdrProcess $process): bool
+    {
+        return (bool) ($process->processName?->sequence_exempt ?? false);
     }
 
     private function nextSubject(Collection $units, ?int $index): TdrProcess|WorkorderStdProcess|null

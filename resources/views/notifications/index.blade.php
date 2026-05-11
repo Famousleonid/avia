@@ -30,6 +30,11 @@
             background: rgba(255,255,255,.04);
         }
 
+        .notif-chip-info{
+            color: #0dcaf0;
+            font-weight: 700;
+        }
+
         .notif-text{
             white-space: normal;
             word-break: break-word;
@@ -59,6 +64,13 @@
                         $from = $n->from_name ? "From: {$n->from_name}" : "From: System";
                         $time = $n->created_at_human ?? optional($n->created_at)->diffForHumans();
                         $text = $n->text ?? '';
+                        $ui = is_array($n->ui ?? null) ? $n->ui : [];
+                        $payload = is_array($n->payload ?? null) ? $n->payload : [];
+                        $isProcessReady = ($n->type ?? null) === 'workorder' && ($n->event ?? null) === 'process_ready_for_next';
+                        $woNo = data_get($ui, 'workorder.no') ?? data_get($payload, 'workorder_no');
+                        $processName = data_get($ui, 'process.name') ?? data_get($payload, 'process_name');
+                        $previousName = data_get($ui, 'process.previous_name') ?? data_get($payload, 'previous_process_name');
+                        $detail = data_get($ui, 'part.label') ?? data_get($payload, 'detail_label');
                     @endphp
 
                     <div class="notif-item {{ $isUnread ? 'notif-unread' : '' }}" data-notif-id="{{ $n->id }}">
@@ -69,7 +81,29 @@
                                     <div class="text-muted">{{ $time }}</div>
                                 </div>
 
-                                @if($text)
+                                @if($isProcessReady)
+                                    <div class="notif-text text-light small mt-1">
+                                        <span class="badge text-bg-info">PROCESS READY</span>
+                                        @if($woNo)
+                                            <span class="text-warning fw-semibold ms-1">WO #{{ $woNo }}</span>
+                                        @endif
+                                    </div>
+                                    @if($detail)
+                                        <div class="notif-text text-light small mt-1">{{ $detail }}</div>
+                                    @endif
+                                    <div class="notif-text text-light small mt-1">
+                                        Send to
+                                        @if($processName)
+                                            <span class="notif-chip-info">{{ $processName }}</span>
+                                        @else
+                                            next process
+                                        @endif
+                                        .
+                                        @if($previousName)
+                                            Previous process <span class="notif-chip-info">{{ $previousName }}</span> was returned.
+                                        @endif
+                                    </div>
+                                @elseif($text)
                                     <div class="notif-text text-light small mt-1">
                                         {{ $text }}
                                     </div>

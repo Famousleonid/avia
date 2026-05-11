@@ -12,6 +12,7 @@ use App\Notifications\NewMessageNotification;
 use App\Services\Events\BirthdayInTwoDaysEvent;
 use App\Services\Events\BirthdayTodayEvent;
 use App\Services\Events\EventRunner;
+use App\Services\Events\ProcessReadyForNextReminderEvent;
 use App\Services\Events\TdrProcessOverdueStartEvent;
 use App\Services\WorkorderNotifyService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -427,7 +428,7 @@ class NotificationRulesTest extends TestCase
 
     public function test_parts_process_cannot_start_until_previous_process_is_returned(): void
     {
-        $admin = $this->createUserWithRole('Admin');
+        $manager = $this->createUserWithRole('Manager');
         $workorder = $this->createWorkorder();
         $component = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
@@ -457,7 +458,7 @@ class NotificationRulesTest extends TestCase
             'sort_order' => 2,
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAs($manager)
             ->patchJson(route('tdrprocesses.updateDate', $second), [
                 'date_start' => '2026-05-02',
             ])
@@ -467,7 +468,7 @@ class NotificationRulesTest extends TestCase
 
     public function test_parts_process_locks_previous_dates_after_next_process_started(): void
     {
-        $admin = $this->createUserWithRole('Admin');
+        $manager = $this->createUserWithRole('Manager');
         $workorder = $this->createWorkorder();
         $component = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
@@ -499,7 +500,7 @@ class NotificationRulesTest extends TestCase
             'date_start' => '2026-05-03',
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAs($manager)
             ->patchJson(route('tdrprocesses.updateDate', $first), [
                 'date_finish' => '2026-05-04',
             ])
@@ -562,7 +563,7 @@ class NotificationRulesTest extends TestCase
 
     public function test_parts_process_rejects_dates_outside_sequence_order(): void
     {
-        $admin = $this->createUserWithRole('Admin');
+        $manager = $this->createUserWithRole('Manager');
         $workorder = $this->createWorkorder();
         $component = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
@@ -601,21 +602,21 @@ class NotificationRulesTest extends TestCase
             'date_start' => '2026-05-05',
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAs($manager)
             ->patchJson(route('tdrprocesses.updateDate', $second), [
                 'date_finish' => '2026-05-06',
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('date_finish');
 
-        $this->actingAs($admin)
+        $this->actingAs($manager)
             ->patchJson(route('tdrprocesses.updateDate', $second), [
                 'date_start' => '2026-05-01',
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('date_start');
 
-        $this->actingAs($admin)
+        $this->actingAs($manager)
             ->patchJson(route('tdrprocesses.updateDate', $second), [
                 'date_finish' => '2026-05-05',
             ])
@@ -675,13 +676,16 @@ class NotificationRulesTest extends TestCase
             ])
             ->assertOk();
 
-        Notification::assertSentTo($notifyUser, NewMessageNotification::class, function ($notification) use ($admin) {
+        Notification::assertSentTo($notifyUser, NewMessageNotification::class, function ($notification) use ($admin, $component) {
             $data = $notification->toDatabase($admin);
 
             return $data['event'] === 'process_ready_for_next'
                 && $data['title'] === 'Next process ready'
                 && str_contains($data['text'], 'Ready Second')
-                && str_contains($data['text'], 'Ready First');
+                && str_contains($data['text'], 'Ready First')
+                && $data['payload']['part_number'] === $component->part_number
+                && $data['payload']['serial_number'] === 'READY'
+                && str_contains($data['payload']['detail_label'], $component->name);
         });
 
         Notification::assertSentTo($sentAuthor, NewMessageNotification::class, function ($notification) use ($sentAuthor) {
@@ -692,9 +696,82 @@ class NotificationRulesTest extends TestCase
         });
     }
 
+    public function test_ready_for_next_notification_repeats_until_next_sent_date_is_filled(): void
+    {
+        Notification::fake();
+
+        $admin = $this->createUserWithRole('Admin');
+        $recipient = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $recipient->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'READY-' . uniqid(),
+            'name' => 'Ready Repeat Component',
+            'ipl_num' => '3-2',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'READY-REPEAT',
+            'qty' => 1,
+        ]);
+        $firstName = $this->createProcessName('Ready Repeat First');
+        $secondName = $this->createProcessName('Ready Repeat Second');
+
+        $first = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstName->id,
+            'sort_order' => 1,
+            'date_start' => '2026-05-01',
+        ]);
+        $second = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $secondName->id,
+            'sort_order' => 2,
+        ]);
+
+        $this->createRule('tdr_process.ready_for_next', [
+            ['type' => 'dynamic', 'value' => 'workorder_technician'],
+        ], [
+            'name' => 'Next process ready repeat',
+            'title_template' => 'Next process ready',
+            'message_template' => 'WO {workorder_no}: send the detail to {process_name}.',
+            'exclude_actor' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson(route('tdrprocesses.updateDate', $first), [
+                'date_finish' => '2026-05-02',
+            ])
+            ->assertOk();
+
+        Notification::assertSentToTimes($recipient, NewMessageNotification::class, 1);
+
+        \Carbon\Carbon::setTestNow('2026-05-12 06:00:00');
+        app(EventRunner::class)->run([new ProcessReadyForNextReminderEvent()]);
+
+        Notification::assertSentToTimes($recipient, NewMessageNotification::class, 2);
+        Notification::assertSentTo($recipient, NewMessageNotification::class, function ($notification) use ($recipient, $component) {
+            $data = $notification->toDatabase($recipient);
+
+            return $data['event'] === 'process_ready_for_next'
+                && ($data['payload']['part_number'] ?? null) === $component->part_number
+                && ($data['payload']['serial_number'] ?? null) === 'READY-REPEAT'
+                && str_contains((string) ($data['payload']['detail_label'] ?? ''), $component->name);
+        });
+
+        $second->forceFill(['date_start' => '2026-05-12'])->save();
+        \Carbon\Carbon::setTestNow('2026-05-13 06:00:00');
+        app(EventRunner::class)->run([new ProcessReadyForNextReminderEvent()]);
+
+        Notification::assertSentToTimes($recipient, NewMessageNotification::class, 2);
+        \Carbon\Carbon::setTestNow();
+    }
+
     public function test_std_process_cannot_start_until_previous_std_process_is_returned(): void
     {
-        $admin = $this->createUserWithRole('Admin');
+        $manager = $this->createUserWithRole('Manager');
         $workorder = $this->createWorkorder();
         $ndtName = $this->createProcessName('STD NDT List', ['show_in_process_picker' => false]);
         $cadName = $this->createProcessName('STD CAD List', ['show_in_process_picker' => false]);
@@ -711,7 +788,7 @@ class NotificationRulesTest extends TestCase
             'process_name_id' => $cadName->id,
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAs($manager)
             ->patchJson(route('workorder_std_processes.updateDate', $cad), [
                 'date_start' => '2026-05-02',
             ])

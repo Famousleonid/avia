@@ -27,10 +27,14 @@ class ProcessSequenceNotifier
             return;
         }
 
-        $nextProcess->loadMissing(['processName.notifyUser']);
+        $nextProcess->loadMissing($nextProcess instanceof TdrProcess
+            ? ['processName.notifyUser', 'tdr.component']
+            : ['processName.notifyUser', 'sourceTdr.component']
+        );
         $completedProcess->loadMissing(['processName']);
 
         $actor = auth()->user();
+        $detail = $this->detailInfo($nextProcess);
         $msg = [
             'fromUserId' => (int) ($actor?->id ?? 0),
             'fromName' => (string) ($actor?->name ?? 'System'),
@@ -56,6 +60,14 @@ class ProcessSequenceNotifier
                     'previous_date_start_user_id' => (int) ($completedProcess->date_start_user_id ?? 0),
                     'next_date_start_user_id' => (int) ($nextProcess->date_start_user_id ?? 0),
                 ],
+                'part' => [
+                    'name' => $detail['name'],
+                    'number' => $detail['part_number'],
+                    'label' => $detail['label'],
+                ],
+                'unit' => [
+                    'serial_number' => $detail['serial_number'],
+                ],
             ],
             'payload' => [
                 'workorder_id' => $workorder->id,
@@ -63,6 +75,10 @@ class ProcessSequenceNotifier
                 'process_id' => $this->processIdForUrl($nextProcess),
                 'process_name' => $this->processName($nextProcess),
                 'previous_process_name' => $this->processName($completedProcess),
+                'detail_label' => $detail['label'],
+                'part_name' => $detail['name'],
+                'part_number' => $detail['part_number'],
+                'serial_number' => $detail['serial_number'],
                 'previous_date_start_user_id' => (int) ($completedProcess->date_start_user_id ?? 0),
                 'next_date_start_user_id' => (int) ($nextProcess->date_start_user_id ?? 0),
             ],
@@ -127,6 +143,31 @@ class ProcessSequenceNotifier
     private function processName(TdrProcess|WorkorderStdProcess $process): string
     {
         return (string) ($process->processName?->name ?? 'Process');
+    }
+
+    /**
+     * @return array{name: string, part_number: string, serial_number: string, label: string}
+     */
+    private function detailInfo(TdrProcess|WorkorderStdProcess $process): array
+    {
+        $tdr = $process instanceof WorkorderStdProcess ? $process->sourceTdr : $process->tdr;
+        $component = $tdr?->component;
+        $name = trim((string) ($component?->name ?? ''));
+        $partNumber = trim((string) ($component?->part_number ?? ''));
+        $serialNumber = trim((string) ($tdr?->serial_number ?? ''));
+
+        $labelParts = array_filter([
+            $name,
+            $partNumber !== '' ? 'p/n '.$partNumber : '',
+            $serialNumber !== '' ? 's/n '.$serialNumber : '',
+        ]);
+
+        return [
+            'name' => $name,
+            'part_number' => $partNumber,
+            'serial_number' => $serialNumber,
+            'label' => implode(' | ', $labelParts),
+        ];
     }
 
     private function processIdForUrl(TdrProcess|WorkorderStdProcess $process): int

@@ -7,11 +7,13 @@ use App\Models\Code;
 use App\Models\Component;
 use App\Models\LogCard;
 use App\Models\Manual;
+use App\Models\Unit;
 use App\Models\Workorder;
 use App\Services\Quality\QualityAssuranceService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class QualityAssuranceController extends Controller
@@ -28,7 +30,28 @@ class QualityAssuranceController extends Controller
 
     public function index(Request $request)
     {
-        return view('admin.quality.index');
+        $unitOptions = Unit::query()
+            ->with('manual')
+            ->orderBy('part_number')
+            ->get()
+            ->map(fn (Unit $unit) => $this->buildUnitOptionPayload($unit))
+            ->values();
+
+        $manualOptions = Manual::query()
+            ->orderBy('number')
+            ->get()
+            ->map(fn (Manual $manual) => [
+                'id' => (int) $manual->id,
+                'number' => (string) $manual->number,
+                'title' => (string) $manual->title,
+                'lib' => (string) $manual->lib,
+            ])
+            ->values();
+
+        return view('admin.quality.index', [
+            'unitOptions' => $unitOptions,
+            'manualOptions' => $manualOptions,
+        ]);
     }
 
     public function workorder(Request $request)
@@ -75,6 +98,80 @@ class QualityAssuranceController extends Controller
             'normalized' => $number,
             'workorder' => $this->buildSingleWorkorderPayload($workorder),
         ]);
+    }
+
+    public function updateTopFields(Request $request, Workorder $workorder)
+    {
+        $workorder->loadMissing('unit');
+
+        $field = (string) $request->input('field');
+        abort_unless(in_array($field, ['unit_id', 'modified', 'serial'], true), 422);
+
+        $rules = [
+            'field' => ['required', 'in:unit_id,modified,serial'],
+            'value' => ['nullable', 'string', 'max:255'],
+        ];
+
+        if ($field === 'unit_id') {
+            $rules['value'] = ['required', 'integer', 'exists:units,id'];
+        }
+
+        $data = $request->validate($rules);
+        $value = trim((string) ($data['value'] ?? ''));
+
+        match ($field) {
+            'unit_id' => $workorder->forceFill(['unit_id' => (int) $value])->save(),
+            'modified' => $workorder->forceFill(['modified' => $value !== '' ? $value : null])->save(),
+            'serial' => $workorder->forceFill(['serial_number' => $value !== '' ? $value : null])->save(),
+        };
+
+        $workorder->refresh()->load([
+            'customer',
+            'instruction',
+            'main.task',
+            'media',
+            'tdrs.component.manual',
+            'tdrs.conditions',
+            'tdrs.necessaries',
+            'tdrs.codes',
+            'tdrs.tdrProcesses.processName',
+            'unit.manual',
+            'user',
+        ]);
+        $qaRow = $this->qualityAssuranceService->buildWorkorderQaRows(collect([$workorder]))->first();
+
+        return response()->json([
+            'ok' => true,
+            'top' => $this->buildTopPayload($workorder, $qaRow),
+        ]);
+    }
+
+    public function storeUnit(Request $request)
+    {
+        $data = $request->validate([
+            'manual_id' => ['required', 'exists:manuals,id'],
+            'part_number' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('units', 'part_number')
+                    ->where(fn ($query) => $query->where('manual_id', $request->input('manual_id'))),
+            ],
+            'name' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:255'],
+        ], [
+            'part_number.unique' => 'Part number already exists in this CMM.',
+        ]);
+
+        $unit = Unit::query()->create([
+            'manual_id' => (int) $data['manual_id'],
+            'part_number' => $data['part_number'],
+            'name' => $data['name'] ?? null,
+            'description' => $data['description'] ?? null,
+            'verified' => true,
+        ])->load('manual');
+
+        return response()->json($this->buildUnitOptionPayload($unit), 201);
     }
 
     public function shipmentReleaseForm(Request $request, Workorder $workorder)
@@ -488,7 +585,10 @@ class QualityAssuranceController extends Controller
             'customer' => $workorder->customer?->name ?? '-',
             'instruction' => $workorder->instruction?->name ?? '-',
             'technician' => $workorder->user?->name ?? '-',
+            'unit_id' => $workorder->unit_id ? (int) $workorder->unit_id : null,
+            'unit_manual_id' => $workorder->unit?->manual_id ? (int) $workorder->unit->manual_id : null,
             'unit' => $workorder->unit?->part_number ?? '-',
+            'modified' => $workorder->modified ?: '-',
             'serial' => $qaRow['serial_number'],
             'manual' => trim((string) $qaRow['manual_number'] . ' (' . (string) $qaRow['manual_lib'] . ')'),
             'manual_revision' => $this->formatQaDate($manual?->revision_date),
@@ -499,6 +599,20 @@ class QualityAssuranceController extends Controller
             'status' => strtoupper($qaRow['status']),
             'customer_po' => $workorder->customer_po ?: '-',
             'description' => $workorder->description ?: '-',
+        ];
+    }
+
+    private function buildUnitOptionPayload(Unit $unit): array
+    {
+        return [
+            'id' => (int) $unit->id,
+            'part_number' => (string) $unit->part_number,
+            'name' => (string) ($unit->name ?? ''),
+            'description' => (string) ($unit->description ?? ''),
+            'manual_id' => $unit->manual_id ? (int) $unit->manual_id : null,
+            'manual_number' => (string) ($unit->manual?->number ?? ''),
+            'manual_title' => (string) ($unit->manual?->title ?? ''),
+            'manual_lib' => (string) ($unit->manual?->lib ?? ''),
         ];
     }
 
@@ -661,7 +775,7 @@ class QualityAssuranceController extends Controller
             return '-';
         }
 
-        return strtolower(Carbon::parse($date)->format('d.M.Y'));
+        return Carbon::parse($date)->locale('en')->isoFormat('DD/MMM/YYYY');
     }
 
     private function mainTargetUrl(?Workorder $workorder, array $params): string

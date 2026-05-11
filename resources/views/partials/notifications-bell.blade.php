@@ -65,6 +65,10 @@
     .notif-row.sev-success { border-left-color: #198754; }
     .notif-row.sev-warning { border-left-color: #ffc107; }
     .notif-row.sev-danger  { border-left-color: #dc3545; }
+    .notif-chip-info {
+        color: #0dcaf0;
+        font-weight: 700;
+    }
 
     .sidebar-bell .dropdown-menu { z-index: 2080 !important; }
 
@@ -198,6 +202,24 @@
                     `;
                 }
 
+                if (event === 'process_ready_for_next') {
+                    const processName = h(ui?.process?.name ?? n?.payload?.process_name ?? '');
+                    const previousName = h(ui?.process?.previous_name ?? n?.payload?.previous_process_name ?? '');
+                    const detail = h(ui?.part?.label ?? n?.payload?.detail_label ?? '');
+
+                    return `
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="badge text-bg-info">PROCESS READY</span>
+                            <span class="text-warning fw-semibold">WO ${woNo}</span>
+                        </div>
+                        ${detail ? `<div class="small mt-1">${detail}</div>` : ``}
+                        <div class="small mt-1">
+                            Send to ${processName ? `<span class="notif-chip-info">${processName}</span>` : `next process`}.
+                            ${previousName ? `Previous process <span class="notif-chip-info">${previousName}</span> was returned.` : ``}
+                        </div>
+                    `;
+                }
+
                 const label = h(String(event || 'update').toUpperCase());
                 const text = h(n?.text ?? '');
 
@@ -277,9 +299,10 @@
                 const time = escapeHtml(n.created_at_human);
                 const msg = buildMessage(n);
                 const url = n.url ? escapeHtml(n.url) : '';
+                const severity = String(n.severity || 'info').replace(/[^a-z0-9_-]/gi, '').toLowerCase() || 'info';
 
                 return `
-<div class="px-3 py-2 border-bottom notif-row ${url ? 'notif-row-clickable' : ''}"
+<div class="px-3 py-2 border-bottom notif-row sev-${severity} ${url ? 'notif-row-clickable' : ''}"
      data-notif-id="${id}"
      ${url ? `data-url="${url}"` : ''}>
   <div class="d-flex justify-content-between align-items-start gap-2">

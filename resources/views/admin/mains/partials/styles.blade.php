@@ -19,6 +19,7 @@
         --main-bush-strip-bg: rgba(255,255,255,.04);
         --main-bush-strip-active-bg: rgba(13, 202, 240, .12);
         --main-bush-strip-text: #e9ecef;
+        --main-tab-panel-width: var(--initial-main-tab-panel-width, 100%);
     }
 
     html[data-bs-theme="light"] .dir-page {
@@ -220,7 +221,7 @@
     }
 
     .main-tabs-shell {
-        --main-tab-panel-width: 100%;
+        --main-tab-panel-width: var(--initial-main-tab-panel-width, 100%);
         --main-date-col-width: 7.75rem;
         flex: 1 1 auto;
         min-height: 0;
@@ -556,11 +557,15 @@
 
     /* col widths (from your <colgroup>) */
     .tasks-table col.col-ignore {width: 30px;}
-    .tasks-table col.col-tech {width: 10%;}
+    .tasks-table col.col-tech {width: 13%;}
     .tasks-table col.col-start {width: var(--main-date-col-width);}
     .tasks-table col.col-finish {width: var(--main-date-col-width);}
     .tasks-table col.col-log {width: 50px;}
     .tasks-table col.col-task {width: auto;}
+
+    .tasks-table .task-tech-cell {
+        font-size: 0.9em;
+    }
 
 
     /* Flatpickr inputs inside table cells */

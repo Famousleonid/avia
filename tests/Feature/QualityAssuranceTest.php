@@ -129,6 +129,55 @@ class QualityAssuranceTest extends TestCase
         $this->assertNotContains('spf', collect($response->json('workorder.forms'))->pluck('key')->all());
     }
 
+    public function test_manager_can_update_quality_top_workorder_fields(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $unit = $this->createUnit([
+            'part_number' => 'OLD-PN',
+        ]);
+        $newUnit = $this->createUnit([
+            'manual_id' => $unit->manual_id,
+            'part_number' => 'NEW-PN',
+        ]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'modified' => null,
+            'serial_number' => 'OLD-SN',
+        ]);
+
+        $unitResponse = $this->actingAs($manager)->patchJson(route('quality.workorder.top_fields.update', $workorder), [
+            'field' => 'unit_id',
+            'value' => (string) $newUnit->id,
+        ]);
+
+        $unitResponse->assertOk();
+        $unitResponse->assertJsonPath('top.unit', 'NEW-PN');
+        $this->assertSame($newUnit->id, $workorder->fresh()->unit_id);
+        $this->assertSame('OLD-PN', $unit->fresh()->part_number);
+
+        $modifiedResponse = $this->actingAs($manager)->patchJson(route('quality.workorder.top_fields.update', $workorder), [
+            'field' => 'modified',
+            'value' => 'MOD-7',
+        ]);
+
+        $modifiedResponse->assertOk();
+        $modifiedResponse->assertJsonPath('top.modified', 'MOD-7');
+
+        $serialResponse = $this->actingAs($manager)->patchJson(route('quality.workorder.top_fields.update', $workorder), [
+            'field' => 'serial',
+            'value' => 'NEW-SN',
+        ]);
+
+        $serialResponse->assertOk();
+        $serialResponse->assertJsonPath('top.serial', 'NEW-SN');
+
+        $workorder->refresh();
+        $this->assertSame('MOD-7', $workorder->modified);
+        $this->assertSame('NEW-SN', $workorder->serial_number);
+    }
+
     public function test_technician_cannot_open_quality_dashboard(): void
     {
         $technician = $this->createUserWithRole('Technician');

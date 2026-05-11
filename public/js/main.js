@@ -968,8 +968,51 @@ window.hapticTap = function (pattern = 10) {
         }
     }
 
+    function setProcessDateInputMin(input, minDate) {
+        if (!input || input.disabled || input.classList.contains('is-ignored')) return;
+
+        const nextMin = minDate || '';
+        input.dataset.minDate = nextMin;
+
+        const fp = input._flatpickr;
+        if (fp) {
+            try {
+                fp.set('minDate', nextMin || null);
+            } catch (_) {}
+        }
+    }
+
     function dateValue(row, name) {
         return String(row?.querySelector(`input.finish-input[name="${name}"]`)?.value || '').trim();
+    }
+
+    function compareYmd(left, right) {
+        const a = String(left || '').trim();
+        const b = String(right || '').trim();
+        if (!a || !b) return 0;
+
+        return a.localeCompare(b);
+    }
+
+    function restoreProcessDateInput(input) {
+        const original = input?.getAttribute?.('data-original') ?? '';
+        const fp = input?._flatpickr;
+
+        if (fp) {
+            if (original) {
+                fp.setDate(original, false, 'Y-m-d');
+            } else {
+                fp.clear(false);
+            }
+        } else if (input) {
+            input.value = original;
+        }
+
+        const hasValue = String(input?.value ?? '').trim() !== '';
+        input?.classList?.toggle('has-finish', hasValue);
+        if (fp?.altInput) {
+            fp.altInput.classList.toggle('has-finish', hasValue);
+        }
     }
 
     function rowHasAnyDate(row) {
@@ -980,11 +1023,36 @@ window.hapticTap = function (pattern = 10) {
         return dateValue(row, 'date_start') !== '' && dateValue(row, 'date_finish') !== '';
     }
 
+    function applyMainsRightShowAllFilter(root = document) {
+        const checkbox = document.getElementById('showAll');
+        const rightPanel = root.querySelector?.('.bottom-col.right') || document.querySelector('.bottom-col.right');
+        if (!rightPanel) return;
+
+        const showAll = checkbox
+            ? !!checkbox.checked
+            : localStorage.getItem('avia_show_all_right') === '1';
+
+        rightPanel.querySelectorAll('tr[data-closed]').forEach((tr) => {
+            if (tr.dataset.stdRow === '1') {
+                tr.style.display = '';
+                return;
+            }
+
+            const isClosed = tr.dataset.closed === '1';
+            tr.style.display = (!showAll && isClosed) ? 'none' : '';
+        });
+    }
+
+    window.applyMainsRightShowAllFilter = applyMainsRightShowAllFilter;
+
     function refreshProcessSequenceDateLocks(form) {
+        if (window.mainsProcessSequenceBypass === true) return;
+
         const table = form?.closest?.('.main-std-processes-block table, .main-parts-processes-block table');
         if (!table) return;
 
         const rows = Array.from(table.querySelectorAll('tbody > tr'))
+            .filter((row) => row.dataset.sequenceExempt !== '1')
             .filter((row) => row.querySelector('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]'));
 
         rows.forEach((row, index) => {
@@ -995,16 +1063,97 @@ window.hapticTap = function (pattern = 10) {
             const hasLaterDates = rows.slice(index + 1).some(rowHasAnyDate);
             const lockedBack = hasLaterDates && rowComplete(row);
             const blockedForward = !previousComplete && !hasLaterDates;
+            const rowStart = dateValue(row, 'date_start');
+            const rowFinish = dateValue(row, 'date_finish');
+            const previousFinish = index > 0 ? dateValue(rows[index - 1], 'date_finish') : '';
             const locked = lockedBack || blockedForward;
-            const reason = lockedBack
+            const rowReason = lockedBack
                 ? 'A later process already has dates.'
                 : (blockedForward ? 'Previous processes must be completed first.' : '');
 
-            row.querySelectorAll('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]').forEach((input) => {
-                setProcessDateInputLocked(input, locked, reason);
-            });
+            const startInput = row.querySelector('input.finish-input[name="date_start"]');
+            const finishInput = row.querySelector('input.finish-input[name="date_finish"]');
+            const startLocked = locked || !!rowFinish;
+            const startReason = rowFinish
+                ? 'Returned date already exists.'
+                : rowReason;
+            setProcessDateInputLocked(startInput, startLocked, startReason);
+            setProcessDateInputMin(startInput, previousFinish);
+
+            const finishLocked = locked || !rowStart;
+            const finishReason = locked
+                ? rowReason
+                : (!rowStart ? 'Sent date must be filled first.' : '');
+            setProcessDateInputLocked(finishInput, finishLocked, finishReason);
+            setProcessDateInputMin(finishInput, rowStart || previousFinish);
         });
     }
+
+    window.refreshProcessSequenceDateLocks = refreshProcessSequenceDateLocks;
+
+    window.validateMainProcessDateSelection = function (input, nextValue) {
+        if (window.mainsProcessSequenceBypass === true) {
+            return true;
+        }
+
+        if (!input?.matches?.('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]')) {
+            return true;
+        }
+
+        const table = input.closest('.main-std-processes-block table, .main-parts-processes-block table');
+        const row = input.closest('tr');
+        if (!table || !row) return true;
+        if (row.dataset.sequenceExempt === '1') return true;
+
+        const rows = Array.from(table.querySelectorAll('tbody > tr'))
+            .filter((candidate) => candidate.dataset.sequenceExempt !== '1')
+            .filter((candidate) => candidate.querySelector('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]'));
+        const index = rows.indexOf(row);
+        if (index < 0) return true;
+
+        const value = String(nextValue || '').trim();
+        if (!value) return true;
+
+        const start = dateValue(row, 'date_start');
+        const finish = dateValue(row, 'date_finish');
+        const previousFinish = index > 0 ? dateValue(rows[index - 1], 'date_finish') : '';
+        const nextStart = index + 1 < rows.length ? dateValue(rows[index + 1], 'date_start') : '';
+        let message = '';
+
+        if (input.name === 'date_start') {
+            if (previousFinish && compareYmd(value, previousFinish) < 0) {
+                message = 'Sent date cannot be earlier than previous returned date.';
+            } else if (finish && compareYmd(value, finish) > 0) {
+                message = 'Sent date cannot be later than returned date.';
+            }
+        }
+
+        if (input.name === 'date_finish') {
+            if (!start) {
+                message = 'Sent date must be filled first.';
+            } else if (compareYmd(value, start) < 0) {
+                message = 'Returned date cannot be earlier than sent date.';
+            } else if (nextStart && compareYmd(value, nextStart) > 0) {
+                message = 'Returned date cannot be later than next sent date.';
+            }
+        }
+
+        if (!message) return true;
+
+        if (typeof window.notifyError === 'function') {
+            window.notifyError(message, 5000);
+        } else if (typeof window.showNotification === 'function') {
+            window.showNotification(message, 'error', 5000);
+        }
+
+        const visible = input._flatpickr?.altInput || input;
+        visible.classList.add('is-invalid');
+        setTimeout(() => visible.classList.remove('is-invalid'), 1200);
+        restoreProcessDateInput(input);
+        refreshProcessSequenceDateLocks(input.closest('form'));
+
+        return false;
+    };
 
     function applyRowDateSavedState(form, data) {
         if (!data || (!Object.prototype.hasOwnProperty.call(data, 'date_start') && !Object.prototype.hasOwnProperty.call(data, 'date_finish'))) {
@@ -1064,6 +1213,7 @@ window.hapticTap = function (pattern = 10) {
 
         tr.setAttribute('data-closed', rowComplete(tr) ? '1' : '0');
         refreshProcessSequenceDateLocks(form);
+        applyMainsRightShowAllFilter();
         return true;
     }
 

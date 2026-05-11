@@ -2,7 +2,9 @@
 
 namespace App\Services\Ai\Tools;
 
+use App\Models\Component;
 use App\Models\ExtraProcess;
+use App\Models\LogCard;
 use App\Models\Paint;
 use App\Models\Tdr;
 use App\Models\User;
@@ -25,6 +27,7 @@ class LookupSerialNumberTool
             ->merge($this->workorderMatches($user, $serial, $limit))
             ->merge($this->tdrMatches($user, $serial, $limit))
             ->merge($this->unitInspectionMatches($user, $serial, $limit))
+            ->merge($this->logCardMatches($user, $serial, $limit))
             ->merge($this->extraProcessMatches($user, $serial, $limit))
             ->merge($this->paintMatches($serial, $limit))
             ->sortBy(fn (array $match) => ($match['match_type'] ?? null) === 'exact' ? 0 : 1)
@@ -44,7 +47,7 @@ class LookupSerialNumberTool
         return [
             'type' => 'function',
             'name' => 'lookupSerialNumber',
-            'description' => 'Find a part/unit by full or partial serial number across the app and report which workorder it belongs to. Search workorders, TDR component inspections, unit inspections, extra processes, and paint/lost records. Do not expose internal ids.',
+            'description' => 'Find a part/unit by full or partial serial number across the app and report which workorder it belongs to. Search workorders, TDR component inspections, unit inspections, Log Card received/dispatched rows, extra processes, and paint/lost records. Do not expose internal ids.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -200,6 +203,88 @@ class LookupSerialNumberTool
             ->all();
     }
 
+    private function logCardMatches(User $user, string $serial, int $limit): array
+    {
+        $like = '%'.$this->escapeLike($serial).'%';
+
+        $logCards = LogCard::query()
+            ->with(['workorder.customer:id,name'])
+            ->where(function (Builder $query) use ($like): void {
+                $query->where('component_data', 'like', $like)
+                    ->orWhere('component_data_out', 'like', $like);
+            })
+            ->latest('id')
+            ->limit($limit)
+            ->get()
+            ->filter(fn (LogCard $logCard) => $logCard->workorder && $user->can('workorders.view', $logCard->workorder));
+
+        $componentIds = $logCards
+            ->flatMap(fn (LogCard $logCard) => collect([
+                $this->decodeRows($logCard->component_data),
+                $this->decodeRows($logCard->component_data_out),
+            ])->flatten(1))
+            ->pluck('component_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $components = $componentIds->isEmpty()
+            ? collect()
+            : Component::query()
+                ->whereIn('id', $componentIds)
+                ->get(['id', 'name', 'part_number', 'ipl_num'])
+                ->keyBy('id');
+
+        return $logCards
+            ->flatMap(function (LogCard $logCard) use ($serial, $components) {
+                $matches = [];
+
+                foreach ([
+                    'component_data' => 'Log Card as received row',
+                    'component_data_out' => 'Log Card as dispatched row',
+                ] as $field => $source) {
+                    foreach ($this->decodeRows($logCard->{$field}) as $row) {
+                        if (! is_array($row)) {
+                            continue;
+                        }
+
+                        [$matchedField, $matchedSerial] = $this->matchedSerialField($serial, [
+                            $field.' serial_number' => $row['serial_number'] ?? null,
+                            $field.' assy_serial_number' => $row['assy_serial_number'] ?? null,
+                            $field.' serial' => $row['serial'] ?? null,
+                        ]);
+
+                        if ($this->serialMatchType($matchedSerial, $serial) === 'unknown') {
+                            continue;
+                        }
+
+                        $component = isset($row['component_id'])
+                            ? $components->get((int) $row['component_id'])
+                            : null;
+
+                        $matches[] = [
+                            'source' => $source,
+                            'workorder_number' => $logCard->workorder?->number,
+                            'serial_field' => $matchedField,
+                            'serial_number' => $matchedSerial,
+                            'match_type' => $this->serialMatchType($matchedSerial, $serial),
+                            'part_name' => $row['name'] ?? $row['description'] ?? $component?->name,
+                            'part_number' => $row['part_number'] ?? $component?->part_number,
+                            'ipl_num' => $row['ipl_num'] ?? $component?->ipl_num,
+                            'customer' => $logCard->workorder?->customer?->name,
+                            'open_url' => $logCard->workorder ? route('mains.show', $logCard->workorder->id) : null,
+                        ];
+                    }
+                }
+
+                return $matches;
+            })
+            ->take($limit)
+            ->values()
+            ->all();
+    }
+
     private function paintMatches(string $serial, int $limit): array
     {
         return Paint::query()
@@ -259,6 +344,17 @@ class LookupSerialNumberTool
         $field = array_key_first($fields);
 
         return [$field, $fields[$field] ?? null];
+    }
+
+    private function decodeRows(mixed $value): array
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return is_array($value) ? $value : [];
     }
 
     private function serialMatchType(mixed $value, string $needle): string

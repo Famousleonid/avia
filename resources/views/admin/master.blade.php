@@ -212,11 +212,13 @@
         const themeToggleMobile = document.getElementById('themeToggleMobile');
 
         // Tippy подсказки
+        const isMainsPage = document.body?.classList?.contains('page-mains')
+            || window.location.pathname.startsWith('/mains/');
         tippy('[data-tippy-content]', {
             placement: 'top',
             animation: 'scale',
             theme: 'avia-dark',
-            delay: [100, 50],
+            delay: isMainsPage ? [650, 100] : [100, 50],
             allowHTML: true,
         });
 

@@ -392,7 +392,7 @@
 
                                     $activitySideLabel = match ((string) ($meta['side'] ?? '')) {
                                         'left' => 'As received',
-                                        'right' => 'As dispached',
+                                        'right' => 'As dispatched',
                                         default => null,
                                     };
 

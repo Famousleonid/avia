@@ -411,6 +411,7 @@ class TdrProcessController extends Controller
                             'name' => 'EC',
                             'process_sheet_name' => 'EC',
                             'form_number' => 'EC',
+                            'sequence_exempt' => true,
                         ]);
                     } catch (\Exception $e) {
                         Log::error('Error creating ProcessName "EC"', [
@@ -1706,7 +1707,8 @@ class TdrProcessController extends Controller
             return $this->updateTravelerProcessDateFields($request, $tdrProcess, $data, $isAjax);
         }
 
-        if ($errors = app(ProcessSequenceGuard::class)->validateTdrProcessDateUpdate($tdrProcess, $data)) {
+        if (! $this->userCanBypassProcessSequence()
+            && ($errors = app(ProcessSequenceGuard::class)->validateTdrProcessDateUpdate($tdrProcess, $data))) {
             if ($isAjax) {
                 return response()->json(['success' => false, 'errors' => $errors], 422);
             }
@@ -1962,7 +1964,9 @@ class TdrProcessController extends Controller
         $travelerGroup = (int) ($tdrProcess->traveler_group ?: 1);
 
         $tdr = Tdr::query()->find((int) $tdrProcess->tdrs_id);
-        if ($tdr && ($errors = app(ProcessSequenceGuard::class)->validateTravelerGroupDateUpdate($tdr, $travelerGroup, $data))) {
+        if (! $this->userCanBypassProcessSequence()
+            && $tdr
+            && ($errors = app(ProcessSequenceGuard::class)->validateTravelerGroupDateUpdate($tdr, $travelerGroup, $data))) {
             if ($isAjax) {
                 return response()->json(['success' => false, 'errors' => $errors], 422);
             }
@@ -2145,7 +2149,8 @@ class TdrProcessController extends Controller
             return back()->withErrors(['date' => 'No date fields'])->withInput();
         }
 
-        if ($errors = app(ProcessSequenceGuard::class)->validateTravelerGroupDateUpdate($tdr, $travelerGroup, $data)) {
+        if (! $this->userCanBypassProcessSequence()
+            && ($errors = app(ProcessSequenceGuard::class)->validateTravelerGroupDateUpdate($tdr, $travelerGroup, $data))) {
             if ($isAjax) {
                 return response()->json(['success' => false, 'errors' => $errors], 422);
             }
@@ -2464,5 +2469,10 @@ class TdrProcessController extends Controller
         }
 
         return back()->withErrors([$field => $message]);
+    }
+
+    private function userCanBypassProcessSequence(): bool
+    {
+        return auth()->check() && auth()->user()?->isAdmin();
     }
 }

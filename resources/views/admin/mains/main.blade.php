@@ -2,6 +2,40 @@
 
 @section('style')
 
+    <script>
+        (() => {
+            const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
+            const woId = @json((string) ($current_workorder->id ?? ''));
+            const tabKey = woId ? `avia_main_tab_wo_${woId}` : 'avia_main_tab_default';
+
+            let tab = document.documentElement.getAttribute('data-main-tab') || 'overview';
+            try {
+                tab = localStorage.getItem(tabKey) || tab;
+            } catch (error) {}
+
+            if (!allowedTabs.includes(tab)) {
+                tab = 'overview';
+            }
+
+            document.documentElement.setAttribute('data-main-tab', tab);
+
+            if (tab === 'overview') {
+                return;
+            }
+
+            const widthKey = woId
+                ? `avia_main_tab_width_wo_${woId}_${tab}`
+                : `avia_main_tab_width_default_${tab}`;
+
+            try {
+                const width = parseInt(localStorage.getItem(widthKey) || '', 10);
+                if (Number.isFinite(width) && width > 0) {
+                    document.documentElement.style.setProperty('--initial-main-tab-panel-width', `${width}px`);
+                }
+            } catch (error) {}
+        })();
+    </script>
+
     @include('admin.mains.partials.styles')
     <style>
         .fp-locked {
@@ -93,7 +127,11 @@
         $showMainRoVendorColumns = false;
         $vendors = $vendors ?? collect();
         $processSequenceGuard = app(\App\Services\ProcessSequenceGuard::class);
+        $canBypassProcessSequence = auth()->check() && auth()->user()?->isAdmin();
     @endphp
+    <script>
+        window.mainsProcessSequenceBypass = @json($canBypassProcessSequence);
+    </script>
 
     <div class="card dir-page">
         <div class="card-body p-0 shadow-lg">
@@ -223,38 +261,37 @@
                                     <div class="dir-top-info-block border rounded mt-2 p-2">
                                         <div class="dir-top-info-grid">
                                             <div class="dir-top-cell">
-                                                <div class="dir-top-line" data-tippy-content="Component PN: {{ $pnValue }}">
+                                                <div class="dir-top-line">
                                                     <span class="dir-top-k">Component PN:</span>
                                                     <span class="dir-top-v">{{ $pnValue }}</span>
                                                 </div>
-                                                <div class="dir-top-line" data-tippy-content="Technik: {{ $technikValue }}">
+                                                <div class="dir-top-line">
                                                     <span class="dir-top-k">Technik:</span>
                                                     <span class="dir-top-v">{{ $technikValue }}</span>
                                                 </div>
                                             </div>
                                             <div class="dir-top-cell">
-                                                <div class="dir-top-line" data-tippy-content="Serial: {{ $serialValue }}">
+                                                <div class="dir-top-line">
                                                     <span class="dir-top-k">Serial:</span>
                                                     <span class="dir-top-v">{{ $serialValue }}</span>
                                                 </div>
-                                                <div class="dir-top-line" data-tippy-content="Customer: {{ $customerValue }}">
+                                                <div class="dir-top-line">
                                                     <span class="dir-top-k">Customer:</span>
                                                     <span class="dir-top-v">{{ $customerValue }}</span>
                                                 </div>
                                             </div>
                                             <div class="dir-top-cell">
-                                                <div class="dir-top-line" data-tippy-content="Instruction: {{ $instructionValue }}">
+                                                <div class="dir-top-line">
                                                     <span class="dir-top-k">Instruction:</span>
                                                     <span class="dir-top-v">{{ $instructionValue }}</span>
                                                 </div>
-                                                <div class="dir-top-line" data-tippy-content="Manual: {{ $manualValue }}">
+                                                <div class="dir-top-line">
                                                     <span class="dir-top-k">Manual:</span>
                                                     <span class="dir-top-v">{{ $manualValue }}</span>
                                                 </div>
                                             </div>
                                             <div class="dir-top-cell">
-                                                <div class="dir-top-line align-items-center"
-                                                     data-tippy-content="Parts: Ordered {{ $orderedQty ?? 0 }}, Received {{ $receivedQty ?? 0 }}">
+                                                <div class="dir-top-line align-items-center">
                                                     <span class="dir-top-k">Parts:</span>
                                                     <span class="dir-top-v dir-top-v-fit">Ordered: {{ $orderedQty ?? 0 }} | Received: {{ $receivedQty ?? 0 }}</span>
                                                     <button type="button"
@@ -264,8 +301,7 @@
                                                         Parts
                                                     </button>
                                                 </div>
-                                                <div class="dir-top-line"
-                                                     data-tippy-content="Opened: {{ $openedValue }}">
+                                                <div class="dir-top-line">
                                                     <span class="dir-top-k">Opened:</span>
                                                     <span class="dir-top-v">{{ $openedValue }}</span>
                                                     <span class="dir-top-v text-white"> <span class="text-info">Paint queue: &nbsp;</span> {{ ($current_workorder->paint_queue_order+1) ?? '—' }}</span>
@@ -438,7 +474,7 @@
                                                         </td>
 
                                                         {{-- user --}}
-                                                        <td class="js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }} js-last-user"
+                                                        <td class="task-tech-cell js-fade-on-ignore {{ $isIgnored ? 'is-ignored' : '' }} js-last-user"
                                                             data-tippy-content="
                                                                 <span style='color:#adb5bd'>Updated by:</span>
                                                                 <span style='color:#0dcaf0;font-weight:500'>
@@ -1010,9 +1046,9 @@
                                                 $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
                                                 $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
                                                 $stdSequenceState = $processSequenceGuard->stdInputState($pr);
-                                                $stdStartDisabled = $isIgnoredStd || $stdSequenceState['date_start_disabled'];
-                                                $stdFinishDisabled = $isIgnoredStd || $stdSequenceState['date_finish_disabled'];
-                                                $stdSequenceReason = $stdSequenceState['reason'] ?? '';
+                                                $stdStartDisabled = $isIgnoredStd || (! $canBypassProcessSequence && $stdSequenceState['date_start_disabled']);
+                                                $stdFinishDisabled = $isIgnoredStd || (! $canBypassProcessSequence && $stdSequenceState['date_finish_disabled']);
+                                                $stdSequenceReason = $canBypassProcessSequence ? '' : ($stdSequenceState['reason'] ?? '');
                                             @endphp
                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}" data-std-row="1"
                                                 class="{{ $isIgnoredStd ? 'text-muted std-ignored-row' : '' }}">
@@ -1243,9 +1279,9 @@
                                                                     $trStartDateTitle = $trStartEditedBy ? ('Start date last edited by ' . $trStartEditedBy) : 'Start date editor: not recorded';
                                                                     $trFinishDateTitle = $trFinishEditedBy ? ('Finish date last edited by ' . $trFinishEditedBy) : 'Finish date editor: not recorded';
                                                                     $trSequenceState = $processSequenceGuard->travelerGroupInputState($tdr, (int) $travelerGroup);
-                                                                    $trStartDisabled = $trSequenceState['date_start_disabled'];
-                                                                    $trFinishDisabled = $trSequenceState['date_finish_disabled'];
-                                                                    $trSequenceReason = $trSequenceState['reason'] ?? '';
+                                                                    $trStartDisabled = ! $canBypassProcessSequence && $trSequenceState['date_start_disabled'];
+                                                                    $trFinishDisabled = ! $canBypassProcessSequence && $trSequenceState['date_finish_disabled'];
+                                                                    $trSequenceReason = $canBypassProcessSequence ? '' : ($trSequenceState['reason'] ?? '');
                                                                 @endphp
                                                             <tr data-closed="{{ $trClosed ? 1 : 0 }}"
                                                                 data-traveler-row="1"
@@ -1348,12 +1384,14 @@
                                                                     $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
                                                                     $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
                                                                     $processSequenceState = $processSequenceGuard->tdrInputState($pr);
-                                                                    $processStartDisabled = $processSequenceState['date_start_disabled'];
-                                                                    $processFinishDisabled = $processSequenceState['date_finish_disabled'];
-                                                                    $processSequenceReason = $processSequenceState['reason'] ?? '';
+                                                                    $processStartDisabled = ! $canBypassProcessSequence && $processSequenceState['date_start_disabled'];
+                                                                    $processFinishDisabled = ! $canBypassProcessSequence && $processSequenceState['date_finish_disabled'];
+                                                                    $processSequenceReason = $canBypassProcessSequence ? '' : ($processSequenceState['reason'] ?? '');
                                                                 @endphp
 
-                                                            <tr data-closed="{{ $isClosed ? 1 : 0 }}" data-qa-process-id="{{ (int) $pr->id }}">
+                                                            <tr data-closed="{{ $isClosed ? 1 : 0 }}"
+                                                                data-qa-process-id="{{ (int) $pr->id }}"
+                                                                data-sequence-exempt="{{ $pr->processName?->sequence_exempt ? 1 : 0 }}">
                                                                 <td class="text-center small text-info js-last-user"
                                                                     data-tippy-content="
                                                                     <span style='color:#adb5bd'>Updated by:</span>

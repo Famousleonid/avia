@@ -16,18 +16,24 @@ class ProcessName extends Model
     public const MACHINING_EC_MERGE_NAMES = ['Machining', 'Machining (EC)', 'Machining(EC)'];
 
     protected $fillable = [
-        'name','process_sheet_name','form_number','std_days', 'notify_user_id','print_form','show_in_process_picker',
+        'name','process_sheet_name','form_number','std_days', 'notify_user_id','print_form','show_in_process_picker','sequence_exempt',
     ];
     public $timestamps = false;
 
     protected $casts = [
         'show_in_process_picker' => 'boolean',
         'print_form' => 'boolean',
+        'sequence_exempt' => 'boolean',
     ];
 
     public function scopeForPicker($query)
     {
         return $query->where('show_in_process_picker', true);
+    }
+
+    public function isSequenceExempt(): bool
+    {
+        return (bool) ($this->sequence_exempt ?? false);
     }
     public function processes()
     {

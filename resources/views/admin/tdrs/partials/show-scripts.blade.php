@@ -1272,6 +1272,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!addRow || !createRow || !addBtn || !nameSelect || !saveBtn) return;
 
+        function inlineProcessScroller() {
+            return createRow.closest('.table-wrapper');
+        }
+
+        function reserveInlineProcessScrollSpace() {
+            clearInlineProcessScrollSpace();
+        }
+
+        function clearInlineProcessScrollSpace() {
+            var scroller = inlineProcessScroller();
+            if (!scroller) return;
+
+            scroller.style.paddingBottom = '';
+            scroller.style.scrollPaddingBottom = '';
+        }
+
+        function scrollInlineProcessRowIntoView() {
+            var scroller = inlineProcessScroller();
+            if (!scroller) return;
+
+            window.requestAnimationFrame(function() {
+                reserveInlineProcessScrollSpace();
+
+                var rowRect = createRow.getBoundingClientRect();
+                var scrollerRect = scroller.getBoundingClientRect();
+                var footer = document.querySelector('footer.footer');
+                var footerTop = footer ? footer.getBoundingClientRect().top : window.innerHeight;
+                var visibleBottom = Math.min(scrollerRect.bottom, footerTop - 8, window.innerHeight - 8);
+                var bottomOverflow = rowRect.bottom - visibleBottom;
+                var topOverflow = scrollerRect.top - rowRect.top;
+
+                if (bottomOverflow > 0) {
+                    scroller.scrollTop += bottomOverflow + 24;
+                } else if (topOverflow > 0) {
+                    scroller.scrollTop -= topOverflow + 12;
+                }
+            });
+        }
+
         function resetInlineProcessRow() {
             selectedProcessId = '';
             nameSelect.value = '';
@@ -1293,6 +1332,7 @@ document.addEventListener('DOMContentLoaded', function() {
             resetInlineProcessRow();
             createRow.classList.add('d-none');
             addRow.classList.remove('d-none');
+            clearInlineProcessScrollSpace();
         }
 
         function scheduleInlineProcessClose() {
@@ -1318,6 +1358,8 @@ document.addEventListener('DOMContentLoaded', function() {
             resetInlineProcessRow();
             createRow.classList.remove('d-none');
             addRow.classList.add('d-none');
+            reserveInlineProcessScrollSpace();
+            scrollInlineProcessRowIntoView();
             nameSelect.focus();
         });
 
@@ -1409,6 +1451,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         }
                         processOptions.classList.remove('d-none');
+                        scrollInlineProcessRowIntoView();
                     } else {
                         selectedProcessId = processes.length === 1 ? String(processes[0].id) : '';
                     }

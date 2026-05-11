@@ -259,7 +259,7 @@
 
         .qa-info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
             gap: .35rem .75rem;
             padding: .5rem .7rem;
         }
@@ -276,6 +276,162 @@
 
         .qa-info-value {
             overflow-wrap: anywhere;
+        }
+
+        .qa-info-edit {
+            display: block;
+            width: 100%;
+            min-width: 0;
+            border: 0;
+            border-bottom: 1px dashed rgba(13, 202, 240, .6);
+            border-radius: 0;
+            background: transparent;
+            color: var(--bs-body-color);
+            padding: 0;
+            line-height: 1.25;
+        }
+
+        .qa-info-edit:focus {
+            outline: 0;
+            border-bottom-color: var(--bs-info);
+            box-shadow: 0 1px 0 var(--bs-info);
+        }
+
+        .qa-info-edit.is-saving {
+            color: var(--bs-secondary-color);
+        }
+
+        .qa-info-edit.is-invalid {
+            border-bottom-color: var(--bs-danger);
+            box-shadow: 0 1px 0 var(--bs-danger);
+        }
+
+        .qa-info-unit-row {
+            min-width: 0;
+        }
+
+        .qa-info-unit-label-row {
+            display: flex;
+            align-items: center;
+            gap: .3rem;
+            white-space: nowrap;
+        }
+
+        .qa-info-item-component-pn {
+            display: grid;
+            grid-template-columns: max-content minmax(0, 1fr);
+            align-items: center;
+            column-gap: .45rem;
+            grid-column: span 2;
+        }
+
+        .qa-info-item-component-pn .qa-info-label {
+            font-size: .72rem;
+        }
+
+        .qa-info-unit-row .select2-container {
+            width: 100% !important;
+            min-width: 0;
+            transform: none;
+        }
+
+        .qa-info-unit-row .select2-container--default .select2-selection--single {
+            height: 1.25rem !important;
+            min-height: 1.25rem !important;
+            border: 0;
+            border-bottom: 1px dashed rgba(13, 202, 240, .6);
+            border-radius: 0;
+            background: transparent;
+            padding: 0 !important;
+        }
+
+        .qa-info-unit-row .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: var(--bs-body-color);
+            line-height: 1.25rem;
+            padding: 0 1.2rem 0 0 !important;
+            font-size: .92rem;
+        }
+
+        .qa-info-unit-row .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 1.25rem;
+            top: 0;
+            right: 0;
+        }
+
+        .qa-info-unit-row .select2-container--default.select2-container--focus .select2-selection--single {
+            border-bottom-color: var(--bs-info);
+            box-shadow: 0 1px 0 var(--bs-info);
+        }
+
+        .select2-dropdown {
+            min-width: 290px;
+            background-color: #212529;
+            color: var(--bs-body-color);
+            border-color: rgba(255, 255, 255, .18);
+        }
+
+        .select2-dropdown .select2-search__field {
+            background-color: #111;
+            color: var(--bs-body-color);
+            border-color: rgba(255, 255, 255, .18);
+        }
+
+        .select2-results__option--highlighted[aria-selected] {
+            background-color: var(--bs-primary);
+            color: #fff;
+        }
+
+        .qa-unit-manual-muted {
+            color: var(--bs-secondary-color);
+        }
+
+        .qa-info-select {
+            width: 100%;
+            min-width: 0;
+            height: 1.55rem;
+            border: 0;
+            border-bottom: 1px dashed rgba(13, 202, 240, .6);
+            border-radius: 0;
+            background-color: transparent;
+            color: var(--bs-body-color);
+            padding: 0 1.45rem 0 0;
+            line-height: 1.25;
+        }
+
+        .qa-info-select option {
+            background-color: #212529;
+            color: var(--bs-body-color);
+        }
+
+        .qa-info-select:focus {
+            outline: 0;
+            border-bottom-color: var(--bs-info);
+            box-shadow: 0 1px 0 var(--bs-info);
+        }
+
+        .qa-info-select.is-saving {
+            color: var(--bs-secondary-color);
+        }
+
+        .qa-info-select.is-invalid {
+            border-bottom-color: var(--bs-danger);
+            box-shadow: 0 1px 0 var(--bs-danger);
+        }
+
+        .qa-unit-add-button {
+            width: 1rem;
+            height: 1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            background: transparent;
+            padding: 0;
+        }
+
+        .qa-unit-add-button img {
+            width: 16px;
+            height: 16px;
         }
 
         .qa-checks-line {
@@ -524,6 +680,42 @@
         </div>
     </div>
 
+    <div class="modal fade" id="qaAddUnitModal" tabindex="-1" aria-labelledby="qaAddUnitLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-light">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="qaAddUnitLabel">Add Unit</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="qaAddUnitError" class="alert alert-danger py-2 d-none"></div>
+                    <div class="mb-3">
+                        <label for="qaUnitManual" class="form-label">CMM</label>
+                        <select class="form-select" id="qaUnitManual">
+                            <option value="">Select CMM</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="qaUnitPartNumber" class="form-label">PN</label>
+                        <input type="text" class="form-control" id="qaUnitPartNumber" autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label for="qaUnitName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="qaUnitName" autocomplete="off">
+                    </div>
+                    <div class="mb-0">
+                        <label for="qaUnitDescription" class="form-label">Description</label>
+                        <input type="text" class="form-control" id="qaUnitDescription" autocomplete="off">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" id="qaCreateUnitBtn" class="btn btn-outline-primary">Add Unit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="qaPhotoModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content bg-dark text-light">
@@ -547,12 +739,25 @@
             const result = document.getElementById('qaResult');
             const message = document.getElementById('qaMessage');
             const pageLoading = document.getElementById('qaPageLoading');
+            const addUnitModalEl = document.getElementById('qaAddUnitModal');
+            const addUnitError = document.getElementById('qaAddUnitError');
+            const unitManualSelect = document.getElementById('qaUnitManual');
+            const unitPartNumberInput = document.getElementById('qaUnitPartNumber');
+            const unitNameInput = document.getElementById('qaUnitName');
+            const unitDescriptionInput = document.getElementById('qaUnitDescription');
+            const createUnitButton = document.getElementById('qaCreateUnitBtn');
             const photoModalEl = document.getElementById('qaPhotoModal');
             const photoModalTitle = document.getElementById('qaPhotoModalTitle');
             const photoModalBody = document.getElementById('qaPhotoModalBody');
             const endpoint = @json(route('quality.workorder'));
+            const storeUnitEndpoint = @json(route('quality.units.store'));
+            const updateEndpointTemplate = @json(route('quality.workorder.top_fields.update', ['workorder' => '__WORKORDER_ID__']));
+            const unitOptions = @json($unitOptions ?? []);
+            const manualOptions = @json($manualOptions ?? []);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const spinnerHtml = '<span class="qa-dot-spinner" aria-label="Loading"><span></span><span></span><span></span></span>';
             let currentPhotoGroups = [];
+            let currentWorkorder = null;
 
             const escapeHtml = (value) => String(value ?? '')
                 .replace(/&/g, '&amp;')
@@ -602,6 +807,69 @@
                     <div class="qa-info-value">${html ? value : escapeHtml(value || '-')}</div>
                 </div>
             `;
+
+            const editableFieldHtml = (label, value, field) => {
+                const text = value && value !== '-' ? value : '';
+
+                return `
+                    <div class="qa-info-item">
+                        <label class="qa-info-label" for="qaTopField${escapeHtml(field)}">${escapeHtml(label)}</label>
+                        <input id="qaTopField${escapeHtml(field)}"
+                               class="qa-info-edit"
+                               type="text"
+                               value="${escapeHtml(text)}"
+                               placeholder="-"
+                               data-qa-top-field="${escapeHtml(field)}"
+                               data-original-value="${escapeHtml(text)}"
+                               autocomplete="off">
+                    </div>
+                `;
+            };
+
+            const unitLabel = (unit) => {
+                const manual = unit.manual_number ? `(${unit.manual_number})` : '(Manual pending)';
+
+                return `${unit.part_number || '-'} ${manual}`;
+            };
+
+            const unitSelectFieldHtml = (label, selectedUnitId) => {
+                const selected = selectedUnitId ? String(selectedUnitId) : '';
+                const options = [
+                    '<option value="">---</option>',
+                    ...unitOptions.map((unit) => {
+                        const id = String(unit.id);
+                        const manual = unit.manual_number ? `(${unit.manual_number})` : '(Manual pending)';
+
+                        return `<option value="${escapeHtml(id)}"
+                                        data-part-number="${escapeHtml(unit.part_number || '-')}"
+                                        data-manual-label="${escapeHtml(manual)}"
+                                        ${id === selected ? 'selected' : ''}>${escapeHtml(unitLabel(unit))}</option>`;
+                    }),
+                ].join('');
+
+                return `
+                    <div class="qa-info-item qa-info-item-component-pn">
+                        <div class="qa-info-unit-label-row">
+                            <label class="qa-info-label" for="qaTopFieldUnitId">${escapeHtml(label)}</label>
+                            <button type="button"
+                                    class="qa-unit-add-button"
+                                    data-qa-add-unit
+                                    title="Add new unit"
+                                    aria-label="Add new unit">
+                                <img src="{{ asset('img/plus.png') }}" alt="">
+                            </button>
+                        </div>
+                        <div class="qa-info-unit-row">
+                            <select id="qaTopFieldUnitId"
+                                    class="qa-info-select qa-unit-select"
+                                    data-qa-top-field="unit_id"
+                                    data-original-value="${escapeHtml(selected)}">
+                                ${options}
+                            </select>
+                        </div>
+                    </div>
+                `;
+            };
 
             const manualHtml = (value) => {
                 const text = String(value || '-');
@@ -655,24 +923,28 @@
             const renderTop = (wo) => {
                 const top = wo.top || {};
                 const approvedDate = top.approved_at && top.approved_at !== '-' ? top.approved_at : '';
-                const approvalMeta = `
-                    <span class="d-inline-flex align-items-center gap-2">
-                        <span class="${top.approved ? 'text-info' : 'text-secondary'} fw-semibold">${top.approved ? 'Approved' : 'Not approved'}</span>
-                        ${approvedDate ? `<span class="small text-secondary">${escapeHtml(approvedDate)}</span>` : ''}
-                    </span>
-                `;
+            const approvalMeta = `
+                <span class="d-inline-flex align-items-center gap-2">
+                    <span class="${top.approved ? 'text-info' : 'text-secondary'} fw-semibold">${top.approved ? 'Approved' : 'Not approved'}</span>
+                    ${approvedDate ? `<span class="small text-light">${escapeHtml(approvedDate)}</span>` : ''}
+                </span>
+            `;
                 const fields = [
                     ['WO #', wo.number],
                     ['Customer', top.customer],
                     ['Instruction', top.instruction],
                     ['Technician', top.technician],
-                    ['Unit PN', top.unit],
-                    ['Serial #', top.serial],
+                    ['Component PN', top.unit_id, false, 'unit_id'],
+                    ['Modified', top.modified, false, 'modified'],
+                    ['Serial #', top.serial, false, 'serial'],
                     ['Manual', manualHtml(top.manual), true],
                     ['Manual Rev.', top.manual_revision],
                     ['Open Date', top.open_date],
                     ['Customer PO', top.customer_po],
-                ].map(([label, value, html]) => fieldHtml(label, value, html)).join('');
+                ].map(([label, value, html, editable]) => editable
+                    ? (editable === 'unit_id' ? unitSelectFieldHtml(label, value) : editableFieldHtml(label, value, editable))
+                    : fieldHtml(label, value, html)
+                ).join('');
 
                 return blockHtml('Workorder', `<div class="qa-info-grid">${fields}</div>${checksHtml(wo.checks)}`, approvalMeta);
             };
@@ -719,9 +991,7 @@
                             const submittedDateHtml = submittedDateText === 'Missing'
                                 ? mainLinkHtml(submittedDateText, row.submitted_url, submittedDateClass)
                                 : escapeHtml(submittedDateText);
-                            const inspectionDateHtml = inspectionDateText === 'Missing'
-                                ? mainLinkHtml(inspectionDateText, row.inspection_url, inspectionDateClass)
-                                : escapeHtml(inspectionDateText);
+                            const inspectionDateHtml = mainLinkHtml(inspectionDateText, row.inspection_url, inspectionDateClass);
 
                             return `
                             <div class="qa-submitted-card">
@@ -832,6 +1102,7 @@
             };
 
             const renderWorkorder = (wo) => {
+                currentWorkorder = wo;
                 setCurrentWorkorder(wo.number, wo.url);
                 result.innerHTML = `<div class="qa-workorder-layout">${[
                     `<div class="qa-top-row">${renderTop(wo)}${renderForms(wo.forms)}</div>`,
@@ -840,6 +1111,121 @@
                     renderRepairOrders(wo.repair_orders),
                 ].join('')}</div>`;
                 fitPaperLabels(result);
+                initSelect2Controls();
+            };
+
+            const updateEndpoint = (workorderId) => updateEndpointTemplate.replace('__WORKORDER_ID__', encodeURIComponent(workorderId));
+
+            const formatUnitSelect2Option = (option) => {
+                if (!option.id) {
+                    return option.text;
+                }
+
+                const element = option.element;
+                const partNumber = element?.dataset?.partNumber || option.text;
+                const manual = element?.dataset?.manualLabel || '';
+
+                return jQuery('<span></span>')
+                    .append(document.createTextNode(partNumber + ' '))
+                    .append(jQuery('<span></span>').addClass('qa-unit-manual-muted').text(manual));
+            };
+
+            const initSelect2Controls = () => {
+                if (!window.jQuery || !jQuery.fn.select2) return;
+
+                jQuery(result).find('.qa-unit-select').each(function () {
+                    const select = jQuery(this);
+
+                    if (select.data('select2')) {
+                        select.select2('destroy');
+                    }
+
+                    select.select2({
+                        width: '100%',
+                        placeholder: '---',
+                        allowClear: false,
+                        dropdownAutoWidth: true,
+                        templateResult: formatUnitSelect2Option,
+                        templateSelection: formatUnitSelect2Option,
+                    });
+
+                    select.off('change.qaTopUnit').on('change.qaTopUnit', function () {
+                        confirmAndSaveUnitField(this);
+                    });
+                });
+            };
+
+            const confirmAndSaveUnitField = async (select) => {
+                const originalValue = String(select.dataset.originalValue || '');
+                const value = String(select.value || '');
+
+                if (value === originalValue) {
+                    return;
+                }
+
+                const ok = typeof window.confirmDialog === 'function'
+                    ? await window.confirmDialog({
+                        title: 'Change Component PN',
+                        message: 'Change Component PN for this workorder?',
+                        okText: 'Change',
+                        cancelText: 'Cancel',
+                    })
+                    : window.confirm('Change Component PN for this workorder?');
+
+                if (!ok) {
+                    select.value = originalValue;
+                    if (window.jQuery && jQuery.fn.select2) {
+                        jQuery(select).val(originalValue).trigger('change.select2');
+                    }
+                    select.classList.remove('is-invalid');
+                    return;
+                }
+
+                saveTopField(select);
+            };
+
+            const saveTopField = async (input) => {
+                if (!currentWorkorder) return;
+
+                const field = input.dataset.qaTopField || '';
+                const originalValue = input.dataset.originalValue || '';
+                const value = input.value.trim();
+
+                if (value === originalValue) {
+                    return;
+                }
+
+                input.disabled = true;
+                input.classList.remove('is-invalid');
+                input.classList.add('is-saving');
+
+                try {
+                    const response = await fetch(updateEndpoint(currentWorkorder.id), {
+                        method: 'PATCH',
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ field, value }),
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok || !data.ok) {
+                        throw new Error(data.message || 'Could not save field.');
+                    }
+
+                    currentWorkorder.top = data.top || currentWorkorder.top;
+                    message.textContent = '';
+                    renderWorkorder(currentWorkorder);
+                } catch (error) {
+                    input.disabled = false;
+                    input.classList.remove('is-saving');
+                    input.classList.add('is-invalid');
+                    message.textContent = error.message || 'Could not save field.';
+                    input.focus();
+                }
             };
 
             const loadWorkorder = async () => {
@@ -915,7 +1301,113 @@
                 searchInput.focus();
             });
 
+            unitManualSelect.innerHTML = [
+                '<option value="">Select CMM</option>',
+                ...manualOptions.map((manual) => {
+                    const label = [manual.number, manual.title].filter(Boolean).join(' ');
+                    const lib = manual.lib ? ` (${manual.lib})` : '';
+
+                    return `<option value="${escapeHtml(manual.id)}">${escapeHtml(label + lib)}</option>`;
+                }),
+            ].join('');
+
+            if (window.jQuery && jQuery.fn.select2) {
+                jQuery(unitManualSelect).select2({
+                    width: '100%',
+                    placeholder: 'Select CMM',
+                    dropdownParent: jQuery(addUnitModalEl),
+                });
+            }
+
+            const showAddUnitError = (text = '') => {
+                addUnitError.textContent = text;
+                addUnitError.classList.toggle('d-none', text === '');
+            };
+
+            const openAddUnitModal = () => {
+                showAddUnitError();
+                unitPartNumberInput.value = '';
+                unitNameInput.value = '';
+                unitDescriptionInput.value = '';
+                unitManualSelect.value = currentWorkorder?.top?.unit_manual_id || '';
+                if (window.jQuery && jQuery.fn.select2) {
+                    jQuery(unitManualSelect).trigger('change.select2');
+                }
+                bootstrap.Modal.getOrCreateInstance(addUnitModalEl).show();
+                window.setTimeout(() => unitPartNumberInput.focus(), 150);
+            };
+
+            const addOrReplaceUnitOption = (unit) => {
+                const index = unitOptions.findIndex((option) => String(option.id) === String(unit.id));
+
+                if (index === -1) {
+                    unitOptions.push(unit);
+                } else {
+                    unitOptions[index] = unit;
+                }
+
+                unitOptions.sort((a, b) => String(a.part_number || '').localeCompare(String(b.part_number || '')));
+            };
+
+            const createUnit = async () => {
+                const manualId = unitManualSelect.value;
+                const partNumber = unitPartNumberInput.value.trim();
+                const name = unitNameInput.value.trim();
+                const description = unitDescriptionInput.value.trim();
+
+                if (!manualId || !partNumber) {
+                    showAddUnitError('Please select a CMM and enter a PN.');
+                    return;
+                }
+
+                createUnitButton.disabled = true;
+                showAddUnitError();
+
+                try {
+                    const body = { manual_id: manualId, part_number: partNumber };
+                    if (name) body.name = name;
+                    if (description) body.description = description;
+
+                    const response = await fetch(storeUnitEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify(body),
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data?.errors?.part_number?.[0] || data?.message || data?.error || 'Failed to create unit.');
+                    }
+
+                    addOrReplaceUnitOption(data);
+                    bootstrap.Modal.getOrCreateInstance(addUnitModalEl).hide();
+                    renderWorkorder(currentWorkorder);
+
+                    const select = result.querySelector('[data-qa-top-field="unit_id"]');
+                    if (select) {
+                        select.value = String(data.id);
+                        await saveTopField(select);
+                    }
+                } catch (error) {
+                    showAddUnitError(error.message || 'Failed to create unit.');
+                } finally {
+                    createUnitButton.disabled = false;
+                }
+            };
+
             result.addEventListener('click', (event) => {
+                const addUnitButton = event.target.closest('[data-qa-add-unit]');
+                if (addUnitButton) {
+                    event.preventDefault();
+                    openAddUnitModal();
+                    return;
+                }
+
                 const scrollButton = event.target.closest('[data-qa-scroll]');
                 if (scrollButton) {
                     const targetId = scrollButton.getAttribute('data-qa-scroll');
@@ -953,6 +1445,37 @@
                 });
 
                 bootstrap.Modal.getOrCreateInstance(photoModalEl).show();
+            });
+
+            createUnitButton.addEventListener('click', createUnit);
+
+            [unitManualSelect, unitPartNumberInput, unitNameInput, unitDescriptionInput].forEach((field) => {
+                field.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        createUnit();
+                    }
+                });
+            });
+
+            result.addEventListener('keydown', (event) => {
+                const input = event.target.closest('[data-qa-top-field]');
+                if (!input) return;
+
+                if (input.tagName === 'SELECT') return;
+
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    saveTopField(input);
+                    return;
+                }
+
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    input.value = input.dataset.originalValue || '';
+                    input.classList.remove('is-invalid');
+                    input.blur();
+                }
             });
         })();
     </script>

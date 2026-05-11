@@ -268,6 +268,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (src.hasAttribute('data-fp-locked')) return; // 🔒 не сабмитим
 
+                    if (typeof window.validateMainProcessDateSelection === 'function'
+                        && !window.validateMainProcessDateSelection(src, dateStr)) {
+                        return;
+                    }
+
                     const filled = String(dateStr || '').trim() !== '';
                     if (src.classList.contains('finish-input')) {
                         src.classList.toggle('has-finish', filled);
@@ -355,6 +360,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initTaskPicker();
     bindFormSubmit();
     initDatePickers();
+    if (typeof window.refreshProcessSequenceDateLocks === 'function') {
+        document.querySelectorAll('.main-std-processes-block table, .main-parts-processes-block table').forEach((table) => {
+            window.refreshProcessSequenceDateLocks(table);
+        });
+    }
 });
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -43,7 +43,8 @@ class WorkorderStdProcessController extends Controller
             return back()->withErrors(['date' => 'No date fields'])->withInput();
         }
 
-        if ($errors = app(ProcessSequenceGuard::class)->validateStdDateUpdate($stdProcess, $data)) {
+        if (! $this->userCanBypassProcessSequence()
+            && ($errors = app(ProcessSequenceGuard::class)->validateStdDateUpdate($stdProcess, $data))) {
             if ($isAjax) {
                 return response()->json(['success' => false, 'errors' => $errors], 422);
             }
@@ -186,5 +187,10 @@ class WorkorderStdProcessController extends Controller
             'user' => auth()->user()?->name ?? 'system',
             'updated_at' => $updatedAt,
         ]);
+    }
+
+    private function userCanBypassProcessSequence(): bool
+    {
+        return auth()->check() && auth()->user()?->isAdmin();
     }
 }

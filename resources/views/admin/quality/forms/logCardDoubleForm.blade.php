@@ -336,13 +336,22 @@
 
         .qa-footer {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr max-content 1fr;
+            gap: 8px;
             margin-top: 6px;
             font-size: clamp(.55rem, .7vw, .76rem);
         }
 
+        .qa-footer div:nth-child(2) {
+            text-align: center;
+        }
+
         .qa-footer div:last-child {
             text-align: right;
+        }
+
+        .qa-page-notes {
+            margin-top: 18px;
         }
 
         @media (max-width: 1200px) {
@@ -427,7 +436,7 @@
             .qa-edit-saved,
             .qa-edit-error {
                 background: transparent !important;
-                font-size: calc(1em + 2px);
+                font-size: calc((1em + 2px) * 1.1);
                 box-shadow: none;
             }
 
@@ -437,14 +446,64 @@
                 -webkit-print-color-adjust: economy;
             }
 
+            .qa-log-card-top .qa-small {
+                font-size: calc(clamp(.58rem, .72vw, .82rem) * 1.2);
+            }
+
+            .qa-title-fields {
+                margin-bottom: 6px;
+            }
+
             .qa-log-card-page {
-                display: block;
+                display: flex;
+                flex-direction: column;
                 width: 100%;
-                min-height: auto;
-                overflow: visible;
+                height: calc(8.5in - 14mm);
+                min-height: 0;
+                box-sizing: border-box;
+                overflow: hidden;
                 padding: 2mm;
                 break-after: page;
                 page-break-after: always;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .qa-table td {
+                height: 20px;
+                padding-top: 2px;
+                padding-bottom: 2px;
+            }
+
+            .qa-table {
+                font-size: calc(clamp(.55rem, .68vw, .78rem) * 1.1);
+            }
+
+            .qa-table th {
+                padding-top: 2px;
+                padding-bottom: 2px;
+            }
+
+            .qa-notes {
+                font-size: .768rem;
+                line-height: 1.14;
+            }
+
+            .qa-footer {
+                font-size: calc(clamp(.55rem, .7vw, .76rem) * 1.2);
+                transform: translateY(1em);
+            }
+
+            .qa-log-card-page > .qa-footer {
+                margin-top: auto;
+            }
+
+            .qa-log-card-page.is-last-page > .qa-page-notes {
+                margin-top: 7mm;
+            }
+
+            .qa-log-card-page.is-last-page > .qa-footer {
+                margin-top: 6px;
             }
 
             .qa-log-card-page:last-child {
@@ -565,7 +624,7 @@
         $pages = collect();
         $pageRows = collect();
         $usedUnits = 0;
-        $maxUnits = 12;
+        $maxUnits = 14;
 
         foreach ($rows as $row) {
             $units = $primaryRowUnits($row);
@@ -603,8 +662,8 @@
         ],
         'right' => [
             'label' => 'Right',
-            'heading' => 'As dispached',
-            'stamp' => asset('img/quality/qa-stamp-as-dispach.svg'),
+            'heading' => 'As dispatched',
+            'stamp' => asset('img/quality/qa-stamp-as-dispatched.svg'),
             'rows' => $buildRows($componentDataOut),
             'aircraft_rows' => $aircraftRowsFor($componentDataOut),
             'aircraft_colors' => $aircraftColorsFor($componentDataOut),
@@ -632,6 +691,7 @@
     @php
         $label = $card['label'];
         $pages = $paginatePrimaryRows($card['rows']);
+        $totalPages = $pages->count();
     @endphp
     <section id="qaLogCard{{ $label }}Wrap" class="qa-log-card-frame" data-side="{{ $side }}">
         <button class="btn btn-outline-info btn-sm qa-log-card-print" type="button" data-print-side="{{ $side }}">Print {{ $label }}</button>
@@ -641,8 +701,10 @@
             @php
                 $pageRows = $page['rows'];
                 $blankCount = $page['blank_count'];
+                $isFirstPage = $loop->first;
+                $isLastPage = $loop->last;
             @endphp
-            <article class="qa-log-card-page">
+            <article class="qa-log-card-page{{ $isFirstPage ? ' is-first-page' : '' }}{{ $isLastPage ? ' is-last-page' : '' }}">
                 <header class="qa-log-card-top">
                     <div>
                         <img class="qa-logo" src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo">
@@ -664,48 +726,50 @@
                     </div>
                 </header>
 
-                <div class="qa-section-title">AIRCRAFT INSTALLATION RECORDS</div>
-                <table class="qa-table">
-                    <colgroup>
-                        <col style="width: 14%">
-                        <col span="4" style="width: 9%">
-                        <col span="4" style="width: 9%">
-                        <col style="width: 14%">
-                    </colgroup>
-                    <thead>
-                    <tr>
-                        <th rowspan="2">Aircraft Reg./Con.No.</th>
-                        <th colspan="4">FITTED TO AIRCRAFT</th>
-                        <th colspan="4">REMOVED FROM AIRCRAFT</th>
-                        <th rowspan="2">REASON FOR REMOVAL</th>
-                    </tr>
-                    <tr>
-                        <th>DATE</th><th>C.S.O.</th><th>C.S.N.</th><th>A/F CYCLES</th>
-                        <th>DATE</th><th>C.S.O.</th><th>C.S.N.</th><th>A/F CYCLES</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    @foreach($card['aircraft_rows'] as $aircraftIndex => $aircraftRow)
+                @if($isFirstPage)
+                    <div class="qa-section-title">AIRCRAFT INSTALLATION RECORDS</div>
+                    <table class="qa-table">
+                        <colgroup>
+                            <col style="width: 14%">
+                            <col span="4" style="width: 9%">
+                            <col span="4" style="width: 9%">
+                            <col style="width: 14%">
+                        </colgroup>
+                        <thead>
                         <tr>
-                            <td></td>
-                            @foreach(['fit_date', 'fit_cso', 'fit_csn', 'fit_cycles', 'removed_date', 'removed_cso', 'removed_csn', 'removed_cycles', 'reason'] as $field)
-                                @php
-                                    $cellColor = $card['aircraft_colors'][$aircraftIndex][$field] ?? '';
-                                    $style = $cellStyle($cellColor);
-                                @endphp
-                                <td class="qa-center qa-editable{{ $style ? ' qa-colored-cell' : '' }}"
-                                    style="{{ $style }}"
-                                    contenteditable="true"
-                                    data-qa-edit
-                                    data-side="{{ $side }}"
-                                    data-section="aircraft"
-                                    data-row="{{ $aircraftIndex }}"
-                                    data-field="{{ $field }}">{{ $aircraftRow[$field] }}</td>
-                            @endforeach
+                            <th rowspan="2">Aircraft Reg./Con.No.</th>
+                            <th colspan="4">FITTED TO AIRCRAFT</th>
+                            <th colspan="4">REMOVED FROM AIRCRAFT</th>
+                            <th rowspan="2">REASON FOR REMOVAL</th>
                         </tr>
-                    @endforeach
-                    </tbody>
-                </table>
+                        <tr>
+                            <th>DATE</th><th>C.S.O.</th><th>C.S.N.</th><th>A/F CYCLES</th>
+                            <th>DATE</th><th>C.S.O.</th><th>C.S.N.</th><th>A/F CYCLES</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($card['aircraft_rows'] as $aircraftIndex => $aircraftRow)
+                            <tr>
+                                <td></td>
+                                @foreach(['fit_date', 'fit_cso', 'fit_csn', 'fit_cycles', 'removed_date', 'removed_cso', 'removed_csn', 'removed_cycles', 'reason'] as $field)
+                                    @php
+                                        $cellColor = $card['aircraft_colors'][$aircraftIndex][$field] ?? '';
+                                        $style = $cellStyle($cellColor);
+                                    @endphp
+                                    <td class="qa-center qa-editable{{ $style ? ' qa-colored-cell' : '' }}"
+                                        style="{{ $style }}"
+                                        contenteditable="true"
+                                        data-qa-edit
+                                        data-side="{{ $side }}"
+                                        data-section="aircraft"
+                                        data-row="{{ $aircraftIndex }}"
+                                        data-field="{{ $field }}">{{ $aircraftRow[$field] }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                @endif
 
                 <div class="qa-section-title-grid">
                     <div>PRIMARY MEMBER RECORDS</div>
@@ -759,36 +823,39 @@
                     </tbody>
                 </table>
 
-                <section class="qa-notes">
-                    <div>NOTES:</div>
-                    <div>
-                        <div>1. For ultimate lives and/or inspection requirements, refer to Aircraft Airworthiness Data and to the appropriate {{ $manual->reg_sb ?? '' }} Service Bulletin.</div>
-                        <div>2. It is the Operator's responsibility to ensure these records are fully and accurately maintained.</div>
-                        <div>3. Lives of primary members shall be maintained. Failure to comply may result in premature scrap.</div>
-                        <div>4. Should a primary member be removed from the unit it must be suitably tagged to indicate consumed life.</div>
-                        <div>5. If the Part No. is changed a new Log Card must be completed, transferring relevant information from the previous Card.</div>
-                        <div class="qa-note6" data-print-enabled="{{ $card['note6_enabled'] ? '1' : '0' }}">
-                            <input class="qa-note-print-toggle"
-                                   type="checkbox"
-                                   data-qa-note-toggle
-                                   data-side="{{ $side }}"
-                                   @checked($card['note6_enabled'])>
-                            <span>6.</span>
-                            <span>
-                                <span class="qa-editable qa-note6-text"
-                                      contenteditable="true"
-                                      data-qa-edit
-                                      data-side="{{ $side }}"
-                                      data-section="note"
-                                      data-row="0"
-                                      data-field="note6_text">{{ $card['note6_text'] }}</span>
-                            </span>
+                @if($isLastPage)
+                    <section class="qa-notes qa-page-notes">
+                        <div>NOTES:</div>
+                        <div>
+                            <div>1. For ultimate lives and/or inspection requirements, refer to Aircraft Airworthiness Data and to the appropriate {{ $manual->reg_sb ?? '' }} Service Bulletin.</div>
+                            <div>2. It is the Operator's responsibility to ensure these records are fully and accurately maintained.</div>
+                            <div>3. Lives of primary members shall be maintained. Failure to comply may result in premature scrap.</div>
+                            <div>4. Should a primary member be removed from the unit it must be suitably tagged to indicate consumed life.</div>
+                            <div>5. If the Part No. is changed a new Log Card must be completed, transferring relevant information from the previous Card.</div>
+                            <div class="qa-note6" data-print-enabled="{{ $card['note6_enabled'] ? '1' : '0' }}">
+                                <input class="qa-note-print-toggle"
+                                       type="checkbox"
+                                       data-qa-note-toggle
+                                       data-side="{{ $side }}"
+                                       @checked($card['note6_enabled'])>
+                                <span>6.</span>
+                                <span>
+                                    <span class="qa-editable qa-note6-text"
+                                          contenteditable="true"
+                                          data-qa-edit
+                                          data-side="{{ $side }}"
+                                          data-section="note"
+                                          data-row="0"
+                                          data-field="note6_text">{{ $card['note6_text'] }}</span>
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                </section>
+                    </section>
+                @endif
 
                 <footer class="qa-footer">
                     <div>Form #008</div>
+                    <div>{{ $pageIndex + 1 }} of {{ $totalPages }}</div>
                     <div>Rev#0, 15/Dec/2012</div>
                 </footer>
             </article>
@@ -838,8 +905,15 @@
             document.body.classList.remove('print-left', 'print-right');
         });
 
+        const normalizeCellValue = (cell) => cell.innerText.replace(/\s+/g, ' ').trim();
+
         const saveCell = async (cell) => {
-            const value = cell.innerText.replace(/\s+/g, ' ').trim();
+            const value = normalizeCellValue(cell);
+
+            if (value === (cell.dataset.originalValue ?? '')) {
+                cell.classList.remove('qa-edit-saving', 'qa-edit-saved', 'qa-edit-error');
+                return;
+            }
 
             cell.classList.remove('qa-edit-error', 'qa-edit-saved');
             cell.classList.add('qa-edit-saving');
@@ -867,6 +941,7 @@
 
                 cell.classList.remove('qa-edit-saving');
                 cell.classList.add('qa-edit-saved');
+                cell.dataset.originalValue = value;
                 window.setTimeout(() => {
                     cell.classList.remove('qa-edit-saved');
                 }, 500);
@@ -916,6 +991,8 @@
         };
 
         document.querySelectorAll('[data-qa-edit]').forEach((cell) => {
+            cell.dataset.originalValue = normalizeCellValue(cell);
+
             cell.addEventListener('click', (event) => {
                 if (!event.ctrlKey || event.button !== 0 || cell.tagName !== 'TD') {
                     return;

@@ -400,6 +400,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     Route::get('/quality-assurance', [QualityAssuranceController::class, 'index'])->name('quality.index');
     Route::get('/quality-assurance/workorder', [QualityAssuranceController::class, 'workorder'])->name('quality.workorder');
+    Route::post('/quality-assurance/units', [QualityAssuranceController::class, 'storeUnit'])->name('quality.units.store');
+    Route::patch('/quality-assurance/workorders/{workorder}/top-fields', [QualityAssuranceController::class, 'updateTopFields'])
+        ->name('quality.workorder.top_fields.update');
     Route::get('/quality-assurance/workorders/{workorder}/shipment-release-form', [QualityAssuranceController::class, 'shipmentReleaseForm'])
         ->name('quality.forms.shipment_release');
     Route::get('/quality-assurance/workorders/{workorder}/log-card-form', [QualityAssuranceController::class, 'logCardForm'])

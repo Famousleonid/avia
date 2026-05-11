@@ -183,16 +183,18 @@
         .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th,
         .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
         .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th {
-            --bs-table-hover-color: var(--bs-body-color);
-            --bs-table-hover-bg: rgba(13, 110, 253, 0.18);
-            background-color: rgba(13, 110, 253, 0.16) !important;
+            --bs-table-hover-color: var(--dir-text);
+            --bs-table-hover-bg: var(--dir-row-hover);
+            background-color: var(--dir-row-hover) !important;
+            color: var(--dir-text) !important;
         }
         html[data-bs-theme="dark"] .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
         html[data-bs-theme="dark"] .processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th,
         html[data-bs-theme="dark"] .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > td,
         html[data-bs-theme="dark"] .extra-processes-modal-body .sortable-table.table-hover > tbody > tr:hover > th {
-            --bs-table-hover-bg: rgba(110, 168, 254, 0.28);
-            background-color: rgba(110, 168, 254, 0.24) !important;
+            --bs-table-hover-bg: var(--dir-row-hover);
+            background-color: var(--dir-row-hover) !important;
+            color: var(--dir-text) !important;
         }
 
         /* Traveler-блок: фон без table-secondary, чтобы hover совпадал с остальными строками */
@@ -245,6 +247,31 @@
         .processes-modal-body .travel-form-link {
             padding: .05rem .35rem !important;
             line-height: 1.15;
+        }
+        #content-part-processes .card {
+            height: calc(100dvh - 216px);
+            min-height: 0;
+            overflow: hidden;
+        }
+        #componentProcessesTabBody {
+            height: calc(100dvh - 275px) !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+        }
+        #componentProcessesTabBody .processes-modal-body {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            height: 100%;
+            min-height: 0;
+        }
+        #componentProcessesTabBody .processes-modal-body > .table-wrapper {
+            height: auto !important;
+            min-height: 0;
+            max-height: none !important;
+            margin-right: 0 !important;
+            overflow: auto !important;
+            padding-bottom: 0;
+            box-sizing: border-box;
         }
     </style>
 
@@ -542,7 +569,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <div class="card-body p-2 overflow-auto" id="componentProcessesTabBody" style="height: calc(100vh - 280px); min-height: 400px;">
+                            <div class="card-body p-2" id="componentProcessesTabBody">
                                 <div class="text-center py-5 text-muted">{{ __('Click a component processes button to load.') }}</div>
                             </div>
                         </div>
