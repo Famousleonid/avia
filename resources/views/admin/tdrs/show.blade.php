@@ -462,7 +462,15 @@
                 @endif
                 @if($showLogCardTab ?? false)
                 <div id="logCardTabActions" class="d-none d-flex gap-2 align-items-center flex-wrap" style="margin-right: 100px;">
-                    <button type="button" id="logCardEnterDataBtn" class="btn {{ $log_card ? 'btn-danger' : 'btn-success' }} btn-sm" data-has-log="{{ $log_card ? '1' : '0' }}" data-log-card-id="{{ $log_card->id ?? '' }}">
+                    <button type="button"
+                            id="logCardEnterDataBtn"
+                            class="btn {{ $log_card ? 'btn-danger' : 'btn-success' }} btn-sm"
+                            data-has-log="{{ $log_card ? '1' : '0' }}"
+                            data-log-card-id="{{ $log_card->id ?? '' }}"
+                            data-readonly="{{ ($logCardTdrAccess['read_only'] ?? false) ? '1' : '0' }}"
+                            data-readonly-message="{{ $logCardTdrAccess['message'] ?? '' }}"
+                            @disabled($logCardTdrAccess['read_only'] ?? false)
+                            title="{{ $logCardTdrAccess['message'] ?? '' }}">
                         <i class="fas fa-{{ $log_card ? 'undo' : 'keyboard' }}"></i> {{ $log_card ? __('Reset Log card') : __('Create Log card') }}
                     </button>
                     <button type="button" id="logCardSaveBtn" class="btn btn-primary btn-sm d-none">

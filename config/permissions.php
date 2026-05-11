@@ -50,10 +50,4 @@ return [
         'update'  => ['Admin','Manager'],
         'delete'  => ['Admin','Manager'],
     ],
-
-    'manager' => [
-        'qa' => ['Manager'],
-    ],
-
 ];
-

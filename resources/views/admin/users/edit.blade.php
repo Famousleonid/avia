@@ -184,7 +184,6 @@
                                        value="1"
                                     {{ old('manuals_full_access', $user->hasFullManualsAccess()) ? 'checked' : '' }}>
                                 <label for="manuals_full_access" class="form-check-label">Full access to Manuals menu and all manuals</label>
-                                <div class="form-text">Personal override for this user. Works independently from manual-by-manual assignments.</div>
                             </div>
                         </div>
                     </div>
@@ -198,7 +197,6 @@
                                        value="1"
                                     {{ old('can_manage_locked_manual_processes', $user->can_manage_locked_manual_processes) ? 'checked' : '' }}>
                                 <label for="can_manage_locked_manual_processes" class="form-check-label">Can manage locked manual processes in all manuals</label>
-                                <div class="form-text">Allows this user to lock, unlock, update and delete processes that are blocked by a lock.</div>
                             </div>
                         </div>
                         <div class="col-12">
@@ -210,7 +208,6 @@
                                        value="1"
                                     {{ old('can_manage_locked_manual_parts', $user->can_manage_locked_manual_parts) ? 'checked' : '' }}>
                                 <label for="can_manage_locked_manual_parts" class="form-check-label">Can manage locked manual parts in all manuals</label>
-                                <div class="form-text">Allows this user to lock, unlock, create, update and delete parts that are blocked by a lock.</div>
                             </div>
                         </div>
                     </div>
@@ -224,7 +221,6 @@
                                        value="1"
                                     {{ old('qa_access', $user->hasQualityAssuranceAccess()) ? 'checked' : '' }}>
                                 <label for="qa_access" class="form-check-label">Can view and use Quality Assurance page</label>
-                                <div class="form-text">Personal override for QA page access and sidebar menu visibility.</div>
                             </div>
                         </div>
                     </div>

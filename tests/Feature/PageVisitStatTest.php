@@ -78,7 +78,7 @@ class PageVisitStatTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Hidden Admin');
-        $response->assertSee('hidden-stat-admin@example.test');
+        $response->assertDontSee('hidden-stat-admin@example.test');
         $response->assertSee('Visible Technician');
         $response->assertSee('/visible-user-page');
         $response->assertDontSee('/hidden-admin-page');
@@ -116,7 +116,7 @@ class PageVisitStatTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('selected-stat-admin@example.test');
+        $response->assertSee('Selected Stat Admin');
         $response->assertSee('/selected-admin-page');
         $response->assertDontSee('/hidden-technician-page');
     }

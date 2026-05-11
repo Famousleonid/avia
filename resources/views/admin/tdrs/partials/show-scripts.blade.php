@@ -179,6 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var stdProcessesPartialUrl = @json($current_wo->instruction_id == 1 ? route('ndt-cad-csv.partial', ['workorder' => $current_wo->id]) : null);
     var logCardStoreUrl = '{{ route("log_card.store") }}';
     var logCardUpdateUrlTemplate = '{{ route('log_card.update', ['log_card' => 9999991]) }}'.replace('9999991', '__LC__');
+    var logCardInlineFieldUpdateUrlTemplate = '{{ route('log_card.inline_field.update', ['log_card' => 9999991]) }}'.replace('9999991', '__LC__');
     var logCardDeleteUrlTemplate = '{{ route('log_card.destroy', ['log_card' => 9999991]) }}'.replace('9999991', '__LC__');
     var editBushingUrl = '{{ route("wo_bushings.edit", ["wo_bushing" => "__ID__"]) }}';
     var getProcessesBaseUrl = '{{ url("/get-processes") }}';
@@ -408,6 +409,8 @@ document.addEventListener('DOMContentLoaded', function() {
         var shell = document.getElementById('log-card-partial-shell');
         var btn = document.getElementById('logCardEnterDataBtn');
         var lid = shell && shell.getAttribute('data-log-card-id');
+        var readOnly = shell && shell.getAttribute('data-readonly') === '1';
+        var readOnlyMessage = shell ? (shell.getAttribute('data-readonly-message') || '') : '';
         if (btn) {
             if (lid) {
                 btn.setAttribute('data-log-card-id', lid);
@@ -422,6 +425,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.classList.add('btn-success');
                 btn.innerHTML = '<i class="fas fa-keyboard"></i> {{ __("Create Log card") }}';
             }
+
+            btn.dataset.readonly = readOnly ? '1' : '0';
+            btn.dataset.readonlyMessage = readOnlyMessage;
+            btn.disabled = !!readOnly;
+            btn.title = readOnlyMessage;
         }
         var sv = document.getElementById('logCardSaveBtn');
         var cx = document.getElementById('logCardCancelBtn');
@@ -435,6 +443,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 paperWrap.classList.add('d-none');
             }
         }
+    }
+
+    function logCardTabIsReadOnly() {
+        var shell = document.getElementById('log-card-partial-shell');
+        return !!(shell && shell.getAttribute('data-readonly') === '1');
+    }
+
+    function logCardTabReadOnlyMessage() {
+        var shell = document.getElementById('log-card-partial-shell');
+        return shell ? (shell.getAttribute('data-readonly-message') || '') : '';
     }
 
     function logCardTabFindByName(root, fieldName) {
@@ -1833,6 +1851,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var logCardSaveBtn = document.getElementById('logCardSaveBtn');
     var logCardCancelBtn = document.getElementById('logCardCancelBtn');
     var logCardInlineSaveTimer = null;
+    var logCardInlineSaveInFlight = false;
+    var logCardInlineQueuedUpdates = [];
 
     function logCardTabPersistPayload(payload, options) {
         options = options || {};
@@ -1891,6 +1911,97 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
+    function logCardTabPersistInlineField(rowIndex, fieldName, fieldValue) {
+        var metaEl = document.getElementById('log-card-tab-meta');
+        var meta;
+        try { meta = metaEl ? JSON.parse(metaEl.textContent) : {}; } catch (e2) { meta = {}; }
+
+        if (!meta.log_card_id) {
+            return Promise.resolve(false);
+        }
+
+        var fd = new FormData();
+        fd.append('_token', logCardTabCsrfToken());
+        fd.append('_method', 'PATCH');
+        fd.append('row', String(rowIndex));
+        fd.append('field', String(fieldName || ''));
+        fd.append('value', fieldValue == null ? '' : String(fieldValue));
+
+        return fetch(logCardInlineFieldUpdateUrlTemplate.replace('__LC__', String(meta.log_card_id)), {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        })
+            .then(function(r) {
+                return r.json().then(function(data) {
+                    return { ok: r.ok, data: data };
+                }).catch(function() {
+                    return { ok: r.ok, data: {} };
+                });
+            })
+            .then(function(res) {
+                if (res.ok && res.data && res.data.success) {
+                    return true;
+                }
+
+                var errMsg = (res.data && res.data.message)
+                    ? res.data.message
+                    : ((res.data && res.data.errors) ? Object.values(res.data.errors).flat().join(' ') : '{{ __("Could not save.") }}');
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(errMsg, 'error');
+                else if (window.notifyError) window.notifyError(errMsg);
+                return false;
+            })
+            .catch(function() {
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify('{{ __("Request failed.") }}', 'error');
+                return false;
+            });
+    }
+
+    function logCardScheduleNextInlineSave() {
+        if (logCardInlineSaveInFlight || !logCardInlineQueuedUpdates.length) {
+            return;
+        }
+
+        var nextUpdate = logCardInlineQueuedUpdates.shift();
+        logCardInlineSaveInFlight = true;
+
+        logCardTabPersistInlineField(nextUpdate.rowIndex, nextUpdate.fieldName, nextUpdate.fieldValue).finally(function() {
+            logCardInlineSaveInFlight = false;
+            if (logCardInlineQueuedUpdates.length) {
+                logCardScheduleNextInlineSave();
+            }
+        });
+    }
+
+    function logCardEnqueueInlineSave(rowIndex, fieldName, fieldValue) {
+        var updateKey = String(rowIndex) + '::' + String(fieldName);
+        var replaced = false;
+
+        logCardInlineQueuedUpdates = logCardInlineQueuedUpdates.map(function(item) {
+            if (String(item.rowIndex) + '::' + String(item.fieldName) === updateKey) {
+                replaced = true;
+                return {
+                    rowIndex: rowIndex,
+                    fieldName: fieldName,
+                    fieldValue: fieldValue
+                };
+            }
+
+            return item;
+        });
+
+        if (!replaced) {
+            logCardInlineQueuedUpdates.push({
+                rowIndex: rowIndex,
+                fieldName: fieldName,
+                fieldValue: fieldValue
+            });
+        }
+
+        logCardScheduleNextInlineSave();
+    }
+
     function logCardTabReset(logCardId) {
         var fd = new FormData();
         fd.append('_token', logCardTabCsrfToken());
@@ -1927,6 +2038,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (logCardEnterBtn) {
         logCardEnterBtn.addEventListener('click', function() {
+            if (logCardTabIsReadOnly()) {
+                var readOnlyMessage = logCardTabReadOnlyMessage() || '{{ __("Log Card editing is locked. Please contact Quality Manager.") }}';
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(readOnlyMessage, 'warning');
+                return;
+            }
+
             var logCardId = logCardEnterBtn.getAttribute('data-log-card-id') || '';
             if (logCardId) {
                 window.tdrShowConfirm(
@@ -1954,21 +2071,64 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (logCardTabBody) {
         logCardTabBody.addEventListener('change', function(e) {
+            if (logCardTabIsReadOnly()) return;
             var componentRadio = e.target.closest && e.target.closest('.lc-comp-radio');
             if (!componentRadio) return;
             syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
         });
 
-        function logCardQueueInlineSave(e) {
-            var field = e.target.closest && e.target.closest('.lc-saved-field');
-            if (!field) return;
+        function logCardPersistInlineSave(field) {
             clearTimeout(logCardInlineSaveTimer);
+            var row = field && field.closest ? field.closest('.lc-saved-row') : null;
+            if (!field || !row) return;
+
+            var rowIndex = row.dataset.rowIndex;
+            var fieldName = field.name || '';
+            var fieldValue = field.value;
+
             logCardInlineSaveTimer = setTimeout(function() {
-                logCardTabPersistPayload(logCardTabBuildPayload(), { reload: false, notify: false });
+                logCardEnqueueInlineSave(rowIndex, fieldName, fieldValue);
             }, 350);
         }
+
+        function logCardQueueInlineSave(e) {
+            if (logCardTabIsReadOnly()) return;
+            var field = e.target.closest && e.target.closest('.lc-saved-field');
+            if (!field) return;
+
+            var isTextInput = field.tagName === 'INPUT' && field.type === 'text';
+
+            if (isTextInput) {
+                if (e.type === 'input') {
+                    return;
+                }
+
+                if (e.type === 'change' && field.dataset.logCardSkipNextChange === '1') {
+                    field.dataset.logCardSkipNextChange = '0';
+                    return;
+                }
+            }
+
+            logCardPersistInlineSave(field);
+        }
+
         logCardTabBody.addEventListener('change', logCardQueueInlineSave);
         logCardTabBody.addEventListener('input', logCardQueueInlineSave);
+        logCardTabBody.addEventListener('keydown', function(e) {
+            if (logCardTabIsReadOnly()) return;
+            var field = e.target.closest && e.target.closest('.lc-saved-field');
+            var isTextInput = field && field.tagName === 'INPUT' && field.type === 'text';
+            if (!isTextInput || e.key !== 'Enter') return;
+
+            e.preventDefault();
+            field.dataset.logCardSkipNextChange = '1';
+            clearTimeout(logCardInlineSaveTimer);
+            var row = field.closest('.lc-saved-row');
+            if (row) {
+                logCardEnqueueInlineSave(row.dataset.rowIndex, field.name || '', field.value);
+            }
+            if (typeof field.blur === 'function') field.blur();
+        });
     }
     document.addEventListener('click', function(e) {
         var snLink = e.target.closest && e.target.closest('.transfers-partial .change-sn-link');

@@ -32,6 +32,7 @@ use App\Models\Unit;
 //use App\Models\WoCode;
 use App\Models\Workorder;
 use App\Models\NdtCadCsv;
+use App\Services\LogCardTdrAccessService;
 use App\Services\WorkorderStdListProcessesService;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Contracts\Foundation\Application;
@@ -1668,6 +1669,7 @@ class TdrController extends Controller
                 ->get();
         }
         $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
+        $logCardTdrAccess = app(LogCardTdrAccessService::class)->forWorkorder($current_wo, $user);
         $showDestructionCert = LogCardDestructionCertificate::availableFor($current_wo);
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
         $hasBushings = Component::where('manual_id', $manual_id)->where('is_bush', 1)->exists();
@@ -1807,7 +1809,7 @@ class TdrController extends Controller
             'transfersIncomingGroupsWithMultiple', 'transfersHasOutgoingGroup',
             'hasMissingParts', 'missingCondition', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs',
             'hasExtraProcessRecords', 'hasExtraProcessRecordsMoreThanOne', 'showLogCardTab',
-            'showDestructionCert',
+            'showDestructionCert', 'logCardTdrAccess',
             'allowedManualIds', 'canManageManualParts', 'canManageAllManualParts'
         );
     }

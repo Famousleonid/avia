@@ -5,10 +5,18 @@
         .logs-page{height:calc(100vh - 70px);display:flex;flex-direction:column;min-height:0;}
         .logs-card{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;}
         .logs-card .card-body{flex:1 1 auto;min-height:0;padding:0;}
-        .logs-table-wrap{height:100%;overflow:auto;}
+        .logs-table-wrap{height:100%;overflow-y:auto;overflow-x:hidden;}
+        .logs-card .table-responsive{height:100%;overflow-x:hidden;}
+        .logs-table{width:100%;table-layout:fixed;}
         .logs-table thead th{position:sticky;top:0;z-index:2;}
-        .logs-table td, .logs-table th{white-space:nowrap;vertical-align:top;}
-        .logs-table td.props{white-space:normal;min-width:520px;}
+        .logs-table td, .logs-table th{white-space:normal;vertical-align:top;word-break:break-word;overflow-wrap:anywhere;}
+        .logs-table th:nth-child(1), .logs-table td:nth-child(1),
+        .logs-table th:nth-child(2), .logs-table td:nth-child(2),
+        .logs-table th:nth-child(3), .logs-table td:nth-child(3),
+        .logs-table th:nth-child(5), .logs-table td:nth-child(5){white-space:nowrap;overflow-wrap:normal;word-break:normal;}
+        .logs-table td.props{white-space:normal;}
+        .logs-table .props-pre{margin:0;white-space:pre-wrap;word-break:normal;overflow-wrap:break-word;}
+        .logs-table .props-value{color:#fff;font-weight:600;}
     </style>
 @endsection
 
@@ -17,7 +25,7 @@
         <div class="card logs-card dir-panel">
 
             <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                <h5 class="mb-0 text-primary">Activity log (all)</h5>
+                <h5 class="mb-0 text-primary">Activity log ({{ number_format($activities->total()) }})</h5>
 
                 <div class="d-flex gap-2 align-items-center flex-wrap">
                     <form method="POST" action="{{ route('admin.activity.purge') }}" class="d-flex gap-2 align-items-center flex-wrap">
@@ -60,7 +68,7 @@
                         </select>
 
                         <select name="subject_type" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto; max-width:260px">
-                            <option value="all">All subjects</option>
+                            <option value="all">All object types</option>
                             @foreach($subjectTypes as $st)
                                 <option value="{{ $st }}" @selected(request('subject_type','all')===$st)>{{ class_basename($st) }}</option>
                             @endforeach
@@ -101,11 +109,20 @@
                 <div class="logs-table-wrap">
                     <div class="table-responsive">
                         <table class="table table-sm table-dark table-hover table-bordered mb-0 logs-table dir-table">
+                            <colgroup>
+                                <col class="logs-col-date">
+                                <col class="logs-col-user">
+                                <col class="logs-col-type">
+                                <col class="logs-col-object">
+                                <col class="logs-col-event">
+                                <col class="logs-col-old">
+                                <col class="logs-col-new">
+                            </colgroup>
                             <thead>
                             <tr class="text-muted small">
                                 <th class="text-center">Date</th>
                                 <th class="text-center">User</th>
-                                <th class="text-center">Model</th>
+                                <th class="text-center">Object type</th>
                                 <th class="text-start">Object</th>
                                 <th class="text-center">Event</th>
                                 <th class="text-start">Old data</th>
@@ -128,8 +145,55 @@
                                     $changes = (array)($props['changes'] ?? []);
                                     $old = (array)($props['old'] ?? $changes['old'] ?? []);
                                     $new = (array)($props['attributes'] ?? $props['new'] ?? $changes['attributes'] ?? $changes['new'] ?? []);
+                                    $meta = (array) ($props['meta'] ?? []);
 
-                                    $keyLabel = function (string $key): string {
+                                    $decodeLogCardRows = function ($value): array {
+                                        if (is_string($value)) {
+                                            $decoded = json_decode($value, true);
+                                            return is_array($decoded) ? $decoded : [];
+                                        }
+
+                                        return is_array($value) ? $value : [];
+                                    };
+
+                                    $logCardRowsByField = [
+                                        'component_data' => [],
+                                        'component_data_out' => [],
+                                    ];
+
+                                    if ($a->subject_type === \App\Models\LogCard::class && $a->subject) {
+                                        foreach (['component_data', 'component_data_out'] as $logCardField) {
+                                            foreach ($decodeLogCardRows($a->subject->{$logCardField} ?? null) as $rowIndex => $row) {
+                                                if (! is_array($row)) {
+                                                    continue;
+                                                }
+
+                                                $rowName = trim((string) ($row['name'] ?? ''));
+                                                $rowPartNumber = trim((string) ($row['part_number'] ?? ''));
+                                                $parts = array_values(array_filter([$rowName, $rowPartNumber], fn ($value) => $value !== ''));
+                                                $componentId = isset($row['component_id']) && is_numeric($row['component_id'])
+                                                    ? (int) $row['component_id']
+                                                    : null;
+                                                $componentLabel = $componentId ? ($componentMap[$componentId] ?? null) : null;
+
+                                                $logCardRowsByField[$logCardField][(string) $rowIndex] = $parts !== []
+                                                    ? implode(' / ', $parts)
+                                                    : $componentLabel;
+                                            }
+                                        }
+                                    }
+
+                                    $keyLabel = function (string $key) use ($logCardRowsByField): string {
+                                        if (preg_match('/^(component_data|component_data_out)\.(\d+)\.(.+)$/', $key, $matches) === 1) {
+                                            $field = $matches[1];
+                                            $rowIndex = $matches[2];
+                                            $tail = str_replace('_', ' ', $matches[3]);
+                                            $rowBase = "row ".(((int) $rowIndex) + 1);
+                                            $rowLabel = $logCardRowsByField[$field][$rowIndex] ?? null;
+
+                                            return $rowLabel ? "{$rowBase} - {$rowLabel} {$tail}" : "{$rowBase} - {$tail}";
+                                        }
+
                                         return match ($key) {
                                             'workorder_id' => 'workorder',
                                             'general_task_id' => 'general task',
@@ -314,9 +378,28 @@
 
                                     $renderProps = function (array $rows) use ($keyLabel, $formatValue) {
                                         return collect($rows)
-                                            ->map(fn($v, $k) => $keyLabel((string)$k).': '.$formatValue((string)$k, $v))
+                                            ->map(function ($v, $k) use ($keyLabel, $formatValue) {
+                                                return e($keyLabel((string) $k)).': <span class="props-value">'.e($formatValue((string) $k, $v)).'</span>';
+                                            })
                                             ->implode("\n");
                                     };
+
+                                    $activitySourceLabel = match ((string) ($meta['source'] ?? '')) {
+                                        'quality_assurance_log_card_form' => 'QA',
+                                        'tdrs_show_log_card_inline' => 'TDRs',
+                                        default => null,
+                                    };
+
+                                    $activitySideLabel = match ((string) ($meta['side'] ?? '')) {
+                                        'left' => 'As received',
+                                        'right' => 'As dispached',
+                                        default => null,
+                                    };
+
+                                    $activityContextLines = array_values(array_filter([
+                                        $activitySourceLabel ? 'source: '.$activitySourceLabel : null,
+                                        $activitySideLabel ? 'side: '.$activitySideLabel : null,
+                                    ]));
 
                                     $tdrActivityFallback = function (array $old, array $new) use ($formatValue): ?string {
                                         $row = array_merge($old, $new);
@@ -416,6 +499,16 @@
                                         $newText = "first entered:\n".implode("\n", $firstEnteredRows);
                                     }
 
+                                    if ($old === [] && $new === []) {
+                                        $serviceProps = collect($props)
+                                            ->except(['old', 'new', 'attributes', 'changes'])
+                                            ->all();
+
+                                        if ($serviceProps !== []) {
+                                            $newText = $renderProps($serviceProps);
+                                        }
+                                    }
+
                                     $subjectId = is_numeric($a->subject_id) ? (int)$a->subject_id : null;
                                     $subjectName = class_basename($a->subject_type);
                                     $objectText = $subjectId ? "{$subjectName} #{$subjectId}" : $subjectName;
@@ -426,6 +519,16 @@
                                             ? 'manual: '.trim((string) ($subject->number ?? '')).'   lib: '.trim((string) ($subject->lib ?? ''))
                                             : null;
                                         $objectText = $manualMap[$subjectId] ?? $fallback ?? $objectText;
+                                    } elseif ($a->subject_type === \App\Models\LogCard::class && $subjectId) {
+                                        $subjectWorkorderId = $subject->workorder_id ?? null;
+                                        $newWorkorderId = $new['workorder_id'] ?? null;
+                                        $oldWorkorderId = $old['workorder_id'] ?? null;
+                                        $workorderSourceId = is_numeric($subjectWorkorderId)
+                                            ? (int) $subjectWorkorderId
+                                            : (is_numeric($newWorkorderId) ? (int) $newWorkorderId : (is_numeric($oldWorkorderId) ? (int) $oldWorkorderId : null));
+
+                                        $label = $workorderSourceId ? ($workorderMap[$workorderSourceId] ?? null) : null;
+                                        $objectText = $label ? "log card: WO #{$label}" : $objectText;
                                     } elseif ($a->subject_type === \App\Models\Component::class && $subjectId) {
                                         $fallback = $subject
                                             ? trim(((string) ($subject->part_number ?? '')).' '.((string) ($subject->name ?? '')))
@@ -545,17 +648,28 @@
                                         $workorderId = (int)$a->subject->workorder_id;
                                     }
 
-                                    if ($workorderId !== null && $workorderId > 0 && $a->subject_type !== \App\Models\Workorder::class && $a->subject_type !== \App\Models\Tdr::class) {
+                                    if (
+                                        $workorderId !== null
+                                        && $workorderId > 0
+                                        && $a->subject_type !== \App\Models\Workorder::class
+                                        && $a->subject_type !== \App\Models\Tdr::class
+                                        && $a->subject_type !== \App\Models\LogCard::class
+                                    ) {
                                         $workorderNumber = $workorderMap[$workorderId] ?? null;
                                         $objectText .= $workorderNumber ? "   wo: {$workorderNumber}" : "   wo id: {$workorderId}";
                                     }
+
+                                    $objectMetaText = $activityContextLines !== []
+                                        ? implode("\n", $activityContextLines)
+                                        : null;
                                 @endphp
                                 <tr>
-                                    <td class="text-center small">{{ $a->created_at?->format('d.m.Y H:i') }}</td>
+                                    <td class="text-center small">{{ $a->created_at ? $a->created_at->format('d').'.'.\Illuminate\Support\Str::lower($a->created_at->format('M')).'.'.$a->created_at->format('Y H:i') : '—' }}</td>
                                     <td class="text-center small">{{ $a->causer?->name ?? 'system' }}</td>
                                     <td class="text-center small text-info">{{ class_basename($a->subject_type) }}</td>
                                     <td class="props small">
-                                        <pre class="mb-0" style="white-space:pre-wrap;word-break:break-word;">{{ $objectText }}</pre>
+                                        <pre class="props-pre">{{ $objectText }}@if($objectMetaText)
+{{ $objectMetaText }}@endif</pre>
                                     </td>
                                     <td class="text-center">
                                     <span class="badge {{ $eventClass }}">
@@ -563,10 +677,10 @@
                                     </span>
                                     </td>
                                     <td class="props small">
-                                        <pre class="mb-0" style="white-space:pre-wrap;word-break:break-word;">{{ $oldText }}</pre>
+                                        <pre class="props-pre">{!! $oldText !!}</pre>
                                     </td>
                                     <td class="props small">
-                                        <pre class="mb-0" style="white-space:pre-wrap;word-break:break-word;">{{ $newText }}</pre>
+                                        <pre class="props-pre">{!! $newText !!}</pre>
                                     </td>
                                 </tr>
                             @empty
@@ -596,6 +710,8 @@
             const modal = document.getElementById('useConfirmDelete');
             const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
             let deleteForm = null;
+            const logsTableWrap = document.querySelector('.logs-table-wrap');
+            const logsTable = document.querySelector('.logs-table');
 
             if (modal && confirmDeleteBtn) {
                 modal.addEventListener('show.bs.modal', function (event) {
@@ -616,6 +732,86 @@
                     }
                 });
             }
+
+            const setColumnWidth = (selector, width) => {
+                const col = logsTable ? logsTable.querySelector(selector) : null;
+                if (col) {
+                    col.style.width = width;
+                }
+            };
+
+            const measureContentWidth = (cell) => {
+                const probe = document.createElement('div');
+                const cellStyles = window.getComputedStyle(cell);
+
+                probe.style.position = 'absolute';
+                probe.style.visibility = 'hidden';
+                probe.style.pointerEvents = 'none';
+                probe.style.left = '-99999px';
+                probe.style.top = '0';
+                probe.style.width = 'max-content';
+                probe.style.maxWidth = 'none';
+                probe.style.whiteSpace = 'nowrap';
+                probe.style.font = cellStyles.font;
+                probe.style.fontFamily = cellStyles.fontFamily;
+                probe.style.fontSize = cellStyles.fontSize;
+                probe.style.fontWeight = cellStyles.fontWeight;
+                probe.style.letterSpacing = cellStyles.letterSpacing;
+                probe.style.textTransform = cellStyles.textTransform;
+                probe.style.padding = cellStyles.padding;
+                probe.style.border = cellStyles.border;
+                probe.style.boxSizing = cellStyles.boxSizing;
+                probe.textContent = cell.textContent || '';
+
+                document.body.appendChild(probe);
+                const width = Math.ceil(probe.getBoundingClientRect().width);
+                probe.remove();
+
+                return width;
+            };
+
+            const measureColumnWidth = (index) => {
+                if (!logsTable) {
+                    return 0;
+                }
+
+                const cells = logsTable.querySelectorAll(`thead th:nth-child(${index}), tbody td:nth-child(${index})`);
+                let maxWidth = 0;
+
+                cells.forEach((cell) => {
+                    maxWidth = Math.max(maxWidth, measureContentWidth(cell));
+                });
+
+                return maxWidth + 8;
+            };
+
+            const applyLogsTableLayout = () => {
+                if (!logsTableWrap || !logsTable) {
+                    return;
+                }
+
+                const containerWidth = logsTableWrap.clientWidth;
+                if (!containerWidth) {
+                    return;
+                }
+
+                const dateWidth = measureColumnWidth(1);
+                const userWidth = measureColumnWidth(2);
+                const typeWidth = measureColumnWidth(3);
+                const fixedWidth = dateWidth + userWidth + typeWidth;
+                const remainingWidth = Math.max(containerWidth - fixedWidth, 480);
+
+                setColumnWidth('.logs-col-date', `${dateWidth}px`);
+                setColumnWidth('.logs-col-user', `${userWidth}px`);
+                setColumnWidth('.logs-col-type', `${typeWidth}px`);
+                setColumnWidth('.logs-col-object', `${Math.floor(remainingWidth * 0.20)}px`);
+                setColumnWidth('.logs-col-event', `${Math.floor(remainingWidth * 0.08)}px`);
+                setColumnWidth('.logs-col-old', `${Math.floor(remainingWidth * 0.36)}px`);
+                setColumnWidth('.logs-col-new', `${Math.floor(remainingWidth * 0.36)}px`);
+            };
+
+            applyLogsTableLayout();
+            window.addEventListener('resize', applyLogsTableLayout);
         });
     </script>
 @endsection

@@ -155,6 +155,7 @@ class QualityAssuranceController extends Controller
         abort_unless(in_array($data['field'], $allowedFields, true), 422);
 
         $logCard = LogCard::firstOrCreate(['workorder_id' => $workorder->id]);
+        $wasRecentlyCreated = $logCard->wasRecentlyCreated;
         $sourceRows = $this->decodeLogCardRows($logCard->component_data);
         $targetColumn = $data['side'] === 'right' ? 'component_data_out' : 'component_data';
         $rows = $data['side'] === 'right'
@@ -166,6 +167,10 @@ class QualityAssuranceController extends Controller
         }
 
         $style = $data['style'] ?? 'text';
+        $activityPath = $this->logCardActivityPath($data, $style);
+        $beforeValue = data_get($rows, $activityPath);
+        $beforeComparable = $this->normalizeLogCardActivityComparable($beforeValue);
+
         if ($style === 'background') {
             abort_unless(in_array($data['section'], ['aircraft', 'primary'], true), 422);
             $color = trim((string) ($data['value'] ?? ''));
@@ -224,7 +229,30 @@ class QualityAssuranceController extends Controller
         $logCard->{$targetColumn} = $targetColumn === 'component_data'
             ? json_encode(array_values($rows), JSON_UNESCAPED_UNICODE)
             : array_values($rows);
-        $logCard->save();
+
+        $afterRows = $this->decodeLogCardRows($logCard->{$targetColumn});
+        $afterValue = data_get($afterRows, $activityPath);
+        $afterComparable = $this->normalizeLogCardActivityComparable($afterValue);
+
+        if ($beforeComparable !== $afterComparable) {
+            $logCard->save();
+            if ($wasRecentlyCreated) {
+                $logCard->logActivityEvent('created', [], LogCard::summarizeForActivity($logCard));
+            }
+            $logCard->logActivityEvent(
+                'updated',
+                [$targetColumn.'.'.$activityPath => $beforeValue],
+                [$targetColumn.'.'.$activityPath => $afterValue],
+                [
+                    'source' => 'quality_assurance_log_card_form',
+                    'side' => $data['side'],
+                    'section' => $data['section'],
+                    'row' => (int) $data['row'],
+                    'field' => $data['field'],
+                    'style' => $style,
+                ]
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -248,6 +276,56 @@ class QualityAssuranceController extends Controller
             ->filter(fn ($row, $key) => is_int($key) && is_array($row))
             ->values()
             ->all();
+    }
+
+    private function normalizeLogCardActivityComparable(mixed $value): mixed
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if (is_string($value)) {
+            return trim($value);
+        }
+
+        return $value;
+    }
+
+    private function logCardActivityPath(array $data, string $style): string
+    {
+        $row = (int) $data['row'];
+        $field = (string) $data['field'];
+
+        if ($style === 'background') {
+            return $data['section'] === 'aircraft'
+                ? "0.qa_aircraft_cell_colors.{$row}.{$field}"
+                : "{$row}.qa_cell_colors.{$field}";
+        }
+
+        if ($data['section'] === 'aircraft') {
+            return "0.qa_aircraft_records.{$row}.{$field}";
+        }
+
+        if ($data['section'] === 'note') {
+            return $field === 'note6_enabled'
+                ? '0.qa_note6_enabled'
+                : '0.qa_note6_text';
+        }
+
+        if ($data['side'] === 'left') {
+            $fieldMap = [
+                'description' => 'name',
+                'part_number' => 'part_number',
+                'serial_number' => 'serial_number',
+                'reason' => 'reason',
+            ];
+
+            if (array_key_exists($field, $fieldMap)) {
+                return $row.'.'.$fieldMap[$field];
+            }
+        }
+
+        return $row.'.qa_'.$field;
     }
 
     public function storeQualityDocuments(Request $request, Workorder $workorder)
@@ -309,7 +387,7 @@ class QualityAssuranceController extends Controller
     {
         $user = $request->user();
 
-        abort_unless($user && ($user->roleIs('Admin') || $user->can('manager.qa')), 403);
+        abort_unless($user && $user->can('manager.qa'), 403);
     }
 
     private function abortUnlessQualityMediaBelongsToWorkorder(Workorder $workorder, Media $media): void

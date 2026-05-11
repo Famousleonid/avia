@@ -42,9 +42,11 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('Enter full workorder number');
     }
 
-    public function test_manager_can_open_quality_dashboard_via_manager_qa_permission(): void
+    public function test_manager_with_qa_access_can_open_quality_dashboard(): void
     {
-        $manager = $this->createUserWithRole('Manager');
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
 
         $response = $this->actingAs($manager)->get(route('quality.index'));
 
@@ -52,20 +54,46 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('Quality Assurance');
     }
 
-    public function test_personal_qa_permission_can_open_quality_dashboard(): void
+    public function test_admin_with_qa_access_can_open_quality_dashboard_without_is_admin(): void
     {
-        $technician = $this->createUserWithRole('Technician');
-        $technician->forceFill([
-            'notification_prefs' => ['qa_access' => true],
-        ])->save();
+        $admin = $this->createUserWithRole('Admin', [
+            'is_admin' => false,
+            'qa_access' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('quality.index'));
+
+        $response->assertOk();
+        $response->assertSee('Quality Assurance');
+    }
+
+    public function test_manager_without_qa_access_cannot_open_quality_dashboard(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => false,
+        ]);
+
+        $response = $this->actingAs($manager)->get(route('quality.index'));
+
+        $response->assertForbidden();
+    }
+
+    public function test_personal_qa_flag_does_not_grant_access_to_non_manager(): void
+    {
+        $technician = $this->createUserWithRole('Technician', [
+            'qa_access' => true,
+        ]);
 
         $response = $this->actingAs($technician)->get(route('quality.index'));
-        $response->assertOk();
+
+        $response->assertForbidden();
     }
 
     public function test_workorder_lookup_requires_full_normalized_number_and_returns_single_payload(): void
     {
-        $manager = $this->createUserWithRole('Manager');
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
         $workorder = $this->createWorkorder(['number' => 988801]);
 
         $workorder
@@ -112,7 +140,9 @@ class QualityAssuranceTest extends TestCase
 
     public function test_log_card_cell_background_color_is_saved_in_json(): void
     {
-        $manager = $this->createUserWithRole('Manager');
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
         $workorder = $this->createWorkorder();
         LogCard::create([
             'workorder_id' => $workorder->id,
@@ -137,7 +167,9 @@ class QualityAssuranceTest extends TestCase
 
     public function test_manager_can_upload_quality_documents_to_workorder(): void
     {
-        $manager = $this->createUserWithRole('Manager');
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
         $workorder = $this->createWorkorder();
 
         $response = $this->actingAs($manager)->post(route('quality.documents.store', $workorder), [
@@ -153,7 +185,9 @@ class QualityAssuranceTest extends TestCase
 
     public function test_manager_can_delete_quality_document_from_workorder(): void
     {
-        $manager = $this->createUserWithRole('Manager');
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
         $workorder = $this->createWorkorder();
 
         $media = $workorder
@@ -169,7 +203,9 @@ class QualityAssuranceTest extends TestCase
 
     public function test_delete_rejects_quality_document_that_belongs_to_another_workorder(): void
     {
-        $manager = $this->createUserWithRole('Manager');
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
         $workorder = $this->createWorkorder();
         $otherWorkorder = $this->createWorkorder([
             'number' => 100555,

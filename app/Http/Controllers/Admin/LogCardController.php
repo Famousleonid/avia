@@ -12,10 +12,13 @@ use App\Models\Necessary;
 use App\Models\Workorder;
 use App\Models\Tdr;
 use App\Support\LogCardDestructionCertificate;
+use App\Services\LogCardTdrAccessService;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\ValidationException;
 
 class LogCardController extends Controller
@@ -39,17 +42,18 @@ class LogCardController extends Controller
     {
         $current_wo = Workorder::findOrFail($workorder_id);
         $codes = Code::all();
-
+        $logCardTdrAccess = app(LogCardTdrAccessService::class)->forWorkorder($current_wo, auth()->user());
         $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
-
-        $ctx = $this->prepareGroupedLogCardComponents($current_wo);
-
         $componentData = [];
         if ($log_card && $log_card->component_data) {
             $componentData = is_array($log_card->component_data)
                 ? $log_card->component_data
                 : json_decode($log_card->component_data, true);
         }
+
+
+        $ctx = $this->prepareGroupedLogCardComponents($current_wo);
+
 
         [$presetByIplGroup, $separateQueue] = $this->splitLogCardComponentPresets(is_array($componentData) ? $componentData : []);
 
@@ -67,6 +71,8 @@ class LogCardController extends Controller
             'has_saved_log_card' => (bool) ($log_card && ! empty($componentData)),
             'group_map' => $tabMetaGroupMap,
             'group_keys_ordered' => $groupKeysOrdered,
+            'read_only' => (bool) ($logCardTdrAccess['read_only'] ?? false),
+            'read_only_message' => $logCardTdrAccess['message'] ?? null,
         ];
 
         return view(
@@ -78,7 +84,8 @@ class LogCardController extends Controller
                 'componentData',
                 'presetByIplGroup',
                 'separateQueue',
-                'tabMeta'
+                'tabMeta',
+                'logCardTdrAccess'
             ), $ctx)
         );
     }
@@ -235,7 +242,6 @@ class LogCardController extends Controller
             ->get();
 
         $components = Component::where('manual_id', $manual)->get();
-
         $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
 
         // Получаем массив из JSON
@@ -330,18 +336,6 @@ class LogCardController extends Controller
      *
      * @return Application|Factory|View
      */
-    public function create($id)
-    {
-        $current_wo = Workorder::findOrFail($id);
-        $codes = Code::all();
-        $ctx = $this->prepareGroupedLogCardComponents($current_wo);
-
-        return view('admin.log_card.create', array_merge(
-            compact('current_wo', 'codes'),
-            $ctx
-        ));
-    }
-
     /**
      * Определяет причину удаления компонента на основе TDR данных
      *
@@ -380,6 +374,11 @@ class LogCardController extends Controller
      */
     public function store(Request $request)
     {
+        $workorder = Workorder::findOrFail((int) $request->input('workorder_id'));
+        if ($lockedResponse = $this->denyLockedTdrLogCardMutation($request, $workorder)) {
+            return $lockedResponse;
+        }
+
 //        dd($request);
         $request->validate([
             'workorder_id' => 'required|integer|exists:workorders,id',
@@ -405,49 +404,22 @@ class LogCardController extends Controller
             'component_data' => $componentData,
         ]);
 
+        $summary = LogCard::summarizeForActivity($logCard);
+        $logCard->logActivityEvent('created', [], $summary);
+
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json(['success' => true, 'message' => 'Log Card created successfully!', 'log_card_id' => $logCard->id]);
         }
 
-        return redirect()->route('log_card.show', $workorder_id)
+        return redirect()->route('tdrs.show', ['id' => $workorder_id])
                 ->with('success', 'Log Card created successfully!');
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return Application|Factory|View
-     */
-    public function show($id)
-    {
-        $current_wo = Workorder::findOrFail($id);
-        $showDestructionCert = LogCardDestructionCertificate::availableFor($current_wo);
-        $manual_id = $current_wo->unit->manual_id;
-        $components = Component::where('manual_id', $manual_id)->get();
 
-        $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
 
         // Получаем массив из JSON
-        $componentData = [];
-        if ($log_card && $log_card->component_data) {
-            $componentData = is_array($log_card->component_data)
-                ? $log_card->component_data
-                : json_decode($log_card->component_data, true);
-        }
-
         // Загружаем коды для отображения названий
-        $codes = Code::all();
-
-        return view('admin.log_card.show', compact(
-            'current_wo',
-            'componentData',
-            'log_card',
-            'components',
-            'codes',
-            'showDestructionCert'
-        ));
-    }
+        
 
     /**
      * Show the form for editing the specified resource.
@@ -593,23 +565,88 @@ class LogCardController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $log_card = \App\Models\LogCard::findOrFail($id);
+        $workorder = Workorder::findOrFail($log_card->workorder_id);
+        if ($lockedResponse = $this->denyLockedTdrLogCardMutation($request, $workorder)) {
+            return $lockedResponse;
+        }
+
         $request->validate([
             'workorder_id' => 'required|integer|exists:workorders,id',
             'component_data' => 'required|string',
         ]);
         $this->validateLogCardComponentData($request);
 
-        $log_card = \App\Models\LogCard::findOrFail($id);
+        $beforeWorkorderId = $log_card->workorder_id;
+        $beforeComponentData = $log_card->component_data;
+
         $log_card->workorder_id = $request->input('workorder_id');
         $log_card->component_data = $request->input('component_data');
-        $log_card->save();
+        if ($log_card->isDirty()) {
+            $changes = LogCard::buildActivityChanges([
+                'workorder_id' => [$beforeWorkorderId, $log_card->workorder_id],
+                'component_data' => [$beforeComponentData, $log_card->component_data],
+            ]);
+            $log_card->save();
+            $log_card->logActivityEvent('updated', $changes['old'], $changes['attributes']);
+        }
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json(['success' => true, 'message' => 'Log Card updated successfully!']);
         }
 
-        return redirect()->route('log_card.show', $log_card->workorder_id)
+        return redirect()->route('tdrs.show', ['id' => $log_card->workorder_id])
                 ->with('success', 'Log Card updated successfully!');
+    }
+
+    public function updateInlineField(Request $request, LogCard $log_card)
+    {
+        $workorder = Workorder::findOrFail($log_card->workorder_id);
+        if ($lockedResponse = $this->denyLockedTdrLogCardMutation($request, $workorder)) {
+            return $lockedResponse;
+        }
+
+        $data = $request->validate([
+            'row' => ['required', 'integer', 'min:0', 'max:500'],
+            'field' => ['required', 'in:serial_number,assy_serial_number,reason,new_serial_number'],
+            'value' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $rows = $this->decodeLogCardRows($log_card->component_data);
+        $rowIndex = (int) $data['row'];
+        abort_unless(isset($rows[$rowIndex]) && is_array($rows[$rowIndex]), 422);
+
+        $beforeValue = data_get($rows, $rowIndex.'.'.$data['field']);
+        $afterValue = trim((string) ($data['value'] ?? ''));
+
+        if ($beforeValue === $afterValue) {
+            return response()->json([
+                'success' => true,
+                'field' => $data['field'],
+                'value' => $afterValue,
+            ]);
+        }
+
+        $rows[$rowIndex][$data['field']] = $afterValue;
+        $log_card->component_data = json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
+        $log_card->save();
+        $log_card->logActivityEvent(
+            'updated',
+            ['component_data.'.$rowIndex.'.'.$data['field'] => $beforeValue],
+            ['component_data.'.$rowIndex.'.'.$data['field'] => $afterValue],
+            [
+                'row' => $rowIndex,
+                'field' => $data['field'],
+                'source' => 'tdrs_show_log_card_inline',
+                'side' => 'left',
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'field' => $data['field'],
+            'value' => $afterValue,
+        ]);
     }
 
     /**
@@ -621,7 +658,14 @@ class LogCardController extends Controller
     public function destroy($id)
     {
         $log_card = LogCard::findOrFail($id);
+        $workorder = Workorder::findOrFail($log_card->workorder_id);
+        if ($lockedResponse = $this->denyLockedTdrLogCardMutation(request(), $workorder)) {
+            return $lockedResponse;
+        }
+
         $workorderId = $log_card->workorder_id;
+        $summary = LogCard::summarizeForActivity($log_card);
+        $log_card->logActivityEvent('deleted', $summary, []);
         $log_card->delete();
 
         request()->session()->flash('success', 'Log Card reset successfully!');
@@ -669,6 +713,43 @@ class LogCardController extends Controller
                 ]);
             }
         }
+    }
+
+    private function decodeLogCardRows(mixed $value): array
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return collect($value)
+            ->filter(fn ($row, $key) => is_int($key) && is_array($row))
+            ->values()
+            ->all();
+    }
+
+    private function denyLockedTdrLogCardMutation(Request $request, Workorder $workorder): JsonResponse|RedirectResponse|null
+    {
+        $access = app(LogCardTdrAccessService::class)->forWorkorder($workorder, auth()->user());
+        if (! ($access['read_only'] ?? false)) {
+            return null;
+        }
+
+        $message = $access['message'] ?? 'Log Card editing is locked. Please contact Quality Manager.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], 423);
+        }
+
+        return redirect()
+            ->route('tdrs.show', ['id' => $workorder->id])
+            ->withErrors(['log_card' => $message]);
     }
 
 }

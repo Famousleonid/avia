@@ -224,6 +224,27 @@ class ActivityLogController extends Controller
                     $idBuckets['workorder_id'][] = (int)$subjectWorkorderId;
                 }
             }
+
+            if ($activity->subject_type === \App\Models\LogCard::class && isset($activity->subject)) {
+                foreach (['component_data', 'component_data_out'] as $logCardField) {
+                    $rows = $activity->subject->{$logCardField} ?? [];
+
+                    if (is_string($rows)) {
+                        $decodedRows = json_decode($rows, true);
+                        $rows = is_array($decodedRows) ? $decodedRows : [];
+                    }
+
+                    if (! is_array($rows)) {
+                        continue;
+                    }
+
+                    foreach ($rows as $row) {
+                        if (is_array($row) && isset($row['component_id']) && is_numeric($row['component_id']) && (int) $row['component_id'] > 0) {
+                            $idBuckets['component_id'][] = (int) $row['component_id'];
+                        }
+                    }
+                }
+            }
         }
 
         $workorderMap = Workorder::query()
@@ -263,7 +284,7 @@ class ActivityLogController extends Controller
         $componentMap = Component::query()
             ->whereIn('id', $componentIds)
             ->get(['id', 'name', 'part_number'])
-            ->mapWithKeys(fn(Component $c) => [$c->id => trim(((string)$c->part_number).' '.$c->name)])
+            ->mapWithKeys(fn(Component $c) => [$c->id => trim(((string) $c->name).' / '.((string) $c->part_number))])
             ->all();
 
         $processNameIds = array_values(array_unique(array_merge($idBuckets['process_names_id'], $idBuckets['process_name_id'])));

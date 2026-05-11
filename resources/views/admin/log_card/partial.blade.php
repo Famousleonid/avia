@@ -2,11 +2,15 @@
     $hasRows = $groupedComponents->isNotEmpty() || $separateComponents->isNotEmpty();
     $componentData = isset($componentData) && is_array($componentData) ? $componentData : [];
     $hasSavedLogCard = $log_card && !empty($componentData);
+    $logCardTdrReadOnly = (bool) ($logCardTdrAccess['read_only'] ?? false);
+    $logCardTdrReadOnlyMessage = $logCardTdrAccess['message'] ?? '';
 @endphp
 
 <div id="log-card-partial-shell" class="log-card-partial"
      data-workorder-id="{{ $current_wo->id }}"
      data-log-card-id="{{ $log_card->id ?? '' }}"
+     data-readonly="{{ $logCardTdrReadOnly ? '1' : '0' }}"
+     data-readonly-message="{{ $logCardTdrReadOnlyMessage }}"
      data-state="{{ $hasSavedLogCard ? 'saved' : 'draft' }}">
     <script type="application/json" id="log-card-tab-meta">@json($tabMeta)</script>
 
@@ -53,6 +57,12 @@
         }
     </style>
 
+    @if($logCardTdrReadOnly)
+        <div class="alert alert-warning py-2 px-3 mt-2 mb-3">
+            {{ $logCardTdrReadOnlyMessage }}
+        </div>
+    @endif
+
     @if(!$hasRows && !$hasSavedLogCard)
         <p class="text-center text-muted mt-3">{{ __('No components with log_card=1 for this manual.') }}</p>
     @elseif(!$hasSavedLogCard)
@@ -98,6 +108,7 @@
                                                    name="{{ $componentInputName }}"
                                                    value="{{ $component->id }}"
                                                    data-ipl-group="{{ $group['ipl_group'] }}"
+                                                   @disabled($logCardTdrReadOnly)
                                                    @checked($i === 0)>
                                             <span>{{ $component->name }} ({{ $component->ipl_num }}) / {{ $component->part_number }}</span>
                                         </label>
@@ -119,6 +130,7 @@
                                                                data-assy-part-number="{{ $assembly->assy_part_number }}"
                                                                data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
                                                                data-units-assy="{{ $assembly->units_assy }}"
+                                                               @disabled($logCardTdrReadOnly)
                                                                @checked(($onlyOne || $i === 0) && (int) $defaultAssemblyId === (int) $assembly->id)>
                                                         <label class="form-check-label small" for="{{ $assyId }}">
                                                             {{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}
@@ -182,6 +194,7 @@
                                                            data-assy-part-number="{{ $assembly->assy_part_number }}"
                                                            data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
                                                            data-units-assy="{{ $assembly->units_assy }}"
+                                                           @disabled($logCardTdrReadOnly)
                                                            @checked($loop->first)>
                                                     <label class="form-check-label small" for="{{ $assyId }}">
                                                         {{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}
@@ -239,6 +252,7 @@
                             }
                         @endphp
                         <tr class="lc-saved-row"
+                            data-row-index="{{ $index }}"
                             data-component-id="{{ $component->id }}"
                             data-ipl-group="{{ $item['ipl_group'] ?? '' }}"
                             data-component-assembly-id="{{ $assemblyId }}"
@@ -256,6 +270,7 @@
                                        class="form-control form-control-sm lc-inline-input lc-saved-field"
                                        name="serial_number"
                                        value="{{ $item['serial_number'] ?? '' }}"
+                                       @readonly($logCardTdrReadOnly)
                                        placeholder="{{ __('Serial Number') }}">
                             </td>
                             <td class="text-start ps-3">
@@ -270,10 +285,11 @@
                                        class="form-control form-control-sm lc-inline-input lc-saved-field"
                                        name="assy_serial_number"
                                        value="{{ $item['assy_serial_number'] ?? '' }}"
+                                       @readonly($logCardTdrReadOnly)
                                        placeholder="{{ __('ASSY Serial Number') }}">
                             </td>
                             <td>
-                                <select class="form-control form-control-sm lc-inline-input lc-saved-field" name="reason">
+                                <select class="form-control form-control-sm lc-inline-input lc-saved-field" name="reason" @disabled($logCardTdrReadOnly)>
                                     <option value="">{{ __('Reason') }}</option>
                                     @foreach($codes as $c)
                                         <option value="{{ $c->id }}" @selected((string) ($item['reason'] ?? '') === (string) $c->id)>{{ $c->name }}</option>
@@ -285,6 +301,7 @@
                                        class="form-control form-control-sm lc-inline-input lc-saved-field"
                                        name="new_serial_number"
                                        value="{{ $item['new_serial_number'] ?? '' }}"
+                                       @readonly($logCardTdrReadOnly)
                                        placeholder="{{ __('New Serial Number') }}">
                             </td>
                         </tr>

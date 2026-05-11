@@ -10,13 +10,13 @@ class AuthServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        Gate::define('manager.qa', function (User $user) {
+            return $user->canAccessQualityAssurancePage();
+        });
+
         foreach (config('permissions') as $model => $actions) {
             foreach ($actions as $action => $rolesAllowed) {
                 Gate::define("{$model}.{$action}", function ($user) use ($model, $action, $rolesAllowed) {
-                    if ($model === 'manager' && $action === 'qa' && $user->hasQualityAssuranceAccess()) {
-                        return true;
-                    }
-
                     if ($model === 'manuals' && in_array($action, ['viewAny', 'view'], true)) {
                         if ($user->hasFullManualsAccess()) {
                             return true;

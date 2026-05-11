@@ -58,11 +58,13 @@ class UserController extends Controller
         $user->is_admin = $request->boolean('is_admin');
         $user->can_manage_locked_manual_processes = $request->boolean('can_manage_locked_manual_processes');
         $user->can_manage_locked_manual_parts = $request->boolean('can_manage_locked_manual_parts');
+        $user->qa_access = $request->boolean('qa_access');
         $user->email_verified_at = $request->has('email_verified_at') ? now() : null;
-        $user->notification_prefs = array_merge($user->notification_prefs ?? [], [
+        $notificationPrefs = array_merge($user->notification_prefs ?? [], [
             'manuals_full_access' => $request->boolean('manuals_full_access'),
-            'qa_access' => $request->boolean('qa_access'),
         ]);
+        unset($notificationPrefs['qa_access']);
+        $user->notification_prefs = $notificationPrefs;
         $user->save();
 
         if ($request->hasFile('img')) {
@@ -130,11 +132,13 @@ class UserController extends Controller
         $validated['is_admin'] = $request->boolean('is_admin');
         $validated['can_manage_locked_manual_processes'] = $request->boolean('can_manage_locked_manual_processes');
         $validated['can_manage_locked_manual_parts'] = $request->boolean('can_manage_locked_manual_parts');
+        $validated['qa_access'] = $request->boolean('qa_access');
         $validated['email_verified_at'] = $request->has('email_verified_at') ? now() : null;
-        $validated['notification_prefs'] = array_merge($user->notification_prefs ?? [], [
+        $notificationPrefs = array_merge($user->notification_prefs ?? [], [
             'manuals_full_access' => $request->boolean('manuals_full_access'),
-            'qa_access' => $request->boolean('qa_access'),
         ]);
+        unset($notificationPrefs['qa_access']);
+        $validated['notification_prefs'] = $notificationPrefs;
 
         unset($validated['img'], $validated['sign']);
 

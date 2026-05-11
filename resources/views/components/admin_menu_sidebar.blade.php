@@ -48,10 +48,7 @@
             || $sidebarUser->permittedManuals()->exists()
         );
     $showQualityAssuranceMenu = $sidebarUser
-        && (
-            $sidebarUser->roleIs('Admin')
-            || $sidebarUser->can('manager.qa')
-        );
+        && $sidebarUser->can('manager.qa');
 @endphp
 @if($minimalShopSidebar)
     <li class="nav-item">

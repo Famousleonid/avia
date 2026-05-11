@@ -31,21 +31,22 @@ class PageVisitStatController extends Controller
             ->limit(5000);
 
         $visits = $query->get();
+        $selectedUserId = $filters['user_id'] ?? null;
 
-        $rows = $visits
-            ->groupBy(fn (PageVisit $visit) => ($visit->user_id ?: 'unknown') . '|' . $visit->visited_at->toDateString())
-            ->map(function ($group) {
+        $dateGroups = $visits
+            ->groupBy(fn (PageVisit $visit) => $visit->visited_at->toDateString())
+            ->map(function ($group) use ($selectedUserId) {
                 $first = $group->first();
 
                 return (object) [
-                    'user' => $first->user,
                     'date' => $first->visited_at->toDateString(),
-                    'latest_visit_at' => $group->max('visited_at'),
                     'visits_count' => $group->count(),
-                    'pages' => $group
-                        ->sortBy('visited_at')
+                    'user' => $selectedUserId ? $first->user : null,
+                    'visits' => $group
+                        ->sortByDesc('visited_at')
                         ->map(fn (PageVisit $visit) => (object) [
                             'time' => $visit->visited_at->format('H:i:s'),
+                            'user' => $visit->user,
                             'path' => $visit->path,
                             'url' => $visit->url,
                             'route_name' => $visit->route_name,
@@ -53,7 +54,6 @@ class PageVisitStatController extends Controller
                         ->values(),
                 ];
             })
-            ->sortByDesc('latest_visit_at')
             ->values();
 
         $users = User::query()
@@ -61,10 +61,12 @@ class PageVisitStatController extends Controller
             ->get(['id', 'name', 'email']);
 
         return view('admin.stats.page-visits', [
-            'rows' => $rows,
+            'visits' => $visits,
+            'dateGroups' => $dateGroups,
             'users' => $users,
             'filters' => $filters,
             'totalVisits' => $visits->count(),
+            'selectedUserId' => $selectedUserId,
         ]);
     }
 }

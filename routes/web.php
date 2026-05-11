@@ -331,6 +331,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
 
     Route::resource('/log_card', LogCardController::class)->except(['create', 'edit', 'show']);
+    Route::patch('/log_card/{log_card}/inline-field', [LogCardController::class, 'updateInlineField'])->name('log_card.inline_field.update');
 
 
 
@@ -386,10 +387,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/extra_processes/{id}/edit_component', [ExtraProcessController::class, 'editComponent'])->name('extra_processes.edit_component');
     Route::put('/extra_processes/{id}/update_component', [ExtraProcessController::class, 'updateComponent'])->name('extra_processes.update_component');
     Route::resource('/extra_processes', ExtraProcessController::class)->except(['create', 'show', 'edit']);
-
-    Route::get('log_card/create/{id}', [LogCardController::class, 'create'])->name('log_card.create');
-    Route::get('log_card/edit/{id}', [LogCardController::class, 'edit'])->name('log_card.edit');
-    Route::get('log_card/show/{id}', [LogCardController::class, 'show'])->name('log_card.show');
 
     Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
     Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('vendors.show');

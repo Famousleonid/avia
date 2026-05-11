@@ -126,6 +126,12 @@
             overflow-wrap: anywhere;
         }
 
+        .page-visit-datetime {
+            color: #f2f7f8;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
         @media (max-width: 980px) {
             .page-visit-filter {
                 grid-template-columns: 1fr 1fr;
@@ -141,7 +147,7 @@
                 <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-2">
                     <h5 class="page-visit-title">Page visit stats</h5>
                     <div class="page-visit-summary">
-                        Showing {{ $totalVisits }} visits in {{ $rows->count() }} user/date groups
+                        Showing {{ $totalVisits }} visits{{ $selectedUserId ? ' for selected user' : ' grouped by date' }}
                     </div>
                 </div>
 
@@ -152,7 +158,7 @@
                             <option value="">All users</option>
                             @foreach($users as $user)
                                 <option value="{{ $user->id }}" @selected((string)($filters['user_id'] ?? '') === (string)$user->id)>
-                                    {{ $user->name }}{{ $user->email ? ' - '.$user->email : '' }}
+                                    {{ $user->name }}
                                 </option>
                             @endforeach
                         </select>
@@ -180,44 +186,77 @@
                 <table class="table table-sm table-dark table-hover page-visit-table">
                     <thead>
                     <tr>
-                        <th style="width: 240px;">User</th>
-                        <th style="width: 140px;">Date</th>
-                        <th style="width: 90px;" class="text-center">Visits</th>
-                        <th>Pages</th>
+                        @if($selectedUserId)
+                            <th style="width: 240px;">User</th>
+                            <th style="width: 140px;">Date</th>
+                            <th style="width: 90px;" class="text-center">Visits</th>
+                            <th>Pages</th>
+                        @else
+                            <th style="width: 140px;">Date</th>
+                            <th style="width: 90px;" class="text-center">Visits</th>
+                            <th style="width: 110px;">Time</th>
+                            <th style="width: 240px;">User</th>
+                            <th>Page</th>
+                        @endif
                     </tr>
                     </thead>
                     <tbody>
-                    @forelse($rows as $row)
-                        <tr>
-                            <td>
-                                <div class="page-visit-user">{{ $row->user->name ?? 'Unknown user' }}</div>
-                                @if($row->user?->email)
-                                    <div class="page-visit-email">{{ $row->user->email }}</div>
-                                @endif
-                            </td>
-                            <td>{{ strtolower(\Illuminate\Support\Carbon::parse($row->date)->format('d.M.Y')) }}</td>
-                            <td class="text-center">{{ $row->visits_count }}</td>
-                            <td>
-                                <ul class="page-list">
-                                    @foreach($row->pages as $page)
-                                        <li class="page-list-item">
-                                            <span class="page-visit-time">{{ $page->time }}</span>
-                                            <span>
-                                                <span class="page-visit-path">{{ $page->path }}</span>
-                                                @if($page->route_name)
-                                                    <span class="page-visit-route">({{ $page->route_name }})</span>
-                                                @endif
-                                            </span>
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4" class="text-center text-muted py-4">No page visits found.</td>
-                        </tr>
-                    @endforelse
+                    @if($selectedUserId)
+                        @forelse($dateGroups as $group)
+                            <tr>
+                                <td>
+                                    <div class="page-visit-user">{{ $group->user->name ?? 'Unknown user' }}</div>
+                                    @if($group->user?->email)
+                                        <div class="page-visit-email">{{ $group->user->email }}</div>
+                                    @endif
+                                </td>
+                                <td>{{ strtolower(\Illuminate\Support\Carbon::parse($group->date)->format('d.M.Y')) }}</td>
+                                <td class="text-center">{{ $group->visits_count }}</td>
+                                <td>
+                                    <ul class="page-list">
+                                        @foreach($group->visits as $visit)
+                                            <li class="page-list-item">
+                                                <span class="page-visit-time">{{ $visit->time }}</span>
+                                                <span>
+                                                    <span class="page-visit-path">{{ $visit->path }}</span>
+                                                    @if($visit->route_name)
+                                                        <span class="page-visit-route">({{ $visit->route_name }})</span>
+                                                    @endif
+                                                </span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">No page visits found.</td>
+                            </tr>
+                        @endforelse
+                    @else
+                        @forelse($dateGroups as $group)
+                            @foreach($group->visits as $visit)
+                                <tr>
+                                    @if($loop->first)
+                                        <td rowspan="{{ $group->visits->count() }}">{{ strtolower(\Illuminate\Support\Carbon::parse($group->date)->format('d.M.Y')) }}</td>
+                                        <td rowspan="{{ $group->visits->count() }}" class="text-center">{{ $group->visits_count }}</td>
+                                    @endif
+                                    <td><span class="page-visit-time">{{ $visit->time }}</span></td>
+                                    <td><div class="page-visit-user">{{ $visit->user->name ?? 'Unknown user' }}</div></td>
+                                    <td>
+                                        <span class="page-visit-path">{{ $visit->path }}</span>
+                                        @if($visit->route_name)
+                                            <span class="page-visit-route">({{ $visit->route_name }})</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">No page visits found.</td>
+                            </tr>
+                        @endforelse
+                    @endif
                     </tbody>
                 </table>
             </div>

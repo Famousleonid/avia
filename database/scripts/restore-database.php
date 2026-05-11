@@ -63,28 +63,73 @@ $socket = (string) ($conn['unix_socket'] ?? '');
 
 $binary = (string) config('backup.mysql_binary', 'mysql');
 
-$sql = '';
+$inputStream = null;
+$tempSqlPath = null;
 $lower = strtolower($path);
 if (str_ends_with($lower, '.gz')) {
-    $raw = @file_get_contents($path);
-    if ($raw === false) {
-        fwrite(STDERR, "Cannot read: {$path}\n");
+    $gzip = @gzopen($path, 'rb');
+    if ($gzip === false) {
+        fwrite(STDERR, "Cannot read gzip: {$path}\n");
         exit(1);
     }
-    $sql = gzdecode($raw);
-    if ($sql === false) {
-        fwrite(STDERR, "Invalid gzip: {$path}\n");
+
+    $tempSqlPath = tempnam(sys_get_temp_dir(), 'db-restore-');
+    if ($tempSqlPath === false) {
+        gzclose($gzip);
+        fwrite(STDERR, "Cannot allocate temp file for restore.\n");
         exit(1);
     }
+
+    $tempHandle = fopen($tempSqlPath, 'wb');
+    if ($tempHandle === false) {
+        gzclose($gzip);
+        @unlink($tempSqlPath);
+        fwrite(STDERR, "Cannot open temp file for restore.\n");
+        exit(1);
+    }
+
+    while (! gzeof($gzip)) {
+        $chunk = gzread($gzip, 1024 * 1024);
+        if ($chunk === false) {
+            fclose($tempHandle);
+            gzclose($gzip);
+            @unlink($tempSqlPath);
+            fwrite(STDERR, "Invalid gzip: {$path}\n");
+            exit(1);
+        }
+
+        if ($chunk !== '' && fwrite($tempHandle, $chunk) === false) {
+            fclose($tempHandle);
+            gzclose($gzip);
+            @unlink($tempSqlPath);
+            fwrite(STDERR, "Cannot write temp SQL file.\n");
+            exit(1);
+        }
+    }
+
+    fclose($tempHandle);
+    gzclose($gzip);
+    $inputStream = fopen($tempSqlPath, 'rb');
 } else {
-    $sql = file_get_contents($path);
-    if ($sql === false) {
-        fwrite(STDERR, "Cannot read: {$path}\n");
-        exit(1);
-    }
+    $inputStream = fopen($path, 'rb');
 }
 
-if ($sql === '') {
+if (! is_resource($inputStream)) {
+    if ($tempSqlPath !== null) {
+        @unlink($tempSqlPath);
+    }
+
+    fwrite(STDERR, "Cannot open SQL input stream: {$path}\n");
+    exit(1);
+}
+
+$stats = fstat($inputStream);
+if (($stats['size'] ?? 0) === 0) {
+    fclose($inputStream);
+    if ($tempSqlPath !== null) {
+        @unlink($tempSqlPath);
+    }
+
     fwrite(STDERR, "Backup file is empty.\n");
     exit(1);
 }
@@ -103,8 +148,13 @@ $args[] = $database;
 
 $process = new Symfony\Component\Process\Process($args);
 $process->setTimeout(7200);
-$process->setInput($sql);
+$process->setInput($inputStream);
 $process->run();
+
+fclose($inputStream);
+if ($tempSqlPath !== null) {
+    @unlink($tempSqlPath);
+}
 
 if (! $process->isSuccessful()) {
     fwrite(STDERR, trim($process->getErrorOutput() ?: $process->getOutput()) . "\n");

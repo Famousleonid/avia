@@ -121,6 +121,10 @@
             pointer-events: none;
         }
 
+        .qa-log-card-frame[data-side="left"] .qa-card-side-label {
+            margin-right: -108px;
+        }
+
         .qa-log-card-frame[data-side="right"] .qa-card-side-label {
             width: min(145px, 52%);
             transform: rotate(7deg);
@@ -599,7 +603,7 @@
         ],
         'right' => [
             'label' => 'Right',
-            'heading' => 'As dispach',
+            'heading' => 'As dispached',
             'stamp' => asset('img/quality/qa-stamp-as-dispach.svg'),
             'rows' => $buildRows($componentDataOut),
             'aircraft_rows' => $aircraftRowsFor($componentDataOut),
