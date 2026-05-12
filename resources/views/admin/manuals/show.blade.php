@@ -2,7 +2,7 @@
 
 @section('content')
     @php
-        $manualTabKeys = ['components', 'parts', 'processes', 'std'];
+        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb'];
         $manualShowTab = in_array(request('tab'), $manualTabKeys, true) ? request('tab') : 'components';
 
         $manualScrollPartId = null;
@@ -16,6 +16,13 @@
 
         $manualUrlParts = route('manuals.show', ['manual' => $cmm, 'tab' => 'parts']);
         $manualUrlProcesses = route('manuals.show', ['manual' => $cmm, 'tab' => 'processes']);
+        $manualUrlSb = route('manuals.show', ['manual' => $cmm, 'tab' => 'sb']);
+        $sbRequirementOptions = [
+            '' => 'None',
+            \App\Models\ManualServiceBulletin::REQUIREMENT_OPTIONAL => 'Optional',
+            \App\Models\ManualServiceBulletin::REQUIREMENT_RECOMMENDED => 'Recommended',
+            \App\Models\ManualServiceBulletin::REQUIREMENT_MANDATORY => 'Mandatory',
+        ];
     @endphp
     <style>
         /* ÐžÐ±Ñ‰Ð¸Ðµ Ð½Ð°ÑÑ‚Ñ€Ð¾Ð¹ÐºÐ¸ Ñ‚Ð°Ð±Ð»Ð¸Ñ† */
@@ -293,6 +300,48 @@
         #nav-processes .table {
             width: 100%;
         }
+
+        #nav-sb .manual-sb-table-wrap {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+        }
+
+        #nav-sb .manual-sb-pane-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #nav-sb .manual-sb-table {
+            min-width: 1560px;
+            table-layout: fixed;
+        }
+
+        #nav-sb .manual-sb-table th,
+        #nav-sb .manual-sb-table td {
+            vertical-align: middle;
+        }
+
+        #nav-sb .manual-sb-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        #nav-sb .manual-sb-table textarea {
+            min-height: 58px;
+            resize: vertical;
+        }
+
+        #nav-sb .manual-sb-actions {
+            white-space: nowrap;
+        }
         #nav-processes .table th:nth-child(1),
         #nav-processes .table td:nth-child(1) { width: 7%; }
         #nav-processes .table th:nth-child(2),
@@ -493,7 +542,9 @@
         #nav-tabContent .process-table-container:focus,
         #nav-tabContent .process-table-container:focus-visible,
         #nav-tabContent .std-table-container:focus,
-        #nav-tabContent .std-table-container:focus-visible {
+        #nav-tabContent .std-table-container:focus-visible,
+        #nav-tabContent .manual-sb-table-wrap:focus,
+        #nav-tabContent .manual-sb-table-wrap:focus-visible {
             outline: none !important;
             box-shadow: none !important;
         }
@@ -557,6 +608,7 @@
 
         .manual-show-card #nav-tabContent > .tab-pane {
             min-height: 0;
+            min-width: 0;
             flex: 1 1 auto;
         }
 
@@ -568,9 +620,11 @@
         .manual-show-card #nav-components .component-table-container,
         .manual-show-card #nav-parts .parts-table-container,
         .manual-show-card #nav-processes .process-table-container,
-        .manual-show-card #nav-std .std-table-container {
+        .manual-show-card #nav-std .std-table-container,
+        .manual-show-card #nav-sb .manual-sb-table-wrap {
             flex: 1 1 auto;
             min-height: 0;
+            min-width: 0;
             height: auto;
             max-height: none;
             overflow: auto;
@@ -620,8 +674,8 @@
             </div>
             <script>
                 (function () {
-                    var allowedTabs = ['components', 'parts', 'processes', 'std'];
-                    var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std'};
+                    var allowedTabs = ['components', 'parts', 'processes', 'std', 'sb'];
+                    var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std', '#nav-sb': 'sb'};
                     var storageKey = 'manual.show.activeTab.' + @json((int) $cmm->id);
                     var params = new URLSearchParams(location.search);
                     var q = params.get('tab');
@@ -657,6 +711,8 @@
                                 type="button" role="tab" aria-controls="nav-processes" aria-selected="{{ $manualShowTab === 'processes' ? 'true' : 'false' }}">Processes</button>
                         <button class="nav-link @if($manualShowTab === 'std') active @endif" id="nav-std-tab" data-bs-toggle="tab" data-bs-target="#nav-std"
                                 type="button" role="tab" aria-controls="nav-std" aria-selected="{{ $manualShowTab === 'std' ? 'true' : 'false' }}">STD Processes</button>
+                        <button class="nav-link @if($manualShowTab === 'sb') active @endif" id="nav-sb-tab" data-bs-toggle="tab" data-bs-target="#nav-sb"
+                                type="button" role="tab" aria-controls="nav-sb" aria-selected="{{ $manualShowTab === 'sb' ? 'true' : 'false' }}">SB</button>
                     </div>
                     <div class="ms-3 d-flex align-items-center gap-2" id="nav-tab-actions">
                         <button type="button"
@@ -945,6 +1001,119 @@
                             'stdAddSourceManuals' => $stdAddSourceManuals ?? collect(),
                             'stdProcessPicklists' => $stdProcessPicklists ?? ['cad' => [], 'stress' => [], 'paint' => []],
                         ])
+                    </div>
+                </div>
+                <div class="tab-pane fade @if($manualShowTab === 'sb') show active @endif" id="nav-sb" role="tabpanel" aria-labelledby="nav-sb-tab" tabindex="0">
+                    <div class="m-2 manual-sb-pane-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <h5 class="mb-0">{{ __('Service Bulletins') }}</h5>
+                                <div class="text-muted small">{{ __('Rows are stored on this manual and reused by workorders for SB Log.') }}</div>
+                            </div>
+                            <span class="badge text-bg-secondary">{{ $serviceBulletins->count() }} {{ __('rows') }}</span>
+                        </div>
+
+                        <div class="manual-sb-table-wrap">
+                            <table class="table table-sm table-hover table-bordered dir-table manual-sb-table">
+                                <colgroup>
+                                    <col style="width: 70px;">
+                                    <col style="width: 130px;">
+                                    <col style="width: 170px;">
+                                    <col style="width: 170px;">
+                                    <col style="width: 130px;">
+                                    <col style="width: 190px;">
+                                    <col style="width: 360px;">
+                                    <col style="width: 150px;">
+                                    <col style="width: 90px;">
+                                    <col style="width: 120px;">
+                                </colgroup>
+                                <thead class="bg-gradient">
+                                <tr>
+                                    <th class="text-center bg-gradient">{{ __('Sort') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Year Introduced') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('A/C MFG SB No.') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('OEM SB No.') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('A.W.D. No.') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Identification Method') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Description') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Requirement') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Active') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Action') }}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr class="table-secondary">
+                                    <td><input form="create-sb-row" type="number" min="0" name="sort_order" class="form-control form-control-sm" value="{{ ($serviceBulletins->max('sort_order') ?? 0) + 1 }}"></td>
+                                    <td><input form="create-sb-row" type="text" name="year_introduced" class="form-control form-control-sm"></td>
+                                    <td><input form="create-sb-row" type="text" name="ac_mfg_service_bulletin_no" class="form-control form-control-sm"></td>
+                                    <td><input form="create-sb-row" type="text" name="oem_service_bulletin_no" class="form-control form-control-sm"></td>
+                                    <td><input form="create-sb-row" type="text" name="awd_no" class="form-control form-control-sm"></td>
+                                    <td><input form="create-sb-row" type="text" name="identification_method" class="form-control form-control-sm"></td>
+                                    <td><textarea form="create-sb-row" name="description" class="form-control form-control-sm"></textarea></td>
+                                    <td>
+                                        <select form="create-sb-row" name="default_requirement" class="form-select form-select-sm">
+                                            @foreach($sbRequirementOptions as $value => $label)
+                                                <option value="{{ $value }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td class="text-center">
+                                        <input form="create-sb-row" type="hidden" name="is_active" value="0">
+                                        <input form="create-sb-row" type="checkbox" name="is_active" value="1" class="form-check-input" checked>
+                                    </td>
+                                    <td class="text-center manual-sb-actions">
+                                        <button form="create-sb-row" type="submit" class="btn btn-outline-success btn-sm">{{ __('Add') }}</button>
+                                    </td>
+                                </tr>
+
+                                @forelse($serviceBulletins as $bulletin)
+                                    <tr>
+                                        <td><input form="update-sb-{{ $bulletin->id }}" type="number" min="0" name="sort_order" class="form-control form-control-sm" value="{{ $bulletin->sort_order }}"></td>
+                                        <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="year_introduced" class="form-control form-control-sm" value="{{ $bulletin->year_introduced }}"></td>
+                                        <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="ac_mfg_service_bulletin_no" class="form-control form-control-sm" value="{{ $bulletin->ac_mfg_service_bulletin_no }}"></td>
+                                        <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="oem_service_bulletin_no" class="form-control form-control-sm" value="{{ $bulletin->oem_service_bulletin_no }}"></td>
+                                        <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="awd_no" class="form-control form-control-sm" value="{{ $bulletin->awd_no }}"></td>
+                                        <td><input form="update-sb-{{ $bulletin->id }}" type="text" name="identification_method" class="form-control form-control-sm" value="{{ $bulletin->identification_method }}"></td>
+                                        <td><textarea form="update-sb-{{ $bulletin->id }}" name="description" class="form-control form-control-sm">{{ $bulletin->description }}</textarea></td>
+                                        <td>
+                                            <select form="update-sb-{{ $bulletin->id }}" name="default_requirement" class="form-select form-select-sm">
+                                                @foreach($sbRequirementOptions as $value => $label)
+                                                    <option value="{{ $value }}" @selected((string) $bulletin->default_requirement === (string) $value)>{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <td class="text-center">
+                                            <input form="update-sb-{{ $bulletin->id }}" type="hidden" name="is_active" value="0">
+                                            <input form="update-sb-{{ $bulletin->id }}" type="checkbox" name="is_active" value="1" class="form-check-input" @checked($bulletin->is_active)>
+                                        </td>
+                                        <td class="text-center manual-sb-actions">
+                                            <button form="update-sb-{{ $bulletin->id }}" type="submit" class="btn btn-outline-primary btn-sm" title="{{ __('Save') }}">
+                                                <i class="bi bi-save"></i>
+                                            </button>
+                                            <button type="submit" form="delete-sb-{{ $bulletin->id }}" class="btn btn-outline-danger btn-sm" title="{{ __('Delete') }}" onclick="return confirm('{{ __('Delete this Service Bulletin row?') }}');">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="10" class="text-center text-muted py-4">{{ __('No Service Bulletin rows yet.') }}</td>
+                                    </tr>
+                                @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                        <form id="create-sb-row" method="post" action="{{ route('manuals.service-bulletins.store', ['manual' => $cmm]) }}" class="d-none">@csrf</form>
+                        @foreach($serviceBulletins as $bulletin)
+                            <form id="update-sb-{{ $bulletin->id }}" method="post" action="{{ route('manuals.service-bulletins.update', ['manual' => $cmm, 'serviceBulletin' => $bulletin]) }}" class="d-none">
+                                @csrf
+                                @method('PUT')
+                            </form>
+                            <form id="delete-sb-{{ $bulletin->id }}" method="post" action="{{ route('manuals.service-bulletins.destroy', ['manual' => $cmm, 'serviceBulletin' => $bulletin]) }}" class="d-none">
+                                @csrf
+                                @method('DELETE')
+                            </form>
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -1977,7 +2146,8 @@
                 components: '#nav-components',
                 parts: '#nav-parts',
                 processes: '#nav-processes',
-                std: '#nav-std'
+                std: '#nav-std',
+                sb: '#nav-sb'
             };
             const initialParams = new URLSearchParams(window.location.search);
             const partIdToScroll = initialParams.get('part_id');

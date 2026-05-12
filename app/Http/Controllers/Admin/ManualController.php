@@ -8,6 +8,7 @@ use App\Models\Component;
 use App\Models\Manual;
 use App\Models\ManualProcess;
 use App\Models\ManualProcessNameLock;
+use App\Models\ManualServiceBulletin;
 use App\Models\StdProcess;
 use App\Models\Plane;
 use App\Models\Process;
@@ -198,7 +199,7 @@ class ManualController extends Controller
         $this->ensureManualAccess($cmm);
         $cmm->load('partLock.lockedBy');
 
-        $manualTabKeys = ['components', 'parts', 'processes', 'std'];
+        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb'];
         $manualShowTab = in_array(request('tab'), $manualTabKeys, true) ? request('tab') : 'components';
 
         $planes = Plane::all();
@@ -322,8 +323,14 @@ class ManualController extends Controller
             'paint' => StdProcess::processPicklistValuesForManual($cmm->id, StdProcess::STD_PAINT),
         ];
 
+        $serviceBulletins = ManualServiceBulletin::query()
+            ->where('manual_id', $cmm->id)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
-        'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists'
+        'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','serviceBulletins'
         ));
 
     }
