@@ -1,5 +1,7 @@
 <style>
-    .extra-parts-table-wrapper { height: calc(100vh - 300px); overflow-y: auto; overflow-x: hidden; max-width: 1080px; margin-left: auto; margin-right: auto; }
+    .extra-parts-table-shell { max-width: 1080px; margin-left: auto; margin-right: auto; }
+    .extra-parts-table-actions { display: flex; justify-content: flex-start; margin-bottom: 0.35rem; }
+    .extra-parts-table-wrapper { height: calc(100vh - 330px); overflow-y: auto; overflow-x: hidden; }
     .extra-parts-table-wrapper .table th, .extra-parts-table-wrapper .table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 80px; max-width: 500px; }
     .extra-parts-table-wrapper .table thead th { position: sticky; top: -1px; z-index: 10; background: inherit; }
     .extra-part-processes .vendor-select { transition: all 0.3s ease; }
@@ -14,18 +16,24 @@
 </style>
 
 <div class="extra-part-processes" data-has-records="{{ (isset($extra_components) && count($extra_components) > 0) ? '1' : '0' }}" data-extra-process-count="{{ isset($extra_components) ? count($extra_components) : 0 }}">
-    <div class="table-wrapper extra-parts-table-wrapper">
-        <table class="table table-hover align-middle table-bordered bg-gradient dir-table">
-            <thead>
-                <tr>
-                    <th class="text-primary text-center" style="width: 8%">IPL</th>
-                    <th class="text-primary text-center" style="width: 15%">Name</th>
-                    <th class="text-primary text-center" style="width: 5%">QTY</th>
-                    <th class="text-primary text-center" style="width: 50%">Processes</th>
-                    <th class="text-primary text-center" style="width: 18%">Action</th>
-                </tr>
-            </thead>
-            <tbody>
+    <div class="extra-parts-table-shell">
+        <div class="extra-parts-table-actions">
+            <button type="button" class="btn btn-outline-success btn-sm open-add-extra-part-modal-btn" data-workorder-id="{{ $current_wo->id }}">
+                <i class="fas fa-plus"></i> {{ __('Add Extra Part') }}
+            </button>
+        </div>
+        <div class="table-wrapper extra-parts-table-wrapper">
+            <table class="table table-hover align-middle table-bordered bg-gradient dir-table">
+                <thead>
+                    <tr>
+                        <th class="text-primary text-center" style="width: 8%">IPL</th>
+                        <th class="text-primary text-center" style="width: 15%">Name</th>
+                        <th class="text-primary text-center" style="width: 5%">QTY</th>
+                        <th class="text-primary text-center" style="width: 50%">Processes</th>
+                        <th class="text-primary text-center" style="width: 18%">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
                 @forelse($extra_components as $extra_component)
                     <tr>
                         <td class="text-center align-content-center">{{ $extra_component->component ? $extra_component->component->ipl_num : 'N/A' }}</td>
@@ -89,8 +97,9 @@
                 @empty
                     <tr><td colspan="5" class="text-center text-muted py-4">{{ __('No extra part processes.') }}</td></tr>
                 @endforelse
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     @if(isset($processGroups) && count($processGroups) > 0)

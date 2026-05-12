@@ -106,6 +106,11 @@ class Manual extends Model implements HasMedia
         return $this->hasMany(StdProcess::class, 'manual_id');
     }
 
+    public function serviceBulletins()
+    {
+        return $this->hasMany(ManualServiceBulletin::class, 'manual_id');
+    }
+
     public function permittedUsers()
     {
         return $this->belongsToMany(User::class, 'manual_user_permissions', 'manual_id', 'user_id')

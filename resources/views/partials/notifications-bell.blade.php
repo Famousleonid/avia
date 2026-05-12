@@ -282,6 +282,27 @@
             return safe ? `<div class="small">${safe}</div>` : `<div class="text-muted small">—</div>`;
         }
 
+        function workorderNumber(n) {
+            const ui = n?.ui ?? {};
+            const payload = n?.payload ?? {};
+            return ui?.workorder?.no ?? payload?.workorder_no ?? payload?.workorder_number ?? '';
+        }
+
+        function buildMetaLine(n) {
+            const fromName = String(n?.from_name || 'System').trim() || 'System';
+            const toName = String(n?.to_name || '').trim();
+            const woRaw = workorderNumber(n);
+            const wo = woRaw !== null && woRaw !== undefined && String(woRaw).trim() !== ''
+                ? ` <span class="text-warning fw-semibold">WO #${escapeHtml(woRaw)}</span>`
+                : '';
+
+            return `
+                <span>From: ${escapeHtml(fromName)}</span>
+                ${toName ? `<span class="text-muted mx-1">to</span><span>${escapeHtml(toName)}</span>` : ``}
+                ${wo}
+            `;
+        }
+
         function renderItems(items, append = false) {
             if (!append) {
                 list.innerHTML = '';
@@ -294,8 +315,7 @@
 
             const html = (items || []).map(n => {
                 const id = escapeHtml(n.id);
-                const fromName = String(n.from_name || 'System').trim() || 'System';
-                const from = `From: ${escapeHtml(fromName)}`;
+                const meta = buildMetaLine(n);
                 const time = escapeHtml(n.created_at_human);
                 const msg = buildMessage(n);
                 const url = n.url ? escapeHtml(n.url) : '';
@@ -308,7 +328,7 @@
   <div class="d-flex justify-content-between align-items-start gap-2">
     <div class="w-100">
       <div class="d-flex align-items-center justify-content-between small">
-        <div class="text-warning">${from}</div>
+        <div class="text-warning">${meta}</div>
         <div class="text-muted">${time}</div>
       </div>
       ${msg ? `<div class="small mt-1">${msg}</div>` : ``}

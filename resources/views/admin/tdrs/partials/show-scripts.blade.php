@@ -2254,6 +2254,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 openAddExtraProcessModal(addBtn.dataset.workorderId, addBtn.dataset.componentId);
                 return;
             }
+            var addExtraPartBtn = e.target.closest('.open-add-extra-part-modal-btn');
+            if (addExtraPartBtn) {
+                e.preventDefault();
+                var woId = addExtraPartBtn.dataset.workorderId || window.currentWorkorderId;
+                if (woId) openAddExtraPartModal(woId);
+                return;
+            }
             var procBtn = e.target.closest('.open-extra-processes-tab');
             if (procBtn && procBtn.dataset.workorderId && procBtn.dataset.componentId) {
                 e.preventDefault();

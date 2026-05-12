@@ -12,9 +12,11 @@ use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\ManualProcessController;
 use App\Http\Controllers\Admin\ManualProcessLockController;
 use App\Http\Controllers\Admin\ManualPartLockController;
+use App\Http\Controllers\Admin\ManualServiceBulletinController;
 use App\Http\Controllers\Admin\ProcessController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RmReportController;
+use App\Http\Controllers\Admin\ServiceBulletinLogController;
 use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\TdrController;
 use App\Http\Controllers\Admin\TdrPrintFormController;
@@ -237,6 +239,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/edit-form/{id}', [TdrController::class, 'editForm'])->name('tdrs.editForm');
 
         Route::get('tdrs/show/{id}', [TdrController::class, 'show'])->name('tdrs.show');
+        Route::get('tdrs/{workorder}/service-bulletin-log', [ServiceBulletinLogController::class, 'show'])->name('tdrs.serviceBulletinLog');
+        Route::post('tdrs/{workorder}/service-bulletin-log', [ServiceBulletinLogController::class, 'update'])->name('tdrs.serviceBulletinLog.update');
 
         Route::get('tdrs/show2/{id}', function ($id) {
             return redirect()->route('tdrs.show', ['id' => $id], 301);
@@ -492,6 +496,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('manuals/{manual}/std-processes/reimport-from-csv', [ManualStdProcessController::class, 'reimportFromCsv'])->name('manuals.std-processes.reimport-from-csv');
     Route::put('manuals/{manual}/std-processes/{stdProcess}', [ManualStdProcessController::class, 'update'])->name('manuals.std-processes.update');
     Route::delete('manuals/{manual}/std-processes/{stdProcess}', [ManualStdProcessController::class, 'destroy'])->name('manuals.std-processes.destroy');
+    Route::post('manuals/{manual}/service-bulletins', [ManualServiceBulletinController::class, 'store'])->name('manuals.service-bulletins.store');
+    Route::put('manuals/{manual}/service-bulletins/{serviceBulletin}', [ManualServiceBulletinController::class, 'update'])->name('manuals.service-bulletins.update');
+    Route::delete('manuals/{manual}/service-bulletins/{serviceBulletin}', [ManualServiceBulletinController::class, 'destroy'])->name('manuals.service-bulletins.destroy');
 
     // Notification
 

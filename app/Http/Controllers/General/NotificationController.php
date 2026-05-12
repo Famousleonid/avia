@@ -16,7 +16,7 @@ class NotificationController extends Controller
         $notifications = $user->notifications()
             ->latest()
             ->paginate(30)
-            ->through(function ($n) {
+            ->through(function ($n) use ($user) {
                 $d = is_array($n->data) ? $n->data : (json_decode($n->data, true) ?: []);
 
                 return (object)[
@@ -29,6 +29,7 @@ class NotificationController extends Controller
                     'payload' => $d['payload'] ?? [],
                     'from_name' => $d['from_name'] ?? $d['by_user_name'] ?? 'System',
                     'from_user_id' => $d['from_user_id'] ?? null,
+                    'to_name' => $user->name,
                     'text' => $d['text'] ?? '',
                     'url' => $d['url'] ?? null,
                     'created_at_human' => optional($n->created_at)->diffForHumans(),
@@ -73,6 +74,7 @@ class NotificationController extends Controller
                 'text' => $d['text'] ?? '',
                 'url' => $d['url'] ?? null,
                 'from_name' => $d['from_name'] ?? $d['by_user_name'] ?? 'System',
+                'to_name' => $user->name,
                 'created_at_human' => optional($n->created_at)->diffForHumans(),
             ];
         })->values();

@@ -174,7 +174,7 @@ class QualityAssuranceService
                 $hasStart = ! is_null($process->date_start);
                 $hasFinish = ! is_null($process->date_finish);
                 $missingRo = ($hasStart || $hasFinish) && blank($process->repair_order);
-                $incomplete = ($hasStart && ! $hasFinish) || ($workorder->isDone() && ! $hasFinish);
+                $incomplete = ! $hasStart || ! $hasFinish;
                 $finishedWithoutStart = $hasFinish && ! $hasStart;
 
                 if ($missingRo) {

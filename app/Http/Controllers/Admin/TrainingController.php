@@ -614,6 +614,7 @@ class TrainingController extends Controller
             // Сначала цифры (по возрастанию), потом буквы (по алфавиту)
             $users = User::whereNotNull('stamp')
                 ->where('stamp', '<>', '')
+                ->where('is_admin', false)
                 ->whereNull('deleted_at') // Исключаем удаленных пользователей
                 ->get()
                 ->sortBy(function ($user) {

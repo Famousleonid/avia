@@ -740,6 +740,7 @@ class NotificationRulesTest extends TestCase
             'exclude_actor' => false,
         ]);
 
+        \Carbon\Carbon::setTestNow('2026-05-11 06:00:00');
         $this->actingAs($admin)
             ->patchJson(route('tdrprocesses.updateDate', $first), [
                 'date_finish' => '2026-05-02',

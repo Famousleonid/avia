@@ -48,6 +48,11 @@ class Workorder extends Model implements HasMedia
         return $this->hasMany(WorkorderUnitInspection::class);
     }
 
+    public function serviceBulletinLogs(): HasMany
+    {
+        return $this->hasMany(WorkorderServiceBulletinLog::class);
+    }
+
     public function woBushingLines(): HasMany
     {
         return $this->hasMany(WoBushingLine::class);

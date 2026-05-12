@@ -6,7 +6,9 @@ use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\Code;
 use App\Models\Component;
 use App\Models\LogCard;
+use App\Models\ProcessName;
 use App\Models\Tdr;
+use App\Models\TdrProcess;
 use App\Models\Workorder;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -127,6 +129,54 @@ class QualityAssuranceTest extends TestCase
         ]);
         $this->assertSame('log_card', $response->json('workorder.forms.0.key'));
         $this->assertNotContains('spf', collect($response->json('workorder.forms'))->pluck('key')->all());
+    }
+
+    public function test_quality_incomplete_processes_is_failed_when_process_dates_are_missing(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder(['number' => 988802]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'QA-MISSING-DATES',
+            'name' => 'QA Missing Dates Component',
+            'ipl_num' => '1-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'QA-MISSING-DATES-SN',
+            'qty' => 1,
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'QA Missing Dates Process',
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+            'print_form' => false,
+            'show_in_process_picker' => true,
+        ]);
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'sort_order' => 1,
+            'date_start' => null,
+            'date_finish' => null,
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('quality.workorder', [
+            'q' => '988802',
+        ]));
+
+        $response->assertOk();
+
+        $incompleteCheck = collect($response->json('workorder.checks'))
+            ->firstWhere('label', 'Incomplete processes');
+
+        $this->assertNotNull($incompleteCheck);
+        $this->assertFalse($incompleteCheck['ok']);
+        $this->assertSame(1, collect($response->json('workorder.repair_orders'))->where('ok', false)->count());
     }
 
     public function test_manager_can_update_quality_top_workorder_fields(): void

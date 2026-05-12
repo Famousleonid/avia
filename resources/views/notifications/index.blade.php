@@ -61,7 +61,8 @@
                 @forelse($notifications as $n)
                     @php
                         $isUnread = is_null($n->read_at);
-                        $from = $n->from_name ? "From: {$n->from_name}" : "From: System";
+                        $fromName = trim((string) ($n->from_name ?: 'System'));
+                        $toName = trim((string) ($n->to_name ?? ''));
                         $time = $n->created_at_human ?? optional($n->created_at)->diffForHumans();
                         $text = $n->text ?? '';
                         $ui = is_array($n->ui ?? null) ? $n->ui : [];
@@ -77,7 +78,15 @@
                         <div class="d-flex justify-content-between align-items-start gap-2">
                             <div class="w-100">
                                 <div class="d-flex align-items-center justify-content-between small">
-                                    <div class="text-warning">{{ $from }}</div>
+                                    <div class="text-warning">
+                                        From: {{ $fromName }}
+                                        @if($toName)
+                                            <span class="text-muted mx-1">to</span>{{ $toName }}
+                                        @endif
+                                        @if($woNo)
+                                            <span class="text-warning fw-semibold ms-1">WO #{{ $woNo }}</span>
+                                        @endif
+                                    </div>
                                     <div class="text-muted">{{ $time }}</div>
                                 </div>
 

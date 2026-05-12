@@ -323,7 +323,7 @@
                                   style="top: -5px; left: 2px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: black; font-size: 0.7rem; padding: 0 5px;"></span>
                         </div>
                         {{-- x-paper buttons --}}
-                        @if(count($tdrs))
+
                             <div class="d-flex flex-wrap gap-2 ms-2">
                                 <div class="me-3 d-flex flex-wrap">
                                     <x-paper-button text="WO Process Sheet" href="{{ route('tdrs.woProcessForm', ['id'=> $current_wo->id]) }}" target="_blank" color="outline-info" />
@@ -377,8 +377,11 @@
                                         <x-paper-button text="Bushing SP Form" href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}" target="_blank" color="outline-primary" />
                                     @endif
                                 </span>
+                                <span id="serviceBulletinLogPaperWrap">
+                                    <x-paper-button text="SB Log" href="{{ route('tdrs.serviceBulletinLog', ['workorder' => $current_wo->id]) }}" target="_blank" color="outline-primary" />
+                                </span>
                             </div>
-                        @endif
+
                     </div>
                 </div>
             </div>
@@ -472,11 +475,6 @@
                             data-process-shortcut-target="#content-extra-parts-processes"
                             data-base-text="{{ __('Fix fuckup') }}">
                         {{ __('Fix fuckup') }}{{ ($hasExtraProcessRecords ?? false) ? ' *' : '' }}
-                    </button>
-                </div>
-                <div id="extraPartsTabActions" class="d-none d-flex gap-2 align-items-center">
-                    <button type="button" class="btn btn-outline-success btn-sm" id="openAddExtraPartModalBtn" data-workorder-id="{{ $current_wo->id }}">
-                        <i class="fas fa-plus"></i> {{ __('Add Extra Part') }}
                     </button>
                 </div>
                 @if(count($processParts))
