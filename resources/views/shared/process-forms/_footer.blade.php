@@ -21,7 +21,16 @@
         <div class="col-4 text-center"></div>
         @endif
         <div class="{{ $totalQty !== null ? 'col-4' : 'col-6' }} text-end pe-4">
-            {{ __('Rev#0, 15/Dec/2012   ') }}
+
+            @php
+                $sheetTitle = (string) ($process_name->process_sheet_name ?? $process_name->name ?? '');
+            @endphp
+            @if($sheetTitle === 'SILVER PLATING')
+                {{ __('Rev#0, 12/May/2026   ') }}
+            @else
+                {{ __('Rev#0, 15/Dec/2012   ') }}
+            @endif
+
             @if($totalQty !== null && $totalQty > 0)
             <p class="mb-0"><strong>Total qty: {{ $totalQty }}</strong></p>
             @endif
