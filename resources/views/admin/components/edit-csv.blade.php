@@ -68,7 +68,7 @@
                                             <tr data-row-index="{{ $rowIndex }}">
                                                 @foreach($headers as $colIndex => $header)
                                                     <td class="text-center">
-                                                        @if(in_array($header, ['log_card', 'is_bush', 'kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list']))
+                                                        @if(in_array($header, ['log_card', 'is_bush', 'kit', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list']))
                                                             <select name="rows[{{ $rowIndex }}][]" class="form-select form-select-sm">
                                                                 <option value="0" {{ (isset($row[$colIndex]) && ($row[$colIndex] == '0' || $row[$colIndex] == 'false' || $row[$colIndex] == '')) ? 'selected' : '' }}>0</option>
                                                                 <option value="1" {{ (isset($row[$colIndex]) && ($row[$colIndex] == '1' || $row[$colIndex] == 'true')) ? 'selected' : '' }}>1</option>
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const cell = document.createElement('td');
                 cell.className = 'text-center';
                 
-                if (['log_card', 'is_bush', 'kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].includes(header)) {
+                if (['log_card', 'is_bush', 'kit', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].includes(header)) {
                     cell.innerHTML = `
                         <select name="rows[${rowIndex}][]" class="form-select form-select-sm">
                             <option value="0">0</option>

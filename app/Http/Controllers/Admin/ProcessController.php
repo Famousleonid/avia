@@ -89,6 +89,7 @@ class ProcessController extends Controller
         $validated = $request->validate([
             'process_names_id' => 'required|integer|exists:process_names,id',
             'manual_id' => 'required|integer|exists:manuals,id',
+            'process_comment' => 'nullable|string|max:2000',
         ]);
 
         $manual = Manual::findOrFail((int) $validated['manual_id']);
@@ -138,7 +139,14 @@ class ProcessController extends Controller
                 ManualProcess::create([
                     'manual_id' => $validated['manual_id'],
                     'processes_id' => $processId,
+                    'process_comment' => filled($validated['process_comment'] ?? null)
+                        ? trim((string) $validated['process_comment'])
+                        : null,
                 ]);
+            } elseif (filled($validated['process_comment'] ?? null)) {
+                $existingManualProcess->forceFill([
+                    'process_comment' => trim((string) $validated['process_comment']),
+                ])->save();
             }
 
             // Загружаем процесс для возврата (независимо от того, новый он или существующий)
@@ -238,6 +246,18 @@ class ProcessController extends Controller
                 ->whereNotIn('id', $existingProcessIds)
                 ->get();
         }
+
+        $processComments = DB::table('manual_processes')
+            ->where('manual_id', $manualId)
+            ->whereIn('processes_id', $existingProcesses->pluck('id')->all())
+            ->pluck('process_comment', 'processes_id');
+
+        $existingProcesses = $existingProcesses->map(function (Process $process) use ($processComments) {
+            $comment = trim((string) ($processComments[$process->id] ?? ''));
+            $process->process_comment = $comment !== '' ? $comment : null;
+
+            return $process;
+        });
 
         return response()->json([
             'existingProcesses' => $existingProcesses,

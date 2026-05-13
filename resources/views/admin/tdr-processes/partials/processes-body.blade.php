@@ -122,15 +122,13 @@
         border: 1px dotted var(--bs-info);
         border-radius: .35rem;
         box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
-        left: .55rem;
+        margin-top: .35rem;
         max-height: min(240px, 45vh);
         min-height: 32px;
         overflow-y: auto;
         padding: .25rem .4rem;
-        position: absolute;
-        right: .55rem;
-        bottom: calc(100% + 6px);
-        z-index: 30;
+        position: static;
+        width: 100%;
     }
     .tdr-process-inline-process-cell {
         position: relative;
@@ -150,6 +148,9 @@
     }
     .tdr-process-inline-option span {
         min-width: 0;
+    }
+    .tdr-process-inline-option-comment {
+        color: #ffc107;
     }
 </style>
 

@@ -104,7 +104,13 @@ class ManualProcessController extends Controller
         $manualId = $manualProcess->manual_id;
 
         // Проверка, существует ли такой процесс с другим manual_id
-        $existingProcess = Process::where('process', $request->input('process'))
+        $validated = $request->validate([
+            'process' => ['required', 'string', 'max:255'],
+            'process_comment' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $processComment = trim((string) ($validated['process_comment'] ?? ''));
+
+        $existingProcess = Process::where('process', $validated['process'])
             ->where('process_names_id', $process->process_names_id)
             ->where('id', '!=', $process->id)
             ->first();
@@ -113,16 +119,17 @@ class ManualProcessController extends Controller
             // Если существует, создаем новый процесс и обновляем processes_id в manual_processes
             $newProcess = Process::create([
                 'process_names_id' => $process->process_names_id,
-                'process' => $request->input('process')
+                'process' => $validated['process']
             ]);
 
             $manualProcess->processes_id = $newProcess->id;
-            $manualProcess->save();
         } else {
             // Если не существует, обновляем существующий процесс
-            $process->process = $request->input('process');
+            $process->process = $validated['process'];
             $process->save();
         }
+        $manualProcess->process_comment = $processComment !== '' ? $processComment : null;
+        $manualProcess->save();
 
         $redirectTo = $request->input('return_to');
         if ($redirectTo) {

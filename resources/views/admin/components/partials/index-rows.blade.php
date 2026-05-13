@@ -6,6 +6,7 @@
         'log_card' => 'LC',
         'is_bush' => 'Bush',
         'kit' => 'Kit',
+        'kit_e' => 'Kit_E',
         'ndt_list' => 'NDT',
         'cad_list' => 'CAD',
         'stress_relief_list' => 'Stress',

@@ -73,8 +73,8 @@
         #manualPartsTable td:nth-child(5) { width: 7%; }
         #manualPartsTable th:nth-child(6),
         #manualPartsTable td:nth-child(6) { width: 5%; }
-        #manualPartsTable th:nth-child(14),
-        #manualPartsTable td:nth-child(14) { width: 7%; }
+        #manualPartsTable th:nth-child(15),
+        #manualPartsTable td:nth-child(15) { width: 7%; }
 
         #manualPartsTable {
             min-width: 1340px;
@@ -285,8 +285,8 @@
             max-width: 86px !important;
         }
 
-        #manualPartsTable th:nth-child(14),
-        #manualPartsTable td:nth-child(14) {
+        #manualPartsTable th:nth-child(15),
+        #manualPartsTable td:nth-child(15) {
             width: 86px !important;
             min-width: 86px !important;
             max-width: 86px !important;
@@ -299,6 +299,7 @@
 
         #nav-processes .table {
             width: 100%;
+            table-layout: fixed;
         }
 
         #nav-sb .manual-sb-table-wrap {
@@ -345,11 +346,17 @@
         #nav-processes .table th:nth-child(1),
         #nav-processes .table td:nth-child(1) { width: 7%; }
         #nav-processes .table th:nth-child(2),
-        #nav-processes .table td:nth-child(2) { width: 23%; }
+        #nav-processes .table td:nth-child(2) { width: 22%; }
         #nav-processes .table th:nth-child(3),
-        #nav-processes .table td:nth-child(3) { width: 50%; }
+        #nav-processes .table td:nth-child(3) { width: auto; }
         #nav-processes .table th:nth-child(4),
-        #nav-processes .table td:nth-child(4) { width: 20%; }
+        #nav-processes .table td:nth-child(4) { width: 28%; }
+        #nav-processes .table th:nth-child(5),
+        #nav-processes .table td:nth-child(5) {
+            width: 82px;
+            min-width: 82px;
+            max-width: 82px;
+        }
 
         .card shadow {
             max-width: 1200px;
@@ -476,7 +483,11 @@
             min-height: 16px;
         }
         .manual-process-actions {
+            width: 82px;
+            min-width: 82px;
+            max-width: 82px;
             white-space: nowrap;
+            text-align: center;
         }
         .manual-process-inline-text {
             display: inline-flex;
@@ -484,9 +495,19 @@
             gap: 0;
             min-height: 18px;
         }
-        .manual-process-lock-button .btn-sm,
-        .manual-process-actions .btn-sm {
+        .manual-process-comment {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+        .manual-process-lock-button .btn-sm {
             padding: 2px 8px;
+            font-size: 12px;
+            line-height: 1.15;
+        }
+        .manual-process-actions .btn-sm {
+            width: 28px;
+            height: 26px;
+            padding: 2px 0;
             font-size: 12px;
             line-height: 1.15;
         }
@@ -841,6 +862,7 @@
                                 <col class="manual-part-flag-col" style="width: 46px;">
                                 <col class="manual-part-flag-col" style="width: 46px;">
                                 <col class="manual-part-flag-col" style="width: 46px;">
+                                <col class="manual-part-flag-col" style="width: 46px;">
                                 <col class="manual-part-action-col" style="width: 86px;">
                             </colgroup>
                             <thead class="bg-gradient">
@@ -854,6 +876,7 @@
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Log Card">LC</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Bushing">Bush</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Kit">Kit</th>
+                                <th class="text-center bg-gradient align-content-center component-flag-head" title="Kit E">Kit_E</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="NDT List">NDT</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="CAD List">CAD</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Stress Relief List">Stress</th>
@@ -870,7 +893,7 @@
                                 ])
                                 @if($parts->isEmpty())
                                     <tr class="components-empty-row">
-                                        <td colspan="14" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
+                                        <td colspan="15" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
@@ -886,6 +909,7 @@
                                 <th class="text-center bg-gradient" scope="col">Lock</th>
                                 <th class="text-center bg-gradient" scope="col">Process Name</th>
                                 <th class="text-center bg-gradient" scope="col">Process / Specification</th>
+                                <th class="text-center bg-gradient" scope="col">Comment</th>
                                 <th class="text-center bg-gradient" scope="col">Action</th>
                             </tr>
                             </thead>
@@ -928,6 +952,9 @@
                                     <td class="align-content-center text-start">
                                         &nbsp;
                                     </td>
+                                    <td class="align-content-center text-start">
+                                        &nbsp;
+                                    </td>
                                     <td class="align-content-center manual-process-actions">
                                         &nbsp;
                                     </td>
@@ -966,6 +993,9 @@
                                                 @endif
                                                 <span>{{ $mp->process?->process }}</span>
                                             </span>
+                                        </td>
+                                        <td class="align-content-center text-start ps-3 manual-process-comment">
+                                            {{ $mp->process_comment ?: '-' }}
                                         </td>
                                         <td class="align-content-center manual-process-actions">
                                             <a href="{{ route('manual_processes.edit', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}"
@@ -1173,6 +1203,10 @@
                             <label class="form-check-label" for="manual_drawer_kit">Kit</label>
                         </div>
                         <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_drawer_kit_e" name="kit_e">
+                            <label class="form-check-label" for="manual_drawer_kit_e">Kit_E</label>
+                        </div>
+                        <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="manual_drawer_ndt_list" name="ndt_list">
                             <label class="form-check-label" for="manual_drawer_ndt_list">NDT List</label>
                         </div>
@@ -1264,6 +1298,10 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="manual_edit_drawer_kit" name="kit">
                             <label class="form-check-label" for="manual_edit_drawer_kit">Kit</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_edit_drawer_kit_e" name="kit_e">
+                            <label class="form-check-label" for="manual_edit_drawer_kit_e">Kit_E</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="manual_edit_drawer_ndt_list" name="ndt_list">
@@ -1488,7 +1526,7 @@
                                         <li><strong>assy_ipl_num</strong> - {{__('Assembly IPL number (optional)')}}</li>
                                         <li><strong>log_card</strong> - {{__('Log card (0 or 1, optional)')}}</li>
                                         <li><strong>is_bush</strong> - {{__('Is bushing (0 or 1, optional)')}}</li>
-                                        <li><strong>kit</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
+                                        <li><strong>kit</strong>, <strong>kit_e</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
                                         <li><strong>bush_ipl_num</strong> - {{__('Bushing IPL number (optional)')}}</li>
                                     </ul>
                                     <div class="alert alert-info mt-3 mb-0">
@@ -2117,7 +2155,7 @@
                         if (manualEditDrawer.isBush) manualEditDrawer.isBush.checked = !!component.is_bush;
                         var logCard = document.getElementById('manual_edit_drawer_log_card');
                         if (logCard) logCard.checked = !!component.log_card;
-                        ['kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].forEach(function (field) {
+                        ['kit', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].forEach(function (field) {
                             var checkbox = document.getElementById('manual_edit_drawer_' + field);
                             if (checkbox) checkbox.checked = !!component[field];
                         });

@@ -14,6 +14,10 @@ class AuthServiceProvider extends ServiceProvider
             return $user->canAccessQualityAssurancePage();
         });
 
+        Gate::define('ec.access', function (User $user) {
+            return $user->canAccessEcPage();
+        });
+
         foreach (config('permissions') as $model => $actions) {
             foreach ($actions as $action => $rolesAllowed) {
                 Gate::define("{$model}.{$action}", function ($user) use ($model, $action, $rolesAllowed) {

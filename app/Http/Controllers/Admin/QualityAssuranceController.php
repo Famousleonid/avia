@@ -762,6 +762,11 @@ class QualityAssuranceController extends Controller
                 'title' => 'Shipment',
                 'url' => route('quality.forms.shipment_release', ['workorder' => $workorder->id]),
             ],
+            [
+                'key' => 'service_bulletin_log',
+                'title' => 'SB Log',
+                'url' => route('tdrs.serviceBulletinLog', ['workorder' => $workorder->id]),
+            ],
         ])->map(fn ($form) => $form + [
             'workorder_number' => (string) $workorder->number,
             'status' => 'Draft',

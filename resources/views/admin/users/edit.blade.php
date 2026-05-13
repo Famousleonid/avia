@@ -223,6 +223,17 @@
                                 <label for="qa_access" class="form-check-label">Can view and use Quality Assurance page</label>
                             </div>
                         </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="ec_access"
+                                       id="ec_access"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('ec_access', $user->hasEcAccess()) ? 'checked' : '' }}>
+                                <label for="ec_access" class="form-check-label">EC</label>
+                            </div>
+                        </div>
                     </div>
 
 

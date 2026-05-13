@@ -454,10 +454,21 @@ class TdrController extends Controller
         }
 
         // Компоненты для данного manual
-        $components = Component::where('manual_id', $manual_id)
+        $componentsQuery = Component::where('manual_id', $manual_id)
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
-            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy')
-            ->get();
+            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'kit_e');
+
+        if ($request->boolean('exclude_kits')) {
+            $componentsQuery
+                ->where(function ($query) {
+                    $query->where('kit', false)->orWhereNull('kit');
+                })
+                ->where(function ($query) {
+                    $query->where('kit_e', false)->orWhereNull('kit_e');
+                });
+        }
+
+        $components = $componentsQuery->get();
 
         // Условия для Component - без фильтрации
         $component_conditions = Condition::where('unit', false)->get();
@@ -1204,6 +1215,12 @@ class TdrController extends Controller
 
         // Извлекаем компоненты, которые связаны с этим manual_id
         $components = Component::where('manual_id', $manual_id)
+            ->where(function ($query) {
+                $query->where('kit', false)->orWhereNull('kit');
+            })
+            ->where(function ($query) {
+                $query->where('kit_e', false)->orWhereNull('kit_e');
+            })
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
             ->get();
 

@@ -259,7 +259,7 @@
 
         .qa-info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: .35rem .75rem;
             padding: .5rem .7rem;
         }
@@ -641,6 +641,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .qa-info-item-component-pn {
+                grid-column: auto;
+            }
+
             .qa-submitted-cards {
                 grid-template-columns: 1fr;
             }
@@ -933,14 +937,14 @@
                     ['WO #', wo.number],
                     ['Customer', top.customer],
                     ['Instruction', top.instruction],
-                    ['Technician', top.technician],
+                    ['Manual', manualHtml(top.manual), true],
                     ['Component PN', top.unit_id, false, 'unit_id'],
                     ['Modified', top.modified, false, 'modified'],
                     ['Serial #', top.serial, false, 'serial'],
-                    ['Manual', manualHtml(top.manual), true],
                     ['Manual Rev.', top.manual_revision],
                     ['Open Date', top.open_date],
                     ['Customer PO', top.customer_po],
+                    ['Technician', top.technician],
                 ].map(([label, value, html, editable]) => editable
                     ? (editable === 'unit_id' ? unitSelectFieldHtml(label, value) : editableFieldHtml(label, value, editable))
                     : fieldHtml(label, value, html)

@@ -792,7 +792,7 @@ function initTdrInlineCreate() {
         $.ajax({
             url: '{{ route("api.get-components-by-manual") }}',
             method: 'GET',
-            data: { manual_id: manualId, _token: '{{ csrf_token() }}' },
+            data: { manual_id: manualId, exclude_kits: 1, _token: '{{ csrf_token() }}' },
             success: function(response) {
                 const components = response.components || [];
                 $(componentSelect).empty().append('<option value="">---</option>');

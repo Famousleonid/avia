@@ -174,8 +174,11 @@
                 });
 
                 const data = await r.json().catch(() => ({}));
-                setBadge(data.count || 0);
+                const count = Number(data.count || 0);
+                setBadge(count);
+                return count;
             } catch (_) {
+                return null;
             }
         }
 
@@ -390,8 +393,14 @@
 
                     list.querySelectorAll('.notif-loadmore-wrap').forEach(el => el.remove());
 
+                    const unreadCount = await fetchCount();
+
                     if (!list.querySelector('[data-notif-id]')) {
-                        list.innerHTML = `<div class="p-3 text-muted small">No unread notifications</div>`;
+                        if ((unreadCount === null && notifHasMore) || Number(unreadCount || 0) > 0) {
+                            await loadLatest(true);
+                        } else {
+                            list.innerHTML = `<div class="p-3 text-muted small">No unread notifications</div>`;
+                        }
                     } else if (notifHasMore) {
                         list.insertAdjacentHTML('beforeend', `
                             <div class="p-2 text-center text-muted small notif-loadmore-wrap">
@@ -399,8 +408,6 @@
                             </div>
                         `);
                     }
-
-                    await fetchCount();
                 });
             });
 

@@ -22,6 +22,7 @@ class ComponentController extends Controller
         'log_card',
         'is_bush',
         'kit',
+        'kit_e',
         'ndt_list',
         'cad_list',
         'stress_relief_list',
@@ -43,6 +44,7 @@ class ComponentController extends Controller
             'log_card' => 'LC',
             'is_bush' => 'Bush',
             'kit' => 'Kit',
+            'kit_e' => 'Kit_E',
             'ndt_list' => 'NDT',
             'cad_list' => 'CAD',
             'stress_relief_list' => 'Stress',
@@ -702,6 +704,7 @@ class ComponentController extends Controller
                 'log_card'         => (bool) $component->log_card,
                 'is_bush'          => (bool) $component->is_bush,
                 'kit'              => (bool) $component->kit,
+                'kit_e'            => (bool) $component->kit_e,
                 'ndt_list'         => (bool) $component->ndt_list,
                 'cad_list'         => (bool) $component->cad_list,
                 'stress_relief_list' => (bool) $component->stress_relief_list,
@@ -1199,6 +1202,7 @@ class ComponentController extends Controller
                         'log_card' => isset($rowData['log_card']) ? (int)($rowData['log_card'] == '1' || $rowData['log_card'] == 'true') : 0,
                         'is_bush' => isset($rowData['is_bush']) ? (int)($rowData['is_bush'] == '1' || $rowData['is_bush'] == 'true') : 0,
                         'kit' => isset($rowData['kit']) ? (int)($rowData['kit'] == '1' || $rowData['kit'] == 'true') : 0,
+                        'kit_e' => isset($rowData['kit_e']) ? (int)($rowData['kit_e'] == '1' || $rowData['kit_e'] == 'true') : 0,
                         'ndt_list' => isset($rowData['ndt_list']) ? (int)($rowData['ndt_list'] == '1' || $rowData['ndt_list'] == 'true') : 0,
                         'cad_list' => isset($rowData['cad_list']) ? (int)($rowData['cad_list'] == '1' || $rowData['cad_list'] == 'true') : 0,
                         'stress_relief_list' => isset($rowData['stress_relief_list']) ? (int)($rowData['stress_relief_list'] == '1' || $rowData['stress_relief_list'] == 'true') : 0,
@@ -1271,7 +1275,7 @@ class ComponentController extends Controller
                             // Фильтруем пустые значения, чтобы не перезаписывать существующие данные
                             $updateData = array_intersect_key($componentData, array_flip([
                                 'part_number', 'name', 'assy_part_number', 'assy_ipl_num', 'eff_code',
-                                'units_assy', 'log_card', 'is_bush', 'kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list', 'bush_ipl_num'
+                                'units_assy', 'log_card', 'is_bush', 'kit', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list', 'bush_ipl_num'
                             ]));
 
                             // Убираем пустые строки и null значения, но оставляем 0 для boolean полей
@@ -1406,6 +1410,7 @@ class ComponentController extends Controller
                 'log_card',
                 'is_bush',
                 'kit',
+                'kit_e',
                 'ndt_list',
                 'cad_list',
                 'stress_relief_list',
@@ -1429,6 +1434,7 @@ class ComponentController extends Controller
                 '0',
                 '0',
                 '0',
+                '0',
                 ''
             ]);
 
@@ -1445,6 +1451,7 @@ class ComponentController extends Controller
                 '1',
                 '0',
                 '1',
+                '0',
                 '0',
                 '0',
                 '789-012B'
@@ -1652,6 +1659,7 @@ class ComponentController extends Controller
                         'log_card' => isset($rowData['log_card']) ? (int)($rowData['log_card'] == '1' || $rowData['log_card'] == 'true') : 0,
                         'is_bush' => isset($rowData['is_bush']) ? (int)($rowData['is_bush'] == '1' || $rowData['is_bush'] == 'true') : 0,
                         'kit' => isset($rowData['kit']) ? (int)($rowData['kit'] == '1' || $rowData['kit'] == 'true') : 0,
+                        'kit_e' => isset($rowData['kit_e']) ? (int)($rowData['kit_e'] == '1' || $rowData['kit_e'] == 'true') : 0,
                         'ndt_list' => isset($rowData['ndt_list']) ? (int)($rowData['ndt_list'] == '1' || $rowData['ndt_list'] == 'true') : 0,
                         'cad_list' => isset($rowData['cad_list']) ? (int)($rowData['cad_list'] == '1' || $rowData['cad_list'] == 'true') : 0,
                         'stress_relief_list' => isset($rowData['stress_relief_list']) ? (int)($rowData['stress_relief_list'] == '1' || $rowData['stress_relief_list'] == 'true') : 0,
@@ -1686,7 +1694,7 @@ class ComponentController extends Controller
                         try {
                             $updateData = array_intersect_key($componentData, array_flip([
                                 'part_number', 'name', 'assy_part_number', 'assy_ipl_num', 'eff_code',
-                                'units_assy', 'log_card', 'is_bush', 'kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list', 'bush_ipl_num'
+                                'units_assy', 'log_card', 'is_bush', 'kit', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list', 'bush_ipl_num'
                             ]));
 
                             // Убираем пустые строки и null значения, но оставляем 0 для boolean полей

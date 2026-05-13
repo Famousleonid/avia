@@ -49,6 +49,8 @@
         );
     $showQualityAssuranceMenu = $sidebarUser
         && $sidebarUser->can('manager.qa');
+    $showEcMenu = $sidebarUser
+        && $sidebarUser->can('ec.access');
 @endphp
 @if($minimalShopSidebar)
     <li class="nav-item">
@@ -78,6 +80,13 @@
         <li class="nav-item">
             <a class="nav-link press-spinner" href="{{ route('manuals.index') }}">
                 <i class="bi bi-book-half me-2"></i> <span>Manuals</span>
+            </a>
+        </li>
+    @endif
+    @if($showEcMenu)
+        <li class="nav-item">
+            <a class="nav-link press-spinner {{ request()->routeIs('ec.*') ? 'active' : '' }}" href="{{ route('ec.index') }}">
+                <i class="bi bi-clipboard-data me-2"></i> <span>EC</span>
             </a>
         </li>
     @endif
@@ -209,6 +218,13 @@
         <li class="nav-item">
             <a class="nav-link press-spinner" href="{{route('manuals.index')}}">
                 <i class="bi bi-book-half me-2"></i> <span>Manuals</span>
+            </a>
+        </li>
+    @endif
+    @if ($showEcMenu)
+        <li class="nav-item">
+            <a class="nav-link press-spinner {{ request()->routeIs('ec.*') ? 'active' : '' }}" href="{{ route('ec.index') }}">
+                <i class="bi bi-clipboard-data me-2"></i> <span>EC</span>
             </a>
         </li>
     @endif

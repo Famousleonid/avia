@@ -1435,6 +1435,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             var text = document.createElement('span');
                             text.textContent = process.process || ('#' + process.id);
 
+                            if (process.process_comment) {
+                                var comment = document.createElement('span');
+                                comment.className = 'tdr-process-inline-option-comment';
+                                comment.textContent = ' (' + process.process_comment + ')';
+                                text.appendChild(comment);
+                            }
+
                             label.appendChild(input);
                             label.appendChild(text);
                             processOptions.appendChild(label);

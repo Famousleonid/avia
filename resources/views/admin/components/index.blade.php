@@ -600,6 +600,7 @@
                             <th class="text-center component-flag-head" title="Log Card">LC</th>
                             <th class="text-center component-flag-head" title="Bushing">Bush</th>
                             <th class="text-center component-flag-head" title="Kit">Kit</th>
+                            <th class="text-center component-flag-head" title="Kit E">Kit_E</th>
                             <th class="text-center component-flag-head" title="NDT List">NDT</th>
                             <th class="text-center component-flag-head" title="CAD List">CAD</th>
                             <th class="text-center component-flag-head" title="Stress Relief List">Stress</th>
@@ -612,7 +613,7 @@
                         @include('admin.components.partials.index-rows', ['components' => $components])
                         @if($componentsTotal === 0)
                             <tr class="components-empty-row">
-                                <td colspan="15" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
+                                <td colspan="16" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
                             </tr>
                         @endif
                         </tbody>
@@ -689,6 +690,10 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="drawer_kit" name="kit">
                                 <label class="form-check-label" for="drawer_kit">Kit</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="drawer_kit_e" name="kit_e">
+                                <label class="form-check-label" for="drawer_kit_e">Kit_E</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="drawer_ndt_list" name="ndt_list">
@@ -852,6 +857,10 @@
                                 <label class="form-check-label" for="edit_drawer_kit">Kit</label>
                             </div>
                             <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_drawer_kit_e" name="kit_e">
+                                <label class="form-check-label" for="edit_drawer_kit_e">Kit_E</label>
+                            </div>
+                            <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="edit_drawer_ndt_list" name="ndt_list">
                                 <label class="form-check-label" for="edit_drawer_ndt_list">NDT List</label>
                             </div>
@@ -956,7 +965,7 @@
                                             <li><strong>assy_ipl_num</strong> - {{__('Assembly IPL number (optional)')}}</li>
                                             <li><strong>log_card</strong> - {{__('Log card (0 or 1, optional)')}}</li>
                                             <li><strong>is_bush</strong> - {{__('Is bushing (0 or 1, optional)')}}</li>
-                                            <li><strong>kit</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
+                                            <li><strong>kit</strong>, <strong>kit_e</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
                                             <li><strong>bush_ipl_num</strong> - {{__('Bushing IPL number (optional)')}}</li>
                                         </ul>
                                         <div class="alert alert-info mt-3 mb-0">
@@ -1298,7 +1307,7 @@
                             if (isBush) isBush.checked = !!component.is_bush;
                             const logCard = document.getElementById('edit_drawer_log_card');
                             if (logCard) logCard.checked = !!component.log_card;
-                            ['kit', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].forEach((field) => {
+                            ['kit', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].forEach((field) => {
                                 const checkbox = document.getElementById(`edit_drawer_${field}`);
                                 if (checkbox) checkbox.checked = !!component[field];
                             });
@@ -1606,7 +1615,7 @@
                         }
 
                         function emptyRow() {
-                            return '<tr class="components-empty-row"><td colspan="14" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td></tr>';
+                            return '<tr class="components-empty-row"><td colspan="16" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td></tr>';
                         }
 
                         function currentParams(page) {

@@ -28,6 +28,11 @@
                         <input type="text" class="form-control" id="process" name="process" value="{{ $process->process }}">
                     </div>
 
+                    <div class="mb-3">
+                        <label for="process_comment" class="form-label">Comment</label>
+                        <textarea class="form-control" id="process_comment" name="process_comment" rows="4">{{ old('process_comment', $manualProcess->process_comment) }}</textarea>
+                    </div>
+
                     <button type="submit" class="btn btn-outline-primary">Update</button>
                     <a href="{{ request('return_to', route('processes.edit', ['id' => $manualId])) }}" class="btn btn-outline-secondary">Cancel</a>
                 </form>

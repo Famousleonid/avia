@@ -91,6 +91,15 @@
                             <input id="process" type="text" class="form-control mt-2" name="process"
                                    placeholder="{{ __('Enter a new process') }}" style="max-width: 500px;">
                         </div>
+
+                        <div class="mt-3">
+                            <label for="process_comment">{{ __('Comment') }}</label>
+                            <textarea id="process_comment"
+                                      class="form-control mt-2"
+                                      name="process_comment"
+                                      rows="4"
+                                      style="max-width: 640px;">{{ old('process_comment') }}</textarea>
+                        </div>
                     </div>
 
                     <div class="text-end m-3">

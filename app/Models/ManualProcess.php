@@ -12,6 +12,7 @@ class ManualProcess extends Model
 
         'manual_id',
         'processes_id',
+        'process_comment',
         'is_locked',
         'locked_by_user_id',
         'locked_at',

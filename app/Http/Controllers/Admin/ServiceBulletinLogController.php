@@ -52,6 +52,7 @@ class ServiceBulletinLogController extends Controller
             'rows' => ['array'],
             'rows.*.status' => ['nullable', 'in:'.$statusValues],
             'rows.*.notes' => ['nullable', 'string'],
+            'clear_status_bulletin_id' => ['nullable', 'integer'],
         ]);
 
         $allowedBulletinIds = ManualServiceBulletin::query()
@@ -61,13 +62,15 @@ class ServiceBulletinLogController extends Controller
             ->map(fn ($id) => (int) $id)
             ->all();
 
+        $clearStatusBulletinId = (int) ($data['clear_status_bulletin_id'] ?? 0);
+
         foreach (($data['rows'] ?? []) as $bulletinId => $row) {
             $bulletinId = (int) $bulletinId;
             if (! in_array($bulletinId, $allowedBulletinIds, true)) {
                 continue;
             }
 
-            $status = $row['status'] ?? null;
+            $status = $bulletinId === $clearStatusBulletinId ? null : ($row['status'] ?? null);
             $notes = trim((string) ($row['notes'] ?? ''));
 
             if ($status === null && $notes === '') {

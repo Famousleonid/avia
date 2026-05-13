@@ -235,7 +235,7 @@
                                         <li><strong>assy_ipl_num</strong> - {{__('Assembly IPL number (optional)')}}</li>
                                         <li><strong>log_card</strong> - {{__('Log card (0 or 1, optional)')}}</li>
                                         <li><strong>is_bush</strong> - {{__('Is bushing (0 or 1, optional)')}}</li>
-                                        <li><strong>kit</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
+                                        <li><strong>kit</strong>, <strong>kit_e</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
                                         <li><strong>bush_ipl_num</strong> - {{__('Bushing IPL number (optional)')}}</li>
                                     </ul>
                                     <div class="alert alert-info mt-3 mb-0">

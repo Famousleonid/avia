@@ -58,6 +58,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\ManualCsvController;
 use App\Http\Controllers\Admin\AiAgentController;
 use App\Http\Controllers\Admin\DatabaseBackupController;
+use App\Http\Controllers\Admin\EcController;
 
 Auth::routes(['verify' => true, 'register' => false]);
 
@@ -291,6 +292,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::delete('transfers/delete-by-tdr/{id}', [TransferController::class, 'deleteByTdr'])->name('transfers.deleteByTdr');
 
     Route::resource('/manuals', ManualController::class);
+    Route::get('/ec', [EcController::class, 'index'])
+        ->middleware('can:ec.access')
+        ->name('ec.index');
     Route::resource('/conditions',  ConditionController::class);
     Route::resource('/materials',  MaterialController::class);
     Route::patch('/materials/{material}/inline', [MaterialController::class, 'inlineUpdate'])->name('materials.inline');
