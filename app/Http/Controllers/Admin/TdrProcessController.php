@@ -838,6 +838,10 @@ class TdrProcessController extends Controller
         $totalQty = 0;
 
         if ($current_tdr->component) {
+            $prevGroupKey = null;
+            $runCounter = 0;
+            $currentRunKey = null;
+
             foreach ($tdrProcesses as $tdrProcess) {
                 if (!$tdrProcess->processName) {
                     continue;
@@ -850,10 +854,17 @@ class TdrProcessController extends Controller
 
                 $groupKey = ProcessName::groupFormsGroupKey($processName, false);
 
-                if (!isset($processGroups[$groupKey])) {
+                // Новый прогон если тип процесса изменился относительно предыдущего
+                if ($groupKey !== $prevGroupKey) {
+                    $runCounter++;
+                    $currentRunKey = $groupKey . '_run_' . $runCounter;
+                    $prevGroupKey = $groupKey;
+                }
+
+                if (!isset($processGroups[$currentRunKey])) {
                     if ($groupKey === ProcessName::GROUP_KEY_MERGE_MACHINING_MEC) {
                         $rep = ProcessName::machiningMachiningEcRepresentative() ?? $processName;
-                        $processGroups[$groupKey] = [
+                        $processGroups[$currentRunKey] = [
                             'process_name' => $rep,
                             'representative_process_name_id' => $rep->id,
                             'processes_qty' => [],
@@ -861,7 +872,7 @@ class TdrProcessController extends Controller
                             'logical_unit_keys' => [],
                         ];
                     } else {
-                        $processGroups[$groupKey] = [
+                        $processGroups[$currentRunKey] = [
                             'process_name' => $processName,
                             'representative_process_name_id' => $processName->id,
                             'processes_qty' => [],
@@ -886,17 +897,17 @@ class TdrProcessController extends Controller
                     }
 
                     if ($isCombinedNdtRow) {
-                        $processGroups[$groupKey]['logical_unit_keys']['ndt_combined_'.$tdrProcess->id] = true;
+                        $processGroups[$currentRunKey]['logical_unit_keys']['ndt_combined_'.$tdrProcess->id] = true;
                     } else {
-                        $processGroups[$groupKey]['logical_unit_keys']['pid_'.(int) $processId] = true;
+                        $processGroups[$currentRunKey]['logical_unit_keys']['pid_'.(int) $processId] = true;
                     }
 
                     $qty = 1;
-                    $processGroups[$groupKey]['processes_qty'][$processId] =
-                        ($processGroups[$groupKey]['processes_qty'][$processId] ?? 0) + $qty;
+                    $processGroups[$currentRunKey]['processes_qty'][$processId] =
+                        ($processGroups[$currentRunKey]['processes_qty'][$processId] ?? 0) + $qty;
 
-                    if (!isset($processGroups[$groupKey]['processes'][$processId])) {
-                        $processGroups[$groupKey]['processes'][$processId] = [
+                    if (!isset($processGroups[$currentRunKey]['processes'][$processId])) {
+                        $processGroups[$currentRunKey]['processes'][$processId] = [
                             'id' => $processId,
                             'name' => $process->process,
                             'tdr_process_id' => $tdrProcess->id,
@@ -904,7 +915,7 @@ class TdrProcessController extends Controller
                             'qty' => $qty,
                         ];
                     } else {
-                        $processGroups[$groupKey]['processes'][$processId]['qty'] += $qty;
+                        $processGroups[$currentRunKey]['processes'][$processId]['qty'] += $qty;
                     }
 
                     $totalQty += $qty;

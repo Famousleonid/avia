@@ -1512,10 +1512,13 @@ class TdrPrintFormController extends Controller
 
             // Счётчик для number_line
             $lineNumber = 0;
+            $prevNameId = null;
+            $prevNumberLine = null;
 
             // Обрабатываем каждый процесс
-            $groupedProcesses->each(function ($process) use (&$result, &$lineNumber, $tdr, $ecProcessIds, $showEcForThisTdr) {
+            $groupedProcesses->each(function ($process) use (&$result, &$lineNumber, &$prevNameId, &$prevNumberLine, $tdr, $ecProcessIds, $showEcForThisTdr) {
                 $isEcProcess = $ecProcessIds->contains($process->process_names_id);
+                $nameId = $process->process_names_id;
 
                 if ($isEcProcess) {
                     if ($process->standalone_ec_only) {
@@ -1528,9 +1531,15 @@ class TdrPrintFormController extends Controller
                         $numberLine = null;
                     }
                 } else {
-                    $lineNumber++;
-                    $numberLine = $lineNumber;
+                    if ($nameId === $prevNameId) {
+                        $numberLine = $prevNumberLine;
+                    } else {
+                        $lineNumber++;
+                        $numberLine = $lineNumber;
+                    }
                 }
+                $prevNameId = $nameId;
+                $prevNumberLine = $numberLine;
 
                 $result->push([
                     'tdrs_id' => $tdr->id,
@@ -1735,8 +1744,11 @@ class TdrPrintFormController extends Controller
             $hasMachiningOrRil = $procs->contains(fn($p) => $ecElig->contains((int) $p->process_names_id));
             $showEcForThisTdr = $hasEc && ($procs->count() === 1 || ! $hasMachiningOrRil);
             $lineNumber = 0;
-            $groupedProcesses->each(function ($process) use (&$result, &$lineNumber, $tdr, $ecProcessIds, $showEcForThisTdr) {
+            $prevNameId = null;
+            $prevNumberLine = null;
+            $groupedProcesses->each(function ($process) use (&$result, &$lineNumber, &$prevNameId, &$prevNumberLine, $tdr, $ecProcessIds, $showEcForThisTdr) {
                 $isEcProcess = $ecProcessIds->contains($process->process_names_id);
+                $nameId = $process->process_names_id;
                 if ($isEcProcess) {
                     if ($process->standalone_ec_only) {
                         $lineNumber++;
@@ -1748,9 +1760,15 @@ class TdrPrintFormController extends Controller
                         $num = null;
                     }
                 } else {
-                    $lineNumber++;
-                    $num = $lineNumber;
+                    if ($nameId === $prevNameId) {
+                        $num = $prevNumberLine;
+                    } else {
+                        $lineNumber++;
+                        $num = $lineNumber;
+                    }
                 }
+                $prevNameId = $nameId;
+                $prevNumberLine = $num;
                 $result->push([
                     'tdrs_id' => $tdr->id,
                     'process_name_id' => $process->process_names_id,

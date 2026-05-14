@@ -536,15 +536,15 @@
                                         $entries = $processForCurrentTdr->filter(fn($p) => $p['number_line'] !== null);
                                         $hasEc = fn($coll) => $coll->filter(fn($p) => ($p['ec'] ?? 0) == 1)->isNotEmpty();
                                         if ($slot === 'single') {
-                                            $numberLines = $entries->pluck('number_line')->implode(',');
+                                            $numberLines = $entries->pluck('number_line')->unique()->implode(',');
                                             $hasEcProcess = $hasEc($processForCurrentTdr);
                                         } elseif ($slot === 'left' && $quarantineNumberLine !== null) {
                                             $leftEntries = $entries->filter(fn($p) => $p['number_line'] <= $quarantineNumberLine);
-                                            $numberLines = $leftEntries->pluck('number_line')->implode(',');
+                                            $numberLines = $leftEntries->pluck('number_line')->unique()->implode(',');
                                             $hasEcProcess = $hasEc($leftEntries);
                                         } elseif ($slot === 'right' && $quarantineNumberLine !== null) {
                                             $rightEntries = $entries->filter(fn($p) => $p['number_line'] > $quarantineNumberLine);
-                                            $numberLines = $rightEntries->pluck('number_line')->implode(',');
+                                            $numberLines = $rightEntries->pluck('number_line')->unique()->implode(',');
                                             $hasEcProcess = $hasEc($rightEntries);
                                         }
                                     }

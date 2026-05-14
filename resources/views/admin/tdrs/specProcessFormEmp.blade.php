@@ -308,43 +308,16 @@
                 <img src="{{ asset('img/icons/icons8-right-arrow.gif')}}" alt="arrow"
                      style="width: 24px;height: 20px">
             </div>
-            <div class="border-l-t-b text-center pt-0 fs-75 filled-data" style="width: 25px;height: 20px">
-                @if($current_wo->instruction_id==1)
-                    {{ !isset($ndtSums['mpi']) || $ndtSums['mpi'] == null ? ' ' : $ndtSums['mpi'] }}
-                @else
-                    {{__(' ')}}
-                @endif
-
-            </div>
+            <div class="border-l-t-b text-center pt-0 fs-75" style="width: 25px;height: 20px">N/A</div>
             <div class="border-l-t-b ps-2 fs-8" style="width: 130px;height: 20px; color: lightgray; font-style: italic">
                 RO No.
             </div>
-            <div class="border-all text-center pt-0 fs-75 filled-data" style="width: 25px;height: 20px">
-                @if($current_wo->instruction_id==1)
-                {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] == null || $ndtSums['fpi'] === 0 ? ' ' : $ndtSums['fpi'] }}
-                @else
-                    {{__(' ')}}
-                @endif
-
-            </div>
+            <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">N/A</div>
             <div class="text-center fs-8" style="width: 20px;height: 20px"></div>
             <div class="border-l-t-b ps-2 fs-8" style="width: 100px;height: 20px; color: lightgray; font-style: italic">
                 RO No.
             </div>
-            <div class="border-all text-center pt-0 fs-75 filled-data" style="width: 25px;height: 20px">
-                @php
-                    $a = $cadSum['total_qty'] ?? null;
-                    $b = $cadSum_ex ?? null;
-                    $hasA = isset($a) && $a !== '' && $a !== 0;
-                    $hasB = isset($b) && $b !== '' && $b !== 0;
-                    $result = ($hasA && $hasB) ? ((int)$a + (int)$b) : (($hasA ? (int)$a : ($hasB ? (int)$b : null)));
-                @endphp
-                @if($current_wo->instruction_id==1)
-                     {{ ($result !== null && $result > 0) ? $result : ' ' }}
-                @else
-                    {{($cadSum_ex >0) ? $cadSum_ex : ' ' }}
-                @endif
-            </div>
+            <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">N/A</div>
             <div class="text-center fs-7" style="width: 305px;height: 20px"></div>
             <div class="text-end pt-2 fs-8" style="width: 75px;height: 10px">Technician</div>
             <div class="border-b text-center" style="width: 120px">{{ $technicianFirstName }}</div>
@@ -508,7 +481,8 @@
                                 ->where('process_name_id', $name->id)
                                 ->where('tdrs_id', $currentTdrId)
                                 ->values();
-                            $numberLines = $processForCurrentTdr->pluck('number_line')->implode(',');
+                            $entries = $processForCurrentTdr->filter(fn($p) => $p['number_line'] !== null);
+                            $numberLines = $entries->pluck('number_line')->unique()->implode(',');
                         @endphp
                         <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center spec-process-row-cell">
                             @if($numberLines)
