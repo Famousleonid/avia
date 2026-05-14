@@ -60,7 +60,7 @@ class NotificationController extends Controller
             ->latest()
             ->paginate($perPage, ['*'], 'page', $page);
 
-        $items = $paginator->getCollection()->map(function ($n) {
+        $items = $paginator->getCollection()->map(function ($n) use ($user) {
             $d = is_array($n->data) ? $n->data : (json_decode($n->data, true) ?: []);
 
             return [

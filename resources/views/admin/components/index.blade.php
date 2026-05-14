@@ -25,7 +25,7 @@
             border-color: rgba(255,255,255,.08) !important;
         }
 
-        
+
         html[data-bs-theme="dark"] #componentsTable tbody tr{
             box-shadow: inset 0 0 0 9999px rgba(255,255,255,0.03);
         }
@@ -33,14 +33,14 @@
             box-shadow: inset 0 0 0 9999px rgba(255,255,255,0.06);
         }
 
-        
+
         html[data-bs-theme="dark"] #componentsTable thead th{
             background: linear-gradient(180deg, #1a1d21 0%, #14161a 100%) !important;
             color: #f2f2f2 !important;
             border-color: rgba(255,255,255,.10) !important;
         }
 
-        
+
         html[data-bs-theme="dark"] #componentsTable.table-bordered > :not(caption) > *{
             border-color: rgba(255,255,255,.10) !important;
         }
@@ -225,7 +225,7 @@
             color: #212529 !important;
         }
 
-        
+
         html[data-bs-theme="dark"] .select2-container .select2-selection--single{
             height: 40px !important;
             background: #0f1114 !important;
@@ -241,7 +241,7 @@
             color: #e6e6e6 !important;
             line-height: 38px !important;
             padding-left: 12px !important;
-            padding-right: 38px !important; 
+            padding-right: 38px !important;
         }
 
         html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__placeholder{
@@ -256,7 +256,7 @@
             border-color: rgba(230,230,230,.7) transparent transparent transparent !important;
         }
 
-        
+
         html[data-bs-theme="dark"] .select2-container--default .select2-dropdown{
             background: #0f1114 !important;
             border: 1px solid rgba(255,255,255,.12) !important;
@@ -273,7 +273,7 @@
             outline: none !important;
         }
 
-        
+
         html[data-bs-theme="dark"] .select2-container--default .select2-results__option{
             color: #e6e6e6 !important;
             padding: 8px 12px !important;
@@ -295,19 +295,19 @@
             color: #fff !important;
         }
 
-        
+
         html[data-bs-theme="dark"] .select2-container--default.select2-container--focus .select2-selection--single{
             border-color: rgba(255,255,255,.18) !important;
             box-shadow: 0 0 0 3px rgba(255,255,255,.06) !important;
         }
 
-        
+
         html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__clear{
             color: rgba(230,230,230,.75) !important;
             font-size: 18px;
             line-height: 1;
             position: absolute;
-            right: 30px;            
+            right: 30px;
             top: 50%;
             transform: translateY(-50%);
             padding: 0 6px;
@@ -316,7 +316,7 @@
             color: #fff !important;
         }
 
-        
+
         .select2-container--default .select2-results__options{
             max-height: 60vh !important;
             overflow-y: auto !important;
@@ -596,6 +596,7 @@
                             <th class="text-center sortable">{{__('Name')}} <i class="bi bi-chevron-expand ms-1"></i></th>
                             <th class="text-center">{{__('Assy')}}</th>
                             <th class="text-center">{{__('Units per assy')}}</th>
+                            <th class="text-center">{{__('EFF Code')}}</th>
                             <th class="text-center">{{__('Image')}}</th>
                             <th class="text-center component-flag-head" title="Log Card">LC</th>
                             <th class="text-center component-flag-head" title="Bushing">Bush</th>
@@ -610,10 +611,10 @@
                         </tr>
                         </thead>
                         <tbody>
-                        @include('admin.components.partials.index-rows', ['components' => $components])
+                        @include('admin.components.partials.index-rows', ['components' => $components, 'showEffCodeColumn' => true])
                         @if($componentsTotal === 0)
                             <tr class="components-empty-row">
-                                <td colspan="16" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
+                                <td colspan="17" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
                             </tr>
                         @endif
                         </tbody>
@@ -669,6 +670,11 @@
                         <div class="col-md-6">
                             <label for="drawer_units_assy" class="form-label">{{ __('Units per Assy') }}</label>
                             <input id="drawer_units_assy" type="text" class="form-control" name="units_assy">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="drawer_eff_code" class="form-label">{{ __('EFF Code') }}</label>
+                            <input id="drawer_eff_code" type="text" class="form-control" name="eff_code">
                         </div>
 
                         <div class="col-md-6">
@@ -834,6 +840,11 @@
                         <div class="col-md-6">
                             <label for="edit_drawer_units_assy" class="form-label">{{ __('Units per Assy') }}</label>
                             <input id="edit_drawer_units_assy" type="text" class="form-control" name="units_assy">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="edit_drawer_eff_code" class="form-label">{{ __('EFF Code') }}</label>
+                            <input id="edit_drawer_eff_code" type="text" class="form-control" name="eff_code">
                         </div>
 
                         <div class="col-md-6">
@@ -1302,6 +1313,7 @@
                             setValue('ipl_num', component.ipl_num);
                             setValue('part_number', component.part_number);
                             setValue('units_assy', component.units_assy);
+                            setValue('eff_code', component.eff_code);
                             setValue('name', component.name);
                             setValue('bush_ipl_num', component.bush_ipl_num);
                             if (isBush) isBush.checked = !!component.is_bush;

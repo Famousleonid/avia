@@ -1,5 +1,6 @@
 @php
     $showManualColumn = $showManualColumn ?? true;
+    $showEffCodeColumn = $showEffCodeColumn ?? false;
     $editButtonClass = $editButtonClass ?? 'open-edit-component-drawer';
     $deleteRedirect = $deleteRedirect ?? null;
     $componentFlags = [
@@ -83,6 +84,9 @@
             @endif
         </td>
         <td class="text-center">{{ $unitsAssy !== '' ? $unitsAssy : '-' }}</td>
+        @if($showEffCodeColumn)
+            <td class="text-center">{{ filled($component->eff_code) ? $component->eff_code : '-' }}</td>
+        @endif
         <td class="text-center" style="width:120px;">
             @if($component->getMedia('components')->isNotEmpty())
                 <a href="{{ $component->getFirstMediaBigUrl('components') }}" data-fancybox="gallery">

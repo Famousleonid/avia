@@ -146,6 +146,11 @@
         let notifLoading = false;
         const notifPerPage = 10;
 
+        function isDropdownOpen() {
+            const menu = dropdownEl?.closest('.dropdown')?.querySelector('.dropdown-menu');
+            return dropdownEl?.getAttribute('aria-expanded') === 'true' || menu?.classList.contains('show');
+        }
+
         function setBadge(count) {
             const n = Number(count || 0);
             if (n > 0) {
@@ -176,6 +181,11 @@
                 const data = await r.json().catch(() => ({}));
                 const count = Number(data.count || 0);
                 setBadge(count);
+
+                if (count > 0 && isDropdownOpen() && !notifLoading && !list.querySelector('[data-notif-id]')) {
+                    await loadLatest(true);
+                }
+
                 return count;
             } catch (_) {
                 return null;
@@ -444,6 +454,10 @@
                     headers: {'Accept': 'application/json'},
                     spinner: false
                 });
+
+                if (!r.ok) {
+                    throw new Error(`Notifications request failed: ${r.status}`);
+                }
 
                 const data = await r.json().catch(() => ({}));
 

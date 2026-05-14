@@ -309,6 +309,36 @@ class NdtCadCsv extends Model
     /**
      * Загрузить компоненты из CSV файла
      */
+    /**
+     * Fill an empty STD bucket from the current workorder snapshot without overwriting edited data.
+     */
+    public static function ensureTypeLoadedForWorkorder(Workorder $workorder, self $ndtCadCsv, string $std): self
+    {
+        StdProcess::assertValidStd($std);
+
+        $field = match ($std) {
+            StdProcess::STD_NDT => 'ndt_components',
+            StdProcess::STD_CAD => 'cad_components',
+            StdProcess::STD_STRESS => 'stress_components',
+            StdProcess::STD_PAINT => 'paint_components',
+        };
+
+        $current = $ndtCadCsv->{$field} ?? [];
+        if (is_array($current) && count($current) > 0) {
+            return $ndtCadCsv;
+        }
+
+        $snapshot = StdProcess::snapshotComponentsForWorkorder($workorder, $std);
+        if ($snapshot === []) {
+            return $ndtCadCsv;
+        }
+
+        $ndtCadCsv->{$field} = $snapshot;
+        $ndtCadCsv->save();
+
+        return $ndtCadCsv->refresh();
+    }
+
     public static function loadComponentsFromCsv($csvPath, $type)
     {
         try {

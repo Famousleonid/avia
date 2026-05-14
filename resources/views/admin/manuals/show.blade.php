@@ -72,13 +72,15 @@
         #manualPartsTable th:nth-child(5),
         #manualPartsTable td:nth-child(5) { width: 7%; }
         #manualPartsTable th:nth-child(6),
-        #manualPartsTable td:nth-child(6) { width: 5%; }
-        #manualPartsTable th:nth-child(15),
-        #manualPartsTable td:nth-child(15) { width: 7%; }
+        #manualPartsTable td:nth-child(6) { width: 7%; }
+        #manualPartsTable th:nth-child(7),
+        #manualPartsTable td:nth-child(7) { width: 5%; }
+        #manualPartsTable th:nth-child(16),
+        #manualPartsTable td:nth-child(16) { width: 7%; }
 
         #manualPartsTable {
-            min-width: 1340px;
-            width: max(100%, 1340px);
+            min-width: 1420px;
+            width: max(100%, 1420px);
         }
 
         #nav-parts .table th,
@@ -285,8 +287,8 @@
             max-width: 86px !important;
         }
 
-        #manualPartsTable th:nth-child(15),
-        #manualPartsTable td:nth-child(15) {
+        #manualPartsTable th:nth-child(16),
+        #manualPartsTable td:nth-child(16) {
             width: 86px !important;
             min-width: 86px !important;
             max-width: 86px !important;
@@ -854,6 +856,7 @@
                                 <col style="width: 26%;">
                                 <col style="width: 14%;">
                                 <col style="width: 7%;">
+                                <col style="width: 7%;">
                                 <col style="width: 5%;">
                                 <col class="manual-part-flag-col" style="width: 46px;">
                                 <col class="manual-part-flag-col" style="width: 46px;">
@@ -872,6 +875,7 @@
                                 <th class="text-center bg-gradient align-content-center sortable">Name <i class="bi bi-chevron-expand ms-1"></i></th>
                                 <th class="text-center bg-gradient align-content-center">Assy</th>
                                 <th class="text-center bg-gradient align-content-center">Units per assy</th>
+                                <th class="text-center bg-gradient align-content-center">EFF Code</th>
                                 <th class="text-center bg-gradient align-content-center">Image</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Log Card">LC</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Bushing">Bush</th>
@@ -888,12 +892,13 @@
                                 @include('admin.components.partials.index-rows', [
                                     'components' => $parts,
                                     'showManualColumn' => false,
+                                    'showEffCodeColumn' => true,
                                     'editButtonClass' => 'open-manual-edit-component-drawer',
                                     'deleteRedirect' => $manualUrlParts,
                                 ])
                                 @if($parts->isEmpty())
                                     <tr class="components-empty-row">
-                                        <td colspan="15" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
+                                        <td colspan="16" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
@@ -1183,6 +1188,10 @@
                         <input id="manual_drawer_units_assy" type="text" class="form-control" name="units_assy">
                     </div>
                     <div class="col-md-6">
+                        <label for="manual_drawer_eff_code" class="form-label">{{ __('EFF Code') }}</label>
+                        <input id="manual_drawer_eff_code" type="text" class="form-control" name="eff_code">
+                    </div>
+                    <div class="col-md-6">
                         <label for="manual_drawer_img" class="form-label">{{ __('Image') }}</label>
                         <input id="manual_drawer_img" type="file" name="img" class="form-control" accept="image/*">
                     </div>
@@ -1278,6 +1287,10 @@
                     <div class="col-md-6">
                         <label for="manual_edit_drawer_units_assy" class="form-label">{{ __('Units per Assy') }}</label>
                         <input id="manual_edit_drawer_units_assy" type="text" class="form-control" name="units_assy">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="manual_edit_drawer_eff_code" class="form-label">{{ __('EFF Code') }}</label>
+                        <input id="manual_edit_drawer_eff_code" type="text" class="form-control" name="eff_code">
                     </div>
                     <div class="col-md-6">
                         <label for="manual_edit_drawer_img" class="form-label">{{ __('Image') }}</label>
@@ -1408,7 +1421,7 @@
         </div>
     </div>
 
-    
+
     <div class="modal fade" id="stdCsvUploadModal" tabindex="-1" aria-labelledby="stdCsvUploadModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -2150,6 +2163,7 @@
                         manualEditSetValue('ipl_num', component.ipl_num);
                         manualEditSetValue('part_number', component.part_number);
                         manualEditSetValue('units_assy', component.units_assy);
+                        manualEditSetValue('eff_code', component.eff_code);
                         manualEditSetValue('name', component.name);
                         manualEditSetValue('bush_ipl_num', component.bush_ipl_num);
                         if (manualEditDrawer.isBush) manualEditDrawer.isBush.checked = !!component.is_bush;

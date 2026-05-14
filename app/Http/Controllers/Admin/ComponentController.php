@@ -157,6 +157,7 @@ class ComponentController extends Controller
             return response()->json([
                 'rows_html' => view('admin.components.partials.index-rows', [
                     'components' => $components,
+                    'showEffCodeColumn' => true,
                 ])->render(),
                 'total' => $components->total(),
                 'next_page' => $components->currentPage() + 1,
@@ -213,6 +214,7 @@ class ComponentController extends Controller
             'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
             'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
             'units_assy' => 'nullable|string|max:100',
+            'eff_code' => 'nullable|string|max:100',
             'assemblies' => 'nullable|array',
             'assemblies.*.assy_part_number' => 'nullable|string|max:100',
             'assemblies.*.assy_ipl_num' => 'nullable|string|max:50',
@@ -297,6 +299,7 @@ class ComponentController extends Controller
                 'component_id' => $component->id,
                 'row_html' => view('admin.components.partials.index-rows', [
                     'components' => collect([$component]),
+                    'showEffCodeColumn' => true,
                 ])->render(),
                 'redirect' => $request->input('redirect', route('components.index'))
             ]);
@@ -485,6 +488,7 @@ class ComponentController extends Controller
             'assy_ipl_num' => 'nullable|string|max:50|regex:/^\d+-\d+[A-Za-z]?$/',
             'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
             'units_assy' => 'nullable|string|max:100',
+            'eff_code' => 'nullable|string|max:100',
             'img' => 'nullable|file|image|max:5120',
             'assy_img' => 'nullable|file|image|max:5120',
             'assemblies' => 'nullable|array',
@@ -578,6 +582,7 @@ class ComponentController extends Controller
                 'component_id' => $component->id,
                 'row_html' => view('admin.components.partials.index-rows', [
                     'components' => collect([$component]),
+                    'showEffCodeColumn' => true,
                 ])->render(),
             ]);
         }

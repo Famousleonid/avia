@@ -684,20 +684,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.loadStdProcessesPartial = loadStdProcessesPartial;
 
-    // Показать/скрыть кнопки NDT/CAD/Stress/Paint STD в шапке после Load from STD (c — объект std_counts из API).
+    // STD list paper buttons are always visible in the TDR header.
     window.updateTdrStdPaperButtonsFromCounts = function(c) {
-        if (!c || typeof c !== 'object') return;
-        function toggle(selector, count) {
-            var el = document.querySelector(selector);
-            if (!el) return;
-            var n = parseInt(count, 10);
-            if (isNaN(n) || n < 1) el.classList.add('d-none');
-            else el.classList.remove('d-none');
-        }
-        toggle('.tdr-std-paper-ndt-wrap', c.ndt);
-        toggle('.tdr-std-paper-cad-wrap', c.cad);
-        toggle('.tdr-std-paper-stress-wrap', c.stress);
-        toggle('.tdr-std-paper-paint-wrap', c.paint);
+        return c;
     };
 
     function loadRmReportsPartial() {

@@ -245,6 +245,7 @@ class TdrPrintFormController extends Controller
         if (!$ndtCadCsv) {
             $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
         }
+        $ndtCadCsv = NdtCadCsv::ensureTypeLoadedForWorkorder($current_wo, $ndtCadCsv, \App\Models\StdProcess::STD_NDT);
 
         // Получаем ID process names для NDT
         $processNames = ProcessName::whereIn('name', [
@@ -380,6 +381,7 @@ class TdrPrintFormController extends Controller
             if (!$ndtCadCsv) {
                 $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
             }
+            $ndtCadCsv = NdtCadCsv::ensureTypeLoadedForWorkorder($current_wo, $ndtCadCsv, \App\Models\StdProcess::STD_CAD);
 
             // Автозагрузка Stress компонентов из Manual CSV при их отсутствии
 //            $stressEmpty = empty($ndtCadCsv->stress_components)
@@ -830,6 +832,7 @@ class TdrPrintFormController extends Controller
             if (!$ndtCadCsv) {
                 $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
             }
+            $ndtCadCsv = NdtCadCsv::ensureTypeLoadedForWorkorder($current_wo, $ndtCadCsv, \App\Models\StdProcess::STD_PAINT);
 
             // Получаем ID process names для Paint (ID = 25)
             $paintProcessName = ProcessName::find(25);
@@ -1036,6 +1039,7 @@ class TdrPrintFormController extends Controller
             if (!$ndtCadCsv) {
                 $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
             }
+            $ndtCadCsv = NdtCadCsv::ensureTypeLoadedForWorkorder($current_wo, $ndtCadCsv, \App\Models\StdProcess::STD_STRESS);
 
             // Получаем ID process names для Stress (Bake Stress Realive)
             $processNames = ProcessName::where('id', 3)->pluck('id', 'name');
@@ -2074,6 +2078,156 @@ class TdrPrintFormController extends Controller
 
 
         return view('admin.tdrs.wo_BoxTitle', compact('current_wo', 'units', 'customers', 'users'));
+    }
+
+    private function normalizeIplNum($iplNum): string
+    {
+        if (empty($iplNum)) {
+            return '';
+        }
+
+        return preg_replace('/[A-Z]+$/', '', trim((string) $iplNum));
+    }
+
+    private function tdrRowExcludedForNdtStd(Tdr $tdr, ?Code $missingCode, ?Code $repairCode, ?Necessary $orderNewNecessary): bool
+    {
+        if ($missingCode !== null && (int) $tdr->codes_id === (int) $missingCode->id) {
+            return true;
+        }
+        if ($repairCode !== null && (int) $tdr->codes_id === (int) $repairCode->id) {
+            return true;
+        }
+        if ($orderNewNecessary !== null && (int) $tdr->necessaries_id === (int) $orderNewNecessary->id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{excluded: array<string, int>, tdr: array<string, int>}
+     */
+    private function ndtStdExcludedAndTdrQtyByNormalizedIpl(int $workorderId): array
+    {
+        $excludedQtyByIpl = [];
+        $missingCode = Code::where('name', 'Missing')->first();
+        $repairCode = Code::where('name', 'Repair')->first();
+        $orderNewNecessary = Necessary::where('name', 'Order New')->first();
+
+        $excludedTdrQuery = Tdr::where('workorder_id', $workorderId)
+            ->whereNotNull('component_id')
+            ->with('component:id,ipl_num');
+
+        $excludedConditions = [];
+        if ($missingCode) {
+            $excludedConditions[] = ['codes_id', $missingCode->id];
+        }
+        if ($repairCode) {
+            $excludedConditions[] = ['codes_id', $repairCode->id];
+        }
+        if ($orderNewNecessary) {
+            $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
+        }
+
+        if (! empty($excludedConditions)) {
+            $excludedTdrQuery->where(function ($query) use ($excludedConditions) {
+                foreach ($excludedConditions as $condition) {
+                    $query->orWhere($condition[0], $condition[1]);
+                }
+            });
+
+            foreach ($excludedTdrQuery->get() as $tdr) {
+                if (! $tdr->component || empty($tdr->component->ipl_num)) {
+                    continue;
+                }
+
+                $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
+                if ($normalizedIpl === '') {
+                    continue;
+                }
+
+                $excludedQtyByIpl[$normalizedIpl] = ($excludedQtyByIpl[$normalizedIpl] ?? 0) + (int) ($tdr->qty ?? 0);
+            }
+        }
+
+        $tdrItemsMap = [];
+        $allTdrForNdtMap = Tdr::where('workorder_id', $workorderId)
+            ->whereNotNull('component_id')
+            ->with('component:id,ipl_num')
+            ->get();
+
+        foreach ($allTdrForNdtMap as $tdr) {
+            if ($this->tdrRowExcludedForNdtStd($tdr, $missingCode, $repairCode, $orderNewNecessary)) {
+                continue;
+            }
+            if (! $tdr->component || empty($tdr->component->ipl_num)) {
+                continue;
+            }
+
+            $qty = (int) ($tdr->qty ?? 0);
+            if ($qty <= 0) {
+                continue;
+            }
+
+            $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
+            if ($normalizedIpl === '') {
+                continue;
+            }
+
+            $tdrItemsMap[$normalizedIpl] = ($tdrItemsMap[$normalizedIpl] ?? 0) + $qty;
+        }
+
+        return [
+            'excluded' => $excludedQtyByIpl,
+            'tdr' => $tdrItemsMap,
+        ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function buildUnitsAssyByNormalizedIplMap(Manual $manual): array
+    {
+        $unitsAssyByIpl = [];
+        $allComponents = Component::select('ipl_num', 'units_assy', 'manual_id')
+            ->orderByRaw('CASE WHEN manual_id = ? THEN 0 ELSE 1 END', [$manual->id])
+            ->get();
+
+        foreach ($allComponents as $component) {
+            if (! $component->ipl_num) {
+                continue;
+            }
+
+            $normalizedIpl = $this->normalizeIplNum($component->ipl_num);
+            if ($normalizedIpl === '' || isset($unitsAssyByIpl[$normalizedIpl])) {
+                continue;
+            }
+
+            $num = (int) ($component->units_assy ?? 1);
+            $unitsAssyByIpl[$normalizedIpl] = $num > 0 ? $num : 1;
+        }
+
+        return $unitsAssyByIpl;
+    }
+
+    private function resolveNdtStdUnitsAssyForRow(array $component, string $iplNum, string $normalizedIpl, array $unitsAssyByIpl): int
+    {
+        if (! empty($component['manual'])) {
+            $componentManual = Manual::where('number', $component['manual'])->first();
+            if ($componentManual) {
+                $componentRecord = Component::where('manual_id', $componentManual->id)
+                    ->where('ipl_num', $iplNum)
+                    ->first();
+
+                if ($componentRecord && $componentRecord->units_assy) {
+                    $num = (int) $componentRecord->units_assy;
+
+                    return $num > 0 ? $num : 1;
+                }
+            }
+        }
+
+        return max(1, $unitsAssyByIpl[$normalizedIpl] ?? 1);
     }
 
     private function calcNdtSums(int $workorder_id): array

@@ -301,22 +301,83 @@ class StdProcess extends Model
         }
 
         $unitEff = trim((string) ($workorder->unit->eff_code ?? ''));
+        return self::snapshotFlaggedComponentsForWorkorder($workorder, $std, $unitEff);
+    }
 
-        $records = self::query()
+    /**
+     * Build STD rows from Manual Parts component flags.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected static function snapshotFlaggedComponentsForWorkorder(Workorder $workorder, string $std, string $unitEff): array
+    {
+        $manual = $workorder->unit->manuals ?? null;
+        if (! $manual) {
+            return [];
+        }
+
+        $flagColumn = self::componentFlagColumnForStd($std);
+        $process = self::defaultProcessForFlagSnapshot((int) $manual->id, $std);
+
+        $components = Component::query()
             ->where('manual_id', $manual->id)
-            ->where('std', $std)
+            ->where($flagColumn, true)
             ->orderBy('id')
             ->get();
 
         $rows = [];
-        foreach ($records as $r) {
-            if (! self::stdRowEffMatchesUnit($r->eff_code, $unitEff)) {
+        foreach ($components as $component) {
+            if (! self::stdRowEffMatchesUnit($component->eff_code, $unitEff)) {
                 continue;
             }
-            $rows[] = self::recordToSnapshotRow($r);
+
+            $qty = (int) ($component->units_assy ?? 1);
+            $rows[] = [
+                'ipl_num' => (string) ($component->ipl_num ?? ''),
+                'part_number' => (string) ($component->part_number ?? ''),
+                'description' => (string) ($component->name ?? ''),
+                'process' => $process,
+                'qty' => $qty > 0 ? $qty : 1,
+                'manual' => (string) ($manual->number ?? ''),
+                'eff_code' => self::normalizeEffCodeForStorage($component->eff_code) ?? '',
+            ];
         }
 
         return self::sortRowsForSnapshot($rows);
+    }
+
+    protected static function componentFlagColumnForStd(string $std): string
+    {
+        return match ($std) {
+            self::STD_NDT => 'ndt_list',
+            self::STD_CAD => 'cad_list',
+            self::STD_STRESS => 'stress_relief_list',
+            self::STD_PAINT => 'paint_list',
+            default => throw new \InvalidArgumentException("Invalid std type: {$std}"),
+        };
+    }
+
+    protected static function defaultProcessForFlagSnapshot(int $manualId, string $std): string
+    {
+        if ($std === self::STD_PAINT) {
+            $paintProcess = ManualProcess::query()
+                ->where('manual_id', $manualId)
+                ->whereHas('process.process_name', function ($query) {
+                    $query->where('id', 25)
+                        ->orWhere('name', 'Paint')
+                        ->orWhere('process_sheet_name', 'PAINT APPLICATION');
+                })
+                ->with('process:id,process')
+                ->first();
+
+            if ($paintProcess?->process) {
+                return (string) $paintProcess->process->id;
+            }
+        }
+
+        $values = self::processPicklistValuesForManual($manualId, $std);
+
+        return (string) ($values[0] ?? '1');
     }
 
     /**
