@@ -927,6 +927,8 @@ class MobileController extends Controller
 
     public function updateStorage(Request $request, Workorder $workorder): JsonResponse
     {
+        abort_unless($request->user()?->roleIs(['Shipping', 'Manager', 'Admin']), 403);
+
         $data = $request->validate([
             'storage_rack' => ['nullable', 'integer', 'min:0', 'max:999'],
             'storage_level' => ['nullable', 'integer', 'min:0', 'max:999'],

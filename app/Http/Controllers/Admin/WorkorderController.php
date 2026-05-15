@@ -678,6 +678,7 @@ class WorkorderController extends Controller
         if ($isDraft) {
             $data['is_draft'] = true;
             $data['number'] = Workorder::nextDraftNumber(); // int
+            $data['draft_number'] = $data['number'];
         } else {
             $data['is_draft'] = false;
         }
@@ -742,6 +743,7 @@ class WorkorderController extends Controller
 
     public function edit(Workorder $workorder)
     {
+        abort_unless(auth()->user()?->can('workorders.update'), 403);
 
         $draftInstructionId = Instruction::where('name', 'Draft')->value('id');
         $wasDraft = (int)$workorder->instruction_id === (int)$draftInstructionId;
@@ -771,6 +773,8 @@ class WorkorderController extends Controller
 
     public function update(Request $request, Workorder $workorder)
     {
+        abort_unless(auth()->user()?->can('workorders.update'), 403);
+
         $draftInstructionId = Instruction::where('name', 'Draft')->value('id');
         $wasDraft = (int)$workorder->instruction_id === (int)$draftInstructionId;
         $newIsDraft = (int)$request->instruction_id === (int)$draftInstructionId;
@@ -1308,6 +1312,8 @@ class WorkorderController extends Controller
 
     public function updateStorage(Request $request, \App\Models\Workorder $workorder)
     {
+        abort_unless($request->user()?->roleIs(['Shipping', 'Manager', 'Admin']), 403);
+
         $data = $request->validate([
             'storage_rack'   => ['nullable','integer','min:0','max:999'],
             'storage_level'  => ['nullable','integer','min:0','max:999'],

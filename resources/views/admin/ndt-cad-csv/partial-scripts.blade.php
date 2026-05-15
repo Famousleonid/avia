@@ -501,7 +501,6 @@ window.loadSnapshotFromStd = function(type) {
 };
 
 window.reloadFromManual = window.loadSnapshotFromStd;
-window.forceLoadFromManual = window.loadSnapshotFromStd;
 
 window.editNdtComponent = function(index) {
     const c = ndtComponents[index];

@@ -302,8 +302,8 @@ class ActivityLogController extends Controller
 
         $stdProcessMap = StdProcess::query()
             ->whereIn('id', array_unique($idBuckets['std_process_id']))
-            ->with('manual:id,number,lib')
-            ->get(['id', 'manual_id', 'std', 'ipl_num', 'part_number', 'description', 'process'])
+            ->with(['manual:id,number,lib', 'component:id,ipl_num,part_number,name'])
+            ->get(['id', 'manual_id', 'component_id', 'std', 'process'])
             ->mapWithKeys(fn (StdProcess $stdProcess) => [$stdProcess->id => $this->formatStdProcessActivityLabel($stdProcess)])
             ->all();
 
@@ -639,9 +639,9 @@ class ActivityLogController extends Controller
         }
 
         $itemLabel = trim(implode(' / ', array_values(array_filter([
-            trim((string) $stdProcess->ipl_num),
-            trim((string) $stdProcess->part_number),
-            trim((string) $stdProcess->description),
+            trim((string) $stdProcess->component?->ipl_num),
+            trim((string) $stdProcess->component?->part_number),
+            trim((string) $stdProcess->component?->name),
         ], fn ($value) => filled($value)))));
 
         if ($itemLabel !== '') {

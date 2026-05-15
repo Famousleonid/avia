@@ -110,10 +110,6 @@ class ManualController extends Controller
             'units.*' => 'required|string|max:255',
             'unit_names' => 'nullable|array',
             'unit_names.*' => 'nullable|string|max:255',
-            'csv_files' => 'nullable|array',
-            'csv_files.*' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
-            'csv_process_types' => 'nullable|array',
-            'csv_process_types.*' => 'nullable|in:ndt,cad,stress_relief,log,other',
         ]);
 
         $manual = DB::transaction(function () use ($request) {
@@ -129,22 +125,6 @@ class ManualController extends Controller
 
             if ($request->hasFile('log_img')) {
                 $manual->addMedia($request->file('log_img'))->toMediaCollection('manuals_log');
-            }
-
-            // Обрабатываем множественные CSV файлы
-            if ($request->hasFile('csv_files') && $request->has('csv_process_types')) {
-                $csvFiles = $request->file('csv_files');
-                $processTypes = $request->input('csv_process_types', []);
-
-                foreach ($csvFiles as $index => $file) {
-                    if ($file && isset($processTypes[$index])) {
-                        $media = $manual->addMedia($file)
-                            ->toMediaCollection('csv_files');
-
-                        $media->setCustomProperty('process_type', $processTypes[$index]);
-                        $media->save();
-                    }
-                }
             }
 
             // Если есть юниты, добавляем их
@@ -286,12 +266,16 @@ class ManualController extends Controller
         $manualPartsLocked = $manualPartLock !== null;
 
         if (in_array($manualShowTab, ['std'], true)) {
-            StdProcess::syncEmptyTypesFromMedia($cmm);
+            StdProcess::syncFromComponentFlagsForManualWhenCountsDiffer($cmm);
         }
 
         $stdProcessesByType = collect(StdProcess::validStdValues())->mapWithKeys(function ($std) use ($cmm) {
-            $rows = StdProcess::where('manual_id', $cmm->id)->where('std', $std)->get()->sort(function (StdProcess $a, StdProcess $b) {
-                $cmp = StdProcess::iplNumSortRank($a->ipl_num) <=> StdProcess::iplNumSortRank($b->ipl_num);
+            $rows = StdProcess::where('manual_id', $cmm->id)
+                ->where('std', $std)
+                ->with('component')
+                ->get()
+                ->sort(function (StdProcess $a, StdProcess $b) {
+                $cmp = StdProcess::iplNumSortRank($a->component?->ipl_num) <=> StdProcess::iplNumSortRank($b->component?->ipl_num);
 
                 return $cmp !== 0 ? $cmp : $a->id <=> $b->id;
             })->values();
@@ -301,7 +285,7 @@ class ManualController extends Controller
 
         $stdExistingPartKeysByStd = collect(StdProcess::validStdValues())->mapWithKeys(function ($std) use ($stdProcessesByType) {
             $rows = $stdProcessesByType->get($std, collect());
-            $keys = $rows->map(fn (StdProcess $row) => StdProcess::duplicateKeyForClient($row->ipl_num, $row->part_number))->values()->all();
+            $keys = $rows->map(fn (StdProcess $row) => StdProcess::duplicateKeyForClient($row->component?->ipl_num, $row->component?->part_number))->values()->all();
 
             return [$std => $keys];
         })->all();
@@ -318,9 +302,16 @@ class ManualController extends Controller
             ->get(['id', 'number', 'title']);
 
         $stdProcessPicklists = [
+            'ndt' => StdProcess::processPicklistValuesForManual($cmm->id, StdProcess::STD_NDT),
             'cad' => StdProcess::processPicklistValuesForManual($cmm->id, StdProcess::STD_CAD),
             'stress' => StdProcess::processPicklistValuesForManual($cmm->id, StdProcess::STD_STRESS),
             'paint' => StdProcess::processPicklistValuesForManual($cmm->id, StdProcess::STD_PAINT),
+        ];
+        $stdProcessPicklistOptions = [
+            'ndt' => StdProcess::processPicklistOptionsForManual($cmm->id, StdProcess::STD_NDT),
+            'cad' => StdProcess::processPicklistOptionsForManual($cmm->id, StdProcess::STD_CAD),
+            'stress' => StdProcess::processPicklistOptionsForManual($cmm->id, StdProcess::STD_STRESS),
+            'paint' => StdProcess::processPicklistOptionsForManual($cmm->id, StdProcess::STD_PAINT),
         ];
 
         $serviceBulletins = ManualServiceBulletin::query()
@@ -330,7 +321,7 @@ class ManualController extends Controller
             ->get();
 
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
-        'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','serviceBulletins'
+        'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','stdProcessPicklistOptions','serviceBulletins'
         ));
 
     }
@@ -401,9 +392,6 @@ class ManualController extends Controller
             'unit_names.*' => 'nullable|string|max:255',
             'permitted_user_ids' => 'nullable|array',
             'permitted_user_ids.*' => 'integer|exists:users,id',
-            // CSV файлы теперь загружаются только через AJAX
-            // 'csv_files.*' => 'nullable|file|mimes:csv,txt|max:10240', // 10MB max
-            // 'process_type' => 'nullable|in:ndt,cad,stress_relief,other',
         ]);
 
         if ($request->hasFile('img')) {
@@ -418,9 +406,6 @@ class ManualController extends Controller
             }
             $cmm->addMedia($request->file('log_img'))->toMediaCollection('manuals_log');
         }
-
-        // CSV файлы теперь загружаются только через AJAX (ManualCsvController)
-        // Удаляем обработку csv_files из основной формы
 
         $cmm->update(collect($validatedData)->except('permitted_user_ids')->all());
 
@@ -511,9 +496,6 @@ class ManualController extends Controller
         $cmm = Manual::findOrFail($id);
         if ($cmm->getMedia('manuals')->isNotEmpty()) {
             $cmm->getMedia('manuals')->first()->delete();
-        }
-        if ($cmm->getMedia('csv_files')->isNotEmpty()) {
-            $cmm->getMedia('csv_files')->first()->delete();
         }
         $cmm->delete();
 

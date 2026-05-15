@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Component;
 use App\Models\Manual;
 use App\Models\StdProcess;
+use App\Services\WorkorderStdProcessItemsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,56 +33,39 @@ class ManualStdProcessController extends Controller
         $this->ensureComponentAllowedForStdAdd($manual, $component);
 
         $std = $data['std'];
-        $processRules = ['nullable', 'string', 'max:255'];
-        if (in_array($std, ['cad', 'stress', 'paint'], true)) {
-            $allowed = StdProcess::processPicklistValuesForManual($manual->id, $std);
-            if ($allowed === []) {
-                return redirect()->back()
-                    ->withInput()
-            ->with('error', 'There are no processes for this STD type on the current CMM Processes tab. Add a process (Cad plate / Stress / Paint) in Processes, then try adding the row again.');
-            }
-            $processRules = ['required', 'string', 'max:255', Rule::in($allowed)];
+        $allowed = StdProcess::processPicklistValuesForManual($manual->id, $std);
+        if ($allowed === []) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'There are no processes for this STD type on the current CMM Processes tab. Add a matching process in Processes, then try again.');
         }
+        $processVal = $this->validatedProcessValue($request, $std, $allowed);
 
-        $processData = $request->validate(['process' => $processRules]);
-        $processVal = $processData['process'] ?? null;
-        if ($std === 'ndt') {
-            $processVal = ($processVal !== null && $processVal !== '') ? $processVal : '1';
-        } else {
-            $processVal = (string) ($processData['process'] ?? '1');
-        }
-
-        $srcManual = $component->manual;
-        $manualRef = null;
-        if ($srcManual && (int) $component->manual_id !== (int) $manual->id) {
-            $num = trim((string) ($srcManual->number ?? ''));
-            $manualRef = $num !== '' ? $num : null;
-        }
-
-        $ipl = trim((string) ($component->ipl_num ?? ''));
-        if ($ipl === '') {
+        if (trim((string) ($component->ipl_num ?? '')) === '') {
             return redirect()->back()
                 ->withInput()
             ->with('error', 'The selected part has no IPL. Set the IPL on the Parts tab.');
         }
 
-        $partNum = trim((string) ($component->part_number ?? ''));
-        if (StdProcess::rowExistsForManualStdPart($manual->id, $std, $ipl, $partNum)) {
+        if (StdProcess::rowExistsForComponentStd((int) $component->id, $std)) {
             return redirect()->back()
                 ->withInput()
             ->with('error', 'This part (IPL and Part No.) already exists in the table for the selected STD type. Adding was canceled.');
         }
 
         $manual->stdProcesses()->create([
+            'component_id' => $component->id,
             'std' => $std,
-            'ipl_num' => $ipl,
-            'part_number' => $partNum,
-            'description' => $component->name,
             'process' => $processVal,
             'qty' => $data['qty'],
-            'manual' => $manualRef,
             'eff_code' => StdProcess::normalizeEffCodeForStorage($data['eff_code'] ?? null),
         ]);
+
+        $flagColumn = StdProcess::componentFlagColumnForStd($std);
+        if (! (bool) $component->{$flagColumn}) {
+            $component->updateQuietly([$flagColumn => true]);
+        }
+        $this->invalidateWorkorderStdSnapshots($manual);
 
         return redirect()->route('manuals.show', [
             'manual' => $manual->id,
@@ -126,25 +110,25 @@ class ManualStdProcessController extends Controller
 
         abort_if($stdProcess->manual_id != $manual->id, 404);
 
+        $allowed = StdProcess::processPicklistValuesForManual($manual->id, $stdProcess->std);
+        if ($allowed === []) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'There are no processes for this STD type on the current CMM Processes tab. Add a matching process in Processes, then try again.');
+        }
+
         $data = $request->validate([
-            'ipl_num' => 'required|string|max:64',
-            'part_number' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'process' => 'nullable|string|max:255',
             'qty' => 'required|integer|min:1',
-            'manual' => 'nullable|string|max:255',
             'eff_code' => 'nullable|string|max:255',
         ]);
+        $processVal = $this->validatedProcessValue($request, $stdProcess->std, $allowed);
 
         $stdProcess->update([
-            'ipl_num' => $data['ipl_num'],
-            'part_number' => $data['part_number'] ?? '',
-            'description' => $data['description'] ?? null,
-            'process' => $data['process'] ?? '1',
+            'process' => $processVal,
             'qty' => $data['qty'],
-            'manual' => isset($data['manual']) && $data['manual'] !== '' ? $data['manual'] : null,
             'eff_code' => StdProcess::normalizeEffCodeForStorage($data['eff_code'] ?? null),
         ]);
+        $this->invalidateWorkorderStdSnapshots($manual);
 
         return redirect()->route('manuals.show', [
             'manual' => $manual->id,
@@ -157,35 +141,18 @@ class ManualStdProcessController extends Controller
     {
         $this->ensureManualAccess($manual);
         abort_if($stdProcess->manual_id !== $manual->id, 404);
-        $stdProcess->delete();
+        $flagColumn = StdProcess::componentFlagColumnForStd($stdProcess->std);
+        $component = $stdProcess->component;
+
+        if ($component) {
+            $component->update([$flagColumn => false]);
+        } else {
+            $stdProcess->delete();
+        }
+        $this->invalidateWorkorderStdSnapshots($manual);
 
         return redirect()->route('manuals.show', ['manual' => $manual->id, 'tab' => 'std'])
             ->with('success', 'STD row deleted');
-    }
-
-    public function reimportFromCsv(Manual $manual): RedirectResponse
-    {
-        $this->ensureManualAccess($manual);
-        try {
-            StdProcess::reimportAllTypesFromMedia($manual);
-        } catch (\Throwable $e) {
-            \Log::error('ManualStdProcessController::reimportFromCsv failed', [
-                'manual_id' => $manual->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return redirect()->route('manuals.show', [
-                'manual' => $manual->id,
-                'tab' => 'std',
-                'std_inner' => 'csv',
-        ])->with('error', 'Failed to import from CSV: '.$e->getMessage());
-        }
-
-        return redirect()->route('manuals.show', [
-            'manual' => $manual->id,
-            'tab' => 'std',
-            'std_inner' => 'csv',
-        ])->with('success', 'NDT / CAD / Stress / Paint tables were updated from uploaded CSV files.');
     }
 
     protected function ensureManualAccess(Manual $manual): void
@@ -201,6 +168,34 @@ class ManualStdProcessController extends Controller
 
         $allowed = $manual->permittedUsers()->where('users.id', $user->id)->exists();
         abort_unless($allowed, 403);
+    }
+
+    protected function invalidateWorkorderStdSnapshots(Manual $manual): void
+    {
+        app(WorkorderStdProcessItemsService::class)->invalidateForManual((int) $manual->id);
+    }
+
+    /**
+     * @param  array<int, string>  $allowed
+     */
+    protected function validatedProcessValue(Request $request, string $std, array $allowed): string
+    {
+        if ($std === StdProcess::STD_NDT) {
+            $data = $request->validate([
+                'process' => ['required', 'array', 'min:1'],
+                'process.*' => ['required', 'string', 'max:32', Rule::in($allowed)],
+            ]);
+
+            $values = array_values(array_unique(array_map('strval', $data['process'])));
+
+            return implode(' / ', $values);
+        }
+
+        $data = $request->validate([
+            'process' => ['required', 'string', 'max:255', Rule::in($allowed)],
+        ]);
+
+        return (string) $data['process'];
     }
 
     protected function ensureSamePlaneBuilder(Manual $page, Manual $other): void

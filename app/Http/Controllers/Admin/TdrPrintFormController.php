@@ -15,6 +15,7 @@ use App\Models\ManualProcess;
 use App\Models\Necessary;
 use App\Models\Process;
 use App\Models\ProcessName;
+use App\Models\StdProcess;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Unit;
@@ -320,6 +321,10 @@ class TdrPrintFormController extends Controller
 
             $ndt_components[] = $componentObj;
         }
+
+        $ndt_components = $this->stdSnapshotRowsToFormComponents(
+            StdProcess::snapshotComponentsForWorkorder($current_wo, StdProcess::STD_NDT)
+        );
 
         // Сортируем NDT компоненты: сначала по manual (если есть), потом по ipl_num
         usort($ndt_components, function($a, $b) {
@@ -749,6 +754,10 @@ class TdrPrintFormController extends Controller
                 $cad_components[] = $componentObj;
             }
 
+            $cad_components = $this->stdSnapshotRowsToFormComponents(
+                StdProcess::snapshotComponentsForWorkorder($current_wo, StdProcess::STD_CAD)
+            );
+
             // Сортируем CAD компоненты: сначала по manual (если есть), потом по ipl_num
             usort($cad_components, function($a, $b) {
                 // Сначала сравниваем по manual
@@ -827,13 +836,6 @@ class TdrPrintFormController extends Controller
                 throw new \RuntimeException('Manual not found for this workorder');
             }
 
-            // Получаем или создаем NdtCadCsv для данного workorder с автоматической загрузкой
-            $ndtCadCsv = $current_wo->ndtCadCsv;
-            if (!$ndtCadCsv) {
-                $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
-            }
-            $ndtCadCsv = NdtCadCsv::ensureTypeLoadedForWorkorder($current_wo, $ndtCadCsv, \App\Models\StdProcess::STD_PAINT);
-
             // Получаем ID process names для Paint (ID = 25)
             $paintProcessName = ProcessName::find(25);
 
@@ -898,9 +900,8 @@ class TdrPrintFormController extends Controller
                 }
             }
 
-            // Получаем paint компоненты из NdtCadCsv
-            // Примечание: QTY берется напрямую из CSV, все компоненты включаются без фильтрации
-            $paint_components = collect($ndtCadCsv->paint_components ?? [])
+            // Paint STD uses current Component rows with paint_list, not the stored CSV snapshot.
+            $paint_components = collect(StdProcess::snapshotComponentsForWorkorder($current_wo, StdProcess::STD_PAINT))
                 ->filter(function ($component) use ($excludedIplNumsPaint) {
                     $iplNum = $component['ipl_num'] ?? '';
                     // Нормализуем IPL номер для сравнения
@@ -909,26 +910,24 @@ class TdrPrintFormController extends Controller
                     return !isset($excludedIplNumsPaint[$normalizedIpl]);
                 })
                 ->map(function ($component) use ($paint_processes, $manual) {
-                $process = $paint_processes->first(function ($p) use ($component) {
-                    return $p->process->id == $component['process'];
-                });
+                    $process = $paint_processes->first(function ($p) use ($component) {
+                        return (int) $p->process->id === (int) ($component['process'] ?? 0);
+                    });
 
-                [$itemDisp, $partDisp, $descDisp] = $this->resolvePaintStdAssyDisplayFields($component, $manual);
+                    [$itemDisp, $partDisp, $descDisp] = $this->resolvePaintStdAssyDisplayFields($component, $manual);
 
-                $obj = new \stdClass();
-                $obj->ipl_num = $component['ipl_num'] ?? '';
-                $obj->item_display = $itemDisp;
-                $obj->part_number = $partDisp;
-                $obj->name = $descDisp;
-                $obj->process_name = $process ? $process->process->name :  $component['process'];
-                // Количество в форме = значение QTY из CSV
-                $obj->qty = (int)($component['qty'] ?? 1);
-                // Добавляем поле manual, если оно есть
-                $obj->manual = $component['manual'] ?? null;
-                $obj->eff_code = trim((string) ($component['eff_code'] ?? ''));
+                    $obj = new \stdClass();
+                    $obj->ipl_num = (string) ($component['ipl_num'] ?? '');
+                    $obj->item_display = $itemDisp;
+                    $obj->part_number = $partDisp;
+                    $obj->name = $descDisp;
+                    $obj->process_name = $process ? $process->process->name : 'No Paint process configured';
+                    $obj->qty = max(1, (int) ($component['qty'] ?? 1));
+                    $obj->manual = $component['manual'] ?? (string) ($manual->number ?? '');
+                    $obj->eff_code = trim((string) ($component['eff_code'] ?? ''));
 
-                return $obj;
-            })->toArray();
+                    return $obj;
+                })->toArray();
 
             // Сортируем Paint компоненты: сначала по manual (если есть), потом по ipl_num
             usort($paint_components, function($a, $b) {
@@ -963,7 +962,7 @@ class TdrPrintFormController extends Controller
             $form_number = '014';
 
             // Рассчитываем общее количество деталей
-            $paintSum = $this->calcPaintSums($workorder_id);
+            $paintSum = $this->calcPaintSumsFromComponents($paint_components);
 
             // Разбиение на страницы теперь происходит на фронтенде через JavaScript
             // Передаём все компоненты без предварительного разбиения
@@ -987,6 +986,26 @@ class TdrPrintFormController extends Controller
             // ]);
             throw $e;
         }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, \stdClass>
+     */
+    private function stdSnapshotRowsToFormComponents(array $rows): array
+    {
+        return array_values(array_map(function (array $row): \stdClass {
+            $component = new \stdClass();
+            $component->ipl_num = (string) ($row['ipl_num'] ?? '');
+            $component->part_number = (string) ($row['part_number'] ?? '');
+            $component->name = (string) ($row['description'] ?? '');
+            $component->qty = max(1, (int) ($row['qty'] ?? 1));
+            $component->process_name = (string) ($row['process'] ?? '');
+            $component->manual = trim((string) ($row['manual'] ?? '')) ?: null;
+            $component->eff_code = trim((string) ($row['eff_code'] ?? ''));
+
+            return $component;
+        }, $rows));
     }
 
     private function buildStdProcessSheetTablePages(array $components, int $rowsPerPage): array
@@ -1340,6 +1359,10 @@ class TdrPrintFormController extends Controller
                 $stress_components[] = $componentObj;
             }
 
+            $stress_components = $this->stdSnapshotRowsToFormComponents(
+                StdProcess::snapshotComponentsForWorkorder($current_wo, StdProcess::STD_STRESS)
+            );
+
             // Сортируем Stress компоненты: сначала по manual (если есть), потом по ipl_num
             usort($stress_components, function($a, $b) {
                 // Сначала сравниваем по manual
@@ -1377,7 +1400,7 @@ class TdrPrintFormController extends Controller
                 ->get();
 
             // Рассчитываем общее количество деталей
-            $stressSum = $this->calcStressSums($workorder_id);
+            $stressSum = $this->calcStdSumsFromComponents($stress_components);
 
             $stressFormCfg = config('tdr_forms.stressFormStd', []);
             $defaultRows = (int) ($stressFormCfg['table_rows_default'] ?? 21);
@@ -1864,13 +1887,6 @@ class TdrPrintFormController extends Controller
 
 //dd($manuals, $manual);
 
-// Получаем CSV-файл с process_type = 'log'
-        $csvMedia = $manual_wo->getMedia('csv_files')->first(function ($media) {
-            return $media->getCustomProperty('process_type') === self::PROCESS_TYPE_LOG;
-        });
-
-//    dd($csvMedia);
-
         return view('admin.tdrs.logCardForm', compact('current_wo','manuals', 'builders'));
 
     }
@@ -2230,6 +2246,55 @@ class TdrPrintFormController extends Controller
         return max(1, $unitsAssyByIpl[$normalizedIpl] ?? 1);
     }
 
+    /**
+     * @param  array<string, mixed>  $paintRow
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function resolvePaintStdAssyDisplayFields(array $paintRow, Manual $defaultManual): array
+    {
+        $iplNum = (string) ($paintRow['ipl_num'] ?? '');
+        $item = $iplNum;
+        $part = (string) ($paintRow['part_number'] ?? '');
+        $desc = (string) ($paintRow['description'] ?? '');
+
+        $componentRecord = null;
+        if (! empty($paintRow['manual'])) {
+            $componentManual = Manual::where('number', $paintRow['manual'])->first();
+            if ($componentManual) {
+                $componentRecord = Component::query()
+                    ->where('manual_id', $componentManual->id)
+                    ->where('ipl_num', $iplNum)
+                    ->first(['assy_ipl_num', 'assy_part_number', 'name']);
+            }
+        }
+
+        if (! $componentRecord && $iplNum !== '') {
+            $componentRecord = Component::query()
+                ->where('manual_id', $defaultManual->id)
+                ->where('ipl_num', $iplNum)
+                ->first(['assy_ipl_num', 'assy_part_number', 'name']);
+        }
+
+        if (! $componentRecord) {
+            return [$item, $part, $desc];
+        }
+
+        $assyIplNum = trim((string) ($componentRecord->assy_ipl_num ?? ''));
+        $assyPartNumber = trim((string) ($componentRecord->assy_part_number ?? ''));
+
+        if ($assyIplNum !== '') {
+            $item = (string) $componentRecord->assy_ipl_num;
+        }
+        if ($assyPartNumber !== '') {
+            $part = (string) $componentRecord->assy_part_number;
+        }
+        if (($assyIplNum !== '' || $assyPartNumber !== '') && trim((string) ($componentRecord->name ?? '')) !== '') {
+            $desc = (string) $componentRecord->name;
+        }
+
+        return [$item, $part, $desc];
+    }
+
     private function calcNdtSums(int $workorder_id): array
     {
         // Инициализация счетчиков
@@ -2388,6 +2453,34 @@ class TdrPrintFormController extends Controller
             return [
                 'total_qty' => 0,
                 'total_components' => 0
+            ];
+        }
+    }
+
+    private function calcStdSumsFromComponents($components): array
+    {
+        return $this->calcCadSumsFromComponents($components);
+    }
+
+    private function calcPaintSumsFromComponents($paint_components): array
+    {
+        try {
+            $totalQty = 0;
+            $totalComponents = 0;
+
+            foreach ($paint_components as $component) {
+                $totalQty += max(1, (int) ($component->qty ?? 1));
+                $totalComponents++;
+            }
+
+            return [
+                'total_qty' => $totalQty,
+                'total_components' => $totalComponents,
+            ];
+        } catch (\Exception $e) {
+            return [
+                'total_qty' => 0,
+                'total_components' => 0,
             ];
         }
     }

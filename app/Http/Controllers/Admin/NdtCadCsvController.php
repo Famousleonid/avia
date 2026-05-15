@@ -22,13 +22,6 @@ class NdtCadCsvController extends Controller
     {
         $ndtCadCsv = $workorder->ndtCadCsv;
 
-        // Отладочная информация
-        $manual = $workorder->unit->manuals;
-        if ($manual) {
-            $csvFiles = $manual->getMedia('csv_files');
-        }
-
-        // Если записи нет или она пустая, создаем/обновляем с автоматической загрузкой из Manual CSV
         $shouldAutoLoad = false;
         if (!$ndtCadCsv) {
             $shouldAutoLoad = true;
@@ -90,107 +83,6 @@ class NdtCadCsvController extends Controller
         return response($view, 200)
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache');
-    }
-
-    /**
-     * Обновить NDT компоненты
-     */
-    public function updateNdtComponents(Request $request, Workorder $workorder): JsonResponse
-    {
-        $request->validate([
-            'components' => 'required|array',
-            'components.*.ipl_num' => 'required|string',
-            'components.*.part_number' => 'required|string',
-            'components.*.description' => 'required|string',
-            'components.*.process' => 'required|string',
-            'components.*.qty' => 'required|integer|min:1',
-        ]);
-
-        $ndtCadCsv = $workorder->ndtCadCsv;
-
-        if (!$ndtCadCsv) {
-            $ndtCadCsv = NdtCadCsv::create([
-                'workorder_id' => $workorder->id,
-                'ndt_components' => [],
-                'cad_components' => []
-            ]);
-        }
-
-        $ndtCadCsv->ndt_components = $request->components;
-        $ndtCadCsv->save();
-
-        return response()->json([
-            'success' => true,
-                'message' => 'NDT components updated successfully'
-        ]);
-    }
-
-    /**
-     * Обновить CAD компоненты
-     */
-    public function updateCadComponents(Request $request, Workorder $workorder): JsonResponse
-    {
-        $request->validate([
-            'components' => 'required|array',
-            'components.*.ipl_num' => 'required|string',
-            'components.*.part_number' => 'required|string',
-            'components.*.description' => 'required|string',
-            'components.*.process' => 'required|string',
-            'components.*.qty' => 'required|integer|min:1',
-        ]);
-
-        $ndtCadCsv = $workorder->ndtCadCsv;
-
-        if (!$ndtCadCsv) {
-            $ndtCadCsv = NdtCadCsv::create([
-                'workorder_id' => $workorder->id,
-                'ndt_components' => [],
-                'cad_components' => [],
-                'stress_components' => []
-            ]);
-        }
-
-        $ndtCadCsv->cad_components = $request->components;
-        $ndtCadCsv->save();
-
-        return response()->json([
-            'success' => true,
-                'message' => 'CAD components updated successfully'
-        ]);
-    }
-
-    /**
-     * Обновить Stress компоненты
-     */
-    public function updateStressComponents(Request $request, Workorder $workorder): JsonResponse
-    {
-        $request->validate([
-            'components' => 'required|array',
-            'components.*.ipl_num' => 'required|string',
-            'components.*.part_number' => 'required|string',
-            'components.*.description' => 'required|string',
-            'components.*.process' => 'required|string',
-            'components.*.qty' => 'required|integer|min:1',
-        ]);
-
-        $ndtCadCsv = $workorder->ndtCadCsv;
-
-        if (!$ndtCadCsv) {
-            $ndtCadCsv = NdtCadCsv::create([
-                'workorder_id' => $workorder->id,
-                'ndt_components' => [],
-                'cad_components' => [],
-                'stress_components' => []
-            ]);
-        }
-
-        $ndtCadCsv->stress_components = $request->components;
-        $ndtCadCsv->save();
-
-        return response()->json([
-            'success' => true,
-                'message' => 'Stress components updated successfully'
-        ]);
     }
 
     /**
@@ -482,18 +374,7 @@ class NdtCadCsvController extends Controller
     }
 
     /**
-     * Импорт CSV на workorder отключён — используйте вкладку STD Processes у мануала.
-     */
-    public function importFromCsv(Request $request, Workorder $workorder): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'message' => 'CSV import for workorder is disabled. Upload CSV in CMM -> STD Processes tab.',
-        ], 422);
-    }
-
-    /**
-     * Полная замена снимка выбранного типа из таблицы std_processes (и при необходимости — из прикреплённого CSV в мануал).
+     * Полная замена снимка выбранного типа из таблицы std_processes.
      */
     public function reloadFromManual(Request $request, Workorder $workorder): JsonResponse
     {
@@ -521,7 +402,6 @@ class NdtCadCsvController extends Controller
             }
 
             $type = $request->input('type');
-            StdProcess::syncFromMediaIfEmpty($manual, $type);
             $components = StdProcess::snapshotComponentsForWorkorder($workorder, $type);
 
             if (count($components) === 0) {
@@ -914,42 +794,4 @@ class NdtCadCsvController extends Controller
         ]);
     }
 
-    /**
-     * Как reloadFromManual, но создаёт NdtCadCsv при отсутствии (все типы — из STD; затем при необходимости уже существующая запись дублирует логику одного типа).
-     */
-    public function forceLoadFromManual(Request $request, Workorder $workorder): JsonResponse
-    {
-        $request->validate([
-            'type' => 'required|in:ndt,cad,stress,paint',
-        ]);
-
-        try {
-            $ndtCadCsv = $workorder->ndtCadCsv;
-
-            if (! $ndtCadCsv) {
-                $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder->id);
-                $type = $request->input('type');
-                $field = match ($type) {
-                    'ndt' => 'ndt_components',
-                    'cad' => 'cad_components',
-                    'paint' => 'paint_components',
-                    default => 'stress_components',
-                };
-                $snapshot = $ndtCadCsv->$field ?? [];
-
-                return response()->json([
-                    'success' => true,
-                'message' => 'NdtCadCsv was created and filled from the STD manual',
-                    'count' => is_array($snapshot) ? count($snapshot) : 0,
-                ]);
-            }
-
-            return $this->reloadFromManual($request, $workorder);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Forced load error: '.$e->getMessage(),
-            ], 500);
-        }
-    }
 }

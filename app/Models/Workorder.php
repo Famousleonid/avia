@@ -19,13 +19,14 @@ class Workorder extends Model implements HasMedia
 {
     use InteractsWithMedia, LogsActivity, SoftDeletes, HasMediaHelpers;
 
-    protected $fillable = ['number', 'user_id', 'unit_id', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
+    protected $fillable = ['number', 'draft_number', 'user_id', 'unit_id', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
         'preliminary_test_false','part_missing','extra_parts','new_parts', 'open_at', 'customer_id', 'approve_at', 'description',
         'serial_number', 'place', 'paint_queue_order', 'machining_queue_order', 'amdt', 'rm_report', 'customer_po','modified','is_draft','storage_rack','storage_level','storage_column',];
 
     protected $casts = [
         'approve_at' => 'datetime',
         'open_at'    => 'datetime',
+        'draft_number' => 'integer',
         'is_draft'   => 'boolean',
         'approve'    => 'boolean',
     ];
@@ -41,6 +42,11 @@ class Workorder extends Model implements HasMedia
     public function stdProcesses(): HasMany
     {
         return $this->hasMany(WorkorderStdProcess::class);
+    }
+
+    public function stdProcessItems(): HasMany
+    {
+        return $this->hasMany(WorkorderStdProcessItem::class);
     }
 
     public function unitInspections(): HasMany
@@ -352,9 +358,9 @@ class Workorder extends Model implements HasMedia
 
             $last = self::withTrashed() // ✅ учитываем deleted_at
             ->withoutGlobalScope('exclude_drafts')
-                ->where('is_draft', true)
-                ->whereBetween('number', [1, 99999])
-                ->max('number');
+                ->whereNotNull('draft_number')
+                ->whereBetween('draft_number', [1, 99999])
+                ->max('draft_number');
 
             $next = (int)($last ?? 0) + 1;
 
@@ -366,6 +372,7 @@ class Workorder extends Model implements HasMedia
                 $wo = new self();
                 $wo->fill($attributes);
                 $wo->number = $next;
+                $wo->draft_number = $next;
                 $wo->is_draft = true;
 
                 if (empty($wo->user_id) && auth()->check()) {
@@ -394,10 +401,10 @@ class Workorder extends Model implements HasMedia
     {
         $last = self::withTrashed() // ✅ учитываем deleted_at
         ->withoutGlobalScope('exclude_drafts')
-            ->where('is_draft', true)
-            ->whereBetween('number', [1, 99999])
+            ->whereNotNull('draft_number')
+            ->whereBetween('draft_number', [1, 99999])
             ->lockForUpdate()
-            ->max('number');
+            ->max('draft_number');
 
         $next = (int)($last ?? 0) + 1;
 

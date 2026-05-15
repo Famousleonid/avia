@@ -219,43 +219,6 @@
                                 </div>
                             </div>
 
-                            <div class="col-xs-12 col-sm-12 col-md-12 mt-2">
-                                <div class="form-group">
-                                    <div class="d-flex justify-content-between">
-                                        <strong class="pt-3 ">{{__('CSV Files: ')}}</strong>
-                                        <button type="button" class="btn btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#csvUploadModal">
-                                            <i class="fas fa-upload"></i> {{__('Add CSV Files')}}
-                                        </button>
-                                    </div>
-
-                                    @php
-                                        $csvFiles = $cmm->getMedia('csv_files');
-                                    @endphp
-                                    @if($csvFiles->count() > 0)
-                                        <div class="csv-files-list mt-2 mb-1">
-                                            @foreach($csvFiles as $csvFile)
-                                                <div class="d-flex align-items-center mb-1" data-process-type="{{ $csvFile->getCustomProperty('process_type') }}">
-                                                    <span class="badge bg-outline-info me-2">{{ $csvFile->file_name }}</span>
-                                                    @if($csvFile->getCustomProperty('process_type'))
-                                                        <span class="badge bg-secondary me-2">{{ $csvFile->getCustomProperty('process_type') }}</span>
-                                                    @endif
-                                                    <a href="{{ route('manuals.csv.view', ['manual' => $cmm->id, 'file' => $csvFile->id]) }}" class="btn btn-sm btn-outline-info me-1">
-                                                        <i class="fas fa-eye"></i> {{__('View')}}
-                                                    </a>
-                                                    <button type="button" class="btn btn-sm btn-outline-danger"
-                                                            onclick="deleteCsvFile('{{ route('manuals.csv.delete', ['manual' => $cmm->id, 'file' => $csvFile->id]) }}', event)">
-                                                        <i class="fas fa-trash"></i> {{__('Del')}}
-                                                    </button>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                    <small class="text-muted d-block ps-4 fs-7">
-                                        {{__('Upload CSV files with component process requirements')}}
-                                    </small>
-                                </div>
-                            </div>
-
                             <div class="mt-2">
                                 <label for="revision_date" class="form-label">{{ __('Revision Date') }}</label>
                                 <input id='revision_date' type="date" class="form-control" name="revision_date"
@@ -522,44 +485,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно для загрузки CSV файлов -->
-    <div class="modal fade" id="csvUploadModal" tabindex="-1" aria-labelledby="csvUploadModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content bg-gradient">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="csvUploadModalLabel">{{ __('Add CSV Files') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="csvUploadForm" enctype="multipart/form-data">
-                        @csrf
-                        <div class="form-group mb-3">
-                            <label for="csvProcessType">{{ __('Process Type') }}</label>
-                            <select id="csvProcessType" name="process_type" class="form-control" required>
-                                <option value="">{{ __('Select Process Type') }}</option>
-                                <option value="ndt">{{ __('NDT') }}</option>
-                                <option value="cad">{{ __('CAD') }}</option>
-                                <option value="stress">{{ __('Stress Relief') }}</option>
-                                <option value="log">{{ __('Log Card') }}</option>
-                                <option value="paint">{{ __('Paint') }}</option>
-                                <option value="other">{{ __('Other') }}</option>
-                            </select>
-                        </div>
-                        <div class="form-group mb-3">
-                            <label for="csvFileInput">{{ __('CSV File') }}</label>
-                            <input type="file" id="csvFileInput" name="csv_file" class="form-control" accept=".csv,.txt" required>
-                            <small class="text-muted">{{__('Select CSV or TXT file to upload')}}</small>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
-                    <button type="button" class="btn btn-primary" onclick="uploadCsvFile()">{{ __('Upload') }}</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
         function syncManualUnitNamesFromDescription() {
             const manualDescription = (document.getElementById('title')?.value || '').trim();
@@ -615,43 +540,6 @@
             'name');
         handleFormSubmission('addScopeForm', 'addScopeModal', '{{ route('scopes.store') }}', 'scopes_id', 'id', 'scope');
 
-        function deleteCsvFile(url, event) {
-            if (confirm('{{ __("Are you sure you want to delete this file?") }}')) {
-                fetch(url, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    }
-                })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            // Находим родительский элемент файла и удаляем его
-                            const fileElement = event.target.closest('.d-flex');
-                            if (fileElement) {
-                                fileElement.remove();
-                            }
-                        } else {
-                            throw new Error(data.error || '{{ __("Error deleting file") }}');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        window.notifyError(error.message || '{{ __("Error deleting file") }}');
-                    });
-            }
-            // Предотвращаем всплытие события
-            event.stopPropagation();
-            return false;
-        }
-
         // Обработка отправки основной формы
         document.getElementById('editCMMForm').addEventListener('submit', function(e) {
             // Если есть ошибки валидации, не отправляем форму
@@ -671,98 +559,6 @@
                 }
             });
         });
-
-        // Функция для загрузки CSV файла через модальное окно
-        function uploadCsvFile() {
-            const fileInput = document.getElementById('csvFileInput');
-            const processType = document.getElementById('csvProcessType').value;
-            const formData = new FormData();
-
-            if (!fileInput.files.length) {
-                window.showNotification('{{ __("Please select a file") }}');
-                return;
-            }
-
-            if (!processType) {
-                window.showNotification('{{ __("Please select a process type") }}');
-                return;
-            }
-
-                formData.append('csv_file', fileInput.files[0]);
-                formData.append('process_type', processType);
-
-                fetch('{{ route("manuals.csv.store", ["manual" => $cmm->id]) }}', {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    }
-                })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            // Если файл с таким process_type уже существовал, удаляем его из DOM
-                            const existingFile = document.querySelector(`[data-process-type="${processType}"]`);
-                            if (existingFile) {
-                                existingFile.remove();
-                            }
-
-                            // Добавляем новый файл в список
-                            const fileList = document.querySelector('.csv-files-list');
-                        if (!fileList) {
-                            // Создаем контейнер для файлов, если его нет
-                            const csvSection = document.querySelector('.form-group strong:contains("CSV Files")').parentElement;
-                            const newFileList = document.createElement('div');
-                            newFileList.className = 'csv-files-list mt-2';
-                            csvSection.appendChild(newFileList);
-                        }
-
-                            const fileElement = createFileElement(data.file);
-                        document.querySelector('.csv-files-list').appendChild(fileElement);
-
-                        // Очищаем форму и закрываем модальное окно
-                        document.getElementById('csvUploadForm').reset();
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('csvUploadModal'));
-                        modal.hide();
-
-                        window.notifySuccess('{{ __("File uploaded successfully") }}');
-                        } else {
-                            throw new Error(data.error || '{{ __("Error uploading file") }}');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        window.notifyError(error.message || '{{ __("Error uploading file") }}');
-                    });
-        }
-
-        // Функция для создания элемента файла
-        function createFileElement(file) {
-            const div = document.createElement('div');
-            div.className = 'd-flex align-items-center mb-1';
-            div.setAttribute('data-process-type', file.process_type);
-
-            div.innerHTML = `
-                <span class="badge bg-outline-info me-2">${file.name}</span>
-                ${file.process_type ? `<span class="badge bg-secondary me-2">${file.process_type}</span>` : ''}
-                <a href="/admin/manuals/{{ $cmm->id }}/csv/${file.id}"
-                   class="btn btn-sm btn-outline-info me-1">
-                    <i class="fas fa-eye"></i> {{__('View')}}
-            </a>
-            <button type="button" class="btn btn-sm btn-outline-danger"
-                    onclick="deleteCsvFile('/admin/manuals/{{ $cmm->id }}/csv/${file.id}', event)">
-                    <i class="fas fa-trash"></i> {{__('Del')}}
-            </button>
-`;
-
-            return div;
-        }
 
         // Функциональность для управления полями units
         document.addEventListener('DOMContentLoaded', function () {

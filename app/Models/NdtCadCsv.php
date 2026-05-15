@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class NdtCadCsv extends Model
 {
+    // TODO(std-process-cleanup): ndt_cad_csv is still used as the legacy workorder STD
+    // JSON carrier for the TDR STD partial and print forms. Revisit and remove this
+    // table/model after those screens read/write workorder_std_process_items directly.
     protected $table = 'ndt_cad_csv';
 
     protected $fillable = [
@@ -310,7 +313,7 @@ class NdtCadCsv extends Model
      * Загрузить компоненты из CSV файла
      */
     /**
-     * Fill an empty STD bucket from the current workorder snapshot without overwriting edited data.
+     * Keep legacy bucket synchronized from the current reduced workorder STD list.
      */
     public static function ensureTypeLoadedForWorkorder(Workorder $workorder, self $ndtCadCsv, string $std): self
     {
@@ -323,17 +326,7 @@ class NdtCadCsv extends Model
             StdProcess::STD_PAINT => 'paint_components',
         };
 
-        $current = $ndtCadCsv->{$field} ?? [];
-        if (is_array($current) && count($current) > 0) {
-            return $ndtCadCsv;
-        }
-
-        $snapshot = StdProcess::snapshotComponentsForWorkorder($workorder, $std);
-        if ($snapshot === []) {
-            return $ndtCadCsv;
-        }
-
-        $ndtCadCsv->{$field} = $snapshot;
+        $ndtCadCsv->{$field} = StdProcess::snapshotComponentsForWorkorder($workorder, $std);
         $ndtCadCsv->save();
 
         return $ndtCadCsv->refresh();
@@ -411,6 +404,88 @@ class NdtCadCsv extends Model
             ]);
 
             return [];
+        }
+    }
+
+    /**
+     * Validate STD CSV headers and required row values before import.
+     *
+     * @return array<int, string>
+     */
+    public static function validateStdCsvFormat(string $csvPath): array
+    {
+        try {
+            $csv = \League\Csv\Reader::createFromPath($csvPath, 'r');
+            $csv->setDelimiter(self::detectCsvDelimiter($csvPath));
+            $csv->setHeaderOffset(0);
+            $headers = array_map(
+                static function ($header): string {
+                    $header = (string) $header;
+                    $header = preg_replace('/^\x{FEFF}/u', '', $header);
+                    $header = str_replace("\xEF\xBB\xBF", '', $header);
+                    $header = trim($header);
+                    $header = preg_replace('/^[\-\x{2013}\x{2014}]+/u', '', $header);
+                    return preg_replace('/\s+/', ' ', $header);
+                },
+                $csv->getHeader()
+            );
+            $normalizedHeaders = array_map(
+                static fn (string $header): string => strtolower($header),
+                $headers
+            );
+
+            $required = [
+                'item no. / IPL' => ['item no.', 'item', 'item no', 'item_no', 'ipl', 'ipl num'],
+                'part no.' => ['part no.', 'part', 'part_no', 'pn'],
+                'description' => ['description', 'desc', 'name'],
+                'process no.' => ['process no.', 'process', 'proc.', 'proc'],
+            ];
+
+            $errors = [];
+            foreach ($required as $label => $aliases) {
+                if (count(array_intersect($normalizedHeaders, $aliases)) === 0) {
+                    $errors[] = 'Missing required column: '.$label;
+                }
+            }
+
+            if ($errors !== []) {
+                return $errors;
+            }
+
+            $records = iterator_to_array($csv->getRecords());
+            if ($records === []) {
+                return ['CSV file has no data rows.'];
+            }
+
+            foreach ($records as $offset => $row) {
+                $row = self::normalizeCsvRowKeys($row);
+                $line = (int) $offset + 2;
+                $itemNo = self::csvPickFirstNonEmptyString($row, ['item no.', 'item', 'item no', 'item_no', 'ipl', 'ipl num']);
+                $partNo = self::csvPickFirstNonEmptyString($row, ['part no.', 'part', 'part_no', 'pn']);
+                $description = self::csvPickFirstNonEmptyString($row, ['description', 'desc', 'name']);
+                $process = self::csvPickFirstNonEmptyString($row, ['process no.', 'process', 'proc.', 'proc']);
+                $qty = self::csvPickFirstNonEmptyString($row, ['qty', 'quantity']);
+
+                if ($itemNo === null) {
+                    $errors[] = "Line {$line}: item no. / IPL is required.";
+                }
+                if ($partNo === null) {
+                    $errors[] = "Line {$line}: part no. is required.";
+                }
+                if ($description === null) {
+                    $errors[] = "Line {$line}: description is required.";
+                }
+                if ($process === null) {
+                    $errors[] = "Line {$line}: process no. is required.";
+                }
+                if ($qty !== null && (! ctype_digit($qty) || (int) $qty < 1)) {
+                    $errors[] = "Line {$line}: qty must be a positive integer.";
+                }
+            }
+
+            return array_slice($errors, 0, 10);
+        } catch (\Throwable $e) {
+            return ['CSV format error: '.$e->getMessage()];
         }
     }
 

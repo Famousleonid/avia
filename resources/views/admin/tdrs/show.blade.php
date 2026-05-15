@@ -191,8 +191,18 @@
             border-color: rgba(13, 202, 240, .8) rgba(13, 202, 240, .8) var(--tdr-tabs-bg);
             color: #5ee3ff;
             isolation: isolate;
-            margin-bottom: -1px;
+            margin-bottom: 0;
             z-index: 3;
+        }
+
+        #tdrShowTabList .nav-link.active::after {
+            background: var(--tdr-tabs-bg);
+            bottom: 0;
+            content: "";
+            height: 1px;
+            left: 1px;
+            position: absolute;
+            right: 1px;
         }
 
         /* Select2 in modals - ensure dropdown appears above modal (Bootstrap modal z-index: 1055) */
@@ -620,13 +630,6 @@
                                     data-bs-target="#content-rm-reports" type="button"
                                     role="tab">{{ __('Repair & Modification') }}</button>
                         </li>
-                        @if($current_wo->instruction_id == 1)
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tab-std-processes" data-bs-toggle="tab"
-                                        data-bs-target="#content-std-processes" type="button" role="tab">STD Processes
-                                </button>
-                            </li>
-                        @endif
                         @if($hasTransfers)
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="tab-transfers" data-bs-toggle="tab"
@@ -809,16 +812,6 @@
                             </div>
                         </div>
                     </div>
-                    @if($current_wo->instruction_id == 1)
-                        <div class="tab-pane fade" id="content-std-processes" role="tabpanel">
-                            <div class="card bg-gradient h-100">
-                                <div class="card-body p-2 overflow-auto" id="stdProcessesTabBody"
-                                     style="height: calc(100vh - 280px); min-height: 400px;">
-                                    <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
-                                </div>
-                            </div>
-                        </div>
-                    @endif
                     @if($hasTransfers)
                         <div class="tab-pane fade" id="content-transfers" role="tabpanel">
                             <div class="card bg-gradient h-100">

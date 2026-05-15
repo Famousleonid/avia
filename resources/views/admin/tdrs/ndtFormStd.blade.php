@@ -497,7 +497,7 @@
                 $rowIndex = 1;
             @endphp
 
-        @foreach($ndt_components as $component)
+        @forelse($ndt_components as $component)
                 @php
                     $currentManual = $component->manual ?? null;
                     // Если manual изменился и не пустой, вставляем строку с manual
@@ -541,7 +541,13 @@
                     $rowIndex++;
                     $previousManual = $currentManual;
                 @endphp
-            @endforeach
+        @empty
+            <div class="row fs-85 data-row-ndt">
+                <div class="col-12 border-l-b-r details-row text-center" style="height: 32px; font-weight: bold;">
+                    No NDT components with ndt_list flag
+                </div>
+            </div>
+        @endforelse
                     </div>
     {{-- Пустые строки будут генерироваться на фронтенде через JavaScript --}}
 

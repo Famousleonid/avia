@@ -144,6 +144,59 @@ class WorkordersWriteTest extends TestCase
         $this->assertSame(123, (int) $workorder->number);
     }
 
+    public function test_released_draft_keeps_draft_number_and_next_draft_continues_sequence(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $draftInstruction = $this->createDraftInstruction();
+        $releasedInstruction = $this->createInstruction(['name' => 'Released ' . uniqid()]);
+        $customer = $this->createCustomer();
+        $unit = $this->createUnit();
+        $draft = $this->createWorkorder([
+            'number' => 7,
+            'draft_number' => 7,
+            'instruction_id' => $draftInstruction->id,
+            'customer_id' => $customer->id,
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'is_draft' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('workorders.update', $draft), [
+                'number' => 100900,
+                'unit_id' => $unit->id,
+                'customer_id' => $customer->id,
+                'instruction_id' => $releasedInstruction->id,
+                'user_id' => $admin->id,
+            ])
+            ->assertRedirect(route('workorders.index'));
+
+        $draft->refresh();
+        $this->assertFalse((bool) $draft->is_draft);
+        $this->assertSame(100900, (int) $draft->number);
+        $this->assertSame(7, (int) $draft->draft_number);
+
+        $response = $this->actingAs($admin)->post(route('workorders.store'), [
+            'unit_id' => $unit->id,
+            'customer_id' => $customer->id,
+            'instruction_id' => $draftInstruction->id,
+            'user_id' => $admin->id,
+            'description' => 'Next draft after release',
+        ]);
+
+        $response->assertRedirect(route('workorders.index'));
+        $response->assertSessionHasNoErrors();
+
+        $nextDraft = Workorder::query()
+            ->withoutGlobalScope('exclude_drafts')
+            ->where('description', 'Next draft after release')
+            ->firstOrFail();
+
+        $this->assertTrue((bool) $nextDraft->is_draft);
+        $this->assertSame(8, (int) $nextDraft->number);
+        $this->assertSame(8, (int) $nextDraft->draft_number);
+    }
+
     public function test_regular_creation_rejects_non_integer_number(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -373,7 +426,7 @@ class WorkordersWriteTest extends TestCase
         $this->assertSame($newTechnik->id, $workorder->fresh()->user_id);
     }
 
-    public function test_non_manager_cannot_change_workorder_technik_on_edit_even_if_posted(): void
+    public function test_technician_cannot_open_or_update_workorder_edit_screen(): void
     {
         $technician = $this->createUserWithRole('Technician');
         $originalTechnik = $this->createUserWithRole('Technician', ['email' => 'original.tech.' . uniqid() . '@example.test']);
@@ -390,6 +443,10 @@ class WorkordersWriteTest extends TestCase
             'is_draft' => false,
         ]);
 
+        $this->actingAs($technician)
+            ->get(route('workorders.edit', $workorder))
+            ->assertForbidden();
+
         $response = $this->actingAs($technician)->put(route('workorders.update', $workorder), [
             'unit_id' => $unit->id,
             'customer_id' => $customer->id,
@@ -398,9 +455,108 @@ class WorkordersWriteTest extends TestCase
             'open_at' => now()->toDateString(),
         ]);
 
-        $response->assertRedirect(route('workorders.index'));
-        $response->assertSessionHasNoErrors();
+        $response->assertForbidden();
 
         $this->assertSame($originalTechnik->id, $workorder->fresh()->user_id);
+    }
+
+    public function test_team_leader_cannot_open_or_update_workorder_edit_screen(): void
+    {
+        $teamLeader = $this->createUserWithRole('Team Leader');
+        $originalTechnik = $this->createUserWithRole('Technician', ['email' => 'original.tl.tech.' . uniqid() . '@example.test']);
+        $newTechnik = $this->createUserWithRole('Technician', ['email' => 'blocked.tl.tech.' . uniqid() . '@example.test']);
+        $instruction = $this->createInstruction(['name' => 'Repair ' . uniqid()]);
+        $customer = $this->createCustomer();
+        $unit = $this->createUnit();
+        $workorder = $this->createWorkorder([
+            'number' => 800103,
+            'instruction_id' => $instruction->id,
+            'customer_id' => $customer->id,
+            'unit_id' => $unit->id,
+            'user_id' => $originalTechnik->id,
+            'is_draft' => false,
+        ]);
+
+        $this->actingAs($teamLeader)
+            ->get(route('workorders.edit', $workorder))
+            ->assertForbidden();
+
+        $response = $this->actingAs($teamLeader)->put(route('workorders.update', $workorder), [
+            'unit_id' => $unit->id,
+            'customer_id' => $customer->id,
+            'instruction_id' => $instruction->id,
+            'user_id' => $newTechnik->id,
+            'open_at' => now()->toDateString(),
+        ]);
+
+        $response->assertForbidden();
+
+        $this->assertSame($originalTechnik->id, $workorder->fresh()->user_id);
+    }
+
+    public function test_mobile_storage_update_is_limited_to_shipping_manager_and_admin(): void
+    {
+        $workorder = $this->createWorkorder([
+            'storage_rack' => null,
+            'storage_level' => null,
+            'storage_column' => null,
+        ]);
+
+        foreach (['Shipping', 'Manager', 'Admin'] as $role) {
+            $user = $this->createUserWithRole($role, [
+                'email' => strtolower($role) . '.storage.' . uniqid() . '@example.test',
+            ]);
+
+            $this->actingAs($user)
+                ->patchJson(route('mobile.workorders.storage.update', $workorder), [
+                    'storage_rack' => 11,
+                    'storage_level' => 2,
+                    'storage_column' => 3,
+                ])
+                ->assertOk()
+                ->assertJsonPath('success', true);
+        }
+
+        $technician = $this->createUserWithRole('Technician');
+
+        $this->actingAs($technician)
+            ->patchJson(route('mobile.workorders.storage.update', $workorder), [
+                'storage_rack' => 99,
+                'storage_level' => 9,
+                'storage_column' => 9,
+            ])
+            ->assertForbidden();
+
+        $this->assertSame(11, (int) $workorder->fresh()->storage_rack);
+    }
+
+    public function test_desktop_storage_endpoint_uses_same_role_limit(): void
+    {
+        $workorder = $this->createWorkorder([
+            'storage_rack' => null,
+            'storage_level' => null,
+            'storage_column' => null,
+        ]);
+        $technician = $this->createUserWithRole('Technician');
+        $shipping = $this->createUserWithRole('Shipping');
+
+        $this->actingAs($technician)
+            ->patchJson(route('workorders.storage.update', $workorder), [
+                'storage_rack' => 99,
+                'storage_level' => 9,
+                'storage_column' => 9,
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($shipping)
+            ->patchJson(route('workorders.storage.update', $workorder), [
+                'storage_rack' => 4,
+                'storage_level' => 5,
+                'storage_column' => 6,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertSame(4, (int) $workorder->fresh()->storage_rack);
     }
 }

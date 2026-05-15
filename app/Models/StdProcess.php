@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Services\WorkorderStdProcessItemsService;
+use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -25,13 +27,10 @@ class StdProcess extends Model
 
     protected $fillable = [
         'manual_id',
+        'component_id',
         'std',
-        'ipl_num',
-        'part_number',
-        'description',
         'process',
         'qty',
-        'manual',
         'eff_code',
     ];
 
@@ -53,6 +52,11 @@ class StdProcess extends Model
         return $this->belongsTo(Manual::class);
     }
 
+    public function component(): BelongsTo
+    {
+        return $this->belongsTo(Component::class);
+    }
+
     public static function validStdValues(): array
     {
         return [self::STD_NDT, self::STD_CAD, self::STD_STRESS, self::STD_PAINT];
@@ -66,7 +70,7 @@ class StdProcess extends Model
     }
 
     /**
-     * Числовой ключ для сортировки IPL в «натуральном» порядке (1-10, 1-20, 1-20A, …), как у Parts на manuals.show.
+     * Numeric key for sorting IPL in natural order (1-10, 1-20, 1-20A), same as Parts on manuals.show.
      */
     public static function iplNumSortRank(?string $ipl): int
     {
@@ -84,17 +88,26 @@ class StdProcess extends Model
     }
 
     /**
-     * Значения поля Process (процедура) с вкладки Processes руководства для добавления строки STD CAD / Stress / Paint.
+     * Values for the Process field from the manual Processes tab.
      *
      * @return array<int, string>
      */
     public static function processPicklistValuesForManual(int $manualId, string $std): array
     {
-        self::assertValidStd($std);
-        if ($std === self::STD_NDT) {
-            return [];
-        }
+        return array_values(array_unique(array_map(
+            static fn (array $option): string => (string) $option['value'],
+            self::processPicklistOptionsForManual($manualId, $std)
+        )));
+    }
 
+    /**
+     * Options for the Process field from the manual Processes tab.
+     *
+     * @return array<int, array{value:string,label:string}>
+     */
+    public static function processPicklistOptionsForManual(int $manualId, string $std): array
+    {
+        self::assertValidStd($std);
         $mps = ManualProcess::query()
             ->where('manual_id', $manualId)
             ->with(['process.process_name'])
@@ -108,6 +121,12 @@ class StdProcess extends Model
             $sheet = trim((string) ($pn->process_sheet_name ?? ''));
 
             return match ($std) {
+                self::STD_NDT => $sheet === 'NDT'
+                    || in_array($name, [
+                        'NDT-1', 'NDT-2', 'NDT-3', 'NDT-4',
+                        'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8',
+                        'Eddy Current Test', 'BNI',
+                    ], true),
                 self::STD_CAD => $name === 'Cad plate',
                 self::STD_STRESS => in_array($name, ['Bake (Stress relief)', 'Stress Relief'], true),
                 self::STD_PAINT => trim($name) === 'Paint'
@@ -124,12 +143,121 @@ class StdProcess extends Model
                 continue;
             }
             $val = trim((string) ($proc->process ?? ''));
-            if ($val !== '') {
-                $values[$val] = true;
+            if ($std === self::STD_NDT) {
+                $ndtNumber = self::ndtProcessNumber($proc->process_name);
+                if ($ndtNumber === null) {
+                    continue;
+                }
+                $label = trim($proc->process_name->name.' '.$val);
+                $values[$ndtNumber] = [
+                    'value' => $ndtNumber,
+                    'label' => $label !== '' ? $label : $proc->process_name->name,
+                ];
+            } elseif ($val !== '') {
+                $values[$val] = [
+                    'value' => $val,
+                    'label' => $val,
+                ];
             }
         }
 
-        return array_keys($values);
+        if ($std === self::STD_NDT) {
+            uksort($values, static fn (string $a, string $b): int => ((int) $a) <=> ((int) $b));
+        }
+
+        return array_values($values);
+    }
+
+    protected static function ndtProcessNumber(ProcessName $processName): ?string
+    {
+        if (preg_match('/^NDT-(\d+)$/i', trim((string) $processName->name), $m)) {
+            return (string) ((int) $m[1]);
+        }
+
+        return null;
+    }
+
+    public static function normalizeCsvProcessForManual(int $manualId, string $std, mixed $process, int $rowNumber): string
+    {
+        self::assertValidStd($std);
+
+        $allowed = self::processPicklistValuesForManual($manualId, $std);
+        if ($allowed === []) {
+            throw ValidationException::withMessages([
+                'csv' => sprintf('CSV row %d cannot be imported: no %s processes are linked to this manual.', $rowNumber, strtoupper($std)),
+            ]);
+        }
+
+        if ($std === self::STD_NDT) {
+            $numbers = self::extractNdtCsvProcessNumbers($process);
+            if ($numbers === []) {
+                throw ValidationException::withMessages([
+                    'csv' => sprintf('CSV row %d has no valid NDT process number.', $rowNumber),
+                ]);
+            }
+
+            $invalid = array_values(array_diff($numbers, $allowed));
+            if ($invalid !== []) {
+                throw ValidationException::withMessages([
+                    'csv' => sprintf(
+                        'CSV row %d uses NDT process %s, which is not linked to this manual.',
+                        $rowNumber,
+                        implode(' / ', $invalid)
+                    ),
+                ]);
+            }
+
+            $allowedOrder = array_flip($allowed);
+            usort($numbers, static fn (string $a, string $b): int => ($allowedOrder[$a] ?? 9999) <=> ($allowedOrder[$b] ?? 9999));
+
+            return implode(' / ', array_values(array_unique($numbers)));
+        }
+
+        $value = trim((string) ($process ?? ''));
+        if ($value === '' || ! in_array($value, $allowed, true)) {
+            throw ValidationException::withMessages([
+                'csv' => sprintf(
+                    'CSV row %d uses process "%s", which is not linked to this manual.',
+                    $rowNumber,
+                    $value !== '' ? $value : '(empty)'
+                ),
+            ]);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected static function extractNdtCsvProcessNumbers(mixed $process): array
+    {
+        $value = trim((string) ($process ?? ''));
+        if ($value === '') {
+            return [];
+        }
+
+        if (preg_match_all('/\bNDT\s*-\s*(\d+)\b/i', $value, $matches) && ! empty($matches[1])) {
+            return array_values(array_unique(array_map(
+                static fn (string $number): string => (string) ((int) $number),
+                $matches[1]
+            )));
+        }
+
+        $tokens = preg_split('/[\/,;]+/', $value) ?: [];
+        $numbers = [];
+        foreach ($tokens as $token) {
+            $token = trim($token);
+            if ($token === '') {
+                continue;
+            }
+            if (! preg_match('/^\d+$/', $token)) {
+                return [];
+            }
+            $numbers[] = (string) ((int) $token);
+        }
+
+        return array_values(array_unique($numbers));
     }
 
     /**
@@ -143,38 +271,141 @@ class StdProcess extends Model
     /**
      * Уже есть строка с тем же типом STD и той же деталью (IPL + Part №) для данного мануала.
      */
-    public static function rowExistsForManualStdPart(int $manualId, string $std, ?string $ipl, ?string $partNumber): bool
+    public static function rowExistsForComponentStd(int $componentId, string $std): bool
     {
         self::assertValidStd($std);
-        $ipl = trim((string) ($ipl ?? ''));
-        $pn = trim((string) ($partNumber ?? ''));
 
-        $q = self::query()
-            ->where('manual_id', $manualId)
+        return self::query()
+            ->where('component_id', $componentId)
             ->where('std', $std)
-            ->where('ipl_num', $ipl);
+            ->exists();
+    }
 
-        if ($pn === '') {
-            $q->where(function ($sub) {
-                $sub->whereNull('part_number')->orWhere('part_number', '');
-            });
-        } else {
-            $q->where('part_number', $pn);
+    /**
+     * Compare parsed STD CSV rows against Parts. Components are the source of truth.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, array<string, mixed>>
+     */
+    public static function reviewComponentRowsAgainstParts(int $manualId, array $rows): array
+    {
+        $componentsByIpl = Component::query()
+            ->where('manual_id', $manualId)
+            ->get(['id', 'ipl_num', 'part_number', 'name'])
+            ->keyBy(fn (Component $component): string => self::normalizeCompareValue($component->ipl_num));
+
+        $conflicts = [];
+        foreach ($rows as $index => $row) {
+            $ipl = trim((string) ($row['ipl_num'] ?? ''));
+            if ($ipl === '') {
+                continue;
+            }
+
+            $component = $componentsByIpl->get(self::normalizeCompareValue($ipl));
+            if (! $component) {
+                $conflicts[] = [
+                    'index' => $index,
+                    'row_number' => $index + 2,
+                    'type' => 'missing_ipl',
+                    'ipl_num' => $ipl,
+                    'csv_part_number' => (string) ($row['part_number'] ?? ''),
+                    'csv_description' => (string) ($row['description'] ?? ''),
+                ];
+                continue;
+            }
+
+            $csvDescription = trim((string) ($row['description'] ?? ''));
+            $componentName = trim((string) ($component->name ?? ''));
+            if ($csvDescription !== '' && self::normalizeCompareValue($csvDescription) !== self::normalizeCompareValue($componentName)) {
+                $conflicts[] = [
+                    'index' => $index,
+                    'row_number' => $index + 2,
+                    'type' => 'name_mismatch',
+                    'ipl_num' => $ipl,
+                    'csv_part_number' => (string) ($row['part_number'] ?? ''),
+                    'csv_description' => $csvDescription,
+                    'component_id' => (int) $component->id,
+                    'component_part_number' => (string) ($component->part_number ?? ''),
+                    'component_name' => $componentName,
+                ];
+            }
         }
 
-        return $q->exists();
+        return $conflicts;
     }
 
     /**
      * Replace all rows for (manual_id, std) with parsed CSV-style component rows.
+     * Rows are matched to Parts by IPL; CSV part names never overwrite existing Components.
      *
-     * @param  array<int, array{ipl_num:string,part_number?:string,description?:string,process?:mixed,qty?:int,manual?:string,eff_code?:string|null}>  $rows
+     * @param  array<int, array{ipl_num:string,part_number?:string,description?:string,process?:mixed,qty?:int,eff_code?:string|null}>  $rows
+     * @param  array<int|string, string>  $resolutions
      */
-    public static function replaceFromComponentRows(int $manualId, string $std, array $rows): void
+    public static function replaceFromComponentRows(int $manualId, string $std, array $rows, array $resolutions = []): void
     {
         self::assertValidStd($std);
 
-        DB::transaction(function () use ($manualId, $std, $rows) {
+        DB::transaction(function () use ($manualId, $std, $rows, $resolutions) {
+            $flagColumn = self::componentFlagColumnForStd($std);
+            $componentsByKey = Component::query()
+                ->where('manual_id', $manualId)
+                ->get(['id', 'ipl_num', 'part_number', 'name', 'units_assy'])
+                ->keyBy(fn (Component $component): string => self::normalizeCompareValue($component->ipl_num));
+
+            $importRows = [];
+            foreach ($rows as $index => $row) {
+                $ipl = trim((string) ($row['ipl_num'] ?? ''));
+                if ($ipl === '') {
+                    continue;
+                }
+
+                $component = $componentsByKey->get(self::normalizeCompareValue($ipl));
+                if (! $component) {
+                    $action = (string) ($resolutions[(string) $index] ?? $resolutions[$index] ?? '');
+                    if ($action === 'skip') {
+                        continue;
+                    }
+                    if ($action !== 'add_component') {
+                        throw ValidationException::withMessages([
+                            'csv' => sprintf('CSV row %d uses IPL "%s", which does not exist in Parts.', $index + 2, $ipl),
+                        ]);
+                    }
+
+                    $component = Component::query()->create([
+                        'manual_id' => $manualId,
+                        'ipl_num' => $ipl,
+                        'part_number' => trim((string) ($row['part_number'] ?? '')),
+                        'name' => trim((string) ($row['description'] ?? '')),
+                        'units_assy' => max(1, (int) ($row['qty'] ?? 1)),
+                    ]);
+                    $componentsByKey->put(self::normalizeCompareValue($ipl), $component);
+                } else {
+                    $csvDescription = trim((string) ($row['description'] ?? ''));
+                    $componentName = trim((string) ($component->name ?? ''));
+                    if ($csvDescription !== '' && self::normalizeCompareValue($csvDescription) !== self::normalizeCompareValue($componentName)) {
+                        $action = (string) ($resolutions[(string) $index] ?? $resolutions[$index] ?? '');
+                        if ($action === 'skip') {
+                            continue;
+                        }
+                        if ($action === 'overwrite_component') {
+                            $component->update([
+                                'part_number' => trim((string) ($row['part_number'] ?? $component->part_number ?? '')),
+                                'name' => $csvDescription,
+                                'units_assy' => max(1, (int) ($row['qty'] ?? $component->units_assy ?? 1)),
+                            ]);
+                            $component->refresh();
+                        } elseif ($action !== 'use_component') {
+                            throw ValidationException::withMessages([
+                                'csv' => sprintf('CSV row %d has a different part name for IPL "%s".', $index + 2, $ipl),
+                            ]);
+                        }
+                    }
+                }
+
+                $process = self::normalizeCsvProcessForManual($manualId, $std, $row['process'] ?? null, $index + 2);
+                $importRows[] = [$row, $component, $process];
+            }
+
             self::query()
                 ->where('manual_id', $manualId)
                 ->where('std', $std)
@@ -182,31 +413,36 @@ class StdProcess extends Model
                 ->each
                 ->delete();
 
-            foreach ($rows as $row) {
-                if (empty($row['ipl_num'])) {
-                    continue;
-                }
-                $manualVal = $row['manual'] ?? null;
+            Component::withoutEvents(function () use ($manualId, $flagColumn): void {
+                Component::query()
+                    ->where('manual_id', $manualId)
+                    ->update([$flagColumn => false]);
+            });
+
+            $matchedComponentIds = array_map(
+                static fn (array $pair): int => (int) $pair[1]->id,
+                $importRows
+            );
+            if ($matchedComponentIds !== []) {
+                Component::withoutEvents(function () use ($matchedComponentIds, $flagColumn): void {
+                    Component::query()
+                        ->whereIn('id', array_values(array_unique($matchedComponentIds)))
+                        ->update([$flagColumn => true]);
+                });
+            }
+
+            foreach ($importRows as [$row, $component, $process]) {
                 $effVal = $row['eff_code'] ?? null;
                 self::query()->create([
                     'manual_id' => $manualId,
+                    'component_id' => $component->id,
                     'std' => $std,
-                    'ipl_num' => (string) $row['ipl_num'],
-                    'part_number' => (string) ($row['part_number'] ?? ''),
-                    'description' => isset($row['description']) ? (string) $row['description'] : null,
-                    'process' => (string) ($row['process'] ?? '1'),
+                    'process' => $process,
                     'qty' => (int) ($row['qty'] ?? 1),
-                    'manual' => $manualVal !== null && $manualVal !== '' ? (string) $manualVal : null,
                     'eff_code' => self::normalizeEffCodeForStorage($effVal !== null ? (string) $effVal : null),
                 ]);
             }
         });
-    }
-
-    public static function replaceFromCsvPath(int $manualId, string $std, string $csvPath): void
-    {
-        $rows = NdtCadCsv::loadComponentsFromCsv($csvPath, $std);
-        self::replaceFromComponentRows($manualId, $std, $rows);
     }
 
     /**
@@ -241,8 +477,8 @@ class StdProcess extends Model
     }
 
     /**
-     * Пустой EFF у юнита WO — в снимок попадают все строки STD.
-     * Пустой EFF у строки STD — строка универсальная (любой юнит с заполненным EFF).
+     * Empty WO unit EFF keeps all STD rows in the snapshot.
+     * Empty STD row EFF means the row is universal for any filled unit EFF.
      * Иначе: пересечение токенов (сравнение без учёта регистра), формат «A, B, ав» и т.д.
      */
     public static function stdRowEffMatchesUnit(?string $rowEff, string $unitEff): bool
@@ -269,7 +505,7 @@ class StdProcess extends Model
     }
 
     /**
-     * Снимок для всех строк мануала (без фильтра EFF) — превью в админке не используется; для совместимости.
+     * Snapshot for all manual rows without EFF filtering. Kept for compatibility.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -280,6 +516,7 @@ class StdProcess extends Model
         $records = self::query()
             ->where('manual_id', $manualId)
             ->where('std', $std)
+            ->with('component.manual:id,number')
             ->orderBy('id')
             ->get();
 
@@ -295,13 +532,7 @@ class StdProcess extends Model
     {
         self::assertValidStd($std);
 
-        $manual = $workorder->unit->manuals ?? null;
-        if (! $manual) {
-            return [];
-        }
-
-        $unitEff = trim((string) ($workorder->unit->eff_code ?? ''));
-        return self::snapshotFlaggedComponentsForWorkorder($workorder, $std, $unitEff);
+        return app(WorkorderStdProcessItemsService::class)->snapshotRowsForWorkorder($workorder, $std);
     }
 
     /**
@@ -338,7 +569,7 @@ class StdProcess extends Model
                 'description' => (string) ($component->name ?? ''),
                 'process' => $process,
                 'qty' => $qty > 0 ? $qty : 1,
-                'manual' => (string) ($manual->number ?? ''),
+                'manual' => (string) ($component->manual?->number ?? $manual->number ?? ''),
                 'eff_code' => self::normalizeEffCodeForStorage($component->eff_code) ?? '',
             ];
         }
@@ -346,7 +577,7 @@ class StdProcess extends Model
         return self::sortRowsForSnapshot($rows);
     }
 
-    protected static function componentFlagColumnForStd(string $std): string
+    public static function componentFlagColumnForStd(string $std): string
     {
         return match ($std) {
             self::STD_NDT => 'ndt_list',
@@ -371,7 +602,7 @@ class StdProcess extends Model
                 ->first();
 
             if ($paintProcess?->process) {
-                return (string) $paintProcess->process->id;
+                return (string) $paintProcess->process->process;
             }
         }
 
@@ -400,14 +631,15 @@ class StdProcess extends Model
     protected static function recordToSnapshotRow(self $r): array
     {
         $row = [
-            'ipl_num' => $r->ipl_num,
-            'part_number' => $r->part_number ?? '',
-            'description' => $r->description ?? '',
+            'ipl_num' => $r->component?->ipl_num ?? '',
+            'part_number' => $r->component?->part_number ?? '',
+            'description' => $r->component?->name ?? '',
             'process' => (string) $r->process,
             'qty' => (int) $r->qty,
         ];
-        if ($r->manual !== null && $r->manual !== '') {
-            $row['manual'] = $r->manual;
+        $sourceManual = trim((string) ($r->component?->manual?->number ?? ''));
+        if ($sourceManual !== '') {
+            $row['manual'] = $sourceManual;
         }
         $row['eff_code'] = self::normalizeEffCodeForStorage($r->eff_code) ?? '';
 
@@ -444,95 +676,91 @@ class StdProcess extends Model
         return $rows;
     }
 
-    /**
-     * Re-read every attached STD CSV from media and replace std_processes rows (per type).
-     * Types without a readable CSV file are left unchanged.
-     */
-    public static function reimportAllTypesFromMedia(Manual $manual): void
+    public static function syncFromComponentFlagsForManual(Manual $manual): void
     {
         foreach (self::validStdValues() as $std) {
-            $media = self::findCsvMediaForStd($manual, $std);
-            if ($media && is_readable($media->getPath())) {
-                self::replaceFromCsvPath($manual->id, $std, $media->getPath());
+            self::syncFromComponentFlagsForManualStd($manual, $std);
+        }
+    }
+
+    public static function syncFromComponentFlagsForManualWhenCountsDiffer(Manual $manual): void
+    {
+        foreach (self::validStdValues() as $std) {
+            $flagColumn = self::componentFlagColumnForStd($std);
+            $flaggedCount = Component::query()
+                ->where('manual_id', $manual->id)
+                ->where($flagColumn, true)
+                ->whereNotNull('ipl_num')
+                ->where('ipl_num', '<>', '')
+                ->count();
+            $stdCount = self::query()
+                ->where('manual_id', $manual->id)
+                ->where('std', $std)
+                ->whereNotNull('component_id')
+                ->count();
+
+            if ($flaggedCount !== $stdCount) {
+                self::syncFromComponentFlagsForManualStd($manual, $std);
             }
         }
     }
 
-    /**
-     * If there are no DB rows for this manual+std but a csv_files media exists, import from file.
-     */
-    public static function syncFromMediaIfEmpty(Manual $manual, string $std): bool
+    public static function syncFromComponentFlagsForManualStd(Manual $manual, string $std): void
     {
         self::assertValidStd($std);
 
-        if (self::query()->where('manual_id', $manual->id)->where('std', $std)->exists()) {
-            return true;
-        }
+        DB::transaction(function () use ($manual, $std): void {
+            $flagColumn = self::componentFlagColumnForStd($std);
+            $flaggedComponents = Component::query()
+                ->where('manual_id', $manual->id)
+                ->where($flagColumn, true)
+                ->orderBy('id')
+                ->get();
 
-        $media = self::findCsvMediaForStd($manual, $std);
-        if (! $media || ! is_readable($media->getPath())) {
-            return false;
-        }
+            $flaggedKeys = $flaggedComponents
+                ->mapWithKeys(fn (Component $component): array => [
+                    (int) $component->id => true,
+                ]);
 
-        try {
-            self::replaceFromCsvPath($manual->id, $std, $media->getPath());
-        } catch (\Throwable $e) {
-            \Log::error('StdProcess::syncFromMediaIfEmpty failed', [
-                'manual_id' => $manual->id,
-                'std' => $std,
-                'error' => $e->getMessage(),
-            ]);
+            self::query()
+                ->where('manual_id', $manual->id)
+                ->where('std', $std)
+                ->whereNotNull('component_id')
+                ->get()
+                ->each(function (self $row) use ($flaggedKeys): void {
+                    if (! $flaggedKeys->has((int) $row->component_id)) {
+                        $row->delete();
+                    }
+                });
 
-            return false;
-        }
+            foreach ($flaggedComponents as $component) {
+                $ipl = trim((string) ($component->ipl_num ?? ''));
+                if ($ipl === '') {
+                    continue;
+                }
 
-        return true;
-    }
-
-    /**
-     * For STD admin tab: fill any empty std bucket from attached CSV.
-     */
-    public static function syncEmptyTypesFromMedia(Manual $manual): void
-    {
-        foreach (self::validStdValues() as $std) {
-            self::syncFromMediaIfEmpty($manual, $std);
-        }
-    }
-
-    public static function findCsvMediaForStd(Manual $manual, string $std): ?\Spatie\MediaLibrary\MediaCollections\Models\Media
-    {
-        $collection = $manual->getMedia('csv_files');
-
-        $byType = $collection->first(function ($media) use ($std) {
-            return $media->getCustomProperty('process_type') === $std;
+                self::query()->firstOrCreate(
+                    [
+                        'component_id' => $component->id,
+                        'std' => $std,
+                    ],
+                    [
+                        'manual_id' => $manual->id,
+                        'process' => self::defaultProcessForFlagSnapshot((int) $manual->id, $std),
+                        'qty' => max(1, (int) ($component->units_assy ?? 1)),
+                        'eff_code' => self::normalizeEffCodeForStorage($component->eff_code),
+                    ]
+                );
+            }
         });
-        if ($byType) {
-            return $byType;
-        }
-
-        $fileNameMatch = function ($media) use ($std) {
-            $fileName = strtolower($media->file_name ?? '');
-
-            return match ($std) {
-                self::STD_CAD => str_contains($fileName, 'cad_std') || str_contains($fileName, 'cad'),
-                self::STD_NDT => str_contains($fileName, 'ndt_std') || str_contains($fileName, 'ndt'),
-                self::STD_STRESS => str_contains($fileName, 'stress') || str_contains($fileName, 'stress_relief'),
-                self::STD_PAINT => str_contains($fileName, 'paint'),
-                default => false,
-            };
-        };
-
-        return $collection->first($fileNameMatch);
     }
 
-    public static function deleteForManualAndStd(int $manualId, string $std): void
+    protected static function normalizeCompareValue(?string $value): string
     {
-        self::assertValidStd($std);
-        self::query()
-            ->where('manual_id', $manualId)
-            ->where('std', $std)
-            ->get()
-            ->each
-            ->delete();
+        return Str::of((string) ($value ?? ''))
+            ->squish()
+            ->lower()
+            ->toString();
     }
+
 }

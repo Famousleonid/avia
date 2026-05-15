@@ -177,6 +177,81 @@ class VendorTrackingTest extends TestCase
         ]);
     }
 
+    public function test_vendor_tracking_traveler_group_one_update_does_not_touch_null_groups_from_other_tdrs(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $vendor = Vendor::query()->create(['name' => 'Traveler Scoped Vendor ' . uniqid()]);
+        $otherVendor = Vendor::query()->create(['name' => 'Traveler Other Vendor ' . uniqid()]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Traveler Scoped Process ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'TR-SCOPED-' . uniqid(),
+            'name' => 'Traveler Scoped Component',
+            'ipl_num' => '2-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'TR-SCOPED-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $otherTdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'TR-OTHER-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $target = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'repair_order' => 'TR-OLD',
+            'in_traveler' => true,
+            'traveler_group' => 1,
+        ]);
+        $other = TdrProcess::query()->create([
+            'tdrs_id' => $otherTdr->id,
+            'process_names_id' => $processName->id,
+            'repair_order' => 'TR-OTHER',
+            'vendor_id' => $otherVendor->id,
+            'in_traveler' => true,
+            'traveler_group' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('vendor-tracking.row.update'), [
+                'source_key' => 'tdr_traveler',
+                'id' => $tdr->id,
+                'traveler_group' => 1,
+                'vendor_id' => $vendor->id,
+                'repair_order' => 'TR-NEW',
+            ])
+            ->assertOk()
+            ->assertJson(['ok' => true, 'repair_order' => 'TR-NEW']);
+
+        $this->assertDatabaseHas('tdr_processes', [
+            'id' => $target->id,
+            'repair_order' => 'TR-NEW',
+            'vendor_id' => $vendor->id,
+        ]);
+        $this->assertDatabaseHas('tdr_processes', [
+            'id' => $other->id,
+            'repair_order' => 'TR-OTHER',
+            'vendor_id' => $otherVendor->id,
+        ]);
+    }
+
     public function test_mains_show_interleaves_traveler_groups_by_parent_process_order(): void
     {
         $admin = $this->createUserWithRole('Admin');

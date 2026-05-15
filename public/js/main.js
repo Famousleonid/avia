@@ -1426,6 +1426,8 @@ window.hapticTap = function (pattern = 10) {
         const ok  = document.getElementById('msgOk');
         const btn = document.getElementById('btnSendMsg');
 
+        if (!sel || window.__sendMsgModalBound) return;
+
         function showErr(message){
             err.textContent = message || 'Error';
             err.classList.remove('d-none');

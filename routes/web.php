@@ -452,9 +452,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     // NDT/CAD CSV Management Routes
     Route::get('/{workorder}/ndt-cad-csv/partial', [NdtCadCsvController::class, 'partial'])->name('ndt-cad-csv.partial');
     Route::get('/{workorder}/ndt-cad-csv', [NdtCadCsvController::class, 'index'])->name('ndt-cad-csv.index');
-    Route::post('/{workorder}/ndt-cad-csv/ndt-components', [NdtCadCsvController::class, 'updateNdtComponents'])->name('ndt-cad-csv.update-ndt');
-    Route::post('/{workorder}/ndt-cad-csv/cad-components', [NdtCadCsvController::class, 'updateCadComponents'])->name('ndt-cad-csv.update-cad');
-    Route::post('/{workorder}/ndt-cad-csv/stress-components', [NdtCadCsvController::class, 'updateStressComponents'])->name('ndt-cad-csv.update-stress');
     Route::post('/{workorder}/ndt-cad-csv/add-ndt', [NdtCadCsvController::class, 'addNdtComponent'])->name('ndt-cad-csv.add-ndt');
     Route::post('/{workorder}/ndt-cad-csv/add-cad', [NdtCadCsvController::class, 'addCadComponent'])->name('ndt-cad-csv.add-cad');
     Route::post('/{workorder}/ndt-cad-csv/add-stress', [NdtCadCsvController::class, 'addStressComponent'])->name('ndt-cad-csv.add-stress');
@@ -467,9 +464,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/{workorder}/ndt-cad-csv/edit-cad', [NdtCadCsvController::class, 'editCadComponent'])->name('ndt-cad-csv.edit-cad');
     Route::post('/{workorder}/ndt-cad-csv/edit-stress', [NdtCadCsvController::class, 'editStressComponent'])->name('ndt-cad-csv.edit-stress');
     Route::post('/{workorder}/ndt-cad-csv/edit-paint', [NdtCadCsvController::class, 'editPaintComponent'])->name('ndt-cad-csv.edit-paint');
-    Route::post('/{workorder}/ndt-cad-csv/import', [NdtCadCsvController::class, 'importFromCsv'])->name('ndt-cad-csv.import');
     Route::post('/{workorder}/ndt-cad-csv/reload-from-manual', [NdtCadCsvController::class, 'reloadFromManual'])->name('ndt-cad-csv.reload-from-manual');
-    Route::post('/{workorder}/ndt-cad-csv/force-load-from-manual', [NdtCadCsvController::class, 'forceLoadFromManual'])->name('ndt-cad-csv.force-load-from-manual');
     Route::get('/{workorder}/ndt-cad-csv/components', [NdtCadCsvController::class, 'getComponents'])->name('ndt-cad-csv.components');
     Route::get('/{workorder}/ndt-cad-csv/cad-processes', [NdtCadCsvController::class, 'getCadProcesses'])->name('ndt-cad-csv.cad-processes');
     Route::get('/{workorder}/ndt-cad-csv/stress-processes', [NdtCadCsvController::class, 'getStressProcesses'])->name('ndt-cad-csv.stress-processes');
@@ -487,17 +482,10 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     Route::get('/api/get-components-by-manual', [TdrController::class, 'getComponentsByManual'])->name('api.get-components-by-manual');
 
-    // CSV файлы для мануалов
-    Route::prefix('manuals/{manual}/csv')->name('manuals.csv.')->group(function () {
-        Route::post('/', [ManualCsvController::class, 'store'])->name('store');
-        Route::get('/{file}/data', [ManualCsvController::class, 'data'])->name('data');
-        Route::get('/{file}', [ManualCsvController::class, 'view'])->name('view');
-        Route::delete('/{file}', [ManualCsvController::class, 'delete'])->name('delete');
-    });
+    Route::post('manuals/{manual}/csv', [ManualCsvController::class, 'store'])->name('manuals.csv.store');
 
     Route::get('manuals/{manual}/std-processes/components-for-add', [ManualStdProcessController::class, 'componentsForAdd'])->name('manuals.std-processes.components-for-add');
     Route::post('manuals/{manual}/std-processes', [ManualStdProcessController::class, 'store'])->name('manuals.std-processes.store');
-    Route::post('manuals/{manual}/std-processes/reimport-from-csv', [ManualStdProcessController::class, 'reimportFromCsv'])->name('manuals.std-processes.reimport-from-csv');
     Route::put('manuals/{manual}/std-processes/{stdProcess}', [ManualStdProcessController::class, 'update'])->name('manuals.std-processes.update');
     Route::delete('manuals/{manual}/std-processes/{stdProcess}', [ManualStdProcessController::class, 'destroy'])->name('manuals.std-processes.destroy');
     Route::post('manuals/{manual}/service-bulletins', [ManualServiceBulletinController::class, 'store'])->name('manuals.service-bulletins.store');

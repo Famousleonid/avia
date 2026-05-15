@@ -564,7 +564,7 @@
                     </th>
                     <th class="text-center text-primary col-date">Open Date</th>
                     <th class="text-center text-primary col-PO">Customer PO</th>
-                    <th class="text-center text-primary col-edit no-print">Edit</th>
+                    @hasanyrole('Admin|Manager') <th class="text-center text-primary col-edit no-print">Edit</th> @endhasanyrole
                     <th class="text-center text-primary sortable no-print" data-sort-key="technik">
                         Technik <i class="bi bi-chevron-expand ms-1"></i>
                     </th>

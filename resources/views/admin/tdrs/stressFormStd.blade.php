@@ -376,6 +376,14 @@
 
     {{-- Страницы и строки на странице задаются на серверe ($stress_table_pages) --}}
     <div class="all-rows-container">
+        @if(empty($stress_components))
+            <div class="row fs-85 data-row">
+                <div class="col-12 border-l-b-r details-cell text-center" style="min-height: 34px; font-weight: bold;">
+                    No Stress Relief components with stress_relief_list flag
+                </div>
+            </div>
+        @endif
+
         @foreach($stressPageRows as $stressEntry)
             @if(($stressEntry['kind'] ?? '') === 'manual')
                 <div class="row fs-85 data-row manual-row" data-row-index="{{ $stressGlobalRowIndex }}">

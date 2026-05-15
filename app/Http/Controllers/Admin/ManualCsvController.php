@@ -6,184 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\Manual;
 use App\Models\NdtCadCsv;
 use App\Models\StdProcess;
+use App\Models\Workorder;
+use App\Services\WorkorderStdProcessItemsService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use League\Csv\Reader;
-use League\Csv\Writer;
+use Illuminate\Validation\ValidationException;
 
 class ManualCsvController extends Controller
 {
-    public function upload(Request $request, Manual $manual)
-    {
-        $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt|max:10240', // Максимальный размер 10MB
-        ]);
-
-        $file = $request->file('csv_file');
-        $fileName = strtolower($file->getClientOriginalName());
-
-        // Автоматически определяем process_type по имени файла
-        $processType = null;
-        if (strpos($fileName, 'cad_std') !== false || strpos($fileName, 'cad') !== false) {
-            $processType = 'cad';
-        } elseif (strpos($fileName, 'ndt_std') !== false || strpos($fileName, 'ndt') !== false) {
-            $processType = 'ndt';
-        } elseif (strpos($fileName, 'stress') !== false || strpos($fileName, 'stress_relief') !== false) {
-            $processType = 'stress';
-        } elseif (strpos($fileName, 'paint') !== false) {
-            $processType = 'paint';
-        }
-
-        // Если process_type определен, проверяем существующий файл с таким типом
-        if ($processType) {
-            $existingFile = $manual->getMedia('csv_files')
-                ->first(function ($media) use ($processType) {
-                    return $media->getCustomProperty('process_type') === $processType;
-                });
-
-            // Если файл существует, удаляем его
-            if ($existingFile) {
-                $existingFile->delete();
-            }
-        } else {
-            // Если не удалось определить тип, удаляем все файлы (старое поведение)
-            $manual->clearMediaCollection('csv_files');
-        }
-
-        // Сохраняем новый файл с process_type
-        $media = $manual->addMediaFromRequest('csv_file')
-            ->withCustomProperties(['process_type' => $processType])
-            ->toMediaCollection('csv_files');
-
-        return redirect()->back()->with('success', 'CSV file uploaded successfully' . ($processType ? ' (type: ' . strtoupper($processType) . ')' : ''));
-    }
-
-    public function download(Manual $manual)
-    {
-        $media = $manual->getMedia('csv_files')->first();
-
-        if (!$media) {
-            return redirect()->back()->with('error', 'CSV file not found');
-        }
-
-        return response()->download($media->getPath(), $media->file_name);
-    }
-
-    public function view(Manual $manual, $file)
-    {
-        try {
-            $media = $manual->getMedia('csv_files')->firstWhere('id', $file);
-
-            if (!$media) {
-            return redirect()->back()->with('error', 'CSV file not found');
-            }
-
-            $path = $media->getPath();
-            $records = [];
-            $headers = [];
-
-            if (($handle = fopen($path, "r")) !== FALSE) {
-                // Читаем заголовки
-                if (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                    $headers = $data;
-                }
-
-                // Читаем данные
-                while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                    $records[] = $data;
-                }
-                fclose($handle);
-            }
-
-            return view('admin.manuals.csv-view', compact('manual', 'records', 'headers', 'media'));
-        } catch (\Exception $e) {
-            \Log::error('Error viewing CSV file: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Error while previewing file: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Return CSV file content as JSON (for inline/modal view).
-     */
-    public function data(Manual $manual, $file)
-    {
-        try {
-            $media = $manual->getMedia('csv_files')->firstWhere('id', $file);
-
-            if (!$media) {
-                return response()->json(['success' => false, 'error' => 'CSV файл не найден'], 404);
-            }
-
-            $path = $media->getPath();
-            $records = [];
-            $headers = [];
-
-            if (($handle = fopen($path, 'r')) !== false) {
-                if (($data = fgetcsv($handle, 0, ',')) !== false) {
-                    $headers = $data;
-                }
-                while (($data = fgetcsv($handle, 0, ',')) !== false) {
-                    $records[] = $data;
-                }
-                fclose($handle);
-            }
-
-            return response()->json([
-                'success' => true,
-                'file_name' => $media->file_name,
-                'process_type' => $media->getCustomProperty('process_type'),
-                'headers' => $headers,
-                'records' => $records,
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error reading CSV file: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'error' => 'Error while reading file: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function delete(Manual $manual, $file)
-    {
-        try {
-            $media = $manual->getMedia('csv_files')->firstWhere('id', $file);
-
-            if (!$media) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'CSV файл не найден'
-                ], 404);
-            }
-
-            $pType = $media->getCustomProperty('process_type');
-            if (is_string($pType) && in_array($pType, StdProcess::validStdValues(), true)) {
-                StdProcess::deleteForManualAndStd($manual->id, $pType);
-            }
-
-            $media->delete();
-
-            return response()->json([
-                'success' => true,
-            'message' => 'CSV file deleted successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Error deleting CSV file: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'error' => 'Error while deleting file: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
     public function store(Request $request, Manual $manual)
     {
         try {
-            if (!$request->hasFile('csv_file')) {
+            if (! $request->hasFile('csv_file')) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Файл не был загружен'
+                    'error' => 'No file was uploaded.',
                 ], 400);
             }
 
@@ -193,7 +29,7 @@ class ManualCsvController extends Controller
             if (! in_array($processType, StdProcess::validStdValues(), true)) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Некорректный тип процесса',
+                    'error' => 'Invalid process type.',
                 ], 422);
             }
 
@@ -201,34 +37,52 @@ class ManualCsvController extends Controller
             if (! $path || ! is_readable($path)) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Не удалось прочитать файл',
+                    'error' => 'Could not read the uploaded file.',
                 ], 400);
             }
 
-            $parsedRows = NdtCadCsv::loadComponentsFromCsv($path, $processType);
-
-            // Проверяем, существует ли уже файл с таким process_type
-            if ($processType) {
-                $existingFile = $manual->getMedia('csv_files')
-                    ->first(function ($media) use ($processType) {
-                        return $media->getCustomProperty('process_type') === $processType;
-                    });
-
-                // Если файл существует, удаляем его
-                if ($existingFile) {
-                    $existingFile->delete();
-                }
+            $formatErrors = NdtCadCsv::validateStdCsvFormat($path);
+            if ($formatErrors !== []) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'CSV format error: '.implode(' ', $formatErrors),
+                ], 422);
             }
 
-            // Добавляем новый файл
-            $media = $manual->addMedia($file)
-                ->withCustomProperties(['process_type' => $processType])
-                ->toMediaCollection('csv_files');
+            $parsedRows = NdtCadCsv::loadComponentsFromCsv($path, $processType);
+            if ($parsedRows === []) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'CSV format error: no valid STD rows were found.',
+                ], 422);
+            }
+
+            $resolutions = $this->csvImportResolutions($request);
+            $conflicts = StdProcess::reviewComponentRowsAgainstParts($manual->id, $parsedRows);
+            $unresolved = array_values(array_filter($conflicts, function (array $conflict) use ($resolutions): bool {
+                return ! array_key_exists((string) $conflict['index'], $resolutions);
+            }));
+
+            if ($unresolved !== []) {
+                return response()->json([
+                    'success' => false,
+                    'needs_review' => true,
+                    'message' => 'CSV rows must be reviewed against Parts before import.',
+                    'conflicts' => $unresolved,
+                ]);
+            }
 
             try {
-                StdProcess::replaceFromComponentRows($manual->id, $processType, $parsedRows);
+                StdProcess::replaceFromComponentRows($manual->id, $processType, $parsedRows, $resolutions);
+                $this->rebuildExistingWorkorderStdItems($manual);
+            } catch (ValidationException $e) {
+                $message = (string) collect($e->errors())->flatten()->first();
+
+                return response()->json([
+                    'success' => false,
+                    'error' => 'STD Processes import error: '.$message,
+                ], 422);
             } catch (\Throwable $e) {
-                $media->delete();
                 \Log::error('STD Processes import failed after upload', [
                     'manual_id' => $manual->id,
                     'process_type' => $processType,
@@ -237,26 +91,64 @@ class ManualCsvController extends Controller
 
                 return response()->json([
                     'success' => false,
-            'error' => 'STD Processes import error: '.$e->getMessage(),
+                    'error' => 'STD Processes import error: '.$e->getMessage(),
                 ], 500);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'CSV file uploaded successfully',
-                'file' => [
-                    'id' => $media->id,
-                    'name' => $media->file_name,
-                    'process_type' => $processType
-                ]
+                'message' => 'STD rows were imported from CSV',
+                'process_type' => $processType,
             ]);
-
         } catch (\Exception $e) {
-            \Log::error('Error uploading CSV file: ' . $e->getMessage());
+            \Log::error('Error uploading CSV file: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error while uploading file: ' . $e->getMessage()
+                'error' => 'Error while uploading file: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function csvImportResolutions(Request $request): array
+    {
+        $raw = $request->input('csv_resolutions');
+        if (! is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        $allowed = ['add_component', 'use_component', 'overwrite_component', 'skip'];
+        $resolutions = [];
+        foreach ($decoded as $index => $action) {
+            if ((is_string($index) || is_int($index)) && is_string($action) && in_array($action, $allowed, true)) {
+                $resolutions[(string) $index] = $action;
+            }
+        }
+
+        return $resolutions;
+    }
+
+    private function rebuildExistingWorkorderStdItems(Manual $manual): void
+    {
+        $service = app(WorkorderStdProcessItemsService::class);
+
+        Workorder::query()
+            ->whereHas('unit', function ($query) use ($manual): void {
+                $query->where('manual_id', $manual->id);
+            })
+            ->with('unit.manuals')
+            ->chunkById(100, function ($workorders) use ($service): void {
+                foreach ($workorders as $workorder) {
+                    $service->rebuild($workorder);
+                }
+            });
     }
 }

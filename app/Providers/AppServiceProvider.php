@@ -2,7 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\Component;
 use App\Models\Workorder;
+use App\Models\Tdr;
+use App\Observers\ComponentObserver;
+use App\Observers\TdrObserver;
 use App\Observers\WorkorderObserver;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
@@ -79,6 +83,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Workorder::observe(WorkorderObserver::class);
+        Tdr::observe(TdrObserver::class);
+        Component::observe(ComponentObserver::class);
     }
 
     private function guardDatabaseSafety(): void

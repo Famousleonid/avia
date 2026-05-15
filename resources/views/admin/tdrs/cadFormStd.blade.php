@@ -358,6 +358,14 @@
     </div>
 
     <div class="all-rows-container">
+        @if(empty($cad_components))
+            <div class="row fs-85 data-row">
+                <div class="col-12 border-l-b-r details-cell text-center" style="height: 32px !important; max-height: 32px; font-weight: bold; box-sizing: border-box;">
+                    No CAD components with cad_list flag
+                </div>
+            </div>
+        @endif
+
         @foreach($cadPageRows as $cadEntry)
             @if(($cadEntry['kind'] ?? '') === 'manual')
                 <div class="row fs-85 data-row manual-row" data-row-index="{{ $cadGlobalRowIndex }}">

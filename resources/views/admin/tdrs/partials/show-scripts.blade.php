@@ -110,7 +110,6 @@ document.addEventListener('DOMContentLoaded', function() {
         'tab-log-card',
         'tab-bushing',
         'tab-rm-reports',
-        'tab-std-processes',
         'tab-transfers'
     ];
 
@@ -175,8 +174,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var bushingPartialUrl = '{{ route("wo_bushings.partial", ["workorder_id" => $current_wo->id]) }}';
     var rmReportsTabBody = document.getElementById('rmReportsTabBody');
     var rmReportsPartialUrl = '{{ route("rm_reports.partial", ["workorder_id" => $current_wo->id]) }}';
-    var stdProcessesTabBody = document.getElementById('stdProcessesTabBody');
-    var stdProcessesPartialUrl = @json($current_wo->instruction_id == 1 ? route('ndt-cad-csv.partial', ['workorder' => $current_wo->id]) : null);
     var logCardStoreUrl = '{{ route("log_card.store") }}';
     var logCardUpdateUrlTemplate = '{{ route('log_card.update', ['log_card' => 9999991]) }}'.replace('9999991', '__LC__');
     var logCardInlineFieldUpdateUrlTemplate = '{{ route('log_card.inline_field.update', ['log_card' => 9999991]) }}'.replace('9999991', '__LC__');
@@ -644,45 +641,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 transfersTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
             });
     }
-
-    function loadStdProcessesPartial() {
-        if (!stdProcessesTabBody || !stdProcessesPartialUrl) {
-            return Promise.resolve();
-        }
-        stdProcessesTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
-        var bustUrl = stdProcessesPartialUrl + (String(stdProcessesPartialUrl).indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
-        return fetch(bustUrl, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'text/html',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache',
-            },
-            credentials: 'same-origin',
-            cache: 'no-store',
-        })
-            .then(function(r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.text();
-            })
-            .then(function(html) {
-                stdProcessesTabBody.innerHTML = html;
-                stdProcessesTabBody.dataset.loaded = '1';
-                stdProcessesTabBody.querySelectorAll('script').forEach(function(oldScript) {
-                    var newScript = document.createElement('script');
-                    Array.from(oldScript.attributes || []).forEach(function(attr) {
-                        newScript.setAttribute(attr.name, attr.value);
-                    });
-                    newScript.textContent = oldScript.textContent;
-                    oldScript.parentNode.replaceChild(newScript, oldScript);
-                });
-            })
-            .catch(function(err) {
-                stdProcessesTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
-            });
-    }
-
-    window.loadStdProcessesPartial = loadStdProcessesPartial;
 
     // STD list paper buttons are always visible in the TDR header.
     window.updateTdrStdPaperButtonsFromCounts = function(c) {
@@ -2360,18 +2318,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (rmReportsTabBody && !rmReportsTabBody.dataset.loaded) {
                 rmReportsTabBody.dataset.loaded = '1';
                 loadRmReportsPartial();
-            }
-        } else if (target && String(target).indexOf('content-std-processes') !== -1) {
-            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
-            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
-            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
-            if (logCardTabActions) logCardTabActions.classList.add('d-none');
-            if (bushingTabActions) bushingTabActions.classList.add('d-none');
-            if (transfersTabActions) transfersTabActions.classList.add('d-none');
-            if (stdProcessesTabBody && !stdProcessesTabBody.dataset.loaded) {
-                stdProcessesTabBody.dataset.loaded = '1';
-                loadStdProcessesPartial();
             }
         } else if (target && String(target).indexOf('content-transfers') !== -1) {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');

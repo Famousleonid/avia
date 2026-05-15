@@ -554,11 +554,13 @@ class VendorTrackingController extends Controller
 
     private function whereTravelerGroup($query, int $travelerGroup): void
     {
-        $query->where('traveler_group', $travelerGroup);
+        $query->where(function ($inner) use ($travelerGroup): void {
+            $inner->where('traveler_group', $travelerGroup);
 
-        if ($travelerGroup === 1) {
-            $query->orWhereNull('traveler_group');
-        }
+            if ($travelerGroup === 1) {
+                $inner->orWhereNull('traveler_group');
+            }
+        });
     }
 
     private function normalizeTdrTravelerGroup(Collection $group): object

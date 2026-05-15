@@ -238,6 +238,10 @@
 
         {{-------------------------------------------------------------------------------------------}}
 
+        @php
+            $canUpdateStorage = auth()->check() && auth()->user()->roleIs(['Shipping', 'Manager', 'Admin']);
+        @endphp
+
         <div class="rounded-3 border border-info m-1 p-2">
             <div class="d-flex align-items-start justify-content-between gap-2">
                 <div>
@@ -246,6 +250,7 @@
                         <span id="storageText_{{ $workorder->id }}" class="text-white">{{ $workorder->storage_location ?? '—' }}</span>
                     </div>
 
+                    @if($canUpdateStorage)
                     <form id="storageForm_{{ $workorder->id }}" class="mt-2 d-none">
                         <div class="row g-2">
                             <div class="col-4">
@@ -283,8 +288,10 @@
 
                         <div class="small text-danger mt-2 d-none" id="storageErr_{{ $workorder->id }}"></div>
                     </form>
+                    @endif
                 </div>
 
+                @if($canUpdateStorage)
                 <div class="text-end">
                     <button type="button"
                             class="btn btn-sm btn-outline-info"
@@ -293,6 +300,7 @@
                         <i class="bi bi-pencil"></i>
                     </button>
                 </div>
+                @endif
             </div>
         </div>
 

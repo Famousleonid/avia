@@ -88,7 +88,7 @@
                 @else
                     <img src="{{ asset('img/icon_no.png') }}" width="12">
                 @endif
-            @endhasanyrole
+                @endhasanyrole
         </td>
 
         <td class="text-center no-print" title="{{ $ecTitle }}">
@@ -117,21 +117,21 @@
             <div class="stage-strip">
                 <span class="stage-strip-segments" aria-hidden="true">
                 @foreach($generalTasks as $gt)
-                    @php
-                        $st = $byGt->get($gt->id);
-                        $gtTasks = $tasksByGeneral->get($gt->id, collect());
-                        $started = $gtTasks->pluck('id')->contains(fn($tid) => $mainsByTask->has($tid));
+                        @php
+                            $st = $byGt->get($gt->id);
+                            $gtTasks = $tasksByGeneral->get($gt->id, collect());
+                            $started = $gtTasks->pluck('id')->contains(fn($tid) => $mainsByTask->has($tid));
 
-                        if (!$started) {
-                            $class = 'empty';
-                        } elseif ($st && $st->is_done) {
-                            $class = 'done';
-                        } else {
-                            $class = 'todo';
-                        }
-                    @endphp
-                    <span class="stage-seg {{ $class }}"></span>
-                @endforeach
+                            if (!$started) {
+                                $class = 'empty';
+                            } elseif ($st && $st->is_done) {
+                                $class = 'done';
+                            } else {
+                                $class = 'todo';
+                            }
+                        @endphp
+                        <span class="stage-seg {{ $class }}"></span>
+                    @endforeach
                 </span>
             </div>
         </td>
@@ -177,13 +177,13 @@
         <td class="text-center td-customer_po">
             {{ $workorder->customer_po }}
         </td>
-
+        @hasanyrole('Admin|Manager')
         <td class="text-center no-print">
             <a href="{{ route('workorders.edit', $workorder->id) }}">
                 <img src="{{ asset('img/set.png') }}" width="25" alt="Edit">
             </a>
         </td>
-
+        @endhasanyrole
         <td class="text-center td-technik no-print">
             {{ data_get($workorder, 'user.name', '—') }}
         </td>
@@ -208,23 +208,23 @@
                     </button>
                 </form>
                 @systemadmin
-                    <form id="forceDeleteForm_{{ $workorder->id }}"
-                          action="{{ route('workorders.forceDestroy', $workorder->id) }}"
-                          method="POST" style="display:inline;">
-                        @csrf
-                        @method('DELETE')
-                        <button class="btn btn-sm btn-danger"
-                                type="button"
-                                name="btn_force_delete"
-                                title="Permanently delete workorder {{ $workorder->number }}"
-                                data-bs-toggle="modal"
-                                data-bs-target="#useConfirmDelete"
-                                data-form-id="forceDeleteForm_{{ $workorder->id }}"
-                                data-title="Permanent Delete WO {{ $workorder->number }}"
-                                data-message="Permanently delete workorder {{ $workorder->number }} from the database? This action is irreversible.">
-                            <i class="bi bi-trash-fill"></i>
-                        </button>
-                    </form>
+                <form id="forceDeleteForm_{{ $workorder->id }}"
+                      action="{{ route('workorders.forceDestroy', $workorder->id) }}"
+                      method="POST" style="display:inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button class="btn btn-sm btn-danger"
+                            type="button"
+                            name="btn_force_delete"
+                            title="Permanently delete workorder {{ $workorder->number }}"
+                            data-bs-toggle="modal"
+                            data-bs-target="#useConfirmDelete"
+                            data-form-id="forceDeleteForm_{{ $workorder->id }}"
+                            data-title="Permanent Delete WO {{ $workorder->number }}"
+                            data-message="Permanently delete workorder {{ $workorder->number }} from the database? This action is irreversible.">
+                        <i class="bi bi-trash-fill"></i>
+                    </button>
+                </form>
                 @endsystemadmin
             </div>
         </td>

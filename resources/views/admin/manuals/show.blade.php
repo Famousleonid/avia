@@ -538,23 +538,54 @@
         #nav-tabContent .table .small {
             font-size: 14px !important;
         }
-        .std-csv-view-table-wrap {
-            max-height: 70vh;
-            overflow: auto;
-        }
-        .std-csv-view-thead th {
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            /*background: var(--bs-light) !important;*/
-            background: #c2c2d9 !important;
-            white-space: nowrap;
-            font-size: 12px;
-        }
         #nav-tab .nav-link:focus,
         #nav-tab .nav-link:focus-visible {
             outline: none;
             box-shadow: none;
+        }
+        #nav-tab.nav-tabs,
+        #std-process-inner-tab.nav-tabs {
+            --manual-tabs-bg: #212529;
+            align-items: flex-end;
+            border-bottom: 0 !important;
+        }
+        #nav-tab .nav-link,
+        #std-process-inner-tab .nav-link {
+            border-color: transparent;
+            border-radius: 6px 6px 0 0;
+            font-size: 130% !important;
+            margin-bottom: 0;
+            padding-bottom: .55rem;
+            padding-top: .55rem;
+            position: relative;
+        }
+        #nav-tab .nav-link:not(.active)::after,
+        #std-process-inner-tab .nav-link:not(.active)::after {
+            background: rgba(13, 202, 240, .55);
+            bottom: 0;
+            content: "";
+            height: 1px;
+            left: 0;
+            position: absolute;
+            right: 0;
+        }
+        #nav-tab .nav-link.active,
+        #std-process-inner-tab .nav-link.active {
+            background-color: transparent;
+            border-color: rgba(13, 202, 240, .8) rgba(13, 202, 240, .8) var(--manual-tabs-bg);
+            color: #5ee3ff;
+            isolation: isolate;
+            z-index: 3;
+        }
+        #nav-tab .nav-link.active::after,
+        #std-process-inner-tab .nav-link.active::after {
+            background: var(--manual-tabs-bg);
+            bottom: -1px;
+            content: "";
+            height: 1px;
+            left: 1px;
+            position: absolute;
+            right: 1px;
         }
         #nav-tabContent .tab-pane:focus,
         #nav-tabContent .tab-pane:focus-visible,
@@ -810,7 +841,7 @@
                                 data-tab-target="#nav-std"
                                 data-bs-toggle="modal"
                                 data-bs-target="#stdCsvUploadModal">
-                            <i class="fas fa-upload"></i> {{__('Add CSV Files') }} <span class="small text-muted">(â†’ STD)</span>
+                            <i class="fas fa-upload"></i> {{__('Add CSV Files') }} <span class="small text-muted">(STD)</span>
                         </button>
                     </div>
                 </div>
@@ -1034,7 +1065,8 @@
                             'stdProcessesByType' => $stdProcessesByType ?? collect(),
                             'stdExistingPartKeysByStd' => $stdExistingPartKeysByStd ?? [],
                             'stdAddSourceManuals' => $stdAddSourceManuals ?? collect(),
-                            'stdProcessPicklists' => $stdProcessPicklists ?? ['cad' => [], 'stress' => [], 'paint' => []],
+                            'stdProcessPicklists' => $stdProcessPicklists ?? ['ndt' => [], 'cad' => [], 'stress' => [], 'paint' => []],
+                            'stdProcessPicklistOptions' => $stdProcessPicklistOptions ?? ['ndt' => [], 'cad' => [], 'stress' => [], 'paint' => []],
                         ])
                     </div>
                 </div>
@@ -1445,7 +1477,12 @@
                         <div class="mb-3">
                             <label for="stdCsvFileInput" class="form-label">{{ __('CSV File') }}</label>
                             <input type="file" id="stdCsvFileInput" name="csv_file" class="form-control" accept=".csv,.txt" required>
-                            <small class="text-muted">{{ __('Select CSV or TXT file') }}</small>
+                            <div class="form-text">
+                                {{ __('Required columns: item no. (IPL), part no., description, process no. Optional: qty, manual, eff code. One row = one STD part line.') }}
+                            </div>
+                            <div class="form-text">
+                                {{ __('CSV rows are matched to Parts by IPL. If the IPL is missing from Parts or the part name differs, you will be asked what to do.') }}
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -1457,28 +1494,56 @@
         </div>
     </div>
 
-    {{-- ÐœÐ¾Ð´Ð°Ð»ÑŒÐ½Ð¾Ðµ Ð¾ÐºÐ½Ð¾ Ð¿Ñ€Ð¾ÑÐ¼Ð¾Ñ‚Ñ€Ð° STD Process CSV (Ð² Ñ‚Ð¾Ð¼ Ð¶Ðµ Ð¾ÐºÐ½Ðµ, Ð¿Ñ€Ð¾ÐºÑ€ÑƒÑ‚ÐºÐ°, Ñ„Ð¸ÐºÑÐ¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ð¹ Ð·Ð°Ð³Ð¾Ð»Ð¾Ð²Ð¾Ðº) --}}
-    <div class="modal fade" id="stdCsvViewModal" tabindex="-1" aria-labelledby="stdCsvViewModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="stdCsvViewModalLabel">{{ __('STD Process file') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal fade" id="stdCsvReviewModal" tabindex="-1" aria-labelledby="stdCsvReviewModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content bg-dark text-light border border-info">
+                <div class="modal-header border-secondary">
+                    <div>
+                        <h5 class="modal-title" id="stdCsvReviewModalLabel">{{ __('Review CSV row') }}</h5>
+                        <div class="small text-info" id="stdCsvReviewCounter"></div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" id="stdCsvReviewClose" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-0">
-                    <div id="stdCsvViewLoading" class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
-                    <div id="stdCsvViewTableWrap" class="std-csv-view-table-wrap" style="display: none;">
-                        <table class="table table-bordered table-striped table-sm mb-0">
-                            <thead class="table-light std-csv-view-thead">
-                                <tr id="stdCsvViewTheadRow"></tr>
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 mb-3" id="stdCsvReviewMessage"></div>
+
+                    <div class="table-responsive">
+                        <table class="table table-dark table-bordered table-sm align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th style="width: 140px;">{{ __('Field') }}</th>
+                                <th>{{ __('Parts') }}</th>
+                                <th>{{ __('CSV file') }}</th>
+                            </tr>
                             </thead>
-                            <tbody id="stdCsvViewTbody"></tbody>
+                            <tbody>
+                            <tr>
+                                <th>{{ __('IPL') }}</th>
+                                <td id="stdCsvReviewPartsIpl"></td>
+                                <td id="stdCsvReviewCsvIpl"></td>
+                            </tr>
+                            <tr>
+                                <th>{{ __('Part No.') }}</th>
+                                <td id="stdCsvReviewPartsPart"></td>
+                                <td id="stdCsvReviewCsvPart"></td>
+                            </tr>
+                            <tr>
+                                <th>{{ __('Description') }}</th>
+                                <td id="stdCsvReviewPartsName"></td>
+                                <td id="stdCsvReviewCsvName"></td>
+                            </tr>
+                            </tbody>
                         </table>
                     </div>
-                    <div id="stdCsvViewError" class="alert alert-danger m-3" style="display: none;"></div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                <div class="modal-footer border-secondary justify-content-between flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-secondary" data-std-csv-review-action="cancel">{{ __('Cancel import') }}</button>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-outline-warning" data-std-csv-review-action="skip">{{ __('Skip this row') }}</button>
+                        <button type="button" class="btn btn-outline-info" data-std-csv-review-action="use_component">{{ __('Keep Parts data') }}</button>
+                        <button type="button" class="btn btn-primary" data-std-csv-review-action="overwrite_component">{{ __('Overwrite Parts from CSV') }}</button>
+                        <button type="button" class="btn btn-success" data-std-csv-review-action="add_component">{{ __('Add to Parts from CSV') }}</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1562,119 +1627,113 @@
     </div>
 
     <script>
-        // STD Processes CSV: Ð¿Ñ€Ð¾ÑÐ¼Ð¾Ñ‚Ñ€ Ð² Ð¼Ð¾Ð´Ð°Ð»ÐºÐµ (Ñ‚Ð¾ Ð¶Ðµ Ð¾ÐºÐ½Ð¾, Ð¿Ñ€Ð¾ÐºÑ€ÑƒÑ‚ÐºÐ°, Ñ„Ð¸ÐºÑÐ¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ð¹ Ð·Ð°Ð³Ð¾Ð»Ð¾Ð²Ð¾Ðº)
-        function openStdCsvView(fileId, fileName) {
-            var modal = document.getElementById('stdCsvViewModal');
-            var titleEl = document.getElementById('stdCsvViewModalLabel');
-            var loadingEl = document.getElementById('stdCsvViewLoading');
-            var tableWrap = document.getElementById('stdCsvViewTableWrap');
-            var errorEl = document.getElementById('stdCsvViewError');
-            var theadRow = document.getElementById('stdCsvViewTheadRow');
-            var tbody = document.getElementById('stdCsvViewTbody');
+        function stdCsvText(value) {
+            value = value === null || value === undefined ? '' : String(value).trim();
+            return value === '' ? '-' : value;
+        }
 
-            if (titleEl) titleEl.textContent = fileName || '{{ __("STD Process file") }}';
-            if (loadingEl) { loadingEl.style.display = 'block'; }
-            if (tableWrap) { tableWrap.style.display = 'none'; }
-            if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
-            if (theadRow) theadRow.innerHTML = '';
-            if (tbody) tbody.innerHTML = '';
+        function setStdCsvReviewText(id, value) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.textContent = stdCsvText(value);
+            }
+        }
 
-            var dataUrl = '{{ route("manuals.csv.data", ["manual" => $cmm->id, "file" => "__ID__"]) }}'.replace('__ID__', fileId);
+        function setStdCsvReviewButtons(row) {
+            var isMissing = row.type === 'missing_ipl';
+            var addBtn = document.querySelector('[data-std-csv-review-action="add_component"]');
+            var keepBtn = document.querySelector('[data-std-csv-review-action="use_component"]');
+            var overwriteBtn = document.querySelector('[data-std-csv-review-action="overwrite_component"]');
 
-            fetch(dataUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (loadingEl) loadingEl.style.display = 'none';
-                    if (!data.success) {
-                        if (errorEl) { errorEl.textContent = data.error || '{{ __("Error loading file") }}'; errorEl.style.display = 'block'; }
+            if (addBtn) addBtn.classList.toggle('d-none', !isMissing);
+            if (keepBtn) keepBtn.classList.toggle('d-none', isMissing);
+            if (overwriteBtn) overwriteBtn.classList.toggle('d-none', isMissing);
+        }
+
+        function askStdCsvConflict(row, position, total) {
+            return new Promise(function (resolve, reject) {
+                var modalEl = document.getElementById('stdCsvReviewModal');
+                if (!modalEl) {
+                    reject(new Error('CSV review modal is not available'));
+                    return;
+                }
+
+                var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                var counter = document.getElementById('stdCsvReviewCounter');
+                var message = document.getElementById('stdCsvReviewMessage');
+                var closeBtn = document.getElementById('stdCsvReviewClose');
+                var actionButtons = modalEl.querySelectorAll('[data-std-csv-review-action]');
+
+                if (counter) {
+                    counter.textContent = 'Conflict ' + position + ' of ' + total + ' - CSV row ' + stdCsvText(row.row_number);
+                }
+
+                if (message) {
+                    if (row.type === 'missing_ipl') {
+                        message.textContent = 'This IPL is not in Parts. Choose whether to add it from the CSV file or skip this row.';
+                    } else {
+                        message.textContent = 'The CSV row does not match the existing Parts data. Choose which source should be kept.';
+                    }
+                }
+
+                setStdCsvReviewText('stdCsvReviewPartsIpl', row.type === 'missing_ipl' ? '' : row.ipl_num);
+                setStdCsvReviewText('stdCsvReviewCsvIpl', row.ipl_num);
+                setStdCsvReviewText('stdCsvReviewPartsPart', row.component_part_number);
+                setStdCsvReviewText('stdCsvReviewCsvPart', row.csv_part_number);
+                setStdCsvReviewText('stdCsvReviewPartsName', row.component_name);
+                setStdCsvReviewText('stdCsvReviewCsvName', row.csv_description);
+                setStdCsvReviewButtons(row);
+
+                function cleanup() {
+                    actionButtons.forEach(function (btn) {
+                        btn.removeEventListener('click', onAction);
+                    });
+                    if (closeBtn) {
+                        closeBtn.removeEventListener('click', onCancel);
+                    }
+                }
+
+                function onCancel() {
+                    cleanup();
+                    modal.hide();
+                    reject(new Error('CSV import was canceled'));
+                }
+
+                function onAction(event) {
+                    var action = event.currentTarget.getAttribute('data-std-csv-review-action');
+                    if (action === 'cancel') {
+                        onCancel();
                         return;
                     }
-                    var headers = data.headers || [];
-                    var records = data.records || [];
-                    headers.forEach(function (h) {
-                        var th = document.createElement('th');
-                        th.textContent = h;
-                        th.scope = 'col';
-                        if (theadRow) theadRow.appendChild(th);
-                    });
-                    records.forEach(function (row) {
-                        var tr = document.createElement('tr');
-                        row.forEach(function (cell) {
-                            var td = document.createElement('td');
-                            td.textContent = cell;
-                            tr.appendChild(td);
-                        });
-                        if (tbody) tbody.appendChild(tr);
-                    });
-                    if (tableWrap) tableWrap.style.display = 'block';
-                })
-                .catch(function (err) {
-                    if (loadingEl) loadingEl.style.display = 'none';
-                    if (errorEl) { errorEl.textContent = err.message || '{{ __("Error loading file") }}'; errorEl.style.display = 'block'; }
-                });
-
-            (new bootstrap.Modal(modal)).show();
-        }
-
-        function updateStdCsvTabCountBadge() {
-            var tbody = document.getElementById('std-csv-tbody');
-            var tabBtn = document.getElementById('std-process-inner-tab-csv');
-            if (!tbody || !tabBtn) return;
-            var badge = tabBtn.querySelector('.badge');
-            if (!badge) return;
-            var n = tbody.querySelectorAll('tr:not(#std-csv-empty-row)').length;
-            badge.textContent = n;
-        }
-
-        // STD Processes CSV: ÑƒÐ´Ð°Ð»ÐµÐ½Ð¸Ðµ Ñ„Ð°Ð¹Ð»Ð°
-        function deleteStdCsvFile(url, buttonEl) {
-            if (!confirm('{{ __("Are you sure you want to delete this file?") }}')) return;
-            fetch(url, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
+                    cleanup();
+                    modal.hide();
+                    resolve(action);
                 }
-            })
-                .then(function (response) {
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (data.success) {
-                        var tbody = document.getElementById('std-csv-tbody');
-                        var tr = buttonEl.closest('tr');
-                        if (tr) tr.remove();
-                        if (tbody && tbody.querySelectorAll('tr').length === 0) {
-                            var emptyRow = document.createElement('tr');
-                            emptyRow.id = 'std-csv-empty-row';
-                            emptyRow.innerHTML = '<td colspan="4" class="text-muted">{{ __("No STD process files. Use \"Add CSV Files\" to upload NDT, CAD, Stress Relief or Paint CSV.") }}</td>';
-                            tbody.appendChild(emptyRow);
-                        }
-                        updateStdCsvTabCountBadge();
-                    } else {
-                        throw new Error(data.error || '{{ __("Error deleting file") }}');
-                    }
-                })
-                .catch(function (err) {
-                    console.error(err);
-                    showNotification(err.message || '{{ __("Error deleting file") }}', 'error');
+
+                actionButtons.forEach(function (btn) {
+                    btn.addEventListener('click', onAction);
                 });
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', onCancel);
+                }
+
+                modal.show();
+            });
+        }
+
+        async function resolveStdCsvConflicts(conflicts) {
+            var resolutions = {};
+            var rows = conflicts || [];
+            for (var i = 0; i < rows.length; i++) {
+                var row = rows[i] || {};
+                var action = await askStdCsvConflict(row, i + 1, rows.length);
+                resolutions[String(row.index)] = action;
+            }
+
+            return resolutions;
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            // STD Processes CSV: Ð·Ð°Ð³Ñ€ÑƒÐ·ÐºÐ° Ñ„Ð°Ð¹Ð»Ð°
-            // ÐŸÑ€Ð¾ÑÐ¼Ð¾Ñ‚Ñ€ STD CSV Ð¿Ð¾ ÐºÐ»Ð¸ÐºÑƒ (Ð² Ñ‚.Ñ‡. Ð´Ð»Ñ Ð´Ð¸Ð½Ð°Ð¼Ð¸Ñ‡ÐµÑÐºÐ¸ Ð´Ð¾Ð±Ð°Ð²Ð»ÐµÐ½Ð½Ñ‹Ñ… ÑÑ‚Ñ€Ð¾Ðº)
-            document.addEventListener('click', function (e) {
-                var btn = e.target.closest('.std-csv-view-btn');
-                if (!btn) return;
-                e.preventDefault();
-                var fileId = btn.getAttribute('data-file-id');
-                var fileName = btn.getAttribute('data-file-name') || '';
-                if (fileId) openStdCsvView(fileId, fileName);
-            });
-
             var btnStdCsvUpload = document.getElementById('btn-std-csv-upload');
             if (btnStdCsvUpload) {
                 btnStdCsvUpload.addEventListener('click', function () {
@@ -1693,17 +1752,37 @@
                     formData.append('process_type', processTypeSelect.value);
                     formData.append('_token', '{{ csrf_token() }}');
 
-                    fetch('{{ route("manuals.csv.store", ["manual" => $cmm->id]) }}', {
+                    var uploadUrl = '{{ route("manuals.csv.store", ["manual" => $cmm->id]) }}';
+
+                    function sendStdCsvUpload(payload) {
+                        return fetch(uploadUrl, {
                         method: 'POST',
-                        body: formData,
+                            body: payload,
                         headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
-                    })
+                        })
                         .then(function (response) {
-                            if (!response.ok) throw new Error('Network response was not ok');
-                            return response.json();
+                            return response.json().catch(function () {
+                                return { success: false, error: 'Upload failed' };
+                            }).then(function (data) {
+                                if (!response.ok) {
+                                    throw new Error(data.error || data.message || 'Upload failed');
+                                }
+                                return data;
+                            });
+                        });
+                    }
+
+                    sendStdCsvUpload(formData)
+                        .then(async function (data) {
+                            if (data && data.needs_review) {
+                                var resolutions = await resolveStdCsvConflicts(data.conflicts || []);
+                                formData.set('csv_resolutions', JSON.stringify(resolutions));
+                                return sendStdCsvUpload(formData);
+                            }
+                            return data;
                         })
                         .then(function (data) {
-                            if (data.success && data.file) {
+                            if (data.success) {
                                 window.location.assign(@json(route('manuals.show', ['manual' => $cmm->id, 'tab' => 'std'])));
                                 return;
                             }
@@ -2276,7 +2355,7 @@
                 if (!inner) {
                     return;
                 }
-                var allowed = { ndt: 1, cad: 1, stress: 1, paint: 1, csv: 1 };
+                var allowed = { ndt: 1, cad: 1, stress: 1, paint: 1 };
                 if (!allowed[inner]) {
                     return;
                 }
@@ -2284,7 +2363,7 @@
                 if (!stdPane || !stdPane.classList.contains('active')) {
                     return;
                 }
-                var btnId = inner === 'csv' ? 'std-process-inner-tab-csv' : 'std-process-inner-tab-' + inner;
+                var btnId = 'std-process-inner-tab-' + inner;
                 requestAnimationFrame(function () {
                     var btn = document.getElementById(btnId);
                     if (btn && window.bootstrap && bootstrap.Tab) {

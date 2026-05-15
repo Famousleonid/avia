@@ -277,7 +277,7 @@
                 $rowIndex = 1;
             @endphp
 
-        @foreach($paint_components as $component)
+        @forelse($paint_components as $component)
             @php
                 $currentManual = $component->manual ?? null;
                 // Если manual изменился и не пустой, вставляем строку с manual
@@ -341,7 +341,13 @@
                     $rowIndex++;
                     $previousManual = $currentManual;
             @endphp
-        @endforeach
+        @empty
+            <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
+                <div class="col-12 border-l-b-r details-cell text-center" style="min-height: 34px">
+                    No Paint components with paint_list flag
+                </div>
+            </div>
+        @endforelse
         </div>
     {{-- Пустые строки будут генерироваться на фронтенде через JavaScript --}}
 

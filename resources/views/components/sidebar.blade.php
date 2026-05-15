@@ -330,6 +330,56 @@
         min-height: 260px;
         max-height: 100%;
         resize: vertical;
+        transition: opacity .28s ease, filter .28s ease, border-color .2s ease, background-color .2s ease;
+    }
+    #sendMsgModal .msg-compose{
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 260px;
+        display: flex;
+    }
+    #sendMsgModal .msg-compose textarea#msgText{
+        width: 100%;
+    }
+    #sendMsgModal .msg-compose-status{
+        position: absolute;
+        inset: 1px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        opacity: 0;
+        transform: scale(.98);
+        transition: opacity .22s ease, transform .22s ease;
+        border-radius: .25rem;
+        background: rgba(33, 37, 41, .84);
+        backdrop-filter: blur(2px);
+    }
+    #sendMsgModal .msg-compose-status-inner{
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #75d39b;
+        font-weight: 600;
+        letter-spacing: 0;
+    }
+    #sendMsgModal .msg-compose-status-inner i{
+        font-size: 1.15rem;
+    }
+    #sendMsgModal .msg-left.is-sending textarea#msgText{
+        opacity: .62;
+        filter: blur(.4px);
+    }
+    #sendMsgModal .msg-left.is-sent textarea#msgText{
+        opacity: 0;
+        filter: blur(2px);
+    }
+    #sendMsgModal .msg-left.is-sent .msg-compose-status{
+        opacity: 1;
+        transform: scale(1);
+    }
+    #sendMsgModal .msg-left.is-error textarea#msgText{
+        border-color: rgba(220, 53, 69, .75) !important;
     }
     @media (max-width: 992px){
         #sendMsgModal .modal-dialog{
@@ -364,10 +414,18 @@
                     <div class="msg-left">
                         <label class="form-label text-secondary small mb-1">Message</label>
 
-                        <textarea id="msgText"
-                                  class="form-control bg-dark text-light border-secondary"
-                                  rows="10" maxlength="1000"
-                                  placeholder="Type here..."></textarea>
+                        <div class="msg-compose">
+                            <textarea id="msgText"
+                                      class="form-control bg-dark text-light border-secondary"
+                                      rows="10" maxlength="1000"
+                                      placeholder="Type here..."></textarea>
+                            <div class="msg-compose-status" aria-hidden="true">
+                                <div class="msg-compose-status-inner">
+                                    <i class="bi bi-check-circle-fill"></i>
+                                    <span id="msgSentText">Sent</span>
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="msg-actions mt-2">
                             <div class="text-secondary small">
@@ -424,6 +482,8 @@
         const taEl    = document.getElementById('msgText');
         const lenEl   = document.getElementById('msgLen');
         const selEl   = document.getElementById('msgSelectedCount');
+        const msgLeft = modalEl?.querySelector('.msg-left');
+        const sentTextEl = document.getElementById('msgSentText');
 
         const errEl   = document.getElementById('msgErr');
         const warnEl  = document.getElementById('msgWarn');
@@ -434,6 +494,7 @@
         const btnSend = document.getElementById('btnSendMsg');
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        let sentResetTimer = null;
 
         function escapeHtml(s) {
             return String(s ?? '')
@@ -445,6 +506,8 @@
         }
 
         function showErr(msg){
+            msgLeft?.classList.remove('is-sending', 'is-sent');
+            msgLeft?.classList.add('is-error');
             errEl.textContent = msg || 'Error';
             errEl.classList.remove('d-none');
             okEl.classList.add('d-none');
@@ -458,17 +521,31 @@
             else warnEl.classList.add('d-none');
         }
         function showOk(text){
-            okEl.textContent = text || 'Sent ✅';
-            okEl.classList.remove('d-none');
+            okEl.textContent = 'Sent';
+            const sentLabel = 'Sent';
+            msgLeft?.classList.remove('is-sending', 'is-error');
+            msgLeft?.classList.add('is-sent');
+            if (sentTextEl) sentTextEl.textContent = sentLabel;
+            okEl.textContent = sentLabel;
+            okEl.classList.add('d-none');
             errEl.classList.add('d-none');
             // warn может быть вместе с ok
         }
         function clearMsg(){
+            window.clearTimeout(sentResetTimer);
+            msgLeft?.classList.remove('is-sending', 'is-sent', 'is-error');
             errEl.classList.add('d-none');
             okEl.classList.add('d-none');
             warnEl?.classList.add('d-none');
             errEl.textContent = '';
             if (warnEl) warnEl.textContent = '';
+        }
+        function resetComposeAfterSent(){
+            window.clearTimeout(sentResetTimer);
+            sentResetTimer = window.setTimeout(() => {
+                msgLeft?.classList.remove('is-sent');
+                okEl.classList.add('d-none');
+            }, 1700);
         }
 
         function updateLen(){ lenEl.textContent = String(taEl.value.length); }
@@ -546,6 +623,7 @@
 
         modalEl?.addEventListener('shown.bs.modal', async () => {
             clearMsg();
+            taEl.value = '';
             updateLen();
             listEl.innerHTML = `<div class="p-2 text-muted small">Loading…</div>`;
             await loadUsers();
@@ -561,6 +639,9 @@
             if (!message) return showErr('Message is empty');
 
             btnSend.disabled = true;
+            btnSend.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Sending';
+            msgLeft?.classList.remove('is-error', 'is-sent');
+            msgLeft?.classList.add('is-sending');
 
             try{
                 const r = await fetch(@json(route('admin.messages.send')), {
@@ -587,7 +668,11 @@
                 const blockedCount = blocked.length;
 
                 if (sentCount > 0) {
-                    showOk(sentCount > 1 ? `Sent ✅ (${sentCount})` : 'Sent ✅');
+                    taEl.value = '';
+                    updateLen();
+                    btnSend.innerHTML = '<i class="bi bi-check-circle me-1"></i> Sent';
+                    resetComposeAfterSent();
+                    showOk('Sent');
                 } else {
                     showErr(data.message || 'Message was not sent');
                     return;
@@ -604,6 +689,14 @@
                 showErr('Network error');
             } finally {
                 btnSend.disabled = false;
+                if (!msgLeft?.classList.contains('is-sent')) {
+                    btnSend.innerHTML = '<i class="bi bi-send me-1"></i> Send';
+                    msgLeft?.classList.remove('is-sending');
+                } else {
+                    window.setTimeout(() => {
+                        btnSend.innerHTML = '<i class="bi bi-send me-1"></i> Send';
+                    }, 900);
+                }
             }
         });
     })();
