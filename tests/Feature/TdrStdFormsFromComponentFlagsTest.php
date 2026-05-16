@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Component;
+use App\Models\Code;
 use App\Models\NdtCadCsv;
 use App\Models\Necessary;
 use App\Models\StdProcess;
@@ -88,34 +89,6 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertSame(4, $paint[0]['qty']);
     }
 
-    public function test_empty_workorder_std_bucket_is_filled_from_component_flags(): void
-    {
-        $manual = $this->createManual();
-        $unit = $this->createUnit(['manual_id' => $manual->id]);
-        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
-
-        Component::query()->create([
-            'manual_id' => $manual->id,
-            'ipl_num' => '2-10',
-            'part_number' => 'PN-FLAG',
-            'name' => 'Flagged Part',
-            'units_assy' => 2,
-            'cad_list' => true,
-        ]);
-
-        $ndtCadCsv = NdtCadCsv::query()->create([
-            'workorder_id' => $workorder->id,
-            'ndt_components' => [],
-            'cad_components' => [],
-            'stress_components' => [],
-            'paint_components' => [],
-        ]);
-
-        $ndtCadCsv = NdtCadCsv::ensureTypeLoadedForWorkorder($workorder, $ndtCadCsv, StdProcess::STD_CAD);
-
-        $this->assertSame('PN-FLAG', $ndtCadCsv->cad_components[0]['part_number'] ?? null);
-    }
-
     public function test_workorder_std_snapshot_prefers_std_row_eff_code_over_component_eff_code(): void
     {
         $manual = $this->createManual();
@@ -167,6 +140,87 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $rows = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
 
         $this->assertSame(['PN-STD-EFF'], array_column($rows, 'part_number'));
+    }
+
+    public function test_workorder_std_snapshot_includes_components_from_other_manuals_grouped_by_source_manual(): void
+    {
+        $manual = $this->createManual(['number' => 'MAIN-CMM']);
+        $sourceManual = $this->createManual(['number' => 'SOURCE-CMM']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
+
+        $localComponent = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '1-10',
+            'part_number' => 'PN-LOCAL-NDT',
+            'name' => 'Local NDT Part',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+        $sourceComponent = Component::query()->create([
+            'manual_id' => $sourceManual->id,
+            'ipl_num' => '2-10',
+            'part_number' => 'PN-SOURCE-NDT',
+            'name' => 'Source NDT Part',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $localComponent->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '1',
+            'qty' => 1,
+        ]);
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $sourceComponent->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '1',
+            'qty' => 1,
+        ]);
+
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+
+        $this->assertSame(['MAIN-CMM', 'SOURCE-CMM'], array_column($rows, 'manual'));
+        $this->assertSame(['PN-LOCAL-NDT', 'PN-SOURCE-NDT'], array_column($rows, 'part_number'));
+    }
+
+    public function test_workorder_std_snapshot_excludes_missing_code_tdr_qty(): void
+    {
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
+        $missing = Code::query()->firstOrCreate(['name' => 'Missing']);
+
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '2-50',
+            'part_number' => 'PN-MISSING-CODE',
+            'name' => 'Missing Code Part',
+            'units_assy' => 2,
+            'ndt_list' => true,
+        ]);
+
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'codes_id' => $missing->id,
+            'qty' => 1,
+            'serial_number' => 'NSN',
+            'assy_serial_number' => ' ',
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+
+        $this->assertSame(['PN-MISSING-CODE'], array_column($rows, 'part_number'));
+        $this->assertSame([1], array_column($rows, 'qty'));
     }
 
     public function test_tdr_show_always_renders_all_four_std_paper_buttons(): void
@@ -221,6 +275,118 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('PN-NDT-ROUTE');
+    }
+
+    public function test_ndt_std_form_footer_bolds_totals_and_counts_combined_process_qty(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+
+        $first = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-10',
+            'part_number' => 'PN-NDT-14',
+            'name' => 'NDT MPI FPI Part',
+            'units_assy' => 2,
+            'ndt_list' => true,
+        ]);
+        $second = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-20',
+            'part_number' => 'PN-NDT-4',
+            'name' => 'NDT FPI Part',
+            'units_assy' => 3,
+            'ndt_list' => true,
+        ]);
+        $third = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-30',
+            'part_number' => 'PN-NDT-146',
+            'name' => 'NDT MPI FPI EC Part',
+            'units_assy' => 5,
+            'ndt_list' => true,
+        ]);
+
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $first->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '1 / 4',
+            'qty' => 2,
+        ]);
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $second->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '4',
+            'qty' => 3,
+        ]);
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $third->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '1 / 4 / 6',
+            'qty' => 5,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.ndtStd', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSee('Total QTY:', false);
+        $response->assertSee('<strong>10</strong>', false);
+        $response->assertSee('MPI:', false);
+        $response->assertSee('<strong>7</strong>', false);
+        $response->assertSee('FPI:', false);
+        $response->assertSee('<strong>10</strong>', false);
+    }
+
+    public function test_std_forms_sort_ipl_with_section_suffix_naturally(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+
+        foreach ([
+            '9A-300' => 'PN-SORT-300',
+            '9A-30' => 'PN-SORT-030',
+            '9A-290' => 'PN-SORT-290',
+        ] as $ipl => $partNumber) {
+            Component::query()->create([
+                'manual_id' => $manual->id,
+                'ipl_num' => $ipl,
+                'part_number' => $partNumber,
+                'name' => 'STD Part ' . $ipl,
+                'units_assy' => 1,
+                'ndt_list' => true,
+                'cad_list' => true,
+                'stress_relief_list' => true,
+                'paint_list' => true,
+            ]);
+        }
+
+        foreach ([
+            route('tdrs.ndtStd', $workorder->id),
+            route('tdrs.cadStd', $workorder->id),
+            route('tdrs.stressStd', $workorder->id),
+            route('tdrs.paintStd', $workorder->id),
+        ] as $route) {
+            $html = $this->actingAs($admin)->get($route)->assertOk()->getContent();
+
+            $this->assertLessThan(strpos($html, 'PN-SORT-290'), strpos($html, 'PN-SORT-030'));
+            $this->assertLessThan(strpos($html, 'PN-SORT-300'), strpos($html, 'PN-SORT-290'));
+        }
     }
 
     public function test_paint_std_form_uses_component_flags_not_csv_snapshot(): void

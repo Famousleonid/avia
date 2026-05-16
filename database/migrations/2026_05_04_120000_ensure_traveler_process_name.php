@@ -26,7 +26,7 @@ return new class extends Migration
             }
 
             if (Schema::hasColumn('process_names', 'show_in_process_picker')) {
-                $insert['show_in_process_picker'] = true;
+                $insert['show_in_process_picker'] = false;
             }
 
             if (Schema::hasColumn('process_names', 'std_days')) {

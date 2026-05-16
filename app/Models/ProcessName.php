@@ -14,6 +14,7 @@ class ProcessName extends Model
 
     /** Имена process_names, которые в групповых формах считаются одной группой «обработка». */
     public const MACHINING_EC_MERGE_NAMES = ['Machining', 'Machining (EC)', 'Machining(EC)'];
+    public const SYSTEM_TRAVELER_NAME = 'Traveler';
 
     protected $fillable = [
         'name','process_sheet_name','form_number','std_days', 'notify_user_id','print_form','show_in_process_picker','sequence_exempt',
@@ -28,7 +29,9 @@ class ProcessName extends Model
 
     public function scopeForPicker($query)
     {
-        return $query->where('show_in_process_picker', true);
+        return $query
+            ->where('show_in_process_picker', true)
+            ->where('name', '!=', self::SYSTEM_TRAVELER_NAME);
     }
 
     public function isSequenceExempt(): bool

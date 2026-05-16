@@ -36,7 +36,6 @@ use App\Http\Controllers\Admin\VendorTrackingController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WorkorderStdProcessController;
 use App\Http\Controllers\Admin\WoBushingController;
-use App\Http\Controllers\Admin\NdtCadCsvController;
 use App\Http\Controllers\Admin\MachiningController;
 use App\Http\Controllers\Admin\PaintController;
 use App\Http\Controllers\Admin\ManualStdProcessController;
@@ -448,27 +447,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('wo_bushings/specProcessForm/{id}', [WoBushingController::class, 'specProcessForm'])->name('wo_bushings.specProcessForm');
 
 //    Route::get('api/get-components-by-manual', [TdrController::class, 'getComponentsByManual'])->name('api.get-components-by-manual');
-
-    // NDT/CAD CSV Management Routes
-    Route::get('/{workorder}/ndt-cad-csv/partial', [NdtCadCsvController::class, 'partial'])->name('ndt-cad-csv.partial');
-    Route::get('/{workorder}/ndt-cad-csv', [NdtCadCsvController::class, 'index'])->name('ndt-cad-csv.index');
-    Route::post('/{workorder}/ndt-cad-csv/add-ndt', [NdtCadCsvController::class, 'addNdtComponent'])->name('ndt-cad-csv.add-ndt');
-    Route::post('/{workorder}/ndt-cad-csv/add-cad', [NdtCadCsvController::class, 'addCadComponent'])->name('ndt-cad-csv.add-cad');
-    Route::post('/{workorder}/ndt-cad-csv/add-stress', [NdtCadCsvController::class, 'addStressComponent'])->name('ndt-cad-csv.add-stress');
-    Route::post('/{workorder}/ndt-cad-csv/add-paint', [NdtCadCsvController::class, 'addPaintComponent'])->name('ndt-cad-csv.add-paint');
-    Route::post('/{workorder}/ndt-cad-csv/remove-ndt', [NdtCadCsvController::class, 'removeNdtComponent'])->name('ndt-cad-csv.remove-ndt');
-    Route::post('/{workorder}/ndt-cad-csv/remove-cad', [NdtCadCsvController::class, 'removeCadComponent'])->name('ndt-cad-csv.remove-cad');
-    Route::post('/{workorder}/ndt-cad-csv/remove-stress', [NdtCadCsvController::class, 'removeStressComponent'])->name('ndt-cad-csv.remove-stress');
-    Route::post('/{workorder}/ndt-cad-csv/remove-paint', [NdtCadCsvController::class, 'removePaintComponent'])->name('ndt-cad-csv.remove-paint');
-    Route::post('/{workorder}/ndt-cad-csv/edit-ndt', [NdtCadCsvController::class, 'editNdtComponent'])->name('ndt-cad-csv.edit-ndt');
-    Route::post('/{workorder}/ndt-cad-csv/edit-cad', [NdtCadCsvController::class, 'editCadComponent'])->name('ndt-cad-csv.edit-cad');
-    Route::post('/{workorder}/ndt-cad-csv/edit-stress', [NdtCadCsvController::class, 'editStressComponent'])->name('ndt-cad-csv.edit-stress');
-    Route::post('/{workorder}/ndt-cad-csv/edit-paint', [NdtCadCsvController::class, 'editPaintComponent'])->name('ndt-cad-csv.edit-paint');
-    Route::post('/{workorder}/ndt-cad-csv/reload-from-manual', [NdtCadCsvController::class, 'reloadFromManual'])->name('ndt-cad-csv.reload-from-manual');
-    Route::get('/{workorder}/ndt-cad-csv/components', [NdtCadCsvController::class, 'getComponents'])->name('ndt-cad-csv.components');
-    Route::get('/{workorder}/ndt-cad-csv/cad-processes', [NdtCadCsvController::class, 'getCadProcesses'])->name('ndt-cad-csv.cad-processes');
-    Route::get('/{workorder}/ndt-cad-csv/stress-processes', [NdtCadCsvController::class, 'getStressProcesses'])->name('ndt-cad-csv.stress-processes');
-    Route::get('/{workorder}/ndt-cad-csv/paint-processes', [NdtCadCsvController::class, 'getPaintProcesses'])->name('ndt-cad-csv.paint-processes');
 
     Route::get('/rm_reports/create/{id}', fn($id) => redirect()->route('rm_reports.show', $id))->name('rm_reports.create');
     Route::get('/rm_reports/partial/{workorder_id}', [RmReportController::class, 'partial'])->name('rm_reports.partial');

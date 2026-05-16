@@ -563,17 +563,21 @@
                     {{__('Rev#0, 15/Dec/2012   ')}}
                     <br>
                     @php
-                        $totalQty = array_sum(array_map(function($item) { return $item->qty ?? 0; }, $ndt_components));
-                        $mpiQty = array_sum(array_map(function($item) { return $item->qty ?? 0; }, array_filter($ndt_components, function($item) {
-                            return strpos($item->process_name ?? '', '1') !== false;
-                        })));
-                        $fpiQty = array_sum(array_map(function($item) { return $item->qty ?? 0; }, array_filter($ndt_components, function($item) {
-                            return strpos($item->process_name ?? '', '1') === false;
-                        })));
+                        $ndtProcessNumbers = function ($value): array {
+                            preg_match_all('/\d+/', (string) $value, $matches);
+
+                            return array_values(array_unique(array_map('intval', $matches[0] ?? [])));
+                        };
+                        $ndtQty = fn ($item): int => max(0, (int) ($item->qty ?? 0));
+                        $hasNdtProcess = fn ($item, int $number): bool => in_array($number, $ndtProcessNumbers($item->process_name ?? ''), true);
+
+                        $totalQty = array_sum(array_map($ndtQty, $ndt_components));
+                        $mpiQty = array_sum(array_map($ndtQty, array_filter($ndt_components, fn ($item) => $hasNdtProcess($item, 1))));
+                        $fpiQty = array_sum(array_map($ndtQty, array_filter($ndt_components, fn ($item) => $hasNdtProcess($item, 4))));
                     @endphp
-                    {{__('Total QTY:')}} {{ $totalQty }}
-                    ( {{__('MPI:')}} {{ $mpiQty }} {{__(' ; ')}}
-                    {{__('FPI:')}} {{ $fpiQty }} )
+                    {{__('Total QTY:')}} <strong>{{ $totalQty }}</strong>
+                    ( {{__('MPI:')}} <strong>{{ $mpiQty }}</strong> {{__(' ; ')}}
+                    {{__('FPI:')}} <strong>{{ $fpiQty }}</strong> )
                 </div>
             </div>
         </footer>

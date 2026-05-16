@@ -480,13 +480,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function logCardTabAssemblyPayload(input) {
         if (!input || !input.value) return {};
+        var source = input;
+        if (input.tagName === 'SELECT') {
+            source = input.options[input.selectedIndex] || input;
+        }
 
         return {
             component_assembly_id: input.value,
-            assy_part_number: input.dataset.assyPartNumber || '',
-            assy_ipl_num: input.dataset.assyIplNum || '',
-            units_assy: input.dataset.unitsAssy || ''
+            assy_part_number: source.dataset.assyPartNumber || '',
+            assy_ipl_num: source.dataset.assyIplNum || '',
+            units_assy: source.dataset.unitsAssy || ''
         };
+    }
+
+    function logCardTabSelectedAssemblyInRow(row, componentId) {
+        if (!row || !componentId) return null;
+        var all = Array.prototype.filter.call(row.querySelectorAll('input, select'), function(input) {
+            return String(input.dataset.componentId || '') === String(componentId);
+        });
+        var fallback = null;
+        for (var i = 0; i < all.length; i++) {
+            if (!fallback) fallback = all[i];
+            if (all[i].tagName === 'SELECT' || all[i].type === 'hidden') {
+                return all[i];
+            }
+        }
+
+        return fallback;
     }
 
     function logCardTabSavedPayload(root) {
@@ -506,7 +526,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (row.dataset.assyIplNum) item.assy_ipl_num = row.dataset.assyIplNum;
             if (row.dataset.unitsAssy) item.units_assy = row.dataset.unitsAssy;
             row.querySelectorAll('input, select').forEach(function(field) {
-                if (field.name) item[field.name] = field.value || '';
+                if (!field.name) return;
+                if (field.type === 'checkbox') {
+                    item[field.name] = field.checked ? '1' : '0';
+                    return;
+                }
+                item[field.name] = field.value || '';
             });
             if (item.component_id) data.push(item);
         });
@@ -523,66 +548,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         var meta;
         try { meta = JSON.parse(metaEl.textContent); } catch (e) { return null; }
-        var groupMap = meta.group_map || {};
         var data = [];
-        var gKeys = Array.isArray(meta.group_keys_ordered) && meta.group_keys_ordered.length
-            ? meta.group_keys_ordered
-            : Object.keys(groupMap);
-        gKeys.forEach(function(gix) {
-            var ipl = groupMap[gix];
-            var bnSel = 'lc_selected_component[' + gix + ']';
-            var sel = null;
-            var rAll = root.querySelectorAll('input[type="radio"]');
-            for (var ri = 0; ri < rAll.length; ri++) {
-                if (rAll[ri].name === bnSel && rAll[ri].checked) {
-                    sel = rAll[ri];
-                    break;
-                }
-            }
-            if (!sel) {
-                sel = logCardTabFindByName(root, bnSel);
-            }
-            if (!sel || !sel.value) return;
-            var snEl = logCardTabFindByName(root, 'lc_serial_numbers[' + gix + ']');
-            var asEl = logCardTabFindByName(root, 'lc_assy_serial_numbers[' + gix + ']');
-            var rsEl = logCardTabFindByName(root, 'lc_reasons[' + gix + ']');
+        root.querySelectorAll('.lc-include-checkbox:checked').forEach(function(include) {
+            var tr = include.closest('tr');
+            var componentInput = tr ? tr.querySelector('input[name^="lc_selected_component"]') : null;
+            if (!componentInput || !componentInput.value) return;
+
+            var groupKey = (include && include.dataset.groupKey) || '';
+            var isSeparate = groupKey.indexOf('separate_') === 0;
+            var snEl = groupKey ? logCardTabFindByName(root, 'lc_serial_numbers[' + groupKey + ']') : null;
+            var asEl = groupKey ? logCardTabFindByName(root, 'lc_assy_serial_numbers[' + groupKey + ']') : null;
+            var rsEl = groupKey ? logCardTabFindByName(root, 'lc_reasons[' + groupKey + ']') : null;
             var row = {
-                component_id: sel.value,
-                ipl_group: ipl,
+                component_id: componentInput.value,
+                included: '1',
                 serial_number: snEl ? snEl.value : '',
                 assy_serial_number: asEl ? asEl.value : '',
                 reason: rsEl && rsEl.value ? rsEl.value : '',
                 new_serial_number: ''
             };
-            Object.assign(row, logCardTabAssemblyPayload(logCardTabSelectedAssembly(root, gix, sel.value)));
-            data.push(row);
-        });
-        var sepKeys = [];
-        root.querySelectorAll('input[type="hidden"][name*="separate_"]').forEach(function(inp) {
-            var m = inp.name.match(/lc_selected_component\[(separate_\d+)\]/);
-            if (m && sepKeys.indexOf(m[1]) === -1) sepKeys.push(m[1]);
-        });
-        sepKeys.sort(function(a, b) {
-            var na = parseInt(String(a).replace('separate_', ''), 10);
-            var nb = parseInt(String(b).replace('separate_', ''), 10);
-            return na - nb;
-        });
-        sepKeys.forEach(function(sk) {
-            var hs = logCardTabFindByName(root, 'lc_selected_component[' + sk + ']');
-            if (!hs || !hs.value) return;
-            var snEl = logCardTabFindByName(root, 'lc_serial_numbers[' + sk + ']');
-            var asEl = logCardTabFindByName(root, 'lc_assy_serial_numbers[' + sk + ']');
-            var rsEl = logCardTabFindByName(root, 'lc_reasons[' + sk + ']');
-            var row = {
-                component_id: hs.value,
-                serial_number: snEl ? snEl.value : '',
-                assy_serial_number: asEl ? asEl.value : '',
-                reason: rsEl && rsEl.value ? rsEl.value : '',
-                new_serial_number: ''
-            };
-            if (hs.dataset.unitIndex) row.unit_index = hs.dataset.unitIndex;
-            if (hs.dataset.unitsAssy) row.units_assy = hs.dataset.unitsAssy;
-            Object.assign(row, logCardTabAssemblyPayload(logCardTabSelectedAssembly(root, sk, hs.value)));
+            if (!isSeparate && componentInput.dataset.iplGroup) row.ipl_group = componentInput.dataset.iplGroup;
+            if (componentInput.dataset.unitIndex) row.unit_index = componentInput.dataset.unitIndex;
+            if (componentInput.dataset.unitsAssy) row.units_assy = componentInput.dataset.unitsAssy;
+            Object.assign(row, logCardTabAssemblyPayload(logCardTabSelectedAssemblyInRow(tr, componentInput.value)));
             data.push(row);
         });
         return data.length ? data : null;
@@ -593,18 +581,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         root.querySelectorAll('.lc-assy-choice[data-component-id]').forEach(function(choice) {
             var componentId = choice.dataset.componentId || '';
-            var selector = 'input[name^="lc_selected_component"][value="' + componentId.replace(/"/g, '\\"') + '"]';
-            var componentInput = root.querySelector(selector);
-            var isSelected = !!componentInput && (componentInput.type === 'hidden' || componentInput.checked);
+            var row = choice.closest('tr');
+            var include = row ? row.querySelector('.lc-include-checkbox') : null;
+            var isSelected = !include || include.checked;
 
-            choice.querySelectorAll('.lc-assy-radio').forEach(function(radio) {
-                radio.classList.toggle('d-none', !isSelected);
-            });
-            if (isSelected) {
-                var checked = choice.querySelector('input[type="radio"]:checked');
-                var firstRadio = choice.querySelector('input[type="radio"]');
-                if (!checked && firstRadio) firstRadio.checked = true;
-            }
+            choice.classList.toggle('d-none', !isSelected);
         });
     }
 
@@ -2069,9 +2050,23 @@ document.addEventListener('DOMContentLoaded', function() {
     if (logCardTabBody) {
         logCardTabBody.addEventListener('change', function(e) {
             if (logCardTabIsReadOnly()) return;
-            var componentRadio = e.target.closest && e.target.closest('.lc-comp-radio');
-            if (!componentRadio) return;
-            syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
+            var toggleAll = e.target.closest && e.target.closest('.lc-include-toggle-all');
+            if (toggleAll) {
+                var root = document.getElementById('log-card-partial-shell');
+                if (!root) return;
+                root.querySelectorAll('.lc-include-checkbox, .lc-saved-row input[name="included"]').forEach(function(checkbox) {
+                    if (checkbox.disabled || checkbox.checked === toggleAll.checked) return;
+                    checkbox.checked = toggleAll.checked;
+                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                syncLogCardDraftAssyChoices(root);
+                return;
+            }
+            var includeCheckbox = e.target.closest && e.target.closest('.lc-include-checkbox');
+            if (includeCheckbox) {
+                syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
+                return;
+            }
         });
 
         function logCardPersistInlineSave(field) {
@@ -2081,7 +2076,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             var rowIndex = row.dataset.rowIndex;
             var fieldName = field.name || '';
-            var fieldValue = field.value;
+            var fieldValue = field.type === 'checkbox' ? (field.checked ? '1' : '0') : field.value;
 
             logCardInlineSaveTimer = setTimeout(function() {
                 logCardEnqueueInlineSave(rowIndex, fieldName, fieldValue);

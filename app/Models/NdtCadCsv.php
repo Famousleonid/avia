@@ -7,9 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class NdtCadCsv extends Model
 {
-    // TODO(std-process-cleanup): ndt_cad_csv is still used as the legacy workorder STD
-    // JSON carrier for the TDR STD partial and print forms. Revisit and remove this
-    // table/model after those screens read/write workorder_std_process_items directly.
+    // TODO(ndt_cad_csv): move the remaining STD CSV parsing helpers to a dedicated
+    // importer, then drop this legacy model/table completely.
     protected $table = 'ndt_cad_csv';
 
     protected $fillable = [
@@ -259,78 +258,6 @@ class NdtCadCsv extends Model
         }
     }
 
-    /**
-     * Создать NdtCadCsv для workorder с автоматической загрузкой из Manual CSV
-     */
-    public static function createForWorkorder($workorderId)
-    {
-        $workorder = Workorder::findOrFail($workorderId);
-        $manual = $workorder->unit->manuals;
-
-        $ndtCadCsv = new self([
-            'workorder_id' => $workorderId,
-            'ndt_components' => [],
-            'cad_components' => [],
-            'stress_components' => [],
-            'paint_components' => []
-        ]);
-
-        if ($manual) {
-            $ndtCadCsv->ndt_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
-            $ndtCadCsv->cad_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_CAD);
-            $ndtCadCsv->stress_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_STRESS);
-            $ndtCadCsv->paint_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_PAINT);
-        } else {
-            \Log::warning('No manual found for workorder', ['workorder_id' => $workorderId]);
-        }
-
-        $ndtCadCsv->save();
-
-        return $ndtCadCsv;
-    }
-
-    /**
-     * Загрузить компоненты из Manual CSV в существующую запись
-     */
-    public static function loadComponentsFromManual($workorderId, $ndtCadCsv)
-    {
-        $workorder = Workorder::findOrFail($workorderId);
-        $manual = $workorder->unit->manuals;
-
-        if ($manual) {
-            $ndtCadCsv->ndt_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
-            $ndtCadCsv->cad_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_CAD);
-            $ndtCadCsv->stress_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_STRESS);
-            $ndtCadCsv->paint_components = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_PAINT);
-        }
-
-        $ndtCadCsv->save();
-
-        return $ndtCadCsv;
-    }
-
-    /**
-     * Загрузить компоненты из CSV файла
-     */
-    /**
-     * Keep legacy bucket synchronized from the current reduced workorder STD list.
-     */
-    public static function ensureTypeLoadedForWorkorder(Workorder $workorder, self $ndtCadCsv, string $std): self
-    {
-        StdProcess::assertValidStd($std);
-
-        $field = match ($std) {
-            StdProcess::STD_NDT => 'ndt_components',
-            StdProcess::STD_CAD => 'cad_components',
-            StdProcess::STD_STRESS => 'stress_components',
-            StdProcess::STD_PAINT => 'paint_components',
-        };
-
-        $ndtCadCsv->{$field} = StdProcess::snapshotComponentsForWorkorder($workorder, $std);
-        $ndtCadCsv->save();
-
-        return $ndtCadCsv->refresh();
-    }
 
     public static function loadComponentsFromCsv($csvPath, $type)
     {

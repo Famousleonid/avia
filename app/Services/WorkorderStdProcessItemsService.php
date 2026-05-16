@@ -35,13 +35,19 @@ class WorkorderStdProcessItemsService
             $now = now();
             $insertRows = [];
 
+            StdProcess::syncFromComponentFlagsForManualWhenCountsDiffer($manual);
+
             foreach (StdProcess::validStdValues() as $std) {
-                $manualRowsByComponent = $this->manualStdRowsByComponent((int) $manual->id, $std);
-                $components = $this->flaggedComponentsForStd((int) $manual->id, $std);
+                $manualRows = $this->manualStdRowsForManualStd((int) $manual->id, $std);
+                $flagColumn = $this->componentFlagColumnForStd($std);
                 $sortOrder = 1;
 
-                foreach ($components as $component) {
-                    $manualRow = $manualRowsByComponent->get((int) $component->id);
+                foreach ($manualRows as $manualRow) {
+                    $component = $manualRow->component;
+                    if (! $component || ! (bool) $component->{$flagColumn}) {
+                        continue;
+                    }
+
                     $rowEff = $manualRow->eff_code ?? $component->eff_code;
 
                     if (! StdProcess::stdRowEffMatchesUnit($rowEff, (string) ($workorder->unit->eff_code ?? ''))) {
@@ -64,7 +70,7 @@ class WorkorderStdProcessItemsService
                         'ipl_num' => (string) ($component->ipl_num ?? ''),
                         'part_number' => (string) ($component->part_number ?? ''),
                         'description' => (string) ($component->name ?? ''),
-                        'process' => (string) ($manualRow->process ?? $this->defaultProcessForStd((int) $manual->id, $std)),
+                        'process' => (string) $manualRow->process,
                         'base_qty' => $baseQty,
                         'excluded_qty' => $excludedQty,
                         'remaining_qty' => $remainingQty,
@@ -137,6 +143,11 @@ class WorkorderStdProcessItemsService
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)
             ->all();
+        $missingNecessaryIds = Necessary::query()
+            ->whereRaw('LOWER(name) = ?', ['missing'])
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
         $orderNewNecessaryIds = Necessary::query()
             ->whereRaw('LOWER(name) = ?', ['order new'])
             ->pluck('id')
@@ -147,8 +158,13 @@ class WorkorderStdProcessItemsService
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)
             ->all();
+        $missingCodeIds = Code::query()
+            ->whereRaw('LOWER(name) = ?', ['missing'])
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
 
-        if ($repairNecessaryIds === [] && $orderNewNecessaryIds === [] && $repairCodeIds === []) {
+        if ($repairNecessaryIds === [] && $missingNecessaryIds === [] && $orderNewNecessaryIds === [] && $repairCodeIds === [] && $missingCodeIds === []) {
             return [];
         }
 
@@ -156,15 +172,21 @@ class WorkorderStdProcessItemsService
         Tdr::query()
             ->where('workorder_id', $workorder->id)
             ->whereNotNull('component_id')
-            ->where(function ($query) use ($repairNecessaryIds, $orderNewNecessaryIds, $repairCodeIds): void {
+            ->where(function ($query) use ($repairNecessaryIds, $missingNecessaryIds, $orderNewNecessaryIds, $repairCodeIds, $missingCodeIds): void {
                 if ($repairNecessaryIds !== []) {
                     $query->orWhereIn('necessaries_id', $repairNecessaryIds);
+                }
+                if ($missingNecessaryIds !== []) {
+                    $query->orWhereIn('necessaries_id', $missingNecessaryIds);
                 }
                 if ($orderNewNecessaryIds !== []) {
                     $query->orWhereIn('necessaries_id', $orderNewNecessaryIds);
                 }
                 if ($repairCodeIds !== []) {
                     $query->orWhereIn('codes_id', $repairCodeIds);
+                }
+                if ($missingCodeIds !== []) {
+                    $query->orWhereIn('codes_id', $missingCodeIds);
                 }
             })
             ->get(['component_id', 'qty'])
@@ -178,30 +200,17 @@ class WorkorderStdProcessItemsService
     }
 
     /**
-     * @return Collection<int, Component>
-     */
-    protected function flaggedComponentsForStd(int $manualId, string $std): Collection
-    {
-        return Component::query()
-            ->where('manual_id', $manualId)
-            ->where($this->componentFlagColumnForStd($std), true)
-            ->with('manual:id,number')
-            ->orderBy('id')
-            ->get();
-    }
-
-    /**
      * @return Collection<int, StdProcess>
      */
-    protected function manualStdRowsByComponent(int $manualId, string $std): Collection
+    protected function manualStdRowsForManualStd(int $manualId, string $std): Collection
     {
         return StdProcess::query()
             ->where('manual_id', $manualId)
             ->where('std', $std)
             ->whereNotNull('component_id')
+            ->with('component.manual:id,number')
             ->orderBy('id')
-            ->get()
-            ->keyBy(fn (StdProcess $row): int => (int) $row->component_id);
+            ->get();
     }
 
     protected function baseQty(Component $component, ?StdProcess $manualRow): int

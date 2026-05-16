@@ -3,6 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Manual;
+use App\Models\ManualProcess;
+use App\Models\Component;
+use App\Models\Process;
+use App\Models\ProcessName;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
@@ -140,5 +144,102 @@ class ManualsTest extends TestCase
             'manual_id' => $manual->id,
             'part_number' => 'UNIT-UPDATED-1',
         ]);
+    }
+
+    public function test_system_traveler_process_is_hidden_from_manual_processes(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $travelerName = ProcessName::query()->create([
+            'name' => ProcessName::SYSTEM_TRAVELER_NAME,
+            'process_sheet_name' => 'TRAVELER',
+            'form_number' => 'TRV',
+            'show_in_process_picker' => true,
+        ]);
+        $travelerProcess = Process::query()->create([
+            'process_names_id' => $travelerName->id,
+            'process' => 'Rechrome',
+        ]);
+        ManualProcess::query()->create([
+            'manual_id' => $manual->id,
+            'processes_id' => $travelerProcess->id,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('manuals.show', [
+            'manual' => $manual->id,
+            'tab' => 'processes',
+        ]));
+
+        $response->assertOk();
+        $response->assertDontSee('Rechrome');
+        $response->assertDontSee(ProcessName::SYSTEM_TRAVELER_NAME);
+        $this->assertFalse(ProcessName::forPicker()->whereKey($travelerName->id)->exists());
+    }
+
+    public function test_system_traveler_process_cannot_be_added_to_manual_processes(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $travelerName = ProcessName::query()->create([
+            'name' => ProcessName::SYSTEM_TRAVELER_NAME,
+            'process_sheet_name' => 'TRAVELER',
+            'form_number' => 'TRV',
+            'show_in_process_picker' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('processes.store'), [
+            'manual_id' => $manual->id,
+            'process_names_id' => $travelerName->id,
+            'process' => 'Traveler should not attach',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertDatabaseMissing('processes', [
+            'process_names_id' => $travelerName->id,
+            'process' => 'Traveler should not attach',
+        ]);
+    }
+
+    public function test_manual_parts_sort_ipl_with_section_suffix_naturally(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+
+        foreach (['9A-300', '9A-30', '9A-290'] as $ipl) {
+            Component::query()->create([
+                'manual_id' => $manual->id,
+                'ipl_num' => $ipl,
+                'part_number' => 'PN-' . $ipl,
+                'name' => 'Part ' . $ipl,
+                'units_assy' => 1,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('manuals.show', [
+            'manual' => $manual->id,
+            'tab' => 'parts',
+        ]));
+
+        $response->assertOk();
+        $html = $response->getContent();
+
+        $this->assertLessThan(strpos($html, '>9A-290<'), strpos($html, '>9A-30<'));
+        $this->assertLessThan(strpos($html, '>9A-300<'), strpos($html, '>9A-290<'));
+    }
+
+    public function test_manual_parts_forms_accept_ipl_section_suffix_pattern(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+
+        $response = $this->actingAs($admin)->get(route('manuals.show', [
+            'manual' => $manual->id,
+            'tab' => 'parts',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('pattern="^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$"', false);
+        $response->assertSee('pattern="^$|^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$"', false);
     }
 }

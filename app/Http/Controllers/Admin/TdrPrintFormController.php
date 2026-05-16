@@ -241,13 +241,6 @@ class TdrPrintFormController extends Controller
         $current_wo = Workorder::findOrFail($workorder_id);
         $manual = $current_wo->unit->manuals;
 
-        // Получаем или создаем NdtCadCsv для данного workorder с автоматической загрузкой
-        $ndtCadCsv = $current_wo->ndtCadCsv;
-        if (!$ndtCadCsv) {
-            $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
-        }
-        $ndtCadCsv = NdtCadCsv::ensureTypeLoadedForWorkorder($current_wo, $ndtCadCsv, \App\Models\StdProcess::STD_NDT);
-
         // Получаем ID process names для NDT
         $processNames = ProcessName::whereIn('name', [
             'NDT-1',
@@ -272,55 +265,6 @@ class TdrPrintFormController extends Controller
         $ndt_processes = Process::whereIn('id', $manualProcesses)
             ->whereIn('process_names_id', $ndt_ids)
             ->get();
-
-        $ndtStdQtyMaps = $this->ndtStdExcludedAndTdrQtyByNormalizedIpl($workorder_id);
-        $excludedQtyByIpl = $ndtStdQtyMaps['excluded'];
-        $tdrItemsMap = $ndtStdQtyMaps['tdr'];
-        $unitsAssyByIpl = $this->buildUnitsAssyByNormalizedIplMap($manual);
-
-        // Фильтруем компоненты из NdtCadCsv с учетом remaining quantity
-        $ndt_components = [];
-
-        foreach ($ndtCadCsv->ndt_components as $component) {
-            $iplNum = $component['ipl_num'] ?? '';
-            if (empty($iplNum)) {
-                continue; // Пропускаем компоненты без IPL номера
-            }
-
-            // Нормализуем IPL номер для сравнения
-            $normalizedIpl = $this->normalizeIplNum($iplNum);
-
-            // Получаем данные для расчета
-            $csvQty = (int) ($component['qty'] ?? self::DEFAULT_QTY);
-            $tdrQty = $tdrItemsMap[$normalizedIpl] ?? 0; // Сумма QTY из TDR для этого IPL (нормализованного) БЕЗ статусов Missing, Repair, Order New
-            $excludedQty = $excludedQtyByIpl[$normalizedIpl] ?? 0; // Количество компонентов со статусами Missing, Repair, Order New
-
-            $stdQty = max(1, $csvQty);
-            $unitsAssy = $this->resolveNdtStdUnitsAssyForRow($component, $iplNum, $normalizedIpl, $unitsAssyByIpl);
-            $baseQty = min($stdQty, $unitsAssy);
-            $remaining = $baseQty - $excludedQty - $tdrQty;
-
-            // Если результат <= 0, компонент скрывается
-            if ($remaining <= 0) {
-                continue;
-            }
-
-            // Если результат > 0, показываем с qty = remaining
-            $displayQty = $remaining;
-
-            // Преобразуем в объект для совместимости с существующим кодом
-            $componentObj = new \stdClass();
-            $componentObj->ipl_num = $iplNum;
-            $componentObj->part_number = $component['part_number'] ?? '';
-            $componentObj->name = $component['description'] ?? '';
-            $componentObj->qty = $displayQty; // min(QTY из STD, units_assy) − excluded − tdr
-            $componentObj->process_name = $component['process'] ?? '1';
-            // Добавляем поле manual, если оно есть
-            $componentObj->manual = $component['manual'] ?? null;
-            $componentObj->eff_code = trim((string) ($component['eff_code'] ?? ''));
-
-            $ndt_components[] = $componentObj;
-        }
 
         $ndt_components = $this->stdSnapshotRowsToFormComponents(
             StdProcess::snapshotComponentsForWorkorder($current_wo, StdProcess::STD_NDT)
@@ -355,6 +299,8 @@ class TdrPrintFormController extends Controller
             return $aSecond - $bSecond;
         });
 
+        $ndt_components = $this->sortStdFormComponents($ndt_components);
+
         $form_number = 'NDT-STD';
 
         // Разбиение на страницы теперь происходит на фронтенде через JavaScript
@@ -381,27 +327,6 @@ class TdrPrintFormController extends Controller
                 throw new \RuntimeException('Manual not found for this workorder');
             }
 
-            // Получаем или создаем NdtCadCsv для данного workorder с автоматической загрузкой
-            $ndtCadCsv = $current_wo->ndtCadCsv;
-            if (!$ndtCadCsv) {
-                $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
-            }
-            $ndtCadCsv = NdtCadCsv::ensureTypeLoadedForWorkorder($current_wo, $ndtCadCsv, \App\Models\StdProcess::STD_CAD);
-
-            // Автозагрузка Stress компонентов из Manual CSV при их отсутствии
-//            $stressEmpty = empty($ndtCadCsv->stress_components)
-//                || (is_array($ndtCadCsv->stress_components) && count($ndtCadCsv->stress_components) === 0);
-
-//            if ($stressEmpty) {
-//                // \Log::info('Stress components are empty. Attempting auto-load from Manual CSV', [
-//                    'workorder_id' => $workorder_id,
-//                    'before_count' => is_array($ndtCadCsv->stress_components) ? count($ndtCadCsv->stress_components) : 0,
-//                ]);
-//                $ndtCadCsv = NdtCadCsv::loadComponentsFromManual($workorder_id, $ndtCadCsv);
-//                // \Log::info('Auto-load completed', [
-//                    'after_count' => is_array($ndtCadCsv->stress_components) ? count($ndtCadCsv->stress_components) : 0,
-//                ]);
-//            }
 
             // Получаем ID process names для CAD
             $processNames = ProcessName::whereIn('name', ['Cad plate'])->pluck('id', 'name');
@@ -424,335 +349,6 @@ class TdrPrintFormController extends Controller
                 ->whereIn('process_names_id', $cad_ids)
                 ->get();
 
-            // Получаем существующие IPL номера
-            $existingIplNums = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component')
-                ->get()
-                ->pluck('component.ipl_num')
-                ->filter()
-                ->unique()
-                ->toArray();
-
-            // Получаем все процессы для данного manual и process_name
-            $validProcesses = Process::whereIn('id', $manualProcesses)
-                ->where('process_names_id', $cad_ids['cad_name_id'])
-                ->pluck('process')
-                ->toArray();
-
-            // Подготовка данных TDR и units_assy для расчёта остатков (CAD)
-            $tdrItemsCad = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component:id,ipl_num')
-                ->get()
-                ->map(function ($tdr) {
-                    return [
-                        'ipl_num' => $tdr->component->ipl_num ?? null,
-                        'qty' => (int)($tdr->qty ?? 0),
-                    ];
-                })
-                ->filter(function ($item) {
-                    return !empty($item['ipl_num']) && $item['qty'] > 0;
-                })
-                ->values()
-                ->toArray();
-
-            // Мапа units_assy по IPL из Components всех manuals (с нормализацией IPL)
-            // Приоритет: компоненты из текущего manual
-            // Это необходимо, т.к. в CSV и TDR могут быть компоненты из других manuals
-            $unitsAssyByIplCad = [];
-
-            // Получаем все компоненты, сортируя так, чтобы сначала шли компоненты из текущего manual
-            $allComponentsCad = Component::select('ipl_num', 'units_assy', 'manual_id')
-                ->orderByRaw("CASE WHEN manual_id = ? THEN 0 ELSE 1 END", [$manual->id])
-                ->get();
-
-            foreach ($allComponentsCad as $component) {
-                if ($component->ipl_num) {
-                    $normalizedIpl = $this->normalizeIplNum($component->ipl_num);
-                    if (!empty($normalizedIpl)) {
-                        // Добавляем только если еще нет в мапе
-                        // Благодаря сортировке, компоненты из текущего manual будут добавлены первыми
-                        if (!isset($unitsAssyByIplCad[$normalizedIpl])) {
-                            $num = (int)($component->units_assy ?? 1);
-                            $unitsAssy = $num > 0 ? $num : 1;
-                            $unitsAssyByIplCad[$normalizedIpl] = $unitsAssy;
-                        }
-                    }
-                }
-            }
-
-            // Получаем количество компонентов со статусами Missing, Repair, Order New
-            // Создаем мапу excludedQtyByIplCad - количество исключенных компонентов по IPL
-            $excludedQtyByIplCad = [];
-
-            // Получаем ID для Missing, Repair, Order New
-            // Missing - в таблице codes
-            $missingCode = Code::where('name', 'Missing')->first();
-
-            // Repair - в таблице necessaries (ID = 1)
-            $repairNecessary = Necessary::find(1);
-            if (!$repairNecessary || stripos($repairNecessary->name, 'repair') === false) {
-                // Пробуем найти по имени
-                $repairNecessary = Necessary::where('name', 'Repair')->first();
-                if (!$repairNecessary) {
-                    $repairNecessary = Necessary::where('name', 'REPAIR')->first();
-                }
-                if (!$repairNecessary) {
-                    $repairNecessary = Necessary::where('name', 'repair')->first();
-                }
-            }
-
-            // Order New - в таблице necessaries (ID = 2)
-            $orderNewNecessary = Necessary::find(2);
-            if (!$orderNewNecessary || stripos($orderNewNecessary->name, 'order') === false) {
-                // Пробуем найти по имени
-                $orderNewNecessary = Necessary::where('name', 'Order New')->first();
-            }
-
-            // \Log::info('CAD Filtering - Codes and Necessaries', [
-            //     'missing_code_id' => $missingCode ? $missingCode->id : null,
-            //     'missing_code_name' => $missingCode ? $missingCode->name : null,
-            //     'repair_necessary_id' => $repairNecessary ? $repairNecessary->id : null,
-            //     'repair_necessary_name' => $repairNecessary ? $repairNecessary->name : null,
-            //     'order_new_necessary_id' => $orderNewNecessary ? $orderNewNecessary->id : null,
-            //     'order_new_necessary_name' => $orderNewNecessary ? $orderNewNecessary->name : null,
-            // ]);
-
-            // Получаем TDR записи с этими статусами
-            $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component:id,ipl_num');
-
-            $excludedConditions = [];
-            if ($missingCode) {
-                $excludedConditions[] = ['codes_id', $missingCode->id];
-            }
-            if ($repairNecessary) {
-                $excludedConditions[] = ['necessaries_id', $repairNecessary->id];
-            }
-            if ($orderNewNecessary) {
-                $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
-            }
-
-            // \Log::info('CAD Filtering - Excluded conditions', [
-            //     'conditions_count' => count($excludedConditions),
-            //     'conditions' => $excludedConditions
-            // ]);
-
-            if (!empty($excludedConditions)) {
-                $excludedTdrQuery->where(function($query) use ($excludedConditions) {
-                    foreach ($excludedConditions as $condition) {
-                        $query->orWhere($condition[0], $condition[1]);
-                    }
-                });
-
-                $excludedTdrs = $excludedTdrQuery->get();
-                // \Log::info('CAD Filtering - Excluded TDRs found', [
-                //     'count' => $excludedTdrs->count(),
-                //     'tdrs' => $excludedTdrs->map(function($tdr) {
-                //         $code = $tdr->codes_id ? Code::find($tdr->codes_id) : null;
-                //         $necessary = $tdr->necessaries_id ? Necessary::find($tdr->necessaries_id) : null;
-                //         return [
-                //             'id' => $tdr->id,
-                //             'ipl_num' => $tdr->component->ipl_num ?? null,
-                //             'codes_id' => $tdr->codes_id,
-                //             'code_name' => $code ? $code->name : null,
-                //             'necessaries_id' => $tdr->necessaries_id,
-                //             'necessary_name' => $necessary ? $necessary->name : null,
-                //             'qty' => $tdr->qty ?? 0,
-                //         ];
-                //     })->toArray()
-                // ]);
-
-                foreach ($excludedTdrs as $tdr) {
-                    if ($tdr->component && $tdr->component->ipl_num) {
-                        // Нормализуем IPL номер для сравнения (убираем буквенные суффиксы)
-                        $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
-                        if (!empty($normalizedIpl)) {
-                            // Суммируем количество исключенных компонентов
-                            if (!isset($excludedQtyByIplCad[$normalizedIpl])) {
-                                $excludedQtyByIplCad[$normalizedIpl] = 0;
-                            }
-                            $excludedQtyByIplCad[$normalizedIpl] += (int)($tdr->qty ?? 0);
-                        }
-                    }
-                }
-
-                // \Log::info('CAD Filtering - Excluded QTY by IPL', [
-                //     'excluded_qty_count' => count($excludedQtyByIplCad),
-                //     'excluded_qty_by_ipl' => $excludedQtyByIplCad
-                // ]);
-            } else {
-                // \Log::warning('CAD Filtering - No excluded conditions found!', [
-                //     'missing_code' => $missingCode ? $missingCode->id : null,
-                //     'repair_necessary' => $repairNecessary ? $repairNecessary->id : null,
-                //     'order_new' => $orderNewNecessary ? $orderNewNecessary->id : null,
-                // ]);
-            }
-
-            // Создаем мапу TDR items по IPL для быстрого поиска (с нормализацией)
-            // ВАЖНО: учитываем только TDR записи БЕЗ статусов Missing, Repair, Order New
-            $tdrItemsMapCad = [];
-            foreach ($tdrItemsCad as $item) {
-                $iplNum = $item['ipl_num'];
-                // Нормализуем IPL номер для группировки
-                $normalizedIpl = $this->normalizeIplNum($iplNum);
-                if (!empty($normalizedIpl)) {
-                    // Пропускаем компоненты со статусами Missing, Repair, Order New
-                    // (они уже учтены в excludedQtyByIplCad)
-                    if (isset($excludedQtyByIplCad[$normalizedIpl])) {
-                        continue;
-                    }
-
-                    if (!isset($tdrItemsMapCad[$normalizedIpl])) {
-                        $tdrItemsMapCad[$normalizedIpl] = 0;
-                    }
-                    $tdrItemsMapCad[$normalizedIpl] += $item['qty'];
-                }
-            }
-
-            // Фильтруем компоненты из NdtCadCsv
-            $cad_components = [];
-            foreach ($ndtCadCsv->cad_components as $component) {
-                $itemNo = $component['ipl_num'];
-                $processName = $component['process'] ?? '';
-
-                // Нормализуем IPL номер для сравнения
-                $normalizedIpl = $this->normalizeIplNum($itemNo);
-
-                // Логируем компоненты, которые проходят фильтрацию (для отладки)
-                if (stripos($itemNo, '5-90') !== false) {
-                    // \Log::info('CAD Filtering - Component NOT excluded (5-90 variant)', [
-                    //     'ipl_num' => $itemNo,
-                    //     'normalized_ipl' => $normalizedIpl,
-                    //     'in_excluded_list' => isset($excludedQtyByIplCad[$normalizedIpl]),
-                    //     'excluded_qty' => $excludedQtyByIplCad[$normalizedIpl] ?? 0,
-                    //     'excluded_ipls' => array_keys($excludedQtyByIplCad)
-                    // ]);
-                }
-
-                // Проверяем и создаем процесс, если его нет
-                if (!empty($processName)) {
-                    // Проверяем существование процесса
-                    $process = Process::where('process', $processName)
-                        ->where('process_names_id', $cad_ids['cad_name_id'])
-                        ->first();
-
-                    if (!$process) {
-                        // Создаем новый процесс
-                        $process = Process::create([
-                            'process' => $processName,
-                            'process_names_id' => $cad_ids['cad_name_id']
-                        ]);
-                        // \Log::info('Created new process:', ['process' => $processName]);
-                    }
-
-                    // Проверяем привязку к manual
-                    $manualProcess = ManualProcess::where('manual_id', $manual->id)
-                        ->where('processes_id', $process->id)
-                        ->first();
-
-                    if (!$manualProcess) {
-                        // Создаем привязку к manual
-                        ManualProcess::create([
-                            'manual_id' => $manual->id,
-                            'processes_id' => $process->id
-                        ]);
-                        // \Log::info('Created manual-process binding:', [
-                        //     'manual_id' => $manual->id,
-                        //     'process_id' => $process->id
-                        // ]);
-                    }
-
-                    // Обновляем список валидных процессов
-                    $validProcesses[] = $processName;
-                }
-
-                if (!in_array($processName, $validProcesses)) {
-                    // \Log::warning('Invalid process found in ModCsv:', [
-                    //     'process' => $processName,
-                    //     'item_no' => $itemNo,
-                    //     'valid_processes' => $validProcesses
-                    // ]);
-                    continue;
-                }
-
-                // Получаем данные для расчета
-                $csvQty = (int)($component['qty'] ?? self::DEFAULT_QTY);
-                $tdrQty = $tdrItemsMapCad[$normalizedIpl] ?? 0; // Сумма QTY из TDR для этого IPL (нормализованного) БЕЗ статусов Missing, Repair, Order New
-                $excludedQty = $excludedQtyByIplCad[$normalizedIpl] ?? 0; // Количество компонентов со статусами Missing, Repair, Order New
-
-                // Определяем units_assy: если в CSV есть поле manual (manual->number),
-                // ищем компонент в соответствующем manual, иначе используем общую мапу
-                $unitsAssy = 1;
-                if (!empty($component['manual'])) {
-                    // Ищем manual по number из CSV (например, "32-11-12")
-                    $componentManual = Manual::where('number', $component['manual'])->first();
-                    if ($componentManual) {
-                        // Ищем компонент в этом manual
-                        $componentRecord = Component::where('manual_id', $componentManual->id)
-                            ->where('ipl_num', $itemNo)
-                            ->first();
-                        if ($componentRecord && $componentRecord->units_assy) {
-                            $num = (int)$componentRecord->units_assy;
-                            $unitsAssy = $num > 0 ? $num : 1;
-                        } else {
-                            // Если не найдено в указанном manual, используем общую мапу
-                            $unitsAssy = $unitsAssyByIplCad[$normalizedIpl] ?? 1;
-                        }
-                    } else {
-                        // Если manual не найден, используем общую мапу
-                        $unitsAssy = $unitsAssyByIplCad[$normalizedIpl] ?? 1;
-                    }
-                } else {
-                    // Если поле manual отсутствует, используем общую мапу
-                    $unitsAssy = $unitsAssyByIplCad[$normalizedIpl] ?? 1;
-                }
-
-                // Логика для CAD (после фильтрации по Missing, Repair, Order New):
-                // 1. Вычитаем из unitsAssy количество исключенных компонентов (Missing, Repair, Order New)
-                // 2. Затем вычитаем количество компонентов из TDR (без статусов Missing/Repair/Order New)
-                // 3. Если результат <= 0, компонент скрывается
-                // 4. Если результат > 0, показываем с qty = результат
-
-                // Пример: unitsAssy = 4, excludedQty = 2 (Missing), tdrQty = 0
-                // remaining = 4 - 2 - 0 = 2 → показываем с qty = 2
-
-                // Пример: unitsAssy = 4, excludedQty = 0, tdrQty = 4
-                // remaining = 4 - 0 - 4 = 0 → скрываем
-
-                // Пример: unitsAssy = 4, excludedQty = 2 (Missing), tdrQty = 1
-                // remaining = 4 - 2 - 1 = 1 → показываем с qty = 1
-
-                $remaining = $unitsAssy - $excludedQty - $tdrQty;
-
-                // Если результат <= 0, компонент скрывается
-                if ($remaining <= 0) {
-                    continue;
-                }
-
-                // Если результат > 0, показываем с qty = remaining
-                $displayQty = $remaining;
-
-                // Пропускаем компоненты с qty <= 0
-                if ($displayQty <= 0) {
-                    continue;
-                }
-
-                // Преобразуем в объект для совместимости с существующим кодом
-                $componentObj = new \stdClass();
-                $componentObj->ipl_num = $component['ipl_num'];
-                $componentObj->part_number = $component['part_number'] ?? '';
-                $componentObj->name = $component['description'] ?? '';
-                $componentObj->qty = $displayQty;
-                $componentObj->process_name = $processName;
-                // Добавляем поле manual, если оно есть
-                $componentObj->manual = $component['manual'] ?? null;
-                $componentObj->eff_code = trim((string) ($component['eff_code'] ?? ''));
-
-                $cad_components[] = $componentObj;
-            }
 
             $cad_components = $this->stdSnapshotRowsToFormComponents(
                 StdProcess::snapshotComponentsForWorkorder($current_wo, StdProcess::STD_CAD)
@@ -786,6 +382,8 @@ class TdrPrintFormController extends Controller
 
                 return $aSecond - $bSecond;
             });
+
+            $cad_components = $this->sortStdFormComponents($cad_components);
 
             $form_number = 'CAD-STD';
 
@@ -959,6 +557,8 @@ class TdrPrintFormController extends Controller
             });
 
             // Генерируем номер формы
+            $paint_components = $this->sortStdFormComponents($paint_components);
+
             $form_number = '014';
 
             // Рассчитываем общее количество деталей
@@ -1008,6 +608,29 @@ class TdrPrintFormController extends Controller
         }, $rows));
     }
 
+    /**
+     * @param  array<int, \stdClass>  $components
+     * @return array<int, \stdClass>
+     */
+    private function sortStdFormComponents(array $components): array
+    {
+        usort($components, function (\stdClass $a, \stdClass $b): int {
+            $manualCompare = strnatcasecmp((string) ($a->manual ?? ''), (string) ($b->manual ?? ''));
+            if ($manualCompare !== 0) {
+                return $manualCompare;
+            }
+
+            $iplCompare = StdProcess::compareIplValues($a->ipl_num ?? '', $b->ipl_num ?? '');
+            if ($iplCompare !== 0) {
+                return $iplCompare;
+            }
+
+            return strnatcasecmp((string) ($a->part_number ?? ''), (string) ($b->part_number ?? ''));
+        });
+
+        return $components;
+    }
+
     private function buildStdProcessSheetTablePages(array $components, int $rowsPerPage): array
     {
         $rowsPerPage = max(1, min(99, $rowsPerPage));
@@ -1053,13 +676,6 @@ class TdrPrintFormController extends Controller
                 throw new \RuntimeException('Manual not found for this workorder');
             }
 
-            // Получаем или создаем NdtCadCsv для данного workorder с автоматической загрузкой
-            $ndtCadCsv = $current_wo->ndtCadCsv;
-            if (!$ndtCadCsv) {
-                $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
-            }
-            $ndtCadCsv = NdtCadCsv::ensureTypeLoadedForWorkorder($current_wo, $ndtCadCsv, \App\Models\StdProcess::STD_STRESS);
-
             // Получаем ID process names для Stress (Bake Stress Realive)
             $processNames = ProcessName::where('id', 3)->pluck('id', 'name');
 
@@ -1081,283 +697,6 @@ class TdrPrintFormController extends Controller
                 ->whereIn('process_names_id', $stress_ids)
                 ->get();
 
-            // Получаем существующие IPL номера
-            $existingIplNums = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component')
-                ->get()
-                ->pluck('component.ipl_num')
-                ->filter()
-                ->unique()
-                ->toArray();
-
-            // Получаем все процессы для данного manual и process_name
-            $validProcesses = Process::whereIn('id', $manualProcesses)
-                ->where('process_names_id', $stress_ids['stress_name_id'])
-                ->pluck('process')
-                ->toArray();
-
-            // Подготовка данных TDR и units_assy для расчёта остатков (STRESS)
-            $tdrItemsStress = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component:id,ipl_num')
-                ->get()
-                ->map(function ($tdr) {
-                    return [
-                        'ipl_num' => $tdr->component->ipl_num ?? null,
-                        'qty' => (int)($tdr->qty ?? 0),
-                    ];
-                })
-                ->filter(function ($item) {
-                    return !empty($item['ipl_num']) && $item['qty'] > 0;
-                })
-                ->values()
-                ->toArray();
-
-            // Мапа units_assy по IPL из Components всех manuals (с нормализацией IPL)
-            // Приоритет: компоненты из текущего manual
-            // Это необходимо, т.к. в CSV и TDR могут быть компоненты из других manuals
-            $unitsAssyByIplStress = [];
-
-            // Получаем все компоненты, сортируя так, чтобы сначала шли компоненты из текущего manual
-            $allComponentsStress = Component::select('ipl_num', 'units_assy', 'manual_id')
-                ->orderByRaw("CASE WHEN manual_id = ? THEN 0 ELSE 1 END", [$manual->id])
-                ->get();
-
-            foreach ($allComponentsStress as $component) {
-                if ($component->ipl_num) {
-                    $normalizedIpl = $this->normalizeIplNum($component->ipl_num);
-                    if (!empty($normalizedIpl)) {
-                        // Добавляем только если еще нет в мапе
-                        // Благодаря сортировке, компоненты из текущего manual будут добавлены первыми
-                        if (!isset($unitsAssyByIplStress[$normalizedIpl])) {
-                            $num = (int)($component->units_assy ?? 1);
-                            $unitsAssy = $num > 0 ? $num : 1;
-                            $unitsAssyByIplStress[$normalizedIpl] = $unitsAssy;
-                        }
-                    }
-                }
-            }
-
-            // Получаем количество компонентов со статусами Missing, Order New
-            // Создаем мапу excludedQtyByIplStress - количество исключенных компонентов по IPL
-            // ВАЖНО: Repair НЕ исключаем для Stress
-            $excludedQtyByIplStress = [];
-
-            // Получаем ID для Missing и Order New (Repair НЕ исключаем)
-            $missingCode = Code::where('name', 'Missing')->first();
-            $orderNewNecessary = Necessary::where('name', 'Order New')->first();
-
-            // Получаем TDR записи с этими статусами
-            $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component:id,ipl_num');
-
-            $excludedConditions = [];
-            if ($missingCode) {
-                $excludedConditions[] = ['codes_id', $missingCode->id];
-            }
-            // Repair НЕ добавляем в исключения для Stress
-            if ($orderNewNecessary) {
-                $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
-            }
-
-            if (!empty($excludedConditions)) {
-                $excludedTdrQuery->where(function($query) use ($excludedConditions) {
-                    foreach ($excludedConditions as $condition) {
-                        $query->orWhere($condition[0], $condition[1]);
-                    }
-                });
-
-                $excludedTdrs = $excludedTdrQuery->get();
-                // \Log::info('Stress Filtering - Excluded TDRs found', [
-                //     'count' => $excludedTdrs->count(),
-                //     'tdrs' => $excludedTdrs->map(function($tdr) {
-                //         $code = $tdr->codes_id ? Code::find($tdr->codes_id) : null;
-                //         $necessary = $tdr->necessaries_id ? Necessary::find($tdr->necessaries_id) : null;
-                //         return [
-                //             'id' => $tdr->id,
-                //             'ipl_num' => $tdr->component->ipl_num ?? null,
-                //             'codes_id' => $tdr->codes_id,
-                //             'code_name' => $code ? $code->name : null,
-                //             'necessaries_id' => $tdr->necessaries_id,
-                //             'necessary_name' => $necessary ? $necessary->name : null,
-                //             'qty' => $tdr->qty ?? 0,
-                //         ];
-                //     })->toArray()
-                // ]);
-
-                foreach ($excludedTdrs as $tdr) {
-                    if ($tdr->component && $tdr->component->ipl_num) {
-                        // Нормализуем IPL номер для сравнения (убираем буквенные суффиксы)
-                        $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
-                        if (!empty($normalizedIpl)) {
-                            // Суммируем количество исключенных компонентов
-                            if (!isset($excludedQtyByIplStress[$normalizedIpl])) {
-                                $excludedQtyByIplStress[$normalizedIpl] = 0;
-                            }
-                            $excludedQtyByIplStress[$normalizedIpl] += (int)($tdr->qty ?? 0);
-                        }
-                    }
-                }
-
-                // \Log::info('Stress Filtering - Excluded QTY by IPL', [
-                //     'excluded_qty_count' => count($excludedQtyByIplStress),
-                //     'excluded_qty_by_ipl' => $excludedQtyByIplStress
-                // ]);
-            }
-
-            // Создаем мапу TDR items по IPL для быстрого поиска (с нормализацией)
-            // ВАЖНО: учитываем только TDR записи БЕЗ статусов Missing, Order New
-            $tdrItemsMapStress = [];
-            foreach ($tdrItemsStress as $item) {
-                $iplNum = $item['ipl_num'];
-                // Нормализуем IPL номер для группировки
-                $normalizedIpl = $this->normalizeIplNum($iplNum);
-                if (!empty($normalizedIpl)) {
-                    // Пропускаем компоненты со статусами Missing, Order New
-                    // (они уже учтены в excludedQtyByIplStress)
-                    if (isset($excludedQtyByIplStress[$normalizedIpl])) {
-                        continue;
-                    }
-
-                    if (!isset($tdrItemsMapStress[$normalizedIpl])) {
-                        $tdrItemsMapStress[$normalizedIpl] = 0;
-                    }
-                    $tdrItemsMapStress[$normalizedIpl] += $item['qty'];
-                }
-            }
-
-            // Фильтруем компоненты из NdtCadCsv
-            $stress_components = [];
-            foreach ($ndtCadCsv->stress_components as $component) {
-                $itemNo = $component['ipl_num'];
-                $processName = $component['process'] ?? '';
-
-                // Нормализуем IPL номер для сравнения
-                $normalizedIpl = $this->normalizeIplNum($itemNo);
-
-                // Проверяем и создаем процесс, если его нет
-                if (!empty($processName)) {
-                    // Проверяем существование процесса
-                    $process = Process::where('process', $processName)
-                        ->where('process_names_id', $stress_ids['stress_name_id'])
-                        ->first();
-
-                    if (!$process) {
-                        // Создаем новый процесс
-                        $process = Process::create([
-                            'process' => $processName,
-                            'process_names_id' => $stress_ids['stress_name_id']
-                        ]);
-                        // \Log::info('Created new stress process:', ['process' => $processName]);
-                    }
-
-                    // Проверяем привязку к manual
-                    $manualProcess = ManualProcess::where('manual_id', $manual->id)
-                        ->where('processes_id', $process->id)
-                        ->first();
-
-                    if (!$manualProcess) {
-                        // Создаем привязку к manual
-                        ManualProcess::create([
-                            'manual_id' => $manual->id,
-                            'processes_id' => $process->id
-                        ]);
-                        // \Log::info('Created manual-stress process binding:', [
-                        //     'manual_id' => $manual->id,
-                        //     'process_id' => $process->id
-                        // ]);
-                    }
-
-                    // Обновляем список валидных процессов
-                    $validProcesses[] = $processName;
-                }
-
-                if (!in_array($processName, $validProcesses)) {
-                    // \Log::warning('Invalid stress process found in ModCsv:', [
-                    //     'process' => $processName,
-                    //     'item_no' => $itemNo,
-                    //     'valid_processes' => $validProcesses
-                    // ]);
-                    continue;
-                }
-
-                // Получаем данные для расчета
-                $csvQty = (int)($component['qty'] ?? self::DEFAULT_QTY);
-                $tdrQty = $tdrItemsMapStress[$normalizedIpl] ?? 0; // Сумма QTY из TDR для этого IPL (нормализованного) БЕЗ статусов Missing, Order New
-                $excludedQty = $excludedQtyByIplStress[$normalizedIpl] ?? 0; // Количество компонентов со статусами Missing, Order New
-
-                // Определяем units_assy: если в CSV есть поле manual (manual->number),
-                // ищем компонент в соответствующем manual, иначе используем общую мапу
-                $unitsAssy = 1;
-                if (!empty($component['manual'])) {
-                    // Ищем manual по number из CSV (например, "32-11-12")
-                    $componentManual = Manual::where('number', $component['manual'])->first();
-                    if ($componentManual) {
-                        // Ищем компонент в этом manual
-                        $componentRecord = Component::where('manual_id', $componentManual->id)
-                            ->where('ipl_num', $itemNo)
-                            ->first();
-                        if ($componentRecord && $componentRecord->units_assy) {
-                            $num = (int)$componentRecord->units_assy;
-                            $unitsAssy = $num > 0 ? $num : 1;
-                        } else {
-                            // Если не найдено в указанном manual, используем общую мапу
-                            $unitsAssy = $unitsAssyByIplStress[$normalizedIpl] ?? 1;
-                        }
-                    } else {
-                        // Если manual не найден, используем общую мапу
-                        $unitsAssy = $unitsAssyByIplStress[$normalizedIpl] ?? 1;
-                    }
-                } else {
-                    // Если поле manual отсутствует, используем общую мапу
-                    $unitsAssy = $unitsAssyByIplStress[$normalizedIpl] ?? 1;
-                }
-
-                // Логика для Stress (после фильтрации по Missing, Order New, БЕЗ Repair):
-                // 1. Вычитаем из unitsAssy количество исключенных компонентов (Missing, Order New)
-                // 2. Затем вычитаем количество компонентов из TDR (без статусов Missing/Order New)
-                // 3. Если результат <= 0, компонент скрывается
-                // 4. Если результат > 0, показываем с qty = результат
-
-                // Пример: unitsAssy = 4, excludedQty = 2 (Missing), tdrQty = 0
-                // remaining = 4 - 2 - 0 = 2 → показываем с qty = 2
-
-                // Пример: unitsAssy = 4, excludedQty = 0, tdrQty = 4
-                // remaining = 4 - 0 - 4 = 0 → скрываем
-
-                // Пример: unitsAssy = 4, excludedQty = 2 (Missing), tdrQty = 1
-                // remaining = 4 - 2 - 1 = 1 → показываем с qty = 1
-
-                $remaining = $unitsAssy - $excludedQty - $tdrQty;
-
-                // Если результат <= 0, компонент скрывается
-                if ($remaining <= 0) {
-                    continue;
-                }
-
-                // Если результат > 0, показываем с qty = remaining
-                $displayQty = $remaining;
-
-                // Пропускаем компоненты с qty <= 0
-                if ($displayQty <= 0) {
-                    continue;
-                }
-
-                // Преобразуем в объект для совместимости с существующим кодом
-                $componentObj = new \stdClass();
-                $componentObj->ipl_num = $component['ipl_num'];
-                $componentObj->part_number = $component['part_number'] ?? '';
-                $componentObj->name = $component['description'] ?? '';
-                $componentObj->qty = $displayQty;
-                $componentObj->process_name = $processName;
-                // Добавляем поле manual, если оно есть
-                $componentObj->manual = $component['manual'] ?? null;
-                $componentObj->eff_code = trim((string) ($component['eff_code'] ?? ''));
-
-                $stress_components[] = $componentObj;
-            }
 
             $stress_components = $this->stdSnapshotRowsToFormComponents(
                 StdProcess::snapshotComponentsForWorkorder($current_wo, StdProcess::STD_STRESS)
@@ -1391,6 +730,8 @@ class TdrPrintFormController extends Controller
 
                 return $aSecond - $bSecond;
             });
+
+            $stress_components = $this->sortStdFormComponents($stress_components);
 
             $form_number = 'STRESS-STD';
 
@@ -2315,18 +1656,7 @@ class TdrPrintFormController extends Controller
             // Получение данных из таблицы ndt_cad_csv
             $ndtCadCsv = $current_wo->ndtCadCsv;
             if (!$ndtCadCsv) {
-                // \Log::info('NdtCadCsv not found for workorder, creating new record', [
-                //     'workorder_id' => $workorder_id,
-                //     'workorder_number' => $current_wo->number ?? 'unknown'
-                // ]);
-
-                // Создаем новую запись NdtCadCsv с автоматической загрузкой из Manual
-                $ndtCadCsv = NdtCadCsv::createForWorkorder($workorder_id);
-
-                if (!$ndtCadCsv) {
-                    // \Log::warning('Failed to create NdtCadCsv record', ['workorder_id' => $workorder_id]);
-                    return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
-                }
+                return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
             }
 
             // \Log::info('Found NdtCadCsv record', [

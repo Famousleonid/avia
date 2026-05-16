@@ -69,22 +69,46 @@ class StdProcess extends Model
         }
     }
 
+    public static function iplSortKey(?string $ipl): array
+    {
+        $value = trim((string) ($ipl ?? ''));
+
+        if (! preg_match('/^(\d+)([A-Za-z]*)-(\d+)([A-Za-z0-9]*)$/', $value, $matches)) {
+            return [1, 0, '', 0, strtoupper($value)];
+        }
+
+        return [
+            0,
+            (int) $matches[1],
+            strtoupper($matches[2] ?? ''),
+            (int) $matches[3],
+            strtoupper($matches[4] ?? ''),
+        ];
+    }
+
+    public static function compareIplValues(?string $left, ?string $right): int
+    {
+        return self::iplSortKey($left) <=> self::iplSortKey($right);
+    }
+
     /**
-     * Numeric key for sorting IPL in natural order (1-10, 1-20, 1-20A), same as Parts on manuals.show.
+     * Legacy numeric rank. Prefer compareIplValues()/iplSortKey() for new sorting.
      */
     public static function iplNumSortRank(?string $ipl): int
     {
-        $ipl = (string) ($ipl ?? '');
-        if (! preg_match('/^(\d+)-(\d+)([A-Za-z]?)$/', $ipl, $m)) {
+        $key = self::iplSortKey($ipl);
+
+        if (($key[0] ?? 1) !== 0) {
             return PHP_INT_MAX;
         }
 
-        $section = (int) $m[1];
-        $number = (int) $m[2];
-        $suffix = strtoupper($m[3] ?? '');
-        $suffixVal = $suffix === '' ? 0 : (ord($suffix) - 64);
+        $sectionSuffix = (string) ($key[2] ?? '');
+        $itemSuffix = (string) ($key[4] ?? '');
 
-        return $section * 1_000_000 + $number * 100 + $suffixVal;
+        return ((int) $key[1]) * 1_000_000_000
+            + ($sectionSuffix !== '' ? (ord($sectionSuffix[0]) - 64) : 0) * 10_000_000
+            + ((int) $key[3]) * 1_000
+            + ($itemSuffix !== '' ? (ord($itemSuffix[0]) - 64) : 0);
     }
 
     /**
@@ -271,11 +295,12 @@ class StdProcess extends Model
     /**
      * Уже есть строка с тем же типом STD и той же деталью (IPL + Part №) для данного мануала.
      */
-    public static function rowExistsForComponentStd(int $componentId, string $std): bool
+    public static function rowExistsForComponentStd(int $manualId, int $componentId, string $std): bool
     {
         self::assertValidStd($std);
 
         return self::query()
+            ->where('manual_id', $manualId)
             ->where('component_id', $componentId)
             ->where('std', $std)
             ->exists();
@@ -660,17 +685,12 @@ class StdProcess extends Model
                 return $manualCompare;
             }
 
-            $aParts = explode('-', (string) ($a['ipl_num'] ?? ''));
-            $bParts = explode('-', (string) ($b['ipl_num'] ?? ''));
-            $aFirst = (int) ($aParts[0] ?? 0);
-            $bFirst = (int) ($bParts[0] ?? 0);
-            if ($aFirst !== $bFirst) {
-                return $aFirst - $bFirst;
+            $iplCompare = self::compareIplValues((string) ($a['ipl_num'] ?? ''), (string) ($b['ipl_num'] ?? ''));
+            if ($iplCompare !== 0) {
+                return $iplCompare;
             }
-            $aSecond = (int) ($aParts[1] ?? 0);
-            $bSecond = (int) ($bParts[1] ?? 0);
 
-            return $aSecond - $bSecond;
+            return strnatcasecmp((string) ($a['part_number'] ?? ''), (string) ($b['part_number'] ?? ''));
         });
 
         return $rows;
@@ -697,6 +717,9 @@ class StdProcess extends Model
                 ->where('manual_id', $manual->id)
                 ->where('std', $std)
                 ->whereNotNull('component_id')
+                ->whereHas('component', function ($query) use ($manual): void {
+                    $query->where('manual_id', $manual->id);
+                })
                 ->count();
 
             if ($flaggedCount !== $stdCount) {
@@ -726,9 +749,11 @@ class StdProcess extends Model
                 ->where('manual_id', $manual->id)
                 ->where('std', $std)
                 ->whereNotNull('component_id')
+                ->with('component:id,manual_id')
                 ->get()
-                ->each(function (self $row) use ($flaggedKeys): void {
-                    if (! $flaggedKeys->has((int) $row->component_id)) {
+                ->each(function (self $row) use ($flaggedKeys, $manual): void {
+                    if ((int) ($row->component?->manual_id ?? 0) === (int) $manual->id
+                        && ! $flaggedKeys->has((int) $row->component_id)) {
                         $row->delete();
                     }
                 });
@@ -741,11 +766,11 @@ class StdProcess extends Model
 
                 self::query()->firstOrCreate(
                     [
+                        'manual_id' => $manual->id,
                         'component_id' => $component->id,
                         'std' => $std,
                     ],
                     [
-                        'manual_id' => $manual->id,
                         'process' => self::defaultProcessForFlagSnapshot((int) $manual->id, $std),
                         'qty' => max(1, (int) ($component->units_assy ?? 1)),
                         'eff_code' => self::normalizeEffCodeForStorage($component->eff_code),

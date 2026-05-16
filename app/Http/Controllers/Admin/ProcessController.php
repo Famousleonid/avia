@@ -94,6 +94,18 @@ class ProcessController extends Controller
 
         $manual = Manual::findOrFail((int) $validated['manual_id']);
         $processName = ProcessName::findOrFail((int) $validated['process_names_id']);
+        if ($processName->name === ProcessName::SYSTEM_TRAVELER_NAME) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Traveler is a system process and cannot be added to manual processes.',
+                ], 422);
+            }
+
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Traveler is a system process and cannot be added to manual processes.');
+        }
         // Проверяем, какой сценарий используется
         if ($request->has('selected_process_id') && $request->selected_process_id) {
             // Сценарий 1: Выбор существующего процесса
@@ -296,6 +308,9 @@ class ProcessController extends Controller
         $processes = Process::all();
         $man_processes = ManualProcess::query()
             ->where('manual_id', $id)
+            ->whereDoesntHave('process.process_name', function ($query) {
+                $query->where('name', ProcessName::SYSTEM_TRAVELER_NAME);
+            })
             ->with(['process.process_name', 'lockedBy'])
             ->get();
         $processNameLocks = ManualProcessNameLock::query()

@@ -72,6 +72,7 @@ class ComponentObserver
     protected function syncStdRow(Component $component, string $std): void
     {
         $stdProcess = StdProcess::query()->firstOrNew([
+            'manual_id' => $component->manual_id,
             'component_id' => $component->id,
             'std' => $std,
         ]);
@@ -80,7 +81,6 @@ class ComponentObserver
             $stdProcess->process = $this->defaultProcess((int) $component->manual_id, $std);
         }
 
-        $stdProcess->manual_id = $component->manual_id;
         $stdProcess->qty = max(1, (int) ($component->units_assy ?? 1));
         $stdProcess->eff_code = StdProcess::normalizeEffCodeForStorage($component->eff_code);
         $stdProcess->save();

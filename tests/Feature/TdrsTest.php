@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Code;
 use App\Models\Component;
 use App\Models\Condition;
+use App\Models\LogCard;
 use App\Models\Necessary;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
@@ -81,6 +82,93 @@ class TdrsTest extends TestCase
 
         $tdr->refresh();
         $this->assertSame('PO-999', $tdr->po_num);
+    }
+
+    public function test_log_card_partial_has_include_checkbox_only_before_creation(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'LC-100',
+            'name' => 'Log Card Component',
+            'ipl_num' => '1-10',
+            'log_card' => true,
+        ]);
+        $componentTwo = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'LC-101',
+            'name' => 'Second Log Card Component',
+            'ipl_num' => '1-10A',
+            'log_card' => true,
+        ]);
+        Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'LC-200',
+            'name' => 'Standalone Log Card Component',
+            'ipl_num' => '2-10',
+            'log_card' => true,
+        ]);
+
+        $draft = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
+
+        $draft->assertOk();
+        $draft->assertSee('lc-include-toggle-all', false);
+        $draft->assertDontSee('type="radio"', false);
+        $draft->assertSee('name="lc_include[1-10]"', false);
+        $draft->assertSee('name="lc_include[2-10]"', false);
+        $draft->assertSee('value="'.$component->id.'"', false);
+        $draft->assertSee('value="'.$componentTwo->id.'"', false);
+
+        LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                [
+                    'component_id' => $component->id,
+                    'included' => '1',
+                    'serial_number' => 'SN-LC',
+                ],
+            ]),
+        ]);
+
+        $saved = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
+
+        $saved->assertOk();
+        $saved->assertDontSee('name="included"', false);
+        $saved->assertDontSee('lc-include-toggle-all', false);
+    }
+
+    public function test_log_card_inline_include_checkbox_state_is_saved(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'LC-200',
+            'name' => 'Included Component',
+            'ipl_num' => '1-20',
+            'log_card' => true,
+        ]);
+        $logCard = LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                [
+                    'component_id' => $component->id,
+                    'included' => '1',
+                    'serial_number' => 'SN-200',
+                ],
+            ]),
+        ]);
+
+        $response = $this->actingAs($admin)->patch(route('log_card.inline_field.update', $logCard), [
+            'row' => 0,
+            'field' => 'included',
+            'value' => '0',
+        ]);
+
+        $response->assertOk();
+        $rows = json_decode($logCard->fresh()->component_data, true);
+        $this->assertSame('0', $rows[0]['included']);
     }
 
     public function test_store_unit_inspections_does_not_delete_blank_workorder_level_tdr(): void

@@ -208,6 +208,76 @@ class ManualStdProcessTableTest extends TestCase
         ]);
     }
 
+    public function test_manual_std_table_uses_cells_for_editing_without_action_column(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '7-35',
+            'part_number' => 'PN-CELL-EDIT',
+            'name' => 'Cell Edit Part',
+            'units_assy' => 1,
+            'cad_list' => true,
+        ]);
+        $this->attachManualProcess($manual->id, 'Cad plate', '', '1');
+        StdProcess::syncFromComponentFlagsForManual($manual);
+
+        $response = $this->actingAs($admin)->get(route('manuals.show', [
+            'manual' => $manual->id,
+            'tab' => 'std',
+            'std_inner' => StdProcess::STD_CAD,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('data-std-process-edit', false);
+        $response->assertSee('data-ipl="7-35"', false);
+        $response->assertSee('data-description="Cell Edit Part"', false);
+        $response->assertSee('editStdProcessModalTitle', false);
+        $response->assertSee('<form id="editStdProcessForm" method="POST" data-no-spinner>', false);
+        $response->assertSee("iplEl.className = 'text-info'", false);
+        $response->assertDontSee('btn-std-process-edit', false);
+        $response->assertDontSee('Delete row?', false);
+        $response->assertSee('PN-CELL-EDIT', false);
+    }
+
+    public function test_manual_std_ajax_update_returns_row_without_redirect(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '7-37',
+            'part_number' => 'PN-AJAX-STD',
+            'name' => 'Ajax Std Part',
+            'units_assy' => 1,
+            'cad_list' => true,
+        ]);
+        $this->attachManualProcess($manual->id, 'Cad plate', '', '1');
+        $this->attachManualProcess($manual->id, 'Cad plate', '', '2');
+        StdProcess::syncFromComponentFlagsForManual($manual);
+        $stdRow = StdProcess::query()
+            ->where('manual_id', $manual->id)
+            ->where('component_id', $component->id)
+            ->where('std', StdProcess::STD_CAD)
+            ->firstOrFail();
+
+        $response = $this->actingAs($admin)->putJson(route('manuals.std-processes.update', [
+            'manual' => $manual->id,
+            'stdProcess' => $stdRow->id,
+        ]), [
+            'qty' => 5,
+            'process' => '2',
+            'eff_code' => 'A,B',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('row.qty', 5);
+        $response->assertJsonPath('row.process', '2');
+        $response->assertJsonPath('row.eff_code', 'A, B');
+    }
+
     public function test_manual_std_update_invalidates_existing_workorder_snapshot(): void
     {
         $admin = $this->createUserWithRole('Admin');

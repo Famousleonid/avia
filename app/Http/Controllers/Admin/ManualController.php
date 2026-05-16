@@ -222,6 +222,9 @@ class ManualController extends Controller
 
         // Processes: процессы руководства с подгруженным именем, сортировка по ProcessName (abc)
         $manualProcesses = ManualProcess::where('manual_id', $cmm->id)
+            ->whereDoesntHave('process.process_name', function ($query) {
+                $query->where('name', ProcessName::SYSTEM_TRAVELER_NAME);
+            })
             ->with(['process.process_name', 'lockedBy'])
             ->get()
             ->sortBy(function ($mp) {
@@ -521,15 +524,16 @@ class ManualController extends Controller
     {
         $value = trim((string) $ipl);
 
-        if (! preg_match('/^(\d+)-(\d+)([A-Za-z]*)$/', $value, $matches)) {
+        if (! preg_match('/^(\d+)([A-Za-z]*)-(\d+)([A-Za-z0-9]*)$/', $value, $matches)) {
             return [1, 0, 0, strtoupper($value)];
         }
 
         return [
             0,
             (int) $matches[1],
-            (int) $matches[2],
-            strtoupper($matches[3] ?? ''),
+            strtoupper($matches[2] ?? ''),
+            (int) $matches[3],
+            strtoupper($matches[4] ?? ''),
         ];
     }
 }

@@ -47,7 +47,7 @@ class ManualStdProcessController extends Controller
             ->with('error', 'The selected part has no IPL. Set the IPL on the Parts tab.');
         }
 
-        if (StdProcess::rowExistsForComponentStd((int) $component->id, $std)) {
+        if (StdProcess::rowExistsForComponentStd((int) $manual->id, (int) $component->id, $std)) {
             return redirect()->back()
                 ->withInput()
             ->with('error', 'This part (IPL and Part No.) already exists in the table for the selected STD type. Adding was canceled.');
@@ -104,7 +104,7 @@ class ManualStdProcessController extends Controller
         );
     }
 
-    public function update(Request $request, Manual $manual, StdProcess $stdProcess): RedirectResponse
+    public function update(Request $request, Manual $manual, StdProcess $stdProcess): RedirectResponse|JsonResponse
     {
         $this->ensureManualAccess($manual);
 
@@ -129,6 +129,20 @@ class ManualStdProcessController extends Controller
             'eff_code' => StdProcess::normalizeEffCodeForStorage($data['eff_code'] ?? null),
         ]);
         $this->invalidateWorkorderStdSnapshots($manual);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'STD row updated',
+                'row' => [
+                    'id' => $stdProcess->id,
+                    'std' => $stdProcess->std,
+                    'process' => (string) $stdProcess->process,
+                    'qty' => (int) $stdProcess->qty,
+                    'eff_code' => StdProcess::normalizeEffCodeForStorage($stdProcess->eff_code) ?? '',
+                ],
+            ]);
+        }
 
         return redirect()->route('manuals.show', [
             'manual' => $manual->id,

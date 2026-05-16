@@ -14,6 +14,14 @@
         $stdActiveInner = \App\Models\StdProcess::STD_NDT;
     }
 @endphp
+<style>
+    .std-process-edit-cell {
+        cursor: pointer;
+    }
+    .std-process-edit-cell:hover {
+        text-decoration: underline;
+    }
+</style>
 <div class="std-processes-nested-wrap">
 
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
@@ -64,38 +72,47 @@
                             <th class="text-center">Process</th>
                             <th class="text-center">Qty</th>
                             <th class="text-center">EFF</th>
-                            <th class="text-center" style="width: 112px;">{{ __('Action') }}</th>
                         </tr>
                         </thead>
                         <tbody>
                         @forelse($rows as $row)
                             @php $part = $row->component; @endphp
-                            <tr>
+                            <tr data-std-process-row="{{ $row->id }}">
                                 <td class="text-center text-muted">{{ $loop->iteration }}</td>
                                 <td class="text-center">{{ $part?->ipl_num }}</td>
                                 <td class="text-center">{{ $part?->part_number }}</td>
                                 <td class="small text-start">{{ \Illuminate\Support\Str::limit($part?->name ?? '', 96) }}</td>
-                                <td class="text-center small">{{ $row->process }}</td>
-                                <td class="text-center">{{ $row->qty }}</td>
-                                <td class="text-center small text-muted">{{ $row->eff_code !== null && $row->eff_code !== '' ? $row->eff_code : '-' }}</td>
-                                <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-outline-primary btn-std-process-edit"
-                                        data-std-process-id="{{ $row->id }}"
-                                        data-std="{{ e($row->std) }}"
-                                        data-process="{{ e($row->process) }}"
-                                        data-qty="{{ (int) $row->qty }}"
-                                        data-eff-code="{{ e($row->eff_code ?? '') }}"
-                                    ><i class="bi bi-pencil-square"></i></button>
-                                    <form action="{{ route('manuals.std-processes.destroy', ['manual' => $cmm, 'stdProcess' => $row->id]) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ __('Delete row?') }}');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                                    </form>
-                                </td>
+                                <td class="text-center small std-process-edit-cell"
+                                    role="button"
+                                    tabindex="0"
+                                    data-std-process-edit
+                                    data-field="process"
+                                    title="{{ __('Edit STD row') }}"
+                                    data-std-process-id="{{ $row->id }}"
+                                    data-std="{{ e($row->std) }}"
+                                    data-process="{{ e($row->process) }}"
+                                    data-qty="{{ (int) $row->qty }}"
+                                    data-eff-code="{{ e($row->eff_code ?? '') }}"
+                                    data-ipl="{{ e($part?->ipl_num ?? '') }}"
+                                    data-description="{{ e($part?->name ?? '') }}">{{ $row->process }}</td>
+                                <td class="text-center std-process-edit-cell"
+                                    role="button"
+                                    tabindex="0"
+                                    data-std-process-edit
+                                    data-field="qty"
+                                    title="{{ __('Edit STD row') }}"
+                                    data-std-process-id="{{ $row->id }}"
+                                    data-std="{{ e($row->std) }}"
+                                    data-process="{{ e($row->process) }}"
+                                    data-qty="{{ (int) $row->qty }}"
+                                    data-eff-code="{{ e($row->eff_code ?? '') }}"
+                                    data-ipl="{{ e($part?->ipl_num ?? '') }}"
+                                    data-description="{{ e($part?->name ?? '') }}">{{ $row->qty }}</td>
+                                <td class="text-center small text-muted" data-std-process-eff="{{ $row->id }}">{{ $row->eff_code !== null && $row->eff_code !== '' ? $row->eff_code : '-' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-muted text-center">{{ __('No Parts have this STD flag yet.') }}</td>
+                                <td colspan="7" class="text-muted text-center">{{ __('No Parts have this STD flag yet.') }}</td>
                             </tr>
                         @endforelse
                         </tbody>
@@ -167,11 +184,11 @@
 <div class="modal fade" id="editStdProcessModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form id="editStdProcessForm" method="POST">
+            <form id="editStdProcessForm" method="POST" data-no-spinner>
                 @csrf
                 @method('PUT')
                 <div class="modal-header">
-                    <h5 class="modal-title">{{ __('Edit STD row') }}</h5>
+                    <h5 class="modal-title" id="editStdProcessModalTitle">{{ __('Edit STD row') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -243,20 +260,120 @@
         }
     }
 
-    document.addEventListener('click', function (e) {
-        var btn = e.target.closest('.btn-std-process-edit');
-        if (!btn) return;
-        var id = btn.getAttribute('data-std-process-id');
+    function openStdProcessEditModal(trigger) {
+        if (!trigger) return;
+        var id = trigger.getAttribute('data-std-process-id');
         var form = document.getElementById('editStdProcessForm');
         if (!form || !id) return;
+        form.dataset.stdProcessId = id;
         form.action = baseUpdateUrl + '/' + id;
-        fillEditProcessSelect(btn.getAttribute('data-std') || '', btn.getAttribute('data-process') || '');
-        document.getElementById('edit_std_qty').value = btn.getAttribute('data-qty') || '1';
+        fillEditProcessSelect(trigger.getAttribute('data-std') || '', trigger.getAttribute('data-process') || '');
+        document.getElementById('edit_std_qty').value = trigger.getAttribute('data-qty') || '1';
         var effEl = document.getElementById('edit_std_eff_code');
-        if (effEl) effEl.value = btn.getAttribute('data-eff-code') || '';
+        if (effEl) effEl.value = trigger.getAttribute('data-eff-code') || '';
+        var titleEl = document.getElementById('editStdProcessModalTitle');
+        if (titleEl) {
+            var ipl = trigger.getAttribute('data-ipl') || '-';
+            var description = trigger.getAttribute('data-description') || '-';
+            var iplEl = document.createElement('span');
+            iplEl.className = 'text-info';
+            iplEl.textContent = ipl;
+
+            titleEl.replaceChildren(
+                document.createTextNode('Edit: '),
+                iplEl,
+                document.createTextNode('  ' + description)
+            );
+        }
         var modal = new bootstrap.Modal(document.getElementById('editStdProcessModal'));
         modal.show();
+    }
+
+    function updateStdProcessRow(data) {
+        if (!data || !data.id) return;
+        var row = document.querySelector('[data-std-process-row="' + data.id + '"]');
+        if (!row) return;
+
+        row.querySelectorAll('[data-std-process-edit]').forEach(function (cell) {
+            cell.setAttribute('data-process', data.process || '');
+            cell.setAttribute('data-qty', String(data.qty || 1));
+            cell.setAttribute('data-eff-code', data.eff_code || '');
+        });
+
+        var processCell = row.querySelector('[data-field="process"]');
+        if (processCell) processCell.textContent = data.process || '';
+
+        var qtyCell = row.querySelector('[data-field="qty"]');
+        if (qtyCell) qtyCell.textContent = String(data.qty || 1);
+
+        var effCell = row.querySelector('[data-std-process-eff="' + data.id + '"]');
+        if (effCell) effCell.textContent = data.eff_code || '-';
+    }
+
+    document.addEventListener('click', function (e) {
+        var trigger = e.target.closest('[data-std-process-edit]');
+        if (!trigger) return;
+        openStdProcessEditModal(trigger);
     });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var trigger = e.target.closest('[data-std-process-edit]');
+        if (!trigger) return;
+        e.preventDefault();
+        openStdProcessEditModal(trigger);
+    });
+
+    var editForm = document.getElementById('editStdProcessForm');
+    if (editForm && !editForm.dataset.ajaxBound) {
+        editForm.dataset.ajaxBound = '1';
+        editForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var submitBtn = editForm.querySelector('button[type="submit"]');
+            var originalHtml = submitBtn ? submitBtn.innerHTML : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>{{ __("Saving...") }}';
+            }
+
+            fetch(editForm.action, {
+                method: 'POST',
+                body: new FormData(editForm),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+                credentials: 'same-origin',
+            }).then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                }).catch(function () {
+                    return { ok: response.ok, data: {} };
+                });
+            }).then(function (result) {
+                if (!result.ok || !result.data.success) {
+                    var message = result.data.message || '{{ __("Failed to save STD row.") }}';
+                    if (result.data.errors) message = Object.values(result.data.errors).flat().join(' ');
+                    throw new Error(message);
+                }
+
+                updateStdProcessRow(result.data.row);
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('editStdProcessModal')).hide();
+                if (typeof showNotification === 'function') {
+                    showNotification(result.data.message || '{{ __("STD row updated") }}', 'success');
+                }
+            }).catch(function (error) {
+                if (typeof showNotification === 'function') {
+                    showNotification(error.message || '{{ __("Failed to save STD row.") }}', 'error');
+                }
+            }).finally(function () {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHtml;
+                }
+            });
+        });
+    }
 })();
 
 (function () {

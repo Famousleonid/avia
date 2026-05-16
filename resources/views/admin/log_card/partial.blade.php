@@ -70,6 +70,15 @@
             <table class="table table-bordered table-hover dir-table align-middle bg-gradient">
                 <thead class="table-dark">
                     <tr>
+                        <th class="text-primary text-center" style="width: 86px;">
+                            <label class="d-inline-flex align-items-center gap-1 mb-0">
+                                <input type="checkbox"
+                                       class="form-check-input lc-include-toggle-all"
+                                       @disabled($logCardTdrReadOnly)
+                                       checked>
+                                <span>{{ __('Include') }}</span>
+                            </label>
+                        </th>
                         <th class="text-primary text-center" style="width: 55%;">{{ __('Description') }} / {{ __('Part Number') }}</th>
                         <th class="text-primary text-center">{{ __('Assy') }} ({{ __('IPL') }} / {{ __('Part Number') }})</th>
                     </tr>
@@ -91,52 +100,46 @@
                                     ->values();
                                 $defaultAssemblyId = $assemblyRows->first()->id ?? null;
                                 $componentInputName = 'lc_selected_component['.$groupIndex.']';
-                                $assemblyInputName = 'lc_selected_assembly['.$groupIndex.']';
+                                $assemblyInputName = 'lc_selected_assembly['.$groupIndex.'_'.$component->id.']';
                             @endphp
                             <tr>
+                                <td class="text-center">
+                                    <input type="checkbox"
+                                           class="form-check-input lc-include-checkbox"
+                                           name="lc_include[{{ $groupIndex }}]"
+                                           value="1"
+                                           data-component-id="{{ $component->id }}"
+                                           data-group-key="{{ $groupIndex }}"
+                                           data-ipl-group="{{ $group['ipl_group'] }}"
+                                           @disabled($logCardTdrReadOnly)
+                                           checked>
+                                </td>
                                 <td>
-                                    @if($onlyOne)
-                                        <input type="hidden"
-                                               name="{{ $componentInputName }}"
-                                               value="{{ $component->id }}"
-                                               data-ipl-group="{{ $group['ipl_group'] }}">
-                                        {{ $component->name }} ({{ $component->ipl_num }}) / {{ $component->part_number }}
-                                    @else
-                                        <label class="lc-option-line mb-0">
-                                            <input type="radio"
-                                                   class="form-check-input lc-comp-radio"
-                                                   name="{{ $componentInputName }}"
-                                                   value="{{ $component->id }}"
-                                                   data-ipl-group="{{ $group['ipl_group'] }}"
-                                                   @disabled($logCardTdrReadOnly)
-                                                   @checked($i === 0)>
-                                            <span>{{ $component->name }} ({{ $component->ipl_num }}) / {{ $component->part_number }}</span>
-                                        </label>
-                                    @endif
+                                    <input type="hidden"
+                                           name="{{ $componentInputName }}"
+                                           value="{{ $component->id }}"
+                                           data-ipl-group="{{ $group['ipl_group'] }}">
+                                    {{ $component->name }} ({{ $component->ipl_num }}) / {{ $component->part_number }}
                                 </td>
                                 <td class="text-start ps-3">
                                     @if($assemblyRows->isNotEmpty())
                                         <div class="lc-assy-choice" data-component-id="{{ $component->id }}">
                                             @if($assemblyRows->count() > 1)
-                                                @foreach($assemblyRows as $assembly)
-                                                    @php $assyId = 'lc-assy-'.$groupIndex.'-'.$assembly->id; @endphp
-                                                    <div class="form-check">
-                                                       <input type="radio"
-                                                              id="{{ $assyId }}"
-                                                               class="form-check-input lc-assy-radio {{ (!$onlyOne && $i !== 0) ? 'd-none' : '' }}"
-                                                               name="{{ $assemblyInputName }}"
-                                                               value="{{ $assembly->id }}"
-                                                               data-component-id="{{ $component->id }}"
-                                                               data-assy-part-number="{{ $assembly->assy_part_number }}"
-                                                               data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
-                                                               data-units-assy="{{ $assembly->units_assy }}"
-                                                               @disabled($logCardTdrReadOnly)
-                                                               @checked(($onlyOne || $i === 0) && (int) $defaultAssemblyId === (int) $assembly->id)>
-                                                        <label class="form-check-label small" for="{{ $assyId }}">
+                                                <select class="form-control form-control-sm lc-inline-input lc-assy-select"
+                                                        name="{{ $assemblyInputName }}"
+                                                        data-component-id="{{ $component->id }}"
+                                                        @disabled($logCardTdrReadOnly)>
+                                                    @foreach($assemblyRows as $assembly)
+                                                        <option value="{{ $assembly->id }}"
+                                                                data-component-id="{{ $component->id }}"
+                                                                data-assy-part-number="{{ $assembly->assy_part_number }}"
+                                                                data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
+                                                                data-units-assy="{{ $assembly->units_assy }}"
+                                                                @selected((int) $defaultAssemblyId === (int) $assembly->id)>
                                                             {{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}
-                                                        </label>
-                                                    </div>
-                                                @endforeach
+                                                        </option>
+                                                    @endforeach
+                                                </select>
                                             @else
                                                 @php $assembly = $assemblyRows->first(); @endphp
                                                 <input type="hidden"
@@ -169,6 +172,16 @@
                             $assemblyInputName = 'lc_selected_assembly[separate_'.$index.']';
                         @endphp
                         <tr>
+                            <td class="text-center">
+                                <input type="checkbox"
+                                       class="form-check-input lc-include-checkbox"
+                                       name="lc_include[separate_{{ $index }}]"
+                                       value="1"
+                                       data-component-id="{{ $component->id }}"
+                                       data-group-key="separate_{{ $index }}"
+                                       @disabled($logCardTdrReadOnly)
+                                       checked>
+                            </td>
                             <td>
                                 <input type="hidden"
                                        name="lc_selected_component[separate_{{ $index }}]"
@@ -182,25 +195,21 @@
                                 @if($assemblyRows->isNotEmpty())
                                     <div class="lc-assy-choice" data-component-id="{{ $component->id }}">
                                         @if($assemblyRows->count() > 1)
-                                            @foreach($assemblyRows as $assembly)
-                                                @php $assyId = 'lc-assy-separate-'.$index.'-'.$assembly->id; @endphp
-                                                <div class="form-check">
-                                                    <input type="radio"
-                                                           id="{{ $assyId }}"
-                                                           class="form-check-input lc-assy-radio"
-                                                           name="{{ $assemblyInputName }}"
-                                                           value="{{ $assembly->id }}"
-                                                           data-component-id="{{ $component->id }}"
-                                                           data-assy-part-number="{{ $assembly->assy_part_number }}"
-                                                           data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
-                                                           data-units-assy="{{ $assembly->units_assy }}"
-                                                           @disabled($logCardTdrReadOnly)
-                                                           @checked($loop->first)>
-                                                    <label class="form-check-label small" for="{{ $assyId }}">
+                                            <select class="form-control form-control-sm lc-inline-input lc-assy-select"
+                                                    name="{{ $assemblyInputName }}"
+                                                    data-component-id="{{ $component->id }}"
+                                                    @disabled($logCardTdrReadOnly)>
+                                                @foreach($assemblyRows as $assembly)
+                                                    <option value="{{ $assembly->id }}"
+                                                            data-component-id="{{ $component->id }}"
+                                                            data-assy-part-number="{{ $assembly->assy_part_number }}"
+                                                            data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
+                                                            data-units-assy="{{ $assembly->units_assy }}"
+                                                            @selected($loop->first)>
                                                         {{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}
-                                                    </label>
-                                                </div>
-                                            @endforeach
+                                                    </option>
+                                                @endforeach
+                                            </select>
                                         @else
                                             @php $assembly = $assemblyRows->first(); @endphp
                                             <input type="hidden"

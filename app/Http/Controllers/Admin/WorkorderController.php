@@ -903,14 +903,6 @@ class WorkorderController extends Controller
             $this->deleteStdListTdrProcessesForWorkorder($workorder);
         }
 
-        // При смене unit — обновить NdtCadCsv компонентами из нового manual
-        if ((int)$request->unit_id !== (int)$oldUnitId) {
-            $ndtCadCsv = $workorder->ndtCadCsv;
-            if ($ndtCadCsv) {
-                \App\Models\NdtCadCsv::loadComponentsFromManual($workorder->id, $ndtCadCsv);
-            }
-        }
-
         // Если description заполнено и unit->name пустое, обновляем unit->name
         if (!empty($request->description)) {
             $unitId = $request->unit_id ?? $workorder->unit_id;

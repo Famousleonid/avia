@@ -604,7 +604,7 @@ class LogCardController extends Controller
 
         $data = $request->validate([
             'row' => ['required', 'integer', 'min:0', 'max:500'],
-            'field' => ['required', 'in:serial_number,assy_serial_number,reason,new_serial_number'],
+            'field' => ['required', 'in:included,serial_number,assy_serial_number,reason,new_serial_number'],
             'value' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -614,6 +614,9 @@ class LogCardController extends Controller
 
         $beforeValue = data_get($rows, $rowIndex.'.'.$data['field']);
         $afterValue = trim((string) ($data['value'] ?? ''));
+        if ($data['field'] === 'included') {
+            $afterValue = filter_var($afterValue, FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
+        }
 
         if ($beforeValue === $afterValue) {
             return response()->json([

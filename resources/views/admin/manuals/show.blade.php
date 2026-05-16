@@ -1205,7 +1205,7 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label for="manual_drawer_ipl_num" class="form-label">{{ __('IPL Number') }}</label>
-                        <input id="manual_drawer_ipl_num" type="text" class="form-control" name="ipl_num" pattern="^\d+-\d+[A-Za-z]?$" required>
+                        <input id="manual_drawer_ipl_num" type="text" class="form-control" name="ipl_num" pattern="^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$" required>
                     </div>
                     <div class="col-md-6">
                         <label for="manual_drawer_part_number" class="form-label">{{ __('Part Number') }}</label>
@@ -1266,7 +1266,7 @@
                     </div>
                     <div class="mt-3 d-none" id="manual_drawer_bush_ipl_container">
                         <label for="manual_drawer_bush_ipl_num" class="form-label">{{ __('Initial Bushing IPL Number') }}</label>
-                        <input id="manual_drawer_bush_ipl_num" type="text" class="form-control" name="bush_ipl_num" pattern="^\d+-\d+[A-Za-z]?$">
+                        <input id="manual_drawer_bush_ipl_num" type="text" class="form-control" name="bush_ipl_num" pattern="^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$">
                     </div>
                 </div>
 
@@ -1306,7 +1306,7 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label for="manual_edit_drawer_ipl_num" class="form-label">{{ __('IPL Number') }}</label>
-                        <input id="manual_edit_drawer_ipl_num" type="text" class="form-control" name="ipl_num" pattern="^\d+-\d+[A-Za-z]?$" required>
+                        <input id="manual_edit_drawer_ipl_num" type="text" class="form-control" name="ipl_num" pattern="^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$" required>
                     </div>
                     <div class="col-md-6">
                         <label for="manual_edit_drawer_part_number" class="form-label">{{ __('Part Number') }}</label>
@@ -1367,7 +1367,7 @@
                     </div>
                     <div class="mt-3 d-none" id="manual_edit_drawer_bush_ipl_container">
                         <label for="manual_edit_drawer_bush_ipl_num" class="form-label">{{ __('Initial Bushing IPL Number') }}</label>
-                        <input id="manual_edit_drawer_bush_ipl_num" type="text" class="form-control" name="bush_ipl_num" pattern="^\d+-\d+[A-Za-z]?$">
+                        <input id="manual_edit_drawer_bush_ipl_num" type="text" class="form-control" name="bush_ipl_num" pattern="^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$">
                     </div>
                 </div>
 
@@ -1403,7 +1403,7 @@
             <div class="row g-2">
                 <div class="col-md-4">
                     <label class="form-label">{{ __('Assembly IPL Number') }}</label>
-                    <input type="text" class="form-control" data-assembly-field="assy_ipl_num" pattern="^$|^\d+-\d+[A-Za-z]?$">
+                    <input type="text" class="form-control" data-assembly-field="assy_ipl_num" pattern="^$|^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">{{ __('Assembly Part Number') }}</label>
@@ -1823,7 +1823,7 @@
                 }
 
                 function iplSortKey(value) {
-                    const match = String(value || '').trim().match(/^(\d+)-(\d+)([A-Za-z]*)$/);
+                    const match = String(value || '').trim().match(/^(\d+)([A-Za-z]*)-(\d+)([A-Za-z0-9]*)$/);
                     if (!match) {
                         return [1, 0, 0, String(value || '').trim().toUpperCase()];
                     }
@@ -1831,8 +1831,9 @@
                     return [
                         0,
                         Number(match[1]),
-                        Number(match[2]),
-                        match[3].toUpperCase(),
+                        match[2].toUpperCase(),
+                        Number(match[3]),
+                        match[4].toUpperCase(),
                     ];
                 }
 
