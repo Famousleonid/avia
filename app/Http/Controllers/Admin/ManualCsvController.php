@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Manual;
-use App\Models\NdtCadCsv;
 use App\Models\StdProcess;
 use App\Models\Workorder;
 use App\Services\WorkorderStdProcessItemsService;
@@ -41,7 +40,7 @@ class ManualCsvController extends Controller
                 ], 400);
             }
 
-            $formatErrors = NdtCadCsv::validateStdCsvFormat($path);
+            $formatErrors = StdProcess::validateStdCsvFormat($path);
             if ($formatErrors !== []) {
                 return response()->json([
                     'success' => false,
@@ -49,7 +48,7 @@ class ManualCsvController extends Controller
                 ], 422);
             }
 
-            $parsedRows = NdtCadCsv::loadComponentsFromCsv($path, $processType);
+            $parsedRows = StdProcess::loadComponentRowsFromCsv($path, $processType);
             if ($parsedRows === []) {
                 return response()->json([
                     'success' => false,

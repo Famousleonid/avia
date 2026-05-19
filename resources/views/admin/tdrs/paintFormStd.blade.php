@@ -1,602 +1,275 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @php
+        $tdrFormConfig = config('tdr_forms.paintFormStd');
+        $componentName = (string) $current_wo->description;
+        $manualNumber = substr((string) ($manual->number ?? ''), 0, 8);
+    @endphp
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PAINT PROCESS SHEET</title>
-    <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
-
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: "Times New Roman", serif;
-        }
-
-        :root {
-            --container-max-width: 920px;
-            --container-padding: 5px;
-            --container-margin-left: 5px;
-            --container-margin-right: 5px;
-            --print-page-margin: 1mm;
-            --print-body-height: 95%;
-            --print-body-width: 98%;
-            --print-body-margin-left: 2px;
-            --print-footer-width: 800px;
-            --print-footer-font-size: 10px;
-            --print-footer-padding: 2px 2px;
-        }
-
-        .container-fluid {
-            max-width: var(--container-max-width);
-            height: 95%;
-            padding: var(--container-padding);
-            margin-left: var(--container-margin-left);
-            margin-right: var(--container-margin-right);
-        }
-
-        @media print {
-            @page {
-                size: letter;
-                margin: var(--print-page-margin);
-            }
-
-            html, body {
-                height: var(--print-body-height);
-                width: var(--print-body-width);
-                margin-left: var(--print-body-margin-left);
-                padding: 0;
-            }
-
-            table, h1, p {
-                page-break-inside: avoid;
-            }
-
-            .no-print {
-                display: none;
-            }
-
-            /* Скрываем строки сверх лимита */
-            .print-hide-row {
-                display: none !important;
-            }
-
-            footer {
-                position: fixed;
-                bottom: 0;
-                width: var(--print-footer-width);
-                text-align: center;
-                font-size: var(--print-footer-font-size);
-                background-color: #fff;
-                padding: var(--print-footer-padding);
-            }
-
-            .container {
-                max-height: 100vh;
-                overflow: hidden;
-            }
-        }
-
-        /* Скрываем строки сверх лимита на экране тоже */
-        .print-hide-row {
-            display: none !important;
-        }
-
-        .border-all {
-            border: 1px solid black;
-        }
-        .border-all-b {
-            border: 2px solid black;
-        }
-
-        .border-l-t-r {
-            border-left: 1px solid black;
-            border-top: 1px solid black;
-            border-right: 1px solid black;
-        }
-        .border-l-b-r {
-            border-left: 1px solid black;
-            border-bottom: 1px solid black;
-            border-right: 1px solid black;
-        }
-        .border-b-r {
-            border-bottom: 1px solid black;
-            border-right: 1px solid black;
-        }
-        .border-l-b {
-            border-left: 1px solid black;
-            border-bottom: 1px solid black;
-        }
-        .border-t-r {
-            border-top: 1px solid black;
-            border-right: 1px solid black;
-        }
-        .border-t-b {
-            border-top: 1px solid black;
-            border-bottom: 1px solid black;
-        }
-        .border-l-t-b {
-            border-left: 1px solid black;
-            border-top: 1px solid black;
-            border-bottom: 1px solid black;
-        }
-        .border-b {
-            border-bottom: 1px solid black;
-        }
-        .border-t-r-b {
-            border-top: 1px solid black;
-            border-right: 1px solid black;
-            border-bottom: 1px solid black;
-        }
-        .border-r-b {
-            border-right: 1px solid black;
-            border-bottom: 1px solid black;
-        }
-        .text-center {
-            text-align: center;
-        }
-
-        .text-black {
-            color: #000;
-        }
-
-        .fs-7 {
-            font-size: 0.9rem;
-        }
-        .fs-75 {
-            font-size: 0.8rem;
-        }
-        .fs-85 {
-            font-size: 0.85rem;
-        }
-        .fs-8 {
-            font-size: 0.7rem;
-        }
-
-        .details-row {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 36px;
-        }
-        .description-text-long {
-            font-size: 0.8rem;
-            line-height: 1.0;
-            letter-spacing: -0.3px;
-            display: inline-block;
-            vertical-align: top;
-        }
-        .header-page .component-name-value { font-size: var(--component-name-font-size, 12px) !important; }
-        .header-page .component-name-value[data-long="1"] { line-height: 1.1; letter-spacing: -0.3px; }
-        /* ITEM No. — уменьшенный межстрочный интервал */
-        .data-row > div:first-child,
-        .table-header .row > div:first-child { line-height: 1.1; }
-        .details-cell {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ asset('assets/Bootstrap 5/bootstrap.min.css') }}">
+    @include('admin.tdrs.partials.std-sheet-styles', ['tdrFormConfig' => $tdrFormConfig])
 </head>
 <body>
-<!-- Кнопка для печати -->
-<div class="text-start m-3 no-print">
-    <button class="btn btn-outline-primary" onclick="window.print()">
-        Print Form
-    </button>
-    <button class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#printSettingsModal">
-        ⚙️ Print Settings
-    </button>
-</div>
-<div class="container-fluid">
-    <div class="header-page">
-        <div class="row">
-            <div class="col-3">
-                <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
-                     style="width: 180px; margin: 6px 10px 0;">
+@include('admin.tdrs.partials.std-sheet-toolbar')
+
+<div class="container-fluid std-sheet-container">
+    <div class="std-page page data-page" data-page-index="1">
+        <div class="std-header header-page">
+            <div class="std-header-top">
+                <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo" class="std-header-logo">
+                <h2 class="std-header-title">PAINT PROCESS SHEET</h2>
             </div>
-            <div class="col-9">
-                <h2 class="mt-3 text-black"><strong>PAINT PROCESS SHEET</strong></h2>
+
+            <div class="std-meta-grid">
+                <div class="std-meta-column">
+                    <div class="std-meta-row">
+                        <div class="std-meta-label">COMPONENT NAME:</div>
+                        <div class="std-meta-value">
+                            <strong>
+                                <span class="std-component-name" @if(strlen($componentName) > 30) data-long="1" @endif>{{ $componentName }}</span>
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="std-meta-row">
+                        <div class="std-meta-label">PART NUMBER:</div>
+                        <div class="std-meta-value"><strong>{{ $current_wo->unit->part_number }}</strong></div>
+                    </div>
+                    <div class="std-meta-row">
+                        <div class="std-meta-label">WORK ORDER No:</div>
+                        <div class="std-meta-value"><strong>W{{ $current_wo->number }}</strong></div>
+                    </div>
+                    <div class="std-meta-row">
+                        <div class="std-meta-label">SERIAL No:</div>
+                        <div class="std-meta-value"><strong>{{ $current_wo->serial_number }}</strong></div>
+                    </div>
+                </div>
+
+                <div class="std-meta-column">
+                    <div class="std-meta-row std-meta-row--right">
+                        <div class="std-meta-label">DATE:</div>
+                        <div class="std-meta-value"></div>
+                    </div>
+                    <div class="std-meta-row std-meta-row--right">
+                        <div class="std-meta-label">RO No:</div>
+                        <div class="std-meta-value">INTERNAL</div>
+                    </div>
+                    <div class="std-meta-row std-meta-row--right">
+                        <div class="std-meta-label">VENDOR:</div>
+                        <div class="std-meta-value"><strong>AVIATECHNIK</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="std-instruction std-instruction-row">
+                <div>Perform the Paint process as specified under Process No. and in accordance with SMM No.</div>
+                <div class="std-manual-ref-label">MANUAL REF:</div>
+                <div class="std-manual-ref-box">{{ $manualNumber }}</div>
             </div>
         </div>
-        <div class="row ">
-            <div class="col-6">
-                <div class="row" style="height: 32px">
-                    <div class="col-6 pt-2 text-end"><strong>COMPONENT NAME</strong> :</div>
-                    <div class="col-6 fs-7 pt-2 border-b"><strong>
-                            <span class="component-name-value" @if(strlen($current_wo->description) > 30) data-long="1" @endif>{{$current_wo->description}}</span>
-                        </strong></div>
-                </div>
-                <div class="row" style="height: 32px">
-                    <div class="col-6 pt-2 text-end"><strong>PART NUMBER:</strong></div>
-                    <div class="col-6 fs-7 pt-2 border-b"><strong>{{$current_wo->unit->part_number}}</strong></div>
-                </div>
-                <div class="row" style="height: 32px">
-                    <div class="col-6 pt-2 text-end"><strong>WORK ORDER No:</strong></div>
-                    <div class="col-6 fs-7 pt-2 border-b"><strong>W{{$current_wo->number}}</strong></div>
-                </div>
-                <div class="row" style="height: 32px">
-                    <div class="col-6 pt-2 text-end"><strong>SERIAL No:</strong></div>
-                    <div class="col-6 fs-7 pt-2 border-b"><strong>{{$current_wo->serial_number}}</strong></div>
-                </div>
+
+        <div class="std-table table-header" style="--std-table-columns: 1fr 2fr 2fr 4fr 1fr 2fr;">
+            <div class="std-grid-row std-grid-row--header">
+                <div class="std-cell">ITEM No.</div>
+                <div class="std-cell">PART No.</div>
+                <div class="std-cell">DESCRIPTION</div>
+                <div class="std-cell">PROCESS No.</div>
+                <div class="std-cell">QTY</div>
+                <div class="std-cell">CMM No.</div>
             </div>
-            <div class="col-6">
-                <div class="row" style="height: 32px">
-                    <div class="col-4 pt-2 text-end"><strong>DATE:</strong></div>
-                    <div class="col-8 pt-2 border-b"></div>
-                </div>
-                <div class="row" style="height: 32px">
-                    <div class="col-4 pt-2 text-end"><strong>RO No:</strong></div>
-                    <div class="col-8 pt-2 border-b"> INTERNAL</div>
-                </div>
-                <div class="row" style="height: 32px">
-                    <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>
-                    <div class="col-8 pt-2 border-b"><strong>AVIATECHNIK</strong></div>
-                </div>
-                {{-- TOTAL QTY: при раскомментировании вернуть полный .row с закрывающим </div> --}}
-            </div>
-
         </div>
-           <h5 class="ps-3 mt-2 mb-2 ">
-               @foreach($manuals as $manual)
-                   @if($manual->id == $current_wo->unit->manual_id)
-                       <h6 class="ps-4">
-                           <strong class="">
-                           {{__('Perform the Paint process as specified under Process No. and in accordance with SMM No. ')}}
-                            <span class="ms-5">
-                                {{substr($manual->number, 0, 8)}}
-                            </span>
-                          </strong>
-                       </h6>
-                   @endif
-               @endforeach
-           </h5>
-    </div>
 
-    <div class="page table-header">
-        <div class="row mt-2">
-            <div class="col-1 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7">
-                    <strong>ITEM No.</strong></h6></div>
-            <div class="col-2 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>PART No.</strong></h6></div>
-            <div class="col-2 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>DESCRIPTION</strong></h6></div>
-            <div class="col-4 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>PROCESS No.</strong></h6></div>
-            <div class="col-1 border-l-t-b pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>QTY</strong></h6></div>
-            <div class="col-2 border-all pt-2 details-row text-center" style="height: 42px"><h6 class="fs-7"><strong>CMM No.</strong></h6></div>
-        </div>
-    </div>
-
-    @php
-        // Все компоненты передаются без разбиения на страницы
-        // Разбиение происходит на фронтенде через JavaScript
-        $previousManual = null;
-    @endphp
-
-    {{-- Все компоненты выводятся в одном контейнере - разбиение на страницы через JavaScript --}}
-    <div class="all-rows-container">
-        @php
+        <div class="all-rows-container" style="--std-table-columns: 1fr 2fr 2fr 4fr 1fr 2fr;">
+            @php
+                $previousManual = null;
                 $rowIndex = 1;
             @endphp
 
-        @forelse($paint_components as $component)
-            @php
-                $currentManual = $component->manual ?? null;
-                // Если manual изменился и не пустой, вставляем строку с manual
-                $shouldInsertManualRow = ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
-            @endphp
+            @forelse($paint_components as $component)
+                @php
+                    $currentManual = $component->manual ?? null;
+                    $shouldInsertManualRow = $currentManual !== null
+                        && $currentManual !== ''
+                        && $currentManual !== $previousManual;
+                @endphp
 
-            @if($shouldInsertManualRow)
-                {{-- Строка с Manual --}}
-                <div class="row fs-85 data-row manual-row" data-row-index="{{ $rowIndex }}">
-                    <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <!-- Пустая ячейка -->
+                @if($shouldInsertManualRow)
+                    <div class="data-row manual-row std-grid-row std-grid-row--manual std-grid-row--full" data-row-index="{{ $rowIndex }}">
+                        <div class="std-cell"><strong>{{ $currentManual }}</strong></div>
                     </div>
-                    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <strong>{{ $currentManual }}</strong>
-                    </div>
-                    <div class="col-4 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <!-- Пустая ячейка -->
-                    </div>
-                    <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px; font-weight: bold;">
-                        <!-- Пустая ячейка -->
-                    </div>
-                </div>
-                @php $rowIndex++; @endphp
-            @endif
+                    @php $rowIndex++; @endphp
+                @endif
 
-            <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
-                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">
-                    {{ $component->item_display ?? $component->ipl_num }}
+                @php $rowHeight = max(34, (int) ($component->row_height ?? 32)); @endphp
+                <div class="data-row std-grid-row" data-row-index="{{ $rowIndex }}" style="--std-row-min-height: {{ $rowHeight }}px;">
+                    <div class="std-cell">
+                        <span class="std-cell--multiline">{{ $component->item_display ?? $component->ipl_num }}</span>
+                    </div>
+                    <div class="std-cell">{{ $component->part_number }}</div>
+                    <div class="std-cell">
+                        <span @if(strlen($component->name) > 15) class="std-description-long" @endif>{{ $component->name }}</span>
+                    </div>
+                    <div class="std-cell">
+                        <span @if(strlen($component->process_name) > 30) class="std-description-long" @endif>{{ $component->process_name }}</span>
+                    </div>
+                    <div class="std-cell">{{ $component->qty }}</div>
+                    <div class="std-cell">{{ $manualNumber }}</div>
                 </div>
-                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
-                    {{ $component->part_number }}
-                </div>
-                <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px">
-{{--                    {{ $component->name }}--}}
-                    <span @if(strlen($component->name) > 15) class="description-text-long"
-                                @endif>{{$component->name}}</span>
-                </div>
-                <div class="col-4 border-l-b details-cell text-center process-cell" style="min-height: 34px">
-{{--                    {{ $component->process_name }}--}}
-                    <span @if(strlen($component->process_name) > 30) class="description-text-long"
-                                @endif>{{$component->process_name}}</span>
-                </div>
-                <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px">
-                    {{ $component->qty }}
-                </div>
-                <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px">
-                    @foreach($manuals as $manual)
-                        @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center ">{{substr($manual->number, 0, 8)}}</h6>
-                        @endif
-                    @endforeach
-                </div>
-            </div>
                 @php
                     $rowIndex++;
                     $previousManual = $currentManual;
-            @endphp
-        @empty
-            <div class="row fs-85 data-row" data-row-index="{{ $rowIndex }}">
-                <div class="col-12 border-l-b-r details-cell text-center" style="min-height: 34px">
-                    No Paint components with paint_list flag
+                @endphp
+            @empty
+                <div class="data-row std-grid-row std-grid-row--full" data-row-index="1">
+                    <div class="std-cell"><strong>No Paint components with paint_list flag</strong></div>
                 </div>
-            </div>
-        @endforelse
+            @endforelse
         </div>
-    {{-- Пустые строки будут генерироваться на фронтенде через JavaScript --}}
 
-        <footer>
-            <div class="row fs-85" style="width: 100%; padding: 5px 0;">
-                <div class="col-6 text-start">
-                    {{__('Form # 014')}}
+        <footer class="std-footer">
+            <div class="std-footer-grid">
+                <div class="std-footer-left">{{ __('Form # 014') }}</div>
+                <div class="std-footer-center">
+                    {{ __('Page') }} <span class="page-number">1</span> {{ __('of') }} <span class="total-pages">1</span>
                 </div>
-                <div class="col-3 text-center">
-                {{__('Page')}} <span class="page-number">1</span> {{__('of')}} <span class="total-pages">1</span>
-                </div>
-                <div class="col-3 text-end pe-4">
-                    {{__('Rev#0, 15/Dec/2012   ')}}
+                <div class="std-footer-right">
+                    {{ __('Rev#0, 15/Dec/2012') }}
                     <br>
-{{--                    {{'Total: '}} {{ $paintSum['total_qty'] }}--}}
+                    Total: {{ $paintSum['total_qty'] ?? 0 }}
                 </div>
             </div>
         </footer>
+    </div>
 </div>
 
-@php $tdrFormConfig = config('tdr_forms.paintFormStd'); @endphp
 @include('shared.tdr-forms._print-settings-modal', ['formType' => 'paintFormStd', 'formConfig' => $tdrFormConfig])
 
-<!-- Bootstrap JS для работы модального окна -->
 <script>
     if (typeof window.bootstrapLoaded === 'undefined') {
         window.bootstrapLoaded = true;
         const script = document.createElement('script');
-        script.src = "{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}";
+        script.src = "{{ asset('assets/Bootstrap 5/bootstrap.bundle.min.js') }}";
         script.async = true;
         document.head.appendChild(script);
     }
 </script>
 
 <script>
-    // Paint-специфичная логика лимитов строк (используется shared scripts)
     window.tdrFormApplyTableRowLimits = function(settings) {
-        const paintMaxRows = parseInt(settings.paintTableRows) || 19;
-        console.log('Применение ограничений строк Paint:', { paintMaxRows, settings });
+        const paintMaxRows = parseInt(settings.paintTableRows, 10) || 19;
+        const primarySheet = document.querySelector('.container-fluid.std-sheet-container');
+        const allRowsContainer = primarySheet ? primarySheet.querySelector('.all-rows-container') : null;
 
-        const allRowsContainer = document.querySelector('.all-rows-container');
-        if (!allRowsContainer) {
-            console.warn('Контейнер .all-rows-container не найден!');
+        if (!primarySheet || !allRowsContainer) {
             return;
         }
 
-        // Удаляем все созданные ранее динамические страницы
         document.querySelectorAll('.dynamic-page-wrapper').forEach(function(wrapper) {
             wrapper.remove();
         });
 
-        // Удаляем все пустые строки из контейнера перед пересчётом
-        // Проверяем оба варианта: с классом data-row и без него
-        const emptyRowsToRemove = allRowsContainer.querySelectorAll('.data-row.empty-row, .empty-row');
-        emptyRowsToRemove.forEach(function(row) {
+        allRowsContainer.querySelectorAll('.empty-row').forEach(function(row) {
             row.remove();
         });
-        console.log('Удалено пустых строк перед пересчётом:', emptyRowsToRemove.length);
 
-        // Отладочная информация
-        console.log('Всего элементов в .all-rows-container:', allRowsContainer.children.length);
-        console.log('Все элементы:', Array.from(allRowsContainer.children).map(function(el) {
-            return {
-                tagName: el.tagName,
-                className: el.className,
-                hasDataRow: el.classList.contains('data-row'),
-                hasManualRow: el.classList.contains('manual-row'),
-                hasEmptyRow: el.classList.contains('empty-row')
-            };
-        }));
-
-        // Собираем все строки из контейнера (только строки с данными, без пустых)
         const allRows = Array.from(allRowsContainer.querySelectorAll('.data-row:not(.empty-row)'));
-        console.log('Найдено строк через селектор .data-row:not(.empty-row):', allRows.length);
-
-        // Разделяем на manual-row и data-rows
         const manualRows = allRows.filter(function(row) {
             return row.classList.contains('manual-row');
         });
         const dataRows = allRows.filter(function(row) {
             return !row.classList.contains('manual-row');
         });
-
         const hasManualRows = manualRows.length > 0;
-        console.log('Найдено manual-row:', hasManualRows, 'количество:', manualRows.length);
-        console.log('Найдено строк с данными:', dataRows.length);
-
-        let totalRows;
-        let rowsToProcess;
-
-        if (hasManualRows) {
-            // Случай с manual-row: считаем все строки (manual + data)
-            totalRows = allRows.length;
-            rowsToProcess = allRows;
-        } else {
-            // Случай без manual-row: считаем только data-rows
-            totalRows = dataRows.length;
-            rowsToProcess = dataRows;
-        }
-
-        // Вычисляем количество страниц
+        const rowsToProcess = hasManualRows ? allRows : dataRows;
+        const totalRows = rowsToProcess.length;
         const totalPages = Math.max(1, Math.ceil(totalRows / paintMaxRows));
-        console.log('Всего строк:', totalRows, ', Лимит на странице:', paintMaxRows, ', Создано страниц:', totalPages);
 
-        // Находим элементы для копирования
-        const originalHeader = document.querySelector('.header-page');
-        const originalTableHeader = document.querySelector('.table-header');
-        const originalFooter = document.querySelector('footer');
-        const firstContainerFluid = document.querySelector('.container-fluid');
+        const originalHeader = primarySheet.querySelector('.header-page');
+        const originalTableHeader = primarySheet.querySelector('.table-header');
+        const originalFooter = primarySheet.querySelector('footer');
 
-        // Скрываем строки, которые не на первой странице
         rowsToProcess.forEach(function(row, index) {
-            if (index < paintMaxRows) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+            row.style.display = index < paintMaxRows ? '' : 'none';
         });
 
-        // Обновляем footer для первой страницы
-        const firstPageNumberEl = originalFooter.querySelector('.page-number');
-        const firstTotalPagesEl = originalFooter.querySelector('.total-pages');
-        if (firstPageNumberEl) firstPageNumberEl.textContent = '1';
-        if (firstTotalPagesEl) firstTotalPagesEl.textContent = totalPages;
+        const updateFooter = function(footer, page, total) {
+            const pageEl = footer.querySelector('.page-number');
+            const totalEl = footer.querySelector('.total-pages');
+            if (pageEl) pageEl.textContent = String(page);
+            if (totalEl) totalEl.textContent = String(total);
+        };
 
-        // Создаём дополнительные страницы (начиная со второй)
+        updateFooter(originalFooter, 1, totalPages);
+
+        let insertAnchor = primarySheet;
         for (let pageIndex = 1; pageIndex < totalPages; pageIndex++) {
             const startIndex = pageIndex * paintMaxRows;
             const endIndex = Math.min(startIndex + paintMaxRows, rowsToProcess.length);
             const pageRows = rowsToProcess.slice(startIndex, endIndex);
 
-            // Создаём контейнер для новой страницы (как container-fluid)
-            const dynamicPageWrapper = document.createElement('div');
-            dynamicPageWrapper.className = 'container-fluid dynamic-page-wrapper';
+            const pageWrapper = document.createElement('div');
+            pageWrapper.className = 'container-fluid std-sheet-container dynamic-page-wrapper';
 
-            // Создаём новую страницу
             const pageDiv = document.createElement('div');
-            pageDiv.className = 'page data-page';
-            pageDiv.setAttribute('data-page-index', pageIndex + 1);
-            pageDiv.style.pageBreakBefore = 'always';
+            pageDiv.className = 'std-page page data-page';
+            pageDiv.setAttribute('data-page-index', String(pageIndex + 1));
 
-            // Копируем header
-            if (originalHeader) {
-                const headerClone = originalHeader.cloneNode(true);
-                pageDiv.appendChild(headerClone);
-            }
+            pageDiv.appendChild(originalHeader.cloneNode(true));
+            pageDiv.appendChild(originalTableHeader.cloneNode(true));
 
-            // Копируем table-header
-            if (originalTableHeader) {
-                const tableHeaderClone = originalTableHeader.cloneNode(true);
-                pageDiv.appendChild(tableHeaderClone);
-            }
-
-            // Создаём контейнер для строк этой страницы
             const rowsContainer = document.createElement('div');
-            rowsContainer.className = 'page-rows-container';
+            rowsContainer.className = 'all-rows-container';
+            rowsContainer.style.setProperty('--std-table-columns', getComputedStyle(allRowsContainer).getPropertyValue('--std-table-columns'));
 
-            // Клонируем строки для этой страницы
             pageRows.forEach(function(row) {
-                const rowClone = row.cloneNode(true);
-                rowClone.style.display = '';
-                rowsContainer.appendChild(rowClone);
+                const node = row.cloneNode(true);
+                node.style.display = '';
+                rowsContainer.appendChild(node);
             });
 
-            // Добавляем пустые строки на последней странице, если нужно
-            if (pageIndex === totalPages - 1) {
-                const rowsOnLastPage = pageRows.length;
-                const emptyRowsNeeded = rowsOnLastPage === 0 ? paintMaxRows : (paintMaxRows - rowsOnLastPage);
-
-                if (emptyRowsNeeded > 0 && emptyRowsNeeded < paintMaxRows) {
-                    for (let i = 0; i < emptyRowsNeeded; i++) {
-                        const emptyRow = document.createElement('div');
-                        emptyRow.className = 'row fs-85 data-row empty-row';
-                        emptyRow.innerHTML = `
-                            <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                            <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                            <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                            <div class="col-4 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                            <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                            <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px"></div>
-                        `;
-                        rowsContainer.appendChild(emptyRow);
-                    }
-                    console.log('Добавлено пустых строк на последнюю страницу:', emptyRowsNeeded, 'из', paintMaxRows, '(строк на странице:', rowsOnLastPage, ')');
+            const rowsOnLastPage = pageRows.length;
+            const emptyRowsNeeded = rowsOnLastPage === 0 ? paintMaxRows : (paintMaxRows - rowsOnLastPage);
+            if (pageIndex === totalPages - 1 && emptyRowsNeeded > 0 && emptyRowsNeeded < paintMaxRows) {
+                for (let i = 0; i < emptyRowsNeeded; i++) {
+                    const emptyRow = document.createElement('div');
+                    emptyRow.className = 'data-row empty-row std-grid-row';
+                    emptyRow.innerHTML =
+                        '<div class="std-cell"></div><div class="std-cell"></div><div class="std-cell"></div>' +
+                        '<div class="std-cell"></div><div class="std-cell"></div><div class="std-cell"></div>';
+                    rowsContainer.appendChild(emptyRow);
                 }
             }
 
             pageDiv.appendChild(rowsContainer);
 
-            // Копируем footer с правильной нумерацией
-            if (originalFooter) {
-                const footerClone = originalFooter.cloneNode(true);
-                const pageNumberEl = footerClone.querySelector('.page-number');
-                const totalPagesEl = footerClone.querySelector('.total-pages');
-                if (pageNumberEl) {
-                    pageNumberEl.textContent = pageIndex + 1;
-                }
-                if (totalPagesEl) {
-                    totalPagesEl.textContent = totalPages;
-                }
-                pageDiv.appendChild(footerClone);
-            }
+            const footerClone = originalFooter.cloneNode(true);
+            updateFooter(footerClone, pageIndex + 1, totalPages);
+            pageDiv.appendChild(footerClone);
 
-            // Добавляем pageDiv в dynamicPageWrapper
-            dynamicPageWrapper.appendChild(pageDiv);
-
-            // Вставляем страницу после первого container-fluid
-            if (firstContainerFluid && firstContainerFluid.parentNode) {
-                firstContainerFluid.parentNode.insertBefore(dynamicPageWrapper, firstContainerFluid.nextSibling);
-            } else {
-                document.body.appendChild(dynamicPageWrapper);
-            }
+            pageWrapper.appendChild(pageDiv);
+            primarySheet.parentNode.insertBefore(pageWrapper, insertAnchor.nextSibling);
+            insertAnchor = pageWrapper;
         }
 
-        // Добавляем пустые строки на первую страницу, если это единственная страница и нужно
         if (totalPages === 1) {
-            const rowsOnFirstPage = rowsToProcess.length;
-            const emptyRowsNeeded = rowsOnFirstPage === 0 ? paintMaxRows : (paintMaxRows - rowsOnFirstPage);
-
+            const emptyRowsNeeded = totalRows === 0 ? paintMaxRows : (paintMaxRows - totalRows);
             if (emptyRowsNeeded > 0 && emptyRowsNeeded < paintMaxRows) {
                 for (let i = 0; i < emptyRowsNeeded; i++) {
                     const emptyRow = document.createElement('div');
-                    emptyRow.className = 'row fs-85 data-row empty-row';
-                    emptyRow.innerHTML = `
-                        <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                        <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                        <div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                        <div class="col-4 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                        <div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>
-                        <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px"></div>
-                    `;
+                    emptyRow.className = 'data-row empty-row std-grid-row';
+                    emptyRow.innerHTML =
+                        '<div class="std-cell"></div><div class="std-cell"></div><div class="std-cell"></div>' +
+                        '<div class="std-cell"></div><div class="std-cell"></div><div class="std-cell"></div>';
                     allRowsContainer.appendChild(emptyRow);
                 }
-                console.log('Добавлено пустых строк на первую страницу:', emptyRowsNeeded, 'из', paintMaxRows, '(строк на странице:', rowsOnFirstPage, ')');
             }
         }
-
-        console.log('Ограничения строк применены. Всего страниц:', totalPages);
     };
 </script>
 @include('components.session-heartbeat-config')
 <script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>
 @include('shared.tdr-forms._scripts', ['formType' => 'paintFormStd', 'formConfig' => $tdrFormConfig])
-
-<!-- Общие модули -->
-<script src="{{ asset('js/tdrs/forms/common/multi-page-handler.js') }}"></script>
-
-<!-- Модули для Paint формы -->
-<script src="{{ asset('js/tdrs/forms/paint/paint-row-manager.js') }}"></script>
-<script src="{{ asset('js/tdrs/forms/paint/paint-form-main.js') }}"></script>
 </body>
 </html>

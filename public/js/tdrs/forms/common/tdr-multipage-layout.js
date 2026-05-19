@@ -36,6 +36,39 @@
         }
     }
 
+    function stdTableColumnsStyle(sourceContainer) {
+        if (!sourceContainer || typeof window === 'undefined' || !window.getComputedStyle) {
+            return '';
+        }
+        return window.getComputedStyle(sourceContainer).getPropertyValue('--std-table-columns').trim();
+    }
+
+    function copyStdTableColumns(sourceContainer, targetContainer) {
+        const columns = stdTableColumnsStyle(sourceContainer);
+        if (columns && targetContainer && targetContainer.style) {
+            targetContainer.style.setProperty('--std-table-columns', columns);
+        }
+    }
+
+    function buildContinuationContainerClassName(primarySheet, wrapContinuationInDynamicPage) {
+        const classList = Array.from((primarySheet && primarySheet.classList) || []);
+        const filtered = classList.filter(function (name) {
+            return name !== 'tdr-primary-sheet' && name !== 'dynamic-page-wrapper';
+        });
+
+        if (!filtered.includes('container-fluid')) {
+            filtered.unshift('container-fluid');
+        }
+        if (!filtered.includes('std-sheet-container')) {
+            filtered.push('std-sheet-container');
+        }
+        if (wrapContinuationInDynamicPage && !filtered.includes('dynamic-page-wrapper')) {
+            filtered.push('dynamic-page-wrapper');
+        }
+
+        return filtered.join(' ');
+    }
+
     /**
      * Только цепочка .dynamic-page-wrapper сразу после primary (до модалки и пр.).
      * Так не трогаем чужие блоки и порядок снятия совпадает с тем, как вставляли.
@@ -217,14 +250,14 @@
             const pageRows = rowsToProcess.slice(startIndex, endIndex);
 
             const pageDiv = document.createElement('div');
-            pageDiv.className = 'page data-page';
+            pageDiv.className = 'std-page page data-page';
             pageDiv.setAttribute('data-page-index', String(pageIndex + 1));
 
             let insertNode;
 
             if (cfg.wrapContinuationInDynamicPage) {
                 const outerWrap = document.createElement('div');
-                outerWrap.className = 'container-fluid dynamic-page-wrapper';
+                outerWrap.className = buildContinuationContainerClassName(primarySheet, true);
                 outerWrap.style.setProperty('break-before', 'page', 'important');
                 outerWrap.style.setProperty('page-break-before', 'always', 'important');
                 outerWrap.appendChild(pageDiv);
@@ -232,7 +265,7 @@
             } else {
                 pageDiv.style.pageBreakBefore = 'always';
                 const pageContainer = document.createElement('div');
-                pageContainer.className = 'container-fluid';
+                pageContainer.className = buildContinuationContainerClassName(primarySheet, false);
                 pageContainer.appendChild(pageDiv);
                 insertNode = pageContainer;
             }
@@ -242,6 +275,7 @@
 
             const rowsContainer = document.createElement('div');
             rowsContainer.className = cfg.continuationRowsContainerClass;
+            copyStdTableColumns(allRowsContainer, rowsContainer);
 
             if (cfg.rowPlacement === 'move') {
                 for (let ri = startIndex; ri < endIndex; ri++) {
@@ -320,29 +354,29 @@
     }
 
     const EMPTY_NDT =
-        '<div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>' +
-        '<div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>' +
-        '<div class="col-3 border-l-b details-row text-center" style="height: 32px"></div>' +
-        '<div class="col-2 border-l-b details-row text-center" style="height: 32px"></div>' +
-        '<div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>' +
-        '<div class="col-1 border-l-b details-row text-center" style="height: 32px"></div>' +
-        '<div class="col-1 border-l-b-r details-row text-center" style="height: 32px"></div>';
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>';
 
     const EMPTY_STRESS =
-        '<div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>' +
-        '<div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>' +
-        '<div class="col-2 border-l-b details-cell text-center" style="min-height: 34px"></div>' +
-        '<div class="col-4 border-l-b details-cell text-center" style="min-height: 34px"></div>' +
-        '<div class="col-1 border-l-b details-cell text-center" style="min-height: 34px"></div>' +
-        '<div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px"></div>';
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>';
 
     const EMPTY_CAD =
-        '<div class="col-1 border-l-b details-cell text-center" style="height: 32px"></div>' +
-        '<div class="col-2 border-l-b details-cell text-center" style="height: 32px"></div>' +
-        '<div class="col-3 border-l-b details-cell text-center" style="height: 32px"></div>' +
-        '<div class="col-3 border-l-b details-cell text-center" style="height: 32px"></div>' +
-        '<div class="col-1 border-l-b details-cell text-center" style="height: 32px"></div>' +
-        '<div class="col-2 border-l-b-r details-cell text-center" style="height: 32px"></div>';
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>' +
+        '<div class="std-cell"></div>';
 
     const presets = {
         ndtFormStd: {
@@ -351,10 +385,10 @@
             maxRowsKey: 'ndtTableRows',
             maxRowsFallback: 16,
             rowSelectorInPrimary: '.data-row-ndt:not(.empty-row)',
-            emptyRowClassName: 'row fs-85 data-row-ndt empty-row',
+            emptyRowClassName: 'data-row-ndt empty-row std-grid-row',
             emptyRowHtml: EMPTY_NDT,
             continuationRowsContainerClass: 'all-rows-container',
-            wrapContinuationInDynamicPage: false,
+            wrapContinuationInDynamicPage: true,
             useTdrPrintLockOnPrimary: false,
             rowPlacement: 'clone',
             emptyRowsLastPageMode: 'ndt',
@@ -367,7 +401,7 @@
             maxRowsKey: 'stressTableRows',
             maxRowsFallback: 21,
             rowSelectorInPrimary: '',
-            emptyRowClassName: 'row fs-85 data-row empty-row',
+            emptyRowClassName: 'data-row empty-row std-grid-row',
             emptyRowHtml: EMPTY_STRESS,
             continuationRowsContainerClass: 'page-rows-container',
             wrapContinuationInDynamicPage: true,
@@ -382,7 +416,7 @@
             variant: 'cad',
             maxRowsKey: 'cadTableRows',
             maxRowsFallback: 19,
-            emptyRowClassName: 'row fs-85 data-row empty-row',
+            emptyRowClassName: 'data-row empty-row std-grid-row',
             emptyRowHtml: EMPTY_CAD,
             continuationRowsContainerClass: 'page-rows-container',
             wrapContinuationInDynamicPage: true,

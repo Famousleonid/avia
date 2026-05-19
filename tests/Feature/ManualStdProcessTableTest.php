@@ -329,7 +329,7 @@ class ManualStdProcessTableTest extends TestCase
 
         $rows = StdProcess::snapshotComponentsForWorkorder($workorder->fresh(), StdProcess::STD_CAD);
 
-        $this->assertSame(4, $rows[0]['qty']);
+        $this->assertSame(1, $rows[0]['qty']);
         $this->assertSame('2', $rows[0]['process']);
     }
 

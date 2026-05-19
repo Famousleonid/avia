@@ -17,6 +17,8 @@
         $manualUrlParts = route('manuals.show', ['manual' => $cmm, 'tab' => 'parts']);
         $manualUrlProcesses = route('manuals.show', ['manual' => $cmm, 'tab' => 'processes']);
         $manualUrlSb = route('manuals.show', ['manual' => $cmm, 'tab' => 'sb']);
+        $manualPartsCount = $parts->count();
+        $manualProcessesCount = $manualProcesses->count();
         $sbRequirementOptions = [
             '' => 'None',
             \App\Models\ManualServiceBulletin::REQUIREMENT_OPTIONAL => 'Optional',
@@ -38,18 +40,19 @@
 
         /* Ð¨Ð¸Ñ€Ð¸Ð½Ð° Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñ‹ Ð²Ð¾ Ð²ÐºÐ»Ð°Ð´ÐºÐµ Components */
         #nav-components .table {
-            width: 50%;
+            width: 70%;
+            min-width: 680px;
         }
 
         /* ÐšÐ¾Ð»Ð¾Ð½ÐºÐ¸ Components: # | Components PN | EFF Code | Action */
         #nav-components .table th:nth-child(1),
         #nav-components .table td:nth-child(1) { width: 50px; }
         #nav-components .table th:nth-child(2),
-        #nav-components .table td:nth-child(2) { width: 200px; }
+        #nav-components .table td:nth-child(2) { width: 220px; }
         #nav-components .table th:nth-child(3),
-        #nav-components .table td:nth-child(3) { width: 80px; }
+        #nav-components .table td:nth-child(3) { width: 110px; }
         #nav-components .table th:nth-child(4),
-        #nav-components .table td:nth-child(4) { width: 100px; }
+        #nav-components .table td:nth-child(4) { width: 190px; }
 
         .component-table-container {
             display: flex;
@@ -587,6 +590,9 @@
             position: absolute;
             right: 1px;
         }
+        .manual-parts-tab-count {
+            color: #fff !important;
+        }
         #nav-tabContent .tab-pane:focus,
         #nav-tabContent .tab-pane:focus-visible,
         #nav-tabContent .component-table-container:focus,
@@ -604,11 +610,68 @@
         }
         #editUnitModal .modal-dialog {
             max-height: 90vh;
+            width: min(1200px, 96vw);
+            max-width: min(1200px, 96vw);
+        }
+
+        #editUnitModal .modal-content {
+            width: 100%;
         }
 
         #editUnitModal .modal-body {
             max-height: 60vh;
             overflow-y: auto;
+            overflow-x: auto;
+        }
+
+        .manual-unit-editor-wrap {
+            min-width: 980px;
+        }
+        .manual-unit-editor-row {
+            display: grid;
+            grid-template-columns: 26px minmax(140px, 1.15fr) minmax(110px, .8fr) minmax(100px, .8fr) minmax(100px, .8fr) minmax(100px, .8fr) 56px;
+            gap: .5rem;
+            align-items: center;
+        }
+        .manual-unit-editor-check {
+            justify-self: center;
+            margin-right: 0 !important;
+        }
+        .manual-unit-editor-row + .manual-unit-editor-row {
+            margin-top: .5rem;
+        }
+        .manual-unit-editor-head {
+            color: #9aa4ad;
+            font-size: .78rem;
+            margin-bottom: .5rem;
+        }
+        .manual-unit-editor-hint {
+            color: #9aa4ad;
+            font-size: .82rem;
+            margin-bottom: .75rem;
+        }
+        .manual-unit-default-rule {
+            display: grid;
+            grid-template-columns: minmax(220px, 1.4fr) minmax(140px, .8fr) minmax(140px, .8fr);
+            gap: .75rem;
+            align-items: end;
+            margin-bottom: 1rem;
+        }
+        .manual-unit-default-rule .form-label {
+            color: #9aa4ad;
+            font-size: .78rem;
+            margin-bottom: .35rem;
+        }
+        .manual-unit-rule-cell {
+            white-space: nowrap;
+            font-size: .9rem;
+        }
+        @media (max-width: 991.98px) {
+            .manual-unit-editor-row,
+            .manual-unit-editor-head,
+            .manual-unit-default-rule {
+                grid-template-columns: 1fr;
+            }
         }
         #manual-show-tabs-overlay {
             display: none;
@@ -756,13 +819,13 @@
                                 type="button" role="tab" aria-controls="nav-components" aria-selected="{{ $manualShowTab === 'components' ? 'true' : 'false' }}">Components</button>
                         <button class="nav-link @if($manualShowTab === 'parts') active @endif" id="nav-parts-tab" data-bs-toggle="tab" data-bs-target="#nav-parts"
                                 type="button" role="tab" aria-controls="nav-parts" aria-selected="{{ $manualShowTab === 'parts' ? 'true' : 'false' }}">
-                            Parts
+                            Parts <span class="manual-parts-tab-count">({{ $manualPartsCount }})</span>
                             @if($manualPartsLocked)
                                 <i class="bi bi-lock-fill manual-part-lock-icon ms-1" title="Locked by {{ $manualPartLock->lockedBy?->name ?? 'Unknown user' }}"></i>
                             @endif
                         </button>
                         <button class="nav-link @if($manualShowTab === 'processes') active @endif" id="nav-processes-tab" data-bs-toggle="tab" data-bs-target="#nav-processes"
-                                type="button" role="tab" aria-controls="nav-processes" aria-selected="{{ $manualShowTab === 'processes' ? 'true' : 'false' }}">Processes</button>
+                                type="button" role="tab" aria-controls="nav-processes" aria-selected="{{ $manualShowTab === 'processes' ? 'true' : 'false' }}">Processes <span class="manual-parts-tab-count">({{ $manualProcessesCount }})</span></button>
                         <button class="nav-link @if($manualShowTab === 'std') active @endif" id="nav-std-tab" data-bs-toggle="tab" data-bs-target="#nav-std"
                                 type="button" role="tab" aria-controls="nav-std" aria-selected="{{ $manualShowTab === 'std' ? 'true' : 'false' }}">STD Processes</button>
                         <button class="nav-link @if($manualShowTab === 'sb') active @endif" id="nav-sb-tab" data-bs-toggle="tab" data-bs-target="#nav-sb"
@@ -856,6 +919,7 @@
                                 <th class="text-center bg-gradient" scope="col">#</th>
                                 <th class="text-center bg-gradient" scope="col">Components PN</th>
                                 <th class="text-center bg-gradient" scope="col">EFF Code</th>
+                                <th class="text-center bg-gradient" scope="col">IPL Rule</th>
                             </tr>
                             </thead>
                             <tbody class="text-center" id="components-table-body">
@@ -870,6 +934,7 @@
                                     {{$u->part_number}}
                                 </td>
                                 <td class="align-content-center"> {{$u->eff_code}}</td>
+                                <td class="align-content-center manual-unit-rule-cell">{{ $u->ipl_branch_rule_display ?: '-' }}</td>
                             </tr>
                             @endforeach
                             </tbody>
@@ -1440,8 +1505,34 @@
 
 
                 </div>
-                <div class="modal-body ">
-                    <div class="ms-4">
+	                <div class="modal-body ">
+	                    <div class="ms-4 manual-unit-editor-wrap">
+                                <div class="manual-unit-editor-hint">
+                                    {{ __('Default Rule applies to all other units. In override rows, full PN matches one unit, shorter prefix matches a group of units.') }}
+                                </div>
+                                <div class="manual-unit-default-rule">
+                                    <div>
+                                        <label class="form-label" for="defaultRuleTitle">{{ __('Default Rule For All Other Units') }}</label>
+                                        <input type="text" id="defaultRuleTitle" class="form-control" value="{{ __('All other units') }}" readonly>
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="defaultIncludePrefix">{{ __('Use IPL') }}</label>
+                                        <input type="text" id="defaultIncludePrefix" class="form-control" placeholder="For example: 9A-">
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="defaultExcludePrefix">{{ __('Hide IPL') }}</label>
+                                        <input type="text" id="defaultExcludePrefix" class="form-control" placeholder="For example: 9-">
+                                    </div>
+                                </div>
+	                            <div class="manual-unit-editor-row manual-unit-editor-head">
+	                                <div>{{ __('Ver.') }}</div>
+	                                <div>{{ __('Part Number') }}</div>
+	                                <div>{{ __('EFF Code') }}</div>
+	                                <div>{{ __('Match Unit') }}</div>
+	                                <div>{{ __('Use IPL') }}</div>
+	                                <div>{{ __('Hide IPL') }}</div>
+                                <div></div>
+                            </div>
                             <div id="partNumbersList"></div>
                     </div>
                 </div>
@@ -2437,13 +2528,22 @@
 
                 const unitsUrl = '{{ route("units.show", $cmm->id) }}';
 
-                fetch(unitsUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        if (data.units && data.units.length > 0) {
-                            data.units.forEach(function (unit) {
-                                addPartNumberRow(unit.part_number, unit.verified, unit.eff_code || '');
-                            });
+	                fetch(unitsUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+	                    .then(function (r) { return r.json(); })
+	                    .then(function (data) {
+                            var defaultIncludeInput = document.getElementById('defaultIncludePrefix');
+                            var defaultExcludeInput = document.getElementById('defaultExcludePrefix');
+                            if (defaultIncludeInput) {
+                                defaultIncludeInput.value = (data.default_rule && data.default_rule.include_prefix) ? data.default_rule.include_prefix : '';
+                            }
+                            if (defaultExcludeInput) {
+                                defaultExcludeInput.value = (data.default_rule && data.default_rule.exclude_prefix) ? data.default_rule.exclude_prefix : '';
+                            }
+
+	                        if (data.units && data.units.length > 0) {
+	                            data.units.forEach(function (unit) {
+	                                addPartNumberRow(unit.part_number, unit.verified, unit.eff_code || '', unit.unit_match_value || '', unit.include_prefix || '', unit.exclude_prefix || '');
+	                            });
                         } else {
                             var noUnitsItem = document.createElement('div');
                             noUnitsItem.className = 'mb-2 text-muted';
@@ -2456,11 +2556,11 @@
 
             document.addEventListener('click', function (e) {
                 if (e.target.id === 'addUnitButton' || e.target.closest('#addUnitButton')) {
-                    addPartNumberRow('', true, '');
+                    addPartNumberRow('', true, '', '', '', '');
                 }
             });
 
-            function addPartNumberRow(partNumber, verified, effCode) {
+            function addPartNumberRow(partNumber, verified, effCode, unitMatchValue, includePrefix, excludePrefix) {
                 var partNumbersList = document.getElementById('partNumbersList');
                 if (!partNumbersList) return;
 
@@ -2468,12 +2568,13 @@
                 if (noUnitsMsg) noUnitsMsg.remove();
 
                 var listItem = document.createElement('div');
-                listItem.className = 'mb-2 d-flex align-items-center';
+                listItem.className = 'manual-unit-editor-row';
 
                 var checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.className = 'form-check-input me-2';
+                checkbox.className = 'form-check-input manual-unit-editor-check';
                 checkbox.checked = !!verified;
+                checkbox.title = 'Verified unit';
 
                 var pnInput = document.createElement('input');
                 pnInput.type = 'text';
@@ -2489,6 +2590,24 @@
                 effCodeInput.value = effCode || '';
                 effCodeInput.placeholder = 'EFF Code';
 
+	                var unitMatchInput = document.createElement('input');
+	                unitMatchInput.type = 'text';
+	                unitMatchInput.className = 'form-control';
+	                unitMatchInput.value = unitMatchValue || '';
+	                unitMatchInput.placeholder = 'Exact PN or prefix';
+
+	                var includePrefixInput = document.createElement('input');
+	                includePrefixInput.type = 'text';
+	                includePrefixInput.className = 'form-control';
+	                includePrefixInput.value = includePrefix || '';
+	                includePrefixInput.placeholder = 'e.g. 9-';
+
+	                var excludePrefixInput = document.createElement('input');
+	                excludePrefixInput.type = 'text';
+	                excludePrefixInput.className = 'form-control';
+	                excludePrefixInput.value = excludePrefix || '';
+	                excludePrefixInput.placeholder = 'e.g. 9A-';
+
                 var deleteButton = document.createElement('button');
                 deleteButton.className = 'btn btn-danger btn-sm ms-1';
                 deleteButton.innerText = 'Del';
@@ -2497,6 +2616,9 @@
                 listItem.appendChild(checkbox);
                 listItem.appendChild(pnInput);
                 listItem.appendChild(effCodeInput);
+                listItem.appendChild(unitMatchInput);
+                listItem.appendChild(includePrefixInput);
+                listItem.appendChild(excludePrefixInput);
                 listItem.appendChild(deleteButton);
                 partNumbersList.appendChild(listItem);
             }
@@ -2505,21 +2627,30 @@
             if (updateUnitBtn) {
                 updateUnitBtn.addEventListener('click', function () {
                 var manualId = editUnitModal.getAttribute('data-manual-id');
-                var listItems = document.querySelectorAll('#partNumbersList .d-flex.align-items-center');
-                var partNumbers = Array.from(listItems).map(function (listItem) {
-                    var inputs = listItem.querySelectorAll('.form-control');
-                    var checkbox = listItem.querySelector('.form-check-input');
-                    return {
+                var listItems = document.querySelectorAll('#partNumbersList .manual-unit-editor-row');
+	                var partNumbers = Array.from(listItems).map(function (listItem) {
+	                    var inputs = listItem.querySelectorAll('.form-control');
+	                    var checkbox = listItem.querySelector('.form-check-input');
+	                    return {
                         part_number: inputs[0] ? inputs[0].value : '',
                         eff_code: inputs[1] ? inputs[1].value : '',
-                        verified: !!(checkbox && checkbox.checked)
+                        unit_match_value: inputs[2] ? inputs[2].value : '',
+                        include_prefix: inputs[3] ? inputs[3].value : '',
+                        exclude_prefix: inputs[4] ? inputs[4].value : '',
+	                        verified: !!(checkbox && checkbox.checked)
+	                    };
+	                });
+                    var defaultIncludeInput = document.getElementById('defaultIncludePrefix');
+                    var defaultExcludeInput = document.getElementById('defaultExcludePrefix');
+                    var defaultRule = {
+                        include_prefix: defaultIncludeInput ? defaultIncludeInput.value : '',
+                        exclude_prefix: defaultExcludeInput ? defaultExcludeInput.value : ''
                     };
-                });
 
-                if (!manualId) { showNotification('{{ __("Error: Manual ID not found") }}', 'error'); return; }
-                if (partNumbers.length === 0) { showNotification('{{ __("Error: No part numbers to update") }}', 'error'); return; }
-                var invalidItems = partNumbers.filter(function (item) { return !item.part_number.trim(); });
-                if (invalidItems.length > 0) { showNotification('{{ __("Error: All part numbers must be filled") }}', 'error'); return; }
+	                if (!manualId) { showNotification('{{ __("Error: Manual ID not found") }}', 'error'); return; }
+	                if (partNumbers.length === 0) { showNotification('{{ __("Error: No part numbers to update") }}', 'error'); return; }
+	                var invalidItems = partNumbers.filter(function (item) { return !item.part_number.trim(); });
+	                if (invalidItems.length > 0) { showNotification('{{ __("Error: All part numbers must be filled") }}', 'error'); return; }
 
                 var unitsUpdateBase = @json(rtrim((string) url('/units'), '/'));
                 var updateUrl = unitsUpdateBase + '/' + encodeURIComponent(manualId);
@@ -2533,8 +2664,8 @@
                         'X-Requested-With': 'XMLHttpRequest'
                     },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ part_numbers: partNumbers })
-                })
+	                    body: JSON.stringify({ part_numbers: partNumbers, default_rule: defaultRule })
+	                })
                     .then(function (r) {
                         return r.text().then(function (text) {
                             var data = {};
@@ -2566,7 +2697,8 @@
                                             var tr = document.createElement('tr');
                                             tr.innerHTML = '<td class="align-content-center">' + (idx + 1) + '</td>' +
                                                 '<td class="align-content-center' + (unit.verified ? '' : ' text-danger fw-bold') + '">' + (unit.part_number || '') + '</td>' +
-                                                '<td class="align-content-center">' + (unit.eff_code || '') + '</td>';
+                                                '<td class="align-content-center">' + (unit.eff_code || '') + '</td>' +
+                                                '<td class="align-content-center manual-unit-rule-cell">' + (unit.ipl_branch_rule_display || '-') + '</td>';
                                             tbody.appendChild(tr);
                                         });
                                     }

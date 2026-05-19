@@ -13,7 +13,6 @@ use App\Models\Instruction;
 use App\Models\LogCard;
 use App\Models\Manual;
 use App\Models\ManualProcess;
-use App\Models\ModCsv;
 use App\Models\Necessary;
 use App\Models\Plane;
 use App\Models\Process;
@@ -31,8 +30,8 @@ use App\Models\Unit;
 //use App\Models\Wo_Code;
 //use App\Models\WoCode;
 use App\Models\Workorder;
-use App\Models\NdtCadCsv;
 use App\Services\LogCardTdrAccessService;
+use App\Services\ManualIplBranchRuleResolver;
 use App\Services\WorkorderStdListProcessesService;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Contracts\Foundation\Application;
@@ -468,7 +467,10 @@ class TdrController extends Controller
                 });
         }
 
-        $components = $componentsQuery->get();
+        $components = $this->filterComponentsForUnit(
+            $componentsQuery->get(),
+            $current_wo
+        );
 
         // Условия для Component - без фильтрации
         $component_conditions = Condition::where('unit', false)->get();
@@ -1214,7 +1216,7 @@ class TdrController extends Controller
         $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
 
         // Извлекаем компоненты, которые связаны с этим manual_id
-        $components = Component::where('manual_id', $manual_id)
+        $components = $this->filterComponentsForUnit(Component::where('manual_id', $manual_id)
             ->where(function ($query) {
                 $query->where('kit', false)->orWhereNull('kit');
             })
@@ -1222,7 +1224,7 @@ class TdrController extends Controller
                 $query->where('kit_e', false)->orWhereNull('kit_e');
             })
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
-            ->get();
+            ->get(), $current_wo);
 
         // Ограничиваем процессы только текущим Workorder: берём id связанных TDR
         $tdrIds = Tdr::where('workorder_id', $current_wo->id)
@@ -1268,9 +1270,12 @@ class TdrController extends Controller
         $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
 
         // Извлекаем компоненты, которые связаны с этим manual_id
-        $components = Component::where('manual_id', $manual_id)
-            ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
-            ->get();
+        $components = $this->filterComponentsForUnit(
+            Component::where('manual_id', $manual_id)
+                ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
+                ->get(),
+            $current_wo
+        );
 
         // Ограничиваем процессы только текущим Workorder: берём id связанных TDR
         $tdrIds = Tdr::where('workorder_id', $current_wo->id)
@@ -1386,9 +1391,12 @@ class TdrController extends Controller
         }
 
         // Получаем связанные данные
-        $components = Component::where('manual_id', $manual_id)
-            ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
-            ->get();
+        $components = $this->filterComponentsForUnit(
+            Component::where('manual_id', $manual_id)
+                ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
+                ->get(),
+            $current_wo
+        );
         $manualProcesses = ManualProcess::where('manual_id', $manual_id)
             ->pluck('processes_id');
 
@@ -1690,9 +1698,12 @@ class TdrController extends Controller
         $showDestructionCert = LogCardDestructionCertificate::availableFor($current_wo);
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
         $hasBushings = Component::where('manual_id', $manual_id)->where('is_bush', 1)->exists();
-        $components = Component::where('manual_id', $manual_id)
-            ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
-            ->get();
+        $components = $this->filterComponentsForUnit(
+            Component::where('manual_id', $manual_id)
+                ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
+                ->get(),
+            $current_wo
+        );
         $code = Code::where('name', 'Missing')->first();
         $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
         $conditions = Condition::all();
@@ -2220,6 +2231,22 @@ class TdrController extends Controller
                     $pn->whereNotIn('name', $stdNames);
                 });
         });
+    }
+
+    private function filterComponentsForUnit($components, Workorder $workorder)
+    {
+        $resolver = app(ManualIplBranchRuleResolver::class);
+        $manualId = (int) ($workorder->unit->manual_id ?? 0);
+
+        return $components
+            ->filter(function (Component $component) use ($resolver, $workorder, $manualId): bool {
+                return $resolver->allowsComponentForUnit(
+                    $workorder->unit,
+                    (string) ($component->ipl_num ?? ''),
+                    $manualId
+                );
+            })
+            ->values();
     }
 
 }

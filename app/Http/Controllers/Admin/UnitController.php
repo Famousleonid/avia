@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Builder;
+use App\Models\ManualIplBranchRule;
 use App\Models\Manual;
 use App\Models\Plane;
 use App\Models\Scope;
 use App\Models\Unit;
+use App\Services\ManualIplBranchRuleResolver;
+use App\Services\WorkorderStdProcessItemsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -161,7 +164,13 @@ class UnitController extends Controller
     public function show(string $manualId)
     {
         $units = Unit::where('manual_id', $manualId)->get();
-        return response()->json(['units' => $units]);
+        $resolver = app(ManualIplBranchRuleResolver::class);
+        $defaultRule = $resolver->resolveDefaultRuleForManual((int) $manualId);
+
+        return response()->json([
+            'units' => $units->map(fn (Unit $unit): array => $this->unitPayload($unit, $resolver))->values()->all(),
+            'default_rule' => $this->defaultRulePayload($defaultRule),
+        ]);
     }
 
     /**
@@ -185,9 +194,12 @@ class UnitController extends Controller
     public function getUnitsByManual($manualId)
     {
         $units = Unit::where('manual_id', $manualId)->get();
+        $resolver = app(ManualIplBranchRuleResolver::class);
+        $defaultRule = $resolver->resolveDefaultRuleForManual((int) $manualId);
 
         return response()->json([
-            'units' => $units,
+            'units' => $units->map(fn (Unit $unit): array => $this->unitPayload($unit, $resolver))->values()->all(),
+            'default_rule' => $this->defaultRulePayload($defaultRule),
         ]);
     }
 
@@ -214,6 +226,11 @@ class UnitController extends Controller
                 ->delete();
 
             // С учётом soft deletes: иначе при повторном добавлении ранее удалённого PN insert бьёт unique (manual_id, part_number).
+            $rulesPayload = $this->collectManualBranchRulesPayload(
+                $partNumbersPayload,
+                $request->input('default_rule')
+            );
+
             foreach ($partNumbersPayload as $unit) {
                 $row = Unit::withTrashed()->updateOrCreate(
                     ['manual_id' => $manualId, 'part_number' => $unit['part_number']],
@@ -230,7 +247,22 @@ class UnitController extends Controller
                 }
             }
 
+            ManualIplBranchRule::query()->where('manual_id', $manualId)->delete();
+            foreach ($rulesPayload as $rulePayload) {
+                ManualIplBranchRule::query()->create([
+                    'manual_id' => (int) $manualId,
+                ] + $rulePayload);
+            }
+
+            app(WorkorderStdProcessItemsService::class)->invalidateForManual((int) $manualId);
+
             return response()->json(['success' => true]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('units.update: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
@@ -348,6 +380,122 @@ class UnitController extends Controller
             'manual_number' => optional($unit->manual)->number,
             'verified' => (bool) $unit->verified,
         ]);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $unitsPayload
+     * @return array<int, array{is_default:bool,unit_match_value:?string,include_prefix:string,exclude_prefix:string}>
+     */
+    private function collectManualBranchRulesPayload(array $unitsPayload, mixed $defaultRuleInput): array
+    {
+        $rulesByMatch = [];
+        $defaultRule = $this->normalizeDefaultBranchRule($defaultRuleInput);
+
+        foreach ($unitsPayload as $unit) {
+            $matchValue = $this->normalizeBranchRulePrefix($unit['unit_match_value'] ?? null);
+            $includePrefix = $this->normalizeBranchRulePrefix($unit['include_prefix'] ?? null);
+            $excludePrefix = $this->normalizeBranchRulePrefix($unit['exclude_prefix'] ?? null);
+
+            if ($matchValue === null && $includePrefix === null && $excludePrefix === null) {
+                continue;
+            }
+
+            if ($matchValue === null || $includePrefix === null || $excludePrefix === null) {
+                throw ValidationException::withMessages([
+                    'part_numbers' => ['Rule fields Unit Prefix, Use IPL and Hide IPL must all be filled, or all left blank.'],
+                ]);
+            }
+
+            $existing = $rulesByMatch[$matchValue] ?? null;
+            if ($existing !== null) {
+                if ($existing['include_prefix'] !== $includePrefix || $existing['exclude_prefix'] !== $excludePrefix) {
+                    throw ValidationException::withMessages([
+                        'part_numbers' => ["Conflicting IPL rules found for unit prefix {$matchValue}."],
+                    ]);
+                }
+                continue;
+            }
+
+            $rulesByMatch[$matchValue] = [
+                'is_default' => false,
+                'unit_match_value' => $matchValue,
+                'include_prefix' => $includePrefix,
+                'exclude_prefix' => $excludePrefix,
+            ];
+        }
+
+        $rules = array_values($rulesByMatch);
+
+        if ($defaultRule !== null) {
+            array_unshift($rules, $defaultRule);
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @return array{is_default:bool,unit_match_value:null,include_prefix:string,exclude_prefix:string}|null
+     */
+    private function normalizeDefaultBranchRule(mixed $defaultRuleInput): ?array
+    {
+        if (! is_array($defaultRuleInput)) {
+            return null;
+        }
+
+        $includePrefix = $this->normalizeBranchRulePrefix($defaultRuleInput['include_prefix'] ?? null);
+        $excludePrefix = $this->normalizeBranchRulePrefix($defaultRuleInput['exclude_prefix'] ?? null);
+
+        if ($includePrefix === null && $excludePrefix === null) {
+            return null;
+        }
+
+        if ($includePrefix === null || $excludePrefix === null) {
+            throw ValidationException::withMessages([
+                'default_rule' => ['Default rule: fill both Use IPL and Hide IPL, or leave both empty.'],
+            ]);
+        }
+
+        return [
+            'is_default' => true,
+            'unit_match_value' => null,
+            'include_prefix' => $includePrefix,
+            'exclude_prefix' => $excludePrefix,
+        ];
+    }
+
+    private function normalizeBranchRulePrefix(mixed $value): ?string
+    {
+        $normalized = strtoupper(trim((string) ($value ?? '')));
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function unitPayload(Unit $unit, ?ManualIplBranchRuleResolver $resolver = null): array
+    {
+        $resolver ??= app(ManualIplBranchRuleResolver::class);
+        $effectiveRule = $resolver->resolveRuleForUnit($unit, (int) $unit->manual_id);
+        $exactRule = $resolver->resolveExactRuleForUnit($unit, (int) $unit->manual_id);
+
+        return [
+            'id' => (int) $unit->id,
+            'part_number' => (string) ($unit->part_number ?? ''),
+            'verified' => (bool) $unit->verified,
+            'eff_code' => $unit->eff_code,
+            'name' => $unit->name,
+            'description' => $unit->description,
+            'unit_match_value' => $exactRule?->unit_match_value ?? '',
+            'include_prefix' => $exactRule?->include_prefix ?? '',
+            'exclude_prefix' => $exactRule?->exclude_prefix ?? '',
+            'ipl_branch_rule_display' => $effectiveRule?->displayLabel() ?? '',
+        ];
+    }
+
+    private function defaultRulePayload(?ManualIplBranchRule $rule): array
+    {
+        return [
+            'include_prefix' => $rule?->include_prefix ?? '',
+            'exclude_prefix' => $rule?->exclude_prefix ?? '',
+        ];
     }
 
 

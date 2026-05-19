@@ -131,6 +131,15 @@
                                             <label for="bodyMarginLeft" class="form-label">Left Margin (px)</label>
                                             <input type="number" class="form-control" id="bodyMarginLeft" name="bodyMarginLeft" min="0" max="50" step="1" value="{{ $formConfig['body_margin_left'] ?? 2 }}">
                                         </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="printScale" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
+                                                title="Дополнительный масштаб печати формы. 100 = без изменения, 95 = немного уменьшить."
+                                                data-tooltip-ru="Дополнительный масштаб печати формы. 100 = без изменения, 95 = немного уменьшить."
+                                                data-tooltip-en="Additional print scale for the form. 100 = unchanged, 95 = slightly smaller.">
+                                                Scale (%)
+                                            </label>
+                                            <input type="number" class="form-control" id="printScale" name="printScale" min="50" max="120" step="1" value="100">
+                                        </div>
                                     </div>
                                 </div>
                             </div>

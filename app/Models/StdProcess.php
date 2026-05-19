@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Services\WorkorderStdProcessItemsService;
 use Illuminate\Validation\ValidationException;
+use League\Csv\Reader;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -282,6 +283,168 @@ class StdProcess extends Model
         }
 
         return array_values(array_unique($numbers));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public static function loadComponentRowsFromCsv(string $csvPath, string $std): array
+    {
+        self::assertValidStd($std);
+
+        try {
+            $csv = Reader::createFromPath($csvPath, 'r');
+            $csv->setDelimiter(self::detectCsvDelimiter($csvPath));
+            $csv->setHeaderOffset(0);
+            $records = iterator_to_array($csv->getRecords());
+
+            $components = [];
+            foreach ($records as $row) {
+                $row = self::normalizeCsvRowKeys($row);
+
+                $itemNo = self::csvPickFirstNonEmptyString($row, [
+                    'item no.', 'item', 'item no', 'item_no', 'ipl', 'ipl num',
+                ]) ?? '';
+
+                $partNo = self::csvPickFirstNonEmptyString($row, [
+                    'part no.', 'part', 'part_no', 'pn',
+                ]) ?? '';
+
+                $description = self::csvPickFirstNonEmptyString($row, [
+                    'description', 'desc', 'name',
+                ]) ?? '';
+
+                $process = self::csvPickFirstNonEmptyString($row, [
+                    'process no.', 'process', 'proc.', 'proc',
+                ]) ?? '1';
+
+                $qtyStr = self::csvPickFirstNonEmptyString($row, ['qty', 'quantity']);
+                $qty = $qtyStr !== null ? (int) $qtyStr : 1;
+
+                $manual = self::csvPickFirstNonEmptyString($row, [
+                    'manual',
+                    'cmm no.', 'cmm no', 'cmmno', 'cmm', 'cmm number',
+                    'smm no.', 'smm no',
+                ]);
+
+                $effCodeRaw = self::csvPickFirstNonEmptyString($row, [
+                    'eff code', 'eff_code', 'effcode',
+                ]) ?? '';
+
+                if ($itemNo === '') {
+                    continue;
+                }
+
+                $component = [
+                    'ipl_num' => $itemNo,
+                    'part_number' => $partNo,
+                    'description' => $description,
+                    'process' => $process,
+                    'qty' => $qty,
+                ];
+
+                if ($manual !== null && $manual !== '') {
+                    $component['manual'] = $manual;
+                }
+                if ($effCodeRaw !== '') {
+                    $norm = self::normalizeEffCodeForStorage($effCodeRaw);
+                    if ($norm !== null) {
+                        $component['eff_code'] = $norm;
+                    }
+                }
+
+                $components[] = $component;
+            }
+
+            return $components;
+        } catch (\Throwable $e) {
+            \Log::error('Error loading STD rows from CSV: '.$e->getMessage(), [
+                'file' => $csvPath,
+                'std' => $std,
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function validateStdCsvFormat(string $csvPath): array
+    {
+        try {
+            $csv = Reader::createFromPath($csvPath, 'r');
+            $csv->setDelimiter(self::detectCsvDelimiter($csvPath));
+            $csv->setHeaderOffset(0);
+            $headers = array_map(
+                static function ($header): string {
+                    $header = (string) $header;
+                    $header = preg_replace('/^\x{FEFF}/u', '', $header);
+                    $header = str_replace("\xEF\xBB\xBF", '', $header);
+                    $header = trim($header);
+                    $header = preg_replace('/^[\-\x{2013}\x{2014}]+/u', '', $header);
+                    return preg_replace('/\s+/', ' ', $header);
+                },
+                $csv->getHeader()
+            );
+            $normalizedHeaders = array_map(
+                static fn (string $header): string => strtolower($header),
+                $headers
+            );
+
+            $required = [
+                'item no. / IPL' => ['item no.', 'item', 'item no', 'item_no', 'ipl', 'ipl num'],
+                'part no.' => ['part no.', 'part', 'part_no', 'pn'],
+                'description' => ['description', 'desc', 'name'],
+                'process no.' => ['process no.', 'process', 'proc.', 'proc'],
+            ];
+
+            $errors = [];
+            foreach ($required as $label => $aliases) {
+                if (count(array_intersect($normalizedHeaders, $aliases)) === 0) {
+                    $errors[] = 'Missing required column: '.$label;
+                }
+            }
+
+            if ($errors !== []) {
+                return $errors;
+            }
+
+            $records = iterator_to_array($csv->getRecords());
+            if ($records === []) {
+                return ['CSV file has no data rows.'];
+            }
+
+            foreach ($records as $offset => $row) {
+                $row = self::normalizeCsvRowKeys($row);
+                $line = (int) $offset + 2;
+                $itemNo = self::csvPickFirstNonEmptyString($row, ['item no.', 'item', 'item no', 'item_no', 'ipl', 'ipl num']);
+                $partNo = self::csvPickFirstNonEmptyString($row, ['part no.', 'part', 'part_no', 'pn']);
+                $description = self::csvPickFirstNonEmptyString($row, ['description', 'desc', 'name']);
+                $process = self::csvPickFirstNonEmptyString($row, ['process no.', 'process', 'proc.', 'proc']);
+                $qty = self::csvPickFirstNonEmptyString($row, ['qty', 'quantity']);
+
+                if ($itemNo === null) {
+                    $errors[] = "Line {$line}: item no. / IPL is required.";
+                }
+                if ($partNo === null) {
+                    $errors[] = "Line {$line}: part no. is required.";
+                }
+                if ($description === null) {
+                    $errors[] = "Line {$line}: description is required.";
+                }
+                if ($process === null) {
+                    $errors[] = "Line {$line}: process no. is required.";
+                }
+                if ($qty !== null && (! ctype_digit($qty) || (int) $qty < 1)) {
+                    $errors[] = "Line {$line}: qty must be a positive integer.";
+                }
+            }
+
+            return array_slice($errors, 0, 10);
+        } catch (\Throwable $e) {
+            return ['CSV format error: '.$e->getMessage()];
+        }
     }
 
     /**
@@ -581,8 +744,13 @@ class StdProcess extends Model
             ->orderBy('id')
             ->get();
 
+        $branchResolver = app(\App\Services\ManualIplBranchRuleResolver::class);
         $rows = [];
         foreach ($components as $component) {
+            if (! $branchResolver->allowsComponentForUnit($workorder->unit, (string) ($component->ipl_num ?? ''), (int) $manual->id)) {
+                continue;
+            }
+
             if (! self::stdRowEffMatchesUnit($component->eff_code, $unitEff)) {
                 continue;
             }
@@ -786,6 +954,71 @@ class StdProcess extends Model
             ->squish()
             ->lower()
             ->toString();
+    }
+
+    private static function detectCsvDelimiter(string $csvPath): string
+    {
+        $fh = fopen($csvPath, 'rb');
+        if (! $fh) {
+            return ',';
+        }
+        $line = fgets($fh);
+        fclose($fh);
+        if ($line === false || $line === '') {
+            return ',';
+        }
+        $line = preg_replace('/^\x{FEFF}/u', '', $line);
+        $line = str_replace("\xEF\xBB\xBF", '', $line);
+        $semi = substr_count($line, ';');
+        $comma = substr_count($line, ',');
+
+        return $semi > $comma ? ';' : ',';
+    }
+
+    /**
+     * @param  array<string|int, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private static function normalizeCsvRowKeys(array $row): array
+    {
+        $out = [];
+        foreach ($row as $key => $value) {
+            $k = (string) $key;
+            $k = preg_replace('/^\x{FEFF}/u', '', $k);
+            $k = str_replace("\xEF\xBB\xBF", '', $k);
+            $k = trim($k);
+            $k = preg_replace('/^[\-\x{2013}\x{2014}]+/u', '', $k);
+            $k = trim($k);
+            $k = preg_replace('/\s+/', ' ', $k);
+            $out[strtolower($k)] = $value;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array<string, mixed>  $norm
+     * @param  array<int, string>  $candidateLogicalKeysHint
+     */
+    private static function csvPickFirstNonEmptyString(array $norm, array $candidateLogicalKeysHint): ?string
+    {
+        foreach ($candidateLogicalKeysHint as $logical) {
+            $lk = strtolower(preg_replace('/\s+/', ' ', trim((string) $logical)));
+            $lk = preg_replace('/^[\-\x{2013}\x{2014}]+/u', '', $lk);
+            $lk = trim(preg_replace('/\s+/', ' ', $lk));
+
+            if (! array_key_exists($lk, $norm)) {
+                continue;
+            }
+            $v = $norm[$lk];
+            if ($v === null || $v === '') {
+                continue;
+            }
+
+            return trim((string) $v);
+        }
+
+        return null;
     }
 
 }

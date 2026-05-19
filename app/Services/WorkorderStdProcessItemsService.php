@@ -9,6 +9,7 @@ use App\Models\StdProcess;
 use App\Models\Tdr;
 use App\Models\Workorder;
 use App\Models\WorkorderStdProcessItem;
+use App\Services\ManualIplBranchRuleResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -20,8 +21,9 @@ class WorkorderStdProcessItemsService
     public function rebuild(Workorder $workorder): void
     {
         $workorder->loadMissing('unit.manuals');
+        $branchResolver = app(ManualIplBranchRuleResolver::class);
 
-        DB::transaction(function () use ($workorder): void {
+        DB::transaction(function () use ($workorder, $branchResolver): void {
             WorkorderStdProcessItem::query()
                 ->where('workorder_id', $workorder->id)
                 ->delete();
@@ -45,6 +47,10 @@ class WorkorderStdProcessItemsService
                 foreach ($manualRows as $manualRow) {
                     $component = $manualRow->component;
                     if (! $component || ! (bool) $component->{$flagColumn}) {
+                        continue;
+                    }
+
+                    if (! $branchResolver->allowsComponentForUnit($workorder->unit, (string) ($component->ipl_num ?? ''), (int) $manual->id)) {
                         continue;
                     }
 
@@ -215,9 +221,15 @@ class WorkorderStdProcessItemsService
 
     protected function baseQty(Component $component, ?StdProcess $manualRow): int
     {
-        $qty = $manualRow ? (int) $manualRow->qty : (int) ($component->units_assy ?? 1);
+        $unitsAssy = max(1, (int) ($component->units_assy ?? 1));
 
-        return max(1, $qty);
+        if (! $manualRow) {
+            return $unitsAssy;
+        }
+
+        $stdQty = max(1, (int) $manualRow->qty);
+
+        return min($stdQty, $unitsAssy);
     }
 
     protected function defaultProcessForStd(int $manualId, string $std): string

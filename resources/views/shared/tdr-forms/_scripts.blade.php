@@ -20,6 +20,7 @@
         bodyWidth: '{{ $formConfig['body_width'] ?? 98 }}%',
         bodyHeight: '{{ $formConfig['body_height'] ?? 99 }}%',
         bodyMarginLeft: '{{ $formConfig['body_margin_left'] ?? 2 }}px',
+        printScale: '100',
         containerMaxWidth: '{{ $formConfig['container_max_width'] ?? 920 }}px',
         containerPadding: '{{ $formConfig['container_padding'] ?? 5 }}px',
         containerMarginLeft: '{{ $formConfig['container_margin_left'] ?? 10 }}px',
@@ -53,6 +54,8 @@
         root.style.setProperty('--print-footer-font-size', settings.footerFontSize || defaultSettings.footerFontSize);
         root.style.setProperty('--print-footer-padding', settings.footerPadding || defaultSettings.footerPadding);
         root.style.setProperty('--component-name-font-size', (settings.componentNameFontSize || defaultSettings.componentNameFontSize) + 'px');
+        const printScale = Math.max(50, Math.min(120, parseFloat(String(settings.printScale || defaultSettings.printScale).replace(/[^\d.-]/g, '')) || 100));
+        root.style.setProperty('--print-user-scale', String(printScale / 100));
 
         const parsePct = (v, fallback) => {
             const n = parseFloat(String(v ?? '').replace(/[^\d.-]/g, ''));
@@ -78,6 +81,7 @@
         if (el('bodyWidth')) el('bodyWidth').value = parseNum(settings.bodyWidth) || 98;
         if (el('bodyHeight')) el('bodyHeight').value = parseNum(settings.bodyHeight) || 99;
         if (el('bodyMarginLeft')) el('bodyMarginLeft').value = parseNum(settings.bodyMarginLeft) || 2;
+        if (el('printScale')) el('printScale').value = parseFloat(String(settings.printScale || defaultSettings.printScale).replace(/[^\d.-]/g, '')) || 100;
         if (el('containerMaxWidth')) el('containerMaxWidth').value = parseNum(settings.containerMaxWidth) || 920;
         if (el('containerPadding')) el('containerPadding').value = parseNum(settings.containerPadding) || 5;
         if (el('containerMarginLeft')) el('containerMarginLeft').value = parseNum(settings.containerMarginLeft) || 10;
@@ -112,6 +116,7 @@
                 bodyWidth: getVal('bodyWidth', '98', '%'),
                 bodyHeight: getVal('bodyHeight', '99', '%'),
                 bodyMarginLeft: getVal('bodyMarginLeft', '2', 'px'),
+                printScale: g('printScale')?.value ?? '100',
                 containerMaxWidth: getVal('containerMaxWidth', '920', 'px'),
                 containerPadding: getVal('containerPadding', '5', 'px'),
                 containerMarginLeft: getVal('containerMarginLeft', '10', 'px'),
@@ -137,6 +142,23 @@
                         u.searchParams.delete('stress_table_rows');
                     } else {
                         u.searchParams.set('stress_table_rows', String(rows));
+                    }
+                    if (u.href !== window.location.href) {
+                        window.location.href = u.href;
+                        return;
+                    }
+                }
+            }
+@elseif(($formType ?? '') === 'ndtFormStd')
+            {
+                const rows = parseInt(String(settings['{{ $tableRowsKey }}'] ?? '').replace(/[^\d]/g, ''), 10);
+                if (Number.isFinite(rows) && rows >= 1) {
+                    const u = new URL(window.location.href);
+                    const def = {{ (int) $tableRowsDefault }};
+                    if (rows === def) {
+                        u.searchParams.delete('ndt_table_rows');
+                    } else {
+                        u.searchParams.set('ndt_table_rows', String(rows));
                     }
                     if (u.href !== window.location.href) {
                         window.location.href = u.href;
@@ -224,6 +246,20 @@
                     return;
                 }
                 u.searchParams.set('stress_table_rows', String(rows));
+                window.location.replace(u.href);
+            })();
+@elseif(($formType ?? '') === 'ndtFormStd')
+            (function syncNdtRowsQueryFromStorage() {
+                const u = new URL(window.location.href);
+                if (u.searchParams.has('ndt_table_rows')) {
+                    return;
+                }
+                const rows = parseInt(String(settings['{{ $tableRowsKey }}'] ?? '').replace(/[^\d]/g, ''), 10);
+                const def = {{ (int) $tableRowsDefault }};
+                if (!Number.isFinite(rows) || rows < 1 || rows === def) {
+                    return;
+                }
+                u.searchParams.set('ndt_table_rows', String(rows));
                 window.location.replace(u.href);
             })();
 @elseif(($formType ?? '') === 'cadFormStd')

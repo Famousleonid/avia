@@ -21,13 +21,13 @@ use App\Models\TdrProcess;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Workorder;
-use App\Models\NdtCadCsv;
+use App\Services\ManualIplBranchRuleResolver;
+use App\Services\WorkorderStdProcessItemsService;
 use App\Services\WorkorderStdListProcessesService;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use League\Csv\Reader;
 
 class TdrPrintFormController extends Controller
 {
@@ -44,7 +44,10 @@ class TdrPrintFormController extends Controller
         $manual_id = $current_wo->unit->manual_id;
 
         // Извлекаем компоненты, связанные с manual_id
-        $components = Component::where('manual_id', $manual_id)->get();
+        $components = $this->filterComponentsForUnit(
+            Component::where('manual_id', $manual_id)->get(),
+            $current_wo
+        );
 
         $builders = Builder::all();
         $codes = Code::all();
@@ -157,88 +160,10 @@ class TdrPrintFormController extends Controller
         return view('admin.tdrs.prlForm', compact('current_wo', 'components','manuals', 'builders', 'codes','necessaries', 'ordersParts', 'uniqueManuals', 'hasMultipleManuals'));
     }
 
-    public function ndtForm(Request $request, $id)
-    {
-        // Загрузка Workorder с необходимыми отношениями
-        $current_wo = Workorder::findOrFail($id);
-
-        // Получаем manual_id через отношения
-        $manual_id = $current_wo->unit->manual_id;
-
-        // Получаем компоненты для manual
-        $components = Component::where('manual_id', $manual_id)->get();
-
-        // Получаем TDR записи с непустым component_id
-        $tdrs = Tdr::where('workorder_id', $current_wo->id)
-            ->whereNotNull('component_id')
-            ->get(['id', 'component_id']); // Выбираем только нужные поля
-
-        // Получаем ID process names одним запросом
-        $processNames = ProcessName::whereIn('name', [
-            'NDT-1',
-            'NDT-4',
-            'Eddy Current Test',
-            'BNI'
-        ])->pluck('id', 'name');
-
-        // Проверяем, что все process names найдены
-        if ($processNames->count() !== 4) {
-            abort(500, 'Не все Process Names найдены');
-        }
-
-        // Извлекаем ID по именам
-        $ndt1_name_id = $processNames['NDT-1'];
-        $ndt4_name_id = $processNames['NDT-4'];
-        $ndt6_name_id = $processNames['Eddy Current Test'];
-        $ndt5_name_id = $processNames['BNI'];
-
-        // Получаем manual processes
-        $manualProcesses = ManualProcess::where('manual_id', $manual_id)
-            ->pluck('processes_id');
-
-        // Получаем form_number
-        $form_number = ProcessName::where('process_sheet_name', 'NDT')
-            ->value('form_number');
-
-        // Получаем NDT processes
-        $ndt_processes = Process::whereIn('id', $manualProcesses)
-            ->whereIn('process_names_id', [
-                $ndt1_name_id,
-                $ndt4_name_id,
-                $ndt5_name_id,
-                $ndt6_name_id
-            ])
-            ->get();
-
-        // Получаем NDT components
-        $ndt_components = TdrProcess::whereIn('tdrs_id', $tdrs->pluck('id'))
-            ->whereIn('process_names_id', [
-                $ndt1_name_id,
-                $ndt4_name_id,
-                $ndt5_name_id,
-                $ndt6_name_id
-            ])
-            ->with(['tdr', 'processName'])
-            ->get();
-
-        return view('admin.tdrs.ndtForm', [
-            'current_wo' => $current_wo,
-            'components' => $components,
-            'tdrs' => $tdrs,
-            'manuals' => Manual::where('id', $manual_id)->get(), // Оставлено для совместимости
-            'ndt_processes' => $ndt_processes,
-            'ndt1_name_id' => $ndt1_name_id,
-            'ndt4_name_id' => $ndt4_name_id,
-            'ndt5_name_id' => $ndt5_name_id,
-            'ndt6_name_id' => $ndt6_name_id,
-            'ndt_components' => $ndt_components,
-            'form_number' => $form_number
-        ]);
-    }
-
-    public function ndtStd($workorder_id)
+    public function ndtStd(Request $request, $workorder_id)
     {
         $current_wo = Workorder::findOrFail($workorder_id);
+        $this->rebuildStdSnapshotForForm($current_wo);
         $manual = $current_wo->unit->manuals;
 
         // Получаем ID process names для NDT
@@ -269,6 +194,7 @@ class TdrPrintFormController extends Controller
         $ndt_components = $this->stdSnapshotRowsToFormComponents(
             StdProcess::snapshotComponentsForWorkorder($current_wo, StdProcess::STD_NDT)
         );
+        $ndtSums = $this->calcNdtSumsFromFormComponents($ndt_components);
 
         // Сортируем NDT компоненты: сначала по manual (если есть), потом по ipl_num
         usort($ndt_components, function($a, $b) {
@@ -303,13 +229,19 @@ class TdrPrintFormController extends Controller
 
         $form_number = 'NDT-STD';
 
-        // Разбиение на страницы теперь происходит на фронтенде через JavaScript
-        // Передаём все компоненты без предварительного разбиения
+        $ndtFormCfg = config('tdr_forms.ndtFormStd', []);
+        $ndtDefaultRows = (int) ($ndtFormCfg['table_rows_default'] ?? 18);
+        $ndtRowsPerPage = (int) $request->query('ndt_table_rows', $ndtDefaultRows);
+        $ndtRowsPerPage = max(1, min(99, $ndtRowsPerPage));
+        $ndt_table_pages = $this->buildStdProcessSheetTablePages($ndt_components, $ndtRowsPerPage);
 
         return view('admin.tdrs.ndtFormStd', [
                 'current_wo' => $current_wo,
                 'manual' => $manual,
                 'ndt_components' => $ndt_components,
+                'ndt_table_pages' => $ndt_table_pages,
+                'ndt_rows_per_page' => $ndtRowsPerPage,
+                'ndtSums' => $ndtSums,
                 'ndt_processes' => $ndt_processes,
                 'form_number' => $form_number,
                 'manuals' => [$manual], // Для совместимости с существующим кодом
@@ -321,6 +253,7 @@ class TdrPrintFormController extends Controller
         try {
             // Получаем рабочий заказ и связанные данные
             $current_wo = Workorder::findOrFail($workorder_id);
+            $this->rebuildStdSnapshotForForm($current_wo);
             $manual = $current_wo->unit->manuals;
 
             if (!$manual) {
@@ -428,6 +361,7 @@ class TdrPrintFormController extends Controller
         try {
             // Получаем рабочий заказ и связанные данные
             $current_wo = Workorder::findOrFail($workorder_id);
+            $this->rebuildStdSnapshotForForm($current_wo);
             $manual = $current_wo->unit->manuals;
 
             if (!$manual) {
@@ -527,6 +461,8 @@ class TdrPrintFormController extends Controller
                     return $obj;
                 })->toArray();
 
+            $paint_components = $this->collapseStdSuffixVariantRows($paint_components);
+
             // Сортируем Paint компоненты: сначала по manual (если есть), потом по ipl_num
             usort($paint_components, function($a, $b) {
                 // Сначала сравниваем по manual
@@ -594,7 +530,7 @@ class TdrPrintFormController extends Controller
      */
     private function stdSnapshotRowsToFormComponents(array $rows): array
     {
-        return array_values(array_map(function (array $row): \stdClass {
+        $components = array_values(array_map(function (array $row): \stdClass {
             $component = new \stdClass();
             $component->ipl_num = (string) ($row['ipl_num'] ?? '');
             $component->part_number = (string) ($row['part_number'] ?? '');
@@ -606,6 +542,8 @@ class TdrPrintFormController extends Controller
 
             return $component;
         }, $rows));
+
+        return $this->collapseStdSuffixVariantRows($components);
     }
 
     /**
@@ -620,7 +558,7 @@ class TdrPrintFormController extends Controller
                 return $manualCompare;
             }
 
-            $iplCompare = StdProcess::compareIplValues($a->ipl_num ?? '', $b->ipl_num ?? '');
+            $iplCompare = StdProcess::compareIplValues($a->sort_ipl_num ?? $a->ipl_num ?? '', $b->sort_ipl_num ?? $b->ipl_num ?? '');
             if ($iplCompare !== 0) {
                 return $iplCompare;
             }
@@ -629,6 +567,107 @@ class TdrPrintFormController extends Controller
         });
 
         return $components;
+    }
+
+    /**
+     * Collapse rows like 8-240A / 8-240B into one display row when the base IPL,
+     * manual, description and process match. Qty is summed so totals stay correct.
+     *
+     * @param  array<int, \stdClass>  $components
+     * @return array<int, \stdClass>
+     */
+    private function collapseStdSuffixVariantRows(array $components): array
+    {
+        $collapsed = [];
+        $indexByKey = [];
+
+        foreach ($components as $component) {
+            $this->initializeCollapsedStdRowValues($component);
+            $groupKey = $this->stdSuffixVariantGroupKey($component);
+
+            if ($groupKey === null) {
+                $collapsed[] = $component;
+                continue;
+            }
+
+            if (! array_key_exists($groupKey, $indexByKey)) {
+                $indexByKey[$groupKey] = count($collapsed);
+                $collapsed[] = $component;
+
+                continue;
+            }
+
+            $index = $indexByKey[$groupKey];
+            $target = $collapsed[$index];
+
+            $target->_ipl_values = $this->appendUniqueStdCollapsedValue($target->_ipl_values, (string) $component->ipl_num);
+            if (property_exists($target, '_item_display_values') && property_exists($component, 'item_display')) {
+                $target->_item_display_values = $this->appendUniqueStdCollapsedValue($target->_item_display_values, (string) ($component->item_display ?? ''));
+            }
+
+            $target->qty = max(0, (int) ($target->qty ?? 0)) + max(0, (int) ($component->qty ?? 0));
+            $this->applyCollapsedStdRowDisplay($target);
+
+            $collapsed[$index] = $target;
+        }
+
+        return array_values($collapsed);
+    }
+
+    private function stdSuffixVariantGroupKey(\stdClass $component): ?string
+    {
+        $ipl = trim((string) ($component->ipl_num ?? ''));
+
+        if (! preg_match('/^(\d+[A-Za-z]*-\d+)([A-Za-z]+)$/', $ipl, $matches)) {
+            return null;
+        }
+
+        $baseIpl = strtoupper((string) ($matches[1] ?? ''));
+        $manual = trim((string) ($component->manual ?? ''));
+        $name = mb_strtoupper(trim((string) ($component->name ?? '')));
+        $process = trim((string) ($component->process_name ?? ''));
+
+        return implode('|', [$manual, $baseIpl, $name, $process]);
+    }
+
+    private function initializeCollapsedStdRowValues(\stdClass $component): void
+    {
+        $component->sort_ipl_num = (string) ($component->sort_ipl_num ?? $component->ipl_num ?? '');
+        $component->_ipl_values = $this->appendUniqueStdCollapsedValue([], (string) ($component->ipl_num ?? ''));
+        if (property_exists($component, 'item_display')) {
+            $component->_item_display_values = $this->appendUniqueStdCollapsedValue([], (string) ($component->item_display ?? ''));
+        }
+        $this->applyCollapsedStdRowDisplay($component);
+    }
+
+    /**
+     * @param  array<int, string>  $values
+     * @return array<int, string>
+     */
+    private function appendUniqueStdCollapsedValue(array $values, string $value): array
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '' || in_array($trimmed, $values, true)) {
+            return $values;
+        }
+
+        $values[] = $trimmed;
+
+        return $values;
+    }
+
+    private function applyCollapsedStdRowDisplay(\stdClass $component): void
+    {
+        $iplValues = $component->_ipl_values ?? [];
+        $lineCount = max(1, count($iplValues));
+
+        $component->ipl_num = implode("\n", $iplValues);
+        $component->row_line_count = $lineCount;
+        $component->row_height = 32 + (($lineCount - 1) * 16);
+
+        if (property_exists($component, '_item_display_values')) {
+            $component->item_display = implode("\n", $component->_item_display_values ?? []);
+        }
     }
 
     private function buildStdProcessSheetTablePages(array $components, int $rowsPerPage): array
@@ -670,6 +709,7 @@ class TdrPrintFormController extends Controller
         try {
             // Получаем рабочий заказ и связанные данные
             $current_wo = Workorder::findOrFail($workorder_id);
+            $this->rebuildStdSnapshotForForm($current_wo);
             $manual = $current_wo->unit->manuals;
 
             if (!$manual) {
@@ -775,6 +815,7 @@ class TdrPrintFormController extends Controller
     {
         // Загрузка Workorder по ID
         $current_wo = Workorder::findOrFail($id);
+        $this->rebuildStdSnapshotForForm($current_wo);
 
         // Получаем данные о manual_id, связанном с этим Workorder
         $manual_id = $current_wo->unit->manual_id;
@@ -794,7 +835,10 @@ class TdrPrintFormController extends Controller
             ->with('component')
             ->get();
         // Извлекаем компоненты, связанные с manual_id
-        $components = Component::where('manual_id', $manual_id)->get();
+        $components = $this->filterComponentsForUnit(
+            Component::where('manual_id', $manual_id)->get(),
+            $current_wo
+        );
 
         // EC в шапке: есть «только EC» (standalone_ec_only) ИЛИ старое правило (один EC на TDR без Machining/RIL)
         // Companion EC (Machining+RIL+EC) — в шапке EC не дублируем
@@ -986,6 +1030,7 @@ class TdrPrintFormController extends Controller
     {
         // Загрузка Workorder по ID
         $current_wo = Workorder::findOrFail($id);
+        $this->rebuildStdSnapshotForForm($current_wo);
 
         // Получаем данные о manual_id, связанном с этим Workorder
         $manual_id = $current_wo->unit->manual_id;
@@ -1005,7 +1050,10 @@ class TdrPrintFormController extends Controller
             ->with('component')
             ->get();
         // Извлекаем компоненты, связанные с manual_id
-        $components = Component::where('manual_id', $manual_id)->get();
+        $components = $this->filterComponentsForUnit(
+            Component::where('manual_id', $manual_id)->get(),
+            $current_wo
+        );
 
         $ecProcessNameIdEmp = ProcessName::where('name', 'EC')->value('id');
         $ecEligibleIdsEmp = ProcessName::whereIn('name', ['Machining (EC)', 'Machining', 'Machining (Blend)', 'RIL'])->pluck('id');
@@ -1241,7 +1289,10 @@ class TdrPrintFormController extends Controller
         $manual_id = $current_wo->unit->manual_id;
 
         // Извлекаем компоненты, связанные с manual_id
-        $components = Component::where('manual_id', $manual_id)->get();
+        $components = $this->filterComponentsForUnit(
+            Component::where('manual_id', $manual_id)->get(),
+            $current_wo
+        );
 
         // Загружаем необходимые данные для всех записей
         $necessaries = Necessary::all();
@@ -1638,828 +1689,148 @@ class TdrPrintFormController extends Controller
 
     private function calcNdtSums(int $workorder_id): array
     {
-        // Инициализация счетчиков
+        $currentWo = Workorder::findOrFail($workorder_id);
+        $rows = StdProcess::snapshotComponentsForWorkorder($currentWo, StdProcess::STD_NDT);
+
+        return $this->calcNdtSumsFromRows($rows);
+    }
+
+    private function calcNdtSumsFromRows(array $rows): array
+    {
+
         $total = 0;
         $mpi = 0;
         $fpi = 0;
 
-        try {
-            // Получение рабочего заказа и связанных данных
-            $current_wo = Workorder::findOrFail($workorder_id);
-            $manual = $current_wo->unit->manuals;
+        foreach ($rows as $row) {
+            $qty = (int) ($row['qty'] ?? 0);
+            $bucket = $this->resolvePrimaryNdtBucket((string) ($row['process'] ?? ''));
 
-            if (!$manual) {
-                // \Log::error('Manual not found for workorder', ['workorder_id' => $workorder_id]);
-                return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
+            $total += $qty;
+
+            if ($bucket === 1) {
+                $mpi += $qty;
             }
 
-            // Получение данных из таблицы ndt_cad_csv
-            $ndtCadCsv = $current_wo->ndtCadCsv;
-            if (!$ndtCadCsv) {
-                return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
+            if ($bucket === 4) {
+                $fpi += $qty;
             }
-
-            // \Log::info('Found NdtCadCsv record', [
-            //     'ndt_cad_csv_id' => $ndtCadCsv->id,
-            //     'workorder_id' => $workorder_id
-            // ]);
-
-            // Получение NDT компонентов из JSON поля
-            $ndtComponents = $ndtCadCsv->ndt_components ?? [];
-
-            if (empty($ndtComponents)) {
-                // \Log::info('No NDT components found in NdtCadCsv', ['workorder_id' => $workorder_id]);
-                return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
-            }
-
-            $ndtStdQtyMaps = $this->ndtStdExcludedAndTdrQtyByNormalizedIpl($workorder_id);
-            $excludedQtyByIpl = $ndtStdQtyMaps['excluded'];
-            $tdrItemsMap = $ndtStdQtyMaps['tdr'];
-            $unitsAssyByIpl = $this->buildUnitsAssyByNormalizedIplMap($manual);
-
-            // \Log::info('Processing NDT components from ndt_cad_csv table (with filtering)', [
-            //     'workorder_id' => $workorder_id,
-            //     'components_count' => count($ndtComponents),
-            //     'excluded_qty_count' => count($excludedQtyByIpl),
-            //     'tdr_items_count' => count($tdrItemsMap)
-            // ]);
-
-            // Обработка NDT компонентов из JSON поля (та же логика, что в ndtStd)
-            foreach ($ndtComponents as $index => $component) {
-                // Проверяем наличие обязательных полей
-                if (!isset($component['ipl_num']) || empty($component['ipl_num'])) {
-                    continue;
-                }
-
-                $iplNum = $component['ipl_num'];
-                $normalizedIpl = $this->normalizeIplNum($iplNum);
-
-                // Получаем данные для расчета
-                $csvQty = (int) ($component['qty'] ?? self::DEFAULT_QTY);
-                $tdrQty = $tdrItemsMap[$normalizedIpl] ?? 0;
-                $excludedQty = $excludedQtyByIpl[$normalizedIpl] ?? 0;
-                $stdQty = max(1, $csvQty);
-                $unitsAssy = $this->resolveNdtStdUnitsAssyForRow($component, $iplNum, $normalizedIpl, $unitsAssyByIpl);
-                $baseQty = min($stdQty, $unitsAssy);
-                $remaining = $baseQty - $excludedQty - $tdrQty;
-
-                // Если результат <= 0, компонент скрывается
-                if ($remaining <= 0) {
-                    continue;
-                }
-
-                $displayQty = $remaining;
-
-                // Получаем процесс для определения MPI/FPI
-                $process = $component['process'] ?? self::DEFAULT_PROCESS;
-
-                // Вычисление сумм
-                $total += $displayQty;
-
-                if (strpos($process, '1') !== false) {
-                    $mpi += $displayQty;
-                } else {
-                    $fpi += $displayQty;
-                }
-            }
-
-            // \Log::info('NDT sums calculated from ndt_cad_csv table (with filtering)', [
-            //     'workorder_id' => $workorder_id,
-            //     'total' => $total,
-            //     'mpi' => $mpi,
-            //     'fpi' => $fpi
-            // ]);
-
-            return [
-                'total' => $total,
-                'mpi' => $mpi,
-                'fpi' => $fpi
-            ];
-
-        } catch (\Exception $e) {
-            // \Log::error('Ошибка при обработке NDT компонентов из таблицы ndt_cad_csv:', [
-            //     'workorder_id' => $workorder_id,
-            //     'error' => $e->getMessage(),
-            //     'trace' => $e->getTraceAsString()
-            // ]);
-            return ['total' => 0, 'mpi' => 0, 'fpi' => 0];
         }
+
+        return ['total' => $total, 'mpi' => $mpi, 'fpi' => $fpi];
+    }
+
+    private function calcNdtSumsFromFormComponents(array $components): array
+    {
+        $total = 0;
+        $mpi = 0;
+        $fpi = 0;
+
+        foreach ($components as $component) {
+            $qty = max(0, (int) ($component->qty ?? 0));
+            $bucket = $this->resolvePrimaryNdtBucket((string) ($component->process_name ?? ''));
+
+            $total += $qty;
+
+            if ($bucket === 1) {
+                $mpi += $qty;
+            } elseif ($bucket === 4) {
+                $fpi += $qty;
+            }
+        }
+
+        return ['total' => $total, 'mpi' => $mpi, 'fpi' => $fpi];
+    }
+
+    private function resolvePrimaryNdtBucket(string $process): ?int
+    {
+        if (! preg_match('/\d+/', $process, $matches)) {
+            return null;
+        }
+
+        $firstNumber = (int) $matches[0];
+
+        return in_array($firstNumber, [1, 4], true) ? $firstNumber : null;
     }
 
     private function calcCadSumsFromComponents($cad_components)
     {
-        try {
-            $totalQty = 0;
-            $totalComponents = 0;
-            $componentList = [];
-
-            foreach ($cad_components as $component) {
-                $qty = (int)($component->qty ?? 1);
-                $totalQty += $qty;
-                $totalComponents++;
-                $componentList[] = [
-                    'ipl_num' => $component->ipl_num ?? '',
-                    'qty' => $qty
-                ];
-            }
-
-            // \Log::info('CAD calcCadSumsFromComponents - Summary', [
-            //     'total_components' => $totalComponents,
-            //     'total_qty' => $totalQty,
-            //     'components_count' => count($componentList),
-            //     'components' => $componentList,
-            //     'ipl_numbers' => array_column($componentList, 'ipl_num')
-            // ]);
-
-            return [
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents
-            ];
-        } catch (\Exception $e) {
-            // \Log::error('Error in CAD sums calculation from components:', [
-            //     'error' => $e->getMessage(),
-            //     'trace' => $e->getTraceAsString()
-            // ]);
-            return [
-                'total_qty' => 0,
-                'total_components' => 0
-            ];
-        }
+        return $this->calcStdTotalsFromComponents($cad_components);
     }
 
     private function calcStdSumsFromComponents($components): array
     {
-        return $this->calcCadSumsFromComponents($components);
+        return $this->calcStdTotalsFromComponents($components);
     }
 
     private function calcPaintSumsFromComponents($paint_components): array
     {
-        try {
-            $totalQty = 0;
-            $totalComponents = 0;
+        return $this->calcStdTotalsFromComponents($paint_components);
+    }
 
-            foreach ($paint_components as $component) {
-                $totalQty += max(1, (int) ($component->qty ?? 1));
-                $totalComponents++;
-            }
+    private function calcCadSums($workorder_id)
+    {
+        $currentWo = Workorder::findOrFail($workorder_id);
+        $rows = StdProcess::snapshotComponentsForWorkorder($currentWo, StdProcess::STD_CAD);
 
-            return [
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents,
-            ];
-        } catch (\Exception $e) {
+        return $this->calcStdTotalsFromRows($rows);
+    }
+
+    private function calcStdTotalsFromComponents($components): array
+    {
+        if (empty($components)) {
             return [
                 'total_qty' => 0,
                 'total_components' => 0,
             ];
         }
-    }
 
-    private function calcCadSums($workorder_id)
-    {
-        try {
-            // Получаем текущий workorder
-            $current_wo = Workorder::findOrFail($workorder_id);
+        $totalQty = 0;
+        $totalComponents = 0;
 
-            // \Log::info('Starting CAD sums calculation', [
-            //     'workorder_id' => $workorder_id
-            // ]);
-
-            // 1. Получаем данные из таблицы ndt_cad_csv
-            $ndtCadCsv = $current_wo->ndtCadCsv;
-            if (!$ndtCadCsv) {
-                // \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
-                return [
-                    'total_qty' => 0,
-                    'total_components' => 0
-                ];
-            }
-
-            // \Log::info('Found NdtCadCsv record', [
-            //     'ndt_cad_csv_id' => $ndtCadCsv->id,
-            //     'cad_components_count' => count($ndtCadCsv->cad_components ?? [])
-            // ]);
-
-            // Получаем CAD компоненты из JSON поля
-            $cadComponents = $ndtCadCsv->cad_components ?? [];
-
-            if (empty($cadComponents)) {
-                // \Log::warning('No CAD components found in NdtCadCsv');
-                return [
-                    'total_qty' => 0,
-                    'total_components' => 0
-                ];
-            }
-
-            // 1.5. Получаем валидные процессы (упрощенная логика - все процессы из CSV считаются валидными)
-            // В cadStd процессы создаются динамически, поэтому в calcCadSums мы просто принимаем все процессы из CSV
-            $validProcesses = [];
-            foreach ($cadComponents as $component) {
-                $processName = $component['process'] ?? '';
-                if (!empty($processName) && !in_array($processName, $validProcesses)) {
-                    $validProcesses[] = $processName;
-                }
-            }
-
-            // \Log::info('CAD calcCadSums - Valid processes (from CSV)', [
-            //     'valid_processes_count' => count($validProcesses),
-            //     'valid_processes' => $validProcesses
-            // ]);
-
-            // 2. Получаем ID для Missing, Repair, Order New (та же логика, что в cadStd)
-            $missingCode = Code::where('name', 'Missing')->first();
-            $repairNecessary = Necessary::find(1);
-            if (!$repairNecessary || stripos($repairNecessary->name, 'repair') === false) {
-                $repairNecessary = Necessary::where('name', 'Repair')->first();
-                if (!$repairNecessary) {
-                    $repairNecessary = Necessary::where('name', 'REPAIR')->first();
-                }
-                if (!$repairNecessary) {
-                    $repairNecessary = Necessary::where('name', 'repair')->first();
-                }
-            }
-            $orderNewNecessary = Necessary::find(2);
-            if (!$orderNewNecessary || stripos($orderNewNecessary->name, 'order') === false) {
-                $orderNewNecessary = Necessary::where('name', 'Order New')->first();
-            }
-
-            // Получаем TDR записи только с исключаемыми статусами (Missing, Repair, Order New)
-            $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component:id,ipl_num');
-
-            $excludedConditions = [];
-            if ($missingCode) {
-                $excludedConditions[] = ['codes_id', $missingCode->id];
-            }
-            if ($repairNecessary) {
-                $excludedConditions[] = ['necessaries_id', $repairNecessary->id];
-            }
-            if ($orderNewNecessary) {
-                $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
-            }
-
-            // Создаем мапу исключенных IPL номеров (только с Missing/Repair/Order New)
-            $excludedIplNums = [];
-            if (!empty($excludedConditions)) {
-                $excludedTdrQuery->where(function($query) use ($excludedConditions) {
-                    foreach ($excludedConditions as $condition) {
-                        $query->orWhere($condition[0], $condition[1]);
-                    }
-                });
-
-                $excludedTdrs = $excludedTdrQuery->get();
-                foreach ($excludedTdrs as $tdr) {
-                    if ($tdr->component && $tdr->component->ipl_num) {
-                        $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
-                        if (!empty($normalizedIpl)) {
-                            $excludedIplNums[$normalizedIpl] = true;
-                        }
-                    }
-                }
-            }
-
-            // Получаем все TDR компоненты для создания мапы (для логирования)
-            $tdrComponents = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component')
-                ->get();
-
-            // Создаем мапу IPL номеров из TDR (только для логирования)
-            $tdrIplMap = [];
-            foreach ($tdrComponents as $tdr) {
-                if ($tdr->component && $tdr->component->ipl_num) {
-                    $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
-                    if (!empty($normalizedIpl)) {
-                        if (!isset($tdrIplMap[$normalizedIpl])) {
-                            $tdrIplMap[$normalizedIpl] = 0;
-                        }
-                        $tdrIplMap[$normalizedIpl] += (int)($tdr->qty ?? 0);
-                    }
-                }
-            }
-
-            // \Log::info('TDR Components (normalized):', [
-            //     'count' => count($tdrIplMap),
-            //     'ipl_numbers' => array_keys($tdrIplMap),
-            //     'excluded_ipl_count' => count($excludedIplNums),
-            //     'excluded_ipls' => array_keys($excludedIplNums)
-            // ]);
-
-            // 3. Сравнение и подсчет
-            $totalQty = 0;
-            $totalComponents = 0;
-            $processedIpls = [];
-            $skippedCount = 0;
-            $skippedByProcess = 0;
-            $combinedSkippedCount = 0;
-
-            // \Log::info('Starting CAD calculation loop', [
-            //     'total_cad_components' => count($cadComponents),
-            //     'tdr_ipl_count' => count($tdrIplMap)
-            // ]);
-
-            foreach ($cadComponents as $index => $component) {
-                $itemNo = trim($component['ipl_num'] ?? '');
-                $qty = (int)($component['qty'] ?? 1); // Получаем qty из JSON
-                $processName = $component['process'] ?? '';
-
-                // Нормализуем IPL номер для сравнения (5-90A -> 5-90)
-                $normalizedIpl = $this->normalizeIplNum($itemNo);
-
-                // \Log::debug('Processing CAD component', [
-                //     'index' => $index,
-                //     'item_no' => $itemNo,
-                //     'normalized_ipl' => $normalizedIpl,
-                //     'qty' => $qty,
-                //     'process' => $processName,
-                //     'component' => $component
-                // ]);
-
-                // Исключаем компоненты только с статусами Missing, Repair, Order New
-                if (!empty($normalizedIpl) && isset($excludedIplNums[$normalizedIpl])) {
-                    $skippedCount++;
-                    // \Log::debug('Skipping component as it has excluded status (Missing/Repair/Order New):', [
-                    //     'ipl_num' => $itemNo,
-                    //     'normalized_ipl' => $normalizedIpl
-                    // ]);
-                    continue;
-                }
-
-                // Исключаем компоненты с невалидными процессами (та же логика, что в cadStd)
-                if (!empty($processName) && !in_array($processName, $validProcesses)) {
-                    $skippedByProcess++;
-                    // \Log::debug('Skipping component as it has invalid process:', [
-                    //     'ipl_num' => $itemNo,
-                    //     'process' => $processName,
-                    //     'valid_processes' => $validProcesses
-                    // ]);
-                    continue;
-                }
-
-                // Если нормализованный IPL номер еще не был обработан (используем нормализованный для проверки дубликатов)
-                if (!empty($normalizedIpl) && !in_array($normalizedIpl, $processedIpls)) {
-                    $totalQty += $qty; // Используем qty из JSON
-                    $totalComponents++;
-                    $processedIpls[] = $normalizedIpl; // Сохраняем нормализованный IPL
-                    // \Log::debug('Adding component from NdtCadCsv:', [
-                    //     'ipl_num' => $itemNo,
-                    //     'normalized_ipl' => $normalizedIpl,
-                    //     'qty' => $qty
-                    // ]);
-                } else if (!empty($normalizedIpl) && in_array($normalizedIpl, $processedIpls)) {
-                    // \Log::debug('Skipping duplicate component (normalized):', [
-                    //     'ipl_num' => $itemNo,
-                    //     'normalized_ipl' => $normalizedIpl
-                    // ]);
-                }
-            }
-
-            // \Log::info('CAD calculation loop completed', [
-            //     'total_qty' => $totalQty,
-            //     'total_components' => $totalComponents,
-            //     'skipped_count' => $skippedCount,
-            //     'combined_skipped_count' => $combinedSkippedCount,
-            //     'processed_ipls_count' => count($processedIpls),
-            //     'processed_ipls' => $processedIpls
-            // ]);
-
-            // \Log::info('CAD calcCadSums - Summary', [
-            //     'total_cad_components_in_csv' => count($cadComponents),
-            //     'excluded_by_status' => $skippedCount,
-            //     'excluded_by_process' => $skippedByProcess,
-            //     'total_qty' => $totalQty,
-            //     'total_components' => $totalComponents,
-            //     'valid_processes_count' => count($validProcesses),
-            //     'valid_processes' => $validProcesses
-            // ]);
-
-            // \Log::info('CAD calculation results:', [
-            //     'total_qty' => $totalQty,
-            //     'total_components' => $totalComponents,
-            //     'processed_ipls' => $processedIpls
-            // ]);
-
-            return [
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents
-            ];
-
-        } catch (\Exception $e) {
-            // \Log::error('Error in CAD sums calculation:', [
-            //     'error' => $e->getMessage(),
-            //     'trace' => $e->getTraceAsString()
-            // ]);
-            return [
-                'total_qty' => 0,
-                'total_components' => 0
-            ];
+        foreach ($components as $component) {
+            $totalQty += max(0, (int) ($component->qty ?? 0));
+            $totalComponents++;
         }
-    }
 
-    private function calcStressSums($workorder_id)
-    {
-        try {
-            // Получаем текущий workorder
-            $current_wo = Workorder::findOrFail($workorder_id);
-
-            // \Log::info('Starting Stress sums calculation', [
-            //     'workorder_id' => $workorder_id
-            // ]);
-
-            // 1. Получаем данные из таблицы ndt_cad_csv
-            $ndtCadCsv = $current_wo->ndtCadCsv;
-            if (!$ndtCadCsv) {
-                // \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
-                return [
-                    'total_qty' => 0,
-                    'total_components' => 0
-                ];
-            }
-
-            // \Log::info('Found NdtCadCsv record', [
-            //     'ndt_cad_csv_id' => $ndtCadCsv->id,
-            //     'stress_components_count' => count($ndtCadCsv->stress_components ?? [])
-            // ]);
-
-            // Получаем Stress компоненты из JSON поля
-            $stressComponents = $ndtCadCsv->stress_components ?? [];
-
-            if (empty($stressComponents)) {
-                // \Log::warning('No Stress components found in NdtCadCsv');
-                return [
-                    'total_qty' => 0,
-                    'total_components' => 0
-                ];
-            }
-
-            // 2. Получаем ID для Missing, Order New (та же логика, что в stressStd, но Repair НЕ исключаем)
-            $missingCode = Code::where('name', 'Missing')->first();
-            $orderNewNecessary = Necessary::find(2);
-            if (!$orderNewNecessary || stripos($orderNewNecessary->name, 'order') === false) {
-                $orderNewNecessary = Necessary::where('name', 'Order New')->first();
-            }
-
-            // Получаем TDR записи только с исключаемыми статусами (Missing, Order New, но НЕ Repair)
-            $excludedTdrQuery = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component:id,ipl_num');
-
-            $excludedConditions = [];
-            if ($missingCode) {
-                $excludedConditions[] = ['codes_id', $missingCode->id];
-            }
-            if ($orderNewNecessary) {
-                $excludedConditions[] = ['necessaries_id', $orderNewNecessary->id];
-            }
-
-            // Создаем мапу исключенных IPL номеров (только с Missing/Order New)
-            $excludedIplNums = [];
-            if (!empty($excludedConditions)) {
-                $excludedTdrQuery->where(function($query) use ($excludedConditions) {
-                    foreach ($excludedConditions as $condition) {
-                        $query->orWhere($condition[0], $condition[1]);
-                    }
-                });
-
-                $excludedTdrs = $excludedTdrQuery->get();
-                foreach ($excludedTdrs as $tdr) {
-                    if ($tdr->component && $tdr->component->ipl_num) {
-                        $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
-                        if (!empty($normalizedIpl)) {
-                            $excludedIplNums[$normalizedIpl] = true;
-                        }
-                    }
-                }
-            }
-
-            // Получаем все TDR компоненты для создания мапы (только для логирования)
-            $tdrComponents = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component')
-                ->get();
-
-            // Создаем мапу IPL номеров из TDR (только для логирования)
-            $tdrIplMap = [];
-            foreach ($tdrComponents as $tdr) {
-                if ($tdr->component && $tdr->component->ipl_num) {
-                    $normalizedIpl = $this->normalizeIplNum($tdr->component->ipl_num);
-                    if (!empty($normalizedIpl)) {
-                        if (!isset($tdrIplMap[$normalizedIpl])) {
-                            $tdrIplMap[$normalizedIpl] = 0;
-                        }
-                        $tdrIplMap[$normalizedIpl] += (int)($tdr->qty ?? 0);
-                    }
-                }
-            }
-
-            // \Log::info('TDR Components (normalized):', [
-            //     'count' => count($tdrIplMap),
-            //     'ipl_numbers' => array_keys($tdrIplMap),
-            //     'excluded_ipl_count' => count($excludedIplNums),
-            //     'excluded_ipls' => array_keys($excludedIplNums)
-            // ]);
-
-            // 3. Сравнение и подсчет
-            $totalQty = 0;
-            $totalComponents = 0;
-            $processedIpls = [];
-            $skippedCount = 0;
-            $combinedSkippedCount = 0;
-
-            // \Log::info('Starting Stress calculation loop', [
-            //     'total_stress_components' => count($stressComponents),
-            //     'tdr_ipl_count' => count($tdrIplMap),
-            //     'excluded_ipl_count' => count($excludedIplNums)
-            // ]);
-
-            foreach ($stressComponents as $index => $component) {
-                $itemNo = trim($component['ipl_num'] ?? '');
-                $qty = (int)($component['qty'] ?? 1); // Получаем qty из JSON
-
-                // Нормализуем IPL номер для сравнения (5-90A -> 5-90)
-                $normalizedIpl = $this->normalizeIplNum($itemNo);
-
-                // Исключаем компоненты только с статусами Missing, Order New (Repair НЕ исключаем)
-                if (!empty($normalizedIpl) && isset($excludedIplNums[$normalizedIpl])) {
-                    $skippedCount++;
-                    // \Log::debug('Skipping Stress component as it has excluded status (Missing/Order New):', [
-                    //     'ipl_num' => $itemNo,
-                    //     'normalized_ipl' => $normalizedIpl
-                    // ]);
-                    continue;
-                }
-
-                // Если IPL номер пустой, пропускаем
-                if (empty($itemNo)) {
-                    // \Log::debug('Skipping Stress component with empty IPL:', ['component' => $component]);
-                    continue;
-                }
-
-                // ВАЖНО: Для Stress НЕ используем нормализацию для проверки дубликатов
-                // Каждый компонент из CSV должен считаться отдельно, даже если IPL отличается только суффиксом
-                // Используем оригинальный IPL для подсчета компонентов
-                if (!in_array($itemNo, $processedIpls)) {
-                    $totalQty += $qty; // Используем qty из JSON
-                    $totalComponents++;
-                    $processedIpls[] = $itemNo; // Сохраняем оригинальный IPL
-                    // \Log::debug('Adding Stress component from NdtCadCsv:', [
-                    //     'ipl_num' => $itemNo,
-                    //     'normalized_ipl' => $normalizedIpl,
-                    //     'qty' => $qty
-                    // ]);
-                } else {
-                    // \Log::debug('Skipping duplicate Stress component (by original IPL):', [
-                    //     'ipl_num' => $itemNo,
-                    //     'normalized_ipl' => $normalizedIpl
-                    // ]);
-                }
-            }
-
-            // \Log::info('Stress calculation loop completed', [
-            //     'total_qty' => $totalQty,
-            //     'total_components' => $totalComponents,
-            //     'skipped_count' => $skippedCount,
-            //     'processed_ipls_count' => count($processedIpls),
-            //     'processed_ipls' => $processedIpls
-            // ]);
-
-            // \Log::info('Stress calculation results:', [
-            //     'total_qty' => $totalQty,
-            //     'total_components' => $totalComponents,
-            //     'processed_ipls' => $processedIpls
-            // ]);
-
-            return [
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents
-            ];
-
-        } catch (\Exception $e) {
-            // \Log::error('Error in Stress sums calculation:', [
-            //     'error' => $e->getMessage(),
-            //     'trace' => $e->getTraceAsString()
-            // ]);
-            return [
-                'total_qty' => 0,
-                'total_components' => 0
-            ];
-        }
-    }
-
-    private function calcPaintSums($workorder_id)
-    {
-        try {
-            // Получаем текущий workorder
-            $current_wo = Workorder::findOrFail($workorder_id);
-
-            // \Log::info('Starting Paint sums calculation', [
-            //     'workorder_id' => $workorder_id
-            // ]);
-
-            // 1. Получаем данные из таблицы ndt_cad_csv
-            $ndtCadCsv = $current_wo->ndtCadCsv;
-            if (!$ndtCadCsv) {
-                // \Log::error('NdtCadCsv not found for workorder', ['workorder_id' => $workorder_id]);
-                return [
-                    'total_qty' => 0,
-                    'total_components' => 0
-                ];
-            }
-
-            // \Log::info('Found NdtCadCsv record', [
-            //     'ndt_cad_csv_id' => $ndtCadCsv->id,
-            //     'paint_components_count' => count($ndtCadCsv->paint_components ?? [])
-            // ]);
-
-            // Получаем Paint компоненты из JSON поля
-            $paintComponents = $ndtCadCsv->paint_components ?? [];
-
-            if (empty($paintComponents)) {
-                // \Log::warning('No Paint components found in NdtCadCsv');
-                return [
-                    'total_qty' => 0,
-                    'total_components' => 0
-                ];
-            }
-
-            // 2. Чтение TDR компонентов
-            $tdrComponents = Tdr::where('workorder_id', $workorder_id)
-                ->whereNotNull('component_id')
-                ->with('component')
-                ->get();
-
-            // Создаем мапу IPL номеров из TDR
-            $tdrIplMap = $tdrComponents->pluck('qty', 'component.ipl_num')->toArray();
-
-            // \Log::info('TDR Components:', [
-            //     'count' => count($tdrIplMap),
-            //     'ipl_numbers' => array_keys($tdrIplMap)
-            // ]);
-
-            // 3. Сравнение и подсчет
-            $totalQty = 0;
-            $totalComponents = 0;
-            $processedIpls = [];
-            $skippedCount = 0;
-            $combinedSkippedCount = 0;
-
-            // \Log::info('Starting Paint calculation loop', [
-            //     'total_paint_components' => count($paintComponents),
-            //     'tdr_ipl_count' => count($tdrIplMap)
-            // ]);
-
-            foreach ($paintComponents as $index => $component) {
-                $itemNo = trim($component['ipl_num'] ?? '');
-                $qty = (int)($component['qty'] ?? 1); // Получаем qty из JSON
-
-                // \Log::debug('Processing Paint component', [
-                //     'index' => $index,
-                //     'item_no' => $itemNo,
-                //     'qty' => $qty,
-                //     'component' => $component
-                // ]);
-
-                // Если IPL номер есть в TDR - пропускаем
-                if (isset($tdrIplMap[$itemNo])) {
-                    $skippedCount++;
-                    // \Log::debug('Skipping component as it exists in TDR:', ['ipl_num' => $itemNo]);
-                    continue;
-                }
-
-                // Проверяем совмещенные значения
-                if ($this->shouldSkipItem($itemNo, array_keys($tdrIplMap))) {
-                    $combinedSkippedCount++;
-                    // \Log::debug('Skipping Paint component due to combined value match:', [
-                    //     'item_no' => $itemNo,
-                    //     'existing_ipls' => array_keys($tdrIplMap)
-                    // ]);
-                    continue;
-                }
-
-                // Если IPL номер еще не был обработан
-                if (!in_array($itemNo, $processedIpls)) {
-                    $totalQty += $qty; // Используем qty из JSON
-                    $totalComponents++;
-                    $processedIpls[] = $itemNo;
-                    // \Log::debug('Adding component from NdtCadCsv:', ['ipl_num' => $itemNo, 'qty' => $qty]);
-                }
-            }
-
-            // \Log::info('Paint calculation loop completed', [
-            //     'total_qty' => $totalQty,
-            //     'total_components' => $totalComponents,
-            //     'skipped_count' => $skippedCount,
-            //     'combined_skipped_count' => $combinedSkippedCount,
-            //     'processed_ipls' => $processedIpls
-            // ]);
-
-            // \Log::info('Paint calculation results:', [
-            //     'total_qty' => $totalQty,
-            //     'total_components' => $totalComponents,
-            //     'processed_ipls' => $processedIpls
-            // ]);
-
-            return [
-                'total_qty' => $totalQty,
-                'total_components' => $totalComponents
-            ];
-
-        } catch (\Exception $e) {
-            // \Log::error('Error in Paint sums calculation:', [
-            //     'error' => $e->getMessage(),
-            //     'trace' => $e->getTraceAsString()
-            // ]);
-            return [
-                'total_qty' => 0,
-                'total_components' => 0
-            ];
-        }
-    }
-
-    private function shouldSkipItem(string $itemNo, array $existingIplNums): bool
-    {
-        // Нормализация исходного значения из CSV (приведение кириллицы к латинице, верхний регистр)
-        $rawItemNo = $this->normalizeAlphaNum($itemNo);
-
-        foreach ($existingIplNums as $iplNum) {
-            if (empty($iplNum)) continue;
-
-            // Очистка строк от неалфавитно-цифровых символов для сравнения
-            $cleanItemNo = $rawItemNo;
-            $cleanIplNum = $this->normalizeAlphaNum($iplNum);
-
-            // Если номера полностью совпадают, пропускаем
-            if ($cleanItemNo === $cleanIplNum) {
-                return true;
-            }
-
-            // Проверяем совмещенные значения в CSV (например, 1-140/1-140A, 1-140/140А)
-            if (strpos($itemNo, '/') !== false) {
-                $csvParts = explode('/', $itemNo);
-                foreach ($csvParts as $part) {
-                    $part = trim($part);
-                    $cleanPart = $this->normalizeAlphaNum($part);
-
-                    // Прямое сравнение
-                    if ($cleanPart === $cleanIplNum) {
-                        return true;
-                    }
-
-                    // Нормализация: если часть не содержит префикс, добавляем его из первой части
-                    if (preg_match('/^(\d+-)/', $itemNo, $matches)) {
-                        $prefix = $matches[1]; // например, "1-"
-                        if (!preg_match('/^\d+-/', $part)) {
-                            $normalizedPart = $prefix . ltrim($part);
-                            $cleanNormalizedPart = $this->normalizeAlphaNum($normalizedPart);
-                            if ($cleanNormalizedPart === $cleanIplNum) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Проверяем совмещенные значения в базе данных
-            if (strpos($iplNum, '/') !== false) {
-                $dbParts = explode('/', $iplNum);
-                foreach ($dbParts as $part) {
-                    $part = trim($part);
-                    $cleanPart = $this->normalizeAlphaNum($part);
-
-                    // Прямое сравнение
-                    if ($cleanPart === $cleanItemNo) {
-                        return true;
-                    }
-
-                    // Нормализация: если часть не содержит префикс, добавляем его из первой части
-                    if (preg_match('/^(\d+-)/', $iplNum, $matches)) {
-                        $prefix = $matches[1];
-                        if (!preg_match('/^\d+-/', $part)) {
-                            $normalizedPart = $prefix . ltrim($part);
-                            $cleanNormalizedPart = $this->normalizeAlphaNum($normalizedPart);
-                            if ($cleanNormalizedPart === $cleanItemNo) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private function normalizeAlphaNum(string $value): string
-    {
-        // Карта похожих символов Кириллица -> Латиница
-        $map = [
-            'А' => 'A', 'В' => 'B', 'Е' => 'E', 'К' => 'K', 'М' => 'M', 'Н' => 'H',
-            'О' => 'O', 'Р' => 'P', 'С' => 'S', 'Т' => 'T', 'У' => 'Y', 'Х' => 'X',
-            'а' => 'A', 'в' => 'B', 'е' => 'E', 'к' => 'K', 'м' => 'M', 'н' => 'H',
-            'о' => 'O', 'р' => 'P', 'с' => 'S', 'т' => 'T', 'у' => 'Y', 'х' => 'X'
+        return [
+            'total_qty' => $totalQty,
+            'total_components' => $totalComponents,
         ];
-        $converted = strtr($value, $map);
-        $upper = strtoupper($converted);
-        return preg_replace('/[^A-Z0-9]/', '', $upper);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array{total_qty: int, total_components: int}
+     */
+    private function calcStdTotalsFromRows(array $rows): array
+    {
+        return [
+            'total_qty' => array_sum(array_map(static fn (array $row): int => max(0, (int) ($row['qty'] ?? 0)), $rows)),
+            'total_components' => count($rows),
+        ];
+    }
+
+    private function filterComponentsForUnit($components, Workorder $workorder)
+    {
+        $resolver = app(ManualIplBranchRuleResolver::class);
+        $manualId = (int) ($workorder->unit->manual_id ?? 0);
+
+        return $components
+            ->filter(function (Component $component) use ($resolver, $workorder, $manualId): bool {
+                return $resolver->allowsComponentForUnit(
+                    $workorder->unit,
+                    (string) ($component->ipl_num ?? ''),
+                    $manualId
+                );
+            })
+            ->values();
+    }
+
+    private function rebuildStdSnapshotForForm(Workorder $workorder): void
+    {
+        $workorder->loadMissing('unit.manuals');
+        app(WorkorderStdProcessItemsService::class)->rebuild($workorder);
     }
 }
+

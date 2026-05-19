@@ -268,7 +268,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/{workorder_id}/paint-std', [TdrPrintFormController::class, 'paintStd'])->name('tdrs.paintStd');
         Route::get('tdrs/{workorder_id}/stress-std', [TdrPrintFormController::class, 'stressStd'])->name('tdrs.stressStd');
         Route::get('tdrs/{workorder_id}/machining-form', [TdrController::class, 'machiningForm'])->name('tdrs.machiningForm');
-        Route::get('tdrs/{workorder_id}/ndt-form', [TdrPrintFormController::class, 'ndtForm'])->name('tdrs.ndtForm');
         Route::get('tdrs/{workorder_id}/passivation-form', [TdrController::class, 'passivationForm'])->name('tdrs.passivationForm');
         Route::get('tdrs/{workorder_id}/cad-form', [TdrController::class, 'cadForm'])->name('tdrs.cadForm');
         Route::get('tdrs/{workorder_id}/xylan-form', [TdrController::class, 'xylanForm'])->name('tdrs.xylanForm');

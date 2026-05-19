@@ -96,6 +96,11 @@ class Manual extends Model implements HasMedia
         return $this->hasMany(Unit::class, 'manual_id');
     }
 
+    public function iplBranchRules()
+    {
+        return $this->hasMany(ManualIplBranchRule::class, 'manual_id');
+    }
+
     public function components()
     {
         return $this->hasMany(Component::class, 'manual_id');

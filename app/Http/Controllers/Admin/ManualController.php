@@ -16,6 +16,7 @@ use App\Models\ProcessName;
 use App\Models\Scope;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\ManualIplBranchRuleResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -188,6 +189,11 @@ class ManualController extends Controller
 
 //Components CMM
         $units = Unit::where('manual_id', $cmm->id)->get();
+        $branchRuleResolver = app(ManualIplBranchRuleResolver::class);
+        $units->each(function (Unit $unit) use ($branchRuleResolver, $cmm): void {
+            $rule = $branchRuleResolver->resolveRuleForUnit($unit, (int) $cmm->id);
+            $unit->setAttribute('ipl_branch_rule_display', $rule?->displayLabel() ?? '');
+        });
 
 // Parts (sorted by IPL Number in natural order: 1-10, 1-20, 1-20A, 1-30, ...)
         $parts = Component::with(['assemblies', 'manual.partLock.lockedBy'])->where('manual_id', $cmm->id)->get()->sortBy(function ($part) {
