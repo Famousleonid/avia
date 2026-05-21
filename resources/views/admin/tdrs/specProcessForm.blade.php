@@ -6,6 +6,16 @@
     <title>Special Process Form</title>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     @include('shared.spec-process-forms._styles')
+    <script>
+        window.addEventListener('error', function (e) {
+            const message = e.message || '';
+            if (message.includes('identifyDuplicates') || message.includes('statements is not iterable')) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }, true);
+    </script>
     @php
         $technicianFullName = trim((string) optional($current_wo->user)->name);
         $technicianNameParts = preg_split('/\s+/', $technicianFullName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
@@ -258,6 +268,92 @@
             /*grid-template-rows: repeat(3, 1fr);*/
             gap: 0px;
         }
+
+        .spec-component-description {
+            height: 32px !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 2px;
+            overflow: hidden;
+        }
+
+        .spec-component-description-text {
+            display: block;
+            max-width: 100%;
+            font-size: 1em;
+            font-weight: 700;
+            line-height: 1.05;
+            text-align: center;
+            white-space: normal;
+            overflow-wrap: normal;
+            word-break: normal;
+        }
+
+        .spec-component-description-name {
+            display: inline;
+            overflow: visible;
+        }
+
+        .spec-component-description-ipl {
+            display: inline-block;
+            font-size: 0.62rem;
+            font-weight: 400;
+            white-space: nowrap;
+            vertical-align: baseline;
+        }
+
+        .spec-form-title {
+            font-size: 1.35rem;
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+
+        .spec-ro-cell {
+            height: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            font-weight: 700;
+        }
+
+        .spec-process-ro-value {
+            position: absolute;
+            left: 30px;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .spec-process-row-cell {
+            position: relative;
+        }
+
+        .spec-top-count-cell,
+        .spec-process-row-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .spec-top-count-cell {
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding-top: 0 !important;
+        }
+
+        .spec-process-table-body .spec-process-row-inner {
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
     </style>
 </head>
 
@@ -292,7 +388,7 @@
                      style="width: 120px; margin: 0px 4px 0;">
             </div>
             <div class="col-11">
-                <h5 class="  text-black text-center"><strong>Special Process Form</strong></h5>
+                <h5 class="text-black text-center spec-form-title"><strong>Special Process Form</strong></h5>
             </div>
         </div>
         <div>
@@ -320,7 +416,7 @@
                     <img src="{{ asset('img/icons/icons8-right-arrow.gif')}}" alt="arrow"
                          style="width: 24px;height: 20px">
                 </div>
-                <div class="border-l-t-b text-center pt-0 fs-75" style="width: 25px;height: 20px">
+                <div class="border-l-t-b text-center pt-0 fs-75 spec-top-count-cell" style="width: 25px;height: 20px">
                     @if($current_wo->instruction_id ==1)
                         {{ !isset($ndtSums['mpi']) || $ndtSums['mpi'] === null ? ' ' : $ndtSums['mpi'] }}
                     @else
@@ -329,7 +425,7 @@
                 </div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 20px; color: lightgray; font-style: italic" >RO
                     No.</div>
-                <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
+                <div class="border-all text-center pt-0 fs-75 spec-top-count-cell" style="width: 25px;height: 20px">
                     @if($current_wo->instruction_id ==1)
                          {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] === null || $ndtSums['fpi'] === 0 ? ' ' : $ndtSums['fpi'] }}
                     @else
@@ -339,7 +435,7 @@
                 <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: lightgray; font-style:
                 italic" >RO No.</div>
-                <div class="border-all text-center pt-0 fs-75" style="width: 25px;height: 20px">
+                <div class="border-all text-center pt-0 fs-75 spec-top-count-cell" style="width: 25px;height: 20px">
 
 {{--                    {{ empty($cadSum['total_qty']) ? 'N/A' : $cadSum['total_qty']  }}--}}
                     @php
@@ -390,15 +486,12 @@
                 <!-- Строка для имен компонентов -->
                 <div class="row g-0">
                     @foreach($columnSlots as $slotData)
-                        <div class="col {{ $loop->last ? 'border-all' : 'border-l-t-b' }} text-center spec-component-description" style="height: 22px">
+                        <div class="col {{ $loop->last ? 'border-all' : 'border-l-t-b' }} text-center spec-component-description">
                             @if($slotData['slot'] !== 'empty')
                                 @php $component = $slotData['item']->component; @endphp
-                                @php
-                                    $nameLength = mb_strlen($component->component->name);
-                                    $fontSize = $nameLength > 20 ? round(20 / $nameLength, 2) . 'em' : '1em';
-                                @endphp
-                                <span style="font-size: {{ $fontSize }};font-weight: bold; line-height: 1">
-                                    {{ $component->component->name }} ({{$component->component->ipl_num}})
+                                <span class="spec-component-description-text">
+                                    <span class="spec-component-description-name">{{ $component->component->name }}</span>
+                                    <span class="spec-component-description-ipl">({{ $component->component->ipl_num }})</span>
                                 </span>
                             @endif
                         </div>
@@ -457,8 +550,9 @@
             <div class="col-10" >
                 <div class="row g-0">
                     @foreach($columnSlots as $slotData)
-                        <div class="col fs-8 text-center " style="height: 15px">
-                            <strong>RO No.</strong></div>
+                        <div class="col fs-8 text-center spec-ro-cell">
+                            <strong>RO No.</strong>
+                        </div>
                     @endforeach
                 </div>
             </div>
@@ -475,6 +569,8 @@
                         @php
                             $showValue = false;
                             $ndtEntry = null;
+                            $ndtNumberLine = '';
+                            $ndtRepairOrder = '';
                             if ($slotData['slot'] !== 'empty') {
                                 $component = $slotData['item']->component;
                                 $ndtForCurrentTdr = collect($ndt_processes)->where('tdrs_id', $component->id)->values();
@@ -490,11 +586,19 @@
                                     $ndtEntry = $slot === 'left' ? ($leftNdts[$ndtRowIndex] ?? null) : ($rightNdts[$ndtRowIndex] ?? null);
                                     $showValue = $ndtEntry !== null;
                                 }
+
+                                if ($showValue && $ndtEntry) {
+                                    $ndtNumberLine = (string) $ndtEntry['number_line'];
+                                    $ndtRepairOrder = trim((string) ($ndtEntry['repair_order'] ?? ''));
+                                }
                             }
                         @endphp
                         <div class="col {{ $loop->last ? ($ndtRowIndex === 0 ? 'border-all' : 'border-l-b-r') : ($ndtRowIndex === 0 ? 'border-l-t-b' : 'border-l-b') }} text-center spec-process-row-cell" style="{{ $slotData['slot'] === 'empty' ? 'position: relative' : '' }}">
                             @if($showValue)
-                                <div class="border-r spec-process-row-inner">{{ $ndtEntry['number_line'] }}</div>
+                                <div class="border-r spec-process-row-inner">{{ $ndtNumberLine }}</div>
+                                @if($ndtRepairOrder !== '')
+                                    <div class="spec-process-ro-value">{{ $ndtRepairOrder }}</div>
+                                @endif
                             @else
                                 <div class="border-r spec-process-row-inner"></div>
                                 @if($slotData['slot'] === 'empty')
@@ -517,6 +621,7 @@
                         @foreach($columnSlots as $slotData)
                             @php
                                 $numberLines = '';
+                                $repairOrderText = '';
                                 $hasEcProcess = false;
                                 if ($slotData['slot'] !== 'empty') {
                                     $component = $slotData['item']->component;
@@ -537,14 +642,17 @@
                                         $hasEc = fn($coll) => $coll->filter(fn($p) => ($p['ec'] ?? 0) == 1)->isNotEmpty();
                                         if ($slot === 'single') {
                                             $numberLines = $entries->pluck('number_line')->unique()->implode(',');
+                                            $repairOrderText = $entries->pluck('repair_order')->filter(fn($value) => trim((string) $value) !== '')->unique()->implode(', ');
                                             $hasEcProcess = $hasEc($processForCurrentTdr);
                                         } elseif ($slot === 'left' && $quarantineNumberLine !== null) {
                                             $leftEntries = $entries->filter(fn($p) => $p['number_line'] <= $quarantineNumberLine);
                                             $numberLines = $leftEntries->pluck('number_line')->unique()->implode(',');
+                                            $repairOrderText = $leftEntries->pluck('repair_order')->filter(fn($value) => trim((string) $value) !== '')->unique()->implode(', ');
                                             $hasEcProcess = $hasEc($leftEntries);
                                         } elseif ($slot === 'right' && $quarantineNumberLine !== null) {
                                             $rightEntries = $entries->filter(fn($p) => $p['number_line'] > $quarantineNumberLine);
                                             $numberLines = $rightEntries->pluck('number_line')->unique()->implode(',');
+                                            $repairOrderText = $rightEntries->pluck('repair_order')->filter(fn($value) => trim((string) $value) !== '')->unique()->implode(', ');
                                             $hasEcProcess = $hasEc($rightEntries);
                                         }
                                     }
@@ -553,6 +661,9 @@
                             <div class="col {{ $loop->last ? 'border-l-b-r' : 'border-l-b' }} text-center spec-process-row-cell" style="position: relative;">
                                 @if($numberLines)
                                     <div class="border-r spec-process-row-inner">{{ $numberLines }}</div>
+                                    @if($repairOrderText !== '')
+                                        <div class="spec-process-ro-value">{{ $repairOrderText }}</div>
+                                    @endif
                                 @else
                                     <div class="border-r spec-process-row-inner"></div>
                                     @if($slotData['slot'] === 'empty')

@@ -77,6 +77,7 @@
                     {{--                    <input type="hidden" name="use_tdr" value="true">--}}
 
                     <input type="hidden" name="workorder_id" value="{{$current_wo->id }}">
+                    <input type="hidden" name="order_component_assembly_id" id="order_component_assembly_id" value="">
 
                     <div class="row">
                         <div class="col">
@@ -164,9 +165,14 @@
                                         <select name="order_component_id" id="order_component_id" class="form-control" style="width: 350px">
                                             <option selected value="">---</option>
                                             @foreach($components as $component)
-                                                <option value="{{ $component->id }}">
+                                                <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="">
                                                     {{ $component->assy_part_number ?: $component->part_number }} - {{ $component->name }} ({{ $component->ipl_num }})
                                                 </option>
+                                                @foreach($component->assemblies ?? [] as $assembly)
+                                                    <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="{{ $assembly->id }}">
+                                                        {{ $assembly->assy_part_number }} - {{ $component->name }} ({{ $assembly->assy_ipl_num }}) (assy)
+                                                    </option>
+                                                @endforeach
                                             @endforeach
                                         </select>
                                     </div>
@@ -490,6 +496,36 @@
                 allowClear: true
             });
 
+            function appendOrderComponentOption(component) {
+                const assemblies = Array.isArray(component.assemblies) ? component.assemblies : [];
+                const componentId = component.id || '';
+                const componentName = component.name || '';
+                const componentText = (component.assy_part_number || component.part_number || '') + ' - ' + componentName + ' (' + (component.ipl_num || '') + ')';
+
+                $('#order_component_id').append($('<option>')
+                    .val(componentId)
+                    .text(componentText)
+                    .attr('data-component-id', componentId)
+                    .attr('data-assembly-id', ''));
+
+                assemblies.forEach(function(assembly) {
+                    const assyPart = assembly.assy_part_number || '';
+                    const assyIpl = assembly.assy_ipl_num || '';
+                    if (!assyPart && !assyIpl) return;
+                    $('#order_component_id').append($('<option>')
+                        .val(componentId)
+                        .text(assyPart + ' - ' + componentName + ' (' + assyIpl + ') (assy)')
+                        .attr('data-component-id', componentId)
+                        .attr('data-assembly-id', assembly.id || ''));
+                });
+            }
+
+            function syncOrderComponentAssembly() {
+                $('#order_component_assembly_id').val($('#order_component_id option:selected').attr('data-assembly-id') || '');
+            }
+
+            $('#order_component_id').on('change', syncOrderComponentAssembly);
+
             // Функция для показа/скрытия поля Bush IPL Number
             function toggleBushIPL() {
                 const isBushCheckbox = document.getElementById('is_bush');
@@ -568,11 +604,13 @@
                 }
 
                 // Показать/скрыть select для заказа компонента
-                if ((necessaryName || '').toLowerCase() === 'order new') {
+                if (codeNameLower === 'missing' || (necessaryName || '').toLowerCase() === 'order new') {
                     $('#order_component_group').show();
                     // По умолчанию выбрать текущий компонент
                     const currentComponentId = $('#i_component_id').val();
-                    $('#order_component_id').val(currentComponentId).trigger('change');
+                    if (!$('#order_component_id').val()) {
+                        $('#order_component_id').val(currentComponentId).trigger('change');
+                    }
                 } else {
                     $('#order_component_group').hide();
                     $('#order_component_id').val('').trigger('change');
@@ -696,6 +734,8 @@
             } else if (codeName === 'missing') {
                 setHiddenInput('use_tdr', '0');
                 setHiddenInput('use_process_forms', '0');
+                setHiddenInput('order_component_id', $('#order_component_id').val());
+                setHiddenInput('order_component_assembly_id', $('#order_component_assembly_id').val());
                 setHiddenInput('necessaries_id', '2');
                 setHiddenInput('conditions_id', '1');
             } else if (codeName !== 'missing' && necessaryName === 'order new') {
@@ -704,6 +744,7 @@
 
                 // Сохраняем order_component_id из Select2
                 setHiddenInput('order_component_id', $('#order_component_id').val());
+                setHiddenInput('order_component_assembly_id', $('#order_component_assembly_id').val());
 
                 var conditionId = null;
                 var normalizedCodeName = codeName.toString().trim().toLowerCase();
@@ -740,6 +781,7 @@
                 method: 'GET',
                 data: {
                     manual_id: manualId,
+                    workorder_id: {{ $current_wo->id }},
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
@@ -753,7 +795,7 @@
                     response.components.forEach(function(component) {
                         $('#i_component_id').append(
                             '<option value="' + component.id + '" ' +
-                            'data-has_assy="' + (component.assy_part_number ? 'true' : 'false') + '" ' +
+                            'data-has_assy="' + ((component.assy_part_number || (Array.isArray(component.assemblies) && component.assemblies.length)) ? 'true' : 'false') + '" ' +
                             'data-title="' + component.name + '">' +
                             component.ipl_num + ' : ' + component.part_number + ' - ' + component.name +
                             '</option>'
@@ -767,6 +809,13 @@
                             displayPartNumber + ' - ' + component.name + ' (' + component.ipl_num + ')' +
                             '</option>'
                         );
+                        (Array.isArray(component.assemblies) ? component.assemblies : []).forEach(function(assembly) {
+                            $('#order_component_id').append(
+                                '<option value="' + component.id + '" data-component-id="' + component.id + '" data-assembly-id="' + (assembly.id || '') + '">' +
+                                (assembly.assy_part_number || '') + ' - ' + component.name + ' (' + (assembly.assy_ipl_num || '') + ') (assy)' +
+                                '</option>'
+                            );
+                        });
                     });
 
                     // Обновляем Select2 для обоих дропдаунов

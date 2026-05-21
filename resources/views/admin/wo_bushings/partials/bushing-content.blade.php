@@ -78,6 +78,7 @@
             vertical-align: middle;
         }
         table.bushing-view-table thead.wo-bush-thead th {
+            color: #fff !important;
             font-size: 14px !important;
             font-weight: 400 !important;
             height: 28px;
@@ -86,8 +87,10 @@
             white-space: normal;
         }
         table.bushing-view-table thead.wo-bush-thead .bushing-process-subhead th {
-            padding-top: .35rem !important;
-            padding-bottom: .35rem !important;
+            height: 96px;
+            min-height: 96px;
+            padding-top: .5rem !important;
+            padding-bottom: .5rem !important;
         }
         table.bushing-view-table thead th,
         table.bushing-view-table thead th.text-primary,
@@ -148,7 +151,8 @@
             min-width: 0;
             max-width: none;
             width: auto !important;
-            height: 20px;
+            height: 28px;
+            min-height: 28px;
             display: block;
             appearance: none !important;
             -webkit-appearance: none !important;
@@ -158,9 +162,9 @@
             background-color: #000 !important;
             background-image: none !important;
             color: #fff;
-            font-size: 10px !important;
-            line-height: 1;
-            padding: .05rem .1rem !important;
+            font-size: 11px !important;
+            line-height: 1.15;
+            padding: .18rem .25rem !important;
         }
         .bushing-view-table .vendor-select-sm option {
             font-size: 14px !important;
@@ -168,7 +172,8 @@
         .bushing-view-table .bushing-form-row {
             flex-wrap: nowrap !important;
             justify-content: stretch !important;
-            margin-bottom: .25rem;
+            margin-bottom: .35rem;
+            min-height: 28px;
             width: 100%;
         }
         .bushing-view-table .form-btn {
@@ -189,18 +194,23 @@
             line-height: 1.05;
         }
         .bushing-view-table .form-btn,
-        .bushing-view-table .js-bushing-create-batch,
-        .bushing-view-table .js-bushing-ungroup-batch,
+        .bushing-view-table thead .js-bushing-create-batch,
+        .bushing-view-table thead .js-bushing-ungroup-batch,
         .bushing-view-table .js-bushing-batch-label {
             font-size: 12px !important;
+            line-height: 1.15;
+            min-height: 24px;
+            padding: .22rem .28rem !important;
+        }
+        .bushing-view-table tbody .js-bushing-batch-label {
             line-height: 1.05;
             min-height: 18px;
             padding: .12rem .18rem !important;
         }
-        .bushing-view-table .js-bushing-create-batch,
-        .bushing-view-table .js-bushing-ungroup-batch {
-            padding-top: .18rem !important;
-            padding-bottom: .18rem !important;
+        .bushing-view-table thead .js-bushing-create-batch,
+        .bushing-view-table thead .js-bushing-ungroup-batch {
+            padding-top: .24rem !important;
+            padding-bottom: .24rem !important;
         }
         .bushing-subcol-batch, .bushing-subcol-form { vertical-align: middle; }
         .bushing-view-table thead.wo-bush-thead tr:first-child th {
@@ -220,7 +230,7 @@
         .bushing-view-table th.bushing-subcol-form > .d-flex { overflow: hidden; max-width: 100%; }
         .bushing-view-table .bushing-batch-inner,
         .bushing-view-table thead .d-flex {
-            gap: .15rem !important;
+            gap: .25rem !important;
         }
         .bushing-table-outer {
             margin-left: -5px;
@@ -341,9 +351,33 @@
                             }
                         }
                         $savedBushingsGrouped = $savedBushingsGrouped->map(function ($groupRows) {
-                            return $groupRows->sortBy('sort_order')->values();
-                        })->sortBy(function ($groupRows) {
-                            return $groupRows->min('sort_order');
+                            return $groupRows->sort(function ($left, $right) {
+                                $iplCompare = \App\Models\StdProcess::compareIplValues(
+                                    (string) ($left['component']->ipl_num ?? ''),
+                                    (string) ($right['component']->ipl_num ?? '')
+                                );
+
+                                if ($iplCompare !== 0) {
+                                    return $iplCompare;
+                                }
+
+                                $partCompare = strnatcasecmp(
+                                    (string) ($left['component']->part_number ?? ''),
+                                    (string) ($right['component']->part_number ?? '')
+                                );
+
+                                return $partCompare !== 0
+                                    ? $partCompare
+                                    : ((int) ($left['line_id'] ?? 0)) <=> ((int) ($right['line_id'] ?? 0));
+                            })->values();
+                        })->sort(function ($leftGroup, $rightGroup) {
+                            $left = $leftGroup->first();
+                            $right = $rightGroup->first();
+
+                            return \App\Models\StdProcess::compareIplValues(
+                                (string) ($left['component']->ipl_num ?? ''),
+                                (string) ($right['component']->ipl_num ?? '')
+                            );
                         });
                     @endphp
                     @php
@@ -498,8 +532,5 @@
     <div class="text-center mt-5">
         <h3 class="text-muted">{{__('No Bushings Available')}}</h3>
         <p class="text-muted">{{__('No components with "Is Bush" marked are found for this manual.')}}</p>
-        <button type="button" class="btn btn-primary mt-3 open-add-part-modal" data-add-part-url="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => $returnTo ?? route('wo_bushings.show', $current_wo->id)]) }}">
-            <i class="fas fa-plus"></i> {{__('Add Part')}}
-        </button>
     </div>
 @endif

@@ -5,6 +5,7 @@
     @csrf
     <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
     <input type="hidden" name="return_to" value="show">
+    <input type="hidden" name="order_component_assembly_id" id="order_component_assembly_id" value="">
 
     <div class="row">
         <div class="col">
@@ -13,9 +14,25 @@
                 <select name="component_id" id="i_component_id" class="form-control" style="width: 100%; max-width: 400px">
                     <option selected value="">---</option>
                     @foreach($components as $component)
+                        @php
+                            $componentAssembliesJson = $component->assemblies
+                                ->map(function ($assembly) {
+                                    return [
+                                        'id' => $assembly->id,
+                                        'assy_part_number' => $assembly->assy_part_number,
+                                        'assy_ipl_num' => $assembly->assy_ipl_num,
+                                        'units_assy' => $assembly->units_assy,
+                                    ];
+                                })
+                                ->values()
+                                ->toJson();
+                        @endphp
                         <option value="{{ $component->id }}"
-                                data-has_assy="{{ $component->assy_part_number ? 'true' : 'false' }}"
-                                data-title="{{ $component->name }}">
+                                data-has_assy="{{ ($component->assy_part_number || $component->assemblies->isNotEmpty()) ? 'true' : 'false' }}"
+                                data-title="{{ $component->name }}"
+                                data-ipl="{{ $component->ipl_num }}"
+                                data-part-number="{{ $component->part_number }}"
+                                data-assemblies='{{ $componentAssembliesJson }}'>
                             {{ $component->ipl_num }} : {{ $component->part_number }} - {{ $component->name }}
                         </option>
                     @endforeach
@@ -87,9 +104,14 @@
                         <select name="order_component_id" id="order_component_id" class="form-control" style="width: 350px">
                             <option selected value="">---</option>
                             @foreach($components as $component)
-                                <option value="{{ $component->id }}">
+                                <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="" data-ipl="{{ $component->ipl_num }}">
                                     {{ $component->assy_part_number ?: $component->part_number }} - {{ $component->name }} ({{ $component->ipl_num }})
                                 </option>
+                                @foreach($component->assemblies ?? [] as $assembly)
+                                    <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="{{ $assembly->id }}" data-ipl="{{ $assembly->assy_ipl_num ?: $component->ipl_num }}">
+                                        {{ $assembly->assy_part_number }} - {{ $component->name }} ({{ $assembly->assy_ipl_num }}) (assy)
+                                    </option>
+                                @endforeach
                             @endforeach
                         </select>
                     </div>

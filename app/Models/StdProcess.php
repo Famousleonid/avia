@@ -72,7 +72,7 @@ class StdProcess extends Model
 
     public static function iplSortKey(?string $ipl): array
     {
-        $value = trim((string) ($ipl ?? ''));
+        $value = self::sortComparableIplValue($ipl);
 
         if (! preg_match('/^(\d+)([A-Za-z]*)-(\d+)([A-Za-z0-9]*)$/', $value, $matches)) {
             return [1, 0, '', 0, strtoupper($value)];
@@ -90,6 +90,18 @@ class StdProcess extends Model
     public static function compareIplValues(?string $left, ?string $right): int
     {
         return self::iplSortKey($left) <=> self::iplSortKey($right);
+    }
+
+    protected static function sortComparableIplValue(?string $ipl): string
+    {
+        $value = trim((string) ($ipl ?? ''));
+        if ($value === '') {
+            return '';
+        }
+
+        $lines = preg_split('/\R+/', $value) ?: [];
+
+        return trim((string) ($lines[0] ?? $value));
     }
 
     /**
@@ -649,8 +661,8 @@ class StdProcess extends Model
         }
 
         return array_values(array_filter(
-            array_map('trim', explode(',', $value)),
-            static fn (string $t): bool => $t !== ''
+            preg_split('/[\s,;\/]+/', $value) ?: [],
+            static fn (string $t): bool => trim($t) !== ''
         ));
     }
 
@@ -874,25 +886,7 @@ class StdProcess extends Model
     public static function syncFromComponentFlagsForManualWhenCountsDiffer(Manual $manual): void
     {
         foreach (self::validStdValues() as $std) {
-            $flagColumn = self::componentFlagColumnForStd($std);
-            $flaggedCount = Component::query()
-                ->where('manual_id', $manual->id)
-                ->where($flagColumn, true)
-                ->whereNotNull('ipl_num')
-                ->where('ipl_num', '<>', '')
-                ->count();
-            $stdCount = self::query()
-                ->where('manual_id', $manual->id)
-                ->where('std', $std)
-                ->whereNotNull('component_id')
-                ->whereHas('component', function ($query) use ($manual): void {
-                    $query->where('manual_id', $manual->id);
-                })
-                ->count();
-
-            if ($flaggedCount !== $stdCount) {
-                self::syncFromComponentFlagsForManualStd($manual, $std);
-            }
+            self::syncFromComponentFlagsForManualStd($manual, $std);
         }
     }
 
@@ -920,7 +914,13 @@ class StdProcess extends Model
                 ->with('component:id,manual_id')
                 ->get()
                 ->each(function (self $row) use ($flaggedKeys, $manual): void {
-                    if ((int) ($row->component?->manual_id ?? 0) === (int) $manual->id
+                    if (! $row->component) {
+                        $row->delete();
+
+                        return;
+                    }
+
+                    if ((int) $row->component->manual_id === (int) $manual->id
                         && ! $flaggedKeys->has((int) $row->component_id)) {
                         $row->delete();
                     }
@@ -932,18 +932,21 @@ class StdProcess extends Model
                     continue;
                 }
 
-                self::query()->firstOrCreate(
+                $row = self::query()->firstOrNew(
                     [
                         'manual_id' => $manual->id,
                         'component_id' => $component->id,
                         'std' => $std,
-                    ],
-                    [
-                        'process' => self::defaultProcessForFlagSnapshot((int) $manual->id, $std),
-                        'qty' => max(1, (int) ($component->units_assy ?? 1)),
-                        'eff_code' => self::normalizeEffCodeForStorage($component->eff_code),
                     ]
                 );
+
+                if (! $row->exists || trim((string) $row->process) === '') {
+                    $row->process = self::defaultProcessForFlagSnapshot((int) $manual->id, $std);
+                }
+
+                $row->qty = max(1, (int) ($component->units_assy ?? 1));
+                $row->eff_code = self::normalizeEffCodeForStorage($component->eff_code);
+                $row->save();
             }
         });
     }

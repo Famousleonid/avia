@@ -5,10 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Code;
 use App\Models\Component;
+use App\Models\ExtraProcess;
 use App\Models\LogCard;
 use App\Models\Manual;
+use App\Models\Tdr;
+use App\Models\Transfer;
 use App\Models\Unit;
 use App\Models\Workorder;
+use App\Models\WorkorderUnitInspection;
 use App\Services\Quality\QualityAssuranceService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -97,6 +101,151 @@ class QualityAssuranceController extends Controller
             'found' => true,
             'normalized' => $number,
             'workorder' => $this->buildSingleWorkorderPayload($workorder),
+        ]);
+    }
+
+    public function serialSearch(Request $request)
+    {
+        $serial = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($serial) < 2) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Enter at least 2 characters.',
+                'results' => [],
+            ], 422);
+        }
+
+        $matches = [];
+        $needle = mb_strtolower($serial);
+        $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $serial) . '%';
+        $jsonLike = '%' . str_replace(['\\', '%', '_', '/'], ['\\\\', '\\%', '\\_', '\\/'], $serial) . '%';
+
+        $addMatch = function (?Workorder $workorder, string $source, string $serialValue, ?Component $component = null) use (&$matches): void {
+            if (! $workorder || $workorder->is_draft) {
+                return;
+            }
+
+            $key = $workorder->id . '|' . $source . '|' . $serialValue . '|' . ($component?->id ?? 0);
+            $matches[$key] = [
+                'workorder_id' => (int) $workorder->id,
+                'workorder_number' => (string) $workorder->number,
+                'workorder_url' => route('mains.show', $workorder->id),
+                'tdr_url' => route('tdrs.show', $workorder->id),
+                'source' => $source,
+                'serial' => $serialValue,
+                'component' => $component
+                    ? trim(implode(' - ', array_filter([
+                        (string) ($component->ipl_num ?? ''),
+                        (string) ($component->part_number ?? ''),
+                        (string) ($component->name ?? ''),
+                    ])))
+                    : '',
+            ];
+        };
+
+        Workorder::query()
+            ->where('is_draft', false)
+            ->where('serial_number', 'like', $like)
+            ->limit(25)
+            ->get()
+            ->each(fn (Workorder $workorder) => $addMatch($workorder, 'Workorder S/N', (string) $workorder->serial_number));
+
+        Tdr::query()
+            ->with(['workorder', 'component'])
+            ->where(function ($query) use ($like): void {
+                $query->where('serial_number', 'like', $like)
+                    ->orWhere('assy_serial_number', 'like', $like);
+            })
+            ->limit(50)
+            ->get()
+            ->each(function (Tdr $tdr) use ($addMatch): void {
+                foreach (['serial_number' => 'TDR S/N', 'assy_serial_number' => 'TDR Assy S/N'] as $field => $source) {
+                    $value = trim((string) ($tdr->{$field} ?? ''));
+                    if ($value !== '') {
+                        $addMatch($tdr->workorder, $source, $value, $tdr->component);
+                    }
+                }
+            });
+
+        WorkorderUnitInspection::query()
+            ->with(['workorder'])
+            ->where(function ($query) use ($like): void {
+                $query->where('serial_number', 'like', $like)
+                    ->orWhere('assy_serial_number', 'like', $like);
+            })
+            ->limit(50)
+            ->get()
+            ->each(function (WorkorderUnitInspection $inspection) use ($addMatch): void {
+                foreach (['serial_number' => 'Unit Inspection S/N', 'assy_serial_number' => 'Unit Inspection Assy S/N'] as $field => $source) {
+                    $value = trim((string) ($inspection->{$field} ?? ''));
+                    if ($value !== '') {
+                        $addMatch($inspection->workorder, $source, $value);
+                    }
+                }
+            });
+
+        Transfer::query()
+            ->with(['workorder', 'workorderSource', 'component'])
+            ->where('component_sn', 'like', $like)
+            ->limit(50)
+            ->get()
+            ->each(function (Transfer $transfer) use ($addMatch): void {
+                $value = trim((string) ($transfer->component_sn ?? ''));
+                $addMatch($transfer->workorder, 'Transfer S/N', $value, $transfer->component);
+                $addMatch($transfer->workorderSource, 'Transfer Source S/N', $value, $transfer->component);
+            });
+
+        ExtraProcess::query()
+            ->with(['workorder', 'component'])
+            ->where('serial_num', 'like', $like)
+            ->limit(50)
+            ->get()
+            ->each(fn (ExtraProcess $process) => $addMatch(
+                $process->workorder,
+                'Extra Process S/N',
+                (string) $process->serial_num,
+                $process->component
+            ));
+
+        LogCard::query()
+            ->with('workorder')
+            ->where(function ($query) use ($like, $jsonLike): void {
+                $query->where('component_data', 'like', $like)
+                    ->orWhere('component_data', 'like', $jsonLike)
+                    ->orWhere('component_data_out', 'like', $like)
+                    ->orWhere('component_data_out', 'like', $jsonLike)
+                    ->orWhere('destruction_certificate_data', 'like', $like);
+            })
+            ->limit(50)
+            ->get()
+            ->each(function (LogCard $logCard) use ($addMatch, $needle): void {
+                $rows = array_merge(
+                    $this->decodeLogCardRows($logCard->component_data),
+                    $this->decodeLogCardRows($logCard->component_data_out)
+                );
+                $fields = ['serial_number', 'assy_serial_number', 'fit_csn', 'removed_csn'];
+
+                foreach ($rows as $row) {
+                    foreach ($fields as $field) {
+                        $value = trim((string) ($row[$field] ?? ''));
+                        if ($value !== '' && str_contains(mb_strtolower($value), $needle)) {
+                            $addMatch($logCard->workorder, 'Log Card ' . strtoupper(str_replace('_', ' ', $field)), $value);
+                        }
+                    }
+                }
+            });
+
+        $results = collect(array_values($matches))
+            ->sortBy([['workorder_number', 'desc'], ['source', 'asc']])
+            ->values()
+            ->take(30)
+            ->all();
+
+        return response()->json([
+            'ok' => true,
+            'query' => $serial,
+            'results' => $results,
         ]);
     }
 
@@ -746,6 +895,10 @@ class QualityAssuranceController extends Controller
 
     private function buildFormsPayload(Workorder $workorder): array
     {
+        $hasProcessFormTdrs = $workorder->relationLoaded('tdrs')
+            ? $workorder->tdrs->contains(fn (Tdr $tdr) => (bool) $tdr->use_process_forms)
+            : $workorder->tdrs()->where('use_process_forms', true)->exists();
+
         return collect([
             [
                 'key' => 'log_card',
@@ -761,6 +914,13 @@ class QualityAssuranceController extends Controller
                 'key' => 'shipment',
                 'title' => 'Shipment',
                 'url' => route('quality.forms.shipment_release', ['workorder' => $workorder->id]),
+            ],
+            [
+                'key' => 'sp_form',
+                'title' => 'SP Form',
+                'url' => $hasProcessFormTdrs
+                    ? route('tdrs.specProcessForm', ['id' => $workorder->id])
+                    : route('tdrs.specProcessFormEmp', ['id' => $workorder->id]),
             ],
             [
                 'key' => 'service_bulletin_log',

@@ -10,6 +10,7 @@ use App\Models\MachiningWorkStep;
 use App\Models\Main;
 use App\Models\Necessary;
 use App\Models\Process;
+use App\Models\StdProcess;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
@@ -389,7 +390,25 @@ class MainController extends Controller
                         'name' => trim((string) ($c?->name ?? '')),
                         'process_detail' => $this->bushingLineProcessDetail($wp),
                     ];
-                })->sortBy(fn (array $row) => ($row['part_number'] !== '' ? $row['part_number'] : 'zzz').'|'.$row['ipl_num'])->values();
+                })->sort(function (array $left, array $right): int {
+                    $iplCompare = StdProcess::compareIplValues(
+                        (string) ($left['ipl_num'] ?? ''),
+                        (string) ($right['ipl_num'] ?? '')
+                    );
+
+                    if ($iplCompare !== 0) {
+                        return $iplCompare;
+                    }
+
+                    $partCompare = strnatcasecmp(
+                        (string) ($left['part_number'] ?? ''),
+                        (string) ($right['part_number'] ?? '')
+                    );
+
+                    return $partCompare !== 0
+                        ? $partCompare
+                        : ((int) ($left['id'] ?? 0)) <=> ((int) ($right['id'] ?? 0));
+                })->values();
 
                 if (! $isBatch && $lineItems->count() > 1) {
                     $firstLine = $lineItems->first();
@@ -441,6 +460,26 @@ class MainController extends Controller
                     'line_items' => $lineItems,
                     'process_rows' => $processRows,
                 ];
+            })->sort(function (array $left, array $right): int {
+                $leftItem = collect($left['line_items'] ?? [])->first();
+                $rightItem = collect($right['line_items'] ?? [])->first();
+
+                $iplCompare = StdProcess::compareIplValues(
+                    (string) ($leftItem['ipl_num'] ?? ''),
+                    (string) ($rightItem['ipl_num'] ?? '')
+                );
+
+                if ($iplCompare !== 0) {
+                    return $iplCompare;
+                }
+
+                $leftGroup = ! empty($left['is_batch']) ? 0 : 1;
+                $rightGroup = ! empty($right['is_batch']) ? 0 : 1;
+                if ($leftGroup !== $rightGroup) {
+                    return $leftGroup <=> $rightGroup;
+                }
+
+                return ((int) ($left['id'] ?? 0)) <=> ((int) ($right['id'] ?? 0));
             })->values();
 
             $starts = $batches->pluck('date_start')->filter();

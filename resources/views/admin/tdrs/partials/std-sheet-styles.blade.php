@@ -13,6 +13,8 @@
         --print-footer-padding: {{ $tdrFormConfig['footer_padding'] ?? '3px 3px' }};
         --print-user-scale: 1;
         --component-name-font-size: {{ (int) ($tdrFormConfig['component_name_font_size'] ?? 12) }}px;
+        --std-header-data-font-size: {{ (float) ($tdrFormConfig['header_data_font_size'] ?? 11) }}px;
+        --std-table-data-font-size: {{ (float) ($tdrFormConfig['table_data_font_size'] ?? 12) }}px;
         --std-font-size-title: 20px;
         --std-font-size-section: 16px;
         --std-font-size-label: 14px;
@@ -96,6 +98,16 @@
         line-height: 1.05;
     }
 
+    .std-header-title--ndt {
+        font-size: 30px;
+        line-height: 1;
+    }
+
+    .std-header-title--cad {
+        font-size: 24px;
+        line-height: 1;
+    }
+
     .std-meta-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -136,7 +148,7 @@
         padding: 0 6px 2px 8px;
         border-bottom: 1px solid var(--std-line-color);
         box-sizing: border-box;
-        font-size: var(--std-font-size-body);
+        font-size: var(--std-header-data-font-size);
         line-height: 1.15;
         overflow-wrap: anywhere;
     }
@@ -193,11 +205,39 @@
         gap: 6px;
     }
 
+    .std-ndt-grid--aligned {
+        grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 4fr);
+        grid-template-rows: auto 26px auto 26px auto 54px;
+        column-gap: 24px;
+        row-gap: 4px;
+        align-items: end;
+    }
+
     .std-ndt-title {
         margin: 0;
         font-size: var(--std-font-size-section);
         font-weight: 700;
         line-height: 1.15;
+    }
+
+    .std-ndt-title--magnetic {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .std-ndt-title--liquid {
+        grid-column: 1;
+        grid-row: 3;
+    }
+
+    .std-ndt-title--ultrasound {
+        grid-column: 1;
+        grid-row: 5;
+    }
+
+    .std-ndt-title--eddy {
+        grid-column: 3;
+        grid-row: 3;
     }
 
     .std-ndt-line {
@@ -206,6 +246,55 @@
         align-items: end;
         column-gap: 10px;
         min-height: 26px;
+    }
+
+    .std-ndt-line--one {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .std-ndt-line--two {
+        grid-column: 2;
+        grid-row: 2;
+    }
+
+    .std-ndt-line--three {
+        grid-column: 3;
+        grid-row: 2;
+    }
+
+    .std-ndt-line--four {
+        grid-column: 1;
+        grid-row: 4;
+    }
+
+    .std-ndt-line--five {
+        grid-column: 2;
+        grid-row: 4;
+    }
+
+    .std-ndt-line--six {
+        grid-column: 3;
+        grid-row: 4;
+    }
+
+    .std-ndt-line--seven {
+        grid-column: 1;
+        grid-row: 6;
+        align-self: start;
+    }
+
+    .std-ndt-cmm-label {
+        grid-column: 2;
+        grid-row: 6;
+        align-self: center;
+        margin: 0;
+    }
+
+    .std-ndt-cmm-box {
+        grid-column: 3;
+        grid-row: 6;
+        align-self: stretch;
     }
 
     .std-ndt-index {
@@ -251,6 +340,7 @@
         text-align: center;
         font-size: var(--std-font-size-small);
         line-height: 1.15;
+        white-space: pre-line;
         overflow-wrap: anywhere;
         border-right: 1px solid var(--std-line-color);
         border-bottom: 1px solid var(--std-line-color);
@@ -265,6 +355,10 @@
         border-top: 1px solid var(--std-line-color);
         font-size: var(--std-font-size-small);
         font-weight: 700;
+    }
+
+    .page-rows-container .std-grid-row:not(.std-grid-row--header) > .std-cell {
+        font-size: var(--std-table-data-font-size);
     }
 
     .std-grid-row--manual > .std-cell {
@@ -289,6 +383,39 @@
     .std-cell--multiline {
         white-space: pre-line;
         line-height: 1.15;
+    }
+
+    .std-grid-row > .std-cell.std-cell-fit {
+        overflow: hidden;
+        white-space: nowrap;
+        overflow-wrap: normal;
+        padding-left: 3px;
+        padding-right: 3px;
+    }
+
+    .std-cell-fit > span {
+        display: block;
+        max-width: 100%;
+        min-width: 0;
+        white-space: nowrap;
+        line-height: 1.05;
+        letter-spacing: 0;
+    }
+
+    .std-cell-fit--sm > span {
+        font-size: max(10px, calc(var(--std-table-data-font-size) - 1px));
+    }
+
+    .std-cell-fit--xs > span {
+        font-size: max(9px, calc(var(--std-table-data-font-size) - 1.5px));
+    }
+
+    .std-table-summary {
+        width: 100%;
+        margin: 6px 0 4px;
+        text-align: center;
+        font-size: var(--std-table-data-font-size);
+        line-height: 1.2;
     }
 
     .std-footer {
@@ -436,6 +563,11 @@
             min-height: 34px;
         }
 
+        .std-table-summary {
+            margin-top: 5px;
+            margin-bottom: 3px;
+        }
+
         .std-header {
             gap: 9px;
         }
@@ -451,6 +583,14 @@
 
         .std-header-title {
             font-size: 18px;
+        }
+
+        .std-header-title--ndt {
+            font-size: 26px;
+        }
+
+        .std-header-title--cad {
+            font-size: 22px;
         }
 
         .std-meta-grid {
@@ -477,7 +617,7 @@
         .std-meta-value {
             min-height: 22px;
             padding: 0 4px 2px 4px;
-            font-size: 11px;
+            font-size: var(--std-header-data-font-size);
             line-height: 1.05;
         }
 
@@ -489,6 +629,13 @@
         .std-ndt-grid {
             grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.15fr) minmax(0, 1.35fr);
             gap: 12px;
+        }
+
+        .std-ndt-grid--aligned {
+            grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.15fr) minmax(0, 1.35fr);
+            grid-template-rows: auto 22px auto 22px auto 42px;
+            column-gap: 12px;
+            row-gap: 3px;
         }
 
         .std-ndt-title {
@@ -511,6 +658,25 @@
         .std-manual-ref-box {
             min-height: 42px;
             padding: 3px 8px;
+        }
+
+        .std-instruction-row--cad {
+            grid-template-columns: minmax(0, 1fr) 96px 180px;
+            column-gap: 4px;
+            align-items: center;
+        }
+
+        .std-instruction-row--cad .std-instruction-text {
+            white-space: nowrap;
+            font-size: 10px;
+            line-height: 1.05;
+            overflow: hidden;
+            text-overflow: clip;
+        }
+
+        .std-instruction-row--cad .std-manual-ref-label {
+            font-size: 12px;
+            white-space: nowrap;
         }
 
         .std-footer {

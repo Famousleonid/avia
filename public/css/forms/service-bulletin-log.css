@@ -100,6 +100,20 @@ body {
     background: #edf8ed;
 }
 
+.sb-readonly-message {
+    background: #fff3cd;
+    border-color: #856404;
+    color: #000;
+}
+
+.sb-save:disabled,
+.sb-clear-status:disabled,
+.sb-stamp-option input:disabled,
+.sb-notes-strip input:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
 .sb-form-page {
     position: relative;
     width: 11in;

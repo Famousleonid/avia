@@ -14,12 +14,32 @@
     <input type="hidden" name="use_process_forms" value="{{ $current_tdr->use_process_forms }}">
     <input type="hidden" name="return_to" value="show">
 
+    @if($canReplaceTdrComponent)
+        <div class="mb-3">
+            <label for="edit_component_id" class="form-label">{{ __('Part') }}</label>
+            <select name="component_id" id="edit_component_id" class="form-control" style="width: 100%">
+                <option value="">{{ __('---') }}</option>
+                @foreach($components as $component)
+                    <option value="{{ $component->id }}" {{ (int) $component->id === (int) $current_tdr->component_id ? 'selected' : '' }}>
+                        {{ $component->ipl_num }} : {{ $component->part_number }} - {{ $component->name }}
+                    </option>
+                @endforeach
+            </select>
+            <small class="text-warning d-block mt-1">
+                {{ __('Changing the part keeps this TDR row process history attached to the selected part.') }}
+            </small>
+        </div>
+    @endif
+
     <div class="mb-3">
         <div class="row">
             <div class="col-md-6">
                 <label for="edit_serial_number" class="form-label">{{ __('Serial Number') }}</label>
                 <input id="edit_serial_number" type="text" value="{{ $current_tdr->serial_number }}"
-                       class="form-control" name="serial_number">
+                       class="form-control" name="serial_number" @disabled(! $canReplaceTdrComponent)>
+                @unless($canReplaceTdrComponent)
+                    <small class="text-muted d-block mt-1">{{ __('Only system admin can change S/N.') }}</small>
+                @endunless
             </div>
             @if($current_tdr->assy_serial_number != null)
                 <div class="col-md-6">

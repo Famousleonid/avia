@@ -88,7 +88,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertSame(4, $paint[0]['qty']);
     }
 
-    public function test_workorder_std_snapshot_prefers_std_row_eff_code_over_component_eff_code(): void
+    public function test_workorder_std_snapshot_refreshes_std_row_eff_code_from_component_flags(): void
     {
         $manual = $this->createManual();
         $unit = $this->createUnit([
@@ -103,7 +103,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             'part_number' => 'PN-STD-EFF',
             'name' => 'STD Eff Part',
             'units_assy' => 1,
-            'eff_code' => '',
+            'eff_code' => '9A',
             'ndt_list' => true,
         ]);
 
@@ -138,7 +138,65 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
 
         $rows = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
 
-        $this->assertSame(['PN-STD-EFF'], array_column($rows, 'part_number'));
+        $this->assertSame(['PN-STD-EFF', 'PN-OTHER-STD-EFF'], array_column($rows, 'part_number'));
+        $this->assertSame('9A', StdProcess::query()->where('component_id', $matchingComponent->id)->value('eff_code'));
+        $this->assertNull(StdProcess::query()->where('component_id', $otherComponent->id)->value('eff_code'));
+    }
+
+    public function test_workorder_std_snapshot_matches_space_separated_eff_codes(): void
+    {
+        $manual = $this->createManual();
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'eff_code' => '1C',
+        ]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
+
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '9A-520',
+            'part_number' => 'PN-LH',
+            'name' => 'MAIN FITTING, ASSY LH',
+            'units_assy' => 1,
+            'eff_code' => '1A 1C 1E 1G',
+            'paint_list' => true,
+        ]);
+
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '9A-530',
+            'part_number' => 'PN-RH',
+            'name' => 'MAIN FITTING, ASSY RH',
+            'units_assy' => 1,
+            'eff_code' => '1B 1D 1F 1H',
+            'paint_list' => true,
+        ]);
+
+        StdProcess::syncFromComponentFlagsForManual($manual);
+
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_PAINT);
+
+        $this->assertSame(['PN-LH'], array_column($rows, 'part_number'));
+        $this->assertSame(['1A, 1C, 1E, 1G'], array_column($rows, 'eff_code'));
+    }
+
+    public function test_std_ipl_sort_uses_first_line_for_collapsed_rows(): void
+    {
+        $values = [
+            "9A-340",
+            "10-70",
+            "6-190A\n6-190B",
+            "11-240A\n11-240B",
+        ];
+
+        usort($values, fn (string $left, string $right): int => StdProcess::compareIplValues($left, $right));
+
+        $this->assertSame([
+            "6-190A\n6-190B",
+            "9A-340",
+            "10-70",
+            "11-240A\n11-240B",
+        ], $values);
     }
 
     public function test_workorder_std_snapshot_includes_components_from_other_manuals_grouped_by_source_manual(): void
@@ -494,7 +552,63 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response = $this->actingAs($admin)->get(route('tdrs.cadStd', $workorder->id));
 
         $response->assertOk();
-        $response->assertSeeInOrder(['Total:', '5'], false);
+        $response->assertSeeInOrder(['Total QTY:', '5'], false);
+    }
+
+    public function test_spec_process_form_uses_collapsed_cad_rows_for_cad_total(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'SP-CAD-MERGE']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'instruction_id' => 1,
+        ]);
+
+        $first = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '8-380A',
+            'part_number' => '1840-8402',
+            'name' => 'LOWER TORQUE LINK',
+            'units_assy' => 1,
+            'cad_list' => true,
+        ]);
+        $second = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '8-380B',
+            'part_number' => '1840-8403',
+            'name' => 'LOWER TORQUE LINK',
+            'units_assy' => 1,
+            'cad_list' => true,
+        ]);
+
+        foreach ([$first, $second] as $component) {
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_CAD,
+            ], [
+                'process' => 'SPM 20-00-10P05',
+                'qty' => 1,
+            ]);
+        }
+
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $first->id,
+            'qty' => 1,
+            'serial_number' => 'SN-SP-CAD',
+            'assy_serial_number' => ' ',
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.specProcessForm', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSeeInOrder(['CAD', 'qty', 'W'.$workorder->number, 'Cat #1', '1'], false);
     }
 
     public function test_stress_std_form_total_uses_qty_for_all_rows_without_dedup_by_ipl(): void
@@ -545,7 +659,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response = $this->actingAs($admin)->get(route('tdrs.stressStd', $workorder->id));
 
         $response->assertOk();
-        $response->assertSeeInOrder(['Total:', '5'], false);
+        $response->assertSeeInOrder(['Total QTY:', '5'], false);
     }
 
     public function test_ndt_std_form_collapses_letter_suffix_ipl_variants_into_one_row(): void
@@ -600,9 +714,142 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response->assertSee('8-240B', false);
         $response->assertDontSee('8-240A / 8-240B', false);
         $response->assertSee('2801-0301', false);
+        $response->assertSee('2801-0304', false);
         $response->assertDontSee('2801-0301 / 2801-0304', false);
         $this->assertSame(1, substr_count($response->getContent(), 'UPPER TORQUE LINK'));
-        $response->assertSee('<strong>2</strong>', false);
+        $response->assertSee('<strong>1</strong>', false);
+    }
+
+    public function test_ndt_std_form_collapses_suffix_variants_even_when_descriptions_differ(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'NDT-MERGE-DESC']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'instruction_id' => 1,
+        ]);
+
+        $first = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '9A-510A',
+            'part_number' => '2801-0601',
+            'name' => 'SLEEVE',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+        $second = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '9A-510B',
+            'part_number' => '2505-1401',
+            'name' => 'VALVE, INSERT',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+
+        foreach ([$first, $second] as $component) {
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_NDT,
+            ], [
+                'process' => '1',
+                'qty' => 1,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('tdrs.ndtStd', $workorder->id));
+
+        $response->assertOk();
+        $this->assertSame(1, substr_count($response->getContent(), '9A-510A'));
+        $this->assertSame(1, substr_count($response->getContent(), '9A-510B'));
+        $response->assertSee("9A-510A\n9A-510B", false);
+        $response->assertSee("2801-0601\n2505-1401", false);
+        $response->assertSee("SLEEVE\nVALVE, INSERT", false);
+    }
+
+    public function test_spec_process_form_uses_collapsed_ndt_rows_for_mpi_and_fpi_totals(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'SP-NDT-MERGE']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'instruction_id' => 1,
+        ]);
+
+        $mpiA = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '8-240A',
+            'part_number' => '2801-0301',
+            'name' => 'UPPER TORQUE LINK',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+        $mpiB = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '8-240B',
+            'part_number' => '2801-0304',
+            'name' => 'UPPER TORQUE LINK',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+        $fpiA = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '9-90A',
+            'part_number' => '2801-0008',
+            'name' => 'RING',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+        $fpiB = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '9-90B',
+            'part_number' => '2000A1045K01',
+            'name' => 'RING',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+
+        foreach ([$mpiA, $mpiB] as $component) {
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_NDT,
+            ], [
+                'process' => '1',
+                'qty' => 1,
+            ]);
+        }
+
+        foreach ([$fpiA, $fpiB] as $component) {
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_NDT,
+            ], [
+                'process' => '4',
+                'qty' => 1,
+            ]);
+        }
+
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $mpiA->id,
+            'qty' => 1,
+            'serial_number' => 'SN-SP-MPI',
+            'assy_serial_number' => ' ',
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.specProcessForm', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSeeInOrder(['Cat #1', '1', 'RO', '1'], false);
     }
 
     public function test_paint_std_form_collapses_letter_suffix_ipl_variants_into_one_row(): void
@@ -656,8 +903,126 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response->assertSee('8-240B', false);
         $response->assertDontSee('8-240A / 8-240B', false);
         $response->assertSee('2801-0301', false);
+        $response->assertSee('2801-0304', false);
         $response->assertDontSee('2801-0301 / 2801-0304', false);
         $this->assertSame(1, substr_count($response->getContent(), 'UPPER TORQUE LINK'));
+    }
+
+    public function test_std_form_collapses_suffix_variants_after_eff_code_filtering(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'NDT-EFF-MERGE']);
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'eff_code' => 'L2',
+        ]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'instruction_id' => 1,
+        ]);
+
+        $first = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '8-240A',
+            'part_number' => '2801-0301',
+            'name' => 'UPPER TORQUE LINK',
+            'units_assy' => 1,
+            'eff_code' => 'L1, L2',
+            'ndt_list' => true,
+        ]);
+        $second = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '8-240B',
+            'part_number' => '2801-0304',
+            'name' => 'UPPER TORQUE LINK',
+            'units_assy' => 1,
+            'eff_code' => 'L1, L2',
+            'ndt_list' => true,
+        ]);
+
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $first->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '1',
+            'qty' => 1,
+            'eff_code' => 'L1, L2',
+        ]);
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $second->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '1',
+            'qty' => 1,
+            'eff_code' => 'L1, L2',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.ndtStd', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSee('8-240A', false);
+        $response->assertSee('8-240B', false);
+        $response->assertSee('2801-0301', false);
+        $response->assertSee('2801-0304', false);
+        $this->assertSame(1, substr_count($response->getContent(), 'UPPER TORQUE LINK'));
+        $response->assertSee('<strong>1</strong>', false);
+    }
+
+    public function test_workorder_std_snapshot_prefers_eff_variant_over_universal_collapsed_variant(): void
+    {
+        $manual = $this->createManual();
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'eff_code' => 'R2',
+        ]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
+
+        $left = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '6-190A',
+            'part_number' => 'PN-LH',
+            'name' => 'BRACKET',
+            'units_assy' => 1,
+            'eff_code' => 'L1, L2',
+            'ndt_list' => true,
+        ]);
+        $right = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '6-190B',
+            'part_number' => 'PN-RH',
+            'name' => 'BRACKET',
+            'units_assy' => 1,
+            'eff_code' => 'R1, R2',
+            'ndt_list' => true,
+        ]);
+        $universal = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => "6-190A\n6-190B",
+            'part_number' => "PN-LH\nPN-RH",
+            'name' => 'Support',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+
+        foreach ([[$left, 'L1, L2'], [$right, 'R1, R2'], [$universal, null]] as [$component, $effCode]) {
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_NDT,
+            ], [
+                'process' => '4',
+                'qty' => 1,
+                'eff_code' => $effCode,
+            ]);
+        }
+
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+
+        $this->assertSame(['6-190B'], array_column($rows, 'ipl_num'));
+        $this->assertSame(['PN-RH'], array_column($rows, 'part_number'));
     }
 
     public function test_std_forms_sort_ipl_with_section_suffix_naturally(): void
@@ -860,6 +1225,142 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertNotNull($afterDelete);
         $this->assertSame(2, $afterDelete->remaining_qty);
         $this->assertSame(0, $afterDelete->excluded_qty);
+    }
+
+    public function test_workorder_std_items_subtract_tdr_from_all_collapsed_suffix_variants(): void
+    {
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
+        $repair = Necessary::query()->firstOrCreate(['name' => 'Repair']);
+
+        $first = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '8-240A',
+            'part_number' => 'PN-240A',
+            'name' => 'Collapsed Repair Part',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+        $second = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '8-240B',
+            'part_number' => 'PN-240B',
+            'name' => 'Collapsed Repair Part',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+
+        foreach ([$first, $second] as $component) {
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_NDT,
+            ], [
+                'process' => '1',
+                'qty' => 1,
+            ]);
+        }
+
+        $initial = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+        $this->assertSame(['8-240A', '8-240B'], array_values(array_column($initial, 'ipl_num')));
+
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $first->id,
+            'necessaries_id' => $repair->id,
+            'qty' => 1,
+            'serial_number' => 'NSN',
+            'assy_serial_number' => ' ',
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder->fresh(), StdProcess::STD_NDT);
+
+        $this->assertSame([], array_values(array_filter($rows, fn (array $row): bool => str_contains((string) ($row['ipl_num'] ?? ''), '8-240'))));
+        $this->assertDatabaseMissing('workorder_std_process_items', [
+            'workorder_id' => $workorder->id,
+            'component_id' => $first->id,
+            'std_type' => StdProcess::STD_NDT,
+        ]);
+        $this->assertDatabaseMissing('workorder_std_process_items', [
+            'workorder_id' => $workorder->id,
+            'component_id' => $second->id,
+            'std_type' => StdProcess::STD_NDT,
+        ]);
+    }
+
+    public function test_workorder_std_items_subtract_tdr_from_all_eff_filtered_collapsed_suffix_variants(): void
+    {
+        $manual = $this->createManual();
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'eff_code' => 'L2',
+        ]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
+        $repair = Necessary::query()->firstOrCreate(['name' => 'Repair']);
+
+        $first = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '11-240A',
+            'part_number' => '2801-0121',
+            'name' => 'MAIN FITTING LH',
+            'units_assy' => 1,
+            'eff_code' => 'L1, L2',
+            'ndt_list' => true,
+        ]);
+        $second = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '11-240B',
+            'part_number' => '2801-0122',
+            'name' => 'MAIN FITTING LH',
+            'units_assy' => 1,
+            'eff_code' => 'L1, L2',
+            'ndt_list' => true,
+        ]);
+
+        foreach ([$first, $second] as $component) {
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_NDT,
+            ], [
+                'process' => '1 / 4 / 6',
+                'qty' => 1,
+                'eff_code' => 'L1, L2',
+            ]);
+        }
+
+        $initial = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+        $this->assertSame(['11-240A', '11-240B'], array_values(array_column($initial, 'ipl_num')));
+
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $first->id,
+            'necessaries_id' => $repair->id,
+            'qty' => 1,
+            'serial_number' => 'NSN',
+            'assy_serial_number' => ' ',
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder->fresh(), StdProcess::STD_NDT);
+
+        $this->assertSame([], array_values(array_filter($rows, fn (array $row): bool => str_contains((string) ($row['ipl_num'] ?? ''), '11-240'))));
+        $this->assertDatabaseMissing('workorder_std_process_items', [
+            'workorder_id' => $workorder->id,
+            'component_id' => $first->id,
+            'std_type' => StdProcess::STD_NDT,
+        ]);
+        $this->assertDatabaseMissing('workorder_std_process_items', [
+            'workorder_id' => $workorder->id,
+            'component_id' => $second->id,
+            'std_type' => StdProcess::STD_NDT,
+        ]);
     }
 
     public function test_part_changes_invalidate_snapshot_and_rebuild_with_existing_tdr_exclusions(): void

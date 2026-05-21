@@ -29,6 +29,8 @@
         footerFontSize: '{{ $formConfig['footer_font_size'] ?? 10 }}px',
         footerPadding: '{{ $formConfig['footer_padding'] ?? '3px 3px' }}',
         componentNameFontSize: '{{ (int) ($formConfig['component_name_font_size'] ?? 12) }}',
+        headerDataFontSize: '{{ $formConfig['header_data_font_size'] ?? 11 }}',
+        tableDataFontSize: '{{ $formConfig['table_data_font_size'] ?? 12 }}',
         '{{ $tableRowsKey }}': '{{ $tableRowsDefault }}'
     };
 
@@ -54,6 +56,8 @@
         root.style.setProperty('--print-footer-font-size', settings.footerFontSize || defaultSettings.footerFontSize);
         root.style.setProperty('--print-footer-padding', settings.footerPadding || defaultSettings.footerPadding);
         root.style.setProperty('--component-name-font-size', (settings.componentNameFontSize || defaultSettings.componentNameFontSize) + 'px');
+        root.style.setProperty('--std-header-data-font-size', (settings.headerDataFontSize || defaultSettings.headerDataFontSize) + 'px');
+        root.style.setProperty('--std-table-data-font-size', (settings.tableDataFontSize || defaultSettings.tableDataFontSize) + 'px');
         const printScale = Math.max(50, Math.min(120, parseFloat(String(settings.printScale || defaultSettings.printScale).replace(/[^\d.-]/g, '')) || 100));
         root.style.setProperty('--print-user-scale', String(printScale / 100));
 
@@ -90,6 +94,8 @@
         if (el('footerFontSize')) el('footerFontSize').value = parseNum(settings.footerFontSize) || 10;
         if (el('footerPadding')) el('footerPadding').value = settings.footerPadding || '3px 3px';
         if (el('componentNameFontSize')) el('componentNameFontSize').value = parseFloat(String(settings.componentNameFontSize || defaultSettings.componentNameFontSize).replace(/[^\d.-]/g, '')) || 12;
+        if (el('headerDataFontSize')) el('headerDataFontSize').value = parseFloat(String(settings.headerDataFontSize || defaultSettings.headerDataFontSize).replace(/[^\d.-]/g, '')) || 11;
+        if (el('tableDataFontSize')) el('tableDataFontSize').value = parseFloat(String(settings.tableDataFontSize || defaultSettings.tableDataFontSize).replace(/[^\d.-]/g, '')) || 12;
         if (el('{{ $tableRowsKey }}')) el('{{ $tableRowsKey }}').value = settings['{{ $tableRowsKey }}'] || defaultSettings['{{ $tableRowsKey }}'];
     }
 
@@ -125,6 +131,8 @@
                 footerFontSize: getVal('footerFontSize', '10', 'px'),
                 footerPadding: g('footerPadding')?.value ?? '3px 3px',
                 componentNameFontSize: g('componentNameFontSize')?.value ?? '12',
+                headerDataFontSize: g('headerDataFontSize')?.value ?? '{{ $formConfig['header_data_font_size'] ?? 11 }}',
+                tableDataFontSize: g('tableDataFontSize')?.value ?? '{{ $formConfig['table_data_font_size'] ?? 12 }}',
                 '{{ $tableRowsKey }}': g('{{ $tableRowsKey }}')?.value ?? '{{ $tableRowsDefault }}'
             };
             localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
@@ -187,7 +195,6 @@
             if (document.activeElement?.blur) document.activeElement.blur();
             const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
             if (modal) modal.hide();
-            if (typeof showNotification === 'function') showNotification('Settings saved successfully!', 'success');
         } catch (e) {
             console.error('Error saving print settings:', e);
             if (typeof showNotification === 'function') showNotification('Error saving settings', 'error');

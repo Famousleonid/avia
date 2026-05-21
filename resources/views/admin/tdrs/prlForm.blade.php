@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PRL Form</title>
+    <title>{{ $formTitle ?? 'PRL Form' }}</title>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
 
     <style>
@@ -388,7 +388,7 @@
                          style="width: 150px; margin: 6px 10px 0;">
                 </div>
                 <div class="col-8">
-                    <h3 class=" mt-3 text-black text-"><strong>PARTS REPLACEMENT LIST</strong></h3>
+                    <h3 class=" mt-3 text-black text-"><strong>{{ $formTitle ?? 'PARTS REPLACEMENT LIST' }}</strong></h3>
                 </div>
             </div>
             <div class="row " >
@@ -502,6 +502,20 @@
                 @php
                     // Проверяем, является ли $tdr массивом или объектом
                     $isArray = is_array($tdr);
+                    $isSectionRow = $isArray && (($tdr['kind'] ?? null) === 'section');
+                @endphp
+
+                @if($isSectionRow)
+                    <div class="row data-row-prl ms-3 manual-row" style="width: 100%" data-row-index="{{ $rowIndex }}">
+                        <div class="border-l-b-r text-center align-content-center" style="font-weight: bold;">
+                            <strong>{{ $tdr['section_title'] ?? '' }}</strong>
+                        </div>
+                    </div>
+                    @php $rowIndex++; @endphp
+                    @continue
+                @endif
+
+                @php
 
                     // Получаем manual (работает и для массива, и для объекта)
                     $currentManual = $isArray ? ($tdr['manual'] ?? null) : ($tdr->manual ?? null);
@@ -530,9 +544,33 @@
                             ? ($component->ipl_num ?? '')
                             : ($component['ipl_num'] ?? '');
                     }
-                    $ipl_parts = explode('-', $ipl_num);
-                    $first_part = $ipl_parts[0] ?? '';
-                    $second_part = $ipl_parts[1] ?? '';
+                    $iplLines = preg_split('/\R+/', trim((string) $ipl_num)) ?: [];
+                    $firstParts = [];
+                    $secondParts = [];
+                    foreach ($iplLines as $iplLine) {
+                        $iplLine = trim((string) $iplLine);
+                        if ($iplLine === '') {
+                            continue;
+                        }
+
+                        $iplParts = explode('-', $iplLine, 2);
+                        $firstParts[] = $iplParts[0] ?? '';
+                        $secondParts[] = $iplParts[1] ?? '';
+                    }
+                    $first_part = implode("\n", array_values(array_unique(array_filter($firstParts, fn ($part) => $part !== ''))));
+                    $second_part = implode("\n", array_values(array_filter($secondParts, fn ($part) => $part !== '')));
+
+                    $componentName = '';
+                    $partNumberDisplay = '';
+                    if ($component) {
+                        $componentName = is_object($component) ? ($component->name ?? '') : ($component['name'] ?? '');
+                        $assyPartNumber = $selectedAssembly
+                            ? (is_object($selectedAssembly) ? ($selectedAssembly->assy_part_number ?? '') : ($selectedAssembly['assy_part_number'] ?? ''))
+                            : '';
+                        $partNumber = is_object($component) ? ($component->part_number ?? '') : ($component['part_number'] ?? '');
+                        $partNumberDisplay = !empty($assyPartNumber) ? $assyPartNumber : $partNumber;
+                    }
+                    $descriptionDisplay = $component ? ($selectedAssembly ? $componentName . ' ASSY' : $componentName) : '';
                 @endphp
 
                 @if($shouldInsertManualRow)
@@ -577,29 +615,18 @@
 
                 <div class="row data-row-prl ms-3" style="width: 100%" data-row-index="{{ $rowIndex }}">
                     <div class="col-1 prl-col-fig border-l-b text-center pt-1 align-content-center">
-                        <h6>{{ $first_part }}</h6>
+                        <h6>{!! nl2br(e($first_part)) !!}</h6>
                             </div>
                     <div class="col-1 prl-col-item border-l-b text-center pt-2 align-content-center">
-                                <h6>{{ $second_part }}</h6>
+                                <h6>{!! nl2br(e($second_part)) !!}</h6>
                             </div>
                     <div class="col-3 prl-col-desc border-l-b text-center pt-1 align-content-center">
-                                @php
-                                    if ($component) {
-                                        $componentName = is_object($component) ? ($component->name ?? '') : ($component['name'] ?? '');
-                                        echo $selectedAssembly ? $componentName . ' ASSY' : $componentName;
-                                    }
-                                @endphp
+                                {!! nl2br(e($descriptionDisplay)) !!}
                             </div>
                     <div class="col-3 prl-col-part border-l-b text-center pt-2 align-content-center">
                                 @if($component)
                                     <h6>
-                                        @php
-                                            $assyPartNumber = $selectedAssembly
-                                                ? (is_object($selectedAssembly) ? ($selectedAssembly->assy_part_number ?? '') : ($selectedAssembly['assy_part_number'] ?? ''))
-                                                : '';
-                                            $partNumber = is_object($component) ? ($component->part_number ?? '') : ($component['part_number'] ?? '');
-                                        @endphp
-                                        {{ (!empty($assyPartNumber)) ? $assyPartNumber : $partNumber }}
+                                        {!! nl2br(e($partNumberDisplay)) !!}
                                     </h6>
                                 @else
                                     <h6> </h6>
@@ -1010,8 +1037,6 @@
             if (modal) {
                 modal.hide();
             }
-
-            if (typeof showNotification === 'function') showNotification('Settings saved successfully!', 'success'); else window.notifySuccess('Settings saved successfully!');
         } catch (e) {
             console.error('Ошибка сохранения настроек:', e);
             if (typeof showNotification === 'function') showNotification('Error saving settings', 'error'); else window.notifyError('Error saving settings');

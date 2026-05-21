@@ -20,7 +20,7 @@
         .qa-header {
             flex: 0 0 auto;
             display: grid;
-            grid-template-columns: max-content max-content minmax(320px, 520px) 1fr;
+            grid-template-columns: max-content max-content minmax(220px, 320px) minmax(320px, 520px) 1fr;
             align-items: center;
             column-gap: clamp(1rem, 3vw, 3.5rem);
         }
@@ -73,15 +73,100 @@
             column-gap: .65rem;
         }
 
-        .qa-search-wrap {
+        .qa-search-wrap,
+        .qa-serial-search-wrap {
             position: relative;
         }
 
-        .qa-search-wrap .form-control {
+        .qa-search-wrap .form-control,
+        .qa-serial-search-wrap .form-control {
             padding-right: 2.3rem;
         }
 
-        .qa-search-clear {
+        .qa-serial-search-row {
+            position: relative;
+            display: grid;
+            grid-template-columns: max-content minmax(0, 1fr);
+            align-items: center;
+            column-gap: .55rem;
+        }
+
+        .qa-serial-search-row .form-label {
+            color: #39ff14;
+            font-weight: 700;
+        }
+
+        .qa-serial-search-wrap .form-control {
+            border-color: var(--bs-border-color);
+            box-shadow: none;
+        }
+
+        .qa-serial-search-wrap .form-control:hover,
+        .qa-serial-search-wrap .form-control:focus {
+            border-color: #39ff14;
+            border-style: dotted;
+            box-shadow: none;
+        }
+
+        .qa-serial-panel {
+            position: absolute;
+            top: calc(100% + .35rem);
+            left: 2.25rem;
+            z-index: 1050;
+            display: none;
+            width: min(34rem, calc(100vw - 2rem));
+            max-height: 20rem;
+            overflow: auto;
+            border: 1px solid rgba(13, 202, 240, .35);
+            border-radius: .45rem;
+            background: #343A40;
+            box-shadow: 0 .8rem 2rem rgba(0, 0, 0, .42);
+        }
+
+        .qa-serial-panel.is-visible {
+            display: block;
+        }
+
+        .qa-serial-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            padding: .45rem .65rem;
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .qa-serial-result {
+            display: grid;
+            grid-template-columns: max-content minmax(0, 1fr) max-content;
+            gap: .55rem;
+            align-items: center;
+            padding: .45rem .65rem;
+            border-bottom: 1px solid rgba(255, 255, 255, .06);
+        }
+
+        .qa-serial-result:last-child {
+            border-bottom: 0;
+        }
+
+        .qa-serial-result-source,
+        .qa-serial-result-component {
+            color: var(--bs-secondary-color);
+            font-size: .75rem;
+        }
+
+        .qa-serial-result-component {
+            overflow-wrap: anywhere;
+        }
+
+        .qa-serial-close {
+            border: 0;
+            background: transparent;
+            color: var(--bs-secondary-color);
+        }
+
+        .qa-search-clear,
+        .qa-serial-clear {
             position: absolute;
             top: 50%;
             right: .45rem;
@@ -97,7 +182,12 @@
             transform: translateY(-50%);
         }
 
-        .qa-search-clear.is-visible {
+        .qa-serial-clear {
+            color: #39ff14;
+        }
+
+        .qa-search-clear.is-visible,
+        .qa-serial-clear.is-visible {
             display: inline-flex;
         }
 
@@ -343,6 +433,7 @@
             border-radius: 0;
             background: transparent;
             padding: 0 !important;
+            width: 58.8235%;
         }
 
         .qa-info-unit-row .select2-container--default .select2-selection--single .select2-selection__rendered {
@@ -379,6 +470,16 @@
         .select2-results__option--highlighted[aria-selected] {
             background-color: var(--bs-primary);
             color: #fff;
+        }
+
+        .qa-unit-select-dropdown {
+            width: max-content !important;
+            min-width: 290px;
+            max-width: min(52rem, calc(100vw - 2rem));
+        }
+
+        .qa-unit-select-dropdown .select2-results__option {
+            white-space: nowrap;
         }
 
         .qa-unit-manual-muted {
@@ -637,12 +738,20 @@
                 row-gap: .65rem;
             }
 
+            .qa-serial-panel {
+                left: 0;
+            }
+
             .qa-info-grid {
                 grid-template-columns: 1fr;
             }
 
             .qa-info-item-component-pn {
                 grid-column: auto;
+            }
+
+            .qa-info-unit-row .select2-container--default .select2-selection--single {
+                width: 100%;
             }
 
             .qa-submitted-cards {
@@ -675,6 +784,16 @@
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
+            </div>
+            <div class="qa-serial-search-row" id="qaSerialSearchRow">
+                <label class="form-label small mb-0" for="qaSerialSearch">S/N</label>
+                <div class="qa-serial-search-wrap">
+                    <input type="text" id="qaSerialSearch" class="form-control form-control-sm" placeholder="Find serial number" autocomplete="off">
+                    <button type="button" id="qaSerialSearchClear" class="qa-serial-clear" aria-label="Clear serial search">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <div id="qaSerialPanel" class="qa-serial-panel" aria-live="polite"></div>
             </div>
         </div>
 
@@ -737,9 +856,14 @@
     <script>
         (() => {
             const storageKey = 'qualityAssurance.singleWorkorderSearch';
+            const serialStorageKey = 'qualityAssurance.serialSearch';
             const searchInput = document.getElementById('qaWorkorderSearch');
             const clearButton = document.getElementById('qaWorkorderSearchClear');
             const currentWorkorderLabel = document.getElementById('qaCurrentWorkorder');
+            const serialSearchInput = document.getElementById('qaSerialSearch');
+            const serialClearButton = document.getElementById('qaSerialSearchClear');
+            const serialPanel = document.getElementById('qaSerialPanel');
+            const serialSearchRow = document.getElementById('qaSerialSearchRow');
             const result = document.getElementById('qaResult');
             const message = document.getElementById('qaMessage');
             const pageLoading = document.getElementById('qaPageLoading');
@@ -754,6 +878,7 @@
             const photoModalTitle = document.getElementById('qaPhotoModalTitle');
             const photoModalBody = document.getElementById('qaPhotoModalBody');
             const endpoint = @json(route('quality.workorder'));
+            const serialSearchEndpoint = @json(route('quality.serial_search'));
             const storeUnitEndpoint = @json(route('quality.units.store'));
             const updateEndpointTemplate = @json(route('quality.workorder.top_fields.update', ['workorder' => '__WORKORDER_ID__']));
             const unitOptions = @json($unitOptions ?? []);
@@ -762,6 +887,7 @@
             const spinnerHtml = '<span class="qa-dot-spinner" aria-label="Loading"><span></span><span></span><span></span></span>';
             let currentPhotoGroups = [];
             let currentWorkorder = null;
+            let serialSearchController = null;
 
             const escapeHtml = (value) => String(value ?? '')
                 .replace(/&/g, '&amp;')
@@ -803,6 +929,31 @@
                 } catch (error) {
                     return '';
                 }
+            };
+
+            const saveSerialSearch = (value) => {
+                try {
+                    const text = String(value ?? '');
+                    if (text.trim() === '') {
+                        localStorage.removeItem(serialStorageKey);
+                        return;
+                    }
+                    localStorage.setItem(serialStorageKey, text);
+                } catch (error) {
+                    // localStorage can be unavailable in private browser modes.
+                }
+            };
+
+            const readSerialSearch = () => {
+                try {
+                    return localStorage.getItem(serialStorageKey) || '';
+                } catch (error) {
+                    return '';
+                }
+            };
+
+            const showSerialClear = () => {
+                serialClearButton.classList.toggle('is-visible', serialSearchInput.value.trim() !== '');
             };
 
             const fieldHtml = (label, value, html = false) => `
@@ -912,6 +1063,104 @@
                 }
 
                 return `<a href="${escapeHtml(url)}" class="${escapeHtml(className)}" title="Open in Main">${safeText}</a>`;
+            };
+
+            const hideSerialPanel = () => {
+                serialPanel.classList.remove('is-visible');
+                serialPanel.innerHTML = '';
+            };
+
+            const renderSerialPanel = (html) => {
+                serialPanel.innerHTML = html;
+                serialPanel.classList.add('is-visible');
+            };
+
+            const renderSerialResults = (query, rows) => {
+                const header = `
+                    <div class="qa-serial-panel-header">
+                        <span class="fw-semibold text-info">S/N ${escapeHtml(query)}</span>
+                        <button type="button" class="qa-serial-close" data-qa-serial-close aria-label="Close">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                `;
+
+                if (!rows || rows.length === 0) {
+                    renderSerialPanel(`${header}<div class="qa-empty py-3">No workorders found.</div>`);
+                    return;
+                }
+
+                const body = rows.map((row) => `
+                    <div class="qa-serial-result">
+                        <a href="${escapeHtml(row.workorder_url || '#')}" class="fw-semibold text-info">WO ${escapeHtml(row.workorder_number)}</a>
+                        <div>
+                            <div>${escapeHtml(row.serial || '-')}</div>
+                            <div class="qa-serial-result-component">${escapeHtml(row.component || row.source || '')}</div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="qa-serial-result-source">${escapeHtml(row.source || '')}</span>
+                            <a href="${escapeHtml(row.tdr_url || row.workorder_url || '#')}" class="btn btn-outline-info btn-sm py-0">Open</a>
+                        </div>
+                    </div>
+                `).join('');
+
+                renderSerialPanel(header + body);
+            };
+
+            const searchSerial = async () => {
+                const query = serialSearchInput.value.trim();
+
+                if (query.length < 2) {
+                    hideSerialPanel();
+                    return;
+                }
+
+                if (serialSearchController) {
+                    serialSearchController.abort();
+                }
+                serialSearchController = new AbortController();
+
+                renderSerialPanel(`
+                    <div class="qa-serial-panel-header">
+                        <span class="fw-semibold text-info">Searching S/N</span>
+                        <button type="button" class="qa-serial-close" data-qa-serial-close aria-label="Close">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div class="qa-empty py-3">${spinnerHtml}</div>
+                `);
+
+                try {
+                    const url = new URL(serialSearchEndpoint, window.location.origin);
+                    url.searchParams.set('q', query);
+                    const response = await fetch(url, {
+                        signal: serialSearchController.signal,
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok || !data.ok) {
+                        throw new Error(data.message || 'Could not search serial number.');
+                    }
+
+                    renderSerialResults(data.query || query, data.results || []);
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        return;
+                    }
+                    renderSerialPanel(`
+                        <div class="qa-serial-panel-header">
+                            <span class="fw-semibold text-info">S/N search</span>
+                            <button type="button" class="qa-serial-close" data-qa-serial-close aria-label="Close">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <div class="qa-empty py-3 text-danger">${escapeHtml(error.message || 'Could not search serial number.')}</div>
+                    `);
+                }
             };
 
             const blockHtml = (title, body, titleMeta = '', className = '', id = '') => `
@@ -1153,6 +1402,12 @@
                         templateSelection: formatUnitSelect2Option,
                     });
 
+                    select.off('select2:open.qaUnitDropdown').on('select2:open.qaUnitDropdown', function () {
+                        document.querySelectorAll('.select2-container--open .select2-dropdown').forEach((dropdown) => {
+                            dropdown.classList.add('qa-unit-select-dropdown');
+                        });
+                    });
+
                     select.off('change.qaTopUnit').on('change.qaTopUnit', function () {
                         confirmAndSaveUnitField(this);
                     });
@@ -1277,6 +1532,8 @@
 
             searchInput.value = readSearch();
             showClear();
+            serialSearchInput.value = readSerialSearch();
+            showSerialClear();
 
             if (/^\d{6}$/.test(normalizeWorkorderSearch(searchInput.value))) {
                 loadWorkorder();
@@ -1295,6 +1552,36 @@
                 }
             });
 
+            serialSearchInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    searchSerial();
+                } else if (event.key === 'Escape') {
+                    hideSerialPanel();
+                }
+            });
+
+            serialSearchInput.addEventListener('input', () => {
+                saveSerialSearch(serialSearchInput.value);
+                showSerialClear();
+                if (serialSearchInput.value.trim().length === 0) {
+                    hideSerialPanel();
+                }
+            });
+
+            serialPanel.addEventListener('click', (event) => {
+                if (event.target.closest('[data-qa-serial-close]')) {
+                    hideSerialPanel();
+                    serialSearchInput.focus();
+                }
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!serialSearchRow.contains(event.target)) {
+                    hideSerialPanel();
+                }
+            });
+
             clearButton.addEventListener('click', () => {
                 searchInput.value = '';
                 saveSearch('');
@@ -1303,6 +1590,14 @@
                 message.textContent = '';
                 result.innerHTML = '<div class="qa-empty qa-block">Enter a full workorder number and press Enter.</div>';
                 searchInput.focus();
+            });
+
+            serialClearButton.addEventListener('click', () => {
+                serialSearchInput.value = '';
+                saveSerialSearch('');
+                showSerialClear();
+                hideSerialPanel();
+                serialSearchInput.focus();
             });
 
             unitManualSelect.innerHTML = [

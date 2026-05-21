@@ -11,7 +11,7 @@ class LogCardTdrAccessService
     private const RESTRICTED_ROLES = ['Technician', 'Team Leader'];
     private const LOCK_TASK_NAME = 'post disassembly inspection';
 
-    public function forWorkorder(Workorder $workorder, ?User $user): array
+    public function forWorkorder(Workorder $workorder, ?User $user, string $documentName = 'Log Card'): array
     {
         $locked = $this->isLockedByPostDisassemblyInspection($workorder);
         $restrictedRole = $user?->roleIs(self::RESTRICTED_ROLES) ?? false;
@@ -22,7 +22,7 @@ class LogCardTdrAccessService
             'restricted_role' => $restrictedRole,
             'read_only' => $readOnly,
             'message' => $readOnly
-                ? 'Log Card editing is locked after Post Disassembly inspection date is filled. Please contact Quality Manager.'
+                ? $documentName . ' editing is locked after Post Disassembly inspection date is filled. Please contact Quality Manager.'
                 : null,
         ];
     }

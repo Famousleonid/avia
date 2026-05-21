@@ -128,6 +128,9 @@
                 @endforeach
             </div>
 
+            <div class="std-table-summary">
+                {{ __('Total QTY:') }} <strong>{{ $stressSum['total_qty'] }}</strong>
+            </div>
             <footer class="std-footer">
                 <div class="std-footer-grid">
                     <div class="std-footer-left">{{ __('Form # 015') }}</div>
@@ -137,8 +140,6 @@
                     </div>
                     <div class="std-footer-right">
                         {{ __('Rev#0, 15/Dec/2012') }}
-                        <br>
-                        Total: {{ $stressSum['total_qty'] }}
                     </div>
                 </div>
             </footer>

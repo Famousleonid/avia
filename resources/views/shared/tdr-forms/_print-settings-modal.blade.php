@@ -52,6 +52,30 @@
                                 </div>
                             </div>
                             <div class="col-md-4">
+                                <label for="headerDataFontSize" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
+                                    title="Размер шрифта для данных в шапке формы: Part Number, Work Order, Serial, Vendor."
+                                    data-tooltip-ru="Размер шрифта для данных в шапке формы: Part Number, Work Order, Serial, Vendor."
+                                    data-tooltip-en="Font size for form header data: Part Number, Work Order, Serial, Vendor.">
+                                    Header Data Font (px)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="headerDataFontSize" name="headerDataFontSize"
+                                        min="6" max="24" step="0.5" value="{{ $formConfig['header_data_font_size'] ?? 11 }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="tableDataFontSize" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
+                                    title="Размер шрифта для данных в строках таблицы."
+                                    data-tooltip-ru="Размер шрифта для данных в строках таблицы."
+                                    data-tooltip-en="Font size for table body row data.">
+                                    Table Data Font (px)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="tableDataFontSize" name="tableDataFontSize"
+                                        min="6" max="24" step="0.5" value="{{ $formConfig['table_data_font_size'] ?? 12 }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <label for="{{ $tableRowsKey }}" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
                                     title="Максимальное количество строк на одной странице."
                                     data-tooltip-ru="Максимальное количество строк на одной странице."

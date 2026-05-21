@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Special Process Form - Bushings</title>
-    <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
 
     <style>
         :root {
@@ -16,16 +15,224 @@
             --print-page-margin: 2mm;
             --print-body-margin-left: 3px;
             --table-font-size: 0.9rem;
-            --part-no-font-size: 0.1rem;
+            --part-no-font-size: 0.6rem;
             --print-footer-width: 1060px;
             --print-footer-font-size: 10px;
             --print-footer-padding: 2px 2px;
+            --spec-process-number-col-width: 30px;
         }
 
         body {
             margin: 0;
             padding: 0;
             font-family: "Times New Roman", serif;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .row.g-0 {
+            gap: 0;
+        }
+
+        .col,
+        .col-1,
+        .col-2,
+        .col-6,
+        .col-10,
+        .col-11,
+        .col-md-4,
+        .col-md-5 {
+            min-width: 0;
+        }
+
+        .col { flex: 1 0 0; }
+        .col-1 { flex: 0 0 8.333333%; max-width: 8.333333%; }
+        .col-2 { flex: 0 0 16.666667%; max-width: 16.666667%; }
+        .col-6 { flex: 0 0 50%; max-width: 50%; }
+        .col-10 { flex: 0 0 83.333333%; max-width: 83.333333%; }
+        .col-11 { flex: 0 0 91.666667%; max-width: 91.666667%; }
+        .col-md-4 { flex: 0 0 33.333333%; max-width: 33.333333%; }
+        .col-md-5 { flex: 0 0 41.666667%; max-width: 41.666667%; }
+
+        .d-flex { display: flex; }
+        .flex-column { flex-direction: column; }
+        .align-items-center { align-items: center; }
+        .align-items-stretch { align-items: stretch; }
+        .justify-content-between { justify-content: space-between; }
+        .justify-content-center { justify-content: center; }
+        .text-start { text-align: left; }
+        .text-end { text-align: right; }
+        .text-center { text-align: center; }
+        .m-3 { margin: 1rem; }
+        .mt-1 { margin-top: .25rem; }
+        .mt-2 { margin-top: .5rem; }
+        .mt-3 { margin-top: 1rem; }
+        .mb-1 { margin-bottom: .25rem; }
+        .mb-3 { margin-bottom: 1rem; }
+        .mb-4 { margin-bottom: 1.5rem; }
+        .ms-2 { margin-left: .5rem; }
+        .pe-3 { padding-right: 1rem; }
+        .pe-4 { padding-right: 1.5rem; }
+        .ps-1 { padding-left: .25rem; }
+        .ps-2 { padding-left: .5rem; }
+        .pt-1 { padding-top: .25rem; }
+        .pt-2 { padding-top: .5rem; }
+        .pt-3 { padding-top: 1rem; }
+        .gap-2 { gap: .5rem; }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        .btn {
+            border: 1px solid #666;
+            border-radius: 4px;
+            background: #fff;
+            color: #111;
+            cursor: pointer;
+            display: inline-block;
+            line-height: 1.3;
+            padding: .35rem .65rem;
+        }
+
+        .btn-sm {
+            font-size: .85rem;
+            padding: .2rem .45rem;
+        }
+
+        .btn-primary,
+        .btn-outline-primary {
+            border-color: #0d6efd;
+            color: #084298;
+        }
+
+        .btn-secondary {
+            border-color: #6c757d;
+            color: #343a40;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: .25rem;
+        }
+
+        .form-control {
+            border: 1px solid #999;
+            border-radius: 3px;
+            display: block;
+            padding: .25rem .35rem;
+            width: 100%;
+        }
+
+        .input-group {
+            width: 100%;
+        }
+
+        .print-settings-panel[hidden] {
+            display: none;
+        }
+
+        .print-settings-panel {
+            background: rgba(255, 255, 255, .98);
+            border: 1px solid #777;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .18);
+            left: 20px;
+            max-height: calc(100vh - 40px);
+            overflow: auto;
+            padding: 12px;
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            z-index: 50;
+        }
+
+        .modal-header,
+        .modal-footer {
+            align-items: center;
+            display: flex;
+            gap: .5rem;
+            justify-content: space-between;
+            margin-bottom: .75rem;
+        }
+
+        .modal-title {
+            margin: 0;
+        }
+
+        .modal-footer {
+            border-top: 1px solid #ddd;
+            justify-content: flex-end;
+            margin-top: 1rem;
+            padding-top: .75rem;
+        }
+
+        .btn-close {
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            font-size: 20px;
+            line-height: 1;
+            padding: .1rem .35rem;
+        }
+
+        .btn-close::before {
+            content: "x";
+        }
+
+        .accordion {
+            border: 1px solid #bbb;
+            margin-bottom: .75rem;
+        }
+
+        .accordion-button {
+            background: #f3f3f3;
+            border: 0;
+            border-bottom: 1px solid #bbb;
+            display: block;
+            font-weight: 700;
+            padding: .45rem .6rem;
+            text-align: left;
+            width: 100%;
+        }
+
+        .accordion-collapse,
+        .accordion-body {
+            display: block;
+        }
+
+        .accordion-body {
+            padding: .75rem;
+        }
+
+        .print-settings-notice {
+            background: #fff;
+            border: 1px solid #555;
+            bottom: 18px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .16);
+            padding: .5rem .75rem;
+            position: fixed;
+            right: 18px;
+            z-index: 60;
+        }
+
+        .print-settings-notice.success {
+            border-color: #198754;
+            color: #0f5132;
+        }
+
+        .print-settings-notice.error {
+            border-color: #dc3545;
+            color: #842029;
         }
 
         .container-fluid {
@@ -36,6 +243,140 @@
             padding: var(--container-padding);
             margin-left: var(--container-margin-left);
             margin-right: var(--container-margin-right);
+        }
+
+        .container-fluid > .row.g-0 > .col-2,
+        .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col,
+        .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col > .row.g-0 > .col-2,
+        .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col > .row.g-0 > .col-6 {
+            align-items: center !important;
+            display: flex !important;
+            justify-content: center !important;
+            padding-left: 2px !important;
+            padding-right: 2px !important;
+            text-align: center !important;
+        }
+
+        .container-fluid > .row.g-0 > .col-2 > div,
+        .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col > span,
+        .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col > .row.g-0,
+        .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col > .row.g-0 > div > span {
+            align-items: center !important;
+            display: flex !important;
+            justify-content: center !important;
+            text-align: center !important;
+            width: 100% !important;
+        }
+
+        .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col > .row.g-0 {
+            height: 100% !important;
+        }
+
+        .container-fluid > .row.g-0.border-tt-gr > .col-2 > div {
+            justify-content: center !important;
+            padding-right: 0 !important;
+            text-align: center !important;
+        }
+
+        .spec-form-title {
+            text-transform: uppercase;
+        }
+
+        .container-fluid > .row.g-0 > .col-2.border-l-t.ps-1,
+        .container-fluid > .row.g-0 > .col-2.border-l.ps-1,
+        .container-fluid > .row.g-0 > .col-2.border-l-t-b.ps-1,
+        .container-fluid > .row.g-0 > .col-2.spec-left-label {
+            align-items: stretch !important;
+            justify-content: flex-start !important;
+            text-align: left !important;
+        }
+
+        .container-fluid > .row.g-0 > .col-2.border-l-t.ps-1 > div,
+        .container-fluid > .row.g-0 > .col-2.border-l.ps-1 > div,
+        .container-fluid > .row.g-0 > .col-2.border-l-t-b.ps-1 > div,
+        .container-fluid > .row.g-0 > .col-2.spec-left-label > div {
+            align-items: center !important;
+            justify-content: flex-start !important;
+            padding-left: 2px !important;
+            text-align: left !important;
+        }
+
+        .container-fluid > .row.g-0 > .col-2.border-l.ps-1.spec-left-label-ndt > div {
+            justify-content: center !important;
+            padding-left: 0 !important;
+            text-align: center !important;
+        }
+
+        .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col > .row.g-0 > .col-2.border-r,
+        .process-step-number-cell {
+            align-items: center !important;
+            box-sizing: border-box !important;
+            display: flex !important;
+            flex: 0 0 var(--spec-process-number-col-width) !important;
+            justify-content: center !important;
+            line-height: 1 !important;
+            max-width: var(--spec-process-number-col-width) !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            text-align: center !important;
+        }
+
+        .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col > .row.g-0 > .col-6 {
+            flex: 1 1 0 !important;
+            max-width: none !important;
+            min-width: 0 !important;
+        }
+
+        .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col > .row.g-0 > .col-2.border-r > span,
+        .process-step-number-cell > span {
+            align-items: center !important;
+            display: flex !important;
+            height: 100% !important;
+            justify-content: center !important;
+            line-height: 1 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+        }
+
+        .spec-header-tech-row {
+            align-items: flex-start;
+            width: 960px;
+        }
+
+        .spec-technician-spacer {
+            flex: 0 0 305px;
+            height: 18px;
+        }
+
+        .spec-technician-label {
+            align-items: flex-end;
+            display: flex;
+            height: 25px;
+            justify-content: flex-end;
+            padding-right: 4px;
+            width: 75px;
+        }
+
+        .spec-technician-name-line {
+            align-items: flex-end;
+            border-bottom: 1px solid black;
+            display: flex;
+            font-weight: 700;
+            height: 25px;
+            justify-content: center;
+            line-height: 1;
+            overflow: hidden;
+            padding: 0 4px 3px;
+            text-align: center;
+            white-space: nowrap;
+            width: 120px;
+        }
+
+        .spec-header-square {
+            border: 1px solid black;
+            height: 40px;
+            width: 40px;
         }
 
         /* Применение font-size ко всей таблице */
@@ -56,10 +397,11 @@
         /* Применение font-size к данным Part No. (только данные, не заголовок) */
         .part-no-data {
             display: grid !important;
-            grid-template-columns: 1fr 1fr !important;
-            gap: 2px !important;
+            grid-template-columns: minmax(0, 1fr) !important;
+            gap: 1px !important;
             text-align: center !important;
             align-items: start !important;
+            width: 100% !important;
         }
         /* Более специфичный селектор для переопределения общего правила .row.g-0 div */
         .container-fluid .row.g-0 .part-no-data,
@@ -67,9 +409,12 @@
             font-size: var(--part-no-font-size) !important;
         }
         .part-no-data div {
+            display: block !important;
             line-height: 1.2 !important;
-            word-break: break-word !important;
-            overflow-wrap: break-word !important;
+            max-width: 100% !important;
+            overflow-wrap: anywhere !important;
+            white-space: normal !important;
+            word-break: normal !important;
         }
 
         /* Заголовок "Part No." использует table-font-size */
@@ -137,10 +482,11 @@
             /* Применение font-size к данным Part No. при печати (только данные, не заголовок) */
             .part-no-data {
                 display: grid !important;
-                grid-template-columns: 1fr 1fr !important;
-                gap: 2px !important;
+                grid-template-columns: minmax(0, 1fr) !important;
+                gap: 1px !important;
                 text-align: center !important;
                 align-items: start !important;
+                width: 100% !important;
             }
             /* Более специфичный селектор для переопределения общего правила .row.g-0 div при печати */
             .container-fluid .row.g-0 .part-no-data,
@@ -148,9 +494,12 @@
                 font-size: var(--part-no-font-size) !important;
             }
             .part-no-data div {
+                display: block !important;
                 line-height: 1.2 !important;
-                word-break: break-word !important;
-                overflow-wrap: break-word !important;
+                max-width: 100% !important;
+                overflow-wrap: anywhere !important;
+                white-space: normal !important;
+                word-break: normal !important;
             }
 
             /* Заголовок "Part No." использует table-font-size при печати */
@@ -360,7 +709,7 @@
     <button class="btn btn-outline-primary" onclick="window.print()">
         Print Form
     </button>
-    <button class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#printSettingsModal">
+    <button class="btn btn-secondary ms-2" onclick="togglePrintSettingsPanel(true)">
         ⚙️ Print Settings
     </button>
 </div>
@@ -379,7 +728,7 @@
                      style="width: 160px; margin: 6px 10px 0;">
             </div>
             <div class="col-11">
-                <h5 class="pt-1  text-black text-center"><strong>Special Process Form </strong></h5>
+                <h5 class="pt-1 text-black text-center spec-form-title"><strong>SPECIAL PROCESS FORM </strong></h5>
             </div>
         </div>
         <div>
@@ -399,7 +748,7 @@
                 <div class="col-2 pt-2 border-b text-center"> <strong> W{{$current_wo->number}}</strong></div>
                 <div class="col-md-5"></div>
             </div>
-            <div class="d-flex" style="width: 960px">
+            <div class="d-flex spec-header-tech-row">
                 <div class="text-end">
                     <h6 class="pt-1 " style="width: 60px;"><strong>Cat #1</strong></h6>
                 </div>
@@ -419,16 +768,10 @@
                 <div class="border-all text-center pt-0 5 fs-9" style="width: 30px;height: 25px">
                     N/A
                 </div>
-                <div class=" text-center " style="width: 305px;height: 18px"></div>
-                <div class=" text-end pt-2 5" style="width: 75px;height: 18px">Technician</div>
-                <div class="border-b " style="width: 120px"></div>
-                <div class="border-l-t-r" style="width: 40px;height: 30px"></div>
-
-            </div>
-            <div class="d-flex">
-                <div class="text-end  pe-3" style="width: 891px">Name</div>
-                <div class=" " style="width: 29px"></div>
-                <div class="border-l-b-r" style="width: 40px;height: 10px"></div>
+                <div class="text-center spec-technician-spacer"></div>
+                <div class="spec-technician-label">Technician</div>
+                <div class="spec-technician-name-line">{{ $current_wo->user?->name }}</div>
+                <div class="spec-header-square"></div>
             </div>
 
         </div>
@@ -668,7 +1011,7 @@
 
         <!-- Строка 2: N.D.T. -->
         <div class="row g-0 ">
-            <div class="col-2 border-l ps-1">
+            <div class="col-2 border-l ps-1 spec-left-label-ndt">
                 <div style="height: 30px"><strong> N.D.T.</strong></div>
             </div>
             <div class="col-10">
@@ -1226,21 +1569,11 @@
 
 @endforeach
 
-<!-- Bootstrap JS для работы модального окна -->
-<script>
-    if (typeof window.bootstrapLoaded === 'undefined') {
-        window.bootstrapLoaded = true;
-        const script = document.createElement('script');
-        script.src = "{{asset('assets/Bootstrap 5/bootstrap.bundle.min.js')}}";
-        script.async = true;
-        document.head.appendChild(script);
-    }
-</script>
-
+<!-- Print settings panel -->
 <!-- Модальное окно настроек печати -->
-<div class="modal fade print-settings-modal" id="printSettingsModal" tabindex="-1" aria-labelledby="printSettingsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+<div class="print-settings-panel print-settings-modal no-print" id="printSettingsModal" hidden>
+    <div class="print-settings-dialog">
+        <div class="print-settings-content">
             <div class="modal-header justify-content-between">
                 <h5 class="modal-title" id="printSettingsModalLabel">
                     ⚙️ Print Settings
@@ -1249,15 +1582,14 @@
                     <button type="button" class="btn btn-sm btn-outline-primary" id="langToggleBtn" onclick="toggleTooltipLanguage()">
                         <span id="langToggleText">US</span>
                     </button>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" onclick="togglePrintSettingsPanel(false)" aria-label="Close"></button>
                 </div>
             </div>
             <div class="modal-body">
                 <form id="printSettingsForm">
                     <!-- Table Setting - Основная группа -->
                     <div class="mb-4">
-                        <h5 class="mb-3" data-bs-toggle="tooltip"
-                            data-bs-placement="top"
+                        <h5 class="mb-3"
                             title="Настройки таблицы Special Process Form."
                             data-tooltip-ru="Настройки таблицы Special Process Form."
                             data-tooltip-en="Special Process Form table settings.">
@@ -1268,10 +1600,9 @@
                         <div class="accordion mb-3" id="tableSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="tableSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            data-bs-target="#tableSettingsCollapse" aria-expanded="false"
+                                    <button class="accordion-button collapsed" type="button" aria-expanded="false"
                                             aria-controls="tableSettingsCollapse">
-                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
+                                        <span
                                               title="Дополнительные настройки таблицы: ширина, отступы, масштаб и размер шрифта."
                                               data-tooltip-ru="Дополнительные настройки таблицы: ширина, отступы, масштаб и размер шрифта."
                                               data-tooltip-en="Additional table settings: width, padding, scale and font size.">
@@ -1280,12 +1611,11 @@
                                     </button>
                                 </h2>
                                 <div id="tableSettingsCollapse" class="accordion-collapse collapse"
-                                     aria-labelledby="tableSettingsHeading" data-bs-parent="#tableSettingsAccordion">
+                                     aria-labelledby="tableSettingsHeading">
                                     <div class="accordion-body">
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
-                                                <label for="containerMaxWidth" class="form-label" data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
+                                                <label for="containerMaxWidth" class="form-label"
                                                        title="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 980px."
                                                        data-tooltip-ru="Максимальная ширина контейнера с таблицей в пикселях. Рекомендуемое значение: 980px."
                                                        data-tooltip-en="Maximum width of the table container in pixels. Recommended value: 980px.">
@@ -1298,8 +1628,7 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="containerScale" class="form-label" data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
+                                                <label for="containerScale" class="form-label"
                                                        title="Масштаб контейнера (transform: scale). 0.97 - стандартное значение. Уменьшите для более компактного отображения."
                                                        data-tooltip-ru="Масштаб контейнера (transform: scale). 0.97 - стандартное значение. Уменьшите для более компактного отображения."
                                                        data-tooltip-en="Container scale (transform: scale). 0.97 - standard value. Decrease for more compact display.">
@@ -1312,8 +1641,7 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="tableFontSize" class="form-label" data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
+                                                <label for="tableFontSize" class="form-label"
                                                        title="Размер шрифта текста в таблице. Рекомендуемое значение: 0.9rem (14.4px). Увеличьте для лучшей читаемости."
                                                        data-tooltip-ru="Размер шрифта текста в таблице. Рекомендуемое значение: 0.9rem (14.4px). Увеличьте для лучшей читаемости."
                                                        data-tooltip-en="Font size for table text. Recommended value: 0.9rem (14.4px). Increase for better readability.">
@@ -1326,22 +1654,20 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="partNoFontSize" class="form-label" data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        title="Размер шрифта для строки Part No. (где размещены данные part_number и количество). Диапазон: от 0.1rem до 1rem. Рекомендуемое значение: 0.1rem."
-                                                        data-tooltip-ru="Размер шрифта для строки Part No. (где размещены данные part_number и количество). Диапазон: от 0.1rem до 1rem. Рекомендуемое значение: 0.1rem."
-                                                        data-tooltip-en="Font size for Part No. row (where part_number and quantity data are displayed). Range: from 0.1rem to 1rem. Recommended value: 0.1rem.">
+                                                <label for="partNoFontSize" class="form-label"
+                                                       title="Размер шрифта для строки Part No. Длинные значения переносятся внутри одной строки детали, каждая деталь занимает всю ширину колонки."
+                                                       data-tooltip-ru="Размер шрифта для строки Part No. Длинные значения переносятся внутри одной строки детали, каждая деталь занимает всю ширину колонки."
+                                                       data-tooltip-en="Font size for Part No. Long values wrap inside one part row; each part uses the full column width.">
                                                     Part No. Font Size (rem)
                                                 </label>
                                                 <div class="input-group">
                                                     <input type="number" class="form-control" id="partNoFontSize" name="partNoFontSize"
-                                                           min="0.1" max="1" step="0.1" value="0.1">
+                                                           min="0.3" max="1.2" step="0.05" value="0.6">
                                                 </div>
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="containerPadding" class="form-label" data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
+                                                <label for="containerPadding" class="form-label"
                                                        title="Внутренние отступы контейнера. По умолчанию: 3px."
                                                        data-tooltip-ru="Внутренние отступы контейнера. По умолчанию: 3px."
                                                        data-tooltip-en="Container inner padding. Default: 3px.">
@@ -1354,8 +1680,7 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="containerMarginLeft" class="form-label" data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
+                                                <label for="containerMarginLeft" class="form-label"
                                                        title="Отступ контейнера с таблицей от левого края. По умолчанию: 10px."
                                                        data-tooltip-ru="Отступ контейнера с таблицей от левого края. По умолчанию: 10px."
                                                        data-tooltip-en="Table container margin from left edge. Default: 10px.">
@@ -1368,8 +1693,7 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="containerMarginRight" class="form-label" data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
+                                                <label for="containerMarginRight" class="form-label"
                                                        title="Отступ контейнера с таблицей от правого края. По умолчанию: 10px."
                                                        data-tooltip-ru="Отступ контейнера с таблицей от правого края. По умолчанию: 10px."
                                                        data-tooltip-en="Table container margin from right edge. Default: 10px.">
@@ -1392,10 +1716,9 @@
                         <div class="accordion" id="pageSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="pageSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            data-bs-target="#pageSettingsCollapse" aria-expanded="false"
+                                    <button class="accordion-button collapsed" type="button" aria-expanded="false"
                                             aria-controls="pageSettingsCollapse">
-                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
+                                        <span
                                               title="Настройки страницы: размер, поля и отступы."
                                               data-tooltip-ru="Настройки страницы: размер, поля и отступы."
                                               data-tooltip-en="Page settings: size, margins and padding.">
@@ -1404,12 +1727,11 @@
                                     </button>
                                 </h2>
                                 <div id="pageSettingsCollapse" class="accordion-collapse collapse"
-                                     aria-labelledby="pageSettingsHeading" data-bs-parent="#pageSettingsAccordion">
+                                     aria-labelledby="pageSettingsHeading">
                                     <div class="accordion-body">
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
-                                                <label for="pageMargin" class="form-label" data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
+                                                <label for="pageMargin" class="form-label"
                                                        title="Отступ от краев страницы при печати. Рекомендуемое значение: 2mm."
                                                        data-tooltip-ru="Отступ от краев страницы при печати. Рекомендуемое значение: 2mm."
                                                        data-tooltip-en="Margin from page edges when printing. Recommended value: 2mm.">
@@ -1422,8 +1744,7 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="bodyMarginLeft" class="form-label" data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
+                                                <label for="bodyMarginLeft" class="form-label"
                                                        title="Горизонтальный отступ основного контента от левого края. По умолчанию: 3px."
                                                        data-tooltip-ru="Горизонтальный отступ основного контента от левого края. По умолчанию: 3px."
                                                        data-tooltip-en="Horizontal margin of main content from left edge. Default: 3px.">
@@ -1446,10 +1767,9 @@
                         <div class="accordion" id="footerSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="footerSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            data-bs-target="#footerSettingsCollapse" aria-expanded="false"
+                                    <button class="accordion-button collapsed" type="button" aria-expanded="false"
                                             aria-controls="footerSettingsCollapse">
-                                        <span data-bs-toggle="tooltip" data-bs-placement="right"
+                                        <span
                                               title="Настройки нижнего колонтитула формы."
                                               data-tooltip-ru="Настройки нижнего колонтитула формы."
                                               data-tooltip-en="Form footer settings.">
@@ -1458,12 +1778,11 @@
                                     </button>
                                 </h2>
                                 <div id="footerSettingsCollapse" class="accordion-collapse collapse"
-                                     aria-labelledby="footerSettingsHeading" data-bs-parent="#footerSettingsAccordion">
+                                     aria-labelledby="footerSettingsHeading">
                                     <div class="accordion-body">
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
-                                                <label for="footerWidth" class="form-label" data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
+                                                <label for="footerWidth" class="form-label"
                                                        title="Ширина колонтитула в пикселях. 1060px - стандартное значение."
                                                        data-tooltip-ru="Ширина колонтитула в пикселях. 1060px - стандартное значение."
                                                        data-tooltip-en="Footer width in pixels. 1060px - standard value.">
@@ -1476,8 +1795,7 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="footerFontSize" class="form-label" data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
+                                                <label for="footerFontSize" class="form-label"
                                                        title="Размер шрифта текста в колонтитуле. 10px - стандартное значение."
                                                        data-tooltip-ru="Размер шрифта текста в колонтитуле. 10px - стандартное значение."
                                                        data-tooltip-en="Footer text font size. 10px - standard value.">
@@ -1490,8 +1808,7 @@
                                             </div>
 
                                             <div class="col-md-4 mb-3">
-                                                <label for="footerPadding" class="form-label" data-bs-toggle="tooltip"
-                                                       data-bs-placement="top"
+                                                <label for="footerPadding" class="form-label"
                                                        title="Внутренние отступы колонтитула. Например: '2px 2px'."
                                                        data-tooltip-ru="Внутренние отступы колонтитула. Например: '2px 2px'."
                                                        data-tooltip-en="Footer inner padding. Example: '2px 2px'.">
@@ -1533,7 +1850,7 @@
         containerMarginLeft: '10px',
         containerMarginRight: '10px',
         tableFontSize: '0.9rem',
-        partNoFontSize: '0.1rem',
+        partNoFontSize: '0.6rem',
         footerWidth: '1060px',
         footerFontSize: '10px',
         footerPadding: '2px 2px'
@@ -1573,7 +1890,7 @@
                 containerMarginLeft: getValue('containerMarginLeft', '10', 'px'),
                 containerMarginRight: getValue('containerMarginRight', '10', 'px'),
                 tableFontSize: getValue('tableFontSize', '0.9', 'rem'),
-                partNoFontSize: getValue('partNoFontSize', '0.1', 'rem'),
+                partNoFontSize: getValue('partNoFontSize', '0.6', 'rem'),
                 footerWidth: getValue('footerWidth', '1060', 'px'),
                 footerFontSize: getValue('footerFontSize', '10', 'px'),
                 footerPadding: getValue('footerPadding', '2px 2px', '')
@@ -1588,12 +1905,8 @@
             }
 
             // Закрываем модальное окно
-            const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
-            if (modal) {
-                modal.hide();
-            }
+            togglePrintSettingsPanel(false);
 
-            showNotification('Settings saved successfully!', 'success');
         } catch (e) {
             console.error('Ошибка сохранения настроек:', e);
             showNotification('Error saving settings', 'error');
@@ -1611,10 +1924,19 @@
         root.style.setProperty('--container-margin-left', settings.containerMarginLeft || defaultSettings.containerMarginLeft);
         root.style.setProperty('--container-margin-right', settings.containerMarginRight || defaultSettings.containerMarginRight);
         root.style.setProperty('--table-font-size', settings.tableFontSize || defaultSettings.tableFontSize);
-        root.style.setProperty('--part-no-font-size', settings.partNoFontSize || defaultSettings.partNoFontSize);
+        root.style.setProperty('--part-no-font-size', normalizePartNoFontSize(settings.partNoFontSize || defaultSettings.partNoFontSize));
         root.style.setProperty('--print-footer-width', settings.footerWidth || defaultSettings.footerWidth);
         root.style.setProperty('--print-footer-font-size', settings.footerFontSize || defaultSettings.footerFontSize);
         root.style.setProperty('--print-footer-padding', settings.footerPadding || defaultSettings.footerPadding);
+    }
+
+    function normalizePartNoFontSize(value) {
+        const numeric = parseFloat(value);
+        if (!Number.isFinite(numeric)) {
+            return defaultSettings.partNoFontSize;
+        }
+
+        return Math.min(1.2, Math.max(0.3, numeric)) + 'rem';
     }
 
     // Загрузка настроек в форму
@@ -1628,7 +1950,7 @@
             'containerMarginLeft': { suffix: '', default: '10' },
             'containerMarginRight': { suffix: '', default: '10' },
             'tableFontSize': { suffix: '', default: '0.9' },
-            'partNoFontSize': { suffix: '', default: '0.1' },
+            'partNoFontSize': { suffix: '', default: '0.6' },
             'footerWidth': { suffix: '', default: '1060' },
             'footerFontSize': { suffix: '', default: '10' },
             'footerPadding': { suffix: '', default: '2px 2px' }
@@ -1640,7 +1962,9 @@
                 const value = settings[id] || elements[id].default;
                 if (id === 'footerPadding') {
                     element.value = value;
-                } else if (id === 'containerScale' || id === 'tableFontSize' || id === 'partNoFontSize') {
+                } else if (id === 'partNoFontSize') {
+                    element.value = Math.min(1.2, Math.max(0.3, parseFloat(value) || parseFloat(elements[id].default)));
+                } else if (id === 'containerScale' || id === 'tableFontSize') {
                     element.value = parseFloat(value) || parseFloat(elements[id].default);
                 } else {
                     element.value = parseInt(value) || elements[id].default;
@@ -1678,14 +2002,9 @@
 
     // Функция обновления языка всех tooltips
     function updateTooltipsLanguage(container, lang) {
-        const tooltipElements = container.querySelectorAll('[data-bs-toggle="tooltip"]');
+        const tooltipElements = container.querySelectorAll('[data-tooltip-ru], [data-tooltip-en]');
 
         tooltipElements.forEach(function(el) {
-            const existingTooltip = bootstrap.Tooltip.getInstance(el);
-            if (existingTooltip) {
-                existingTooltip.dispose();
-            }
-
             const ruText = el.getAttribute('data-tooltip-ru');
             const enText = el.getAttribute('data-tooltip-en');
 
@@ -1695,7 +2014,6 @@
                 el.setAttribute('title', enText);
             }
 
-            new bootstrap.Tooltip(el);
         });
     }
 
@@ -1713,6 +2031,36 @@
     }
 
     // Инициализация при загрузке страницы
+    window.togglePrintSettingsPanel = function(open) {
+        const panel = document.getElementById('printSettingsModal');
+        if (!panel) return;
+
+        const shouldOpen = typeof open === 'boolean' ? open : panel.hidden;
+        panel.hidden = !shouldOpen;
+
+        if (shouldOpen) {
+            const currentSettings = loadPrintSettings();
+            loadSettingsToForm(currentSettings);
+            initTooltipLanguage(panel);
+        }
+    };
+
+    function showNotification(message, type) {
+        const existing = document.getElementById('printSettingsNotice');
+        if (existing) {
+            existing.remove();
+        }
+
+        const notice = document.createElement('div');
+        notice.id = 'printSettingsNotice';
+        notice.className = 'print-settings-notice ' + (type || 'success');
+        notice.textContent = message;
+        document.body.appendChild(notice);
+        setTimeout(function() {
+            notice.remove();
+        }, 2200);
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const settings = loadPrintSettings();
         applyPrintSettings(settings);
@@ -1721,11 +2069,7 @@
         // Загружаем настройки в форму при открытии модального окна
         const modal = document.getElementById('printSettingsModal');
         if (modal) {
-            modal.addEventListener('show.bs.modal', function() {
-                const currentSettings = loadPrintSettings();
-                loadSettingsToForm(currentSettings);
-                initTooltipLanguage(modal);
-            });
+            initTooltipLanguage(modal);
         }
     });
 </script>

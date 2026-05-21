@@ -289,14 +289,6 @@
                     <button type="button" class="btn btn-outline-info me-2" style="height: 60px;width: 140px" data-bs-toggle="modal" data-bs-target="#addBushingsFromManualModal">
                         <i class="fas fa-exchange-alt"></i> {{ __('Add from Manual') }}
                     </button>
-                    <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}"
-                       class="btn btn-outline-primary me-2" style="height: 60px;width: 100px">
-                        <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
-                    </a>
-                    <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => route('wo_bushings.create', $current_wo->id)]) }}"
-                       class="btn btn-outline-primary me-2" style="height: 60px;width: 110px">
-                        <i class="fas fa-plus"></i> {{ __('Add Component') }}
-                    </a>
                 </div>
                 <div class="d-flex align-items-center">
                     @if($bushings->flatten()->count() > 0)
@@ -461,9 +453,6 @@
             <div class="text-center mt-5">
                 <h3 class="text-muted">{{__('No Bushings available for this Work Order')}}</h3>
                 <p class="text-muted">{{__('No components with "Is Bush" marked are found for this manual.')}}</p>
-                <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => route('wo_bushings.create', $current_wo->id)]) }}" class="btn btn-primary mt-3">
-                    <i class="fas fa-plus"></i> {{__('Add Components')}}
-                </a>
             </div>
         @endif
     </div>

@@ -8,6 +8,7 @@ use App\Models\Workorder;
 use App\Models\Component;
 use App\Models\Process;
 use App\Models\ProcessName;
+use App\Models\StdProcess;
 use App\Models\Vendor;
 use App\Models\Manual;
 use App\Models\WoBushingBatch;
@@ -83,6 +84,56 @@ class WoBushingController extends Controller
         return $rows;
     }
 
+    private function bushingGroupsForWorkorder(Workorder $workorder)
+    {
+        return $this->bushingGroupsForManual((int) $workorder->unit->manual_id);
+    }
+
+    private function bushingGroupsForManual(int $manualId)
+    {
+        $bushings = Component::where('manual_id', $manualId)
+            ->where('is_bush', 1)
+            ->get()
+            ->sort(function (Component $left, Component $right): int {
+                $iplCompare = StdProcess::compareIplValues(
+                    (string) ($left->ipl_num ?? ''),
+                    (string) ($right->ipl_num ?? '')
+                );
+
+                if ($iplCompare !== 0) {
+                    return $iplCompare;
+                }
+
+                $groupCompare = StdProcess::compareIplValues(
+                    (string) ($left->bush_ipl_num ?? ''),
+                    (string) ($right->bush_ipl_num ?? '')
+                );
+
+                if ($groupCompare !== 0) {
+                    return $groupCompare;
+                }
+
+                $partCompare = strnatcasecmp((string) $left->part_number, (string) $right->part_number);
+
+                return $partCompare !== 0
+                    ? $partCompare
+                    : ((int) $left->id) <=> ((int) $right->id);
+            })
+            ->values();
+
+        return $bushings
+            ->groupBy(fn (Component $component) => (string) ($component->bush_ipl_num ?? ''))
+            ->sort(function ($leftGroup, $rightGroup): int {
+                $left = $leftGroup->first();
+                $right = $rightGroup->first();
+
+                return StdProcess::compareIplValues(
+                    (string) ($left?->ipl_num ?? ''),
+                    (string) ($right?->ipl_num ?? '')
+                );
+            });
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -103,21 +154,7 @@ class WoBushingController extends Controller
         $current_wo = Workorder::findOrFail($id);
         $manual_id = $current_wo->unit->manual_id;
 
-        // Get all bushings (components where is_bush = 1) for this manual, grouped by bush_ipl_num
-        $bushingsQuery = Component::where('manual_id', $manual_id)
-            ->where('is_bush', 1)
-            ->orderBy('bush_ipl_num', 'asc')
-            ->get();
-
-        // Sort by numeric part of ipl_num
-        $bushingsQuery = $bushingsQuery->sortBy(function ($item) {
-            $parts = explode('-', $item->ipl_num);
-            $numericPart = preg_replace('/[^0-9]/', '', end($parts));
-            return (int)$numericPart;
-        });
-
-        // Group bushings by bush_ipl_num
-        $bushings = $bushingsQuery->groupBy('bush_ipl_num');
+        $bushings = $this->bushingGroupsForWorkorder($current_wo);
 
         // Get processes for each process type for this manual
         $machiningProcesses = Process::whereHas('process_name', function($query) {
@@ -267,21 +304,7 @@ class WoBushingController extends Controller
         $current_wo = Workorder::findOrFail($id);
         $manual_id = $current_wo->unit->manual_id;
 
-        // Get all bushings (components where is_bush = 1) for this manual, grouped by bush_ipl_num
-        $bushingsQuery = Component::where('manual_id', $manual_id)
-            ->where('is_bush', 1)
-            ->orderBy('bush_ipl_num', 'asc')
-            ->get();
-
-        // Sort by numeric part of ipl_num
-        $bushingsQuery = $bushingsQuery->sortBy(function ($item) {
-            $parts = explode('-', $item->ipl_num);
-            $numericPart = preg_replace('/[^0-9]/', '', end($parts));
-            return (int)$numericPart;
-        });
-
-        // Group bushings by bush_ipl_num
-        $bushings = $bushingsQuery->groupBy('bush_ipl_num');
+        $bushings = $this->bushingGroupsForWorkorder($current_wo);
 
         // Get processes for each process type for this manual
         $machiningProcesses = Process::whereHas('process_name', function($query) {
@@ -390,18 +413,7 @@ class WoBushingController extends Controller
         $current_wo = Workorder::findOrFail($workorder_id);
         $manual_id = $current_wo->unit->manual_id;
 
-        $bushingsQuery = Component::where('manual_id', $manual_id)
-            ->where('is_bush', 1)
-            ->orderBy('bush_ipl_num', 'asc')
-            ->get();
-
-        $bushingsQuery = $bushingsQuery->sortBy(function ($item) {
-            $parts = explode('-', $item->ipl_num);
-            $numericPart = preg_replace('/[^0-9]/', '', end($parts));
-            return (int)$numericPart;
-        });
-
-        $bushings = $bushingsQuery->groupBy('bush_ipl_num');
+        $bushings = $this->bushingGroupsForWorkorder($current_wo);
 
         $machiningProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'Machining'))
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
@@ -473,21 +485,7 @@ class WoBushingController extends Controller
         $current_wo = $woBushing->workorder;
         $manual_id = $current_wo->unit->manual_id;
 
-        // Get all bushings (components where is_bush = 1) for this manual, grouped by bush_ipl_num
-        $bushingsQuery = Component::where('manual_id', $manual_id)
-            ->where('is_bush', 1)
-            ->orderBy('bush_ipl_num', 'asc')
-            ->get();
-
-        // Sort by numeric part of ipl_num
-        $bushingsQuery = $bushingsQuery->sortBy(function ($item) {
-            $parts = explode('-', $item->ipl_num);
-            $numericPart = preg_replace('/[^0-9]/', '', end($parts));
-            return (int)$numericPart;
-        });
-
-        // Group bushings by bush_ipl_num
-        $bushings = $bushingsQuery->groupBy('bush_ipl_num');
+        $bushings = $this->bushingGroupsForWorkorder($current_wo);
 
         // Get processes for each process type for this manual
         $machiningProcesses = Process::whereHas('process_name', function($query) {
@@ -1003,26 +1001,7 @@ class WoBushingController extends Controller
         $manual_id = $request->manual_id;
         $current_manual_id = $request->current_manual_id;
 
-        // Get all bushings (components where is_bush = 1) for the selected manual, grouped by bush_ipl_num
-        // Sort by is_bush (desc - 1 first), then by bush_ipl_num, then by numeric part of ipl_num
-        $bushingsQuery = Component::where('manual_id', $manual_id)
-            ->where('is_bush', 1)
-            ->orderBy('is_bush', 'desc')
-            ->orderBy('bush_ipl_num', 'asc')
-            ->get();
-
-        // Sort by numeric part of ipl_num within each group
-        $bushingsQuery = $bushingsQuery->sortBy(function ($item) {
-            // First sort by bush_ipl_num
-            $bushIplNum = $item->bush_ipl_num ?? '';
-            // Then by numeric part of ipl_num
-            $parts = explode('-', $item->ipl_num);
-            $numericPart = preg_replace('/[^0-9]/', '', end($parts));
-            return [$bushIplNum, (int)$numericPart];
-        });
-
-        // Group bushings by bush_ipl_num (sorted groups)
-        $bushings = $bushingsQuery->groupBy('bush_ipl_num');
+        $bushings = $this->bushingGroupsForManual((int) $manual_id);
 
         // Get processes for each process type for the current manual (not the selected one)
         $machiningProcesses = Process::whereHas('process_name', function($query) {

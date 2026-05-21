@@ -171,23 +171,6 @@
             @if($bushings->flatten()->count() > 0)
             <div class="card-body">
                 <div class="d-flex flex-wrap gap-2 mb-2">
-                    @if(request()->query('modal'))
-                        <button type="button" class="btn btn-outline-primary btn-sm" data-add-processes-url="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}">
-                            <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
-                        </button>
-                        <button type="button" class="btn btn-outline-primary btn-sm" data-add-part-url="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}">
-                            <i class="fas fa-plus"></i> {{ __('Add Part') }}
-                        </button>
-                    @else
-                        <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.edit', $woBushing->id)]) }}"
-                           class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
-                        </a>
-                        <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => request()->fullUrl()]) }}"
-                           class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-plus"></i> {{ __('Add Part') }}
-                        </a>
-                    @endif
                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearForm()">
                         <i class="fas fa-eraser"></i> {{ __('Clear All') }}
                     </button>
@@ -419,9 +402,6 @@
             <div class="card-body text-center py-5">
                 <h3 class="text-muted">{{__('No Bushings available for this Work Order')}}</h3>
                 <p class="text-muted">{{__('No components with "Is Bush" marked are found for this manual.')}}</p>
-                <a href="{{ route('components.create') }}" class="btn btn-primary mt-3">
-                    <i class="fas fa-plus"></i> {{__('Add Components')}}
-                </a>
             </div>
         @endif
         </div>
@@ -509,27 +489,6 @@
             if (cancelBtn && inModal && window.parent !== window) {
                 cancelBtn.addEventListener('click', function() {
                     (window.top || window.parent).postMessage({ type: 'editBushingCancel' }, '*');
-                });
-            }
-
-            if (inModal && window.parent !== window) {
-                document.querySelectorAll('button[data-add-processes-url]').forEach(function(btn) {
-                    btn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        var url = this.getAttribute('data-add-processes-url');
-                        if (url) {
-                            (window.top || window.parent).postMessage({ type: 'openAddProcessesModal', url: url }, '*');
-                        }
-                    });
-                });
-                document.querySelectorAll('button[data-add-part-url]').forEach(function(btn) {
-                    btn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        var url = this.getAttribute('data-add-part-url');
-                        if (url) {
-                            (window.top || window.parent).postMessage({ type: 'openAddPartModal', url: url }, '*');
-                        }
-                    });
                 });
             }
 

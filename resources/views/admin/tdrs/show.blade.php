@@ -139,12 +139,66 @@
             gap: .5rem;
         }
 
+        .tdr-show-paper-divider {
+            align-self: stretch;
+            width: 1px;
+            min-height: 76px;
+            margin: 2px .55rem;
+            background: rgba(255, 255, 255, .22);
+        }
+
         .tdr-show-paper-std {
-            border-left: 1px solid rgba(255, 255, 255, .18);
-            border-right: 1px solid rgba(255, 255, 255, .18);
             gap: .15rem;
-            padding-left: .9rem;
-            padding-right: .9rem;
+        }
+
+        @media (max-width: 1479.98px) {
+            .tdr-show-paper-strip {
+                column-gap: .35rem;
+                margin-left: .35rem !important;
+                padding-left: .25rem !important;
+            }
+
+            .tdr-pdf-paper-wrap {
+                margin-right: .5rem !important;
+            }
+
+            .tdr-show-paper-main,
+            .tdr-show-paper-std,
+            .tdr-show-paper-extra {
+                gap: .25rem;
+            }
+
+            .tdr-show-paper-divider {
+                min-height: 56px;
+                margin-left: .25rem;
+                margin-right: .25rem;
+            }
+
+            .tdr-show-paper-main .me-3,
+            .tdr-show-paper-std,
+            .tdr-show-paper-extra {
+                margin-right: .35rem !important;
+            }
+
+            .tdr-show-paper-strip .paper-btn {
+                display: inline-block;
+                zoom: .7;
+            }
+
+            .tdr-show-paper-strip .badge {
+                min-width: 14px !important;
+                height: 14px !important;
+                font-size: .49rem !important;
+                padding: 0 3px !important;
+                top: -4px !important;
+                left: 1px !important;
+            }
+        }
+
+        @media (max-width: 1280px) {
+            .tdr-show-paper-wo {
+                display: none !important;
+            }
         }
 
         #pdfCountBadge {
@@ -446,10 +500,13 @@
                                   style="top: -5px; left: 2px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: black; font-size: 0.7rem; padding: 0 5px;"></span>
                         </div>
                         {{-- x-paper buttons --}}
+                        @php
+                            $paperCountBadgeStyle = 'position: absolute; top: -5px; left: 2px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;';
+                        @endphp
 
                         <div class="tdr-show-paper-main ms-1">
 
-                            <div class="me-3 d-flex flex-wrap">
+                            <div class="me-3 d-flex flex-wrap tdr-show-paper-wo">
 
                                 <x-paper-button text="WO Box Title"
                                                 href="{{ route('tdrs.wo_BoxTitle', ['id'=> $current_wo->id]) }}"
@@ -461,78 +518,140 @@
 
                             <div class="me-3 d-flex flex-wrap">
 
-                                <x-paper-button text="TDR Form"
-                                                href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
-                                                target="_blank"/>
+                                <div class="position-relative d-inline-block">
+                                    <x-paper-button text="TDR Form"
+                                                    href="{{ route('tdrs.tdrForm', ['id'=> $current_wo->id]) }}"
+                                                    target="_blank" color="outline-primary"/>
+                                    @if(($tdrFormRowsCount ?? 0) > 0)
+                                        <span class="badge bg-success rounded-pill" style="{{ $paperCountBadgeStyle }}">{{ $tdrFormRowsCount }}</span>
+                                    @endif
+                                </div>
+
+                                <div class="position-relative d-inline-block">
+                                    <x-paper-button text="R&M Form"
+                                                    href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"
+                                                    target="_blank" color="outline-primary"/>
+                                    @if(($rmFormRowsCount ?? 0) > 0)
+                                        <span class="badge bg-success rounded-pill" style="{{ $paperCountBadgeStyle }}">{{ $rmFormRowsCount }}</span>
+                                    @endif
+                                </div>
 
                                 @if(!$hasProcessFormTdrs)
-                                    <x-paper-button text="SP Form"
-                                                    href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"
-                                                    target="_blank"/>
+                                    <div class="position-relative d-inline-block">
+                                        <x-paper-button text="SP Form"
+                                                        href="{{ route('tdrs.specProcessFormEmp', ['id'=> $current_wo->id]) }}"
+                                                        target="_blank" color="outline-primary"/>
+                                        @if(($spFormColumnsCount ?? 0) > 0)
+                                            <span class="badge bg-success rounded-pill" style="{{ $paperCountBadgeStyle }}">{{ $spFormColumnsCount }}</span>
+                                        @endif
+                                    </div>
                                 @else
-                                    <x-paper-button text="SP Form"
-                                                    href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
-                                                    target="_blank"/>
+                                    <div class="position-relative d-inline-block">
+                                        <x-paper-button text="SP Form"
+                                                        href="{{ route('tdrs.specProcessForm', ['id'=> $current_wo->id]) }}"
+                                                        target="_blank" color="outline-primary"/>
+                                        @if(($spFormColumnsCount ?? 0) > 0)
+                                            <span class="badge bg-success rounded-pill" style="{{ $paperCountBadgeStyle }}">{{ $spFormColumnsCount }}</span>
+                                        @endif
+                                    </div>
                                 @endif
                                 <span id="bushingSpFormHeaderBtn">
                                     @if($woBushing)
-                                        <x-paper-button text="Bushing SP Form"
-                                                        href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}"
-                                                        target="_blank" color="outline-primary"/>
+                                        <span class="position-relative d-inline-block">
+                                            <x-paper-button text="Bushing Form"
+                                                            href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}"
+                                                            target="_blank" color="outline-primary"/>
+                                            @if(($bushingSpFormColumnsCount ?? 0) > 0)
+                                                <span class="badge bg-success rounded-pill" style="{{ $paperCountBadgeStyle }}">{{ $bushingSpFormColumnsCount }}</span>
+                                            @endif
+                                        </span>
                                     @endif
                                 </span>
-                                <x-paper-button text="R&M Form"
-                                                href="{{ route('rm_reports.rmRecordForm', ['id'=> $current_wo->id]) }}"
-                                                target="_blank"/>
-                            </div>
-                            <div id="extraGroupFormsHeaderBtn" class="d-none pt-1 me-3">
-                                <x-paper-button-multy text="Group Process Forms" color="outline-primary"
-                                                      size="landscape" width="100"
-                                                      ariaLabel="Group Process Forms" data-bs-toggle="modal"
-                                                      data-bs-target="#extraGroupFormsModal"/>
-                            </div>
 
-                        </div>
-                        <div class="tdr-show-paper-std ms-2" id="tdr-std-paper-group">
-                                <span class="tdr-std-paper-ndt-wrap d-inline-block">
-                                    <x-paper-button text="NDT STD"
-                                                    href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
-                                                    target="_blank" color="outline-primary"/>
-                                </span>
-                            <span class="tdr-std-paper-cad-wrap d-inline-block">
-                                    <x-paper-button text="CAD STD"
-                                                    href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
-                                                    target="_blank" color="outline-primary"/>
-                                </span>
-                            <span class="tdr-std-paper-stress-wrap d-inline-block">
-                                    <x-paper-button text="Stress STD"
-                                                    href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}"
-                                                    target="_blank" color="outline-primary"/>
-                                </span>
-                            <span class="tdr-std-paper-paint-wrap d-inline-block">
-                                    <x-paper-button text="Paint STD"
-                                                    href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}"
-                                                    target="_blank" color="outline-primary"/>
-                                </span>
-                        </div>
-                        <div class="tdr-show-paper-extra ms-2">
                                 <span id="logCardFormPaperWrap" class="{{ $log_card ? '' : 'd-none' }}">
                                     <x-paper-button text="Log Card"
                                                     href="{{ route('log_card.logCardForm', ['id'=> $current_wo->id]) }}"
                                                     target="_blank" color="outline-primary"/>
                                 </span>
-                            <span id="serviceBulletinLogPaperWrap">
-                                    <x-paper-button text="SB Log"
+                                <span id="serviceBulletinLogPaperWrap">
+                                    <x-paper-button text="SB Form"
                                                     href="{{ route('tdrs.serviceBulletinLog', ['workorder' => $current_wo->id]) }}"
                                                     target="_blank" color="outline-primary"/>
                                 </span>
+                            </div>
+                        </div>
+                        <div id="extraGroupFormsHeaderBtn" class="d-none pt-1 me-3">
+                            <x-paper-button-multy text="Group Process Forms" color="outline-primary"
+                                                  size="landscape" width="100"
+                                                  ariaLabel="Group Process Forms" data-bs-toggle="modal"
+                                                  data-bs-target="#extraGroupFormsModal"/>
+                        </div>
+                        <div class="tdr-show-paper-divider" aria-hidden="true"></div>
+                        <div class="tdr-show-paper-std ms-2" id="tdr-std-paper-group">
+                                <span class="tdr-std-paper-ndt-wrap d-inline-block position-relative">
+                                    <x-paper-button text="NDT STD"
+                                                    href="{{ route('tdrs.ndtStd', ['workorder_id' => $current_wo->id]) }}"
+                                                    target="_blank" color="outline-success"
+                                                    :custom-colors="['fold' => '#2fbf78', 'stroke' => '#2fbf78', 'text' => '#146c43', 'paper' => '#d5d5d5']"/>
+                                    @if(($stdFormCounts['ndt'] ?? 0) > 0)
+                                        <span class="badge bg-success rounded-pill" style="{{ $paperCountBadgeStyle }}">{{ $stdFormCounts['ndt'] }}</span>
+                                    @endif
+                                </span>
+                            <span class="tdr-std-paper-cad-wrap d-inline-block position-relative">
+                                    <x-paper-button text="CAD STD"
+                                                    href="{{ route('tdrs.cadStd', ['workorder_id' => $current_wo->id]) }}"
+                                                    target="_blank" color="outline-success"
+                                                    :custom-colors="['fold' => '#2fbf78', 'stroke' => '#2fbf78', 'text' => '#146c43', 'paper' => '#d5d5d5']"/>
+                                    @if(($stdFormCounts['cad'] ?? 0) > 0)
+                                        <span class="badge bg-success rounded-pill" style="{{ $paperCountBadgeStyle }}">{{ $stdFormCounts['cad'] }}</span>
+                                    @endif
+                                </span>
+                            <span class="tdr-std-paper-stress-wrap d-inline-block position-relative">
+                                    <x-paper-button text="Stress STD"
+                                                    href="{{ route('tdrs.stressStd', ['workorder_id' => $current_wo->id]) }}"
+                                                    target="_blank" color="outline-success"
+                                                    :custom-colors="['fold' => '#2fbf78', 'stroke' => '#2fbf78', 'text' => '#146c43', 'paper' => '#d5d5d5']"/>
+                                    @if(($stdFormCounts['stress'] ?? 0) > 0)
+                                        <span class="badge bg-success rounded-pill" style="{{ $paperCountBadgeStyle }}">{{ $stdFormCounts['stress'] }}</span>
+                                    @endif
+                                </span>
+                            <span class="tdr-std-paper-paint-wrap d-inline-block position-relative">
+                                    <x-paper-button text="Paint STD"
+                                                    href="{{ route('tdrs.paintStd', ['workorder_id' => $current_wo->id]) }}"
+                                                    target="_blank" color="outline-success"
+                                                    :custom-colors="['fold' => '#2fbf78', 'stroke' => '#2fbf78', 'text' => '#146c43', 'paper' => '#d5d5d5']"/>
+                                    @if(($stdFormCounts['paint'] ?? 0) > 0)
+                                        <span class="badge bg-success rounded-pill" style="{{ $paperCountBadgeStyle }}">{{ $stdFormCounts['paint'] }}</span>
+                                    @endif
+                                </span>
+                        </div>
+                        <div class="tdr-show-paper-divider" aria-hidden="true"></div>
+                        <div class="tdr-show-paper-extra ms-2">
+                            @if(($kitPrlCount ?? 0) > 0)
+                                <div class="position-relative d-inline-block ">
+                                    <x-paper-button text="KIT"
+                                                    href="{{ route('tdrs.kitForm', ['id' => $current_wo->id]) }}"
+                                                    target="_blank" color="outline-primary"/>
+                                    <span class="badge bg-success rounded-pill"
+                                          style="{{ $paperCountBadgeStyle }}">{{ $kitPrlCount }}</span>
+                                </div>
+                            @endif
                             @if(count($prl_parts) > 0)
                                 <div class="position-relative d-inline-block ">
                                     <x-paper-button text="PRL"
                                                     href="{{ route('tdrs.prlForm', ['id' => $current_wo->id]) }}"
-                                                    target="_blank"/>
+                                                    target="_blank" color="outline-primary"/>
                                     <span class="badge bg-success rounded-pill"
-                                          style="position: absolute; top: -5px; left: 2px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; padding: 0 5px;">{{ count($prl_parts) }}</span>
+                                          style="{{ $paperCountBadgeStyle }}">{{ count($prl_parts) }}</span>
+                                </div>
+                            @endif
+                            @if(($bushingPrlCount ?? 0) > 0)
+                                <div class="position-relative d-inline-block ">
+                                    <x-paper-button text="Bush PRL"
+                                                    href="{{ route('tdrs.bushPrlForm', ['id' => $current_wo->id]) }}"
+                                                    target="_blank" color="outline-primary"/>
+                                    <span class="badge bg-success rounded-pill"
+                                          style="{{ $paperCountBadgeStyle }}">{{ $bushingPrlCount }}</span>
                                 </div>
                             @endif
                         </div>

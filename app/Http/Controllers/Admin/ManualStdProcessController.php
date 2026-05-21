@@ -176,7 +176,7 @@ class ManualStdProcessController extends Controller
             abort(403);
         }
 
-        if ($user->roleIs('Admin')) {
+        if ($user->roleIs('Admin') || $user->hasFullManualsAccess()) {
             return;
         }
 

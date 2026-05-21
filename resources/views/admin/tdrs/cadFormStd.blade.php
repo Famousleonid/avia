@@ -25,7 +25,7 @@
             <div class="std-header header-page">
                 <div class="std-header-top">
                     <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo" class="std-header-logo">
-                    <h2 class="std-header-title">CADMIUM PLATING PROCESS SHEET</h2>
+                    <h2 class="std-header-title std-header-title--cad">CADMIUM PLATING PROCESS SHEET</h2>
                 </div>
 
                 <div class="std-meta-grid">
@@ -68,14 +68,14 @@
                     </div>
                 </div>
 
-                <div class="std-instruction std-instruction-row">
-                    <div>Perform the CAD plate as specified under Process No. and in accordance with SMM No.</div>
+                <div class="std-instruction std-instruction-row std-instruction-row--cad">
+                    <div class="std-instruction-text">Perform the CAD plate as specified under Process No. and in accordance with SMM No.</div>
                     <div class="std-manual-ref-label">MANUAL REF:</div>
                     <div class="std-manual-ref-box">{{ $manualNumber }}</div>
                 </div>
             </div>
 
-            <div class="std-table table-header" style="--std-table-columns: 1fr 2fr 3fr 3fr 1fr 2fr;">
+            <div class="std-table table-header" style="--std-table-columns: 1fr 2fr 2.7fr 3.8fr 0.9fr 1.6fr;">
                 <div class="std-grid-row std-grid-row--header">
                     <div class="std-cell">ITEM No.</div>
                     <div class="std-cell">PART No.</div>
@@ -86,7 +86,7 @@
                 </div>
             </div>
 
-            <div class="all-rows-container page-rows-container" style="--std-table-columns: 1fr 2fr 3fr 3fr 1fr 2fr;">
+            <div class="all-rows-container page-rows-container" style="--std-table-columns: 1fr 2fr 2.7fr 3.8fr 0.9fr 1.6fr;">
                 @if(empty($cad_components))
                     <div class="data-row std-grid-row std-grid-row--full">
                         <div class="std-cell"><strong>No CAD components with cad_list flag</strong></div>
@@ -103,6 +103,11 @@
                         @php
                             $component = $cadEntry['component'];
                             $rowHeight = max(32, (int) ($component->row_height ?? 32));
+                            $processText = (string) ($component->process_name ?? '');
+                            $processLength = mb_strlen($processText);
+                            $processFitClass = $processLength > 48
+                                ? 'std-cell-fit--xs'
+                                : ($processLength > 38 ? 'std-cell-fit--sm' : '');
                         @endphp
                         <div class="data-row std-grid-row" data-row-index="{{ $cadGlobalRowIndex }}" style="--std-row-min-height: {{ $rowHeight }}px;">
                             <div class="std-cell">
@@ -110,7 +115,9 @@
                             </div>
                             <div class="std-cell">{{ $component->part_number }}</div>
                             <div class="std-cell">{{ $component->name }}</div>
-                            <div class="std-cell">{{ $component->process_name }}</div>
+                            <div class="std-cell std-cell-fit {{ $processFitClass }}">
+                                <span>{{ $processText }}</span>
+                            </div>
                             <div class="std-cell">{{ $component->qty }}</div>
                             <div class="std-cell">{{ $manualNumber }}</div>
                         </div>
@@ -128,6 +135,9 @@
                 @endforeach
             </div>
 
+            <div class="std-table-summary">
+                {{ __('Total QTY:') }} <strong>{{ $cadSum['total_qty'] }}</strong>
+            </div>
             <footer class="std-footer">
                 <div class="std-footer-grid">
                     <div class="std-footer-left">{{ __('Form # 014') }}</div>
@@ -137,8 +147,6 @@
                     </div>
                     <div class="std-footer-right">
                         {{ __('Rev#0, 15/Dec/2012') }}
-                        <br>
-                        Total: {{ $cadSum['total_qty'] }}
                     </div>
                 </div>
             </footer>

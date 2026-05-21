@@ -294,8 +294,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             a.href = specFormUrl;
                             a.target = '_blank';
                             a.className = 'paper-btn btn-outline-primary paper-portrait p-0';
-                            a.setAttribute('aria-label', '{{ __("Bushing SP Form") }}');
-                            a.innerHTML = '<svg viewBox="0 0 190 270" width="60" height="80" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"><path class="paper" d="M10 10 H140 L180 50 V240 H10 Z"/><polygon class="fold" points="140,10 140,50 180,50"/><path class="line" d="M140 12 V50 H180"/><foreignObject x="20" y="60" width="140" height="140"><div xmlns="http://www.w3.org/1999/xhtml" style="font: 34px Arial,sans-serif;text-align:center;display:flex;align-items:center;justify-content:center;height:100%;width:100%;word-wrap:break-word;">Bushing SP Form</div></foreignObject></svg>';
+                            a.setAttribute('aria-label', '{{ __("Bushing Form") }}');
+                            a.innerHTML = '<svg viewBox="0 0 190 270" width="60" height="80" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"><path class="paper" d="M10 10 H140 L180 50 V240 H10 Z"/><polygon class="fold" points="140,10 140,50 180,50"/><path class="line" d="M140 12 V50 H180"/><foreignObject x="20" y="60" width="140" height="140"><div xmlns="http://www.w3.org/1999/xhtml" style="font: 34px Arial,sans-serif;text-align:center;display:flex;align-items:center;justify-content:center;height:100%;width:100%;word-wrap:break-word;">Bushing Form</div></foreignObject></svg>';
                             headerBtn.appendChild(a);
                         }
                     }
@@ -2672,7 +2672,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         body.innerHTML = html;
                         if (window.$ && window.$.fn.select2) {
                             var $ = window.$;
-                            $('#edit_codes_id, #edit_necessaries_id').select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $(document.body) });
+                            $('#edit_codes_id, #edit_necessaries_id, #edit_component_id').select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $(document.body) });
                         }
                         var form = body.querySelector('#editTdrForm');
                         if (form) {

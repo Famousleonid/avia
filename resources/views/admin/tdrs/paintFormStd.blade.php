@@ -128,6 +128,9 @@
             @endforelse
         </div>
 
+        <div class="std-table-summary">
+            {{ __('Total QTY:') }} <strong>{{ $paintSum['total_qty'] ?? 0 }}</strong>
+        </div>
         <footer class="std-footer">
             <div class="std-footer-grid">
                 <div class="std-footer-left">{{ __('Form # 014') }}</div>
@@ -136,8 +139,6 @@
                 </div>
                 <div class="std-footer-right">
                     {{ __('Rev#0, 15/Dec/2012') }}
-                    <br>
-                    Total: {{ $paintSum['total_qty'] ?? 0 }}
                 </div>
             </div>
         </footer>

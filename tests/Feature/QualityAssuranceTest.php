@@ -128,7 +128,83 @@ class QualityAssuranceTest extends TestCase
             ],
         ]);
         $this->assertSame('log_card', $response->json('workorder.forms.0.key'));
-        $this->assertNotContains('spf', collect($response->json('workorder.forms'))->pluck('key')->all());
+        $forms = collect($response->json('workorder.forms'));
+        $this->assertContains('sp_form', $forms->pluck('key')->all());
+        $this->assertSame(
+            route('tdrs.specProcessFormEmp', ['id' => $workorder->id]),
+            $forms->firstWhere('key', 'sp_form')['url']
+        );
+    }
+
+    public function test_serial_search_returns_workorder_links_from_tdr_and_log_card(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $tdrWorkorder = $this->createWorkorder(['number' => 988831]);
+        $logCardWorkorder = $this->createWorkorder(['number' => 988832]);
+        $component = Component::query()->create([
+            'manual_id' => $tdrWorkorder->unit->manual_id,
+            'part_number' => 'QA-SN-PN',
+            'name' => 'QA SN Component',
+            'ipl_num' => '7-77',
+            'eff_code' => null,
+        ]);
+
+        Tdr::query()->create([
+            'workorder_id' => $tdrWorkorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'SN-FIND-777',
+            'qty' => 1,
+        ]);
+        LogCard::query()->create([
+            'workorder_id' => $logCardWorkorder->id,
+            'component_data' => json_encode([
+                ['serial_number' => 'SN-FIND-777', 'part_number' => 'LC-PN'],
+            ]),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('quality.serial_search', [
+            'q' => 'SN-FIND-777',
+        ]));
+
+        $response->assertOk();
+        $response->assertJsonPath('ok', true);
+
+        $numbers = collect($response->json('results'))->pluck('workorder_number')->all();
+        $this->assertContains('988831', $numbers);
+        $this->assertContains('988832', $numbers);
+
+        $tdrRow = collect($response->json('results'))->firstWhere('workorder_number', '988831');
+        $this->assertSame(route('mains.show', $tdrWorkorder->id), $tdrRow['workorder_url']);
+        $this->assertSame(route('tdrs.show', $tdrWorkorder->id), $tdrRow['tdr_url']);
+    }
+
+    public function test_serial_search_finds_full_log_card_serial_with_slash(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder(['number' => 988833]);
+
+        LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                ['serial_number' => '1463290/006', 'part_number' => 'LC-SLASH-PN'],
+            ]),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('quality.serial_search', [
+            'q' => '1463290/006',
+        ]));
+
+        $response->assertOk();
+        $response->assertJsonPath('ok', true);
+
+        $this->assertTrue(collect($response->json('results'))->contains(
+            fn (array $row) => $row['workorder_number'] === '988833'
+                && $row['serial'] === '1463290/006'
+        ));
     }
 
     public function test_quality_incomplete_processes_is_failed_when_process_dates_are_missing(): void
@@ -173,9 +249,13 @@ class QualityAssuranceTest extends TestCase
 
         $incompleteCheck = collect($response->json('workorder.checks'))
             ->firstWhere('label', 'Incomplete processes');
+        $missingRoCheck = collect($response->json('workorder.checks'))
+            ->firstWhere('label', 'Missing RO');
 
         $this->assertNotNull($incompleteCheck);
+        $this->assertNotNull($missingRoCheck);
         $this->assertFalse($incompleteCheck['ok']);
+        $this->assertFalse($missingRoCheck['ok']);
         $this->assertSame(1, collect($response->json('workorder.repair_orders'))->where('ok', false)->count());
     }
 

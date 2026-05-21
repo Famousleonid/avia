@@ -44,7 +44,7 @@
             <div class="std-header header-page">
                 <div class="std-header-top">
                     <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo" class="std-header-logo">
-                    <h2 class="std-header-title">NDT PROCESS SHEET</h2>
+                    <h2 class="std-header-title std-header-title--ndt">NDT PROCESS SHEET</h2>
                 </div>
 
                 <div class="std-meta-grid">
@@ -87,55 +87,48 @@
                     </div>
                 </div>
 
-                <div class="std-ndt-grid">
-                    <div class="std-ndt-column">
-                        <h3 class="std-ndt-title">MAGNETIC PARTICLE AS PER:</h3>
-                        <div class="std-ndt-line">
+                <div class="std-ndt-grid std-ndt-grid--aligned">
+                    <div class="std-ndt-title std-ndt-title--magnetic">MAGNETIC PARTICLE AS PER:</div>
+                    <div class="std-ndt-title std-ndt-title--liquid">LIQUID/FLUID PENETRANT AS PER:</div>
+                    <div class="std-ndt-title std-ndt-title--ultrasound">ULTRASOUND AS PER:</div>
+                    <div class="std-ndt-title std-ndt-title--eddy">EDDY CURRENT AS PER:</div>
+
+                    <div class="std-ndt-line std-ndt-line--one">
                             <div class="std-ndt-index">#1</div>
                             <div class="std-ndt-value">
                                 <span @if(strlen($ndtProcessMap[1]) > 25) class="std-process-long" @endif>{{ $ndtProcessMap[1] }}</span>
                             </div>
-                        </div>
+                    </div>
+                    <div class="std-ndt-line std-ndt-line--two">
+                        <div class="std-ndt-index">#2</div>
+                        <div class="std-ndt-value"></div>
+                    </div>
+                    <div class="std-ndt-line std-ndt-line--three">
+                        <div class="std-ndt-index">#3</div>
+                        <div class="std-ndt-value"></div>
+                    </div>
 
-                        <h3 class="std-ndt-title">LIQUID/FLUID PENETRANT AS PER:</h3>
-                        <div class="std-ndt-line">
+                    <div class="std-ndt-line std-ndt-line--four">
                             <div class="std-ndt-index">#4</div>
                             <div class="std-ndt-value">
                                 <span @if(strlen($ndtProcessMap[4]) > 25) class="std-process-long" @endif>{{ $ndtProcessMap[4] }}</span>
                             </div>
-                        </div>
-
-                        <h3 class="std-ndt-title">ULTRASOUND AS PER:</h3>
-                        <div class="std-ndt-line">
-                            <div class="std-ndt-index">#7</div>
-                            <div class="std-ndt-value"></div>
-                        </div>
+                    </div>
+                    <div class="std-ndt-line std-ndt-line--five">
+                        <div class="std-ndt-index">#5</div>
+                        <div class="std-ndt-value">{{ $ndtProcessMap[5] }}</div>
+                    </div>
+                    <div class="std-ndt-line std-ndt-line--six">
+                        <div class="std-ndt-index">#6</div>
+                        <div class="std-ndt-value">{{ $ndtProcessMap[6] }}</div>
                     </div>
 
-                    <div class="std-ndt-column" style="padding-top: 34px;">
-                        <div class="std-ndt-line">
-                            <div class="std-ndt-index">#2</div>
-                            <div class="std-ndt-value"></div>
-                        </div>
-                        <div class="std-ndt-line" style="margin-top: 24px;">
-                            <div class="std-ndt-index">#5</div>
-                            <div class="std-ndt-value">{{ $ndtProcessMap[5] }}</div>
-                        </div>
-                        <div class="std-meta-label" style="margin-top: 30px;">CMM No:</div>
+                    <div class="std-ndt-line std-ndt-line--seven">
+                        <div class="std-ndt-index">#7</div>
+                        <div class="std-ndt-value"></div>
                     </div>
-
-                    <div class="std-ndt-column" style="padding-top: 34px;">
-                        <div class="std-ndt-line">
-                            <div class="std-ndt-index">#3</div>
-                            <div class="std-ndt-value"></div>
-                        </div>
-                        <h3 class="std-ndt-title">EDDY CURRENT AS PER:</h3>
-                        <div class="std-ndt-line">
-                            <div class="std-ndt-index">#6</div>
-                            <div class="std-ndt-value">{{ $ndtProcessMap[6] }}</div>
-                        </div>
-                        <div class="std-manual-ref-box">{{ $manualNumber }}</div>
-                    </div>
+                    <div class="std-meta-label std-ndt-cmm-label">CMM No:</div>
+                    <div class="std-manual-ref-box std-ndt-cmm-box">{{ $manualNumber }}</div>
                 </div>
             </div>
 
@@ -195,6 +188,12 @@
                 @endforeach
             </div>
 
+            <div class="std-table-summary">
+                {{ __('Total QTY:') }} <strong>{{ $ndtSums['total'] ?? 0 }}</strong>
+                ( {{ __('MPI:') }} <strong>{{ $ndtSums['mpi'] ?? 0 }}</strong> {{ __(' ; ') }}
+                {{ __('FPI:') }} <strong>{{ $ndtSums['fpi'] ?? 0 }}</strong> )
+            </div>
+
             <footer class="std-footer">
                 <div class="std-footer-grid">
                     <div class="std-footer-left">{{ __('Form #016') }}</div>
@@ -204,10 +203,6 @@
                     </div>
                     <div class="std-footer-right">
                         {{ __('Rev#0, 15/Dec/2012') }}
-                        <br>
-                        {{ __('Total QTY:') }} <strong>{{ $ndtSums['total'] ?? 0 }}</strong>
-                        ( {{ __('MPI:') }} <strong>{{ $ndtSums['mpi'] ?? 0 }}</strong> {{ __(' ; ') }}
-                        {{ __('FPI:') }} <strong>{{ $ndtSums['fpi'] ?? 0 }}</strong> )
                     </div>
                 </div>
             </footer>

@@ -171,6 +171,68 @@ class ManualStdProcessTableTest extends TestCase
         ]);
     }
 
+    public function test_flag_sync_refreshes_existing_std_qty_and_eff_without_overwriting_process(): void
+    {
+        $manual = $this->createManual();
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '8-240A',
+            'part_number' => 'PN-SYNC-EFF',
+            'name' => 'Sync Eff Part',
+            'units_assy' => 2,
+            'eff_code' => null,
+            'cad_list' => false,
+        ]);
+
+        StdProcess::query()->create([
+            'manual_id' => $manual->id,
+            'component_id' => $component->id,
+            'std' => StdProcess::STD_CAD,
+            'process' => 'CUSTOM CAD PROCESS',
+            'qty' => 9,
+            'eff_code' => 'STALE',
+        ]);
+
+        $component->updateQuietly(['cad_list' => true]);
+        StdProcess::syncFromComponentFlagsForManual($manual);
+
+        $this->assertDatabaseHas('std_processes', [
+            'manual_id' => $manual->id,
+            'component_id' => $component->id,
+            'std' => StdProcess::STD_CAD,
+            'process' => 'CUSTOM CAD PROCESS',
+            'qty' => 2,
+            'eff_code' => null,
+        ]);
+    }
+
+    public function test_flag_sync_removes_std_rows_for_deleted_parts(): void
+    {
+        $manual = $this->createManual();
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '7-300A',
+            'part_number' => '1840-0084',
+            'name' => 'Roller, Uplock',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+
+        StdProcess::syncFromComponentFlagsForManual($manual);
+        $stdRow = StdProcess::query()
+            ->where('manual_id', $manual->id)
+            ->where('std', StdProcess::STD_NDT)
+            ->where('component_id', $component->id)
+            ->firstOrFail();
+
+        $component->delete();
+        StdProcess::syncFromComponentFlagsForManual($manual);
+
+        $this->assertDatabaseMissing('std_processes', [
+            'id' => $stdRow->id,
+        ]);
+    }
+
     public function test_manual_std_delete_clears_part_flag(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -276,6 +338,80 @@ class ManualStdProcessTableTest extends TestCase
         $response->assertJsonPath('row.qty', 5);
         $response->assertJsonPath('row.process', '2');
         $response->assertJsonPath('row.eff_code', 'A, B');
+    }
+
+    public function test_manual_std_ajax_update_allows_full_manuals_access_user(): void
+    {
+        $user = $this->createUserWithRole('Technician', [
+            'notification_prefs' => ['manuals_full_access' => true],
+        ]);
+        $manual = $this->createManual();
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '7-38',
+            'part_number' => 'PN-FULL-ACCESS-STD',
+            'name' => 'Full Access Std Part',
+            'units_assy' => 1,
+            'cad_list' => true,
+        ]);
+        $this->attachManualProcess($manual->id, 'Cad plate', '', '1');
+        $this->attachManualProcess($manual->id, 'Cad plate', '', '2');
+        StdProcess::syncFromComponentFlagsForManual($manual);
+        $stdRow = StdProcess::query()
+            ->where('manual_id', $manual->id)
+            ->where('component_id', $component->id)
+            ->where('std', StdProcess::STD_CAD)
+            ->firstOrFail();
+
+        $response = $this->actingAs($user)->putJson(route('manuals.std-processes.update', [
+            'manual' => $manual->id,
+            'stdProcess' => $stdRow->id,
+        ]), [
+            'qty' => 2,
+            'process' => '2',
+            'eff_code' => '',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('row.process', '2');
+        $this->assertDatabaseHas('std_processes', [
+            'id' => $stdRow->id,
+            'process' => '2',
+            'qty' => 2,
+        ]);
+    }
+
+    public function test_manual_std_ajax_update_still_denies_user_without_manual_access(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $manual = $this->createManual();
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '7-39',
+            'part_number' => 'PN-NO-ACCESS-STD',
+            'name' => 'No Access Std Part',
+            'units_assy' => 1,
+            'cad_list' => true,
+        ]);
+        $this->attachManualProcess($manual->id, 'Cad plate', '', '1');
+        $this->attachManualProcess($manual->id, 'Cad plate', '', '2');
+        StdProcess::syncFromComponentFlagsForManual($manual);
+        $stdRow = StdProcess::query()
+            ->where('manual_id', $manual->id)
+            ->where('component_id', $component->id)
+            ->where('std', StdProcess::STD_CAD)
+            ->firstOrFail();
+
+        $response = $this->actingAs($user)->putJson(route('manuals.std-processes.update', [
+            'manual' => $manual->id,
+            'stdProcess' => $stdRow->id,
+        ]), [
+            'qty' => 2,
+            'process' => '2',
+        ]);
+
+        $response->assertForbidden();
     }
 
     public function test_manual_std_update_invalidates_existing_workorder_snapshot(): void

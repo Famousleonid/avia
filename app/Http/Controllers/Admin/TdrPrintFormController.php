@@ -20,7 +20,9 @@ use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\WoBushingLine;
 use App\Models\Workorder;
+use App\Models\WorkorderUnitInspection;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\WorkorderStdProcessItemsService;
 use App\Services\WorkorderStdListProcessesService;
@@ -157,7 +159,246 @@ class TdrPrintFormController extends Controller
         // Передаём все компоненты без предварительного разбиения
         // Это позволяет управлять количеством строк на странице через Print Settings
 
-        return view('admin.tdrs.prlForm', compact('current_wo', 'components','manuals', 'builders', 'codes','necessaries', 'ordersParts', 'uniqueManuals', 'hasMultipleManuals'));
+        return $this->renderPrlForm($current_wo, $ordersParts);
+    }
+
+    public function bushingPrlForm(Request $request, $id)
+    {
+        $current_wo = Workorder::findOrFail($id);
+        $ordersParts = $this->buildBushingPrlRows($current_wo);
+
+        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST');
+    }
+
+    public function bushPrlForm(Request $request, $id)
+    {
+        $current_wo = Workorder::findOrFail($id);
+        $ordersParts = $this->buildBushingPrlRows($current_wo);
+
+        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST');
+    }
+
+    public function kitForm(Request $request, $id)
+    {
+        $current_wo = Workorder::findOrFail($id);
+        $ordersParts = $this->buildKitPrlRows($current_wo);
+
+        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST - KIT');
+    }
+
+    private function renderPrlForm(Workorder $current_wo, $ordersParts, string $formTitle = 'PARTS REPLACEMENT LIST')
+    {
+        $manual_id = $current_wo->unit->manual_id;
+        $components = $this->filterComponentsForUnit(
+            Component::where('manual_id', $manual_id)->get(),
+            $current_wo
+        );
+        $builders = Builder::all();
+        $codes = Code::all();
+        $necessaries = Necessary::all();
+        $manuals = Manual::where('id', $manual_id)
+            ->with('builder')
+            ->get();
+        $ordersParts = collect($ordersParts)->values();
+        $uniqueManuals = $ordersParts->map(function ($tdr) {
+            return is_array($tdr) ? ($tdr['manual'] ?? null) : ($tdr->manual ?? null);
+        })->filter(function ($manual) {
+            return $manual !== null && $manual !== '';
+        })->unique()->values()->toArray();
+        $hasMultipleManuals = count($uniqueManuals) > 1;
+
+        return view('admin.tdrs.prlForm', compact(
+            'current_wo',
+            'components',
+            'manuals',
+            'builders',
+            'codes',
+            'necessaries',
+            'ordersParts',
+            'uniqueManuals',
+            'hasMultipleManuals',
+            'formTitle'
+        ));
+    }
+
+    private function buildBushingPrlRows(Workorder $workorder)
+    {
+        return WoBushingLine::query()
+            ->where(function ($query) use ($workorder): void {
+                $query->where('workorder_id', $workorder->id)
+                    ->orWhereHas('woBushing', fn ($woBushing) => $woBushing->where('workorder_id', $workorder->id));
+            })
+            ->with(['component' => function ($query): void {
+                $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
+                    ->with('manual:id,number');
+            }])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (WoBushingLine $line): bool => $line->component !== null)
+            ->sort(function (WoBushingLine $left, WoBushingLine $right): int {
+                $manualCompare = strnatcasecmp(
+                    (string) ($left->component->manual->number ?? ''),
+                    (string) ($right->component->manual->number ?? '')
+                );
+                if ($manualCompare !== 0) {
+                    return $manualCompare;
+                }
+
+                $iplCompare = StdProcess::compareIplValues(
+                    (string) ($left->component->ipl_num ?? ''),
+                    (string) ($right->component->ipl_num ?? '')
+                );
+                if ($iplCompare !== 0) {
+                    return $iplCompare;
+                }
+
+                return strnatcasecmp(
+                    (string) ($left->component->part_number ?? ''),
+                    (string) ($right->component->part_number ?? '')
+                );
+            })
+            ->map(function (WoBushingLine $line): array {
+                $row = $this->makePrlArrayRow(
+                    $line->component,
+                    max(1, (int) ($line->qty ?? 1))
+                );
+                $row['codes'] = ['code' => 'K'];
+
+                return $row;
+            })
+            ->values();
+    }
+
+    private function buildKitPrlRows(Workorder $workorder)
+    {
+        $manualId = (int) ($workorder->unit->manual_id ?? 0);
+        $kitComponents = $this->filterComponentsForUnit(
+            Component::query()
+                ->where('manual_id', $manualId)
+                ->where('kit', true)
+                ->where(function ($query): void {
+                    $query->where('is_bush', false)->orWhereNull('is_bush');
+                })
+                ->with('manual:id,number')
+                ->get(),
+            $workorder
+        );
+        $extraComponents = $this->filterComponentsForUnit(
+            Component::query()
+                ->where('manual_id', $manualId)
+                ->where('kit_e', true)
+                ->where(function ($query): void {
+                    $query->where('is_bush', false)->orWhereNull('is_bush');
+                })
+                ->with('manual:id,number')
+                ->get(),
+            $workorder
+        );
+
+        $rows = $this->buildKitPrlRowsForComponents($kitComponents, 'KIT');
+        $extraRows = $this->buildKitPrlRowsForComponents($extraComponents, '');
+
+        if ($extraRows->isNotEmpty()) {
+            $rows = $rows
+                ->concat([[
+                    'kind' => 'section',
+                    'section_title' => 'EXTRA PARTS',
+                    'manual' => null,
+                ]])
+                ->concat($extraRows)
+                ->values();
+        }
+
+        return $rows;
+    }
+
+    private function buildKitPrlRowsForComponents($components, string $code)
+    {
+        return $components
+            ->groupBy(fn (Component $component): string => $this->numericIplGroupKey((string) ($component->ipl_num ?? ''), (int) $component->id))
+            ->map(function ($group, string $groupKey) use ($code) {
+                /** @var \Illuminate\Support\Collection<int, Component> $group */
+                $sorted = $group->sort(function (Component $left, Component $right): int {
+                    $iplCompare = StdProcess::compareIplValues(
+                        (string) ($left->ipl_num ?? ''),
+                        (string) ($right->ipl_num ?? '')
+                    );
+                    if ($iplCompare !== 0) {
+                        return $iplCompare;
+                    }
+
+                    return strnatcasecmp((string) ($left->part_number ?? ''), (string) ($right->part_number ?? ''));
+                })->values();
+                $representative = $sorted->first();
+                $qty = $sorted->sum(fn (Component $component): int => max(1, (int) ($component->units_assy ?? 1)));
+
+                $row = $this->makePrlArrayRow($representative, max(1, (int) $qty));
+                $row['sort_ipl_num'] = str_starts_with($groupKey, 'component-')
+                    ? (string) ($representative->ipl_num ?? '')
+                    : $groupKey;
+                $row['component']['ipl_num'] = $sorted
+                    ->pluck('ipl_num')
+                    ->filter()
+                    ->unique()
+                    ->implode("\n");
+                $row['component']['part_number'] = $sorted
+                    ->pluck('part_number')
+                    ->filter()
+                    ->unique()
+                    ->implode("\n");
+                $row['component']['name'] = $sorted
+                    ->pluck('name')
+                    ->filter()
+                    ->unique()
+                    ->implode("\n");
+                $row['codes'] = ['code' => $code];
+
+                return $row;
+            })
+            ->sort(function (array $left, array $right): int {
+                $leftComponent = $left['component'] ?? [];
+                $rightComponent = $right['component'] ?? [];
+
+                return StdProcess::compareIplValues(
+                    (string) ($left['sort_ipl_num'] ?? $leftComponent['ipl_num'] ?? ''),
+                    (string) ($right['sort_ipl_num'] ?? $rightComponent['ipl_num'] ?? '')
+                );
+            })
+            ->values();
+    }
+
+    private function makePrlArrayRow(Component $component, int $qty): array
+    {
+        return [
+            'manual' => $component->manual->number ?? null,
+            'component' => [
+                'id' => $component->id,
+                'name' => $component->name,
+                'part_number' => $component->part_number,
+                'ipl_num' => $component->ipl_num,
+                'assy_part_number' => $component->assy_part_number,
+                'assy_ipl_num' => $component->assy_ipl_num,
+            ],
+            'qty' => $qty,
+            'codes' => ['code' => ''],
+            'po_num' => '',
+            'notes' => '',
+        ];
+    }
+
+    private function numericIplGroupKey(string $ipl, ?int $componentId = null): string
+    {
+        $normalized = strtoupper(trim($ipl));
+        $withoutSuffix = preg_replace('/([0-9])[^0-9-]*$/', '$1', $normalized) ?? $normalized;
+        $digitsOnly = preg_replace('/[^0-9]+/', '-', $withoutSuffix) ?? $withoutSuffix;
+        $digitsOnly = trim($digitsOnly, '-');
+
+        if ($digitsOnly !== '') {
+            return $digitsOnly;
+        }
+
+        return $normalized !== '' ? $normalized : 'component-' . (string) ($componentId ?? 0);
     }
 
     public function ndtStd(Request $request, $workorder_id)
@@ -604,8 +845,9 @@ class TdrPrintFormController extends Controller
             if (property_exists($target, '_item_display_values') && property_exists($component, 'item_display')) {
                 $target->_item_display_values = $this->appendUniqueStdCollapsedValue($target->_item_display_values, (string) ($component->item_display ?? ''));
             }
+            $target->_part_number_values = $this->appendUniqueStdCollapsedValue($target->_part_number_values, (string) ($component->part_number ?? ''));
+            $target->_description_values = $this->appendUniqueStdCollapsedValue($target->_description_values, (string) ($component->name ?? ''));
 
-            $target->qty = max(0, (int) ($target->qty ?? 0)) + max(0, (int) ($component->qty ?? 0));
             $this->applyCollapsedStdRowDisplay($target);
 
             $collapsed[$index] = $target;
@@ -624,16 +866,17 @@ class TdrPrintFormController extends Controller
 
         $baseIpl = strtoupper((string) ($matches[1] ?? ''));
         $manual = trim((string) ($component->manual ?? ''));
-        $name = mb_strtoupper(trim((string) ($component->name ?? '')));
         $process = trim((string) ($component->process_name ?? ''));
 
-        return implode('|', [$manual, $baseIpl, $name, $process]);
+        return implode('|', [$manual, $baseIpl, $process]);
     }
 
     private function initializeCollapsedStdRowValues(\stdClass $component): void
     {
         $component->sort_ipl_num = (string) ($component->sort_ipl_num ?? $component->ipl_num ?? '');
         $component->_ipl_values = $this->appendUniqueStdCollapsedValue([], (string) ($component->ipl_num ?? ''));
+        $component->_part_number_values = $this->appendUniqueStdCollapsedValue([], (string) ($component->part_number ?? ''));
+        $component->_description_values = $this->appendUniqueStdCollapsedValue([], (string) ($component->name ?? ''));
         if (property_exists($component, 'item_display')) {
             $component->_item_display_values = $this->appendUniqueStdCollapsedValue([], (string) ($component->item_display ?? ''));
         }
@@ -662,6 +905,8 @@ class TdrPrintFormController extends Controller
         $lineCount = max(1, count($iplValues));
 
         $component->ipl_num = implode("\n", $iplValues);
+        $component->part_number = implode("\n", $component->_part_number_values ?? []);
+        $component->name = implode("\n", $component->_description_values ?? []);
         $component->row_line_count = $lineCount;
         $component->row_height = 32 + (($lineCount - 1) * 16);
 
@@ -958,6 +1203,7 @@ class TdrPrintFormController extends Controller
                     'process_name_id' => $process->process_names_id,
                     'number_line' => $numberLine,
                     'ec' => $process->ec,
+                    'repair_order' => trim((string) ($process->repair_order ?? '')),
                 ]);
             });
         }
@@ -974,6 +1220,7 @@ class TdrPrintFormController extends Controller
             return [
                 'tdrs_id' => $item['tdrs_id'],
                 'number_line' => $item['number_line'],
+                'repair_order' => $item['repair_order'] ?? '',
             ];
         });
 
@@ -1190,6 +1437,7 @@ class TdrPrintFormController extends Controller
                     'process_name_id' => $process->process_names_id,
                     'number_line' => $num,
                     'ec' => $process->ec,
+                    'repair_order' => trim((string) ($process->repair_order ?? '')),
                 ]);
             });
         }
@@ -1203,6 +1451,7 @@ class TdrPrintFormController extends Controller
             return [
                 'tdrs_id' => $item['tdrs_id'],
                 'number_line' => $item['number_line'],
+                'repair_order' => $item['repair_order'] ?? '',
             ];
         });
 
@@ -1311,6 +1560,46 @@ class TdrPrintFormController extends Controller
         $necessaryComponents = []; // Для строк, где component_id !== null и necessaries_id !== Order New
         $hasMissingComponents = false; // Флаг наличия компонентов с кодом Missing
 
+        $missingConditionName = 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST';
+        $unitInspections = WorkorderUnitInspection::query()
+            ->with('condition:id,name')
+            ->where('workorder_id', $current_wo->id)
+            ->where(function ($query) {
+                $query->where('use_tdr', true)
+                    ->orWhereNull('use_tdr');
+            })
+            ->orderBy('id')
+            ->get();
+
+        $unitInspectionLines = $unitInspections
+            ->map(function (WorkorderUnitInspection $inspection) use ($missingConditionName) {
+                $conditionName = trim((string) ($inspection->condition->name ?? ''));
+                $notes = trim((string) ($inspection->notes ?? ''));
+
+                if (strcasecmp($conditionName, $missingConditionName) === 0) {
+                    return null;
+                }
+
+                if ($conditionName !== '' && preg_match('/^note\s+\d+$/i', $conditionName)) {
+                    return $notes !== '' ? $notes : null;
+                }
+
+                if ($conditionName === '') {
+                    return $notes !== '' ? $notes : null;
+                }
+
+                return $notes !== '' ? $conditionName . ' (' . $notes . ')' : $conditionName;
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        $unitInspectionSourceTdrIds = $unitInspections
+            ->pluck('source_tdr_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
         foreach ($current_wo->tdrs as $tdr) {
             // Проверяем наличие компонентов с кодом Missing
             if ($tdr->codes_id == $code->id) {
@@ -1320,6 +1609,10 @@ class TdrPrintFormController extends Controller
 
             // Строки с component_id == null
             if ($tdr->component_id === null) {
+                if (in_array((int) $tdr->id, $unitInspectionSourceTdrIds, true)) {
+                    continue;
+                }
+
                 $conditions = $tdr->conditions; // Получаем данные о состоянии
                 if ($conditions) {
                     $description = trim((string) $tdr->description);
@@ -1430,14 +1723,14 @@ class TdrPrintFormController extends Controller
 
         // Если есть компоненты с кодом Missing, добавляем строку в $nullComponentConditions
         if ($hasMissingComponents) {
-            $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+            $missingCondition = Condition::where('name', $missingConditionName)->first();
             if ($missingCondition) {
                 $nullComponentConditions[] = $missingCondition->name;
             }
         }
 
 // Объединяем все строки в правильном порядке
-        $tdrInspections = [];
+        $tdrInspections = $unitInspectionLines;
 
 // Добавляем строки с component_id == null
         if (!empty($nullComponentConditions)) {
@@ -1692,32 +1985,9 @@ class TdrPrintFormController extends Controller
         $currentWo = Workorder::findOrFail($workorder_id);
         $rows = StdProcess::snapshotComponentsForWorkorder($currentWo, StdProcess::STD_NDT);
 
-        return $this->calcNdtSumsFromRows($rows);
-    }
-
-    private function calcNdtSumsFromRows(array $rows): array
-    {
-
-        $total = 0;
-        $mpi = 0;
-        $fpi = 0;
-
-        foreach ($rows as $row) {
-            $qty = (int) ($row['qty'] ?? 0);
-            $bucket = $this->resolvePrimaryNdtBucket((string) ($row['process'] ?? ''));
-
-            $total += $qty;
-
-            if ($bucket === 1) {
-                $mpi += $qty;
-            }
-
-            if ($bucket === 4) {
-                $fpi += $qty;
-            }
-        }
-
-        return ['total' => $total, 'mpi' => $mpi, 'fpi' => $fpi];
+        return $this->calcNdtSumsFromFormComponents(
+            $this->stdSnapshotRowsToFormComponents($rows)
+        );
     }
 
     private function calcNdtSumsFromFormComponents(array $components): array
@@ -1773,7 +2043,9 @@ class TdrPrintFormController extends Controller
         $currentWo = Workorder::findOrFail($workorder_id);
         $rows = StdProcess::snapshotComponentsForWorkorder($currentWo, StdProcess::STD_CAD);
 
-        return $this->calcStdTotalsFromRows($rows);
+        return $this->calcCadSumsFromComponents(
+            $this->stdSnapshotRowsToFormComponents($rows)
+        );
     }
 
     private function calcStdTotalsFromComponents($components): array

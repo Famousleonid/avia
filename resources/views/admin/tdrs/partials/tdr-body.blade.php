@@ -454,7 +454,12 @@
                 <tbody>
                 @if($hasMissingParts && $missingCondition)
                     <tr>
-                        <td class="text-center fs-8">{{ $missingCondition->name }}</td>
+                        <td class="text-center fs-8">
+                            <span>
+                                {{ $missingCondition->name }}
+                                <span class="badge bg-primary rounded-pill ms-1 align-middle" style="font-size: 0.78em;">{{ $missingPartsCount ?? 0 }}</span>
+                            </span>
+                        </td>
                         <td class="text-center img-icon p-0">
                             <img src="{{ asset('img/missing.gif') }}" alt="missing" class="d-block"
                                  style="width: 55px;"
@@ -467,7 +472,7 @@
                         <td class="text-center">
                             <span class="position-relative d-inline-block">
                                 ORDERED PARTS
-                                <sup class="badge bg-primary rounded-pill position-absolute" style="top: 0.1em; right: -3.0em; font-size: 0.65em;">{{ $orderedPartsCount ?? 0 }}</sup>
+                                <sup class="badge bg-primary rounded-pill align-super ms-1" style="font-size: 0.78em;">{{ $orderedPartsCount ?? 0 }}</sup>
                             </span>
                         </td>
                         <td class="p-0 text-center img-icon" style="height: 55px; width: 55px; overflow: hidden;">

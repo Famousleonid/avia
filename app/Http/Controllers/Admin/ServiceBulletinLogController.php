@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ManualServiceBulletin;
 use App\Models\Workorder;
 use App\Models\WorkorderServiceBulletinLog;
+use App\Services\LogCardTdrAccessService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,10 +14,14 @@ use Illuminate\View\View;
 
 class ServiceBulletinLogController extends Controller
 {
+    private const LOCKED_MESSAGE = 'Service Bulletin Log editing is locked after Post Disassembly inspection date is filled. Please contact Quality Manager.';
+
     public function show(Workorder $workorder): View
     {
         $workorder->loadMissing(['unit.manuals', 'serviceBulletinLogs.stampUser']);
         $manual = $workorder->unit?->manuals;
+        $serviceBulletinAccess = app(LogCardTdrAccessService::class)
+            ->forWorkorder($workorder, Auth::user(), 'Service Bulletin Log');
 
         $serviceBulletins = collect();
         if ($manual) {
@@ -37,6 +42,7 @@ class ServiceBulletinLogController extends Controller
             'serviceBulletins' => $serviceBulletins,
             'logsByBulletin' => $logsByBulletin,
             'statusOptions' => $this->statusOptions(),
+            'serviceBulletinAccess' => $serviceBulletinAccess,
         ]);
     }
 
@@ -45,6 +51,15 @@ class ServiceBulletinLogController extends Controller
         $workorder->loadMissing(['unit.manuals']);
         $manual = $workorder->unit?->manuals;
         abort_if(! $manual, 404);
+
+        $access = app(LogCardTdrAccessService::class)
+            ->forWorkorder($workorder, Auth::user(), 'Service Bulletin Log');
+
+        if ($access['read_only'] ?? false) {
+            return redirect()
+                ->route('tdrs.serviceBulletinLog', ['workorder' => $workorder->id])
+                ->withErrors(['service_bulletin_log' => $access['message'] ?? self::LOCKED_MESSAGE]);
+        }
 
         $statusValues = implode(',', array_keys($this->statusOptions()));
 

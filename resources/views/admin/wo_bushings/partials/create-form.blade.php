@@ -108,23 +108,6 @@
             <i class="fas fa-exchange-alt"></i> {{ __('Add from Manual') }}
         </button>
         @endif
-        @if($embed)
-        <button type="button" class="btn btn-outline-primary btn-sm open-add-processes-modal" data-add-processes-url="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => $returnTo ?? route('wo_bushings.create', $current_wo->id)]) }}">
-            <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
-        </button>
-        <button type="button" class="btn btn-outline-primary btn-sm open-add-part-modal" data-add-part-url="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => $returnTo ?? route('wo_bushings.create', $current_wo->id)]) }}">
-            <i class="fas fa-plus"></i> {{ __('Add Part') }}
-        </button>
-        @else
-        <a href="{{ route('processes.create', ['manual_id' => $current_wo->unit->manual_id, 'return_to' => route('wo_bushings.create', $current_wo->id)]) }}"
-           class="btn btn-outline-primary btn-sm">
-            <i class="fas fa-cogs"></i> {{ __('Add Processes') }}
-        </a>
-        <a href="{{ route('components.create', ['manual_id' => $current_wo->unit->manual_id ?? null, 'redirect' => route('wo_bushings.create', $current_wo->id)]) }}"
-           class="btn btn-outline-primary btn-sm">
-            <i class="fas fa-plus"></i> {{ __('Add Component') }}
-        </a>
-        @endif
     </div>
     <div class="table-wrapper" style="max-height: 65vh; overflow: auto; margin-right: 0; padding-right: 0;">
         <table class="display table shadow table-hover align-middle table-bordered dir-table mb-0 bushing-create-table">

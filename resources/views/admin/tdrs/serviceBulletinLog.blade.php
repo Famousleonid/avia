@@ -10,6 +10,8 @@
 @php
     $firstPageRows = 10;
     $rowsPerPage = 9;
+    $serviceBulletinReadOnly = (bool) ($serviceBulletinAccess['read_only'] ?? false);
+    $serviceBulletinReadOnlyMessage = $serviceBulletinAccess['message'] ?? null;
     $bulletinPages = collect();
     if ($serviceBulletins->isNotEmpty()) {
         $bulletinPages->push($serviceBulletins->take($firstPageRows)->values());
@@ -27,11 +29,15 @@
 
         <div class="sb-screen-actions">
             <button class="sb-print" type="button" onclick="window.print()">Print</button>
-            <button class="sb-save" type="submit">
+            <button class="sb-save" type="submit" @disabled($serviceBulletinReadOnly)>
                 <span class="sb-save-spinner" aria-hidden="true"></span>
                 <span class="sb-save-text">Save</span>
             </button>
         </div>
+
+        @if($serviceBulletinReadOnly && $serviceBulletinReadOnlyMessage)
+            <p class="sb-message sb-readonly-message">{{ $serviceBulletinReadOnlyMessage }}</p>
+        @endif
 
         @if(! $manual)
             <p class="sb-empty">This work order does not have a manual assigned through its unit.</p>
@@ -103,7 +109,7 @@
                                     @foreach($statusOptions as $status => $label)
                                         <td class="sb-status-cell">
                                             <label class="sb-stamp-option">
-                                                <input type="radio" name="rows[{{ $bulletin->id }}][status]" value="{{ $status }}" @checked($currentStatus === $status)>
+                                                <input type="radio" name="rows[{{ $bulletin->id }}][status]" value="{{ $status }}" @checked($currentStatus === $status) @disabled($serviceBulletinReadOnly)>
                                                 <span class="sb-screen-stamp">STAMP</span>
                                                 <span class="sb-print-stamp {{ $currentStatus === null ? 'is-na' : ($currentStatus === $status && $stampNumber !== '' ? 'is-selected' : 'is-placeholder') }}">{{ $currentStatus === null ? 'N/A' : ($currentStatus === $status && $stampNumber !== '' ? $stampNumber : 'STAMP') }}</span>
                                             </label>
@@ -118,7 +124,7 @@
                                         <div class="sb-notes-strip">
                                             <label>
                                                 <span>Notes</span>
-                                                <input type="text" name="rows[{{ $bulletin->id }}][notes]" value="{{ old("rows.{$bulletin->id}.notes", $log?->notes) }}">
+                                                <input type="text" name="rows[{{ $bulletin->id }}][notes]" value="{{ old("rows.{$bulletin->id}.notes", $log?->notes) }}" @disabled($serviceBulletinReadOnly)>
                                             </label>
                                             @if($log?->stampUser || $log?->stamped_at)
                                                 <span class="sb-stamp-meta">
@@ -129,7 +135,7 @@
                                                     @endif
                                                 </span>
                                             @endif
-                                            <button class="sb-clear-status" type="button" data-bulletin-id="{{ $bulletin->id }}">
+                                            <button class="sb-clear-status" type="button" data-bulletin-id="{{ $bulletin->id }}" @disabled($serviceBulletinReadOnly)>
                                                 <span class="sb-clear-spinner" aria-hidden="true"></span>
                                                 <span class="sb-clear-text">Clear status</span>
                                             </button>

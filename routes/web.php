@@ -278,6 +278,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/get-components-by-manual', [TdrController::class, 'getComponentsByManual'])->name('tdrs.get-components-by-manual');
         Route::get('tdrs/tdrForm/{id}', [TdrPrintFormController::class, 'tdrForm'])->name('tdrs.tdrForm');
         Route::get('tdrs/prlForm/{id}', [TdrPrintFormController::class, 'prlForm'])->name('tdrs.prlForm');
+        Route::get('tdrs/bushingPrlForm/{id}', [TdrPrintFormController::class, 'bushingPrlForm'])->name('tdrs.bushingPrlForm');
+        Route::get('tdrs/bushPrlForm/{id}', [TdrPrintFormController::class, 'bushPrlForm'])->name('tdrs.bushPrlForm');
+        Route::get('tdrs/kitForm/{id}', [TdrPrintFormController::class, 'kitForm'])->name('tdrs.kitForm');
         Route::get('tdrs/specProcessForm/{id}', [TdrPrintFormController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
     Route::get('tdrs/specProcessFormEmp/{id}', [TdrPrintFormController::class, 'specProcessFormEmp'])->name('tdrs.specProcessFormEmp');
         Route::post('tdrs/update-part-field/{id}', [TdrController::class, 'updatePartField'])->name('tdrs.updatePartField');
@@ -406,6 +409,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     Route::get('/quality-assurance', [QualityAssuranceController::class, 'index'])->name('quality.index');
     Route::get('/quality-assurance/workorder', [QualityAssuranceController::class, 'workorder'])->name('quality.workorder');
+    Route::get('/quality-assurance/serial-search', [QualityAssuranceController::class, 'serialSearch'])->name('quality.serial_search');
     Route::post('/quality-assurance/units', [QualityAssuranceController::class, 'storeUnit'])->name('quality.units.store');
     Route::patch('/quality-assurance/workorders/{workorder}/top-fields', [QualityAssuranceController::class, 'updateTopFields'])
         ->name('quality.workorder.top_fields.update');
