@@ -314,12 +314,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     // Components CSV routes - must be before resource route
     Route::post('/components/upload-csv', [ComponentController::class, 'uploadCsv'])->name('components.upload-csv');
     Route::get('/components/download-csv-template', [ComponentController::class, 'downloadCsvTemplate'])->name('components.download-csv-template');
-    Route::get('/components/csv-components', [ComponentController::class, 'csvComponents'])->name('components.csv-components');
-    Route::get('/components/view-csv/{manual_id}/{file_id}', [ComponentController::class, 'viewCsv'])->name('components.view-csv');
-    Route::get('/components/edit-csv/{manual_id}/{file_id}', [ComponentController::class, 'editCsv'])->name('components.edit-csv');
-    Route::post('/components/update-csv/{manual_id}/{file_id}', [ComponentController::class, 'updateCsv'])->name('components.update-csv');
-    Route::delete('/components/delete-csv/{manual_id}/{file_id}', [ComponentController::class, 'deleteCsv'])->name('components.delete-csv');
-    Route::get('/components/download-csv/{manual_id}/{file_id}', [ComponentController::class, 'downloadCsv'])->name('components.download-csv');
 
     // Components editing from inspection
     Route::get('/components/{component}/json', [ComponentController::class, 'showJson'])->name('components.showJson');

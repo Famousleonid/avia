@@ -561,10 +561,6 @@
                         {{__('Add Part')}}
                     </button>
 
-                    <!-- CSV Components -->
-                    <a href="{{ route('components.csv-components') }}" class="btn btn-outline-primary ms-5" style="height: 40px">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> {{__('CSV Parts')}}
-                    </a>
                 </div>
                 <script>
                     (() => {
@@ -974,15 +970,19 @@
                                             <li><strong>name</strong> - {{__('Part name (required)')}}</li>
                                             <li><strong>ipl_num</strong> - {{__('IPL number (required)')}}</li>
                                             <li><strong>assy_ipl_num</strong> - {{__('Assembly IPL number (optional)')}}</li>
+                                            <li><strong>units_assy</strong> - {{__('Units assy (optional)')}}</li>
                                             <li><strong>log_card</strong> - {{__('Log card (0 or 1, optional)')}}</li>
                                             <li><strong>is_bush</strong> - {{__('Is bushing (0 or 1, optional)')}}</li>
                                             <li><strong>kit</strong>, <strong>kit_e</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
                                             <li><strong>bush_ipl_num</strong> - {{__('Bushing IPL number (optional)')}}</li>
                                         </ul>
+                                        <div class="alert alert-warning mt-3 mb-0">
+                                            <small><i class="bi bi-exclamation-triangle"></i> <strong>{{__('EFF Code:')}}</strong> {{__('Do not include eff_code in Parts CSV. If the column is present, it will be ignored and will not create or update EFF Code.')}}</small>
+                                        </div>
                                         <div class="alert alert-info mt-3 mb-0">
                                             <small><i class="bi bi-info-circle"></i> <strong>{{__('Note:')}}</strong> {{__
                                             ('Exact duplicate parts will be automatically skipped. Multiple components with the
-                                            same part_number but different IPL numbers are allowed in the same manual. Uploaded CSV files will be saved and can be viewed later.')}}</small>
+                                            same part_number but different IPL numbers are allowed in the same manual. CSV files are processed once and are not stored.')}}</small>
                                         </div>
                                         <div class="mt-2">
                                             <a href="{{ route('components.download-csv-template') }}" class="btn btn-outline-secondary btn-sm">

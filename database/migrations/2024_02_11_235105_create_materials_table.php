@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
@@ -21,19 +20,6 @@ return new class extends Migration {
             $table->index('code');
             $table->index('specification');
         });
-
-        $csvFile = public_path('data/materials.csv');
-        $file = fopen($csvFile, 'r');
-        $headers = fgetcsv($file);
-        while (($row = fgetcsv($file)) !== false) {
-            DB::table('materials')->insert([
-                'code' => $row[1],
-                'material' => $row[2],
-                'specification' => $row[3],
-                'ver' => $row[4],
-            ]);
-        }
-        fclose($file);
 
     }
 

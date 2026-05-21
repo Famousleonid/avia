@@ -17,15 +17,6 @@ return new class extends Migration
             $table->id();
             $table->string('name');
         });
-        $csvFile = public_path('data/component_necessary.csv');
-        $file = fopen($csvFile, 'r');
-        $headers = fgetcsv($file);
-        while (($row = fgetcsv($file)) !== false) {
-            DB::table('necessaries')->insert([
-                'name' => $row[0],
-            ]);
-        }
-        fclose($file);
     }
 
     /**

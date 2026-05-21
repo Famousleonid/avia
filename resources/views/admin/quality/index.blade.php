@@ -277,12 +277,30 @@
             justify-self: end;
         }
 
+        .qa-top-row > .qa-block {
+            background: #343A40;
+        }
+
         .qa-repair-block {
             flex: 1 1 auto !important;
             display: flex;
             flex-direction: column;
             min-height: 0;
             margin-bottom: 0 !important;
+        }
+
+        .qa-repair-block .qa-block-title h6 {
+            font-size: .9rem;
+            font-weight: 500;
+        }
+
+        .qa-repair-block .table {
+            font-size: .78rem;
+        }
+
+        .qa-repair-block .table th,
+        .qa-repair-block .table td {
+            padding: .25rem .35rem;
         }
 
         .qa-table-scroll {
@@ -305,7 +323,7 @@
 
         .qa-submitted-cards {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: .75rem;
             padding: .75rem;
         }
@@ -314,8 +332,32 @@
             min-width: 0;
             border: 1px solid rgba(255, 255, 255, .08);
             border-radius: .55rem;
-            background: #1d2020;
+            background: #343A40;
             padding: .75rem .85rem;
+        }
+
+        .qa-submitted-card-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            align-items: center;
+            gap: .75rem;
+            margin-bottom: .6rem;
+            color: var(--bs-info);
+            font-size: .9rem;
+            font-weight: 500;
+        }
+
+        .qa-submitted-card-header--std,
+        .qa-submitted-std-line {
+            grid-template-columns: minmax(0, 1fr) minmax(6.8rem, max-content) minmax(6.8rem, max-content);
+            column-gap: .75rem;
+        }
+
+        .qa-submitted-card-header-date {
+            color: var(--bs-secondary-color);
+            font-size: .78rem;
+            font-weight: 700;
+            text-transform: uppercase;
         }
 
         .qa-submitted-card-line {
@@ -337,9 +379,40 @@
             overflow-wrap: anywhere;
         }
 
+        .qa-submitted-std-table {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(6.8rem, max-content) minmax(6.8rem, max-content);
+            gap: .7rem .75rem;
+            align-items: baseline;
+        }
+
+        .qa-submitted-std-name {
+            min-width: 0;
+            font-weight: 700;
+        }
+
+        .qa-submitted-std-head {
+            color: var(--bs-secondary-color);
+            font-size: .78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
         .qa-submitted-card-date {
             white-space: nowrap;
             font-weight: 600;
+        }
+
+        .qa-submitted-std-line > .qa-submitted-card-date,
+        .qa-submitted-card-header--std > .qa-submitted-card-header-date,
+        .qa-submitted-std-table > .qa-submitted-card-date,
+        .qa-submitted-std-table > .qa-submitted-std-head {
+            text-align: right;
+        }
+
+        .qa-submitted-card-date--wide {
+            white-space: normal;
+            text-align: right;
         }
 
         .qa-block.is-highlighted {
@@ -347,30 +420,94 @@
             outline-offset: 2px;
         }
 
+        .qa-submitted-card.is-highlighted {
+            box-shadow:
+                inset 0 2px 0 var(--bs-info),
+                inset 0 -2px 0 var(--bs-info);
+        }
+
         .qa-info-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: .35rem .75rem;
-            padding: .5rem .7rem;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: .28rem .85rem;
+            padding: .45rem .7rem;
         }
 
         .qa-info-item {
             min-width: 0;
+            display: flex;
+            align-items: baseline;
+            gap: .35rem;
             line-height: 1.25;
         }
 
+        .qa-info-item-open-date {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .qa-info-item-technician {
+            grid-column: 1;
+            grid-row: 1;
+        }
+
+        .qa-info-item-customer {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .qa-info-item-instruction {
+            grid-column: 3;
+            grid-row: 1;
+        }
+
+        .qa-info-item-manual {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        .qa-info-item-manual-revision {
+            grid-column: 2;
+            grid-row: 2;
+        }
+
+        .qa-info-item-modified,
+        .qa-info-item-serial {
+            justify-content: flex-end;
+        }
+
+        .qa-info-item-modified {
+            grid-column: 5;
+            grid-row: 1;
+        }
+
+        .qa-info-item-serial {
+            grid-column: 4;
+            grid-row: 1;
+        }
+
+        .qa-info-item-modified .qa-info-edit,
+        .qa-info-item-serial .qa-info-edit {
+            flex: 0 1 7.5rem;
+            max-width: 7.5rem;
+        }
+
         .qa-info-label {
+            flex: 0 0 auto;
             font-size: .74rem;
             color: var(--bs-secondary-color);
+            white-space: nowrap;
         }
 
         .qa-info-value {
+            min-width: 0;
             overflow-wrap: anywhere;
         }
 
         .qa-info-edit {
             display: block;
-            width: 100%;
+            flex: 1 1 auto;
+            width: auto;
             min-width: 0;
             border: 0;
             border-bottom: 1px dashed rgba(13, 202, 240, .6);
@@ -412,7 +549,10 @@
             grid-template-columns: max-content minmax(0, 1fr);
             align-items: center;
             column-gap: .45rem;
-            grid-column: span 2;
+            grid-column: 4 / 6;
+            grid-row: 2;
+            justify-self: end;
+            width: 100%;
         }
 
         .qa-info-item-component-pn .qa-info-label {
@@ -426,25 +566,25 @@
         }
 
         .qa-info-unit-row .select2-container--default .select2-selection--single {
-            height: 1.25rem !important;
-            min-height: 1.25rem !important;
+            height: 1rem !important;
+            min-height: 1rem !important;
             border: 0;
             border-bottom: 1px dashed rgba(13, 202, 240, .6);
             border-radius: 0;
             background: transparent;
             padding: 0 !important;
-            width: 58.8235%;
+            width: 100%;
         }
 
         .qa-info-unit-row .select2-container--default .select2-selection--single .select2-selection__rendered {
             color: var(--bs-body-color);
-            line-height: 1.25rem;
+            line-height: 1rem;
             padding: 0 1.2rem 0 0 !important;
-            font-size: .92rem;
+            font-size: .82rem;
         }
 
         .qa-info-unit-row .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 1.25rem;
+            height: 1rem;
             top: 0;
             right: 0;
         }
@@ -610,13 +750,13 @@
             flex-wrap: wrap;
             align-items: flex-start;
             justify-content: flex-end;
-            gap: .65rem;
-            padding: .65rem .75rem;
+            gap: .3rem;
+            padding: .45rem .6rem;
         }
 
         .qa-form-paper {
-            width: 90px;
-            height: 120px;
+            width: 74px;
+            height: 99px;
             flex: 0 0 auto;
             cursor: default;
             text-decoration: none;
@@ -624,8 +764,8 @@
 
         .qa-form-paper svg {
             display: block;
-            width: 90px;
-            height: 120px;
+            width: 74px;
+            height: 99px;
             --paper: #d5d5d5;
             --fold: #0d6efd;
             --stroke: #0d6efd;
@@ -730,6 +870,23 @@
             .qa-info-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+
+            .qa-info-item-technician,
+            .qa-info-item-customer,
+            .qa-info-item-instruction,
+            .qa-info-item-manual,
+            .qa-info-item-manual-revision,
+            .qa-info-item-modified,
+            .qa-info-item-serial,
+            .qa-info-item-open-date {
+                grid-column: auto;
+                grid-row: auto;
+            }
+
+            .qa-info-item-component-pn {
+                grid-column: 1 / -1;
+                grid-row: auto;
+            }
         }
 
         @media (max-width: 767.98px) {
@@ -747,7 +904,9 @@
             }
 
             .qa-info-item-component-pn {
-                grid-column: auto;
+                grid-column: 1;
+                justify-self: stretch;
+                width: 100%;
             }
 
             .qa-info-unit-row .select2-container--default .select2-selection--single {
@@ -956,18 +1115,18 @@
                 serialClearButton.classList.toggle('is-visible', serialSearchInput.value.trim() !== '');
             };
 
-            const fieldHtml = (label, value, html = false) => `
-                <div class="qa-info-item">
+            const fieldHtml = (label, value, html = false, className = '') => `
+                <div class="qa-info-item ${escapeHtml(className)}">
                     <div class="qa-info-label">${escapeHtml(label)}</div>
                     <div class="qa-info-value">${html ? value : escapeHtml(value || '-')}</div>
                 </div>
             `;
 
-            const editableFieldHtml = (label, value, field) => {
+            const editableFieldHtml = (label, value, field, className = '') => {
                 const text = value && value !== '-' ? value : '';
 
                 return `
-                    <div class="qa-info-item">
+                    <div class="qa-info-item ${escapeHtml(className)}">
                         <label class="qa-info-label" for="qaTopField${escapeHtml(field)}">${escapeHtml(label)}</label>
                         <input id="qaTopField${escapeHtml(field)}"
                                class="qa-info-edit"
@@ -1044,14 +1203,15 @@
 
                 return `
                     <div class="qa-checks-line small">
-                        ${checks.map((check, index) => `
-                            ${index ? '<span class="qa-check-separator">&middot;</span>' : ''}
-                            <button type="button"
-                                    class="qa-check-button ${check.ok ? 'text-success' : 'text-danger'} fw-semibold"
-                                    data-qa-scroll="${escapeHtml(check.target || '')}">
-                                ${escapeHtml(check.label)}
-                            </button>
-                        `).join('')}
+                        ${checks.map((check, index) => {
+                            const className = `qa-check-button ${check.ok ? 'text-success' : 'text-danger'} fw-semibold`;
+                            const content = escapeHtml(check.label);
+                            const control = check.url && check.url !== '#'
+                                ? `<a href="${escapeHtml(check.url)}" class="${className}" data-qa-scroll="${escapeHtml(check.target || '')}">${content}</a>`
+                                : `<button type="button" class="${className}" data-qa-scroll="${escapeHtml(check.target || '')}">${content}</button>`;
+
+                            return `${index ? '<span class="qa-check-separator">&middot;</span>' : ''}${control}`;
+                        }).join('')}
                     </div>
                 `;
             };
@@ -1173,6 +1333,12 @@
                 </section>
             `;
 
+            const blockShellHtml = (body, className = '', id = '') => `
+                <section ${id ? `id="${escapeHtml(id)}"` : ''} class="qa-block ${escapeHtml(className)} mb-3">
+                    ${body}
+                </section>
+            `;
+
             const renderTop = (wo) => {
                 const top = wo.top || {};
                 const approvedDate = top.approved_at && top.approved_at !== '-' ? top.approved_at : '';
@@ -1183,20 +1349,18 @@
                 </span>
             `;
                 const fields = [
-                    ['WO #', wo.number],
-                    ['Customer', top.customer],
-                    ['Instruction', top.instruction],
-                    ['Manual', manualHtml(top.manual), true],
+                    ['Technician', top.technician, false, null, 'qa-info-item-technician'],
+                    ['Customer', top.customer, false, null, 'qa-info-item-customer'],
+                    ['Instruction', top.instruction, false, null, 'qa-info-item-instruction'],
+                    ['Serial #', top.serial, false, 'serial', 'qa-info-item-serial'],
+                    ['Modified', top.modified, false, 'modified', 'qa-info-item-modified'],
+                    ['Open Date', top.open_date, false, null, 'qa-info-item-open-date'],
+                    ['Manual Rev.', top.manual_revision, false, null, 'qa-info-item-manual-revision'],
+                    ['Manual', manualHtml(top.manual), true, null, 'qa-info-item-manual'],
                     ['Component PN', top.unit_id, false, 'unit_id'],
-                    ['Modified', top.modified, false, 'modified'],
-                    ['Serial #', top.serial, false, 'serial'],
-                    ['Manual Rev.', top.manual_revision],
-                    ['Open Date', top.open_date],
-                    ['Customer PO', top.customer_po],
-                    ['Technician', top.technician],
-                ].map(([label, value, html, editable]) => editable
-                    ? (editable === 'unit_id' ? unitSelectFieldHtml(label, value) : editableFieldHtml(label, value, editable))
-                    : fieldHtml(label, value, html)
+                ].map(([label, value, html, editable, className]) => editable
+                    ? (editable === 'unit_id' ? unitSelectFieldHtml(label, value) : editableFieldHtml(label, value, editable, className || ''))
+                    : fieldHtml(label, value, html, className || '')
                 ).join('');
 
                 return blockHtml('Workorder', `<div class="qa-info-grid">${fields}</div>${checksHtml(wo.checks)}`, approvalMeta);
@@ -1206,7 +1370,7 @@
                 currentPhotoGroups = groups || [];
 
                 if (currentPhotoGroups.length === 0) {
-                    return blockHtml('Photos', '<div class="qa-empty">No image photos found.</div>');
+                    return blockShellHtml('<div class="qa-empty">No image photos found.</div>');
                 }
 
                 const cards = currentPhotoGroups.map((group, index) => `
@@ -1221,48 +1385,77 @@
                     </button>
                 `).join('');
 
-                return blockHtml('Photos', `<div class="qa-photo-row"><div class="qa-photo-groups" style="--qa-photo-count: ${currentPhotoGroups.length || 1};">${cards}</div></div>`);
+                return blockShellHtml(`<div class="qa-photo-row"><div class="qa-photo-groups" style="--qa-photo-count: ${currentPhotoGroups.length || 1};">${cards}</div></div>`);
             };
 
-            const renderSubmitted = (rows) => {
-                if (!rows || rows.length === 0) {
-                    return blockHtml('Submitted WO', '<div class="qa-empty">No submitted inspections waiting for QA.</div>', '', 'qa-submitted-block', 'qaSubmittedBlock');
+            const renderSubmitted = (rows, stdRows) => {
+                rows = rows || [];
+                stdRows = stdRows || [];
+
+                if (rows.length === 0 && stdRows.length === 0) {
+                    return blockShellHtml('<div class="qa-empty">No submitted inspections waiting for QA.</div>', 'qa-submitted-block', 'qaSubmittedBlock');
                 }
 
-                const isComplete = rows.every(row =>
-                    row.submitted_date && row.submitted_date !== '-'
-                    && row.inspection_date && row.inspection_date !== '-'
-                );
+                const submittedCards = rows.map((row, index) => {
+                    const submittedDateClass = row.submitted_date && row.submitted_date !== '-' ? 'text-success' : 'text-danger';
+                    const inspectionDateClass = row.inspection_done ? 'text-success' : 'text-warning';
+                    const submittedDateText = row.submitted_date && row.submitted_date !== '-' ? row.submitted_date : 'Missing';
+                    const inspectionDateText = row.inspection_date && row.inspection_date !== '-' ? row.inspection_date : 'Missing';
+                    const submittedDateHtml = submittedDateText === 'Missing'
+                        ? mainLinkHtml(submittedDateText, row.submitted_url, submittedDateClass)
+                        : escapeHtml(submittedDateText);
+                    const inspectionDateHtml = mainLinkHtml(inspectionDateText, row.inspection_url, inspectionDateClass);
+                    const cardTitle = String(row.missing_inspection || '').toLowerCase().includes('final')
+                        ? 'Final inspection'
+                        : (index === 1 ? 'Final inspection' : 'Disassembly inspection');
+
+                    return `
+                        <div class="qa-submitted-card" data-qa-submitted-inspection>
+                            <div class="qa-submitted-card-header">${escapeHtml(cardTitle)}</div>
+                            <div class="qa-submitted-card-line">
+                                <div class="qa-submitted-card-title fw-semibold">${escapeHtml(row.submitted_step)}</div>
+                                <div class="qa-submitted-card-date ${submittedDateClass}">${submittedDateHtml}</div>
+                            </div>
+                            <div class="qa-submitted-card-line">
+                                <div class="qa-submitted-card-title fw-semibold">${escapeHtml(row.missing_inspection)}</div>
+                                <div class="qa-submitted-card-date ${inspectionDateClass}">${inspectionDateHtml}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                const stdCard = stdRows.length ? `
+                    <div id="qaStdProcessBlock" class="qa-submitted-card">
+                        <div class="qa-submitted-std-table">
+                            <div class="qa-submitted-card-header mb-0">STD Process</div>
+                            <div class="qa-submitted-std-head">Sent</div>
+                            <div class="qa-submitted-std-head">Returned</div>
+                        ${stdRows.map(row => {
+                            const startMissing = !row.date_start || row.date_start === '-';
+                            const finishMissing = !row.date_finish || row.date_finish === '-';
+                            const finishClass = row.ignored ? 'text-secondary' : (finishMissing ? 'text-danger' : 'text-success');
+                            const startClass = row.ignored ? 'text-secondary' : (startMissing ? 'text-warning' : 'text-success');
+                            const startText = startMissing ? 'Missing' : row.date_start;
+                            const finishText = finishMissing ? 'Missing' : row.date_finish;
+                            const label = `${row.short_label || row.label || row.type}${row.ignored ? '/Ignored' : ''}`;
+
+                            return `
+                            <div class="qa-submitted-std-name ${row.ignored ? 'text-secondary' : ''}">${escapeHtml(label)}</div>
+                            <div class="qa-submitted-card-date ${startClass}">${escapeHtml(startText)}</div>
+                            <div class="qa-submitted-card-date ${finishClass}">${escapeHtml(finishText)}</div>
+                            `;
+                        }).join('')}
+                        </div>
+                    </div>
+                ` : '';
 
                 const body = `
                     <div class="qa-submitted-cards">
-                        ${rows.map(row => {
-                            const submittedDateClass = row.submitted_date && row.submitted_date !== '-' ? 'text-success' : 'text-danger';
-                            const inspectionDateClass = row.inspection_done ? 'text-success' : 'text-warning';
-                            const submittedDateText = row.submitted_date && row.submitted_date !== '-' ? row.submitted_date : 'Missing';
-                            const inspectionDateText = row.inspection_date && row.inspection_date !== '-' ? row.inspection_date : 'Missing';
-                            const submittedDateHtml = submittedDateText === 'Missing'
-                                ? mainLinkHtml(submittedDateText, row.submitted_url, submittedDateClass)
-                                : escapeHtml(submittedDateText);
-                            const inspectionDateHtml = mainLinkHtml(inspectionDateText, row.inspection_url, inspectionDateClass);
-
-                            return `
-                            <div class="qa-submitted-card">
-                                <div class="qa-submitted-card-line">
-                                    <div class="qa-submitted-card-title fw-semibold">${escapeHtml(row.submitted_step)}</div>
-                                    <div class="qa-submitted-card-date ${submittedDateClass}">${submittedDateHtml}</div>
-                                </div>
-                                <div class="qa-submitted-card-line">
-                                    <div class="qa-submitted-card-title fw-semibold">${escapeHtml(row.missing_inspection)}</div>
-                                    <div class="qa-submitted-card-date ${inspectionDateClass}">${inspectionDateHtml}</div>
-                                </div>
-                            </div>
-                        `;
-                        }).join('')}
+                        ${submittedCards}${stdCard}
                     </div>
                 `;
 
-                return blockHtml('Submitted WO', body, `<span class="${isComplete ? 'text-success' : 'text-danger'} fw-semibold">${isComplete ? 'OK' : 'Missing date'}</span>`, 'qa-submitted-block', 'qaSubmittedBlock');
+                return blockShellHtml(body, 'qa-submitted-block', 'qaSubmittedBlock');
             };
 
             const renderRepairOrders = (rows) => {
@@ -1360,7 +1553,7 @@
                 result.innerHTML = `<div class="qa-workorder-layout">${[
                     `<div class="qa-top-row">${renderTop(wo)}${renderForms(wo.forms)}</div>`,
                     renderPhotos(wo.photos),
-                    renderSubmitted(wo.submitted),
+                    renderSubmitted(wo.submitted, wo.std_processes),
                     renderRepairOrders(wo.repair_orders),
                 ].join('')}</div>`;
                 fitPaperLabels(result);
@@ -1709,15 +1902,28 @@
 
                 const scrollButton = event.target.closest('[data-qa-scroll]');
                 if (scrollButton) {
+                    const href = scrollButton.getAttribute('href');
+                    if (href) {
+                        return;
+                    }
+
                     const targetId = scrollButton.getAttribute('data-qa-scroll');
                     const target = targetId ? document.getElementById(targetId) : null;
 
-                    if (target) {
+                    if (targetId === 'qaSubmittedInspectionCards') {
+                        const cards = result.querySelectorAll('[data-qa-submitted-inspection]');
+                        cards[0]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        cards.forEach((card) => {
+                            card.classList.add('is-highlighted');
+                            window.setTimeout(() => card.classList.remove('is-highlighted'), 1400);
+                        });
+                    } else if (target) {
                         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         target.classList.add('is-highlighted');
                         window.setTimeout(() => target.classList.remove('is-highlighted'), 1400);
                     }
 
+                    event.preventDefault();
                     return;
                 }
 

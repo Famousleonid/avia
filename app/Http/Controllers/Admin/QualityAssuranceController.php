@@ -12,6 +12,7 @@ use App\Models\Tdr;
 use App\Models\Transfer;
 use App\Models\Unit;
 use App\Models\Workorder;
+use App\Models\WorkorderStdProcess;
 use App\Models\WorkorderUnitInspection;
 use App\Services\Quality\QualityAssuranceService;
 use Carbon\Carbon;
@@ -86,6 +87,7 @@ class QualityAssuranceController extends Controller
                 'tdrs.tdrProcesses.processName',
                 'unit.manual',
                 'user',
+                'stdProcesses',
             ])
             ->first();
 
@@ -665,7 +667,7 @@ class QualityAssuranceController extends Controller
             'url' => route('mains.show', $workorder->id),
             'top' => $this->buildTopPayload($workorder, $qaRow),
             'warnings' => $qaRow['all_messages'],
-            'checks' => $this->buildCheckPayload($qaRow),
+            'checks' => $this->buildCheckPayload($qaRow, $workorder),
             'photos' => $this->buildPhotoGroupsPayload($workorder),
             'submitted' => $this->qualityAssuranceService
                 ->buildSubmittedInspectionRows(collect([$qaRow]))
@@ -688,16 +690,19 @@ class QualityAssuranceController extends Controller
                 })
                 ->values()
                 ->all(),
+            'std_processes' => $this->buildStdProcessPayload($workorder),
             'repair_orders' => $this->buildRepairOrderPayload($workorder),
             'forms' => $this->buildFormsPayload($workorder),
         ];
     }
 
-    private function buildCheckPayload(array $qaRow): array
+    private function buildCheckPayload(array $qaRow, Workorder $workorder): array
     {
         $messages = collect($qaRow['all_messages'] ?? []);
         $processCounts = $qaRow['processes']['counts'] ?? [];
         $submittedRows = collect($qaRow['submitted_inspections']['pending'] ?? []);
+        $stdProcessRows = collect($this->buildStdProcessPayload($workorder));
+        $completedTaskUrl = $this->completedTaskUrl($workorder);
 
         return [
             [
@@ -705,7 +710,7 @@ class QualityAssuranceController extends Controller
                 'ok' => $submittedRows->isNotEmpty()
                     && $submittedRows->every(fn (array $row) => filled($row['submitted_date'] ?? null)
                         && filled($row['inspection_date'] ?? null)),
-                'target' => 'qaSubmittedBlock',
+                'target' => 'qaSubmittedInspectionCards',
             ],
             [
                 'label' => 'Incomplete processes',
@@ -722,6 +727,14 @@ class QualityAssuranceController extends Controller
                 'label' => 'Completed task not finished',
                 'ok' => ! $messages->contains('Completed task not finished'),
                 'target' => 'qaRepairBlock',
+                'url' => $completedTaskUrl,
+            ],
+            [
+                'label' => 'STD processes complete',
+                'ok' => $stdProcessRows->whereIn('type', ['ndt', 'cad'])
+                    ->reject(fn (array $row) => (bool) ($row['ignored'] ?? false))
+                    ->every(fn (array $row) => (bool) ($row['complete'] ?? false)),
+                'target' => 'qaStdProcessBlock',
             ],
         ];
     }
@@ -891,6 +904,49 @@ class QualityAssuranceController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    private function buildStdProcessPayload(Workorder $workorder): array
+    {
+        $rows = ($workorder->stdProcesses ?? collect())
+            ->whereIn('std_type', ['ndt', 'cad'])
+            ->keyBy('std_type');
+
+        return collect([
+            'ndt' => 'STD Process NDT',
+            'cad' => 'STD Process CAD',
+        ])->map(function (string $label, string $type) use ($rows) {
+            /** @var WorkorderStdProcess|null $row */
+            $row = $rows->get($type);
+
+            return [
+                'type' => $type,
+                'label' => $label,
+                'short_label' => strtoupper($type),
+                'ignored' => (bool) ($row?->ignore_row ?? false),
+                'date_start' => $this->formatQaDate($row?->date_start),
+                'date_finish' => $this->formatQaDate($row?->date_finish),
+                'complete' => $row !== null && ! $row->ignore_row && $row->date_finish !== null,
+            ];
+        })->values()->all();
+    }
+
+    private function completedTaskUrl(Workorder $workorder): string
+    {
+        $mainRows = $workorder->relationLoaded('main')
+            ? $workorder->main
+            : $workorder->main()->with('task')->get();
+
+        $completedMain = $mainRows
+            ->filter(fn ($main) => strcasecmp((string) ($main->task?->name ?? ''), 'Completed') === 0)
+            ->sortBy(fn ($main) => $main->task?->sort_order ?? $main->task_id ?? 999999)
+            ->first();
+
+        return $this->mainTargetUrl($workorder, [
+            'tab' => 'tasks',
+            'task' => $completedMain?->task_id,
+            'field' => 'date_finish',
+        ]);
     }
 
     private function buildFormsPayload(Workorder $workorder): array

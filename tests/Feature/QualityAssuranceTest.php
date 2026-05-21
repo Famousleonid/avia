@@ -5,11 +5,15 @@ namespace Tests\Feature;
 use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\Code;
 use App\Models\Component;
+use App\Models\GeneralTask;
 use App\Models\LogCard;
+use App\Models\Main;
 use App\Models\ProcessName;
+use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Workorder;
+use App\Models\WorkorderStdProcess;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
@@ -123,6 +127,7 @@ class QualityAssuranceTest extends TestCase
                 'top',
                 'photos',
                 'submitted',
+                'std_processes',
                 'repair_orders',
                 'forms',
             ],
@@ -212,7 +217,10 @@ class QualityAssuranceTest extends TestCase
         $manager = $this->createUserWithRole('Manager', [
             'qa_access' => true,
         ]);
-        $workorder = $this->createWorkorder(['number' => 988802]);
+        $workorder = $this->createWorkorder([
+            'number' => 988802,
+            'approve_at' => now(),
+        ]);
         $component = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'QA-MISSING-DATES',
@@ -240,6 +248,51 @@ class QualityAssuranceTest extends TestCase
             'date_start' => null,
             'date_finish' => null,
         ]);
+        $completedGeneralTask = GeneralTask::query()->create([
+            'name' => 'QA Complete Stage',
+            'sort_order' => 99,
+        ]);
+        $completedTask = Task::query()->create([
+            'name' => 'Completed',
+            'general_task_id' => $completedGeneralTask->id,
+            'task_has_start_date' => false,
+        ]);
+        Main::query()->create([
+            'workorder_id' => $workorder->id,
+            'general_task_id' => $completedGeneralTask->id,
+            'task_id' => $completedTask->id,
+            'user_id' => $manager->id,
+            'date_start' => null,
+            'date_finish' => null,
+        ]);
+        $ndtProcessName = ProcessName::query()->create([
+            'name' => 'STD NDT List',
+            'process_sheet_name' => 'NDT',
+            'form_number' => 'NDT',
+            'print_form' => false,
+            'show_in_process_picker' => false,
+        ]);
+        $cadProcessName = ProcessName::query()->create([
+            'name' => 'STD CAD List',
+            'process_sheet_name' => 'CAD',
+            'form_number' => 'CAD',
+            'print_form' => false,
+            'show_in_process_picker' => false,
+        ]);
+        WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'ndt',
+            'process_name_id' => $ndtProcessName->id,
+            'date_start' => '2026-05-01',
+            'date_finish' => '2026-05-02',
+        ]);
+        WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'cad',
+            'process_name_id' => $cadProcessName->id,
+            'date_start' => '2026-05-03',
+            'date_finish' => null,
+        ]);
 
         $response = $this->actingAs($manager)->getJson(route('quality.workorder', [
             'q' => '988802',
@@ -249,14 +302,88 @@ class QualityAssuranceTest extends TestCase
 
         $incompleteCheck = collect($response->json('workorder.checks'))
             ->firstWhere('label', 'Incomplete processes');
+        $submittedCheck = collect($response->json('workorder.checks'))
+            ->firstWhere('label', 'Submitted WO');
         $missingRoCheck = collect($response->json('workorder.checks'))
             ->firstWhere('label', 'Missing RO');
+        $completedTaskCheck = collect($response->json('workorder.checks'))
+            ->firstWhere('label', 'Completed task not finished');
+        $stdProcessesCheck = collect($response->json('workorder.checks'))
+            ->firstWhere('label', 'STD processes complete');
 
         $this->assertNotNull($incompleteCheck);
+        $this->assertNotNull($submittedCheck);
         $this->assertNotNull($missingRoCheck);
+        $this->assertNotNull($completedTaskCheck);
+        $this->assertNotNull($stdProcessesCheck);
         $this->assertFalse($incompleteCheck['ok']);
+        $this->assertSame('qaSubmittedInspectionCards', $submittedCheck['target']);
         $this->assertFalse($missingRoCheck['ok']);
+        $this->assertFalse($completedTaskCheck['ok']);
+        $this->assertStringContainsString('tab=tasks', $completedTaskCheck['url']);
+        $this->assertStringContainsString('task='.$completedTask->id, $completedTaskCheck['url']);
+        $this->assertFalse($stdProcessesCheck['ok']);
+        $this->assertSame('qaStdProcessBlock', $stdProcessesCheck['target']);
+        $stdRows = collect($response->json('workorder.std_processes'));
+        $this->assertSame('01/May/2026', $stdRows->firstWhere('type', 'ndt')['date_start']);
+        $this->assertSame('02/May/2026', $stdRows->firstWhere('type', 'ndt')['date_finish']);
+        $this->assertSame('03/May/2026', $stdRows->firstWhere('type', 'cad')['date_start']);
+        $this->assertSame('-', $stdRows->firstWhere('type', 'cad')['date_finish']);
         $this->assertSame(1, collect($response->json('workorder.repair_orders'))->where('ok', false)->count());
+    }
+
+    public function test_quality_std_process_check_ignores_ignored_rows(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder(['number' => 988803]);
+        $ndtProcessName = ProcessName::query()->create([
+            'name' => 'STD NDT Ignored Check',
+            'process_sheet_name' => 'NDT',
+            'form_number' => 'NDT',
+            'print_form' => false,
+            'show_in_process_picker' => false,
+        ]);
+        $cadProcessName = ProcessName::query()->create([
+            'name' => 'STD CAD Ignored Check',
+            'process_sheet_name' => 'CAD',
+            'form_number' => 'CAD',
+            'print_form' => false,
+            'show_in_process_picker' => false,
+        ]);
+
+        WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'ndt',
+            'process_name_id' => $ndtProcessName->id,
+            'date_start' => '2026-05-01',
+            'date_finish' => '2026-05-02',
+        ]);
+        WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'cad',
+            'process_name_id' => $cadProcessName->id,
+            'date_start' => '2026-05-03',
+            'date_finish' => null,
+            'ignore_row' => true,
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('quality.workorder', [
+            'q' => '988803',
+        ]));
+
+        $response->assertOk();
+
+        $stdProcessesCheck = collect($response->json('workorder.checks'))
+            ->firstWhere('label', 'STD processes complete');
+        $stdRows = collect($response->json('workorder.std_processes'));
+
+        $this->assertNotNull($stdProcessesCheck);
+        $this->assertTrue($stdProcessesCheck['ok']);
+        $this->assertFalse($stdRows->firstWhere('type', 'ndt')['ignored']);
+        $this->assertTrue($stdRows->firstWhere('type', 'cad')['ignored']);
+        $this->assertSame('CAD', $stdRows->firstWhere('type', 'cad')['short_label']);
     }
 
     public function test_manager_can_update_quality_top_workorder_fields(): void
