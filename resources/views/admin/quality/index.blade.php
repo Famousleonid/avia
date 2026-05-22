@@ -3,6 +3,9 @@
 @section('content')
     <style>
         .qa-page {
+            --qa-success: #35e27a;
+            --qa-success-soft: #78f0a6;
+            --qa-success-deep: #167a41;
             display: flex;
             flex-direction: column;
             height: 100%;
@@ -10,6 +13,11 @@
             flex: 1 1 auto;
             overflow: hidden;
             background: #2B3035;
+        }
+
+        .qa-page .text-success,
+        .qa-page a.text-success {
+            color: var(--qa-success) !important;
         }
 
         .content,
@@ -92,7 +100,7 @@
         }
 
         .qa-serial-search-row .form-label {
-            color: #39ff14;
+            color: var(--qa-success-soft);
             font-weight: 700;
         }
 
@@ -103,7 +111,7 @@
 
         .qa-serial-search-wrap .form-control:hover,
         .qa-serial-search-wrap .form-control:focus {
-            border-color: #39ff14;
+            border-color: var(--qa-success-soft);
             border-style: dotted;
             box-shadow: none;
         }
@@ -183,7 +191,7 @@
         }
 
         .qa-serial-clear {
-            color: #39ff14;
+            color: var(--qa-success-soft);
         }
 
         .qa-search-clear.is-visible,
@@ -362,7 +370,7 @@
 
         .qa-submitted-card-line {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) max-content;
+            grid-template-columns: minmax(0, 1fr) minmax(6.9rem, max-content);
             align-items: baseline;
             gap: .75rem;
             min-width: 0;
@@ -381,7 +389,7 @@
 
         .qa-submitted-std-table {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(6.8rem, max-content) minmax(6.8rem, max-content);
+            grid-template-columns: minmax(0, 1fr) minmax(6.9rem, max-content) minmax(6.9rem, max-content);
             gap: .7rem .75rem;
             align-items: baseline;
         }
@@ -399,6 +407,8 @@
         }
 
         .qa-submitted-card-date {
+            font-size: 1rem;
+            line-height: 1.25;
             white-space: nowrap;
             font-weight: 600;
         }
@@ -557,34 +567,46 @@
 
         .qa-info-item-component-pn .qa-info-label {
             font-size: .72rem;
+            line-height: 1.45rem;
+        }
+
+        .qa-info-item-component-pn .qa-info-unit-label-row {
+            align-items: center;
+            min-height: 1.45rem;
+        }
+
+        .qa-info-item-component-pn .qa-info-unit-row {
+            display: flex;
+            align-items: center;
+            min-height: 1.45rem;
         }
 
         .qa-info-unit-row .select2-container {
             width: 100% !important;
             min-width: 0;
-            transform: none;
+            height: 1.45rem !important;
         }
 
-        .qa-info-unit-row .select2-container--default .select2-selection--single {
-            height: 1rem !important;
-            min-height: 1rem !important;
+        .qa-page .qa-info-item-component-pn .select2-container--default .select2-selection--single {
+            height: 1.65rem !important;
+            min-height: 1.65rem !important;
             border: 0;
             border-bottom: 1px dashed rgba(13, 202, 240, .6);
             border-radius: 0;
             background: transparent;
-            padding: 0 !important;
+            padding: .1rem .45rem calc(.1rem + 3px) !important;
             width: 100%;
         }
 
-        .qa-info-unit-row .select2-container--default .select2-selection--single .select2-selection__rendered {
+        .qa-page .qa-info-item-component-pn .select2-container--default .select2-selection--single .select2-selection__rendered {
             color: var(--bs-body-color);
-            line-height: 1rem;
-            padding: 0 1.2rem 0 0 !important;
-            font-size: .82rem;
+            line-height: 1.25rem !important;
+            padding: 0 1rem 0 0 !important;
+            font-size: 1rem;
         }
 
-        .qa-info-unit-row .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 1rem;
+        .qa-page .qa-info-item-component-pn .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 1.65rem !important;
             top: 0;
             right: 0;
         }
@@ -782,9 +804,9 @@
         }
 
         .qa-form-paper.is-success svg {
-            --fold: #198754;
-            --stroke: #198754;
-            --text: #0f5132;
+            --fold: var(--qa-success);
+            --stroke: var(--qa-success);
+            --text: var(--qa-success-deep);
         }
 
         .qa-form-paper .paper {
@@ -1344,7 +1366,7 @@
                 const approvedDate = top.approved_at && top.approved_at !== '-' ? top.approved_at : '';
             const approvalMeta = `
                 <span class="d-inline-flex align-items-center gap-2">
-                    <span class="${top.approved ? 'text-info' : 'text-secondary'} fw-semibold">${top.approved ? 'Approved' : 'Not approved'}</span>
+                    <span class="${top.approved ? 'text-success' : 'text-secondary'} fw-semibold">${top.approved ? 'Approved' : 'Not approved'}</span>
                     ${approvedDate ? `<span class="small text-light">${escapeHtml(approvedDate)}</span>` : ''}
                 </span>
             `;

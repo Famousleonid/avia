@@ -111,7 +111,7 @@ class QualityAssuranceService
             $warnings[] = 'Manual / revision info missing';
         }
 
-        if (! $isDone && $workorder->approve_at) {
+        if (! $isDone) {
             $warnings[] = 'Completed task not finished';
         }
 

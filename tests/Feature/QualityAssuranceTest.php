@@ -217,10 +217,7 @@ class QualityAssuranceTest extends TestCase
         $manager = $this->createUserWithRole('Manager', [
             'qa_access' => true,
         ]);
-        $workorder = $this->createWorkorder([
-            'number' => 988802,
-            'approve_at' => now(),
-        ]);
+        $workorder = $this->createWorkorder(['number' => 988802]);
         $component = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'QA-MISSING-DATES',
@@ -307,7 +304,7 @@ class QualityAssuranceTest extends TestCase
         $missingRoCheck = collect($response->json('workorder.checks'))
             ->firstWhere('label', 'Missing RO');
         $completedTaskCheck = collect($response->json('workorder.checks'))
-            ->firstWhere('label', 'Completed task not finished');
+            ->firstWhere('label', 'Completed task finished');
         $stdProcessesCheck = collect($response->json('workorder.checks'))
             ->firstWhere('label', 'STD processes complete');
 

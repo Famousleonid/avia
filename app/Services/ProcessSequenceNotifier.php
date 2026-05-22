@@ -34,6 +34,7 @@ class ProcessSequenceNotifier
         $completedProcess->loadMissing(['processName']);
 
         $actor = auth()->user();
+        $workorderUserName = trim((string) ($workorder->user?->name ?? ''));
         $detail = $this->detailInfo($nextProcess);
         $msg = [
             'fromUserId' => (int) ($actor?->id ?? 0),
@@ -48,6 +49,7 @@ class ProcessSequenceNotifier
                 'workorder' => [
                     'id' => $workorder->id,
                     'no' => $workorder->number,
+                    'owner_name' => $workorderUserName,
                 ],
                 'actor' => [
                     'id' => (int) ($actor?->id ?? 0),
@@ -72,6 +74,7 @@ class ProcessSequenceNotifier
             'payload' => [
                 'workorder_id' => $workorder->id,
                 'workorder_no' => $workorder->number,
+                'workorder_user_name' => $workorderUserName,
                 'process_id' => $this->processIdForUrl($nextProcess),
                 'process_name' => $this->processName($nextProcess),
                 'previous_process_name' => $this->processName($completedProcess),
@@ -132,10 +135,10 @@ class ProcessSequenceNotifier
     private function workorderFor(TdrProcess|WorkorderStdProcess $process): ?Workorder
     {
         if ($process instanceof WorkorderStdProcess) {
-            return $process->workorder ?: Workorder::query()->find($process->workorder_id);
+            return $process->workorder ?: Workorder::query()->with('user')->find($process->workorder_id);
         }
 
-        $process->loadMissing('tdr.workorder');
+        $process->loadMissing('tdr.workorder.user');
 
         return $process->tdr?->workorder;
     }

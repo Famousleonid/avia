@@ -47,6 +47,7 @@ class ProcessReadyForNextReminderEvent implements EventDefinition
         $workorder = $this->workorderFor($subject);
         $processName = (string) ($subject->processName?->name ?? 'Process');
         $previousName = $this->previousProcessName($subject);
+        $workorderUserName = trim((string) ($workorder?->user?->name ?? ''));
         $detail = $this->detailInfo($subject);
 
         return [
@@ -62,6 +63,7 @@ class ProcessReadyForNextReminderEvent implements EventDefinition
                 'workorder' => [
                     'id' => $workorder?->id,
                     'no' => $workorder?->number,
+                    'owner_name' => $workorderUserName,
                 ],
                 'actor' => [
                     'id' => 0,
@@ -86,6 +88,7 @@ class ProcessReadyForNextReminderEvent implements EventDefinition
             'payload' => [
                 'workorder_id' => $workorder?->id,
                 'workorder_no' => $workorder?->number,
+                'workorder_user_name' => $workorderUserName,
                 'process_id' => $this->processIdForUrl($subject),
                 'process_name' => $processName,
                 'previous_process_name' => $previousName,
@@ -114,14 +117,22 @@ class ProcessReadyForNextReminderEvent implements EventDefinition
             return false;
         }
 
-        return empty($subject->date_start);
+        if (! empty($subject->date_start)) {
+            return false;
+        }
+
+        return $this->workorderFor($subject) instanceof Workorder;
     }
 
     private function workorderFor(TdrProcess|WorkorderStdProcess $process): ?Workorder
     {
         if ($process instanceof WorkorderStdProcess) {
+            $process->loadMissing('workorder.user');
+
             return $process->workorder;
         }
+
+        $process->loadMissing('tdr.workorder.user');
 
         return $process->tdr?->workorder;
     }

@@ -69,6 +69,10 @@
                         $payload = is_array($n->payload ?? null) ? $n->payload : [];
                         $isProcessReady = ($n->type ?? null) === 'workorder' && ($n->event ?? null) === 'process_ready_for_next';
                         $woNo = data_get($ui, 'workorder.no') ?? data_get($payload, 'workorder_no');
+                        $woOwner = data_get($ui, 'workorder.owner_name')
+                            ?? data_get($ui, 'workorder.user_name')
+                            ?? data_get($payload, 'workorder_user_name')
+                            ?? data_get($payload, 'workorder_owner_name');
                         $processName = data_get($ui, 'process.name') ?? data_get($payload, 'process_name');
                         $previousName = data_get($ui, 'process.previous_name') ?? data_get($payload, 'previous_process_name');
                         $detail = data_get($ui, 'part.label') ?? data_get($payload, 'detail_label');
@@ -83,9 +87,6 @@
                                         @if($toName)
                                             <span class="text-muted mx-1">to</span>{{ $toName }}
                                         @endif
-                                        @if($woNo)
-                                            <span class="text-warning fw-semibold ms-1">WO #{{ $woNo }}</span>
-                                        @endif
                                     </div>
                                     <div class="text-muted">{{ $time }}</div>
                                 </div>
@@ -94,7 +95,7 @@
                                     <div class="notif-text text-light small mt-1">
                                         <span class="badge text-bg-info">PROCESS READY</span>
                                         @if($woNo)
-                                            <span class="text-warning fw-semibold ms-1">WO #{{ $woNo }}</span>
+                                            <span class="text-warning fw-semibold ms-1">WO #{{ $woNo }}{{ $woOwner ? ' '.$woOwner : '' }}</span>
                                         @endif
                                     </div>
                                     @if($detail)

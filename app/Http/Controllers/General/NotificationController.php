@@ -4,11 +4,14 @@ namespace App\Http\Controllers\General;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Workorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
+    private array $workorderMetaCache = [];
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -17,7 +20,7 @@ class NotificationController extends Controller
             ->latest()
             ->paginate(30)
             ->through(function ($n) use ($user) {
-                $d = is_array($n->data) ? $n->data : (json_decode($n->data, true) ?: []);
+                $d = $this->notificationData($n->data);
 
                 return (object)[
                     'id' => $n->id,
@@ -61,7 +64,7 @@ class NotificationController extends Controller
             ->paginate($perPage, ['*'], 'page', $page);
 
         $items = $paginator->getCollection()->map(function ($n) use ($user) {
-            $d = is_array($n->data) ? $n->data : (json_decode($n->data, true) ?: []);
+            $d = $this->notificationData($n->data);
 
             return [
                 'id' => $n->id,
@@ -188,6 +191,80 @@ class NotificationController extends Controller
         return response()->json([
             'ok' => true
         ]);
+    }
+
+    private function notificationData(mixed $raw): array
+    {
+        $data = is_array($raw) ? $raw : (json_decode((string) $raw, true) ?: []);
+
+        return $this->withWorkorderMeta($data);
+    }
+
+    private function withWorkorderMeta(array $data): array
+    {
+        $workorderId = data_get($data, 'ui.workorder.id') ?? data_get($data, 'payload.workorder_id');
+        $workorderNo = data_get($data, 'ui.workorder.no')
+            ?? data_get($data, 'payload.workorder_no')
+            ?? data_get($data, 'payload.workorder_number');
+        $ownerName = data_get($data, 'ui.workorder.owner_name')
+            ?? data_get($data, 'ui.workorder.user_name')
+            ?? data_get($data, 'payload.workorder_user_name')
+            ?? data_get($data, 'payload.workorder_owner_name');
+
+        if ($this->filledValue($workorderNo) && $this->filledValue($ownerName)) {
+            return $data;
+        }
+
+        $meta = $this->findWorkorderMeta($workorderId, $workorderNo);
+        if (! $meta) {
+            return $data;
+        }
+
+        $data['ui']['workorder']['id'] = $meta['id'];
+        $data['ui']['workorder']['no'] = $meta['no'];
+        $data['ui']['workorder']['owner_name'] = $this->filledValue($ownerName)
+            ? trim((string) $ownerName)
+            : $meta['owner_name'];
+
+        $data['payload']['workorder_id'] = $meta['id'];
+        $data['payload']['workorder_no'] = $meta['no'];
+        $data['payload']['workorder_user_name'] = $data['ui']['workorder']['owner_name'];
+
+        return $data;
+    }
+
+    private function findWorkorderMeta(mixed $id, mixed $number): ?array
+    {
+        $cacheKey = $this->filledValue($id)
+            ? 'id:'.(int) $id
+            : ($this->filledValue($number) ? 'no:'.trim((string) $number) : null);
+
+        if (! $cacheKey) {
+            return null;
+        }
+
+        if (array_key_exists($cacheKey, $this->workorderMetaCache)) {
+            return $this->workorderMetaCache[$cacheKey];
+        }
+
+        $workorder = Workorder::withoutGlobalScope('exclude_drafts')
+            ->with('user')
+            ->when($this->filledValue($id), fn ($query) => $query->whereKey((int) $id))
+            ->when(! $this->filledValue($id), fn ($query) => $query->where('number', trim((string) $number)))
+            ->first();
+
+        $this->workorderMetaCache[$cacheKey] = $workorder ? [
+            'id' => (int) $workorder->id,
+            'no' => (string) $workorder->number,
+            'owner_name' => trim((string) ($workorder->user?->name ?? '')),
+        ] : null;
+
+        return $this->workorderMetaCache[$cacheKey];
+    }
+
+    private function filledValue(mixed $value): bool
+    {
+        return $value !== null && trim((string) $value) !== '';
     }
 
 }

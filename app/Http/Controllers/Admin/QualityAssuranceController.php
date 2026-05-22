@@ -724,7 +724,7 @@ class QualityAssuranceController extends Controller
                 'target' => 'qaRepairBlock',
             ],
             [
-                'label' => 'Completed task not finished',
+                'label' => 'Completed task finished',
                 'ok' => ! $messages->contains('Completed task not finished'),
                 'target' => 'qaRepairBlock',
                 'url' => $completedTaskUrl,

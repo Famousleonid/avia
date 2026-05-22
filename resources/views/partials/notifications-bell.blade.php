@@ -199,17 +199,23 @@
 
             const h = (v) => escapeHtml(v ?? '');
             const has = (v) => v !== null && v !== undefined && String(v).trim() !== '';
+            const formatWo = (woNoRaw) => {
+                if (!has(woNoRaw)) return '';
+
+                const owner = workorderOwnerName(n);
+                return `WO #${h(woNoRaw)}${owner ? ` ${h(owner)}` : ''}`;
+            };
 
             if (type === 'workorder') {
                 const woNoRaw = ui?.workorder?.no ?? n?.payload?.workorder_no ?? n?.payload?.workorder_number ?? '';
-                const woNo = has(woNoRaw) ? `#${h(woNoRaw)}` : '';
+                const woLabel = formatWo(woNoRaw);
                 const actor = h(ui?.actor?.name ?? n?.by_user_name ?? n?.from_name ?? '');
 
                 if (event === 'approved') {
                     return `
                         <div class="d-flex align-items-center gap-2 flex-wrap">
                             <span class="badge text-bg-success">APPROVED</span>
-                            <span class="text-warning fw-semibold">WO ${woNo}</span>
+                            ${woLabel ? `<span class="text-warning fw-semibold">${woLabel}</span>` : ``}
                         </div>
                         ${actor ? `<div class="text-muted small mt-1">by ${actor}</div>` : ``}
                     `;
@@ -223,7 +229,7 @@
                     return `
                         <div class="d-flex align-items-center gap-2 flex-wrap">
                             <span class="badge text-bg-info">PROCESS READY</span>
-                            <span class="text-warning fw-semibold">WO ${woNo}</span>
+                            ${woLabel ? `<span class="text-warning fw-semibold">${woLabel}</span>` : ``}
                         </div>
                         ${detail ? `<div class="small mt-1">${detail}</div>` : ``}
                         <div class="small mt-1">
@@ -239,7 +245,7 @@
                 return `
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         <span class="badge text-bg-secondary">${label}</span>
-                        <span class="text-warning fw-semibold">WO ${woNo}</span>
+                        ${woLabel ? `<span class="text-warning fw-semibold">${woLabel}</span>` : ``}
                     </div>
                     ${text ? `<div class="small mt-1">${text}</div>` : ``}
                 `;
@@ -301,18 +307,23 @@
             return ui?.workorder?.no ?? payload?.workorder_no ?? payload?.workorder_number ?? '';
         }
 
+        function workorderOwnerName(n) {
+            const ui = n?.ui ?? {};
+            const payload = n?.payload ?? {};
+            return ui?.workorder?.owner_name
+                ?? ui?.workorder?.user_name
+                ?? payload?.workorder_user_name
+                ?? payload?.workorder_owner_name
+                ?? '';
+        }
+
         function buildMetaLine(n) {
             const fromName = String(n?.from_name || 'System').trim() || 'System';
             const toName = String(n?.to_name || '').trim();
-            const woRaw = workorderNumber(n);
-            const wo = woRaw !== null && woRaw !== undefined && String(woRaw).trim() !== ''
-                ? ` <span class="text-warning fw-semibold">WO #${escapeHtml(woRaw)}</span>`
-                : '';
 
             return `
                 <span>From: ${escapeHtml(fromName)}</span>
                 ${toName ? `<span class="text-muted mx-1">to</span><span>${escapeHtml(toName)}</span>` : ``}
-                ${wo}
             `;
         }
 

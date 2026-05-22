@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Component;
+use App\Models\EventLog;
 use App\Models\NotificationEventRule;
 use App\Models\ProcessName;
 use App\Models\Tdr;
@@ -768,6 +769,56 @@ class NotificationRulesTest extends TestCase
 
         Notification::assertSentToTimes($recipient, NewMessageNotification::class, 2);
         \Carbon\Carbon::setTestNow();
+    }
+
+    public function test_ready_for_next_reminder_skips_process_without_workorder(): void
+    {
+        Notification::fake();
+
+        $recipient = $this->createUserWithRole('Technician');
+        $component = Component::query()->create([
+            'manual_id' => $this->createManual()->id,
+            'part_number' => 'ORPHAN-' . uniqid(),
+            'name' => 'Orphan Component',
+            'ipl_num' => '9-9',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => null,
+            'component_id' => $component->id,
+            'serial_number' => 'ORPHAN',
+            'qty' => 1,
+        ]);
+        $processName = $this->createProcessName('Orphan Process');
+        $process = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'sort_order' => 1,
+        ]);
+
+        $rule = $this->createRule('tdr_process.ready_for_next', [
+            ['type' => 'user', 'value' => $recipient->id],
+        ], [
+            'name' => 'Orphan ready reminder',
+            'title_template' => 'Next process ready',
+            'message_template' => 'WO {workorder_no}: send the detail to {process_name}.',
+            'exclude_actor' => false,
+        ]);
+
+        EventLog::query()->create([
+            'event_key' => 'tdr_process.ready_for_next',
+            'notification_event_rule_id' => $rule->id,
+            'subject_type' => TdrProcess::class,
+            'subject_id' => $process->id,
+            'recipient_user_id' => $recipient->id,
+            'first_sent_at' => now()->subMinutes(2),
+            'last_sent_at' => now()->subMinutes(2),
+            'sent_count' => 1,
+        ]);
+
+        app(EventRunner::class)->run([new ProcessReadyForNextReminderEvent()]);
+
+        Notification::assertNothingSent();
     }
 
     public function test_std_process_cannot_start_until_previous_std_process_is_returned(): void
