@@ -130,6 +130,15 @@ class Manual extends Model implements HasMedia
             ->nonOptimized();
     }
 
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('component_csv_files')
+            ->acceptsMimeTypes(['text/csv', 'application/csv', 'text/plain']);
+
+        $this->addMediaCollection('dimension-figures')
+            ->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+    }
+
     /**
      * Все distinct manual_id по work order: основной из unit и из компонентов TDR (порядок сохранён).
      *

@@ -756,6 +756,11 @@
                                         role="tab">{{ __('Transfers') }}</button>
                             </li>
                         @endif
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tab-measurements" data-bs-toggle="tab"
+                                    data-bs-target="#content-measurements" type="button"
+                                    role="tab">{{ __('Measurements') }}</button>
+                        </li>
                     </ul>
                     <div id="partProcessesShortcutActions" class="d-none d-flex gap-2 align-items-center ms-auto"
                          style="margin-right: 50px;">
@@ -941,6 +946,42 @@
                             </div>
                         </div>
                     @endif
+
+                    {{-- Measurements tab --}}
+                    <div class="tab-pane fade" id="content-measurements" role="tabpanel">
+                        <div class="card bg-gradient h-100">
+                            <div class="card-body p-3" style="height:calc(100vh - 280px);min-height:400px;overflow-y:auto">
+                                <style>
+                                    .tdr-ms-session-card {
+                                        border: 1px solid rgba(108,117,125,.35);
+                                        border-radius: 6px;
+                                        padding: 8px 12px;
+                                        margin-bottom: 8px;
+                                        font-size: 13px;
+                                        display: block;
+                                        color: inherit;
+                                        text-decoration: none;
+                                        transition: background .12s;
+                                    }
+                                    .tdr-ms-session-card:hover { background: rgba(13,110,253,.08); color: inherit; text-decoration: none; }
+                                    .tdr-ms-session-card-title { font-weight: 600; margin-bottom: 3px; }
+                                    .tdr-ms-session-card-meta  { font-size: 11px; color: rgba(173,181,189,.8); }
+                                </style>
+                                <div class="d-flex align-items-center mb-3 gap-2">
+                                    <span class="fw-semibold">Measurement Sessions</span>
+                                    <button class="btn btn-outline-primary btn-sm ms-auto" id="tdrMsNewBtn" style="font-size:12px">
+                                        <i class="bi bi-plus-lg"></i> New Session
+                                    </button>
+                                </div>
+                                <div id="tdr-ms-loading" class="text-muted" style="font-size:13px">Loading…</div>
+                                <div id="tdr-ms-empty" class="text-center text-muted py-4" style="font-size:13px;display:none">
+                                    <i class="bi bi-rulers" style="font-size:2rem;display:block;opacity:.3;margin-bottom:.5rem"></i>
+                                    No measurement sessions yet
+                                </div>
+                                <div id="tdr-ms-list" style="display:none"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -960,7 +1001,149 @@
         </div>
     @endif
 
+    {{-- New Measurement Session modal --}}
+    <div class="modal fade" id="tdrMsNewSessionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title">New Measurement Session</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label form-label-sm">Figure <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="tdrMsNewFigure">
+                            <option value="">— Select figure —</option>
+                            @foreach($dimensionFigures as $fig)
+                                <option value="{{ $fig->id }}">{{ $fig->title }}
+                                    ({{ $fig->figure_type }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label form-label-sm">Instruction <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" id="tdrMsNewInstruction">
+                            <option value="">— Select —</option>
+                            @foreach($instruction as $instr)
+                                <option value="{{ $instr->id }}"
+                                    {{ $current_wo->instruction_id == $instr->id ? 'selected' : '' }}>
+                                    {{ $instr->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="text-danger small d-none" id="tdrMsNewError"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary btn-sm" id="tdrMsNewSaveBtn">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Modals and scripts: reuse from show via stack or include show's modals section --}}
     @include('admin.tdrs.partials.show-modals')
     @include('admin.tdrs.partials.show-scripts')
+
+    <script>
+    (function () {
+        const WO_ID = @json((int)$current_wo->id);
+        const CSRF  = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        let loaded  = false;
+
+        const loadingEl = document.getElementById('tdr-ms-loading');
+        const emptyEl   = document.getElementById('tdr-ms-empty');
+        const listEl    = document.getElementById('tdr-ms-list');
+
+        async function loadSessions() {
+            try {
+                const res  = await fetch('/workorders/' + WO_ID + '/measurement-sessions', {
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }
+                });
+                const data = await res.json();
+                renderSessions(data);
+            } catch (e) {
+                if (loadingEl) loadingEl.textContent = 'Failed to load.';
+            }
+        }
+
+        function renderSessions(sessions) {
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (!sessions.length) { emptyEl.style.display = ''; return; }
+            listEl.style.display = '';
+            listEl.innerHTML = '';
+            sessions.forEach(s => {
+                const statusBadge = s.status === 'finalized'
+                    ? '<span class="badge text-bg-success" style="font-size:10px">finalized</span>'
+                    : '<span class="badge text-bg-warning text-dark" style="font-size:10px">open</span>';
+                const card = document.createElement('a');
+                card.className = 'tdr-ms-session-card';
+                card.href = '/measurement-sessions/' + s.id;
+                card.innerHTML = `
+                    <div class="tdr-ms-session-card-title d-flex align-items-center gap-2">
+                        ${statusBadge}
+                        <span>${s.figure?.title ?? '—'}</span>
+                        <span class="text-muted fw-normal" style="font-size:12px">${s.instruction?.name ?? ''}</span>
+                        <span class="ms-auto tdr-ms-session-card-meta">${(s.created_at ?? '').slice(0,10)} &bull; ${s.user?.name ?? ''}</span>
+                        ${s.status !== 'finalized' ? `<button class="btn btn-link btn-sm p-0 text-danger" style="font-size:11px" data-del="${s.id}" onclick="event.preventDefault()"><i class="bi bi-trash"></i></button>` : ''}
+                    </div>
+                `;
+                if (s.status !== 'finalized') {
+                    card.querySelector('[data-del]').addEventListener('click', async function (e) {
+                        e.preventDefault();
+                        if (!confirm('Delete this session?')) return;
+                        const r = await fetch('/measurement-sessions/' + s.id, {
+                            method: 'DELETE', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }
+                        });
+                        if (!r.ok) { const j = await r.json(); alert(j.error || 'Error'); return; }
+                        loaded = false; loadSessions();
+                    });
+                }
+                listEl.appendChild(card);
+            });
+        }
+
+        /* Lazy-load when tab activated */
+        document.getElementById('tab-measurements')?.addEventListener('shown.bs.tab', function () {
+            if (!loaded) { loaded = true; loadSessions(); }
+        });
+
+        /* New Session modal */
+        const newBtn  = document.getElementById('tdrMsNewBtn');
+        const modal   = new bootstrap.Modal(document.getElementById('tdrMsNewSessionModal'));
+        const errEl   = document.getElementById('tdrMsNewError');
+
+        newBtn?.addEventListener('click', () => {
+            document.getElementById('tdrMsNewFigure').value = '';
+            errEl.classList.add('d-none');
+            modal.show();
+        });
+
+        document.getElementById('tdrMsNewSaveBtn')?.addEventListener('click', async function () {
+            errEl.classList.add('d-none');
+            const figureId      = document.getElementById('tdrMsNewFigure').value;
+            const instructionId = document.getElementById('tdrMsNewInstruction').value;
+            if (!figureId || !instructionId) {
+                errEl.textContent = 'Figure and Instruction are required.';
+                errEl.classList.remove('d-none');
+                return;
+            }
+            try {
+                const res = await fetch('/workorders/' + WO_ID + '/measurement-sessions', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                    body: JSON.stringify({ manual_dimension_figure_id: figureId, instruction_id: instructionId }),
+                });
+                const saved = await res.json();
+                if (!res.ok) throw new Error(saved.message || saved.error || 'Error');
+                modal.hide();
+                window.location.href = '/measurement-sessions/' + saved.id;
+            } catch (e) {
+                errEl.textContent = e.message;
+                errEl.classList.remove('d-none');
+            }
+        });
+    })();
+    </script>
 @endsection

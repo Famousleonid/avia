@@ -1,0 +1,73 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\ManualDimensionFigure;
+use App\Models\ManualDimensionPoint;
+use Illuminate\Http\Request;
+
+class ManualDimensionPointController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+    public function store(Request $request, ManualDimensionFigure $manualDimensionFigure)
+    {
+        $data = $request->validate([
+            'point_type'         => 'required|in:navigation,measurement,circle',
+            'child_figure_id'    => 'nullable|exists:manual_dimension_figures,id',
+            'code'               => 'required|string|max:50',
+            'description'        => 'nullable|string|max:255',
+            'is_fits_clearance'  => 'boolean',
+            'x_pct'              => 'required|numeric|min:0|max:100',
+            'y_pct'              => 'required|numeric|min:0|max:100',
+            'width_pct'          => 'nullable|numeric|min:0.1|max:100',
+            'height_pct'         => 'nullable|numeric|min:0.1|max:100',
+            'x2_pct'             => 'nullable|numeric|min:0|max:100',
+            'y2_pct'             => 'nullable|numeric|min:0|max:100',
+            'label_x_pct'        => 'nullable|numeric|min:0|max:100',
+            'label_y_pct'        => 'nullable|numeric|min:0|max:100',
+            'sort_order'         => 'nullable|integer',
+        ]);
+
+        $point = ManualDimensionPoint::create(array_merge($data, [
+            'manual_dimension_figure_id' => $manualDimensionFigure->id,
+        ]));
+
+        return response()->json($point->load('specs'), 201);
+    }
+
+    public function update(Request $request, ManualDimensionPoint $manualDimensionPoint)
+    {
+        $data = $request->validate([
+            'point_type'         => 'sometimes|in:navigation,measurement,circle',
+            'child_figure_id'    => 'nullable|exists:manual_dimension_figures,id',
+            'code'               => 'sometimes|string|max:50',
+            'description'        => 'nullable|string|max:255',
+            'is_fits_clearance'  => 'boolean',
+            'x_pct'              => 'sometimes|numeric|min:0|max:100',
+            'y_pct'              => 'sometimes|numeric|min:0|max:100',
+            'width_pct'          => 'nullable|numeric|min:0.1|max:100',
+            'height_pct'         => 'nullable|numeric|min:0.1|max:100',
+            'x2_pct'             => 'nullable|numeric|min:0|max:100',
+            'y2_pct'             => 'nullable|numeric|min:0|max:100',
+            'label_x_pct'        => 'nullable|numeric|min:0|max:100',
+            'label_y_pct'        => 'nullable|numeric|min:0|max:100',
+            'sort_order'         => 'nullable|integer',
+        ]);
+
+        $manualDimensionPoint->update($data);
+
+        return response()->json($manualDimensionPoint);
+    }
+
+    public function destroy(ManualDimensionPoint $manualDimensionPoint)
+    {
+        $manualDimensionPoint->delete();
+
+        return response()->json(['ok' => true]);
+    }
+}

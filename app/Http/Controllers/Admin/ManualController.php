@@ -180,7 +180,7 @@ class ManualController extends Controller
         $this->ensureManualAccess($cmm);
         $cmm->load('partLock.lockedBy');
 
-        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb'];
+        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'dimensions'];
         $manualShowTab = in_array(request('tab'), $manualTabKeys, true) ? request('tab') : 'components';
 
         $planes = Plane::all();
@@ -329,8 +329,27 @@ class ManualController extends Controller
             ->orderBy('id')
             ->get();
 
+        $dimensionFigures = \App\Models\ManualDimensionFigure::where('manual_id', $cmm->id)
+            ->with(['points.specs.component', 'points.specs.code', 'childFigures'])
+            ->orderBy('sort_order')
+            ->get();
+
+        $dimensionComponents = \App\Models\Component::where('manual_id', $cmm->id)
+            ->get(['id', 'ipl_num', 'part_number', 'name'])
+            ->sort(fn($a, $b) => strnatcmp($a->ipl_num ?? '', $b->ipl_num ?? ''))
+            ->values();
+
+        $repairProcedures = \App\Models\ManualRepairProcedure::where('manual_id', $cmm->id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $processList = \App\Models\ProcessName::orderBy('name')->get(['id', 'name']);
+
+        $codes = \App\Models\Code::orderBy('name')->get(['id', 'name', 'code']);
+
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
-        'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','stdProcessPicklistOptions','serviceBulletins'
+        'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','stdProcessPicklistOptions','serviceBulletins',
+        'dimensionFigures', 'dimensionComponents', 'repairProcedures', 'processList', 'codes'
         ));
 
     }

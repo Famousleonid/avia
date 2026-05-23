@@ -37,6 +37,12 @@ use App\Http\Controllers\Admin\VendorTrackingController;
 use App\Http\Controllers\Admin\WorkorderController;
 use App\Http\Controllers\Admin\WorkorderStdProcessController;
 use App\Http\Controllers\Admin\WoBushingController;
+use App\Http\Controllers\Admin\ManualDimensionFigureController;
+use App\Http\Controllers\Admin\ManualDimensionPointController;
+use App\Http\Controllers\Admin\ManualDimensionSpecController;
+use App\Http\Controllers\Admin\ManualRepairProcedureController;
+use App\Http\Controllers\Admin\WoMeasurementSessionController;
+use App\Http\Controllers\Admin\WoMeasurementController;
 use App\Http\Controllers\Admin\MachiningController;
 use App\Http\Controllers\Admin\PaintController;
 use App\Http\Controllers\Admin\ManualStdProcessController;
@@ -297,6 +303,62 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::delete('transfers/delete-by-tdr/{id}', [TransferController::class, 'deleteByTdr'])->name('transfers.deleteByTdr');
 
     Route::resource('/manuals', ManualController::class);
+
+    // --- Dimension Figures (Manual settings) ---
+    Route::get('/manuals/{manual}/dimension-figures', [ManualDimensionFigureController::class, 'index'])->name('manuals.dimension-figures.index');
+    Route::post('/manuals/{manual}/dimension-figures/upload-image', [ManualDimensionFigureController::class, 'uploadImage'])->name('manuals.dimension-figures.upload-image');
+    Route::post('/manuals/{manual}/dimension-figures', [ManualDimensionFigureController::class, 'store'])->name('manuals.dimension-figures.store');
+    Route::patch('/dimension-figures/{manualDimensionFigure}', [ManualDimensionFigureController::class, 'update'])->name('dimension-figures.update');
+    Route::delete('/dimension-figures/{manualDimensionFigure}', [ManualDimensionFigureController::class, 'destroy'])->name('dimension-figures.destroy');
+
+    // --- Dimension Points ---
+    Route::post('/dimension-figures/{manualDimensionFigure}/points', [ManualDimensionPointController::class, 'store'])->name('dimension-figures.points.store');
+    Route::patch('/dimension-points/{manualDimensionPoint}', [ManualDimensionPointController::class, 'update'])->name('dimension-points.update');
+    Route::delete('/dimension-points/{manualDimensionPoint}', [ManualDimensionPointController::class, 'destroy'])->name('dimension-points.destroy');
+
+    // --- Dimension Specs ---
+    Route::post('/dimension-points/{manualDimensionPoint}/specs', [ManualDimensionSpecController::class, 'store'])->name('dimension-points.specs.store');
+    Route::patch('/dimension-specs/{manualDimensionSpec}', [ManualDimensionSpecController::class, 'update'])->name('dimension-specs.update');
+    Route::delete('/dimension-specs/{manualDimensionSpec}', [ManualDimensionSpecController::class, 'destroy'])->name('dimension-specs.destroy');
+
+    // --- Repair Rules ---
+    Route::post('/dimension-specs/{manualDimensionSpec}/repair-rules', [ManualDimensionSpecController::class, 'storeRepairRule'])->name('dimension-specs.repair-rules.store');
+    Route::delete('/dimension-repair-rules/{manualDimensionRepairRule}', [ManualDimensionSpecController::class, 'destroyRepairRule'])->name('dimension-repair-rules.destroy');
+
+    // --- Allowed Codes ---
+    Route::post('/dimension-specs/{manualDimensionSpec}/allowed-codes', [ManualDimensionSpecController::class, 'storeAllowedCode'])->name('dimension-specs.allowed-codes.store');
+    Route::delete('/dimension-spec-codes/{manualDimensionSpecCode}', [ManualDimensionSpecController::class, 'destroyAllowedCode'])->name('dimension-spec-codes.destroy');
+
+    // --- Bushing Specs ---
+    Route::post('/dimension-specs/{manualDimensionSpec}/bushing-spec', [ManualDimensionSpecController::class, 'storeBushingSpec'])->name('dimension-specs.bushing-spec.store');
+    Route::patch('/bushing-specs/{manualBushingSpec}', [ManualDimensionSpecController::class, 'updateBushingSpec'])->name('bushing-specs.update');
+    Route::delete('/bushing-specs/{manualBushingSpec}', [ManualDimensionSpecController::class, 'destroyBushingSpec'])->name('bushing-specs.destroy');
+
+    // --- Oversize Options ---
+    Route::post('/bushing-specs/{manualBushingSpec}/oversize-options', [ManualDimensionSpecController::class, 'storeOversizeOption'])->name('bushing-specs.oversize-options.store');
+    Route::delete('/bushing-oversize-options/{manualBushingOversizeOption}', [ManualDimensionSpecController::class, 'destroyOversizeOption'])->name('bushing-oversize-options.destroy');
+
+    // --- Repair Procedures ---
+    Route::get('/manuals/{manual}/repair-procedures', [ManualRepairProcedureController::class, 'index'])->name('manuals.repair-procedures.index');
+    Route::post('/manuals/{manual}/repair-procedures', [ManualRepairProcedureController::class, 'store'])->name('manuals.repair-procedures.store');
+    Route::patch('/repair-procedures/{manualRepairProcedure}', [ManualRepairProcedureController::class, 'update'])->name('repair-procedures.update');
+    Route::delete('/repair-procedures/{manualRepairProcedure}', [ManualRepairProcedureController::class, 'destroy'])->name('repair-procedures.destroy');
+    Route::post('/repair-procedures/{manualRepairProcedure}/steps', [ManualRepairProcedureController::class, 'storeStep'])->name('repair-procedures.steps.store');
+    Route::patch('/repair-procedure-steps/{manualRepairProcedureStep}', [ManualRepairProcedureController::class, 'updateStep'])->name('repair-procedure-steps.update');
+    Route::delete('/repair-procedure-steps/{manualRepairProcedureStep}', [ManualRepairProcedureController::class, 'destroyStep'])->name('repair-procedure-steps.destroy');
+    Route::post('/repair-procedures/{manualRepairProcedure}/reorder-steps', [ManualRepairProcedureController::class, 'reorderSteps'])->name('repair-procedures.steps.reorder');
+
+    // --- WO Measurement Sessions ---
+    Route::get('/workorders/{workorder}/measurement-sessions', [WoMeasurementSessionController::class, 'index'])->name('workorders.measurement-sessions.index');
+    Route::post('/workorders/{workorder}/measurement-sessions', [WoMeasurementSessionController::class, 'store'])->name('workorders.measurement-sessions.store');
+    Route::get('/measurement-sessions/{woMeasurementSession}', [WoMeasurementSessionController::class, 'show'])->name('measurement-sessions.show');
+    Route::delete('/measurement-sessions/{woMeasurementSession}', [WoMeasurementSessionController::class, 'destroy'])->name('measurement-sessions.destroy');
+    Route::post('/measurement-sessions/{woMeasurementSession}/finalize', [WoMeasurementSessionController::class, 'finalize'])->name('measurement-sessions.finalize');
+
+    // --- WO Measurements ---
+    Route::post('/measurement-sessions/{woMeasurementSession}/measurements', [WoMeasurementController::class, 'store'])->name('measurement-sessions.measurements.store');
+    Route::patch('/measurements/{woMeasurement}', [WoMeasurementController::class, 'update'])->name('measurements.update');
+    Route::delete('/measurements/{woMeasurement}', [WoMeasurementController::class, 'destroy'])->name('measurements.destroy');
     Route::get('/ec', [EcController::class, 'index'])
         ->middleware('can:ec.access')
         ->name('ec.index');

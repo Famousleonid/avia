@@ -68,6 +68,7 @@
                         data-bs-trigger="focus"
                         data-bs-placement="left"
                         data-bs-html="true"
+                        data-bs-sanitize="false"
                         data-bs-container="body"
                         data-bs-custom-class="component-assy-popover"
                         data-bs-title="{{ __('Assemblies') }}"

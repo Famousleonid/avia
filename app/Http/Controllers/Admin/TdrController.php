@@ -1817,6 +1817,8 @@ class TdrController extends Controller
         $planes = Plane::all();
         $builders = Builder::all();
         $instruction = Instruction::all();
+        $dimensionFigures = \App\Models\ManualDimensionFigure::where('manual_id', $manual_id)
+            ->orderBy('sort_order')->get(['id', 'title', 'figure_type']);
         $necessaries = Necessary::all();
         $unit_conditions = Condition::where('unit', true)->get();
         $component_conditions = Condition::where('unit', false)->get();
@@ -1865,7 +1867,8 @@ class TdrController extends Controller
             'stdFormCounts', 'spFormColumnsCount', 'bushingSpFormColumnsCount', 'rmFormRowsCount', 'tdrFormRowsCount',
             'hasExtraProcessRecords', 'hasExtraProcessRecordsMoreThanOne', 'showLogCardTab',
             'showDestructionCert', 'logCardTdrAccess',
-            'allowedManualIds', 'canManageManualParts', 'canManageAllManualParts'
+            'allowedManualIds', 'canManageManualParts', 'canManageAllManualParts',
+            'dimensionFigures'
         );
     }
 
