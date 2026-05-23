@@ -46,6 +46,8 @@ class QualityAssuranceTest extends TestCase
         $response->assertOk();
         $response->assertSee('Quality Assurance');
         $response->assertSee('Enter full workorder number');
+        $response->assertSee('qaRepairFilter', false);
+        $response->assertSee('repairOrderFilter', false);
     }
 
     public function test_manager_with_qa_access_can_open_quality_dashboard(): void
@@ -209,6 +211,45 @@ class QualityAssuranceTest extends TestCase
         $this->assertTrue(collect($response->json('results'))->contains(
             fn (array $row) => $row['workorder_number'] === '988833'
                 && $row['serial'] === '1463290/006'
+        ));
+    }
+
+    public function test_serial_search_finds_log_card_json_serial_with_slash_by_decoded_value(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder(['number' => 988834]);
+        $otherWorkorder = $this->createWorkorder(['number' => 988835]);
+
+        LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                ['serial_number' => '100500/001', 'part_number' => 'LC-SLASH-PN'],
+            ]),
+        ]);
+        LogCard::query()->create([
+            'workorder_id' => $otherWorkorder->id,
+            'component_data' => json_encode([
+                ['serial_number' => '100500/002', 'part_number' => 'LC-SLASH-OTHER'],
+            ]),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('quality.serial_search', [
+            'q' => '100500/001',
+        ]));
+
+        $response->assertOk();
+        $response->assertJsonPath('ok', true);
+
+        $rows = collect($response->json('results'));
+        $this->assertTrue($rows->contains(
+            fn (array $row) => $row['workorder_number'] === '988834'
+                && $row['serial'] === '100500/001'
+        ));
+        $this->assertFalse($rows->contains(
+            fn (array $row) => $row['workorder_number'] === '988835'
+                && $row['serial'] === '100500/002'
         ));
     }
 

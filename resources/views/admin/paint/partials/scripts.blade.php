@@ -289,7 +289,7 @@
         var KEY = 'paint_hide_closed_rows';
         if (hideClosed) {
             try {
-                hideClosed.checked = localStorage.getItem(KEY) === '1';
+                hideClosed.checked = window.UserScopedStorage.getItem(KEY) === '1';
             } catch (_) {
                 hideClosed.checked = false;
             }
@@ -311,7 +311,7 @@
         if (hideClosed) {
             hideClosed.addEventListener('change', function () {
                 try {
-                    localStorage.setItem(KEY, hideClosed.checked ? '1' : '0');
+                    window.UserScopedStorage.setItem(KEY, hideClosed.checked ? '1' : '0');
                 } catch (_) {}
                 applyFilter();
             });
@@ -489,7 +489,7 @@
         var isOpen = false;
         var shouldAnimateOpen = false;
         try {
-            var saved = sessionStorage.getItem(KEY);
+            var saved = window.UserScopedSessionStorage.getItem(KEY);
             if (saved === '1') {
                 shouldAnimateOpen = true;
             }
@@ -506,7 +506,7 @@
             isOpen = !isOpen;
             render();
             try {
-                sessionStorage.setItem(KEY, isOpen ? '1' : '0');
+                window.UserScopedSessionStorage.setItem(KEY, isOpen ? '1' : '0');
             } catch (_) {}
         });
 

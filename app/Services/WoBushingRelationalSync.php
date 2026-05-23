@@ -19,6 +19,82 @@ class WoBushingRelationalSync
     }
 
     /**
+     * @param  array<string, mixed>  $groupData
+     * @return list<array{component_id: int, qty: int, need_processes: bool, processes: array<string, mixed>}>
+     */
+    private function normalizeGroupRows(array $groupData): array
+    {
+        $rows = [];
+
+        if (isset($groupData['items']) && is_array($groupData['items'])) {
+            foreach ($groupData['items'] as $componentId => $item) {
+                if (! is_array($item) || empty($item['selected'])) {
+                    continue;
+                }
+
+                $needProcesses = ! empty($item['need_processes']);
+                $ndtInput = $item['ndt'] ?? [];
+                if (is_null($ndtInput) || $ndtInput === '') {
+                    $ndtValues = [];
+                } elseif (is_array($ndtInput)) {
+                    $ndtValues = array_map('intval', $ndtInput);
+                } else {
+                    $ndtValues = [(int) $ndtInput];
+                }
+
+                $rows[] = [
+                    'component_id' => (int) $componentId,
+                    'qty' => max(1, (int) ($item['qty'] ?? 1)),
+                    'need_processes' => $needProcesses,
+                    'processes' => [
+                        'machining' => $needProcesses && ! empty($item['machining'] ?? null) ? (int) $item['machining'] : null,
+                        'stress_relief' => $needProcesses && ! empty($item['stress_relief'] ?? null) ? (int) $item['stress_relief'] : null,
+                        'ndt' => $needProcesses ? $ndtValues : [],
+                        'passivation' => $needProcesses && ! empty($item['passivation'] ?? null) ? (int) $item['passivation'] : null,
+                        'cad' => $needProcesses && ! empty($item['cad'] ?? null) ? (int) $item['cad'] : null,
+                        'anodizing' => $needProcesses && ! empty($item['anodizing'] ?? null) ? (int) $item['anodizing'] : null,
+                        'xylan' => $needProcesses && ! empty($item['xylan'] ?? null) ? (int) $item['xylan'] : null,
+                    ],
+                ];
+            }
+
+            return $rows;
+        }
+
+        if (! isset($groupData['components']) || ! is_array($groupData['components'])) {
+            return [];
+        }
+
+        $ndtInput = $groupData['ndt'] ?? [];
+        if (is_null($ndtInput) || $ndtInput === '') {
+            $ndtValues = [];
+        } elseif (is_array($ndtInput)) {
+            $ndtValues = array_map('intval', $ndtInput);
+        } else {
+            $ndtValues = [(int) $ndtInput];
+        }
+
+        foreach ($groupData['components'] as $componentId) {
+            $rows[] = [
+                'component_id' => (int) $componentId,
+                'qty' => max(1, (int) ($groupData['qty'] ?? 1)),
+                'need_processes' => true,
+                'processes' => [
+                    'machining' => ! empty($groupData['machining'] ?? null) ? (int) $groupData['machining'] : null,
+                    'stress_relief' => ! empty($groupData['stress_relief'] ?? null) ? (int) $groupData['stress_relief'] : null,
+                    'ndt' => $ndtValues,
+                    'passivation' => ! empty($groupData['passivation'] ?? null) ? (int) $groupData['passivation'] : null,
+                    'cad' => ! empty($groupData['cad'] ?? null) ? (int) $groupData['cad'] : null,
+                    'anodizing' => ! empty($groupData['anodizing'] ?? null) ? (int) $groupData['anodizing'] : null,
+                    'xylan' => ! empty($groupData['xylan'] ?? null) ? (int) $groupData['xylan'] : null,
+                ],
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
      * Сохраняет группы из запроса в wo_bushing_lines + wo_bushing_processes.
      *
      * @param  array<string, array<string, mixed>>  $groupBushingsData
@@ -58,25 +134,18 @@ class WoBushingRelationalSync
 
             $sortOrder = 0;
             foreach ($groupBushingsData as $groupKey => $groupData) {
-                if (! isset($groupData['components']) || ! is_array($groupData['components'])) {
+                if (! is_array($groupData)) {
                     continue;
                 }
-                foreach ($groupData['components'] as $componentId) {
-                    $ndtInput = $groupData['ndt'] ?? [];
-                    if (is_null($ndtInput) || $ndtInput === '') {
-                        $ndtValues = [];
-                    } elseif (is_array($ndtInput)) {
-                        $ndtValues = array_map('intval', $ndtInput);
-                    } else {
-                        $ndtValues = [(int) $ndtInput];
-                    }
-
-                    $qty = (int) ($groupData['qty'] ?? 1);
+                foreach ($this->normalizeGroupRows($groupData) as $rowData) {
+                    $componentId = (int) $rowData['component_id'];
+                    $qty = (int) $rowData['qty'];
+                    $processes = $rowData['processes'];
 
                     $line = WoBushingLine::create([
                         'wo_bushing_id' => $woBushing->id,
                         'workorder_id' => $workorderId,
-                        'component_id' => (int) $componentId,
+                        'component_id' => $componentId,
                         'qty' => $qty,
                         'qty_remaining' => $qty,
                         'group_key' => is_string($groupKey) ? $groupKey : (string) $groupKey,
@@ -92,15 +161,15 @@ class WoBushingRelationalSync
                     };
 
                     $rows = array_merge(
-                        $attach(! empty($groupData['machining'] ?? null) ? (int) $groupData['machining'] : null, $qty),
-                        $attach(! empty($groupData['stress_relief'] ?? null) ? (int) $groupData['stress_relief'] : null, $qty),
-                        $attach(! empty($groupData['passivation'] ?? null) ? (int) $groupData['passivation'] : null, $qty),
-                        $attach(! empty($groupData['cad'] ?? null) ? (int) $groupData['cad'] : null, $qty),
-                        $attach(! empty($groupData['anodizing'] ?? null) ? (int) $groupData['anodizing'] : null, $qty),
-                        $attach(! empty($groupData['xylan'] ?? null) ? (int) $groupData['xylan'] : null, $qty),
+                        $attach($processes['machining'] ?? null, $qty),
+                        $attach($processes['stress_relief'] ?? null, $qty),
+                        $attach($processes['passivation'] ?? null, $qty),
+                        $attach($processes['cad'] ?? null, $qty),
+                        $attach($processes['anodizing'] ?? null, $qty),
+                        $attach($processes['xylan'] ?? null, $qty),
                     );
 
-                    foreach ($ndtValues as $ndtPid) {
+                    foreach (($processes['ndt'] ?? []) as $ndtPid) {
                         if ($ndtPid > 0) {
                             $rows[] = ['process_id' => $ndtPid, 'qty' => $qty];
                         }
@@ -164,31 +233,15 @@ class WoBushingRelationalSync
     {
         $bushDataArray = [];
         foreach ($groupBushingsData as $groupData) {
-            if (! isset($groupData['components']) || ! is_array($groupData['components'])) {
+            if (! is_array($groupData)) {
                 continue;
             }
-            foreach ($groupData['components'] as $componentId) {
-                $ndtInput = $groupData['ndt'] ?? [];
-                if (is_null($ndtInput) || $ndtInput === '') {
-                    $ndtValues = [];
-                } elseif (is_array($ndtInput)) {
-                    $ndtValues = array_map('intval', $ndtInput);
-                } else {
-                    $ndtValues = [(int) $ndtInput];
-                }
-
+            foreach ($this->normalizeGroupRows($groupData) as $rowData) {
                 $bushDataArray[] = [
-                    'bushing' => (int) $componentId,
-                    'qty' => (int) ($groupData['qty'] ?? 1),
-                    'processes' => [
-                        'machining' => ! empty($groupData['machining'] ?? null) ? (int) $groupData['machining'] : null,
-                        'stress_relief' => ! empty($groupData['stress_relief'] ?? null) ? (int) $groupData['stress_relief'] : null,
-                        'ndt' => $ndtValues,
-                        'passivation' => ! empty($groupData['passivation'] ?? null) ? (int) $groupData['passivation'] : null,
-                        'cad' => ! empty($groupData['cad'] ?? null) ? (int) $groupData['cad'] : null,
-                        'anodizing' => ! empty($groupData['anodizing'] ?? null) ? (int) $groupData['anodizing'] : null,
-                        'xylan' => ! empty($groupData['xylan'] ?? null) ? (int) $groupData['xylan'] : null,
-                    ],
+                    'bushing' => (int) $rowData['component_id'],
+                    'qty' => (int) $rowData['qty'],
+                    'need_processes' => (bool) $rowData['need_processes'],
+                    'processes' => $rowData['processes'],
                 ];
             }
         }
@@ -268,6 +321,7 @@ class WoBushingRelationalSync
                 'group_key' => $groupKey,
                 'sort_order' => (int) $line->sort_order,
                 'qty' => (int) $line->qty,
+                'need_processes' => $line->processes->isNotEmpty(),
                 'processes' => $processes,
             ];
         }

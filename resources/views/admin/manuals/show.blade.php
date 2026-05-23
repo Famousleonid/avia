@@ -793,19 +793,11 @@
                 (function () {
                     var allowedTabs = ['components', 'parts', 'processes', 'std', 'sb'];
                     var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std', '#nav-sb': 'sb'};
-                    var storageKey = 'manual.show.activeTab.' + @json((int) $cmm->id);
                     var params = new URLSearchParams(location.search);
                     var q = params.get('tab');
-                    var fromStorage = null;
-                    try {
-                        fromStorage = localStorage.getItem(storageKey);
-                    } catch (e) {}
                     var desiredKey = (q && allowedTabs.indexOf(q) !== -1)
                         ? q
                         : (params.get('part_id') ? 'parts' : (params.get('std_inner') ? 'std' : (hashToTab[location.hash] || null)));
-                    if (!desiredKey && fromStorage && allowedTabs.indexOf(fromStorage) !== -1) {
-                        desiredKey = fromStorage;
-                    }
                     var server = @json($manualShowTab);
                     if (desiredKey && desiredKey !== server) {
                         document.documentElement.classList.add('manual-show-tabs-pending');
@@ -1828,7 +1820,9 @@
             return resolutions;
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', async function () {
+            const manualUiScope = 'manuals.show';
+            const manualId = @json((int) $cmm->id);
             var btnStdCsvUpload = document.getElementById('btn-std-csv-upload');
             if (btnStdCsvUpload) {
                 btnStdCsvUpload.addEventListener('click', function () {
@@ -1898,14 +1892,12 @@
             if (input && table) {
                 const tbody = table.querySelector('tbody');
                 const sortableHeaders = Array.from(table.querySelectorAll('th.sortable'));
-                const partsSearchStorageKey = 'manual.show.partsSearch.' + @json((int) $cmm->id);
+                const partsSearchStorageKey = 'partsSearch:' + manualId;
                 let sortCol = 0;
                 let sortDir = 'asc';
                 let searchFrame = null;
 
-                try {
-                    input.value = localStorage.getItem(partsSearchStorageKey) || '';
-                } catch (e) {}
+                input.value = await window.UserUiSettings.get(manualUiScope, partsSearchStorageKey, '');
 
                 function visiblePartRows() {
                     return Array.from(tbody?.querySelectorAll('tr') || []).filter(function (row) {
@@ -1977,13 +1969,7 @@
                     if (searchFrame) {
                         cancelAnimationFrame(searchFrame);
                     }
-                    try {
-                        if (input.value) {
-                            localStorage.setItem(partsSearchStorageKey, input.value);
-                        } else {
-                            localStorage.removeItem(partsSearchStorageKey);
-                        }
-                    } catch (e) {}
+                    window.UserUiSettings.set(manualUiScope, partsSearchStorageKey, input.value);
                     searchFrame = requestAnimationFrame(function () {
                         searchFrame = null;
                         applyPartsSearch();
@@ -2030,9 +2016,7 @@
                 input.addEventListener('input', queuePartsSearch);
                 clearInput?.addEventListener('click', function () {
                     input.value = '';
-                    try {
-                        localStorage.removeItem(partsSearchStorageKey);
-                    } catch (e) {}
+                    window.UserUiSettings.set(manualUiScope, partsSearchStorageKey, '');
                     applyPartsSearch();
                     input.focus();
                 });
@@ -2379,20 +2363,15 @@
             const initialParams = new URLSearchParams(window.location.search);
             const partIdToScroll = initialParams.get('part_id');
             const serverTab = @json($manualShowTab);
-            const manualActiveTabStorageKey = 'manual.show.activeTab.' + @json((int) $cmm->id);
-            let storedTab = null;
-            try {
-                storedTab = localStorage.getItem(manualActiveTabStorageKey);
-            } catch (e) {}
+            const manualActiveTabStorageKey = 'activeTab:' + manualId;
+            let storedTab = await window.UserUiSettings.get(manualUiScope, manualActiveTabStorageKey, null);
 
             function rememberManualShowTab(target) {
                 const key = Object.keys(tabKeyToPane).find(function (name) {
                     return tabKeyToPane[name] === target;
                 });
                 if (key) {
-                    try {
-                        localStorage.setItem(manualActiveTabStorageKey, key);
-                    } catch (e) {}
+                    window.UserUiSettings.set(manualUiScope, manualActiveTabStorageKey, key);
                 }
             }
 

@@ -876,14 +876,14 @@
     {{--    <script>--}}
     {{--        // Выводим сохраненные логи при загрузке страницы--}}
     {{--        $(document).ready(function() {--}}
-    {{--            var savedLogs = localStorage.getItem('debugLogs');--}}
+    {{--            var savedLogs = window.UserScopedStorage.getItem('debugLogs');--}}
     {{--            if (savedLogs) {--}}
     {{--                console.log('Сохраненные логи отладки:');--}}
     {{--                JSON.parse(savedLogs).forEach(function(log) {--}}
     {{--                    console.log(log);--}}
     {{--                });--}}
     {{--                // Очищаем логи после вывода--}}
-    {{--                localStorage.removeItem('debugLogs');--}}
+    {{--                window.UserScopedStorage.removeItem('debugLogs');--}}
     {{--            }--}}
     {{--        });--}}
     {{--    </script>--}}

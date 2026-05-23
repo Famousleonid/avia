@@ -6,12 +6,7 @@
         (() => {
             const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
             const woId = @json((string) ($current_workorder->id ?? ''));
-            const tabKey = woId ? `avia_main_tab_wo_${woId}` : 'avia_main_tab_default';
-
             let tab = document.documentElement.getAttribute('data-main-tab') || 'overview';
-            try {
-                tab = localStorage.getItem(tabKey) || tab;
-            } catch (error) {}
 
             if (!allowedTabs.includes(tab)) {
                 tab = 'overview';
@@ -23,16 +18,7 @@
                 return;
             }
 
-            const widthKey = woId
-                ? `avia_main_tab_width_wo_${woId}_${tab}`
-                : `avia_main_tab_width_default_${tab}`;
-
-            try {
-                const width = parseInt(localStorage.getItem(widthKey) || '', 10);
-                if (Number.isFinite(width) && width > 0) {
-                    document.documentElement.style.setProperty('--initial-main-tab-panel-width', `${width}px`);
-                }
-            } catch (error) {}
+            document.documentElement.style.removeProperty('--initial-main-tab-panel-width');
         })();
     </script>
 
@@ -321,13 +307,9 @@
                     (function () {
                         const allowedTabs = ['overview', 'tasks', 'std', 'parts', 'bushings'];
                         const woId = '{{ (int)($current_workorder->id ?? 0) }}';
-                        const key = woId ? `avia_main_tab_wo_${woId}` : 'avia_main_tab_default';
                         const hashMatch = window.location.hash.match(/^#qa-main:(.+)$/);
                         const hashTab = hashMatch ? new URLSearchParams(hashMatch[1]).get('tab') : '';
                         let tab = 'overview';
-                        try {
-                            tab = localStorage.getItem(key) || tab;
-                        } catch (e) {}
                         if (hashTab && allowedTabs.includes(hashTab)) tab = hashTab;
                         if (!allowedTabs.includes(tab)) tab = 'overview';
                         document.documentElement.setAttribute('data-main-tab', tab);
@@ -1043,6 +1025,9 @@
                                                 $isIgnoredStd = (bool) ($pr->ignore_row ?? false);
                                                 $startEditedBy = $pr->dateStartUpdatedBy?->name;
                                                 $finishEditedBy = $pr->dateFinishUpdatedBy?->name;
+                                                $dateUserName = ! empty($pr->date_finish)
+                                                    ? ($finishEditedBy ?: '—')
+                                                    : (! empty($pr->date_start) ? ($startEditedBy ?: '—') : '—');
                                                 $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
                                                 $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
                                                 $stdSequenceState = $processSequenceGuard->stdInputState($pr);
@@ -1073,16 +1058,16 @@
                                                 </td>
                                                 <td class="text-center small text-info js-last-user"
                                                     data-tippy-content="
-                                                        <span style='color:#adb5bd'>Updated by:</span>
+                                                        <span style='color:#adb5bd'>Sent date editor:</span>
                                                         <span style='color:#0dcaf0;font-weight:500'>
-                                                            {{ $pr->updatedBy?->name ?? '—' }}
+                                                            {{ $startEditedBy ?? '—' }}
                                                         </span>
                                                         <br>
-                                                        <span style='color:#adb5bd'>Updated at:</span>
+                                                        <span style='color:#adb5bd'>Returned date editor:</span>
                                                         <span style='color:#20c997;font-weight:500'>
-                                                            {{ $pr->updated_at?->format('d-M-Y H:i') ?? '—' }}
+                                                            {{ $finishEditedBy ?? '—' }}
                                                         </span>">
-                                                    {{ $pr->updatedBy?->name ?? '—' }}
+                                                    {{ $dateUserName }}
                                                 </td>
                                                 <td>
                                                     <span class="text-info">{{ $label }}</span>
@@ -1276,6 +1261,9 @@
                                                                     $trUserRow = $travelerUpdatedByRow ?? $travelerLeader;
                                                                     $trStartEditedBy = $travelerLeader->dateStartUpdatedBy?->name;
                                                                     $trFinishEditedBy = $travelerLeader->dateFinishUpdatedBy?->name;
+                                                                    $trDateUserName = ! empty($travelerLeader->date_finish)
+                                                                        ? ($trFinishEditedBy ?: '—')
+                                                                        : (! empty($travelerLeader->date_start) ? ($trStartEditedBy ?: '—') : '—');
                                                                     $trStartDateTitle = $trStartEditedBy ? ('Start date last edited by ' . $trStartEditedBy) : 'Start date editor: not recorded';
                                                                     $trFinishDateTitle = $trFinishEditedBy ? ('Finish date last edited by ' . $trFinishEditedBy) : 'Finish date editor: not recorded';
                                                                     $trSequenceState = $processSequenceGuard->travelerGroupInputState($tdr, (int) $travelerGroup);
@@ -1288,16 +1276,16 @@
                                                                 data-qa-process-id="{{ (int) ($travelerLeader->id ?? 0) }}">
                                                                 <td class="text-center small text-info js-last-user"
                                                                     data-tippy-content="
-                                                                    <span style='color:#adb5bd'>Updated by:</span>
+                                                                    <span style='color:#adb5bd'>Sent date editor:</span>
                                                                     <span style='color:#0dcaf0;font-weight:500'>
-                                                                        {{ $trUserRow->updatedBy?->name ?? '—' }}
+                                                                        {{ $trStartEditedBy ?? '—' }}
                                                                         </span>
                                                                         <br>
-                                                                        <span style='color:#adb5bd'>Updated at:</span>
+                                                                        <span style='color:#adb5bd'>Returned date editor:</span>
                                                                         <span style='color:#20c997;font-weight:500'>
-                                                                        {{ $trUserRow->updated_at?->format('d-M-Y H:i') ?? '—' }}
+                                                                        {{ $trFinishEditedBy ?? '—' }}
                                                                         </span>">
-                                                                    {{ $trUserRow->updatedBy?->name ?? '—' }}
+                                                                    {{ $trDateUserName }}
                                                                 </td>
                                                                 <td><span class="text-info">Traveler {{ (int) $travelerGroup }}</span></td>
 
@@ -1381,6 +1369,9 @@
                                                                     $isClosed = !empty($pr->date_finish);
                                                                     $startEditedBy = $pr->dateStartUpdatedBy?->name;
                                                                     $finishEditedBy = $pr->dateFinishUpdatedBy?->name;
+                                                                    $dateUserName = ! empty($pr->date_finish)
+                                                                        ? ($finishEditedBy ?: '—')
+                                                                        : (! empty($pr->date_start) ? ($startEditedBy ?: '—') : '—');
                                                                     $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
                                                                     $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
                                                                     $processSequenceState = $processSequenceGuard->tdrInputState($pr);
@@ -1394,16 +1385,16 @@
                                                                 data-sequence-exempt="{{ $pr->processName?->sequence_exempt ? 1 : 0 }}">
                                                                 <td class="text-center small text-info js-last-user"
                                                                     data-tippy-content="
-                                                                    <span style='color:#adb5bd'>Updated by:</span>
+                                                                    <span style='color:#adb5bd'>Sent date editor:</span>
                                                                     <span style='color:#0dcaf0;font-weight:500'>
-                                                                        {{ $pr->updatedBy?->name ?? '—' }}
+                                                                        {{ $startEditedBy ?? '—' }}
                                                                         </span>
                                                                         <br>
-                                                                        <span style='color:#adb5bd'>Updated at:</span>
+                                                                        <span style='color:#adb5bd'>Returned date editor:</span>
                                                                         <span style='color:#20c997;font-weight:500'>
-                                                                        {{ $pr->updated_at?->format('d-M-Y H:i') ?? '—' }}
+                                                                        {{ $finishEditedBy ?? '—' }}
                                                                         </span>">
-                                                                    {{ $pr->updatedBy?->name ?? '—' }}
+                                                                    {{ $dateUserName }}
                                                                 </td>
                                                                 <td>{{ $pr->processName->name ?? '—' }}</td>
 
@@ -1591,25 +1582,24 @@
                 if (!shell) return;
 
                 const woId = shell.dataset.woId || '';
-                const key = woId ? `avia_main_tab_wo_${woId}` : 'avia_main_tab_default';
-                const sizeKeyPrefix = woId ? `avia_main_tab_width_wo_${woId}_` : 'avia_main_tab_width_default_';
+                const settingsScope = 'mains.show';
+                const tabKey = woId ? `activeTab:${woId}` : 'activeTab:default';
+                const sizeKeyPrefix = woId ? `panelWidth:${woId}:` : 'panelWidth:default:';
                 const resizeHandle = shell.querySelector('[data-main-tab-resize]');
-                let activeTab = readTab();
+                let activeTab = 'overview';
 
-                function readTab() {
+                async function readTab() {
                     let tab = document.documentElement.getAttribute('data-main-tab') || 'overview';
-                    try {
-                        tab = localStorage.getItem(key) || tab;
-                    } catch (e) {}
+                    tab = await window.UserUiSettings.get(settingsScope, tabKey, tab);
                     return allowedTabs.includes(tab) ? tab : 'overview';
                 }
 
-                function activateMainTab(tab, { save = true } = {}) {
+                async function activateMainTab(tab, { save = true } = {}) {
                     if (!allowedTabs.includes(tab)) tab = 'overview';
                     activeTab = tab;
                     document.documentElement.setAttribute('data-main-tab', tab);
                     shell.dataset.activeMainTab = tab;
-                    applySavedWidth(tab);
+                    await applySavedWidth(tab);
 
                     shell.querySelectorAll('.main-tab-btn').forEach((btn) => {
                         const active = btn.dataset.mainTab === tab;
@@ -1621,7 +1611,7 @@
                     if (typeof window.__mainsInitDatePickers === 'function') window.__mainsInitDatePickers();
 
                     if (save) {
-                        try { localStorage.setItem(key, tab); } catch (e) {}
+                        window.UserUiSettings.set(settingsScope, tabKey, tab);
                     }
                 }
 
@@ -1635,16 +1625,13 @@
                     return `${sizeKeyPrefix}${tab}`;
                 }
 
-                function applySavedWidth(tab) {
+                async function applySavedWidth(tab) {
                     if (tab === 'overview') {
                         shell.style.removeProperty('--main-tab-panel-width');
                         return;
                     }
 
-                    let width = '';
-                    try {
-                        width = localStorage.getItem(widthKey(tab)) || '';
-                    } catch (e) {}
+                    const width = await window.UserUiSettings.get(settingsScope, widthKey(tab), '');
 
                     if (width) {
                         shell.style.setProperty('--main-tab-panel-width', `${parseInt(width, 10)}px`);
@@ -1675,7 +1662,7 @@
                     const onUp = (upEvent) => {
                         const width = clampWidth(upEvent.clientX - rect.left, rect.width);
                         shell.style.setProperty('--main-tab-panel-width', `${Math.round(width)}px`);
-                        try { localStorage.setItem(widthKey(activeTab), String(Math.round(width))); } catch (e) {}
+                        window.UserUiSettings.set(settingsScope, widthKey(activeTab), String(Math.round(width)));
                         shell.classList.remove('is-resizing-main-tab');
                         resizeHandle.releasePointerCapture?.(upEvent.pointerId);
                         document.removeEventListener('pointermove', onMove);
@@ -1730,8 +1717,11 @@
                     }, 450);
                 }
 
-                activateMainTab(readTab(), { save: false });
-                focusQaMainTarget();
+                (async () => {
+                    activeTab = await readTab();
+                    await activateMainTab(activeTab, { save: false });
+                    focusQaMainTarget();
+                })();
                 window.addEventListener('hashchange', focusQaMainTarget);
             })();
 
@@ -1949,16 +1939,16 @@
                 });
             }
 
-            // restore
-            const saved = localStorage.getItem(STORAGE_KEY);
-            const showAll = saved === '1';
-            checkbox.checked = showAll;
-            applyFilter(showAll);
+            window.UserUiSettings.get('mains.show', STORAGE_KEY, false).then((saved) => {
+                const showAll = saved === true || saved === '1';
+                checkbox.checked = showAll;
+                applyFilter(showAll);
+            });
 
             // ✅ реагируем на реальное изменение чекбокса
             checkbox.addEventListener('input', () => {
                 const state = checkbox.checked;
-                localStorage.setItem(STORAGE_KEY, state ? '1' : '0');
+                window.UserUiSettings.set('mains.show', STORAGE_KEY, state);
                 applyFilter(state);
             });
         });

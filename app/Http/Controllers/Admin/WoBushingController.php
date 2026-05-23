@@ -35,6 +35,16 @@ class WoBushingController extends Controller
         return ['Bake (Stress relief)', 'Stress Relief'];
     }
 
+    /**
+     * Bushing setup is limited to these two NDT variants.
+     *
+     * @return list<string>
+     */
+    private static function bushingNdtProcessNames(): array
+    {
+        return ['NDT-1', 'NDT-4'];
+    }
+
     private function resolveProcessKey(?string $processName, ?string $processCode = null): string
     {
         return WoBushingProcessColumnKey::resolve(
@@ -178,7 +188,7 @@ class WoBushingController extends Controller
 
         // NDT processes - показываем process_name (NDT-1, NDT-4 и т.д.)
         $ndtProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'LIKE', 'NDT%');
+                $query->whereIn('name', self::bushingNdtProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -328,7 +338,7 @@ class WoBushingController extends Controller
 
         // NDT processes - показываем process_name (NDT-1, NDT-4 и т.д.)
         $ndtProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'LIKE', 'NDT%');
+                $query->whereIn('name', self::bushingNdtProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -423,7 +433,7 @@ class WoBushingController extends Controller
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
-        $ndtProcesses = Process::whereHas('process_name', fn($q) => $q->where('name', 'LIKE', 'NDT%'))
+        $ndtProcesses = Process::whereHas('process_name', fn($q) => $q->whereIn('name', self::bushingNdtProcessNames()))
             ->whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
             ->with('process_name')->get();
 
@@ -508,7 +518,7 @@ class WoBushingController extends Controller
 
         // NDT processes - показываем process_name (NDT-1, NDT-4 и т.д.)
         $ndtProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'LIKE', 'NDT%');
+                $query->whereIn('name', self::bushingNdtProcessNames());
             })
             ->whereHas('manuals', function($query) use ($manual_id) {
                 $query->where('manual_id', $manual_id);
@@ -1023,7 +1033,7 @@ class WoBushingController extends Controller
             ->get();
 
         $ndtProcesses = Process::whereHas('process_name', function($query) {
-                $query->where('name', 'LIKE', 'NDT%');
+                $query->whereIn('name', self::bushingNdtProcessNames());
             })
             ->whereHas('manuals', function($query) use ($current_manual_id) {
                 $query->where('manual_id', $current_manual_id);

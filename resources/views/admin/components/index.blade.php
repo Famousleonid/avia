@@ -565,8 +565,8 @@
                 <script>
                     (() => {
                         try {
-                            const savedSearch = localStorage.getItem('components_search') || '';
-                            const savedManual = localStorage.getItem('components_manual_id') || '';
+                            const savedSearch = window.UserScopedStorage.getItem('components_search') || '';
+                            const savedManual = window.UserScopedStorage.getItem('components_manual_id') || '';
                             const searchInput = document.getElementById('searchInput');
                             const manualFilter = document.getElementById('manualFilter');
                             if (searchInput) searchInput.value = savedSearch;
@@ -1460,8 +1460,8 @@
                             hasMore: wrapper.dataset.hasMore === '1',
                             loading: false,
                             perPage: Number(wrapper.dataset.perPage || 100),
-                            sortCol: Number(localStorage.getItem(LS.sortCol) || 0),
-                            sortDir: localStorage.getItem(LS.sortDir) === 'desc' ? 'desc' : 'asc',
+                            sortCol: Number(window.UserScopedStorage.getItem(LS.sortCol) || 0),
+                            sortDir: window.UserScopedStorage.getItem(LS.sortDir) === 'desc' ? 'desc' : 'asc',
                         };
 
                         const hasSelect2 = !!(window.jQuery && typeof window.jQuery.fn?.select2 === 'function');
@@ -1692,10 +1692,10 @@
                         }
 
                         function persistFilters() {
-                            localStorage.setItem(LS.search, (searchInput.value || '').trim());
-                            localStorage.setItem(LS.manual, (manualFilter.value || '').trim());
-                            localStorage.setItem(LS.sortCol, String(state.sortCol));
-                            localStorage.setItem(LS.sortDir, state.sortDir);
+                            window.UserScopedStorage.setItem(LS.search, (searchInput.value || '').trim());
+                            window.UserScopedStorage.setItem(LS.manual, (manualFilter.value || '').trim());
+                            window.UserScopedStorage.setItem(LS.sortCol, String(state.sortCol));
+                            window.UserScopedStorage.setItem(LS.sortDir, state.sortDir);
                         }
 
                         function reloadFromFirstPage() {
@@ -1708,10 +1708,10 @@
                         }
 
                         async function restoreScrollPosition() {
-                            if (localStorage.getItem(LS.scrollRestore) !== '1') return;
-                            localStorage.removeItem(LS.scrollRestore);
+                            if (window.UserScopedStorage.getItem(LS.scrollRestore) !== '1') return;
+                            window.UserScopedStorage.removeItem(LS.scrollRestore);
 
-                            const y = parseInt(localStorage.getItem(LS.scrollY) || '0', 10);
+                            const y = parseInt(window.UserScopedStorage.getItem(LS.scrollY) || '0', 10);
                             if (!Number.isFinite(y) || y <= 0) return;
 
                             while (state.hasMore && wrapper.scrollHeight < y + wrapper.clientHeight) {
@@ -1736,8 +1736,8 @@
                             }
                         }
 
-                        searchInput.value = localStorage.getItem(LS.search) || '';
-                        const savedManual = localStorage.getItem(LS.manual) || '';
+                        searchInput.value = window.UserScopedStorage.getItem(LS.search) || '';
+                        const savedManual = window.UserScopedStorage.getItem(LS.manual) || '';
                         manualFilter.value = Array.from(manualFilter.options).some(o => o.value === savedManual) ? savedManual : '';
                         if (hasSelect2) window.jQuery(manualFilter).val(manualFilter.value).trigger('change.select2');
                         updateManualPartLockUi();
@@ -1752,7 +1752,7 @@
 
                             searchClearBtn?.addEventListener('click', () => {
                                 searchInput.value = '';
-                                localStorage.removeItem(LS.search);
+                                window.UserScopedStorage.removeItem(LS.search);
                                 reloadFromFirstPage();
                             });
 
@@ -1778,7 +1778,7 @@
                             });
 
                             wrapper.addEventListener('scroll', debounce(() => {
-                                localStorage.setItem(LS.scrollY, String(wrapper.scrollTop || 0));
+                                window.UserScopedStorage.setItem(LS.scrollY, String(wrapper.scrollTop || 0));
 
                                 const distanceToBottom = wrapper.scrollHeight - wrapper.scrollTop - wrapper.clientHeight;
                                 if (distanceToBottom <= 180) loadPage(state.page, false);
@@ -1788,8 +1788,8 @@
                                 const a = e.target.closest('a');
                                 if (!a || !a.querySelector('.bi-pencil-square')) return;
 
-                                localStorage.setItem(LS.scrollRestore, '1');
-                                localStorage.setItem(LS.scrollY, String(wrapper.scrollTop || 0));
+                                window.UserScopedStorage.setItem(LS.scrollRestore, '1');
+                                window.UserScopedStorage.setItem(LS.scrollY, String(wrapper.scrollTop || 0));
                             });
 
                             tbody.addEventListener('change', (e) => {

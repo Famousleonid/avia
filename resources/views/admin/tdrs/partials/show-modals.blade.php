@@ -619,16 +619,25 @@
     </div>
 </div>
 
-{{-- Edit Bushing Modal (iframe) --}}
+{{-- Edit Bushing Modal --}}
 <div class="modal fade" id="editBushingModal" tabindex="-1" aria-labelledby="editBushingModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: 1400px; width: 95%; height: 90vh;">
+    <div class="modal-dialog" style="max-width: calc(100vw - 24px); width: 1320px; height: 90vh;">
         <div class="modal-content bg-gradient" style="height: 90vh;">
             <div class="modal-header">
                 <h6 class="modal-title text-info" id="editBushingModalLabel">{{ __('Update Bushings List') }}</h6>
+                <div class="ms-auto d-flex gap-2 align-items-center" id="editBushingModalActions" style="display: none !important;">
+                    <button type="submit" form="bushings-form" class="btn btn-success btn-sm" id="editBushingModalSubmitBtn">
+                        <i class="fas fa-save"></i> {{ __('Save Bushing Data') }}
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="editBushingModalClearBtn">
+                        <i class="fas fa-eraser"></i> {{ __('Clear All') }}
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="editBushingModalCancelBtn">{{ __('Cancel') }}</button>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-0 overflow-hidden" style="height: calc(90vh - 60px);">
-                <iframe id="editBushingIframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
+            <div class="modal-body p-0 overflow-hidden" id="editBushingModalBody" style="height: calc(90vh - 60px);">
+                <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
             </div>
         </div>
     </div>

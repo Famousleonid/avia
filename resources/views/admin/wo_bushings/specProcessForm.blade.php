@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @include('partials.user-scoped-storage')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Special Process Form - Bushings</title>
@@ -1856,9 +1857,9 @@
         footerPadding: '2px 2px'
     };
 
-    // Загрузка настроек из localStorage
+    // Загрузка настроек из window.UserScopedStorage
     function loadPrintSettings() {
-        const saved = localStorage.getItem(PRINT_SETTINGS_KEY);
+        const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
             try {
                 return JSON.parse(saved);
@@ -1870,7 +1871,7 @@
         return defaultSettings;
     }
 
-    // Сохранение настроек в localStorage
+    // Сохранение настроек в window.UserScopedStorage
     window.savePrintSettings = function() {
         try {
             const getValue = function(id, defaultValue, suffix = '') {
@@ -1896,7 +1897,7 @@
                 footerPadding: getValue('footerPadding', '2px 2px', '')
             };
 
-            localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
+            window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
 
             // Убираем фокус с активного элемента перед закрытием модального окна
@@ -1976,7 +1977,7 @@
     // Сброс настроек к значениям по умолчанию
     window.resetPrintSettings = function() {
         if (confirm('Reset all print settings to default values?')) {
-            localStorage.removeItem(PRINT_SETTINGS_KEY);
+            window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
             loadSettingsToForm(defaultSettings);
             applyPrintSettings(defaultSettings);
             showNotification('Settings reset to default values!', 'success');
@@ -1988,9 +1989,9 @@
         const modal = document.getElementById('printSettingsModal');
         if (!modal) return;
 
-        let currentLang = localStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
+        let currentLang = window.UserScopedStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
         currentLang = currentLang === 'ru' ? 'en' : 'ru';
-        localStorage.setItem(TOOLTIP_LANG_KEY, currentLang);
+        window.UserScopedStorage.setItem(TOOLTIP_LANG_KEY, currentLang);
 
         updateTooltipsLanguage(modal, currentLang);
 
@@ -2019,7 +2020,7 @@
 
     // Функция инициализации языка tooltips
     function initTooltipLanguage(modal) {
-        const currentLang = localStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
+        const currentLang = window.UserScopedStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
         const langText = document.getElementById('langToggleText');
         if (langText) {
             langText.textContent = currentLang === 'ru' ? 'RUS' : 'US';

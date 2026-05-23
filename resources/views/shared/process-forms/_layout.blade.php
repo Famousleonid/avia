@@ -19,6 +19,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @include('partials.user-scoped-storage')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $process_name->process_sheet_name ?? $process_name->name ?? 'Process' }}</title>
@@ -55,8 +56,6 @@
 </div>
 
 @if(!$embedded)
-@include('shared.process-forms._scripts', ['module' => $module ?? 'tdr-processes', 'formConfig' => $formConfig])
-
 @if(!isset($hideBootstrapJS) || !$hideBootstrapJS)
 <script>
     if (typeof window.bootstrapLoaded === 'undefined') {
@@ -68,6 +67,7 @@
     }
 </script>
 @endif
+@include('shared.process-forms._scripts', ['module' => $module ?? 'tdr-processes', 'formConfig' => $formConfig])
 </body>
 </html>
 @else

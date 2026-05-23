@@ -7,6 +7,7 @@
     <title>Personal page</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
+    @include('partials.user-scoped-storage')
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{asset('assets/jquery/jquery.fancybox.min.css')}}">
@@ -150,7 +151,7 @@
     </style>
     <script>
         (function () {
-            const savedTheme = localStorage.getItem('theme') || 'light';
+            const savedTheme = window.UserScopedStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
     </script>
@@ -252,7 +253,7 @@
             let currentTheme = document.documentElement.getAttribute('data-bs-theme');
             let newTheme = currentTheme === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-bs-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
+            window.UserScopedStorage.setItem('theme', newTheme);
             updateThemeIcon(newTheme);
         }
 
@@ -270,7 +271,7 @@
             });
         }
 
-        let storedTheme = localStorage.getItem('theme') || 'light';
+        let storedTheme = window.UserScopedStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-bs-theme', storedTheme);
         updateThemeIcon(storedTheme);
 

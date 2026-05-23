@@ -3,11 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Builder;
 use App\Models\ManualIplBranchRule;
 use App\Models\Manual;
-use App\Models\Plane;
-use App\Models\Scope;
 use App\Models\Unit;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\WorkorderStdProcessItemsService;
@@ -24,49 +21,11 @@ class UnitController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('can:units.viewAny')->only('index');
         $this->middleware('can:units.view')->only('show');
-        $this->middleware('can:units.create')->only(['create', 'store']);
-        $this->middleware('can:units.update')->only(['edit', 'update', 'assignManual']);
-        $this->middleware('can:units.delete')->only('destroy');
+        $this->middleware('can:units.create')->only('store');
+        $this->middleware('can:units.update')->only(['update', 'assignManual']);
+        $this->middleware('can:units.delete')->only('destroySingle');
     }
-
-    public function index()
-    {
-        // Получаем все units и связанные с ними manuals
-        $units = Unit::with('manual')->get();
-        $units_all = $units;
-
-        // Проверка загруженных данных
-        if ($units->isEmpty()) {
-            // Если юнитов нет, возвращаем представление с сообщением
-            return view('admin.units.index', [
-                'message' => 'No units available at the moment.', // Сообщение о том, что юнитов нет
-                'restManuals' => Manual::whereNotIn('id', [])->get(),
-                'manuals' => Manual::all(),
-                'planes' => Plane::pluck('type', 'id'),
-                'builders' => Builder::pluck('name', 'id'),
-                'scopes' => Scope::pluck('scope', 'id'),
-                'groupedUnits' => collect() // Пустая коллекция
-            ]);
-        }
-
-        // Если юниты есть, продолжаем обработку
-        $manualIdsInUnits = $units->pluck('manual_id')->toArray();
-        $groupedUnits = $units->groupBy(function ($unit) {
-            return $unit->manuals ? $unit->manuals->number : 'No CMM';
-        });
-
-        // Подготовка общих данных для отображения в виде
-        $restManuals = Manual::whereNotIn('id', $manualIdsInUnits)->get();
-        $manuals = Manual::all();
-        $planes = Plane::pluck('type', 'id');
-        $builders = Builder::pluck('name', 'id');
-        $scopes = Scope::pluck('scope', 'id');
-
-        return view('admin.units.index', compact('groupedUnits', 'restManuals', 'manuals', 'planes', 'builders', 'scopes','units_all'));
-    }
-
 
     public function store(Request $request): JsonResponse
     {
@@ -173,36 +132,6 @@ class UnitController extends Controller
         ]);
     }
 
-    /**
-     * Show the forms for editing the specified resource.
-     */
-    public function edit($manualsId)
-    {
-        // Проверяем, что manual существует
-        $manual = Manual::findOrFail($manualsId);
-
-        // Получаем все units, связанные с данным manuals_id
-        $units = Unit::where('manual_id', $manualsId)->get();
-
-        if ($units->isEmpty()) {
-            return redirect()->back()->with('error', 'No units found for the selected manual.');
-        }
-
-        return view('admin.units.edit', compact('manual', 'units'));
-    }
-
-    public function getUnitsByManual($manualId)
-    {
-        $units = Unit::where('manual_id', $manualId)->get();
-        $resolver = app(ManualIplBranchRuleResolver::class);
-        $defaultRule = $resolver->resolveDefaultRuleForManual((int) $manualId);
-
-        return response()->json([
-            'units' => $units->map(fn (Unit $unit): array => $this->unitPayload($unit, $resolver))->values()->all(),
-            'default_rule' => $this->defaultRulePayload($defaultRule),
-        ]);
-    }
-
     public function update($manualId, Request $request)
     {
 
@@ -273,30 +202,6 @@ class UnitController extends Controller
         }
     }
 
-
-
-
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $manualId)
-    {
-        // Получаем мануал по полю 'number'
-        $manual = Manual::where('number', $manualId)->first();
-
-        // Если мануал найден, удаляем связанные юниты
-        if ($manual) {
-            // Удаляем все юниты, связанные с выбранным мануалом
-            Unit::where('manual_id', $manual->id)->delete();
-
-            // Перенаправляем на индекс с сообщением об успешном удалении
-        return redirect()->route('units.index')->with('success', 'All units deleted successfully.');
-        }
-
-        // Если мануал не найден, возвращаем ошибку
-            return redirect()->route('units.index')->with('error', 'Manual not found.');
-    }
 
     /**
      * Удалить ОДИН конкретный Unit (component) по его ID.
@@ -497,7 +402,4 @@ class UnitController extends Controller
             'exclude_prefix' => $rule?->exclude_prefix ?? '',
         ];
     }
-
-
-
 }

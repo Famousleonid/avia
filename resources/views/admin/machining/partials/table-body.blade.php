@@ -181,7 +181,7 @@
                                     $rowFinishForQueue = $row->date_finish ?? null;
                                     $rowHasDateFinish = $rowFinishForQueue !== null
                                         && ($rowFinishForQueue instanceof \DateTimeInterface || trim((string) $rowFinishForQueue) !== '');
-                                    /** По умолчанию step-строки свёрнуты; раскрытие — из localStorage в JS. */
+                                    /** По умолчанию step-строки свёрнуты; раскрытие — из window.UserScopedStorage в JS. */
                                     $collapseMachiningStepRows = $stepCount >= 1;
                                     $machiningGroupId = '';
                                     if ($editTp) {

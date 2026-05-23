@@ -156,14 +156,14 @@
 <script>
     // Выводим сохраненные логи при загрузке страницы
     $(document).ready(function() {
-        var savedLogs = localStorage.getItem('debugLogs');
+        var savedLogs = window.UserScopedStorage.getItem('debugLogs');
         if (savedLogs) {
             console.log('Сохраненные логи отладки:');
             JSON.parse(savedLogs).forEach(function(log) {
                 console.log(log);
             });
             // Очищаем логи после вывода
-            localStorage.removeItem('debugLogs');
+            window.UserScopedStorage.removeItem('debugLogs');
         }
     });
 
@@ -249,19 +249,19 @@
                 setHiddenInput('conditions_id', '1');
             }
 
-            // Сохраняем логи в localStorage с уникальным ключом
+            // Сохраняем логи в window.UserScopedStorage с уникальным ключом
             var timestamp = new Date().getTime();
-            localStorage.setItem('debugLogs_' + timestamp, JSON.stringify(debugLogs));
+            window.UserScopedStorage.setItem('debugLogs_' + timestamp, JSON.stringify(debugLogs));
 
             // Добавляем кнопку для просмотра логов
             if (!$('#viewLogsBtn').length) {
                 $('body').append('<button id="viewLogsBtn" style="position: fixed; top: 10px; right: 10px; z-index: 9999;">Показать логи</button>');
                 $('#viewLogsBtn').click(function() {
                     var allLogs = [];
-                    for (var i = 0; i < localStorage.length; i++) {
-                        var key = localStorage.key(i);
+                    for (var i = 0; i < window.UserScopedStorage.length; i++) {
+                        var key = window.UserScopedStorage.key(i);
                         if (key.startsWith('debugLogs_')) {
-                            var logs = JSON.parse(localStorage.getItem(key));
+                            var logs = JSON.parse(window.UserScopedStorage.getItem(key));
                             allLogs = allLogs.concat(logs);
                         }
                     }
@@ -341,19 +341,19 @@
                 setHiddenInput('conditions_id', '1');
             }
 
-            // Сохраняем логи в localStorage с уникальным ключом
+            // Сохраняем логи в window.UserScopedStorage с уникальным ключом
             var timestamp = new Date().getTime();
-            localStorage.setItem('debugLogs_' + timestamp, JSON.stringify(debugLogs));
+            window.UserScopedStorage.setItem('debugLogs_' + timestamp, JSON.stringify(debugLogs));
 
             // Добавляем кнопку для просмотра логов
             if (!$('#viewLogsBtn').length) {
                 $('body').append('<button id="viewLogsBtn" style="position: fixed; top: 10px; right: 10px; z-index: 9999;">Показать логи</button>');
                 $('#viewLogsBtn').click(function() {
                     var allLogs = [];
-                    for (var i = 0; i < localStorage.length; i++) {
-                        var key = localStorage.key(i);
+                    for (var i = 0; i < window.UserScopedStorage.length; i++) {
+                        var key = window.UserScopedStorage.key(i);
                         if (key.startsWith('debugLogs_')) {
-                            var logs = JSON.parse(localStorage.getItem(key));
+                            var logs = JSON.parse(window.UserScopedStorage.getItem(key));
                             allLogs = allLogs.concat(logs);
                         }
                     }

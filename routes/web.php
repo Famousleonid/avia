@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\MainController;
 use App\Http\Controllers\Admin\TrainingController;
 use App\Http\Controllers\Admin\UnitController;
+use App\Http\Controllers\Admin\UserUiSettingController;
 use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\VendorTrackingController;
 use App\Http\Controllers\Admin\WorkorderController;
@@ -101,6 +102,10 @@ Route::middleware(['auth'])->get('/session/heartbeat', function (\Illuminate\Htt
         'server_time' => now()->toIso8601String(),
     ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 })->name('session.heartbeat');
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/user-ui-settings', [UserUiSettingController::class, 'index'])->name('user-ui-settings.index');
+    Route::post('/user-ui-settings', [UserUiSettingController::class, 'store'])->name('user-ui-settings.store');
+});
 
 // ----------------------- Mobile route -----------------------------------------------------------------
 Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group(function () {
@@ -203,7 +208,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/workorders/check-number', [WorkorderController::class, 'checkNumber'])->name('workorders.checkNumber');
     Route::get('/tools', [ToolController::class, 'index'])->name('tools.index');
     Route::post('/tools/save', [ToolController::class, 'save'])->name('tools.save');
-
     Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class)->except(['show']);
     Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
@@ -322,9 +326,12 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     Route::patch('/components/{component}/single', [ComponentController::class, 'updateSingle'])->name('components.updateSingle');
     Route::resource('/components', ComponentController::class);
-    Route::resource('/processes', ProcessController::class)->except(['create', 'edit']);
+    Route::post('/processes', [ProcessController::class, 'store'])->name('processes.store');
     Route::resource('/tdr-processes',TdrProcessController::class);
-    Route::resource('/manual_processes', ManualProcessController::class);
+    Route::get('/manual_processes/{manual_process}/edit', [ManualProcessController::class, 'edit'])->name('manual_processes.edit');
+    Route::put('/manual_processes/{manual_process}', [ManualProcessController::class, 'update'])->name('manual_processes.update');
+    Route::patch('/manual_processes/{manual_process}', [ManualProcessController::class, 'update']);
+    Route::delete('/manual_processes/{manual_process}', [ManualProcessController::class, 'destroy'])->name('manual_processes.destroy');
     Route::post('manuals/{manual}/process-name-locks/{processName}', [ManualProcessLockController::class, 'lockProcessName'])->name('manuals.process-name-locks.lock');
     Route::delete('manuals/{manual}/process-name-locks/{processName}', [ManualProcessLockController::class, 'unlockProcessName'])->name('manuals.process-name-locks.unlock');
     Route::post('manuals/{manual}/manual-process-locks/{manualProcess}', [ManualProcessLockController::class, 'lockManualProcess'])->name('manuals.manual-process-locks.lock');
@@ -342,7 +349,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::resource('/tasks',  TaskController::class);
     Route::resource('/general-tasks',  GeneralTaskController::class);
 
-    Route::resource('/units', UnitController::class)->except(['update']);
+    Route::post('/units', [UnitController::class, 'store'])->name('units.store');
+    Route::get('/units/{manualId}', [UnitController::class, 'show'])->name('units.show');
     Route::post('/units/{manualId}', [UnitController::class, 'update'])->name('units.update');
     Route::delete('/units/{unit}/single', [UnitController::class, 'destroySingle'])->name('units.destroySingle');
     Route::patch('/units/{unit}/single', [UnitController::class, 'updateSingle'])->name('units.updateSingle');
@@ -356,7 +364,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/wo_bushings/{woBushing}/batches/ungroup', [WoBushingController::class, 'ungroupBatch'])->name('wo_bushings.batches.ungroup');
 
     Route::get('processes/create/{manual_id}', [ProcessController::class, 'create'])->name('processes.create');
-    Route::get('processes/edit/{id}', [ProcessController::class, 'edit'])->name('processes.edit');
     Route::get('/get-processes', [ProcessController::class, 'getProcesses'])->name('processes.getProcesses');
 
     Route::patch('/wo-bushing-processes/{woBushingProcess}/repair-order', [MainController::class, 'updateWoBushingProcessRepairOrder'])->name('wo_bushing_processes.updateRepairOrder');

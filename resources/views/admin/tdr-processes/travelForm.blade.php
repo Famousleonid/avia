@@ -4,6 +4,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @include('partials.user-scoped-storage')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Traveler</title>
@@ -511,7 +512,7 @@
                     var target = serverTotal;
                     try {
                         var key = @json($formConfig['storage_key'] ?? 'travelForm_print_settings');
-                        var raw = localStorage.getItem(key);
+                        var raw = window.UserScopedStorage.getItem(key);
                         if (raw) {
                             var saved = JSON.parse(raw);
                             var w = parseInt(String(saved.otherTableRows != null ? saved.otherTableRows : '').replace(/\D/g, ''), 10);

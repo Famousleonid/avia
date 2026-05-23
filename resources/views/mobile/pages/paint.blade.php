@@ -1073,7 +1073,7 @@
         document.addEventListener('change', function (e) {
             if (e.target && e.target.id === 'js-hide-closed-rows') {
                 try {
-                    sessionStorage.setItem('mobile_paint_hide_closed', e.target.checked ? '1' : '0');
+                    window.UserScopedSessionStorage.setItem('mobile_paint_hide_closed', e.target.checked ? '1' : '0');
                 } catch (_) {}
                 applyClosedFilter();
             }
@@ -1146,7 +1146,7 @@
             const checkbox = document.getElementById('js-hide-closed-rows');
             if (!checkbox) return;
             try {
-                checkbox.checked = sessionStorage.getItem('mobile_paint_hide_closed') === '1';
+                checkbox.checked = window.UserScopedSessionStorage.getItem('mobile_paint_hide_closed') === '1';
             } catch (_) {
                 checkbox.checked = false;
             }

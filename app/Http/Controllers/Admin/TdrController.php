@@ -1773,17 +1773,18 @@ class TdrController extends Controller
         $missingPartsCount = $missingParts->sum('qty');
         $hasMissingParts = $missingPartsCount > 0;
 
+        $missingCodeId = $code ? $code->id : 7;
+        $orderNewNecessaryId = $necessary ? $necessary->id : 2;
+
         $ordersParts = Tdr::where('workorder_id', $current_wo->id)
-            ->where('codes_id', '!=', $code->id)
-            ->where('necessaries_id', $necessary->id)
+            ->where('codes_id', '!=', $missingCodeId)
+            ->where('necessaries_id', $orderNewNecessaryId)
             ->with(['codes', 'component' => function($query) {
                 $query->withTrashed()->select('id', 'name', 'part_number', 'ipl_num', 'deleted_at');
             }])
             ->get();
         $ordersParts = $this->sortTdrsByDisplayedIpl($ordersParts);
 
-        $missingCodeId = $code ? $code->id : 7;
-        $orderNewNecessaryId = $necessary ? $necessary->id : 2;
         $orderedPartsTdrs = Tdr::where('workorder_id', $current_wo->id)
             ->whereNotNull('component_id')
             ->where('codes_id', '!=', $missingCodeId)
@@ -1793,8 +1794,8 @@ class TdrController extends Controller
         $hasOrderedParts = $orderedPartsCount > 0;
 
         $ordersPartsNew = Tdr::where('workorder_id', $current_wo->id)
-            ->where('codes_id', '!=', $code->id)
-            ->where('necessaries_id', $necessary->id)
+            ->where('codes_id', '!=', $missingCodeId)
+            ->where('necessaries_id', $orderNewNecessaryId)
             ->whereNotNull('order_component_id')
             ->with(['codes', 'orderComponent' => function($query) {
                 $query->withTrashed()->select('id', 'name', 'part_number', 'ipl_num', 'deleted_at');
@@ -1805,7 +1806,7 @@ class TdrController extends Controller
         $ordersPartsNew = $this->sortTdrsByDisplayedIpl($ordersPartsNew);
 
         $prl_parts = Tdr::where('workorder_id', $current_wo->id)
-            ->where('necessaries_id', $necessary->id)
+            ->where('necessaries_id', $orderNewNecessaryId)
             ->with([
                 'component' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); },
                 'orderComponent' => function($query) { $query->select('id', 'name', 'part_number', 'ipl_num'); },

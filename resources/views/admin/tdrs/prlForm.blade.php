@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @include('partials.user-scoped-storage')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $formTitle ?? 'PRL Form' }}</title>
@@ -985,9 +986,9 @@
         prlRowHeight: '28'
     };
 
-    // Загрузка настроек из localStorage
+    // Загрузка настроек из window.UserScopedStorage
     function loadPrintSettings() {
-        const saved = localStorage.getItem(PRINT_SETTINGS_KEY);
+        const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
             try {
                 return JSON.parse(saved);
@@ -999,7 +1000,7 @@
         return defaultSettings;
     }
 
-    // Сохранение настроек в localStorage
+    // Сохранение настроек в window.UserScopedStorage
     window.savePrintSettings = function() {
         try {
             const getValue = function(id, defaultValue, suffix = '') {
@@ -1023,7 +1024,7 @@
                 prlRowHeight: getValue('prlRowHeight', '28', '') + 'px'
             };
 
-            localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
+            window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
             applyTableRowLimits(settings);
 
@@ -1033,7 +1034,7 @@
             }
 
             // Закрываем модальное окно
-            const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
+            const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
             if (modal) {
                 modal.hide();
             }
@@ -1352,7 +1353,7 @@
     // Сброс настроек к значениям по умолчанию
     window.resetPrintSettings = function() {
         if (confirm('Reset all print settings to default values?')) {
-            localStorage.removeItem(PRINT_SETTINGS_KEY);
+            window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
             loadSettingsToForm(defaultSettings);
             applyPrintSettings(defaultSettings);
             setTimeout(function() {
@@ -1367,9 +1368,9 @@
         const modal = document.getElementById('printSettingsModal');
         if (!modal) return;
 
-        let currentLang = localStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
+        let currentLang = window.UserScopedStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
         currentLang = currentLang === 'ru' ? 'en' : 'ru';
-        localStorage.setItem(TOOLTIP_LANG_KEY, currentLang);
+        window.UserScopedStorage.setItem(TOOLTIP_LANG_KEY, currentLang);
 
         updateTooltipsLanguage(modal, currentLang);
 
@@ -1381,10 +1382,11 @@
 
     // Функция обновления языка всех tooltips
     function updateTooltipsLanguage(container, lang) {
+        if (!window.bootstrap?.Tooltip) return;
         const tooltipElements = container.querySelectorAll('[data-bs-toggle="tooltip"]');
 
         tooltipElements.forEach(function(el) {
-            const existingTooltip = bootstrap.Tooltip.getInstance(el);
+            const existingTooltip = window.bootstrap.Tooltip.getInstance(el);
             if (existingTooltip) {
                 existingTooltip.dispose();
             }
@@ -1398,13 +1400,13 @@
                 el.setAttribute('title', enText);
             }
 
-            new bootstrap.Tooltip(el);
+            new window.bootstrap.Tooltip(el);
         });
     }
 
     // Функция инициализации языка tooltips
     function initTooltipLanguage(modal) {
-        const currentLang = localStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
+        const currentLang = window.UserScopedStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
         const langText = document.getElementById('langToggleText');
         if (langText) {
             langText.textContent = currentLang === 'ru' ? 'RUS' : 'US';

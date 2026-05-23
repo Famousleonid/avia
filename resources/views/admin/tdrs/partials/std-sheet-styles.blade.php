@@ -622,7 +622,7 @@
         }
 
         .std-component-name {
-            font-size: 11px !important;
+            font-size: var(--component-name-font-size) !important;
             line-height: 1.05;
         }
 

@@ -1,564 +1,454 @@
-@extends(request()->query('modal') ? 'admin.master-embed' : 'admin.master')
+@extends(request()->query('fragment') ? 'admin.fragment' : (request()->query('modal') ? 'admin.master-embed' : 'admin.master'))
 
 @section('content')
     <style>
-        .container { max-width: 1200px; }
-        .container.modal-fit { max-width: 100%; }
-        .table-scroll-container {
-            max-height: 75vh;
-            overflow-y: auto;
-            overflow-x: hidden;
-            position: relative;
-            width: 100%;
+        .bushing-edit-shell { max-width: 100%; }
+        .bushing-edit-card { background: var(--bs-body-bg); border: 1px solid rgba(125, 140, 155, .35); }
+        .bushing-edit-table-wrap { max-height: calc(88vh - 170px); overflow-y: auto; overflow-x: hidden; }
+        .bushing-edit-table { width: min(1280px, 100%); max-width: 1280px; table-layout: fixed; }
+        .bushing-edit-table th { position: sticky; top: 0; z-index: 2; background: #303841; font-size: .78rem; }
+        .bushing-edit-table td { vertical-align: middle; font-size: .8rem; }
+        .bushing-line-list { display: flex; flex-direction: column; gap: .45rem; }
+        .bushing-line-list > div { min-height: 24px; display: flex; align-items: center; }
+        .bushing-part-cell { white-space: normal; line-height: 1.25; }
+        .bushing-select-cell { display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; }
+        .bushing-select-ipl { color: var(--bs-body-color); font-size: .8rem; }
+        .bushing-qty-input { width: 70px; text-align: center; }
+        .bushing-process-toggle { display: flex; justify-content: center; }
+        .bushing-process-cell .form-select { width: 100%; min-width: 0; font-size: .75rem; padding: .2rem .35rem; }
+        .bushing-ndt-select { min-width: 0 !important; }
+        .bushing-edit-table .form-check-input {
+            width: 1.05rem;
+            height: 1.05rem;
         }
-        .table-scroll-container thead th {
-            position: sticky;
-            top: 0;
-            background-color: #031e3a;
-            z-index: 10;
-            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+        .bushing-process-line.is-hidden .bushing-process-control { display: none; }
+        .bushing-readonly-qty { color: var(--bs-secondary-color); }
+        .bushing-edit-actions { gap: .5rem; }
+        .bushing-edit-shell[data-embedded="1"] .bushing-edit-card {
+            background: transparent;
+            border: 0;
         }
-        .table-scroll-container table { margin-bottom: 0; width: 100%; table-layout: fixed; }
-
-        .table th, .table td {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            padding: 6px 8px;
-            vertical-align: middle;
-        }
-
-        .table th:nth-child(1), .table td:nth-child(1) { white-space: nowrap; }
-        .table th:nth-child(2), .table td:nth-child(2) {
-            text-align: center;
-            vertical-align: top;
-        }
-        .table th:nth-child(3), .table td:nth-child(3) { text-align: center; }
-        .table td:nth-child(n+4) { white-space: nowrap; }
-
-        .table thead th {
-            height: 60px;
-            vertical-align: middle;
-        }
-
-        .form-select, .form-control {
-            font-size: 0.8rem;
-            padding: 0.25rem 0.4rem;
-            max-width: 100%;
-        }
-        .table .form-select { width: 100%; }
-
-        /* Стили для длинного текста процесса */
-        .process-text-long {
-            font-size: 0.65rem;
-            line-height: 0.9;
-            letter-spacing: -0.3px;
-            transform: scale(0.9);
-            transform-origin: left;
-        }
-
-        .header-row th {
-            border-bottom: 2px solid #dee2e6;
-            font-weight: bold;
-        }
-
-        .sub-header-row th {
-            border-top: none;
-            font-size: 0.8rem;
-            color: #6c757d;
-            font-style: italic;
-        }
-
-        .bushing-checkbox {
-            transform: scale(1.2);
-        }
-
-        .qty-input {
-            width: 100%;
-            max-width: 60px;
-            text-align: center;
-        }
-
-        .table-info {
-            background-color: #d1ecf1 !important;
-        }
-
-        .table-info td {
-            border-bottom: 2px solid #bee5eb !important;
-            font-weight: bold;
-            color: #0c5460;
-        }
-
-        .ps-4 {
-            padding-left: 1.5rem !important;
-        }
-
-        .text-start {
-            text-align: left !important;
-        }
-
-        .component-checkbox {
-            margin-bottom: 0.25rem;
-        }
-
-        .bushing-ipl {
-            display: inline-block;
-            font-size: 10px !important;
-            font-weight: 400 !important;
-            line-height: 1.05 !important;
-        }
-
-        .bushing-part-number {
-            font-size: 12px !important;
-        }
-
-        /* Стили для чекбоксов NDT */
-        .ndt-checkboxes {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            max-height: 200px;
-            overflow: auto;
-            padding: 0.25rem;
-        }
-
-        .ndt-checkboxes .form-check {
-            margin-bottom: 0;
-        }
-
-        .ndt-checkboxes .form-check-input {
-            margin-top: 0.25rem;
-        }
-
-        .ndt-checkboxes .form-check-label {
-            margin-left: 0.25rem;
-            cursor: pointer;
-        }
-
-        /* Стили для неактивных полей */
-        .form-control:disabled,
-        .form-select:disabled {
-            background-color: #f8f9fa;
-            opacity: 0.6;
-            cursor: not-allowed;
+        .bushing-edit-shell[data-embedded="1"] .bushing-edit-table-wrap {
+            max-height: calc(90vh - 92px);
         }
     </style>
 
-    <div class="container mt-3{{ request()->query('modal') ? ' modal-fit' : '' }}">
-        <div class="card bg-gradient">
+    @php
+        $embedded = request()->query('fragment') || request()->query('modal');
+        $bushDataByComponent = collect($bushData ?? [])->keyBy(fn ($item) => (int) ($item['bushing'] ?? 0));
+        $processColumnsBeforeNdt = [
+            'machining' => ['label' => 'Machining', 'options' => $machiningProcesses],
+            'stress_relief' => ['label' => 'Stress Relief', 'options' => $stressReliefProcesses],
+        ];
+        $processColumnsAfterNdt = [
+            'passivation' => ['label' => 'Passivation', 'options' => $passivationProcesses],
+            'cad' => ['label' => 'CAD', 'options' => $cadProcesses],
+            'anodizing' => ['label' => 'Anodizing', 'options' => $anodizingProcesses],
+            'xylan' => ['label' => 'Xylan', 'options' => $xylanProcesses],
+        ];
+    @endphp
+
+    <div class="bushing-edit-shell" id="editBushingFormRoot" data-embedded="{{ $embedded ? '1' : '0' }}">
+        <div class="card bushing-edit-card">
             @if($bushings->flatten()->count() > 0)
                 <form id="bushings-form" method="POST" action="{{ route('wo_bushings.update', $woBushing->id) }}">
                     @csrf
                     @method('PUT')
             @endif
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="text-primary mb-0">{{__('WO')}} {{$current_wo->number}} {{__('Update Bushings List')}}</h4>
-                <div>
-                    @if($bushings->flatten()->count() > 0)
-                        <button type="submit" class="btn btn-success" id="editBushingSubmitBtn">
-                            <i class="fas fa-save"></i> {{ __('Update Bushings Data') }}
-                        </button>
-                    @endif
-                    @if(request()->query('modal'))
-                        <button type="button" class="btn btn-secondary" id="editBushingCancelBtn">{{ __('Cancel') }}</button>
-                    @else
-                        <a href="{{ route('wo_bushings.show', $current_wo->id) }}" id="editBushingBackBtn" class="btn btn-secondary">
+
+            @unless($embedded)
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="text-info mb-0">{{ __('Update Bushings List') }} WO {{ $current_wo->number }}</h5>
+                    <div class="d-flex bushing-edit-actions">
+                        @if($bushings->flatten()->count() > 0)
+                            <button type="submit" class="btn btn-success btn-sm" id="editBushingSubmitBtn">
+                                <i class="fas fa-save"></i> {{ __('Update Bushings Data') }}
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="editBushingClearBtn">
+                                <i class="fas fa-eraser"></i> {{ __('Clear All') }}
+                            </button>
+                        @endif
+                        <a href="{{ route('wo_bushings.show', $current_wo->id) }}" class="btn btn-secondary btn-sm">
                             <i class="fas fa-arrow-left"></i> {{ __('Back') }}
                         </a>
-                    @endif
+                    </div>
                 </div>
-            </div>
+            @endunless
 
             @if($bushings->flatten()->count() > 0)
-            <div class="card-body">
-                <div class="d-flex flex-wrap gap-2 mb-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearForm()">
-                        <i class="fas fa-eraser"></i> {{ __('Clear All') }}
-                    </button>
-                </div>
-
-                <div class="table-responsive table-scroll-container">
-                        <table class="table table-bordered dir-table table-hover align-middle">
+                <div class="card-body {{ $embedded ? 'p-0' : 'p-2' }}">
+                    <div class="table-responsive bushing-edit-table-wrap">
+                        <table class="table table-bordered table-hover align-middle bushing-edit-table mb-0">
                             <colgroup>
-                                <col style="width: 14%;">
+                                <col style="width: 16.8%;">
+                                <col style="width: 4.8%;">
+                                <col style="width: 5.5%;">
+                                <col style="width: 5.5%;">
+                                <col style="width: 6.6%;">
+                                <col style="width: 9.4%;">
+                                <col style="width: 10.2%;">
+                                <col style="width: 6.25%;">
+                                <col style="width: 9%;">
+                                <col style="width: 9%;">
+                                <col style="width: 9%;">
                                 <col style="width: 8%;">
-                                <col style="width: 8%;">
-                                <col style="width: 10%;">
-                                <col style="width: 10%;">
-                                <col style="width: 10%;">
-                                <col style="width: 10%;">
-                                <col style="width: 10%;">
-                                <col style="width: 10%;">
-                                <col style="width: 10%;">
                             </colgroup>
                             <thead>
-                                <tr class="header-row">
-                                    <th class="text-primary text-center">Bushings</th>
-                                    <th class="text-primary text-center"
-                                        title="{{ __("Check or uncheck to include or exclude each bushing from this row's group. Processes apply to all selected bushings in the row.") }}">Select</th>
-                                    <th class="text-primary text-center">QTY</th>
-                                    <th class="text-primary text-center">Machining</th>
-                                    <th class="text-primary text-center">Stress Relief</th>
-                                    <th class="text-primary text-center">NDT</th>
-                                    <th class="text-primary text-center">Passivation</th>
-                                    <th class="text-primary text-center">CAD</th>
-                                    <th class="text-primary text-center">Anodizing</th>
-                                    <th class="text-primary text-center">Xylan</th>
+                                <tr>
+                                    <th class="text-info text-center">{{ __('Bushing') }}</th>
+                                    <th class="text-info text-center">{{ __('Part Qty') }}</th>
+                                    <th class="text-info text-center">{{ __('Select') }}</th>
+                                    <th class="text-info text-center">{{ __('WO Qty') }}</th>
+                                    <th class="text-info text-center">{{ __('Processes') }}</th>
+                                    <th class="text-info text-center">{{ __('Machining') }}</th>
+                                    <th class="text-info text-center">{{ __('Stress Relief') }}</th>
+                                    <th class="text-info text-center">{{ __('NDT') }}</th>
+                                    <th class="text-info text-center">{{ __('Passivation') }}</th>
+                                    <th class="text-info text-center">{{ __('CAD') }}</th>
+                                    <th class="text-info text-center">{{ __('Anodizing') }}</th>
+                                    <th class="text-info text-center">{{ __('Xylan') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($bushings as $bushIplNum => $bushingGroup)
                                     @php
-                                        // Только строки bushData, относящиеся к этой группе (group_key из sync = ключ группы в форме)
-                                        $normRowKey = (string) ($bushIplNum ?: 'no_ipl');
-                                        $selectedComponentsMap = [];
-                                        $groupData = [];
-
-                                        foreach($bushData as $bushItem) {
-                                            if(isset($bushItem['bushing'])) {
-                                                $gk = $bushItem['group_key'] ?? null;
-                                                $normGk = ($gk === null || $gk === '') ? 'no_ipl' : (string) $gk;
-                                                if ($normGk === 'No Bush IPL Number') {
-                                                    $normGk = 'no_ipl';
-                                                }
-                                                if ($normGk !== $normRowKey) {
-                                                    continue;
-                                                }
-
-                                                $componentId = $bushItem['bushing'];
-
-                                                // Нормализуем NDT: всегда массив id
-                                                $ndtValue = $bushItem['processes']['ndt'] ?? [];
-                                                if (is_null($ndtValue)) {
-                                                    $ndtValue = [];
-                                                } elseif (!is_array($ndtValue)) {
-                                                    $ndtValue = [$ndtValue];
-                                                }
-
-                                                $selectedComponentsMap[$componentId] = [
-                                                    'qty' => $bushItem['qty'],
-                                                    'machining' => $bushItem['processes']['machining'] ?? null,
-                                                    'stress_relief' => $bushItem['processes']['stress_relief'] ?? null,
-                                                    'ndt' => $ndtValue,
-                                                    'passivation' => $bushItem['processes']['passivation'] ?? null,
-                                                    'cad' => $bushItem['processes']['cad'] ?? null,
-                                                    'anodizing' => $bushItem['processes']['anodizing'] ?? null,
-                                                    'xylan' => $bushItem['processes']['xylan'] ?? null,
-                                                ];
-                                            }
-                                        }
-
-                                        // Определяем выбранные компоненты в данной группе
-                                        $selectedComponentsInGroup = [];
-                                        foreach($bushingGroup as $bushing) {
-                                            if(isset($selectedComponentsMap[$bushing->id])) {
-                                                $selectedComponentsInGroup[] = $bushing->id;
-                                                if(empty($groupData)) {
-                                                    $groupData = $selectedComponentsMap[$bushing->id];
-                                                }
-                                            }
-                                        }
-                                        $groupSelected = count($selectedComponentsInGroup) > 0;
+                                        $groupKey = (string) ($bushIplNum ?: 'no_ipl');
                                     @endphp
-
-                                    {{-- Group row with all bushings in first column and group controls --}}
-                                    <tr>
-                                        <td class="ps-2">
-                                            @foreach($bushingGroup as $bushing)
-                                                <div class="mb-1">
-                                                    <span><span class="bushing-ipl" style="font-size: 10px !important; font-weight: 400 !important; line-height: 1.05 !important;">{{ $bushing->ipl_num }}</span> - <span class="bushing-part-number" style="font-size: 12px !important;">{{ $bushing->part_number
-                                                    }}</span></span>
-                                                </div>
-                                            @endforeach
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="text-start">
+                                    <tr class="bushing-row" data-group-key="{{ $groupKey }}">
+                                        <td class="bushing-part-cell">
+                                            <div class="bushing-line-list">
                                                 @foreach($bushingGroup as $bushing)
-                                                    <div class="mb-1">
-                                                        <input type="checkbox" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][components][]"
-                                                               value="{{ $bushing->id }}" class="form-check-input me-1 component-checkbox"
-                                                               data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                               data-units-assy="{{ $bushing->units_assy ?? 1 }}"
-                                                               title="{{ __('Include this bushing in this group (shared QTY and processes for the row)') }}"
-                                                               {{ in_array($bushing->id, $selectedComponentsInGroup) ? 'checked' : '' }}>
-                                                        <small>{{ $bushing->ipl_num }}</small>
+                                                    <div><strong>{{ $bushing->ipl_num }}</strong> - {{ $bushing->part_number }}</div>
+                                                @endforeach
+                                            </div>
+                                        </td>
+                                        <td class="text-center bushing-readonly-qty">
+                                            <div class="bushing-line-list align-items-center">
+                                                @foreach($bushingGroup as $bushing)
+                                                    <div>{{ $bushing->units_assy ?? 1 }}</div>
+                                                @endforeach
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="bushing-line-list align-items-start">
+                                                @foreach($bushingGroup as $bushing)
+                                                    @php
+                                                        $existing = $bushDataByComponent->get((int) $bushing->id);
+                                                        $selected = $existing !== null;
+                                                    @endphp
+                                                    <div>
+                                                        <span class="bushing-select-cell">
+                                                            <input type="hidden" name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][selected]" value="0">
+                                                            <input type="checkbox"
+                                                                   name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][selected]"
+                                                                   value="1"
+                                                                   class="form-check-input component-checkbox"
+                                                                   {{ $selected ? 'checked' : '' }}>
+                                                            <span class="bushing-select-ipl">{{ $bushing->ipl_num }}</span>
+                                                        </span>
                                                     </div>
                                                 @endforeach
                                             </div>
                                         </td>
                                         <td class="text-center">
-                                            <input type="number" name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][qty]"
-                                                   class="form-control qty-input" min="0"
-                                                   value="{{ $groupData['qty'] ?? '' }}"
-                                                   data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                   {{ !$groupSelected ? 'disabled' : '' }}>
-                                        </td>
-                                        <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][machining]"
-                                                    class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                    {{ !$groupSelected ? 'disabled' : '' }}>
-                                                <option value="">-- Select Machining --</option>
-                                                @foreach($machiningProcesses as $process)
-                                                    <option value="{{ $process->id }}"
-                                                            {{ isset($groupData['machining']) && $groupData['machining'] == $process->id ? 'selected' : '' }}>
-                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][stress_relief]"
-                                                    class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                    {{ !$groupSelected ? 'disabled' : '' }}>
-                                                <option value="">-- Select Stress Relief --</option>
-                                                @foreach($stressReliefProcesses as $process)
-                                                    <option value="{{ $process->id }}"
-                                                            {{ isset($groupData['stress_relief']) && $groupData['stress_relief'] == $process->id ? 'selected' : '' }}>
-                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <td>
-                                            @php
-                                                $selectedNdtIds = isset($groupData['ndt']) ? (array)$groupData['ndt'] : [];
-                                            @endphp
-                                            <div class="ndt-checkboxes" data-group="{{ $bushIplNum ?: 'no_ipl' }}">
-                                                @foreach($ndtProcesses as $process)
-                                                    <div class="form-check">
-                                                        <input type="checkbox"
-                                                               name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][ndt][]"
-                                                               value="{{ $process->id }}"
-                                                               class="form-check-input"
-                                                               data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                               {{ in_array($process->id, $selectedNdtIds) ? 'checked' : '' }}
-                                                               {{ !$groupSelected ? 'disabled' : '' }}>
-                                                        <label class="form-check-label" style="font-size: 0.875rem;">
-                                                            {{ $process->process_name->name }}
-                                                        </label>
+                                            <div class="bushing-line-list align-items-center">
+                                                @foreach($bushingGroup as $bushing)
+                                                    @php
+                                                        $existing = $bushDataByComponent->get((int) $bushing->id);
+                                                        $rowQty = $existing['qty'] ?? ($bushing->units_assy ?? 1);
+                                                    @endphp
+                                                    <div>
+                                                        <input type="number"
+                                                               name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][qty]"
+                                                               class="form-control form-control-sm bushing-qty-input"
+                                                               min="1"
+                                                               value="{{ $rowQty }}"
+                                                               data-part-qty="{{ $bushing->units_assy ?? 1 }}">
                                                     </div>
                                                 @endforeach
                                             </div>
                                         </td>
-                                        <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][passivation]"
-                                                    class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                    {{ !$groupSelected ? 'disabled' : '' }}>
-                                                <option value="">-- Select Passivation --</option>
-                                                @foreach($passivationProcesses as $process)
-                                                    <option value="{{ $process->id }}"
-                                                            {{ isset($groupData['passivation']) && $groupData['passivation'] == $process->id ? 'selected' : '' }}>
-                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
-                                                    </option>
+                                        <td class="text-center">
+                                            <div class="bushing-line-list align-items-center">
+                                                @foreach($bushingGroup as $bushing)
+                                                    @php
+                                                        $existing = $bushDataByComponent->get((int) $bushing->id);
+                                                        $selected = $existing !== null;
+                                                        $rowNeedProcesses = $selected ? (bool) ($existing['need_processes'] ?? true) : false;
+                                                    @endphp
+                                                    <div class="bushing-process-toggle">
+                                                        <input type="hidden" name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][need_processes]" value="0">
+                                                        <input type="checkbox"
+                                                               name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][need_processes]"
+                                                               value="1"
+                                                               class="form-check-input bushing-need-processes"
+                                                               {{ $rowNeedProcesses ? 'checked' : '' }}>
+                                                    </div>
                                                 @endforeach
-                                            </select>
+                                            </div>
                                         </td>
-                                        <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][cad]"
-                                                    class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                    {{ !$groupSelected ? 'disabled' : '' }}>
-                                                <option value="">-- Select CAD --</option>
-                                                @foreach($cadProcesses as $process)
-                                                    <option value="{{ $process->id }}"
-                                                            {{ isset($groupData['cad']) && $groupData['cad'] == $process->id ? 'selected' : '' }}>
-                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
-                                                    </option>
+
+                                        @foreach($processColumnsBeforeNdt as $field => $column)
+                                            <td class="bushing-process-cell">
+                                                <div class="bushing-line-list">
+                                                    @foreach($bushingGroup as $bushing)
+                                                        @php
+                                                            $existing = $bushDataByComponent->get((int) $bushing->id);
+                                                            $rowProcesses = $existing['processes'] ?? [];
+                                                        @endphp
+                                                        <div class="bushing-process-line" data-component-id="{{ $bushing->id }}">
+                                                            <select name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][{{ $field }}]"
+                                                                    class="form-select form-select-sm bushing-process-control"
+                                                                    data-process-field="{{ $field }}">
+                                                                <option value="">...</option>
+                                                                @foreach($column['options'] as $process)
+                                                                    <option value="{{ $process->id }}" {{ ($rowProcesses[$field] ?? null) == $process->id ? 'selected' : '' }}>
+                                                                        {{ $process->process }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </td>
+                                        @endforeach
+
+                                        <td class="bushing-process-cell">
+                                            <div class="bushing-line-list">
+                                                @foreach($bushingGroup as $bushing)
+                                                    @php
+                                                        $existing = $bushDataByComponent->get((int) $bushing->id);
+                                                        $rowProcesses = $existing['processes'] ?? [];
+                                                        $selectedNdt = collect($rowProcesses['ndt'] ?? [])->first();
+                                                    @endphp
+                                                    <div class="bushing-process-line" data-component-id="{{ $bushing->id }}">
+                                                        <select name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][ndt]"
+                                                                class="form-select form-select-sm bushing-process-control bushing-ndt-select"
+                                                                data-process-field="ndt">
+                                                            <option value="">...</option>
+                                                            @foreach($ndtProcesses as $process)
+                                                                <option value="{{ $process->id }}" {{ (int) $selectedNdt === (int) $process->id ? 'selected' : '' }}>
+                                                                    {{ $process->process_name->name }}
+                                                                </option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
                                                 @endforeach
-                                            </select>
+                                            </div>
                                         </td>
-                                        <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][anodizing]"
-                                                    class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                    {{ !$groupSelected ? 'disabled' : '' }}>
-                                                <option value="">-- Select Anodizing --</option>
-                                                @foreach($anodizingProcesses as $process)
-                                                    <option value="{{ $process->id }}"
-                                                            {{ isset($groupData['anodizing']) && $groupData['anodizing'] == $process->id ? 'selected' : '' }}>
-                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <select name="group_bushings[{{ $bushIplNum ?: 'no_ipl' }}][xylan]"
-                                                    class="form-select" data-group="{{ $bushIplNum ?: 'no_ipl' }}"
-                                                    {{ !$groupSelected ? 'disabled' : '' }}>
-                                                <option value="">-- Select Xylan --</option>
-                                                @foreach($xylanProcesses as $process)
-                                                    <option value="{{ $process->id }}"
-                                                            {{ isset($groupData['xylan']) && $groupData['xylan'] == $process->id ? 'selected' : '' }}>
-                                                        <span @if(strlen($process->process) > 40) class="process-text-long" @endif>{{ $process->process }}</span>
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </td>
+
+                                        @foreach($processColumnsAfterNdt as $field => $column)
+                                            <td class="bushing-process-cell">
+                                                <div class="bushing-line-list">
+                                                    @foreach($bushingGroup as $bushing)
+                                                        @php
+                                                            $existing = $bushDataByComponent->get((int) $bushing->id);
+                                                            $rowProcesses = $existing['processes'] ?? [];
+                                                        @endphp
+                                                        <div class="bushing-process-line" data-component-id="{{ $bushing->id }}">
+                                                            <select name="group_bushings[{{ $groupKey }}][items][{{ $bushing->id }}][{{ $field }}]"
+                                                                    class="form-select form-select-sm bushing-process-control"
+                                                                    data-process-field="{{ $field }}">
+                                                                <option value="">...</option>
+                                                                @foreach($column['options'] as $process)
+                                                                    <option value="{{ $process->id }}" {{ ($rowProcesses[$field] ?? null) == $process->id ? 'selected' : '' }}>
+                                                                        {{ $process->process }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </td>
+                                        @endforeach
                                     </tr>
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
                 </div>
-            </div>
                 </form>
             @else
-            <div class="card-body text-center py-5">
-                <h3 class="text-muted">{{__('No Bushings available for this Work Order')}}</h3>
-                <p class="text-muted">{{__('No components with "Is Bush" marked are found for this manual.')}}</p>
-            </div>
-        @endif
+                <div class="card-body text-center py-5">
+                    <h3 class="text-muted">{{ __('No Bushings available for this Work Order') }}</h3>
+                    <p class="text-muted">{{ __('No components with "Is Bush" marked are found for this manual.') }}</p>
+                </div>
+            @endif
         </div>
     </div>
 
     <script>
-        function clearForm() {
-            if(confirm('{{__("Are you sure you want to clear all data?")}}')) {
-                document.getElementById('bushings-form').reset();
-                // После сброса формы деактивируем все поля и устанавливаем значения по умолчанию
-                document.querySelectorAll('[data-group]').forEach(function(field) {
-                    if (!field.classList.contains('component-checkbox')) {
-                        field.disabled = true;
-                        if (field.classList.contains('qty-input')) {
-                            field.value = '1';
+        window.initEditBushingForm = function(root) {
+            root = root || document;
+            var formRoot = root.querySelector ? root.querySelector('#editBushingFormRoot') : document.getElementById('editBushingFormRoot');
+            var form = root.querySelector ? root.querySelector('#bushings-form') : document.getElementById('bushings-form');
+            if (!form || form.dataset.initialized === '1') return;
+            form.dataset.initialized = '1';
+
+            function notify(message, type) {
+                if (window.tdrShowNotify) window.tdrShowNotify(message, type || 'warning');
+                else if (window.showNotification) window.showNotification(message, type || 'warning');
+                else alert(message);
+            }
+
+            function rowState(row) {
+                var selectedChecks = Array.prototype.slice.call(row.querySelectorAll('.component-checkbox'));
+                var selected = selectedChecks.some(function(checkbox) { return checkbox.checked; });
+                var need = Array.prototype.slice.call(row.querySelectorAll('.bushing-need-processes')).some(function(checkbox) {
+                    return !checkbox.disabled && checkbox.checked;
+                });
+                return { selected: selected, need: need };
+            }
+
+            function componentIdFromName(name) {
+                var match = String(name || '').match(/\[items]\[(\d+)]/);
+                return match ? match[1] : '';
+            }
+
+            function syncRow(row) {
+                row.querySelectorAll('.component-checkbox').forEach(function(checkbox) {
+                    var componentPrefix = checkbox.name.replace('[selected]', '');
+                    var componentId = componentIdFromName(checkbox.name);
+                    var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
+                    var need = row.querySelector('input[name="' + componentPrefix + '[need_processes]"][type="checkbox"]');
+                    var showProcesses = checkbox.checked && need && need.checked;
+
+                    if (qty) {
+                        qty.disabled = !checkbox.checked;
+                        if (checkbox.checked && (!qty.value || parseInt(qty.value, 10) < 1)) {
+                            qty.value = qty.getAttribute('data-part-qty') || '1';
                         }
                     }
+                    if (need) need.disabled = !checkbox.checked;
+
+                    row.querySelectorAll('.bushing-process-line[data-component-id="' + componentId + '"]').forEach(function(line) {
+                        line.classList.toggle('is-hidden', !showProcesses);
+                        line.querySelectorAll('.bushing-process-control').forEach(function(control) {
+                            control.disabled = !showProcesses;
+                            if (!showProcesses) control.value = '';
+                        });
+                    });
                 });
             }
-        }
 
-        // Функция для управления активностью полей группы (по data-group; без CSS-селектора — ключ IPL может содержать кавычки и т.д.)
-        function toggleGroupFields(groupName) {
-            if (groupName === null || groupName === undefined) {
-                return;
+            function syncAllRows() {
+                form.querySelectorAll('.bushing-row').forEach(syncRow);
             }
-            var g = String(groupName);
-            var groupCheckboxes = Array.prototype.slice.call(document.querySelectorAll('.component-checkbox')).filter(function (cb) {
-                return cb.getAttribute('data-group') === g;
-            });
-            var groupFields = Array.prototype.slice.call(document.querySelectorAll('[data-group]')).filter(function (el) {
-                return el.getAttribute('data-group') === g && !el.classList.contains('component-checkbox');
-            });
 
-            const hasSelected = groupCheckboxes.some(function (checkbox) { return checkbox.checked; });
-            const firstChecked = groupCheckboxes.find(function (cb) { return cb.checked; });
-            const unitsAssy = firstChecked ? (firstChecked.getAttribute('data-units-assy') || '1') : '1';
-
-            groupFields.forEach(field => {
-                if (field.type === 'checkbox' && field.name && field.name.includes('[ndt]')) {
-                    field.disabled = !hasSelected;
-                    if (!hasSelected) field.checked = false;
-                } else if (field.tagName === 'SELECT' || field.classList.contains('qty-input')) {
-                    field.disabled = !hasSelected;
-                    if (!hasSelected) {
-                        if (field.classList.contains('qty-input')) {
-                            field.value = '1';
-                        } else {
-                            field.value = '';
-                        }
-                    } else if (field.classList.contains('qty-input') && hasSelected) {
-                        field.value = unitsAssy;
-                    }
+            syncAllRows();
+            form.addEventListener('change', function(e) {
+                var row = e.target.closest('.bushing-row');
+                if (row && (e.target.classList.contains('component-checkbox')
+                    || e.target.classList.contains('bushing-need-processes'))) {
+                    syncRow(row);
                 }
             });
-        }
 
-        // Валидация формы
-        document.addEventListener('DOMContentLoaded', function() {
-            var inModal = {{ request()->query('modal') ? 'true' : 'false' }};
-
-            // Инициализация: проверяем состояние полей при загрузке на основе выбранных чекбоксов
-            const allGroups = new Set();
-            document.querySelectorAll('.component-checkbox').forEach(function(checkbox) {
-                const groupName = checkbox.getAttribute('data-group');
-                allGroups.add(groupName);
-            });
-
-            // Инициализируем состояние для каждой группы
-            allGroups.forEach(function(groupName) {
-                toggleGroupFields(groupName);
-            });
-
-            var bushingsForm = document.getElementById('bushings-form');
-            if (bushingsForm) {
-                bushingsForm.addEventListener('change', function (e) {
-                    var t = e.target;
-                    if (t && t.classList && t.classList.contains('component-checkbox')) {
-                        toggleGroupFields(t.getAttribute('data-group'));
-                    }
+            function clearBushingForm() {
+                if (!confirm('{{ __("Are you sure you want to clear all data?") }}')) return;
+                form.querySelectorAll('.bushing-row').forEach(function(row) {
+                    row.querySelectorAll('.component-checkbox').forEach(function(selected) { selected.checked = false; });
+                    row.querySelectorAll('.bushing-need-processes').forEach(function(need) { need.checked = false; });
+                    row.querySelectorAll('.bushing-qty-input').forEach(function(qty) { qty.value = qty.getAttribute('data-part-qty') || '1'; });
+                    row.querySelectorAll('.bushing-process-control').forEach(function(control) { control.value = ''; });
+                    syncRow(row);
                 });
             }
 
-            var cancelBtn = document.getElementById('editBushingCancelBtn');
-            if (cancelBtn && inModal && window.parent !== window) {
-                cancelBtn.addEventListener('click', function() {
-                    (window.top || window.parent).postMessage({ type: 'editBushingCancel' }, '*');
-                });
-            }
+            window.clearEditBushingForm = clearBushingForm;
+            root.querySelector('#editBushingClearBtn')?.addEventListener('click', clearBushingForm);
 
-            const form = document.getElementById('bushings-form');
+            root.querySelector('#editBushingCancelBtn')?.addEventListener('click', function() {
+                if (typeof window.handleEditBushingCancel === 'function') {
+                    window.handleEditBushingCancel();
+                }
+            });
 
             form.addEventListener('submit', function(e) {
-                const selectedComponents = document.querySelectorAll('.component-checkbox:checked');
+                var selectedRows = Array.prototype.slice.call(form.querySelectorAll('.bushing-row'))
+                    .filter(function(row) {
+                        return Array.prototype.slice.call(row.querySelectorAll('.component-checkbox')).some(function(checkbox) {
+                            return checkbox.checked;
+                        });
+                    });
 
-                if (selectedComponents.length === 0) {
+                if (selectedRows.length === 0) {
                     e.preventDefault();
-                    window.showNotification('{{__("Please select at least one component before submitting.")}}');
-                    return false;
+                    notify('{{ __("Please select at least one component before submitting.") }}');
+                    return;
                 }
 
-                // Проверяем, что для групп с выбранными компонентами заполнено количество
-                let hasErrors = false;
-                const groupsWithSelectedComponents = new Set();
+                var hasErrors = false;
+                selectedRows.forEach(function(row) {
+                    row.querySelectorAll('.component-checkbox').forEach(function(checkbox) {
+                        if (!checkbox.checked) return;
+                        var componentPrefix = checkbox.name.replace('[selected]', '');
+                        var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
+                        var need = row.querySelector('input[name="' + componentPrefix + '[need_processes]"][type="checkbox"]');
+                        var ndt = row.querySelector('select[name="' + componentPrefix + '[ndt]"]');
 
-                selectedComponents.forEach(function(checkbox) {
-                    const groupName = checkbox.getAttribute('data-group');
-                    groupsWithSelectedComponents.add(groupName);
-                });
-
-                groupsWithSelectedComponents.forEach(function(groupName) {
-                    const qtyInput = document.querySelector(`input[name="group_bushings[${groupName}][qty]"]`);
-
-                    if (!qtyInput.value || qtyInput.value <= 0) {
-                        qtyInput.style.borderColor = 'red';
-                        hasErrors = true;
-                    } else {
-                        qtyInput.style.borderColor = '';
-                    }
+                        if (!qty || !qty.value || parseInt(qty.value, 10) < 1) {
+                            if (qty) qty.style.borderColor = 'red';
+                            hasErrors = true;
+                        } else {
+                            qty.style.borderColor = '';
+                        }
+                        if (need && need.checked && ndt && ndt.options.length > 1 && !ndt.value) {
+                            ndt.style.borderColor = 'red';
+                            hasErrors = true;
+                        } else if (ndt) {
+                            ndt.style.borderColor = '';
+                        }
+                    });
                 });
 
                 if (hasErrors) {
                     e.preventDefault();
-                    window.showNotification('{{__("Please enter quantity for all groups with selected components.")}}');
-                    return false;
+                    notify('{{ __("Please enter WO Qty and NDT for selected bushings with processes.") }}');
+                    return;
                 }
 
-                if (inModal && window.parent !== window) {
-                    e.preventDefault();
-                    var submitBtn = document.getElementById('editBushingSubmitBtn');
-                    var origHtml = submitBtn ? submitBtn.innerHTML : '';
-                    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
-                    var fd = new FormData(form);
-                    fd.append('_method', 'PUT');
-                    fetch(form.action, {
-                        method: 'POST',
-                        body: fd,
-                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-                        credentials: 'same-origin'
+                if (!formRoot || formRoot.dataset.embedded !== '1') return;
+
+                e.preventDefault();
+                var submitBtn = root.querySelector('#editBushingSubmitBtn') || document.getElementById('editBushingModalSubmitBtn');
+                var originalHtml = submitBtn ? submitBtn.innerHTML : '';
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                }
+
+                var fd = new FormData(form);
+                fd.append('_method', 'PUT');
+                fetch(form.action, {
+                    method: 'POST',
+                    body: fd,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                })
+                    .then(function(response) {
+                        return response.json().catch(function() { return {}; });
                     })
-                    .then(function(r) { return r.json().catch(function() { return {}; }); })
-                    .then(function(res) {
-                        if (res.success) {
-                            window.parent.postMessage({ type: 'editBushingSuccess' }, '*');
-                        } else {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
-                            window.notifyError(res.message || (res.errors ? Object.values(res.errors).flat().join(', ') : '{{ __("Error") }}'));
+                    .then(function(data) {
+                        if (data.success) {
+                            if (typeof window.handleEditBushingSaved === 'function') window.handleEditBushingSaved();
+                            return;
                         }
+                        notify(data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : '{{ __("Error") }}'), 'error');
                     })
                     .catch(function() {
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
-                        window.notifyError('{{ __("Error") }}');
+                        notify('{{ __("Failed to submit.") }}', 'error');
+                    })
+                    .finally(function() {
+                        if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalHtml;
+                        }
                     });
-                    return false;
-                }
             });
-        });
-    </script>
+        };
 
+        window.initEditBushingForm(document);
+    </script>
 @endsection

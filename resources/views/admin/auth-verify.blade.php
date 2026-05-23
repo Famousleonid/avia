@@ -7,6 +7,7 @@
     <title>Admin page</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
+    @include('partials.user-scoped-storage')
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
 </head>

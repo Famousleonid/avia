@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @include('partials.user-scoped-storage')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>R&M Record</title>
@@ -732,9 +733,9 @@
         rmTableRows: '18'
     };
 
-    // Загрузка настроек из localStorage
+    // Загрузка настроек из window.UserScopedStorage
     function loadPrintSettings() {
-        const saved = localStorage.getItem(PRINT_SETTINGS_KEY);
+        const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
             try {
                 return JSON.parse(saved);
@@ -746,7 +747,7 @@
         return defaultSettings;
     }
 
-    // Сохранение настроек в localStorage
+    // Сохранение настроек в window.UserScopedStorage
     window.savePrintSettings = function() {
         try {
             const getValue = function(id, defaultValue, suffix = '') {
@@ -768,7 +769,7 @@
                 rmTableRows: getValue('rmTableRows', '18', '')
             };
 
-            localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
+            window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
 
             // Убираем фокус с активного элемента перед закрытием модального окна
@@ -777,7 +778,7 @@
             }
 
             // Закрываем модальное окно
-            const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
+            const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
             if (modal) {
                 modal.hide();
             }
@@ -1135,12 +1136,12 @@
     // Сброс настроек к значениям по умолчанию
     window.resetPrintSettings = function() {
         if (confirm('Reset all print settings to default values?')) {
-            localStorage.removeItem(PRINT_SETTINGS_KEY);
+            window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
             const settings = defaultSettings;
             applyPrintSettings(settings);
             loadSettingsToForm(settings);
 
-            const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
+            const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
             if (modal) {
                 modal.hide();
             }

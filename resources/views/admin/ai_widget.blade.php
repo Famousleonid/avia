@@ -451,14 +451,14 @@
         function saveWidgetSize(width, height) {
             try {
                 const s = normalizeSize(width, height);
-                localStorage.setItem(STORAGE_SIZE_KEY, JSON.stringify(s));
+                window.UserScopedStorage.setItem(STORAGE_SIZE_KEY, JSON.stringify(s));
             } catch (_) {}
         }
 
         function applySavedWidgetSize() {
             if (window.matchMedia('(max-width: 768px)').matches) return;
             try {
-                const raw = localStorage.getItem(STORAGE_SIZE_KEY);
+                const raw = window.UserScopedStorage.getItem(STORAGE_SIZE_KEY);
                 if (!raw) return;
                 const parsed = JSON.parse(raw);
                 if (!parsed || typeof parsed !== 'object') return;
@@ -565,7 +565,7 @@
 
         async function openWidget() {
             box.classList.remove('d-none');
-            localStorage.setItem(STORAGE_OPEN_KEY, '1');
+            window.UserScopedStorage.setItem(STORAGE_OPEN_KEY, '1');
             await loadHistory();
             setTimeout(() => input.focus(), 50);
             scrollToBottom();
@@ -573,7 +573,7 @@
 
         function closeWidget() {
             box.classList.add('d-none');
-            localStorage.setItem(STORAGE_OPEN_KEY, '0');
+            window.UserScopedStorage.setItem(STORAGE_OPEN_KEY, '0');
         }
 
         function toggleWidget() {
@@ -739,7 +739,7 @@
             });
         }
 
-        if (localStorage.getItem(STORAGE_OPEN_KEY) === '1') {
+        if (window.UserScopedStorage.getItem(STORAGE_OPEN_KEY) === '1') {
             openWidget();
         }
 

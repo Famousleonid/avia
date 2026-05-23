@@ -12,6 +12,7 @@ use App\Models\Task;
 use App\Models\Unit;
 use App\Models\ProcessName;
 use App\Models\User;
+use App\Models\UserUiSetting;
 use App\Models\Workorder;
 use App\Models\TdrProcess;
 use App\Services\WorkorderStdListProcessesService;
@@ -263,6 +264,12 @@ class WorkorderController extends Controller
 
         $customers = Customer::query()->orderBy('name')->get(['id', 'name']);
         $users = User::query()->orderBy('name')->get(['id', 'name']);
+        $uiSettings = UserUiSetting::query()
+            ->where('user_id', request()->user()->id)
+            ->where('scope', 'workorders.index')
+            ->get()
+            ->mapWithKeys(fn (UserUiSetting $setting): array => [$setting->key => $setting->value])
+            ->all();
 
         return view('admin.workorders.index', [
             'workorders' => $payload['workorders']->items(),
@@ -277,6 +284,7 @@ class WorkorderController extends Controller
             'overallTotal' => $payload['overallTotal'],
             'initialSort' => $payload['filters']['sort'],
             'initialDirection' => $payload['filters']['direction'],
+            'uiSettings' => $uiSettings,
         ]);
 
     }

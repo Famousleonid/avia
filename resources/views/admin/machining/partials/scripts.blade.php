@@ -416,7 +416,7 @@
 
     function readMachiningLsObj(key) {
         try {
-            var o = JSON.parse(localStorage.getItem(key) || '{}');
+            var o = JSON.parse(window.UserScopedStorage.getItem(key) || '{}');
             return o && typeof o === 'object' ? o : {};
         } catch (e) {
             return {};
@@ -425,7 +425,7 @@
 
     function writeMachiningLsObj(key, o) {
         try {
-            localStorage.setItem(key, JSON.stringify(o));
+            window.UserScopedStorage.setItem(key, JSON.stringify(o));
         } catch (e) {}
     }
 

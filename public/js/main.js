@@ -1030,7 +1030,7 @@ window.hapticTap = function (pattern = 10) {
 
         const showAll = checkbox
             ? !!checkbox.checked
-            : localStorage.getItem('avia_show_all_right') === '1';
+            : window.UserScopedStorage.getItem('avia_show_all_right') === '1';
 
         rightPanel.querySelectorAll('tr[data-closed]').forEach((tr) => {
             if (tr.dataset.stdRow === '1') {

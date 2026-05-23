@@ -201,11 +201,11 @@
 
 
                 const myOnly = document.getElementById('checkbox-my-only');
-                const savedMyOnly = localStorage.getItem('myOnly');
+                const savedMyOnly = window.UserScopedStorage.getItem('myOnly');
                 const myTeam = document.getElementById('checkbox-my-team');
-                const savedMyTeam = localStorage.getItem('myTeam');
+                const savedMyTeam = window.UserScopedStorage.getItem('myTeam');
                 const approve = document.getElementById('checkbox-approve');
-                const savedApprove = localStorage.getItem('approve');
+                const savedApprove = window.UserScopedStorage.getItem('approve');
 
                 myOnly.checked = savedMyOnly === 'yes';
                 myTeam.checked = savedMyTeam === 'yes';
@@ -255,9 +255,9 @@
                     // Отключаем чекбокс "My only" при включении "My team"
                     if ($(this).is(':checked')) {
                         $(myOnly).prop('checked', false);
-                        localStorage.setItem('myOnly', 'no');
+                        window.UserScopedStorage.setItem('myOnly', 'no');
                     }
-                    localStorage.setItem('myTeam', myTeam.checked ? 'yes' : 'no');
+                    window.UserScopedStorage.setItem('myTeam', myTeam.checked ? 'yes' : 'no');
                     updateTableRowsVisibility();
                 });
 
@@ -265,14 +265,14 @@
                     // Отключаем чекбокс "My team" при включении "My only"
                     if ($(this).is(':checked')) {
                         $(myTeam).prop('checked', false);
-                        localStorage.setItem('myTeam', 'no');
+                        window.UserScopedStorage.setItem('myTeam', 'no');
                     }
-                    localStorage.setItem('myOnly', myOnly.checked ? 'yes' : 'no');
+                    window.UserScopedStorage.setItem('myOnly', myOnly.checked ? 'yes' : 'no');
                     updateTableRowsVisibility();
                 });
 
                 $(approve).click(function () {
-                    localStorage.setItem('approve', approve.checked ? 'yes' : 'no');
+                    window.UserScopedStorage.setItem('approve', approve.checked ? 'yes' : 'no');
                     updateTableRowsVisibility();
                 });
 

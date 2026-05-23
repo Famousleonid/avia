@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Manual;
 use App\Models\ManualProcess;
-use App\Models\ManualProcessNameLock;
 use App\Models\Process;
 use App\Models\ProcessName;
 use Illuminate\Contracts\Foundation\Application;
@@ -18,34 +17,6 @@ use App\Services\ProcessAccessGuard;
 
 class ProcessController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return Application|Factory|View
-     */
-
-    public function index()
-    {
-        // Получаем все manuals
-        $manuals = Manual::all();
-
-        // Получаем все процессы с их process_names и manual_processes
-        $processes = Process::with(['process_name', 'manuals'])->get();
-
-        // Группируем процессы по manual_id
-        $groupedProcesses = [];
-        foreach ($processes as $process) {
-            foreach ($process->manuals as $manual) {
-                $groupedProcesses[$manual->id][] = [
-                    'process_name' => optional($process->process_name)->name,
-                    'process' => $process->process,
-                ];
-            }
-        }
-
-        return view('admin.processes.index', compact('manuals', 'groupedProcesses'));
-    }
-
     /**
      * Show the form for creating a new resource.
      *
@@ -277,149 +248,6 @@ class ProcessController extends Controller
             'canCreateProcess' => $createDecision?->allowed ?? false,
             'createProcessMessage' => $createDecision && ! $createDecision->allowed ? $createDecision->message : null,
         ]);
-    }
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return Application|Factory|View
-     */
-    public function edit($id)
-    {
-//        dd($id);
-        $manual = Manual::findorFail($id);
-        $decision = $this->guard()->canManageManual(request()->user(), $manual);
-        if (! $decision->allowed) {
-            return $this->denyDecision(request(), $decision, route('manuals.index'));
-        }
-        $processNames = ProcessName::forPicker()->orderBy('name')->get();
-        $processes = Process::all();
-        $man_processes = ManualProcess::query()
-            ->where('manual_id', $id)
-            ->whereDoesntHave('process.process_name', function ($query) {
-                $query->where('name', ProcessName::SYSTEM_TRAVELER_NAME);
-            })
-            ->with(['process.process_name', 'lockedBy'])
-            ->get();
-        $processNameLocks = ManualProcessNameLock::query()
-            ->where('manual_id', $id)
-            ->with('lockedBy')
-            ->get()
-            ->keyBy('process_name_id');
-        $userCanManageLockedManualProcesses = auth()->user()?->canManageLockedManualProcesses() ?? false;
-
-        return view('admin.processes.edit', compact('manual','processNames',
-            'processes','man_processes', 'processNameLocks', 'userCanManageLockedManualProcesses'
-
-        ));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function update(Request $request, $id)
-    {
-        $process = Process::findOrFail($id);
-
-        // Prefer explicit manual_id from request; fallback to any linked manual.
-        $manualId = (int)($request->input('manual_id') ?? 0);
-        if ($manualId <= 0) {
-            $manualId = (int) DB::table('manual_processes')
-                ->where('processes_id', $process->id)
-                ->value('manual_id');
-        }
-
-        if ($manualId <= 0) {
-            return $this->denyDecision(
-                $request,
-                ProcessAccessDecision::deny('Manual context not found for this process.', 'manual_context_missing'),
-                route('processes.index')
-            );
-        }
-
-        $linkedManualProcess = ManualProcess::query()
-            ->with('process')
-            ->where('manual_id', $manualId)
-            ->where('processes_id', $process->id)
-            ->first();
-
-        if (! $linkedManualProcess) {
-            return $this->denyDecision(
-                $request,
-                ProcessAccessDecision::deny('Manual process link not found for this process.', 'manual_process_missing'),
-                route('processes.index')
-            );
-        }
-
-        $decision = $this->guard()->canUpdateManualProcess($request->user(), $linkedManualProcess);
-        if (! $decision->allowed) {
-            return $this->denyDecision($request, $decision, route('manuals.show', ['manual' => $manualId, 'tab' => 'processes']));
-        }
-
-        $validated = $request->validate([
-            'process_names_id' => 'required|integer|exists:process_names,id',
-            'process' => 'required|string|max:255',
-            'manual_id' => 'nullable|integer|exists:manuals,id',
-        ]);
-
-        $process->update([
-            'process_names_id' => (int)$validated['process_names_id'],
-            'process' => (string)$validated['process'],
-        ]);
-
-        // Keep/attach relation to manual if manual_id is explicitly passed.
-        if (!empty($validated['manual_id'])) {
-            $existingManualProcess = ManualProcess::where('manual_id', (int)$validated['manual_id'])
-                ->where('processes_id', $process->id)
-                ->first();
-            if (!$existingManualProcess) {
-                ManualProcess::create([
-                    'manual_id' => (int)$validated['manual_id'],
-                    'processes_id' => $process->id,
-                ]);
-            }
-        }
-
-        if ($request->ajax() || $request->wantsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Process updated successfully.',
-                'process' => $process->fresh(),
-            ]);
-        }
-
-        if ($request->has('return_to') && $request->return_to) {
-            return redirect($request->return_to)->with('success', 'Process updated successfully.');
-        }
-
-        return redirect()->back()->with('success', 'Process updated successfully.');
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy($id)
-    {
-        //
     }
 
     private function guard(): ProcessAccessGuard

@@ -91,20 +91,13 @@
 @include('admin.tdrs.partials.all-parts-group-forms-modal-script')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var pendingTdrNotification = null;
-    try {
-        pendingTdrNotification = window.sessionStorage.getItem('tdrShowPendingNotification');
-        if (pendingTdrNotification) {
-            window.sessionStorage.removeItem('tdrShowPendingNotification');
-            window.tdrShowNotify(pendingTdrNotification, 'success', 2500);
-        }
-    } catch (e) {}
-
     var tdrShowTabListEl = document.getElementById('tdrShowTabList');
     var tdrShowTabsHeaderEl = document.getElementById('tdrShowTabsHeader');
     var tdrShowTabsLoadingEl = document.getElementById('tdrShowTabsLoading');
     var tdrShowTabContentEl = document.getElementById('tdrShowTabContent');
-    var TAB_STORAGE_KEY = 'tdr_show_active_tab_wo_{{ $current_wo->id }}';
+    var USER_UI_SCOPE = 'tdrs.show';
+    var TAB_STORAGE_KEY = 'activeTab:{{ $current_wo->id }}';
+    var NOTIFICATION_STORAGE_KEY = 'pendingNotification:{{ $current_wo->id }}';
     var PERSISTENT_TAB_IDS = [
         'tab-tdr',
         'tab-log-card',
@@ -112,6 +105,12 @@ document.addEventListener('DOMContentLoaded', function() {
         'tab-rm-reports',
         'tab-transfers'
     ];
+
+    window.UserUiSettings.get(USER_UI_SCOPE, NOTIFICATION_STORAGE_KEY, null).then(function(pendingTdrNotification) {
+        if (!pendingTdrNotification) return;
+        window.UserUiSettings.set(USER_UI_SCOPE, NOTIFICATION_STORAGE_KEY, null);
+        window.tdrShowNotify(pendingTdrNotification, 'success', 2500);
+    });
 
     function isPersistentTabId(tabId) {
         return !!tabId && PERSISTENT_TAB_IDS.indexOf(tabId) !== -1;
@@ -180,6 +179,89 @@ document.addEventListener('DOMContentLoaded', function() {
     var logCardDeleteUrlTemplate = '{{ route('log_card.destroy', ['log_card' => 9999991]) }}'.replace('9999991', '__LC__');
     var editBushingUrl = '{{ route("wo_bushings.edit", ["wo_bushing" => "__ID__"]) }}';
     var getProcessesBaseUrl = '{{ url("/get-processes") }}';
+
+    window.handleEditBushingSaved = function() {
+        if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
+        var modal = document.getElementById('editBushingModal');
+        var m = modal ? bootstrap.Modal.getInstance(modal) : null;
+        if (m) m.hide();
+        var bodyEl = document.getElementById('editBushingModalBody');
+        if (bodyEl) bodyEl.innerHTML = '';
+        var actionsEl = document.getElementById('editBushingModalActions');
+        if (actionsEl) actionsEl.style.setProperty('display', 'none', 'important');
+        if (bushingTabBody) loadBushingPartial();
+    };
+
+    window.handleEditBushingCancel = function() {
+        var modal = document.getElementById('editBushingModal');
+        var m = modal ? bootstrap.Modal.getInstance(modal) : null;
+        if (m) m.hide();
+    };
+
+    document.getElementById('editBushingModalClearBtn')?.addEventListener('click', function() {
+        if (typeof window.clearEditBushingForm === 'function') {
+            window.clearEditBushingForm();
+        }
+    });
+
+    document.getElementById('editBushingModalCancelBtn')?.addEventListener('click', function() {
+        if (typeof window.handleEditBushingCancel === 'function') {
+            window.handleEditBushingCancel();
+        }
+    });
+
+    function openEditBushingModal(woBushingId) {
+        var modal = document.getElementById('editBushingModal');
+        var bodyEl = document.getElementById('editBushingModalBody');
+        var titleEl = document.getElementById('editBushingModalLabel');
+        var actionsEl = document.getElementById('editBushingModalActions');
+        if (!modal || !bodyEl || !woBushingId) return;
+
+        bodyEl.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
+        if (titleEl) titleEl.textContent = '{{ __("Update Bushings List") }}';
+        if (actionsEl) actionsEl.style.setProperty('display', 'none', 'important');
+        var inst = bootstrap.Modal.getOrCreateInstance(modal);
+        inst.show();
+        modal.addEventListener('shown.bs.modal', function setZ() {
+            modal.style.zIndex = '1080';
+            var b = document.querySelectorAll('.modal-backdrop');
+            if (b.length) b[b.length - 1].style.zIndex = '1075';
+        }, { once: true });
+
+        var fetchUrl = editBushingUrl.replace('__ID__', woBushingId) + '?modal=1&fragment=1';
+        fetch(fetchUrl, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
+            credentials: 'same-origin',
+            cache: 'no-store'
+        })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                bodyEl.innerHTML = html;
+                bodyEl.querySelectorAll('script').forEach(function(oldScript) {
+                    var newScript = document.createElement('script');
+                    Array.from(oldScript.attributes || []).forEach(function(attr) {
+                        newScript.setAttribute(attr.name, attr.value);
+                    });
+                    newScript.textContent = oldScript.textContent;
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+                if (typeof window.initEditBushingForm === 'function') {
+                    window.initEditBushingForm(bodyEl);
+                }
+                var innerTitle = bodyEl.querySelector('#editBushingFormRoot .card-header h5');
+                if (titleEl && innerTitle) titleEl.textContent = innerTitle.textContent.trim();
+                if (titleEl && !innerTitle) titleEl.textContent = '{{ __("Update Bushings List") }} WO ' + '{{ $current_wo->number }}';
+                if (actionsEl) actionsEl.style.removeProperty('display');
+            })
+            .catch(function(err) {
+                bodyEl.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }}' +
+                    (err && err.message ? ' (' + err.message + ')' : '') +
+                    '<br><a class="alert-link" target="_blank" href="' + fetchUrl.replace('&fragment=1', '') + '">{{ __("Open in new tab") }}</a></div>';
+            });
+    }
 
     function syncAllPartsGroupFormsBtnVisibility() {
         var btn = document.getElementById('allPartsGroupFormsBtn');
@@ -1814,14 +1896,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var editBtn = e.target.closest('.open-edit-bushing-modal');
             if (editBtn && editBtn.dataset.woBushingId) {
                 e.preventDefault();
-                var iframe = document.getElementById('editBushingIframe');
-                var modal = document.getElementById('editBushingModal');
-                if (iframe && modal) {
-                    iframe.src = editBushingUrl.replace('__ID__', editBtn.dataset.woBushingId) + '?modal=1';
-                    var inst = bootstrap.Modal.getOrCreateInstance(modal);
-                    inst.show();
-                    modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
-                }
+                openEditBushingModal(editBtn.dataset.woBushingId);
             }
         });
     }
@@ -2230,7 +2305,7 @@ document.addEventListener('DOMContentLoaded', function() {
     tdrShowTabListEl?.addEventListener('shown.bs.tab', function(e) {
         var activeTabId = e?.target?.id || '';
         if (isPersistentTabId(activeTabId)) {
-            try { localStorage.setItem(TAB_STORAGE_KEY, activeTabId); } catch (_) {}
+            window.UserUiSettings.set(USER_UI_SCOPE, TAB_STORAGE_KEY, activeTabId);
         }
 
         var target = (e.target.getAttribute && e.target.getAttribute('data-bs-target')) || (e.target.getAttribute && e.target.getAttribute('href'));
@@ -2354,9 +2429,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    (function restorePersistentTab() {
-        var savedTabId = null;
-        try { savedTabId = localStorage.getItem(TAB_STORAGE_KEY); } catch (_) {}
+    (async function restorePersistentTab() {
+        var savedTabId = await window.UserUiSettings.get(USER_UI_SCOPE, TAB_STORAGE_KEY, null);
 
         if (!isPersistentTabId(savedTabId)) {
             revealTabsContent();
@@ -2642,8 +2716,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (ifr) ifr.src = 'about:blank';
     });
     document.getElementById('editBushingModal')?.addEventListener('hidden.bs.modal', function() {
-        var ifr = document.getElementById('editBushingIframe');
-        if (ifr) ifr.src = 'about:blank';
+        var bodyEl = document.getElementById('editBushingModalBody');
+        if (bodyEl) bodyEl.innerHTML = '';
+        var actionsEl = document.getElementById('editBushingModalActions');
+        if (actionsEl) actionsEl.style.setProperty('display', 'none', 'important');
     });
     document.getElementById('addProcessesModal')?.addEventListener('hidden.bs.modal', function() {
         var ifr = document.getElementById('addProcessesIframe');
@@ -2688,10 +2764,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                         if (data.redirect || !data.errors) {
                                             var m = bootstrap.Modal.getInstance(editTdrModal);
                                             if (m) m.hide();
-                                            try {
-                                                window.sessionStorage.setItem('tdrShowPendingNotification', data.message || '{{ __("Updated.") }}');
-                                            } catch (e) {}
-                                            window.location.reload();
+                                            window.UserUiSettings
+                                                .set(USER_UI_SCOPE, NOTIFICATION_STORAGE_KEY, data.message || '{{ __("Updated.") }}')
+                                                .finally(function() { window.location.reload(); });
                                         } else {
                                             window.tdrShowNotify(data.message || '{{ __("Failed to update.") }}', 'error');
                                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origText; }

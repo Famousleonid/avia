@@ -7,6 +7,7 @@ use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
+use App\Models\UserUiSetting;
 use App\Models\Vendor;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\BuildsDomainData;
@@ -16,6 +17,74 @@ class VendorTrackingTest extends TestCase
 {
     use DatabaseTransactions;
     use BuildsDomainData;
+
+    public function test_vendor_tracking_uses_saved_user_filters_when_query_is_empty(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $firstVendor = Vendor::query()->create(['name' => 'Saved Filter Vendor ' . uniqid()]);
+        $secondVendor = Vendor::query()->create(['name' => 'Hidden Vendor ' . uniqid()]);
+        $firstWorkorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $secondWorkorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        $this->createVendorTrackingTdrProcess($firstWorkorder, $firstVendor, 'SAVED-RO-1');
+        $this->createVendorTrackingTdrProcess($secondWorkorder, $secondVendor, 'HIDDEN-RO-2');
+
+        UserUiSetting::query()->create([
+            'user_id' => $admin->id,
+            'scope' => 'vendor-tracking.index',
+            'key' => 'filters',
+            'value' => [
+                'vendor_id' => (string) $firstVendor->id,
+                'customer_id' => '0',
+                'status' => 'all',
+                'sources' => ['part', 'std', 'bushing'],
+                'include_vendor_null' => false,
+                'workorder' => '',
+                'part_number' => '',
+                'repair_order' => '',
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('vendor-tracking.index'));
+
+        $response->assertOk();
+        $response->assertSee($firstVendor->name);
+        $response->assertSee('SAVED-RO-1');
+        $response->assertDontSee('HIDDEN-RO-2');
+    }
+
+    private function createVendorTrackingTdrProcess($workorder, Vendor $vendor, string $repairOrder): TdrProcess
+    {
+        $processName = ProcessName::query()->create([
+            'name' => 'Vendor Tracking Process ' . uniqid(),
+            'process_sheet_name' => 'VT',
+            'form_number' => 'VT',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'VT-PN-' . uniqid(),
+            'name' => 'Vendor Tracking Component',
+            'ipl_num' => '1-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'VT-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        return TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'repair_order' => $repairOrder,
+            'vendor_id' => $vendor->id,
+            'date_start' => now()->toDateString(),
+        ]);
+    }
 
     public function test_admin_can_assign_vendor_to_tdr_process_and_view_tracking(): void
     {

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @include('partials.user-scoped-storage')
     @php
         $tdrFormConfig = config('tdr_forms.paintFormStd');
         $componentName = (string) $current_wo->description;

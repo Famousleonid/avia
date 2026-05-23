@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @include('partials.user-scoped-storage')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Package Process Forms</title>
@@ -523,14 +524,14 @@
         const modal = document.getElementById('printSettingsModal');
         if (!modal) return;
 
-        // Получаем текущий язык из localStorage (по умолчанию 'ru')
-        let currentLang = localStorage.getItem(TOOLTIP_LANG_KEY_PACKAGE) || 'ru';
+        // Получаем текущий язык из window.UserScopedStorage (по умолчанию 'ru')
+        let currentLang = window.UserScopedStorage.getItem(TOOLTIP_LANG_KEY_PACKAGE) || 'ru';
 
         // Переключаем язык
         currentLang = currentLang === 'ru' ? 'en' : 'ru';
 
         // Сохраняем новый язык
-        localStorage.setItem(TOOLTIP_LANG_KEY_PACKAGE, currentLang);
+        window.UserScopedStorage.setItem(TOOLTIP_LANG_KEY_PACKAGE, currentLang);
 
         // Обновляем все tooltips
         updateTooltipsLanguage(modal, currentLang);
@@ -545,11 +546,12 @@
 
     // Функция обновления языка всех tooltips
     function updateTooltipsLanguage(container, lang) {
+        if (!window.bootstrap?.Tooltip) return;
         const tooltipElements = container.querySelectorAll('[data-bs-toggle="tooltip"]');
 
         tooltipElements.forEach(function(el) {
             // Уничтожаем существующий tooltip
-            const existingTooltip = bootstrap.Tooltip.getInstance(el);
+            const existingTooltip = window.bootstrap.Tooltip.getInstance(el);
             if (existingTooltip) {
                 existingTooltip.dispose();
             }
@@ -566,13 +568,13 @@
             }
 
             // Создаем новый tooltip
-            new bootstrap.Tooltip(el);
+            new window.bootstrap.Tooltip(el);
         });
     }
 
     // Функция инициализации языка tooltips
     function initTooltipLanguage(modal) {
-        const currentLang = localStorage.getItem(TOOLTIP_LANG_KEY_PACKAGE) || 'ru';
+        const currentLang = window.UserScopedStorage.getItem(TOOLTIP_LANG_KEY_PACKAGE) || 'ru';
         const langText = document.getElementById('langToggleText');
         if (langText) {
             langText.textContent = currentLang === 'ru' ? 'RUS' : 'US';

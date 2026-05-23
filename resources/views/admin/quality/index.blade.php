@@ -311,6 +311,37 @@
             padding: .25rem .35rem;
         }
 
+        .qa-repair-filter {
+            display: inline-flex;
+            align-items: center;
+            gap: .25rem;
+        }
+
+        .qa-repair-filter input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .qa-repair-filter label {
+            cursor: pointer;
+            margin: 0;
+            padding: .12rem .45rem;
+            border: 1px solid rgba(255, 255, 255, .18);
+            border-radius: .35rem;
+            color: #cfd8dc;
+            font-size: .74rem;
+            line-height: 1.2;
+            font-weight: 500;
+            background: rgba(255, 255, 255, .04);
+        }
+
+        .qa-repair-filter input:checked + label {
+            color: #07130b;
+            border-color: #42f58a;
+            background: #42f58a;
+        }
+
         .qa-table-scroll {
             flex: 1 1 auto;
             min-height: 0;
@@ -1035,9 +1066,11 @@
     </div>
 
     <script>
-        (() => {
-            const storageKey = 'qualityAssurance.singleWorkorderSearch';
-            const serialStorageKey = 'qualityAssurance.serialSearch';
+        (async () => {
+            const storageScope = 'quality-assurance.index';
+            const storageKey = 'singleWorkorderSearch';
+            const serialStorageKey = 'serialSearch';
+            const repairOrderFilterStorageKey = 'repairOrderFilter';
             const searchInput = document.getElementById('qaWorkorderSearch');
             const clearButton = document.getElementById('qaWorkorderSearchClear');
             const currentWorkorderLabel = document.getElementById('qaCurrentWorkorder');
@@ -1069,6 +1102,7 @@
             let currentPhotoGroups = [];
             let currentWorkorder = null;
             let serialSearchController = null;
+            let repairOrderFilter = 'all';
 
             const escapeHtml = (value) => String(value ?? '')
                 .replace(/&/g, '&amp;')
@@ -1097,40 +1131,29 @@
             };
 
             const saveSearch = (value) => {
-                try {
-                    localStorage.setItem(storageKey, value);
-                } catch (error) {
-                    // localStorage can be unavailable in private browser modes.
-                }
+                window.UserUiSettings.set(storageScope, storageKey, value);
             };
 
-            const readSearch = () => {
-                try {
-                    return localStorage.getItem(storageKey) || '';
-                } catch (error) {
-                    return '';
-                }
+            const readSearch = async () => {
+                return await window.UserUiSettings.get(storageScope, storageKey, '');
             };
 
             const saveSerialSearch = (value) => {
-                try {
-                    const text = String(value ?? '');
-                    if (text.trim() === '') {
-                        localStorage.removeItem(serialStorageKey);
-                        return;
-                    }
-                    localStorage.setItem(serialStorageKey, text);
-                } catch (error) {
-                    // localStorage can be unavailable in private browser modes.
-                }
+                window.UserUiSettings.set(storageScope, serialStorageKey, String(value ?? ''));
             };
 
-            const readSerialSearch = () => {
-                try {
-                    return localStorage.getItem(serialStorageKey) || '';
-                } catch (error) {
-                    return '';
-                }
+            const readSerialSearch = async () => {
+                return await window.UserUiSettings.get(storageScope, serialStorageKey, '');
+            };
+
+            const readRepairOrderFilter = async () => {
+                const value = await window.UserUiSettings.get(storageScope, repairOrderFilterStorageKey, 'all');
+                return ['all', 'miss', 'ok'].includes(value) ? value : 'all';
+            };
+
+            const saveRepairOrderFilter = (value) => {
+                repairOrderFilter = ['all', 'miss', 'ok'].includes(value) ? value : 'all';
+                window.UserUiSettings.set(storageScope, repairOrderFilterStorageKey, repairOrderFilter);
             };
 
             const showSerialClear = () => {
@@ -1486,6 +1509,30 @@
                 }
 
                 const missing = rows.filter(row => !row.ok).length;
+                const filteredRows = rows.filter((row) => {
+                    if (repairOrderFilter === 'miss') return !row.ok;
+                    if (repairOrderFilter === 'ok') return row.ok;
+                    return true;
+                });
+                const filterMeta = `
+                    <div class="qa-repair-filter" role="radiogroup" aria-label="Repair order filter">
+                        ${[
+                            ['all', 'All'],
+                            ['miss', 'Miss'],
+                            ['ok', 'Ok'],
+                        ].map(([value, label]) => `
+                            <span class="position-relative">
+                                <input type="radio"
+                                       id="qaRepairFilter${label}"
+                                       name="qaRepairFilter"
+                                       value="${value}"
+                                       ${repairOrderFilter === value ? 'checked' : ''}>
+                                <label for="qaRepairFilter${label}">${label}</label>
+                            </span>
+                        `).join('')}
+                    </div>
+                    <span class="${missing ? 'text-danger' : 'text-success'} fw-semibold">${missing ? `${missing} missing` : 'OK'}</span>
+                `;
                 const body = `
                     <div class="table-responsive">
                         <table class="table table-sm table-hover align-middle mb-0">
@@ -1500,7 +1547,7 @@
                             </tr>
                             </thead>
                             <tbody>
-                            ${rows.map(row => {
+                            ${filteredRows.length ? filteredRows.map(row => {
                                 const repairOrderMissing = !row.repair_order || row.repair_order === '-';
                                 const dateStartMissing = !row.date_start || row.date_start === '-';
                                 const dateFinishMissing = !row.date_finish || row.date_finish === '-';
@@ -1515,13 +1562,13 @@
                                     <td><span class="${row.ok ? 'text-success' : 'text-danger'} fw-semibold">${row.ok ? 'OK' : 'Missing'}</span></td>
                                 </tr>
                             `;
-                            }).join('')}
+                            }).join('') : '<tr><td colspan="6" class="text-center text-secondary py-3">No rows for selected filter.</td></tr>'}
                             </tbody>
                         </table>
                     </div>
                 `;
 
-                return blockHtml('Repair order', body, `<span class="${missing ? 'text-danger' : 'text-success'} fw-semibold">${missing ? `${missing} missing` : 'OK'}</span>`, 'qa-repair-block', 'qaRepairBlock');
+                return blockHtml('Repair order', body, filterMeta, 'qa-repair-block', 'qaRepairBlock');
             };
 
             const fitPaperLabels = (root = document) => {
@@ -1745,10 +1792,11 @@
                 }
             };
 
-            searchInput.value = readSearch();
+            searchInput.value = await readSearch();
             showClear();
-            serialSearchInput.value = readSerialSearch();
+            serialSearchInput.value = await readSerialSearch();
             showSerialClear();
+            repairOrderFilter = await readRepairOrderFilter();
 
             if (/^\d{6}$/.test(normalizeWorkorderSearch(searchInput.value))) {
                 loadWorkorder();
@@ -1813,6 +1861,17 @@
                 showSerialClear();
                 hideSerialPanel();
                 serialSearchInput.focus();
+            });
+
+            result.addEventListener('change', (event) => {
+                const input = event.target.closest('input[name="qaRepairFilter"]');
+                if (!input) return;
+
+                saveRepairOrderFilter(input.value);
+
+                if (currentWorkorder) {
+                    renderWorkorder(currentWorkorder);
+                }
             });
 
             unitManualSelect.innerHTML = [

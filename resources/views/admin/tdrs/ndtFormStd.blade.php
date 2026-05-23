@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @include('partials.user-scoped-storage')
     @php
         $tdrFormConfig = config('tdr_forms.ndtFormStd');
         $componentName = $current_wo->unit->name

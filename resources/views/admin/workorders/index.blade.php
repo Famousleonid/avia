@@ -612,6 +612,8 @@
         const workordersApproveBaseUrl = @json(url('/workorders'));
         const workordersPdfUrl = @json(route('reports.table.pdf'));
         const workordersCsrfToken = @json(csrf_token());
+        const workordersUiSettingsUrl = @json(route('user-ui-settings.store'));
+        const workordersSavedUiSettings = @json($uiSettings['filters'] ?? []);
 
         document.addEventListener('DOMContentLoaded', function () {
             const tableWrapper = document.getElementById('printArea');
@@ -641,6 +643,7 @@
             let searchDebounce = null;
             let approvePopover = null;
             let approveInput = null;
+            let workordersRequestController = null;
 
             const state = {
                 q: '',
@@ -672,6 +675,7 @@
                 sort: tableWrapper.dataset.initialSort || 'number',
                 direction: tableWrapper.dataset.initialDirection || 'desc',
             };
+            const initialUrlParams = new URLSearchParams(window.location.search);
 
             function initializeTooltips(root = document) {
                 root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => bootstrap.Tooltip.getOrCreateInstance(el));
@@ -702,18 +706,36 @@
                 const value = params.get(key);
                 return value === '1' || value === 'true';
             }
+
+            function getSavedValue(key, fallback = '') {
+                if (!workordersSavedUiSettings || !Object.prototype.hasOwnProperty.call(workordersSavedUiSettings, key)) {
+                    return fallback;
+                }
+
+                const value = workordersSavedUiSettings[key];
+                return value === null || value === undefined ? fallback : String(value);
+            }
+
+            function getSavedBool(key, fallback) {
+                if (!workordersSavedUiSettings || !Object.prototype.hasOwnProperty.call(workordersSavedUiSettings, key)) {
+                    return fallback;
+                }
+
+                return Boolean(workordersSavedUiSettings[key]);
+            }
+
             function readStoredState() {
                 const params = new URLSearchParams(window.location.search);
 
-                state.q = getUrlValue(params, 'q', localStorage.getItem('woSearchInput') || serverState.q);
-                state.customerId = getUrlValue(params, 'customer_id', localStorage.getItem('woCustomerFilter') || serverState.customerId);
-                state.technikId = getUrlValue(params, 'technik_id', localStorage.getItem('woTechnikFilter') || serverState.technikId);
-                state.onlyMy = getUrlBool(params, 'only_my', localStorage.getItem('myWorkordersCheckbox') !== null ? localStorage.getItem('myWorkordersCheckbox') === 'true' : serverState.onlyMy);
-                state.onlyActive = getUrlBool(params, 'only_active', localStorage.getItem('doneCheckbox') !== null ? localStorage.getItem('doneCheckbox') === 'true' : serverState.onlyActive);
-                state.onlyApproved = getUrlBool(params, 'only_approved', localStorage.getItem('approvedCheckbox') !== null ? localStorage.getItem('approvedCheckbox') === 'true' : serverState.onlyApproved);
-                state.showDrafts = getUrlBool(params, 'show_drafts', localStorage.getItem('draftCheckbox') !== null ? localStorage.getItem('draftCheckbox') === 'true' : serverState.showDrafts);
-                state.sort = getUrlValue(params, 'sort', serverState.sort);
-                state.direction = getUrlValue(params, 'direction', serverState.direction);
+                state.q = getUrlValue(params, 'q', getSavedValue('q', serverState.q));
+                state.customerId = getUrlValue(params, 'customer_id', getSavedValue('customerId', serverState.customerId));
+                state.technikId = getUrlValue(params, 'technik_id', getSavedValue('technikId', serverState.technikId));
+                state.onlyMy = getUrlBool(params, 'only_my', getSavedBool('onlyMy', serverState.onlyMy));
+                state.onlyActive = getUrlBool(params, 'only_active', getSavedBool('onlyActive', serverState.onlyActive));
+                state.onlyApproved = getUrlBool(params, 'only_approved', getSavedBool('onlyApproved', serverState.onlyApproved));
+                state.showDrafts = getUrlBool(params, 'show_drafts', getSavedBool('showDrafts', serverState.showDrafts));
+                state.sort = getUrlValue(params, 'sort', getSavedValue('sort', serverState.sort));
+                state.direction = getUrlValue(params, 'direction', getSavedValue('direction', serverState.direction));
             }
 
             function applyStateToControls() {
@@ -741,13 +763,32 @@
             }
 
             function persistState() {
-                localStorage.setItem('woSearchInput', state.q);
-                localStorage.setItem('woCustomerFilter', state.customerId);
-                localStorage.setItem('woTechnikFilter', state.technikId);
-                localStorage.setItem('myWorkordersCheckbox', String(state.onlyMy));
-                localStorage.setItem('doneCheckbox', String(state.onlyActive));
-                localStorage.setItem('approvedCheckbox', String(state.onlyApproved));
-                localStorage.setItem('draftCheckbox', String(state.showDrafts));
+                fetch(workordersUiSettingsUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': workordersCsrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        scope: 'workorders.index',
+                        key: 'filters',
+                        value: {
+                            q: state.q,
+                            customerId: state.customerId,
+                            technikId: state.technikId,
+                            onlyMy: state.onlyMy,
+                            onlyActive: state.onlyActive,
+                            onlyApproved: state.onlyApproved,
+                            showDrafts: state.showDrafts,
+                            sort: state.sort,
+                            direction: state.direction,
+                        },
+                    }),
+                }).catch(error => {
+                    console.error('Failed to save workorder UI settings', error);
+                });
             }
 
             function syncUrl() {
@@ -826,6 +867,20 @@
             }
 
             function shouldReloadInitialData() {
+                if ([
+                    'q',
+                    'customer_id',
+                    'technik_id',
+                    'only_my',
+                    'only_active',
+                    'only_approved',
+                    'show_drafts',
+                    'sort',
+                    'direction',
+                ].some((key) => initialUrlParams.has(key))) {
+                    return true;
+                }
+
                 return state.q !== serverState.q
                     || state.customerId !== serverState.customerId
                     || state.technikId !== serverState.technikId
@@ -838,7 +893,12 @@
             }
 
             async function fetchChunk({ reset = false } = {}) {
-                if (state.loading) return;
+                if (state.loading) {
+                    if (!reset) return;
+
+                    workordersRequestController?.abort();
+                    state.loading = false;
+                }
 
                 if (reset) {
                     state.cursor = '';
@@ -852,10 +912,13 @@
                 state.loading = true;
                 state.activeRequest += 1;
                 const requestId = state.activeRequest;
+                const requestQuery = buildQuery(!reset);
+                workordersRequestController = new AbortController();
                 setLoadStatus('Loading workorders...', 'loading');
 
                 try {
-                    const response = await fetch(`${workordersIndexUrl}?${buildQuery(!reset)}`, {
+                    const response = await fetch(`${workordersIndexUrl}?${requestQuery}`, {
+                        signal: workordersRequestController.signal,
                         headers: {
                             'Accept': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest',
@@ -898,13 +961,26 @@
                         setLoadStatus('No workorders found.', 'finished');
                     }
                 } catch (error) {
+                    if (error.name === 'AbortError') {
+                        return;
+                    }
+
+                    if (requestId !== state.activeRequest) {
+                        return;
+                    }
+
                     console.error(error);
                     setLoadStatus(error.message || 'Failed to load workorders.');
                     if (typeof window.showNotification === 'function') {
                         window.showNotification(error.message || 'Failed to load workorders.', 'error');
                     }
                 } finally {
+                    if (requestId !== state.activeRequest) {
+                        return;
+                    }
+
                     state.loading = false;
+                    workordersRequestController = null;
                     tableWrapper.classList.add('ready');
                     if (typeof window.safeHideSpinner === 'function') {
                         window.safeHideSpinner();

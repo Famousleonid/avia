@@ -107,7 +107,7 @@
                         @if(request()->query('modal'))
                             <button type="button" class="btn btn-outline-secondary mt-3" id="processCreateCancelBtn">{{ __('Cancel') }}</button>
                         @else
-                            <a href="{{ request()->query('return_to', route('processes.index')) }}" class="btn btn-outline-secondary mt-3">{{ __('Back') }}</a>
+                            <a href="{{ request()->query('return_to', route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes'])) }}" class="btn btn-outline-secondary mt-3">{{ __('Back') }}</a>
                         @endif
                     </div>
                 </form>

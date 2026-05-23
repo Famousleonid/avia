@@ -35,7 +35,7 @@
     };
 
     function loadPrintSettings() {
-        const saved = localStorage.getItem(PRINT_SETTINGS_KEY);
+        const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
             try { return JSON.parse(saved); } catch (e) { return defaultSettings; }
         }
@@ -101,15 +101,16 @@
 
     function updateTooltipsLanguage(container, lang) {
         if (!container) return;
+        if (!window.bootstrap?.Tooltip) return;
         const tooltipElements = container.querySelectorAll('[data-bs-toggle="tooltip"]');
         tooltipElements.forEach(function(el) {
-            const existingTooltip = bootstrap.Tooltip.getInstance(el);
+            const existingTooltip = window.bootstrap.Tooltip.getInstance(el);
             if (existingTooltip) existingTooltip.dispose();
             const ruText = el.getAttribute('data-tooltip-ru');
             const enText = el.getAttribute('data-tooltip-en');
             if (lang === 'ru' && ruText) el.setAttribute('title', ruText);
             else if (lang === 'en' && enText) el.setAttribute('title', enText);
-            new bootstrap.Tooltip(el);
+            new window.bootstrap.Tooltip(el);
         });
     }
 
@@ -135,7 +136,7 @@
                 tableDataFontSize: g('tableDataFontSize')?.value ?? '{{ $formConfig['table_data_font_size'] ?? 12 }}',
                 '{{ $tableRowsKey }}': g('{{ $tableRowsKey }}')?.value ?? '{{ $tableRowsDefault }}'
             };
-            localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
+            window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
             if (typeof window.tdrFormApplyTableRowLimits === 'function') {
                 window.tdrFormApplyTableRowLimits(settings);
@@ -193,7 +194,7 @@
             }
 @endif
             if (document.activeElement?.blur) document.activeElement.blur();
-            const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
+            const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
             if (modal) modal.hide();
         } catch (e) {
             console.error('Error saving print settings:', e);
@@ -203,7 +204,7 @@
 
     window.resetPrintSettings = function() {
         if (confirm('Reset all print settings to default values?')) {
-            localStorage.removeItem(PRINT_SETTINGS_KEY);
+            window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
             loadSettingsToForm(defaultSettings);
             applyPrintSettings(defaultSettings);
             setTimeout(function() {
@@ -225,9 +226,9 @@
     window.toggleTooltipLanguage = function() {
         const modal = document.getElementById('printSettingsModal');
         if (!modal) return;
-        let currentLang = localStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
+        let currentLang = window.UserScopedStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
         currentLang = currentLang === 'ru' ? 'en' : 'ru';
-        localStorage.setItem(TOOLTIP_LANG_KEY, currentLang);
+        window.UserScopedStorage.setItem(TOOLTIP_LANG_KEY, currentLang);
         updateTooltipsLanguage(modal, currentLang);
         const langText = document.getElementById('langToggleText');
         if (langText) langText.textContent = currentLang === 'ru' ? 'RUS' : 'US';
@@ -290,7 +291,7 @@
         if (modal) {
             modal.addEventListener('show.bs.modal', function() {
                 loadSettingsToForm(loadPrintSettings());
-                const currentLang = localStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
+                const currentLang = window.UserScopedStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
                 const langText = document.getElementById('langToggleText');
                 if (langText) langText.textContent = currentLang === 'ru' ? 'RUS' : 'US';
                 setTimeout(function() { updateTooltipsLanguage(modal, currentLang); }, 100);

@@ -57,7 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const gtContainer = document.querySelector('.js-gt-container');
     const leftLoader = document.getElementById('mainLeftLoading');
     const woId       = gtContainer?.dataset.woId || '';
-    const GT_KEY     = woId ? `gt_tab_wo_${woId}` : 'gt_tab_default';
+    const GT_SCOPE   = 'mains.show';
+    const GT_KEY     = woId ? `generalTaskTab:${woId}` : 'generalTaskTab:default';
 
     function activateGtTab(gtId, { save = true } = {}) {
         if (!gtId) return;
@@ -86,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof initDatePickers === 'function') initDatePickers();
 
         if (save) {
-            try { localStorage.setItem(GT_KEY, gtId); } catch (e) {}
+            window.UserUiSettings.set(GT_SCOPE, GT_KEY, gtId);
         }
     }
 
@@ -98,13 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 // восстановить выбранный таб и только потом показать контейнер
-    (function restoreGtTab() {
-        let savedId = null;
-        try {
-            savedId = localStorage.getItem(GT_KEY);
-        } catch (e) {
-            savedId = null;
-        }
+    (async function restoreGtTab() {
+        const savedId = await window.UserUiSettings.get(GT_SCOPE, GT_KEY, null);
 
         if (savedId && document.querySelector(`.js-gt-btn[data-gt-id="${savedId}"]`)) {
             activateGtTab(savedId, { save: false });

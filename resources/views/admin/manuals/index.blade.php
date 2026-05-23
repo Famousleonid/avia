@@ -632,12 +632,12 @@
 
             function saveSearchValue(value) {
                 const v = (value || '').trim();
-                if (v) localStorage.setItem(STORAGE_KEY, v);
-                else localStorage.removeItem(STORAGE_KEY);
+                if (v) window.UserScopedStorage.setItem(STORAGE_KEY, v);
+                else window.UserScopedStorage.removeItem(STORAGE_KEY);
             }
 
             function getActualSearchValue() {
-                const fromStorage = (localStorage.getItem(STORAGE_KEY) || '').trim();
+                const fromStorage = (window.UserScopedStorage.getItem(STORAGE_KEY) || '').trim();
                 const fromInput = (searchInput?.value || '').trim();
                 return fromStorage || fromInput;
             }

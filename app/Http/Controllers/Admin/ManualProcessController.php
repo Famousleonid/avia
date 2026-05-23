@@ -13,48 +13,6 @@ use Illuminate\Http\Request;
 class ManualProcessController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
-    {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
-    {
-        //
-    }
-
-    /**
      * Show the form for editing the specified resource.
      *
      * @param  int  $id
@@ -135,7 +93,7 @@ class ManualProcessController extends Controller
         if ($redirectTo) {
             return redirect($redirectTo)->with('success', 'Process updated successfully');
         }
-        return redirect()->route('processes.edit', ['id' => $manualId])
+        return redirect()->route('manuals.show', ['manual' => $manualId, 'tab' => 'processes'])
             ->with('success', 'Process updated successfully');
     }
 
@@ -164,7 +122,7 @@ class ManualProcessController extends Controller
         if ($redirectTo) {
             return redirect($redirectTo)->with('success', 'Process deleted successfully');
         }
-        return redirect()->route('processes.edit', ['id' => $manualId])
+        return redirect()->route('manuals.show', ['manual' => $manualId, 'tab' => 'processes'])
             ->with('success', 'Process deleted successfully');
     }
 

@@ -920,52 +920,6 @@
 @endsection
 
 @section('content')
-    <script>
-        (function () {
-            try {
-                const stateKey = 'vendorTrackingFilters';
-                const params = new URLSearchParams(window.location.search);
-                const hasExplicitQuery = params.toString() !== '';
-                const stored = JSON.parse(localStorage.getItem(stateKey) || 'null');
-
-                if (!hasExplicitQuery && stored && typeof stored === 'object') {
-                    if (stored.vendor_id && stored.vendor_id !== '0') {
-                        params.set('vendor_id', stored.vendor_id);
-                    }
-
-                    if (stored.customer_id && stored.customer_id !== '0') {
-                        params.set('customer_id', stored.customer_id);
-                    }
-
-                    if (stored.status && stored.status !== 'all') {
-                        params.set('status', stored.status);
-                    }
-
-                    if (Array.isArray(stored.sources) && stored.sources.length && stored.sources.length < 3) {
-                        stored.sources.forEach(source => params.append('sources[]', source));
-                    }
-
-                    if (stored.include_vendor_null) {
-                        params.set('include_vendor_null', '1');
-                    }
-
-                    ['workorder', 'part_number', 'repair_order'].forEach(function (field) {
-                        const value = typeof stored[field] === 'string' ? stored[field].trim() : '';
-                        if (value !== '') {
-                            params.set(field, value);
-                        }
-                    });
-                }
-
-                if (!hasExplicitQuery && params.toString() !== '') {
-                    window.location.replace(window.location.pathname + '?' + params.toString());
-                }
-            } catch (error) {
-                console.warn('Vendor tracking filter restore failed.', error);
-            }
-        })();
-    </script>
-
     <div class="container-fluid vendor-tracking-page my-1">
         @php
             $currentSort = $filters['sort'] ?? 'sent_date';
@@ -1410,11 +1364,13 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', async function () {
             const updateUrl = @json(route('vendor-tracking.row.update'));
             const heartbeatUrl = @json(route('session.heartbeat'));
             let csrfToken = @json(csrf_token());
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const settingsScope = 'vendor-tracking.index';
+            const vendorSettings = await window.UserUiSettings.loadScope(settingsScope);
             const key = 'vendorTrackingSources';
             const vendorNullKey = 'vendorTrackingIncludeVendorNull';
             const filtersStateKey = 'vendorTrackingFilters';
@@ -1485,6 +1441,12 @@
                 return;
             }
 
+            function settingValue(settingKey, fallback = null) {
+                return Object.prototype.hasOwnProperty.call(vendorSettings, settingKey)
+                    ? vendorSettings[settingKey]
+                    : fallback;
+            }
+
             function selectedSources() {
                 const selected = boxes.filter(box => box.checked).map(box => box.value);
                 return selected.length ? selected : boxes.map(box => box.value);
@@ -1537,11 +1499,11 @@
             }
 
             function persistSources() {
-                localStorage.setItem(key, JSON.stringify(selectedSources()));
+                window.UserUiSettings.set(settingsScope, key, selectedSources());
                 if (vendorNullBox) {
-                    localStorage.setItem(vendorNullKey, vendorNullBox.checked ? 'true' : 'false');
+                    window.UserUiSettings.set(settingsScope, vendorNullKey, Boolean(vendorNullBox.checked));
                 }
-                localStorage.setItem(filtersStateKey, JSON.stringify(collectFilterState()));
+                window.UserUiSettings.set(settingsScope, filtersStateKey, collectFilterState());
                 updateActiveFilterStyles();
             }
 
@@ -1594,47 +1556,31 @@
             }
 
             function getStoredScreenColumns() {
-                try {
-                    const columns = sanitizeColumns(JSON.parse(localStorage.getItem(screenColumnsKey) || 'null'), screenColumnDefs.map(def => def.key), defaultScreenColumns, ['process']);
-                    if (localStorage.getItem(settingsVersionKey) !== currentSettingsVersion && !columns.includes('part_name')) {
-                        columns.splice(Math.max(0, columns.indexOf('part_number') + 1), 0, 'part_name');
-                    }
-                    return columns;
-                } catch (error) {
-                    return [...defaultScreenColumns];
+                const columns = sanitizeColumns(settingValue(screenColumnsKey, null), screenColumnDefs.map(def => def.key), defaultScreenColumns, ['process']);
+                if (settingValue(settingsVersionKey, null) !== currentSettingsVersion && !columns.includes('part_name')) {
+                    columns.splice(Math.max(0, columns.indexOf('part_number') + 1), 0, 'part_name');
                 }
+                return columns;
             }
 
             function getStoredExcelColumns() {
-                try {
-                    const columns = sanitizeColumns(JSON.parse(localStorage.getItem(excelColumnsKey) || 'null'), excelColumnDefs.map(def => def.key), defaultExcelColumns, ['process']);
-                    if (localStorage.getItem(settingsVersionKey) !== currentSettingsVersion && !columns.includes('part_name')) {
-                        columns.splice(Math.max(0, columns.indexOf('part_number') + 1), 0, 'part_name');
-                    }
-                    return columns;
-                } catch (error) {
-                    return [...defaultExcelColumns];
+                const columns = sanitizeColumns(settingValue(excelColumnsKey, null), excelColumnDefs.map(def => def.key), defaultExcelColumns, ['process']);
+                if (settingValue(settingsVersionKey, null) !== currentSettingsVersion && !columns.includes('part_name')) {
+                    columns.splice(Math.max(0, columns.indexOf('part_number') + 1), 0, 'part_name');
                 }
+                return columns;
             }
 
             function getStoredScreenColumnOrder() {
-                try {
-                    return sanitizeColumnOrder(JSON.parse(localStorage.getItem(screenColumnOrderKey) || 'null'), screenColumnDefs, defaultScreenColumns);
-                } catch (error) {
-                    return sanitizeColumnOrder(null, screenColumnDefs, defaultScreenColumns);
-                }
+                return sanitizeColumnOrder(settingValue(screenColumnOrderKey, null), screenColumnDefs, defaultScreenColumns);
             }
 
             function getStoredExcelColumnOrder() {
-                try {
-                    return sanitizeColumnOrder(JSON.parse(localStorage.getItem(excelColumnOrderKey) || 'null'), excelColumnDefs, defaultExcelColumns);
-                } catch (error) {
-                    return sanitizeColumnOrder(null, excelColumnDefs, defaultExcelColumns);
-                }
+                return sanitizeColumnOrder(settingValue(excelColumnOrderKey, null), excelColumnDefs, defaultExcelColumns);
             }
 
             function getStoredExcelTitle() {
-                return (localStorage.getItem(excelTitleKey) || 'Vendor Tracking').trim() || 'Vendor Tracking';
+                return String(settingValue(excelTitleKey, 'Vendor Tracking') || 'Vendor Tracking').trim() || 'Vendor Tracking';
             }
 
             function renderColumnOptions(container, defs, values, order, inputName) {
@@ -1803,23 +1749,35 @@
                     ['process']
                 );
 
-                localStorage.setItem(screenColumnsKey, JSON.stringify(screenColumns));
-                localStorage.setItem(excelColumnsKey, JSON.stringify(excelColumns));
-                localStorage.setItem(screenColumnOrderKey, JSON.stringify(screenOrder));
-                localStorage.setItem(excelColumnOrderKey, JSON.stringify(excelOrder));
-                localStorage.setItem(excelTitleKey, (excelTitleInput?.value || 'Vendor Tracking').trim() || 'Vendor Tracking');
-                localStorage.setItem(settingsVersionKey, currentSettingsVersion);
+                vendorSettings[screenColumnsKey] = screenColumns;
+                vendorSettings[excelColumnsKey] = excelColumns;
+                vendorSettings[screenColumnOrderKey] = screenOrder;
+                vendorSettings[excelColumnOrderKey] = excelOrder;
+                vendorSettings[excelTitleKey] = (excelTitleInput?.value || 'Vendor Tracking').trim() || 'Vendor Tracking';
+                vendorSettings[settingsVersionKey] = currentSettingsVersion;
+                window.UserUiSettings.set(settingsScope, screenColumnsKey, screenColumns);
+                window.UserUiSettings.set(settingsScope, excelColumnsKey, excelColumns);
+                window.UserUiSettings.set(settingsScope, screenColumnOrderKey, screenOrder);
+                window.UserUiSettings.set(settingsScope, excelColumnOrderKey, excelOrder);
+                window.UserUiSettings.set(settingsScope, excelTitleKey, vendorSettings[excelTitleKey]);
+                window.UserUiSettings.set(settingsScope, settingsVersionKey, currentSettingsVersion);
                 applyScreenColumns(screenColumns, screenOrder);
                 settingsModal?.hide();
             }
 
             function resetSettings() {
-                localStorage.removeItem(screenColumnsKey);
-                localStorage.removeItem(excelColumnsKey);
-                localStorage.removeItem(screenColumnOrderKey);
-                localStorage.removeItem(excelColumnOrderKey);
-                localStorage.removeItem(excelTitleKey);
-                localStorage.setItem(settingsVersionKey, currentSettingsVersion);
+                vendorSettings[screenColumnsKey] = defaultScreenColumns;
+                vendorSettings[excelColumnsKey] = defaultExcelColumns;
+                vendorSettings[screenColumnOrderKey] = defaultScreenColumns;
+                vendorSettings[excelColumnOrderKey] = defaultExcelColumns;
+                vendorSettings[excelTitleKey] = 'Vendor Tracking';
+                vendorSettings[settingsVersionKey] = currentSettingsVersion;
+                window.UserUiSettings.set(settingsScope, screenColumnsKey, defaultScreenColumns);
+                window.UserUiSettings.set(settingsScope, excelColumnsKey, defaultExcelColumns);
+                window.UserUiSettings.set(settingsScope, screenColumnOrderKey, defaultScreenColumns);
+                window.UserUiSettings.set(settingsScope, excelColumnOrderKey, defaultExcelColumns);
+                window.UserUiSettings.set(settingsScope, excelTitleKey, 'Vendor Tracking');
+                window.UserUiSettings.set(settingsScope, settingsVersionKey, currentSettingsVersion);
                 openSettingsModal();
                 applyScreenColumns(defaultScreenColumns, defaultScreenColumns);
             }

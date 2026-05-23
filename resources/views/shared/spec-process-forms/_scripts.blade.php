@@ -20,13 +20,13 @@
     };
 
     function loadPrintSettings() {
-        localStorage.removeItem('{{ $storageKey }}');
-        const saved = localStorage.getItem(PRINT_SETTINGS_KEY);
+        window.UserScopedStorage.removeItem('{{ $storageKey }}');
+        const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
                 if (parsed._version !== SETTINGS_VERSION) {
-                    localStorage.removeItem(PRINT_SETTINGS_KEY);
+                    window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
                     return defaultSettings;
                 }
                 delete parsed.processTableEmptyRows;
@@ -92,11 +92,11 @@
                 componentSerialNoFontSize: parseFloat(g('componentSerialNoFontSize')?.value) || defaultSettings.componentSerialNoFontSize
             };
             settings._version = SETTINGS_VERSION;
-            localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
+            window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
             removeAllEmptyRows();
             addEmptyProcessRows(settings.processTableExtraEmptyRows, 6);
-            const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
+            const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
             if (modal) {
                 document.getElementById('printSettingsModal').addEventListener('hidden.bs.modal', function reload() {
                     this.removeEventListener('hidden.bs.modal', reload);
@@ -114,11 +114,11 @@
 
     window.specProcessFormResetPrintSettings = function() {
         if (confirm('Reset all print settings to default values?')) {
-            localStorage.removeItem(PRINT_SETTINGS_KEY);
+            window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
             applyPrintSettings(defaultSettings);
             removeAllEmptyRows();
             addEmptyProcessRows(defaultSettings.processTableExtraEmptyRows, 6);
-            const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
+            const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
             if (modal) {
                 document.getElementById('printSettingsModal').addEventListener('hidden.bs.modal', function reload() {
                     this.removeEventListener('hidden.bs.modal', reload);

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @include('partials.user-scoped-storage')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TDR Form</title>
@@ -691,7 +692,7 @@
     const checkIcon = @json(asset('img/icons/check.svg'));
 
     function loadPrintSettings() {
-        const saved = localStorage.getItem(PRINT_SETTINGS_KEY);
+        const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (!saved) {
             return defaultSettings;
         }
@@ -743,11 +744,11 @@
             tdrGridTextPaddingRight: settingValue('tdrGridTextPaddingRight', defaultSettings.tdrGridTextPaddingRight, 'px')
         };
 
-        localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
+        window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
         applyPrintSettings(settings);
         renderTdrRows(settings);
 
-        const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
+        const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
         if (modal) {
             modal.hide();
         }
@@ -993,7 +994,7 @@
             return;
         }
 
-        localStorage.removeItem(PRINT_SETTINGS_KEY);
+        window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
         applyPrintSettings(defaultSettings);
         renderTdrRows(defaultSettings);
         loadSettingsToForm(defaultSettings);

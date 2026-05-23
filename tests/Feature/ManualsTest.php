@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Route;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
 
@@ -199,6 +200,77 @@ class ManualsTest extends TestCase
             'process_names_id' => $travelerName->id,
             'process' => 'Traveler should not attach',
         ]);
+    }
+
+    public function test_manual_show_renders_components_parts_and_processes_tabs(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual([
+            'number' => 'CMM-TABS',
+            'title' => 'Tabs Manual',
+        ]);
+        $this->createUnit([
+            'manual_id' => $manual->id,
+            'part_number' => 'UNIT-TABS-1',
+            'eff_code' => 'ALL',
+        ]);
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '1-10',
+            'part_number' => 'PART-TABS-1',
+            'name' => 'Tabs Replaceable Part',
+            'units_assy' => 1,
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Tabs Process Name',
+            'process_sheet_name' => 'TP',
+            'form_number' => 'TP-1',
+        ]);
+        $process = Process::query()->create([
+            'process_names_id' => $processName->id,
+            'process' => 'Tabs Process Spec',
+        ]);
+        ManualProcess::query()->create([
+            'manual_id' => $manual->id,
+            'processes_id' => $process->id,
+            'process_comment' => 'Tabs process comment',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('manuals.show', [
+            'manual' => $manual->id,
+            'tab' => 'processes',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('id="nav-components-tab"', false);
+        $response->assertSee('id="nav-parts-tab"', false);
+        $response->assertSee('id="nav-processes-tab"', false);
+        $response->assertSee('UNIT-TABS-1');
+        $response->assertSee('PART-TABS-1');
+        $response->assertSee('Tabs Replaceable Part');
+        $response->assertSee('Tabs Process Name');
+        $response->assertSee('Tabs Process Spec');
+        $response->assertSee('Tabs process comment');
+        $response->assertSee(route('processes.create', ['manual_id' => $manual->id, 'return_to' => route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes'])]), false);
+    }
+
+    public function test_duplicate_sidebar_page_routes_are_removed_but_manual_operations_remain(): void
+    {
+        $this->assertFalse(Route::has('units.index'));
+        $this->assertFalse(Route::has('units.edit'));
+        $this->assertFalse(Route::has('processes.index'));
+        $this->assertFalse(Route::has('processes.edit'));
+        $this->assertFalse(Route::has('processes.update'));
+        $this->assertFalse(Route::has('processes.destroy'));
+
+        $this->assertTrue(Route::has('units.show'));
+        $this->assertTrue(Route::has('units.update'));
+        $this->assertTrue(Route::has('processes.create'));
+        $this->assertTrue(Route::has('processes.store'));
+        $this->assertTrue(Route::has('processes.getProcesses'));
+        $this->assertTrue(Route::has('manual_processes.edit'));
+        $this->assertTrue(Route::has('manual_processes.update'));
+        $this->assertTrue(Route::has('manual_processes.destroy'));
     }
 
     public function test_manual_parts_sort_ipl_with_section_suffix_naturally(): void

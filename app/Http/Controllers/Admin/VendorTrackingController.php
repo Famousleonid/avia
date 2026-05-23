@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Process;
 use App\Models\TdrProcess;
 use App\Models\Vendor;
+use App\Models\UserUiSetting;
 use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
 use App\Models\WorkorderStdProcess;
@@ -160,6 +161,27 @@ class VendorTrackingController extends Controller
 
     private function filtersFromRequest(Request $request): array
     {
+        if ($request->query() === [] && auth()->id()) {
+            $savedFilters = UserUiSetting::query()
+                ->where('user_id', auth()->id())
+                ->where('scope', 'vendor-tracking.index')
+                ->where('key', 'filters')
+                ->value('value');
+
+            if (is_array($savedFilters)) {
+                $request->merge(array_intersect_key($savedFilters, array_flip([
+                    'vendor_id',
+                    'customer_id',
+                    'status',
+                    'sources',
+                    'include_vendor_null',
+                    'workorder',
+                    'part_number',
+                    'repair_order',
+                ])));
+            }
+        }
+
         $filters = [
             'vendor_id' => (int) $request->input('vendor_id', 0),
             'customer_id' => (int) $request->input('customer_id', 0),

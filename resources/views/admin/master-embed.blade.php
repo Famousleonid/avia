@@ -6,6 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
+    @include('partials.user-scoped-storage')
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
@@ -15,7 +16,7 @@
     <script>
         window.forceDarkTheme = {{ auth()->check() && auth()->user()->roleIs('Technician') ? 'true' : 'false' }};
         (function () {
-            var theme = window.forceDarkTheme ? 'dark' : (localStorage.getItem('theme') || 'dark');
+            var theme = window.forceDarkTheme ? 'dark' : (window.UserScopedStorage.getItem('theme') || 'dark');
             document.documentElement.setAttribute('data-bs-theme', theme);
         })();
     </script>

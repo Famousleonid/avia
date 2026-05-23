@@ -7,6 +7,69 @@
     <title>Admin page</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}"/>
+    @include('partials.user-scoped-storage')
+    <script>
+        window.UserUiSettings = window.UserUiSettings || (function () {
+            const indexUrl = @json(route('user-ui-settings.index'));
+            const storeUrl = @json(route('user-ui-settings.store'));
+            const csrf = @json(csrf_token());
+            const cache = {};
+
+            async function loadScope(scope) {
+                if (Object.prototype.hasOwnProperty.call(cache, scope)) {
+                    return cache[scope];
+                }
+
+                const response = await fetch(`${indexUrl}?scope=${encodeURIComponent(scope)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (!response.ok) {
+                    cache[scope] = {};
+                    return cache[scope];
+                }
+
+                const data = await response.json();
+                cache[scope] = data.settings && typeof data.settings === 'object' ? data.settings : {};
+
+                return cache[scope];
+            }
+
+            async function get(scope, key, fallback = null) {
+                const settings = await loadScope(scope);
+                return Object.prototype.hasOwnProperty.call(settings, key) ? settings[key] : fallback;
+            }
+
+            async function set(scope, key, value) {
+                if (!Object.prototype.hasOwnProperty.call(cache, scope)) {
+                    cache[scope] = {};
+                }
+
+                cache[scope][key] = value;
+
+                try {
+                    await fetch(storeUrl, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrf,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ scope, key, value }),
+                    });
+                } catch (error) {
+                    console.error('Failed to save user UI setting', error);
+                }
+            }
+
+            return { loadScope, get, set };
+        })();
+    </script>
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
@@ -25,16 +88,16 @@
         (function () {
             if (window.forceDarkTheme) {
                 document.documentElement.setAttribute('data-bs-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
+                window.UserScopedStorage.setItem('theme', 'dark');
             } else {
-                const savedTheme = localStorage.getItem('theme') || 'dark';
+                const savedTheme = window.UserScopedStorage.getItem('theme') || 'dark';
                 document.documentElement.setAttribute('data-bs-theme', savedTheme);
-                if (!localStorage.getItem('theme')) localStorage.setItem('theme', 'dark');
+                if (!window.UserScopedStorage.getItem('theme')) window.UserScopedStorage.setItem('theme', 'dark');
             }
         })();
 
         (function () {
-            const collapsed = localStorage.getItem('adminSidebarCollapsed') === '1';
+            const collapsed = window.UserScopedStorage.getItem('adminSidebarCollapsed') === '1';
             document.documentElement.setAttribute('data-sidebar-collapsed', collapsed ? '1' : '0');
         })();
 
@@ -250,9 +313,9 @@
         // 🔥 ТОЛЬКО ДЛЯ Technician: всегда DARK
         // ------------------------------------
         if (window.forceDarkTheme) {
-            // Форсим тёмную тему и в DOM, и в localStorage
+            // Форсим тёмную тему и в DOM, и в window.UserScopedStorage
             document.documentElement.setAttribute('data-bs-theme', 'dark');
-            localStorage.setItem('theme', 'dark');
+            window.UserScopedStorage.setItem('theme', 'dark');
             updateThemeIcon('dark');
 
             // Кнопки темы отключаем (чтобы не путали)
@@ -276,7 +339,7 @@
                 let currentTheme = document.documentElement.getAttribute('data-bs-theme');
                 let newTheme = currentTheme === 'light' ? 'dark' : 'light';
                 document.documentElement.setAttribute('data-bs-theme', newTheme);
-                localStorage.setItem('theme', newTheme);
+                window.UserScopedStorage.setItem('theme', newTheme);
                 updateThemeIcon(newTheme);
             }
 
@@ -294,9 +357,9 @@
                 });
             }
 
-            // Инициализируем тему из localStorage
-            let storedTheme = localStorage.getItem('theme') || 'dark';
-            if (!localStorage.getItem('theme')) localStorage.setItem('theme', 'dark');
+            // Инициализируем тему из window.UserScopedStorage
+            let storedTheme = window.UserScopedStorage.getItem('theme') || 'dark';
+            if (!window.UserScopedStorage.getItem('theme')) window.UserScopedStorage.setItem('theme', 'dark');
             document.documentElement.setAttribute('data-bs-theme', storedTheme);
             updateThemeIcon(storedTheme);
         }
@@ -366,7 +429,7 @@
             const newValue = collapsed ? '0' : '1';
 
             root.setAttribute('data-sidebar-collapsed', newValue);
-            localStorage.setItem(sidebarStorageKey, newValue === '1' ? '1' : '0');
+            window.UserScopedStorage.setItem(sidebarStorageKey, newValue === '1' ? '1' : '0');
             setArrow(!collapsed);
         });
     }

@@ -9,6 +9,7 @@ use App\Observers\ComponentObserver;
 use App\Observers\TdrObserver;
 use App\Observers\WorkorderObserver;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
 
@@ -85,6 +86,58 @@ class AppServiceProvider extends ServiceProvider
         Workorder::observe(WorkorderObserver::class);
         Tdr::observe(TdrObserver::class);
         Component::observe(ComponentObserver::class);
+
+        View::composer($this->printFormViews(), function (): void {
+            $this->disableDebugbarForPrintResponse();
+        });
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function printFormViews(): array
+    {
+        return [
+            'admin.tdrs.wo_BoxTitle',
+            'admin.tdrs.wo_ProcessForm',
+            'admin.tdrs.tdrForm',
+            'admin.tdrs.prlForm',
+            'admin.tdrs.specProcessForm',
+            'admin.tdrs.specProcessFormEmp',
+            'admin.tdrs.logCardForm',
+            'admin.tdrs.ndtFormStd',
+            'admin.tdrs.cadFormStd',
+            'admin.tdrs.stressFormStd',
+            'admin.tdrs.paintFormStd',
+            'admin.trainings.form112',
+            'admin.trainings.form132',
+            'admin.tdr-processes.processesForm',
+            'admin.tdr-processes.travelForm',
+            'admin.tdr-processes.packageForms',
+            'admin.extra_processes.processesForm',
+            'admin.wo_bushings.processesForm',
+            'admin.wo_bushings.specProcessForm',
+            'admin.rm_reports.rmRecordForm',
+            'admin.quality.forms.specProcessForm',
+            'admin.log_card.logCardForm',
+            'admin.log_card.logCardForm2',
+            'admin.log_card.logCardForm3',
+            'admin.transfers.transferForm',
+            'admin.transfers.transfersForm',
+        ];
+    }
+
+    private function disableDebugbarForPrintResponse(): void
+    {
+        if (! $this->app->bound('debugbar')) {
+            return;
+        }
+
+        $debugbar = $this->app->make('debugbar');
+
+        if (method_exists($debugbar, 'disable')) {
+            $debugbar->disable();
+        }
     }
 
     private function guardDatabaseSafety(): void

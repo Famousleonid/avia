@@ -10,6 +10,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Aviatechnik') }}</title>
+    @include('partials.user-scoped-storage')
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -19,12 +20,12 @@
 
     <script>
         (function () {
-            const savedTheme = localStorage.getItem('theme') || 'light';
+            const savedTheme = window.UserScopedStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', 'dark');
         })();
 
         (function () {
-            const gtId = sessionStorage.getItem('restore_gt');
+            const gtId = window.UserScopedSessionStorage.getItem('restore_gt');
             if (!gtId) return;
             document.documentElement.dataset.restoreGt = gtId;
         })();
@@ -96,7 +97,7 @@
         safeHideSpinner();
 
         const gtId = document.documentElement.dataset.restoreGt;
-        const taskId = sessionStorage.getItem('restore_task');
+        const taskId = window.UserScopedSessionStorage.getItem('restore_task');
         if (!gtId) return;
 
         const collapse = document.getElementById(`gt-col-${gtId}`);
@@ -126,8 +127,8 @@
                 const el = document.getElementById(`task-${taskId}`);
                 if (typeof initDatePickers === 'function') initDatePickers();
                 if (el) el.scrollIntoView({ block: 'center', behavior: 'auto' });
-                sessionStorage.removeItem('restore_gt');
-                sessionStorage.removeItem('restore_task');
+                window.UserScopedSessionStorage.removeItem('restore_gt');
+                window.UserScopedSessionStorage.removeItem('restore_task');
             });
         }
     });
@@ -135,8 +136,8 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const gtId   = sessionStorage.getItem('restore_gt');
-        const taskId = sessionStorage.getItem('restore_task');
+        const gtId   = window.UserScopedSessionStorage.getItem('restore_gt');
+        const taskId = window.UserScopedSessionStorage.getItem('restore_task');
 
         if (!gtId || !taskId) return;
 
@@ -152,9 +153,9 @@
             const el = document.getElementById(`task-${taskId}`);
             if (el) el.scrollIntoView({ block: 'center', behavior: 'auto' });
 
-            sessionStorage.removeItem('restore_gt');
-            sessionStorage.removeItem('restore_task');
-            sessionStorage.removeItem('restore_scroll');
+            window.UserScopedSessionStorage.removeItem('restore_gt');
+            window.UserScopedSessionStorage.removeItem('restore_task');
+            window.UserScopedSessionStorage.removeItem('restore_scroll');
         }, 150);
     });
 
@@ -254,10 +255,10 @@
                     const taskId = src.dataset.task;
 
                     if (gtId && taskId) {
-                        sessionStorage.setItem('restore_gt', gtId);
-                        sessionStorage.setItem('restore_task', taskId);
+                        window.UserScopedSessionStorage.setItem('restore_gt', gtId);
+                        window.UserScopedSessionStorage.setItem('restore_task', taskId);
                     }
-                    sessionStorage.setItem('restore_scroll', String(window.scrollY));
+                    window.UserScopedSessionStorage.setItem('restore_scroll', String(window.scrollY));
                     safeShowSpinner();
                     if (form.requestSubmit) form.requestSubmit();
                     else form.submit();

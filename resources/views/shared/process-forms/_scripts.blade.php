@@ -39,7 +39,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
     };
 
     function loadPrintSettings() {
-        const saved = localStorage.getItem(PRINT_SETTINGS_KEY);
+        const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
             try { return JSON.parse(saved); } catch (e) { return defaultSettings; }
         }
@@ -73,9 +73,9 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
                 stressTableDataFontSize: g('stressTableDataFontSize')?.value ?? saved.stressTableDataFontSize ?? defaultSettings.stressTableDataFontSize,
                 otherTableDataFontSize: g('otherTableDataFontSize')?.value ?? saved.otherTableDataFontSize ?? defaultSettings.otherTableDataFontSize
             };
-            localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
+            window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
-            const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
+            const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
             if (modal) {
                 document.getElementById('printSettingsModal').addEventListener('hidden.bs.modal', function reload() {
                     this.removeEventListener('hidden.bs.modal', reload);
@@ -87,7 +87,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
             }
         } catch (error) {
             console.error('Error saving print settings:', error);
-            const modal = bootstrap.Modal.getInstance(document.getElementById('printSettingsModal'));
+            const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
             if (modal) modal.hide();
             setTimeout(() => window.location.reload(), 100);
         }
@@ -253,7 +253,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
 
     function resetPrintSettings() {
         if (confirm('Reset all print settings to default values?')) {
-            localStorage.removeItem(PRINT_SETTINGS_KEY);
+            window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
             loadSettingsToForm(defaultSettings);
             applyPrintSettings(defaultSettings);
         }

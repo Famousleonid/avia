@@ -122,6 +122,12 @@ class QualityAssuranceController extends Controller
         $needle = mb_strtolower($serial);
         $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $serial) . '%';
         $jsonLike = '%' . str_replace(['\\', '%', '_', '/'], ['\\\\', '\\%', '\\_', '\\/'], $serial) . '%';
+        $logCardCandidateTerm = collect(preg_split('/[\/\\\\]+/', $serial) ?: [])
+            ->map(fn (string $part): string => trim($part))
+            ->filter(fn (string $part): bool => mb_strlen($part) >= 2)
+            ->sortByDesc(fn (string $part): int => mb_strlen($part))
+            ->first() ?: $serial;
+        $logCardLike = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $logCardCandidateTerm) . '%';
 
         $addMatch = function (?Workorder $workorder, string $source, string $serialValue, ?Component $component = null) use (&$matches): void {
             if (! $workorder || $workorder->is_draft) {
@@ -212,11 +218,13 @@ class QualityAssuranceController extends Controller
 
         LogCard::query()
             ->with('workorder')
-            ->where(function ($query) use ($like, $jsonLike): void {
+            ->where(function ($query) use ($like, $jsonLike, $logCardLike): void {
                 $query->where('component_data', 'like', $like)
                     ->orWhere('component_data', 'like', $jsonLike)
+                    ->orWhere('component_data', 'like', $logCardLike)
                     ->orWhere('component_data_out', 'like', $like)
                     ->orWhere('component_data_out', 'like', $jsonLike)
+                    ->orWhere('component_data_out', 'like', $logCardLike)
                     ->orWhere('destruction_certificate_data', 'like', $like);
             })
             ->limit(50)

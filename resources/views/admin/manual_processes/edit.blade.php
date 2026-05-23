@@ -34,7 +34,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-outline-primary">Update</button>
-                    <a href="{{ request('return_to', route('processes.edit', ['id' => $manualId])) }}" class="btn btn-outline-secondary">Cancel</a>
+                    <a href="{{ request('return_to', route('manuals.show', ['manual' => $manualId, 'tab' => 'processes'])) }}" class="btn btn-outline-secondary">Cancel</a>
                 </form>
             </div>
         </div>

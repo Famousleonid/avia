@@ -231,18 +231,8 @@
 
     @if (auth()->user()->roleIs('Admin'))
         <li class="nav-item">
-            <a class="nav-link press-spinner" href="{{route('units.index')}}">
-                <i class="bi bi-unity me-2"></i> <span>Component CMM</span>
-            </a>
-        </li>
-        <li class="nav-item">
             <a class="nav-link press-spinner" href="{{route('components.index')}}">
                 <i class="bi bi-gear me-2"></i> <span>Replaceable Parts</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link press-spinner" href="{{route('processes.index')}}">
-                <i class="bi bi-bar-chart-steps me-2"></i> <span>Processes</span>
             </a>
         </li>
 
@@ -356,7 +346,7 @@
             const key = KEY_PREFIX + el.id;
 
             // 1) восстановление состояния
-            const saved = localStorage.getItem(key); // "1" | "0" | null
+            const saved = window.UserScopedStorage.getItem(key); // "1" | "0" | null
             if (saved === '1') {
                 el.classList.add('show');
                 btn.setAttribute('aria-expanded', 'true');
@@ -367,12 +357,12 @@
 
             // 2) подписываемся на события bootstrap collapse
             el.addEventListener('shown.bs.collapse', () => {
-                localStorage.setItem(key, '1');
+                window.UserScopedStorage.setItem(key, '1');
                 btn.setAttribute('aria-expanded', 'true');
             });
 
             el.addEventListener('hidden.bs.collapse', () => {
-                localStorage.setItem(key, '0');
+                window.UserScopedStorage.setItem(key, '0');
                 btn.setAttribute('aria-expanded', 'false');
             });
         });

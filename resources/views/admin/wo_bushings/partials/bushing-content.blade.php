@@ -321,6 +321,18 @@
                         $savedBushingsGrouped = collect();
                         foreach($bushData as $bushItem) {
                             if(isset($bushItem['bushing'])) {
+                                $hasAnyProcess = !empty(data_get($bushItem, 'processes.machining'))
+                                    || !empty(data_get($bushItem, 'processes.stress_relief'))
+                                    || !empty(data_get($bushItem, 'processes.ndt'))
+                                    || !empty(data_get($bushItem, 'processes.passivation'))
+                                    || !empty(data_get($bushItem, 'processes.cad'))
+                                    || !empty(data_get($bushItem, 'processes.anodizing'))
+                                    || !empty(data_get($bushItem, 'processes.xylan'));
+
+                                if (!$hasAnyProcess) {
+                                    continue;
+                                }
+
                                 $component = $bushings->flatten()->firstWhere('id', $bushItem['bushing']);
                                 if($component) {
                                     $groupKey = $bushItem['group_key'] ?? null;
@@ -518,6 +530,13 @@
                             </tr>
                         @endforeach
                     @endforeach
+                    @if($savedBushingsGrouped->isEmpty())
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-3">
+                                {{ __('No bushing processes selected.') }}
+                            </td>
+                        </tr>
+                    @endif
                 </tbody>
             </table>
         </div>
