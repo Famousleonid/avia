@@ -60,6 +60,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const GT_SCOPE   = 'mains.show';
     const GT_KEY     = woId ? `generalTaskTab:${woId}` : 'generalTaskTab:default';
 
+    function readQaMainTarget() {
+        const match = window.location.hash.match(/^#qa-main:(.+)$/);
+        return match ? new URLSearchParams(match[1]) : null;
+    }
+
+    function readHashGtId() {
+        const params = readQaMainTarget();
+        if (!params) return null;
+
+        const generalTaskId = params.get('general_task');
+        if (generalTaskId && document.querySelector(`.js-gt-btn[data-gt-id="${generalTaskId}"]`)) {
+            return generalTaskId;
+        }
+
+        const taskId = params.get('task');
+        const taskForm = taskId
+            ? document.querySelector(`[data-main-task-id="${taskId}"] form[data-gt-id]`)
+            : null;
+
+        return taskForm?.dataset.gtId || null;
+    }
+
     function activateGtTab(gtId, { save = true } = {}) {
         if (!gtId) return;
 
@@ -100,6 +122,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // восстановить выбранный таб и только потом показать контейнер
     (async function restoreGtTab() {
+        const hashGtId = readHashGtId();
+        if (hashGtId) {
+            activateGtTab(hashGtId, { save: false });
+            if (gtContainer) {
+                gtContainer.hidden = false;
+            }
+            if (leftLoader) {
+                leftLoader.style.display = 'none';
+            }
+            return;
+        }
+
         const savedId = await window.UserUiSettings.get(GT_SCOPE, GT_KEY, null);
 
         if (savedId && document.querySelector(`.js-gt-btn[data-gt-id="${savedId}"]`)) {

@@ -303,6 +303,36 @@ class QualityAssuranceTest extends TestCase
             'date_start' => null,
             'date_finish' => null,
         ]);
+        $finalInspectionGeneralTask = GeneralTask::query()->create([
+            'name' => 'Final inspection',
+            'sort_order' => 98,
+        ]);
+        $submittedFinalTask = Task::query()->create([
+            'name' => 'Submitted for Final Inspection',
+            'general_task_id' => $finalInspectionGeneralTask->id,
+            'task_has_start_date' => false,
+        ]);
+        $finalInspectionTask = Task::query()->create([
+            'name' => 'Final inspection',
+            'general_task_id' => $finalInspectionGeneralTask->id,
+            'task_has_start_date' => false,
+        ]);
+        Main::query()->create([
+            'workorder_id' => $workorder->id,
+            'general_task_id' => $finalInspectionGeneralTask->id,
+            'task_id' => $submittedFinalTask->id,
+            'user_id' => $manager->id,
+            'date_start' => null,
+            'date_finish' => '2026-05-04',
+        ]);
+        Main::query()->create([
+            'workorder_id' => $workorder->id,
+            'general_task_id' => $finalInspectionGeneralTask->id,
+            'task_id' => $finalInspectionTask->id,
+            'user_id' => $manager->id,
+            'date_start' => null,
+            'date_finish' => '2026-05-05',
+        ]);
         $ndtProcessName = ProcessName::query()->create([
             'name' => 'STD NDT List',
             'process_sheet_name' => 'NDT',
@@ -359,9 +389,16 @@ class QualityAssuranceTest extends TestCase
         $this->assertFalse($missingRoCheck['ok']);
         $this->assertFalse($completedTaskCheck['ok']);
         $this->assertStringContainsString('tab=tasks', $completedTaskCheck['url']);
+        $this->assertStringContainsString('general_task='.$completedGeneralTask->id, $completedTaskCheck['url']);
         $this->assertStringContainsString('task='.$completedTask->id, $completedTaskCheck['url']);
         $this->assertFalse($stdProcessesCheck['ok']);
         $this->assertSame('qaStdProcessBlock', $stdProcessesCheck['target']);
+        $finalInspectionRow = collect($response->json('workorder.submitted'))
+            ->firstWhere('missing_inspection', 'Final inspection');
+        $this->assertNotNull($finalInspectionRow);
+        $this->assertStringContainsString('tab=tasks', $finalInspectionRow['inspection_url']);
+        $this->assertStringContainsString('general_task='.$finalInspectionGeneralTask->id, $finalInspectionRow['inspection_url']);
+        $this->assertStringContainsString('task='.$finalInspectionTask->id, $finalInspectionRow['inspection_url']);
         $stdRows = collect($response->json('workorder.std_processes'));
         $this->assertSame('01/May/2026', $stdRows->firstWhere('type', 'ndt')['date_start']);
         $this->assertSame('02/May/2026', $stdRows->firstWhere('type', 'ndt')['date_finish']);
@@ -422,6 +459,55 @@ class QualityAssuranceTest extends TestCase
         $this->assertFalse($stdRows->firstWhere('type', 'ndt')['ignored']);
         $this->assertTrue($stdRows->firstWhere('type', 'cad')['ignored']);
         $this->assertSame('CAD', $stdRows->firstWhere('type', 'cad')['short_label']);
+    }
+
+    public function test_quality_main_links_target_general_task_when_main_row_is_missing(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder(['number' => 988804]);
+
+        $finalInspectionGeneralTask = GeneralTask::query()->create([
+            'name' => 'Final Test',
+            'sort_order' => 50,
+        ]);
+        $finalInspectionTask = Task::query()->create([
+            'name' => 'Final inspection',
+            'general_task_id' => $finalInspectionGeneralTask->id,
+            'task_has_start_date' => false,
+        ]);
+
+        $completeGeneralTask = GeneralTask::query()->create([
+            'name' => 'Complete',
+            'sort_order' => 60,
+        ]);
+        $completedTask = Task::query()->create([
+            'name' => 'Completed',
+            'general_task_id' => $completeGeneralTask->id,
+            'task_has_start_date' => false,
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('quality.workorder', [
+            'q' => '988804',
+        ]));
+
+        $response->assertOk();
+
+        $finalInspectionRow = collect($response->json('workorder.submitted'))
+            ->firstWhere('missing_inspection', 'Final inspection');
+        $completedTaskCheck = collect($response->json('workorder.checks'))
+            ->firstWhere('label', 'Completed task finished');
+
+        $this->assertNotNull($finalInspectionRow);
+        $this->assertStringContainsString('tab=tasks', $finalInspectionRow['inspection_url']);
+        $this->assertStringContainsString('general_task='.$finalInspectionGeneralTask->id, $finalInspectionRow['inspection_url']);
+        $this->assertStringContainsString('task='.$finalInspectionTask->id, $finalInspectionRow['inspection_url']);
+
+        $this->assertNotNull($completedTaskCheck);
+        $this->assertStringContainsString('tab=tasks', $completedTaskCheck['url']);
+        $this->assertStringContainsString('general_task='.$completeGeneralTask->id, $completedTaskCheck['url']);
+        $this->assertStringContainsString('task='.$completedTask->id, $completedTaskCheck['url']);
     }
 
     public function test_manager_can_update_quality_top_workorder_fields(): void
