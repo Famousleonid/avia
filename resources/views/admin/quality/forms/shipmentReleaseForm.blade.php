@@ -291,10 +291,10 @@
             <td class="label-cell center">{{ __('WO part of the') }}<br>{{ __('shipset') }}</td>
             <td class="center qa-input-cell">
                 <select class="shipset-select" id="shipsetSelect" aria-label="{{ __('WO part of the shipset') }}">
-                    <option value="Yes" selected>Yes</option>
-                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No" selected>No</option>
                 </select>
-                <span class="shipset-print-value" id="shipsetPrintValue">Yes</span>
+                <span class="shipset-print-value" id="shipsetPrintValue">No</span>
             </td>
             <td colspan="2"></td>
         </tr>
@@ -406,7 +406,7 @@
         }
 
         var syncShipsetPrintValue = function () {
-            printValue.textContent = select.value || 'Yes';
+            printValue.textContent = select.value || 'No';
         };
 
         select.addEventListener('change', syncShipsetPrintValue);

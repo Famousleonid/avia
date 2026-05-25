@@ -143,6 +143,24 @@ class QualityAssuranceTest extends TestCase
         );
     }
 
+    public function test_shipment_release_form_defaults_shipset_to_no(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder(['number' => 988802]);
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.shipment_release', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('WO part of the', false);
+        $response->assertSee('<option value="Yes">Yes</option>', false);
+        $response->assertSee('<option value="No" selected>No</option>', false);
+        $response->assertSee('<span class="shipset-print-value" id="shipsetPrintValue">No</span>', false);
+        $response->assertDontSee('<option value="Yes" selected>Yes</option>', false);
+    }
+
     public function test_serial_search_returns_workorder_links_from_tdr_and_log_card(): void
     {
         $manager = $this->createUserWithRole('Manager', [
