@@ -8,7 +8,8 @@
     $formConfig = $formConfig ?? config('tdr_forms.' . $formType, config('tdr_forms.ndtFormStd'));
     $tableRowsKey = $formConfig['table_rows_key'] ?? 'ndtTableRows';
     $tableRowsDefault = $formConfig['table_rows_default'] ?? 16;
-    $tableLabel = match($formType) {
+    $simplePrintSettings = (bool) ($formConfig['simple_print_settings'] ?? false);
+    $tableLabel = $simplePrintSettings ? 'Table (row)' : match($formType) {
         'ndtFormStd' => 'NDT Table (row)',
         'cadFormStd' => 'CAD Table (row)',
         'stressFormStd' => 'Stress Relief Table (row)',
@@ -39,6 +40,7 @@
                             📊 Tables
                         </h5>
                         <div class="row mb-3">
+                            @unless($simplePrintSettings)
                             <div class="col-md-4">
                                 <label for="componentNameFontSize" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
                                     title="Размер шрифта для Component Name (название компонента в шапке формы)."
@@ -63,7 +65,8 @@
                                         min="6" max="24" step="0.5" value="{{ $formConfig['header_data_font_size'] ?? 11 }}">
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            @endunless
+                            <div class="{{ $simplePrintSettings ? 'col-md-6' : 'col-md-4' }}">
                                 <label for="tableDataFontSize" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
                                     title="Размер шрифта для данных в строках таблицы."
                                     data-tooltip-ru="Размер шрифта для данных в строках таблицы."
@@ -72,10 +75,10 @@
                                 </label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="tableDataFontSize" name="tableDataFontSize"
-                                        min="6" max="24" step="0.5" value="{{ $formConfig['table_data_font_size'] ?? 12 }}">
+                                        min="6" max="24" step="0.5" value="{{ $formConfig['table_data_font_size'] ?? 13 }}">
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="{{ $simplePrintSettings ? 'col-md-6' : 'col-md-4' }}">
                                 <label for="{{ $tableRowsKey }}" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
                                     title="Максимальное количество строк на одной странице."
                                     data-tooltip-ru="Максимальное количество строк на одной странице."
@@ -89,6 +92,7 @@
                             </div>
                         </div>
 
+                        @unless($simplePrintSettings)
                         <div class="accordion mb-3" id="tableSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="tableSettingsHeading">
@@ -125,9 +129,11 @@
                                 </div>
                             </div>
                         </div>
+                        @endunless
                     </div>
                     @endif
 
+                    @unless($simplePrintSettings)
                     <div class="accordion mb-3" id="pageSettingsAccordion">
                         <div class="accordion-item">
                             <h2 class="accordion-header" id="pageSettingsHeading">
@@ -187,7 +193,7 @@
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label for="footerFontSize" class="form-label">Font Size (px)</label>
-                                            <input type="number" class="form-control" id="footerFontSize" name="footerFontSize" min="6" max="20" step="0.5" value="{{ $formConfig['footer_font_size'] ?? 10 }}">
+                                            <input type="number" class="form-control" id="footerFontSize" name="footerFontSize" min="6" max="20" step="0.5" value="{{ $formConfig['footer_font_size'] ?? 12 }}">
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label for="footerPadding" class="form-label">Padding</label>
@@ -198,6 +204,7 @@
                             </div>
                         </div>
                     </div>
+                    @endunless
                 </form>
             </div>
             <div class="modal-footer">

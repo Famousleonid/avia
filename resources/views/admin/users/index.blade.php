@@ -184,7 +184,7 @@
                             <td class="text-center user-col-role" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->role->name ?? 'Unknown role' }}</td>
                             <td class="text-center user-col-stamp" style="color: {{ $user->role? '#ffffff' : '#808080' }};">{{ $user->stamp }}</td>
                             <td class="text-center user-col-birthday"><span
-                                    style="display: none">{{$user->Birthday}}</span>{{ $user->birthday?->format('d.M.Y') }}
+                                    style="display: none">{{$user->Birthday}}</span>{{ format_project_date($user->birthday) ?? '' }}
                             </td>
                             <td class="text-center user-col-action">
                                 @if(auth()->user()?->isSystemAdmin() && auth()->id() !== $user->id)

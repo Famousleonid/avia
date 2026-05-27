@@ -15,10 +15,10 @@
             --container-scale: 0.97;
             --print-page-margin: 2mm;
             --print-body-margin-left: 3px;
-            --table-font-size: 0.9rem;
-            --part-no-font-size: 0.6rem;
+            --table-font-size: 14px;
+            --component-header-font-size: 16px;
             --print-footer-width: 1060px;
-            --print-footer-font-size: 10px;
+            --print-footer-font-size: 12px;
             --print-footer-padding: 2px 2px;
             --spec-process-number-col-width: 30px;
         }
@@ -46,6 +46,7 @@
         .col,
         .col-1,
         .col-2,
+        .col-4,
         .col-6,
         .col-10,
         .col-11,
@@ -57,6 +58,7 @@
         .col { flex: 1 0 0; }
         .col-1 { flex: 0 0 8.333333%; max-width: 8.333333%; }
         .col-2 { flex: 0 0 16.666667%; max-width: 16.666667%; }
+        .col-4 { flex: 0 0 33.333333%; max-width: 33.333333%; }
         .col-6 { flex: 0 0 50%; max-width: 50%; }
         .col-10 { flex: 0 0 83.333333%; max-width: 83.333333%; }
         .col-11 { flex: 0 0 91.666667%; max-width: 91.666667%; }
@@ -147,13 +149,15 @@
             background: rgba(255, 255, 255, .98);
             border: 1px solid #777;
             box-shadow: 0 4px 20px rgba(0, 0, 0, .18);
-            left: 20px;
+            left: 50%;
             max-height: calc(100vh - 40px);
             overflow: auto;
             padding: 12px;
             position: fixed;
-            right: 20px;
+            right: auto;
             top: 20px;
+            transform: translateX(-50%);
+            width: min(760px, calc(100vw - 40px));
             z-index: 50;
         }
 
@@ -236,6 +240,10 @@
             color: #842029;
         }
 
+        .legacy-print-setting-block {
+            display: none !important;
+        }
+
         .container-fluid {
             max-width: var(--container-max-width);
             height: auto;
@@ -244,6 +252,18 @@
             padding: var(--container-padding);
             margin-left: var(--container-margin-left);
             margin-right: var(--container-margin-right);
+        }
+
+        .spec-process-footer {
+            box-sizing: border-box;
+            font-size: 12px;
+            margin-left: var(--container-margin-left);
+            margin-right: var(--container-margin-right);
+            max-width: var(--container-max-width);
+            padding: 2px 2px;
+            transform: scale(var(--container-scale));
+            transform-origin: top;
+            width: 100%;
         }
 
         .container-fluid > .row.g-0 > .col-2,
@@ -280,7 +300,9 @@
         }
 
         .spec-form-title {
-            text-transform: uppercase;
+            font-size: 1.35rem;
+            line-height: 1;
+            margin-bottom: 2px;
         }
 
         .container-fluid > .row.g-0 > .col-2.border-l-t.ps-1,
@@ -341,8 +363,16 @@
         }
 
         .spec-header-tech-row {
-            align-items: flex-start;
+            align-items: center;
             width: 960px;
+        }
+
+        .spec-cat-one-label {
+            align-items: center;
+            display: flex;
+            height: 25px;
+            margin: 0;
+            width: 60px;
         }
 
         .spec-technician-spacer {
@@ -395,7 +425,20 @@
             font-size: var(--table-font-size) !important;
         }
 
-        /* Применение font-size к данным Part No. (только данные, не заголовок) */
+        .spec-component-header-row > .col-10 > .row.g-0 > .col,
+        .spec-component-header-row > .col-10 > .row.g-0 > .col span,
+        .spec-component-header-row > .col-10 > .row.g-0 > .col div,
+        .spec-component-header-row .part-no-data,
+        .spec-component-header-row .part-no-data div {
+            font-size: var(--component-header-font-size) !important;
+        }
+
+        .spec-visible-process-last > .col-2,
+        .spec-visible-process-last > .col-10 > .row.g-0 > .col {
+            border-bottom: 1px solid black !important;
+        }
+
+        /* Данные Part No. в bushing header: layout отдельно от размера шрифта. */
         .part-no-data {
             display: grid !important;
             grid-template-columns: minmax(0, 1fr) !important;
@@ -405,10 +448,6 @@
             width: 100% !important;
         }
         /* Более специфичный селектор для переопределения общего правила .row.g-0 div */
-        .container-fluid .row.g-0 .part-no-data,
-        .container-fluid .row.g-0 .part-no-data div {
-            font-size: var(--part-no-font-size) !important;
-        }
         .part-no-data div {
             display: block !important;
             line-height: 1.2 !important;
@@ -446,14 +485,18 @@
                 display: none;
             }
 
-            footer {
+            .spec-process-footer {
                 position: fixed;
                 bottom: 0;
                 width: var(--print-footer-width);
+                max-width: none;
+                margin-left: 0;
+                margin-right: 0;
+                transform: none;
                 text-align: center;
-                font-size: var(--print-footer-font-size);
+                font-size: 12px;
                 background-color: #fff;
-                padding: var(--print-footer-padding);
+                padding: 2px 2px;
             }
 
             .container {
@@ -480,7 +523,15 @@
                 font-size: var(--table-font-size) !important;
             }
 
-            /* Применение font-size к данным Part No. при печати (только данные, не заголовок) */
+            .spec-component-header-row > .col-10 > .row.g-0 > .col,
+            .spec-component-header-row > .col-10 > .row.g-0 > .col span,
+            .spec-component-header-row > .col-10 > .row.g-0 > .col div,
+            .spec-component-header-row .part-no-data,
+            .spec-component-header-row .part-no-data div {
+                font-size: var(--component-header-font-size) !important;
+            }
+
+            /* Данные Part No. в bushing header: layout отдельно от размера шрифта. */
             .part-no-data {
                 display: grid !important;
                 grid-template-columns: minmax(0, 1fr) !important;
@@ -490,10 +541,6 @@
                 width: 100% !important;
             }
             /* Более специфичный селектор для переопределения общего правила .row.g-0 div при печати */
-            .container-fluid .row.g-0 .part-no-data,
-            .container-fluid .row.g-0 .part-no-data div {
-                font-size: var(--part-no-font-size) !important;
-            }
             .part-no-data div {
                 display: block !important;
                 line-height: 1.2 !important;
@@ -597,7 +644,7 @@
             border-top: 1px solid black;
         }
         .border-tt-gr {
-            border-top: 6px solid dimgrey;
+            border-top: 1px solid black;
         }
         .border-r-b {
             border-right: 1px solid black;
@@ -722,6 +769,10 @@
 @endphp
 
 @foreach($componentChunks as $chunk)
+    @php
+        $pageNumber = ($spPageOffset ?? 0) + $loop->iteration;
+        $pageTotal = $combinedSpecPageTotal ?? $componentChunks->count();
+    @endphp
     <div class="container-fluid">
         <div class="row">
             <div class="col-1">
@@ -729,7 +780,7 @@
                      style="width: 160px; margin: 6px 10px 0;">
             </div>
             <div class="col-11">
-                <h5 class="pt-1 text-black text-center spec-form-title"><strong>SPECIAL PROCESS FORM </strong></h5>
+                <h5 class="pt-1 text-black text-center spec-form-title"><strong>Special Process Form</strong></h5>
             </div>
         </div>
         <div>
@@ -751,7 +802,7 @@
             </div>
             <div class="d-flex spec-header-tech-row">
                 <div class="text-end">
-                    <h6 class="pt-1 " style="width: 60px;"><strong>Cat #1</strong></h6>
+                    <h6 class="spec-cat-one-label"><strong>Cat #1</strong></h6>
                 </div>
                 <div class=" " >
                     <img src="{{ asset('img/icons/icons8-right-arrow.gif')}}" alt="arrow"
@@ -784,7 +835,7 @@
             </div>
         </div>
 
-        <div class="row g-0 ">
+        <div class="row g-0 spec-component-header-row">
             <!-- Заголовок "Description" -->
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 28px"><strong>Description</strong> </div>
@@ -823,7 +874,7 @@
         </div>
 
         <!-- Строка для Part No. -->
-        <div class="row g-0 ">
+        <div class="row g-0 spec-component-header-row">
             <div class="col-2 border-l-t ps-1">
                 <div style="min-height: 28px"><strong> Part No.</strong></div>
             </div>
@@ -886,7 +937,7 @@
         </div>
 
         <!-- Строка для Serial No. -->
-        <div class="row g-0 ">
+        <div class="row g-0 spec-component-header-row">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 28px"><strong> Serial No</strong>.</div>
             </div>
@@ -1551,13 +1602,17 @@
 
 
 
-    <footer >
+    <footer class="spec-process-footer">
         <div class="row" style="width: 100%; padding: 5px 5px;">
-            <div class="col-6 text-start">
+            <div class="col-4 text-start">
                 {{__("Form #012")}}
             </div>
 
-            <div class="col-6 text-end pe-4 ">
+            <div class="col-4 text-center">
+                {{ $pageNumber }} of {{ $pageTotal }}
+            </div>
+
+            <div class="col-4 text-end pe-4 ">
                 {{__('Rev#0, 15/Dec/2012   ')}}
             </div>
         </div>
@@ -1588,8 +1643,56 @@
             </div>
             <div class="modal-body">
                 <form id="printSettingsForm">
-                    <!-- Table Setting - Основная группа -->
                     <div class="mb-4">
+                        <h5 class="mb-3"
+                            title="Only rows and table fonts are adjustable. Footer font is fixed at 12px."
+                            data-tooltip-ru="Reguliruetsya tolko kolichestvo strok i shrifty tablits. Kolontitul zafiksirovan 12px."
+                            data-tooltip-en="Only rows and table fonts are adjustable. Footer font is fixed at 12px.">
+                            Tables
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="processTableRows" class="form-label"
+                                       title="Number of process rows shown under Steps sequence."
+                                       data-tooltip-ru="Kolichestvo strok process table pod Steps sequence."
+                                       data-tooltip-en="Number of process rows shown under Steps sequence.">
+                                    Rows
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="processTableRows" name="processTableRows"
+                                           min="1" max="11" step="1" value="11">
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="tableDataFontSize" class="form-label"
+                                       title="Font size for the process table."
+                                       data-tooltip-ru="Shrift v process table."
+                                       data-tooltip-en="Font size for the process table.">
+                                    Table Font (px)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="tableDataFontSize" name="tableDataFontSize"
+                                           min="8" max="24" step="1" value="14">
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="componentHeaderFontSize" class="form-label"
+                                       title="Font size for bushing header data cells: Description, Part No., Serial/QTY."
+                                       data-tooltip-ru="Shrift dlya dannyh v header table: Description, Part No., Serial/QTY."
+                                       data-tooltip-en="Font size for bushing header data cells: Description, Part No., Serial/QTY.">
+                                    Header Data Font (px)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="componentHeaderFontSize" name="componentHeaderFontSize"
+                                           min="8" max="24" step="1" value="16">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Table Setting - Основная группа -->
+                    <div class="mb-4 legacy-print-setting-block">
                         <h5 class="mb-3"
                             title="Настройки таблицы Special Process Form."
                             data-tooltip-ru="Настройки таблицы Special Process Form."
@@ -1713,7 +1816,7 @@
                     </div>
 
                     <!-- Page Setting (collapse) -->
-                    <div class="mb-4">
+                    <div class="mb-4 legacy-print-setting-block">
                         <div class="accordion" id="pageSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="pageSettingsHeading">
@@ -1764,7 +1867,7 @@
                     </div>
 
                     <!-- Footer Setting (collapse) -->
-                    <div class="mb-4">
+                    <div class="mb-4 legacy-print-setting-block">
                         <div class="accordion" id="footerSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="footerSettingsHeading">
@@ -1797,14 +1900,14 @@
 
                                             <div class="col-md-4 mb-3">
                                                 <label for="footerFontSize" class="form-label"
-                                                       title="Размер шрифта текста в колонтитуле. 10px - стандартное значение."
-                                                       data-tooltip-ru="Размер шрифта текста в колонтитуле. 10px - стандартное значение."
-                                                       data-tooltip-en="Footer text font size. 10px - standard value.">
+                                                       title="Размер шрифта текста в колонтитуле. 12px - стандартное значение."
+                                                       data-tooltip-ru="Размер шрифта текста в колонтитуле. 12px - стандартное значение."
+                                                       data-tooltip-en="Footer text font size. 12px - standard value.">
                                                     Font Size (px)
                                                 </label>
                                                 <div class="input-group">
                                                     <input type="number" class="form-control" id="footerFontSize" name="footerFontSize"
-                                                           min="6" max="20" step="0.5" value="10">
+                                                           min="6" max="20" step="0.5" value="12">
                                                 </div>
                                             </div>
 
@@ -1850,10 +1953,11 @@
         containerPadding: '3px',
         containerMarginLeft: '10px',
         containerMarginRight: '10px',
-        tableFontSize: '0.9rem',
-        partNoFontSize: '0.6rem',
+        tableFontSize: '14px',
+        componentHeaderFontSize: '16px',
+        processTableRows: 11,
         footerWidth: '1060px',
-        footerFontSize: '10px',
+        footerFontSize: '12px',
         footerPadding: '2px 2px'
     };
 
@@ -1862,40 +1966,83 @@
         const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
             try {
-                return JSON.parse(saved);
+                return normalizePrintSettings(JSON.parse(saved));
             } catch (e) {
                 console.error('Ошибка загрузки настроек:', e);
-                return defaultSettings;
+                return normalizePrintSettings(defaultSettings);
             }
         }
-        return defaultSettings;
+        return normalizePrintSettings(defaultSettings);
+    }
+
+    function clampNumber(value, min, max, fallback) {
+        const numeric = parseFloat(value);
+        if (!Number.isFinite(numeric)) {
+            return fallback;
+        }
+
+        return Math.min(max, Math.max(min, numeric));
+    }
+
+    function valueToPixels(value, fallbackPx) {
+        if (typeof value === 'number') {
+            return value;
+        }
+
+        const text = String(value || '').trim().toLowerCase();
+        const numeric = parseFloat(text);
+        if (!Number.isFinite(numeric)) {
+            return fallbackPx;
+        }
+
+        if (text.includes('rem')) {
+            return numeric * 16;
+        }
+
+        return numeric;
+    }
+
+    function normalizePixelSetting(value, fallbackPx, min, max) {
+        return Math.round(clampNumber(valueToPixels(value, fallbackPx), min, max, fallbackPx)) + 'px';
+    }
+
+    function normalizePrintSettings(settings) {
+        const merged = Object.assign({}, defaultSettings, settings || {});
+
+        return {
+            pageMargin: defaultSettings.pageMargin,
+            bodyMarginLeft: defaultSettings.bodyMarginLeft,
+            containerMaxWidth: defaultSettings.containerMaxWidth,
+            containerScale: defaultSettings.containerScale,
+            containerPadding: defaultSettings.containerPadding,
+            containerMarginLeft: defaultSettings.containerMarginLeft,
+            containerMarginRight: defaultSettings.containerMarginRight,
+            tableFontSize: normalizePixelSetting(merged.tableFontSize, 14, 8, 24),
+            componentHeaderFontSize: normalizePixelSetting(merged.componentHeaderFontSize, 16, 8, 24),
+            processTableRows: Math.round(clampNumber(merged.processTableRows, 1, 11, 11)),
+            footerWidth: defaultSettings.footerWidth,
+            footerFontSize: defaultSettings.footerFontSize,
+            footerPadding: defaultSettings.footerPadding
+        };
     }
 
     // Сохранение настроек в window.UserScopedStorage
     window.savePrintSettings = function() {
         try {
-            const getValue = function(id, defaultValue, suffix = '') {
+            const getNumber = function(id, defaultValue) {
                 const element = document.getElementById(id);
-                if (element) {
-                    return element.value + (suffix ? suffix : '');
+                if (!element) {
+                    return defaultValue;
                 }
-                return defaultValue;
+                const value = parseFloat(element.value);
+                return Number.isFinite(value) ? value : defaultValue;
             };
 
-            const settings = {
-                pageMargin: getValue('pageMargin', '2', 'mm'),
-                bodyMarginLeft: getValue('bodyMarginLeft', '3', 'px'),
-                containerMaxWidth: getValue('containerMaxWidth', '980', 'px'),
-                containerScale: getValue('containerScale', '0.97', ''),
-                containerPadding: getValue('containerPadding', '3', 'px'),
-                containerMarginLeft: getValue('containerMarginLeft', '10', 'px'),
-                containerMarginRight: getValue('containerMarginRight', '10', 'px'),
-                tableFontSize: getValue('tableFontSize', '0.9', 'rem'),
-                partNoFontSize: getValue('partNoFontSize', '0.6', 'rem'),
-                footerWidth: getValue('footerWidth', '1060', 'px'),
-                footerFontSize: getValue('footerFontSize', '10', 'px'),
-                footerPadding: getValue('footerPadding', '2px 2px', '')
-            };
+            const settings = normalizePrintSettings({
+                processTableRows: getNumber('processTableRows', defaultSettings.processTableRows),
+                tableFontSize: getNumber('tableDataFontSize', 14) + 'px',
+                componentHeaderFontSize: getNumber('componentHeaderFontSize', 16) + 'px'
+            });
 
             window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
@@ -1916,62 +2063,71 @@
 
     // Применение CSS переменных
     function applyPrintSettings(settings) {
+        settings = normalizePrintSettings(settings);
         const root = document.documentElement;
-        root.style.setProperty('--print-page-margin', settings.pageMargin || defaultSettings.pageMargin);
-        root.style.setProperty('--print-body-margin-left', settings.bodyMarginLeft || defaultSettings.bodyMarginLeft);
-        root.style.setProperty('--container-max-width', settings.containerMaxWidth || defaultSettings.containerMaxWidth);
-        root.style.setProperty('--container-scale', settings.containerScale || defaultSettings.containerScale);
-        root.style.setProperty('--container-padding', settings.containerPadding || defaultSettings.containerPadding);
-        root.style.setProperty('--container-margin-left', settings.containerMarginLeft || defaultSettings.containerMarginLeft);
-        root.style.setProperty('--container-margin-right', settings.containerMarginRight || defaultSettings.containerMarginRight);
-        root.style.setProperty('--table-font-size', settings.tableFontSize || defaultSettings.tableFontSize);
-        root.style.setProperty('--part-no-font-size', normalizePartNoFontSize(settings.partNoFontSize || defaultSettings.partNoFontSize));
-        root.style.setProperty('--print-footer-width', settings.footerWidth || defaultSettings.footerWidth);
-        root.style.setProperty('--print-footer-font-size', settings.footerFontSize || defaultSettings.footerFontSize);
-        root.style.setProperty('--print-footer-padding', settings.footerPadding || defaultSettings.footerPadding);
+        root.style.setProperty('--print-page-margin', defaultSettings.pageMargin);
+        root.style.setProperty('--print-body-margin-left', defaultSettings.bodyMarginLeft);
+        root.style.setProperty('--container-max-width', defaultSettings.containerMaxWidth);
+        root.style.setProperty('--container-scale', defaultSettings.containerScale);
+        root.style.setProperty('--container-padding', defaultSettings.containerPadding);
+        root.style.setProperty('--container-margin-left', defaultSettings.containerMarginLeft);
+        root.style.setProperty('--container-margin-right', defaultSettings.containerMarginRight);
+        root.style.setProperty('--table-font-size', settings.tableFontSize);
+        root.style.setProperty('--component-header-font-size', settings.componentHeaderFontSize);
+        root.style.setProperty('--print-footer-width', defaultSettings.footerWidth);
+        root.style.setProperty('--print-footer-font-size', '12px');
+        root.style.setProperty('--print-footer-padding', defaultSettings.footerPadding);
+        applyProcessTableRows(settings.processTableRows);
     }
 
-    function normalizePartNoFontSize(value) {
-        const numeric = parseFloat(value);
-        if (!Number.isFinite(numeric)) {
-            return defaultSettings.partNoFontSize;
-        }
+    function applyProcessTableRows(rowCount) {
+        document.querySelectorAll('.container-fluid').forEach(function(container) {
+            const stepsRow = container.querySelector('.row.g-0.border-tt-gr');
+            if (!stepsRow) {
+                return;
+            }
 
-        return Math.min(1.2, Math.max(0.3, numeric)) + 'rem';
+            const rows = [];
+            let node = stepsRow.nextElementSibling;
+            while (node && !node.classList.contains('parent')) {
+                if (node.classList.contains('row') && node.classList.contains('g-0')) {
+                    rows.push(node);
+                }
+                node = node.nextElementSibling;
+            }
+
+            rows.forEach(function(row) {
+                row.classList.remove('spec-visible-process-last');
+            });
+
+            rows.forEach(function(row, index) {
+                row.style.display = index < rowCount ? '' : 'none';
+            });
+
+            if (rows.length > 0) {
+                rows[Math.min(rowCount, rows.length) - 1].classList.add('spec-visible-process-last');
+            }
+        });
     }
 
     // Загрузка настроек в форму
     function loadSettingsToForm(settings) {
-        const elements = {
-            'pageMargin': { suffix: '', default: '2' },
-            'bodyMarginLeft': { suffix: '', default: '3' },
-            'containerMaxWidth': { suffix: '', default: '980' },
-            'containerScale': { suffix: '', default: '0.97' },
-            'containerPadding': { suffix: '', default: '3' },
-            'containerMarginLeft': { suffix: '', default: '10' },
-            'containerMarginRight': { suffix: '', default: '10' },
-            'tableFontSize': { suffix: '', default: '0.9' },
-            'partNoFontSize': { suffix: '', default: '0.6' },
-            'footerWidth': { suffix: '', default: '1060' },
-            'footerFontSize': { suffix: '', default: '10' },
-            'footerPadding': { suffix: '', default: '2px 2px' }
-        };
+        settings = normalizePrintSettings(settings);
 
-        Object.keys(elements).forEach(function(id) {
-            const element = document.getElementById(id);
-            if (element) {
-                const value = settings[id] || elements[id].default;
-                if (id === 'footerPadding') {
-                    element.value = value;
-                } else if (id === 'partNoFontSize') {
-                    element.value = Math.min(1.2, Math.max(0.3, parseFloat(value) || parseFloat(elements[id].default)));
-                } else if (id === 'containerScale' || id === 'tableFontSize') {
-                    element.value = parseFloat(value) || parseFloat(elements[id].default);
-                } else {
-                    element.value = parseInt(value) || elements[id].default;
-                }
-            }
-        });
+        const processTableRows = document.getElementById('processTableRows');
+        if (processTableRows) {
+            processTableRows.value = settings.processTableRows;
+        }
+
+        const tableDataFontSize = document.getElementById('tableDataFontSize');
+        if (tableDataFontSize) {
+            tableDataFontSize.value = parseInt(settings.tableFontSize, 10);
+        }
+
+        const componentHeaderFontSize = document.getElementById('componentHeaderFontSize');
+        if (componentHeaderFontSize) {
+            componentHeaderFontSize.value = parseInt(settings.componentHeaderFontSize, 10);
+        }
     }
 
     // Сброс настроек к значениям по умолчанию

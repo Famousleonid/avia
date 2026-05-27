@@ -15,13 +15,16 @@
         }
 
         :root {
-            --print-page-margin: 2mm 2mm 2mm 2mm;
+            --rm-print-edge-margin: 8mm;
+            --print-page-margin: 8mm;
             --print-body-width: 100%;
             --print-body-height: 90%;
             --container-max-width: 820px;
             --print-footer-width: 100%;
-            --print-footer-font-size: 10px;
+            --print-footer-font-size: 12px;
             --print-footer-padding: 1px 1px;
+            --rm-footer-print-gap: 8mm;
+            --rm-table-data-font-size: 13px;
         }
 
         .container-fluid {
@@ -40,23 +43,28 @@
             @page {
                 /*size: letter ;*/
                 size: Letter;
-                margin: var(--print-page-margin, 2mm);
+                margin: var(--rm-print-edge-margin);
             }
 
             /* Убедитесь, что вся страница помещается на один лист */
             html, body {
                 height: auto;
                 width: auto;
-                margin-left: 3px;
+                margin: 0;
                 padding: 0;
             }
 
 
             .container-fluid {
                 max-height: calc(100vh - 20px); /* Оставляем место для футера */
-                overflow: hidden;
+                min-height: calc(279.4mm - (var(--rm-print-edge-margin) * 2));
+                max-height: none;
+                overflow: visible;
                 margin: 0 !important;
-                padding: 3px !important;
+                padding: 0 !important;
+                display: flex;
+                flex-direction: column;
+                box-sizing: border-box;
             }
 
             /* Скрываем ненужные элементы при печати */
@@ -69,16 +77,14 @@
             }
             /* Колонтитул внизу страницы */
             footer {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
+                position: static;
                 width: var(--print-footer-width, 100%);
                 text-align: center;
-                font-size: var(--print-footer-font-size, 10px);
+                font-size: var(--print-footer-font-size, 12px);
                 background-color: #fff;
                 padding: var(--print-footer-padding, 1px 1px);
-                margin: 0;
+                padding-top: var(--rm-footer-print-gap);
+                margin: auto 0 0;
             }
 
             /*!* Уменьшаем отступы в таблицах *!*/
@@ -241,6 +247,7 @@
 
         /* Минимальный межстрочный интервал в строках таблицы R&M */
         .parent .data-row {
+            font-size: var(--rm-table-data-font-size);
             line-height: 1; /* можно уменьшить до 0.95, если визуально будет нормально */
         }
 
@@ -504,12 +511,21 @@
 
                         <div class="row mb-3">
                             <div class="col-md-6">
+                                <label for="rmTableDataFontSize" class="form-label">
+                                    Table Data Font (px)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="rmTableDataFontSize" name="rmTableDataFontSize"
+                                           min="6" max="24" step="0.5" value="13">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
                                 <label for="rmTableRows" class="form-label" data-bs-toggle="tooltip"
                                         data-bs-placement="top"
                                         title="Максимальное количество строк в таблице R&M Record на одной странице. По умолчанию: 18 строк. Используется для всех страниц формы."
                                         data-tooltip-ru="Максимальное количество строк в таблице R&M Record на одной странице. По умолчанию: 18 строк. Используется для всех страниц формы."
                                         data-tooltip-en="Maximum number of rows in R&M Record table per page. Default: 18 rows. Used for all pages of the form.">
-                                    RM Table Rows (per page)
+                                    Table (row)
                                 </label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="rmTableRows" name="rmTableRows"
@@ -519,7 +535,7 @@
                         </div>
 
                         <!-- Table Setting (collapse) -->
-                        <div class="accordion mb-3" id="tableSettingsAccordion">
+                        <div class="accordion mb-3 d-none" id="tableSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="tableSettingsHeading">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -559,7 +575,7 @@
 
                     <!-- Page Setting (collapse) -->
                     <div class="mb-4">
-                        <div class="accordion" id="pageSettingsAccordion">
+                        <div class="accordion d-none" id="pageSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="pageSettingsHeading">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -627,7 +643,7 @@
 
                     <!-- Footer Setting (collapse) -->
                     <div class="mb-4">
-                        <div class="accordion" id="footerSettingsAccordion">
+                        <div class="accordion d-none" id="footerSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="footerSettingsHeading">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -720,17 +736,30 @@
 <script>
     // Ключ для сохранения настроек печати
     const PRINT_SETTINGS_KEY = 'rmRecordForm_print_settings';
+    const PRINT_SETTINGS_LAYOUT_VERSION = 'rm-record-v2';
 
     // Настройки по умолчанию
     const defaultSettings = {
-        pageMargin: '2mm 2mm 2mm 2mm',
+        layoutVersion: PRINT_SETTINGS_LAYOUT_VERSION,
+        pageMargin: '8mm',
         bodyWidth: '100%',
         bodyHeight: '90%',
         containerMaxWidth: '820px',
         footerWidth: '100%',
-        footerFontSize: '10px',
+        footerFontSize: '12px',
         footerPadding: '1px 1px',
+        rmTableDataFontSize: '13px',
         rmTableRows: '18'
+    };
+
+    const lockedPrintSettings = {
+        pageMargin: '8mm',
+        bodyWidth: '100%',
+        bodyHeight: '90%',
+        containerMaxWidth: '820px',
+        footerWidth: '100%',
+        footerFontSize: '12px',
+        footerPadding: '1px 1px'
     };
 
     // Загрузка настроек из window.UserScopedStorage
@@ -738,13 +767,23 @@
         const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
             try {
-                return JSON.parse(saved);
+                const parsed = JSON.parse(saved);
+                if (parsed.layoutVersion !== PRINT_SETTINGS_LAYOUT_VERSION) {
+                    return normalizePrintSettings(defaultSettings);
+                }
+                return normalizePrintSettings(parsed);
             } catch (e) {
                 console.error('Ошибка загрузки настроек:', e);
-                return defaultSettings;
+                return normalizePrintSettings(defaultSettings);
             }
         }
-        return defaultSettings;
+        return normalizePrintSettings(defaultSettings);
+    }
+
+    function normalizePrintSettings(settings) {
+        return Object.assign({}, defaultSettings, settings || {}, lockedPrintSettings, {
+            layoutVersion: PRINT_SETTINGS_LAYOUT_VERSION
+        });
     }
 
     // Сохранение настроек в window.UserScopedStorage
@@ -758,16 +797,10 @@
                 return defaultValue;
             };
 
-            const settings = {
-                pageMargin: getValue('pageMargin', '2mm 2mm 2mm 2mm', ''),
-                bodyWidth: getValue('bodyWidth', '100', '%'),
-                bodyHeight: getValue('bodyHeight', '90', '%'),
-                containerMaxWidth: getValue('containerMaxWidth', '820', 'px'),
-                footerWidth: getValue('footerWidth', '100', '%'),
-                footerFontSize: getValue('footerFontSize', '10', 'px'),
-                footerPadding: getValue('footerPadding', '1px 1px', ''),
+            const settings = normalizePrintSettings({
+                rmTableDataFontSize: getValue('rmTableDataFontSize', '13', 'px'),
                 rmTableRows: getValue('rmTableRows', '18', '')
-            };
+            });
 
             window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
@@ -800,6 +833,8 @@
         root.style.setProperty('--print-footer-width', settings.footerWidth || defaultSettings.footerWidth);
         root.style.setProperty('--print-footer-font-size', settings.footerFontSize || defaultSettings.footerFontSize);
         root.style.setProperty('--print-footer-padding', settings.footerPadding || defaultSettings.footerPadding);
+        root.style.setProperty('--rm-print-edge-margin', settings.pageMargin || defaultSettings.pageMargin);
+        root.style.setProperty('--rm-table-data-font-size', settings.rmTableDataFontSize || defaultSettings.rmTableDataFontSize);
 
         const rmMaxRows = parseInt(settings.rmTableRows) || 18;
 
@@ -1137,7 +1172,7 @@
     window.resetPrintSettings = function() {
         if (confirm('Reset all print settings to default values?')) {
             window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
-            const settings = defaultSettings;
+            const settings = normalizePrintSettings(defaultSettings);
             applyPrintSettings(settings);
             loadSettingsToForm(settings);
 
@@ -1153,13 +1188,7 @@
     // Загрузка настроек в форму
     function loadSettingsToForm(settings) {
         const elements = {
-            'pageMargin': { suffix: '', default: '2mm 2mm 2mm 2mm' },
-            'bodyWidth': { suffix: '', default: '100' },
-            'bodyHeight': { suffix: '', default: '90' },
-            'containerMaxWidth': { suffix: '', default: '820' },
-            'footerWidth': { suffix: '', default: '100' },
-            'footerFontSize': { suffix: '', default: '10' },
-            'footerPadding': { suffix: '', default: '1px 1px' },
+            'rmTableDataFontSize': { suffix: 'px', default: '13' },
             'rmTableRows': { suffix: '', default: '18' }
         };
 
@@ -1167,10 +1196,10 @@
             const element = document.getElementById(id);
             if (element) {
                 const value = settings[id] || elements[id].default;
-                if (id === 'pageMargin' || id === 'footerPadding') {
-                    element.value = value;
+                if (elements[id].suffix && String(value).endsWith(elements[id].suffix)) {
+                    element.value = String(value).replace(elements[id].suffix, '');
                 } else {
-                    element.value = parseInt(value) || elements[id].default;
+                    element.value = parseFloat(value) || elements[id].default;
                 }
             }
         });

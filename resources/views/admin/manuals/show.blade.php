@@ -2,23 +2,24 @@
 
 @section('content')
     @php
-        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb'];
-        $manualShowTab = in_array(request('tab'), $manualTabKeys, true) ? request('tab') : 'components';
-
-        $manualScrollPartId = null;
-        if (request()->filled('part_id') && ctype_digit((string) request('part_id'))) {
-            $pid = (int) request('part_id');
-            if ($parts->pluck('id')->contains($pid)) {
-                $manualScrollPartId = $pid;
-                $manualShowTab = 'parts';
-            }
-        }
+        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'revision'];
+        $manualShowTab = in_array($manualShowTab ?? null, $manualTabKeys, true) ? $manualShowTab : 'components';
 
         $manualUrlParts = route('manuals.show', ['manual' => $cmm, 'tab' => 'parts']);
         $manualUrlProcesses = route('manuals.show', ['manual' => $cmm, 'tab' => 'processes']);
         $manualUrlSb = route('manuals.show', ['manual' => $cmm, 'tab' => 'sb']);
         $manualPartsCount = $parts->count();
         $manualProcessesCount = $manualProcesses->count();
+        $revisionStatusText = [
+            'overdue' => __('Overdue'),
+            'due_today' => __('Due today'),
+            'scheduled' => __('Scheduled'),
+        ][$revisionStatus['status'] ?? 'scheduled'] ?? __('Scheduled');
+        $revisionStatusBadge = [
+            'overdue' => 'danger',
+            'due_today' => 'warning',
+            'scheduled' => 'success',
+        ][$revisionStatus['status'] ?? 'scheduled'] ?? 'secondary';
         $sbRequirementOptions = [
             '' => 'None',
             \App\Models\ManualServiceBulletin::REQUIREMENT_OPTIONAL => 'Optional',
@@ -763,7 +764,7 @@
             <div class="ms-3">
                 <h5 class="ms-2"><strong class="text-secondary">{{__('Component PNs:')}}</strong> {{ $cmm->unit_name_training }}</h5>
                 <div class="d-flex">
-                    <h5 class="ms-2"><strong class="text-secondary">{{__('Revision Date:')}}</strong> {{ $cmm->revision_date }}</h5>
+                    <h5 class="ms-2"><strong class="text-secondary">{{__('Revision Date:')}}</strong> @projectDate($cmm->revision_date)</h5>
                         <h5 class="ms-4"><strong class="text-secondary">{{__('Lib:')}}</strong> {{ $cmm->lib }}</h5>
                 </div>
             </div>
@@ -791,8 +792,8 @@
             </div>
             <script>
                 (function () {
-                    var allowedTabs = ['components', 'parts', 'processes', 'std', 'sb'];
-                    var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std', '#nav-sb': 'sb'};
+                    var allowedTabs = ['components', 'parts', 'processes', 'std', 'sb', 'revision'];
+                    var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std', '#nav-sb': 'sb', '#nav-revision': 'revision'};
                     var params = new URLSearchParams(location.search);
                     var q = params.get('tab');
                     var desiredKey = (q && allowedTabs.indexOf(q) !== -1)
@@ -822,6 +823,8 @@
                                 type="button" role="tab" aria-controls="nav-std" aria-selected="{{ $manualShowTab === 'std' ? 'true' : 'false' }}">STD Processes</button>
                         <button class="nav-link @if($manualShowTab === 'sb') active @endif" id="nav-sb-tab" data-bs-toggle="tab" data-bs-target="#nav-sb"
                                 type="button" role="tab" aria-controls="nav-sb" aria-selected="{{ $manualShowTab === 'sb' ? 'true' : 'false' }}">SB</button>
+                        <button class="nav-link @if($manualShowTab === 'revision') active @endif" id="nav-revision-tab" data-bs-toggle="tab" data-bs-target="#nav-revision"
+                                type="button" role="tab" aria-controls="nav-revision" aria-selected="{{ $manualShowTab === 'revision' ? 'true' : 'false' }}">Revision</button>
                     </div>
                     <div class="ms-3 d-flex align-items-center gap-2" id="nav-tab-actions">
                         <button type="button"
@@ -1238,6 +1241,94 @@
                                 @method('DELETE')
                             </form>
                         @endforeach
+                    </div>
+                </div>
+                <div class="tab-pane fade @if($manualShowTab === 'revision') show active @endif" id="nav-revision" role="tabpanel" aria-labelledby="nav-revision-tab" tabindex="0">
+                    <div class="m-2">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                            <div>
+                                <h5 class="mb-1">{{ __('Revision Checks') }}</h5>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <span class="badge text-bg-{{ $revisionStatusBadge }}">{{ $revisionStatusText }}</span>
+                                    <span class="text-muted small">{{ __('Current revision date') }}: {{ format_project_date($cmm->revision_date) ?? '-' }}</span>
+                                    <span class="text-muted small">{{ __('Last check') }}: {{ format_project_date($latestRevisionCheck?->checked_at) ?? '-' }}</span>
+                                    <span class="text-muted small">{{ __('Next due') }}: {{ format_project_date($revisionStatus['next_due_at'] ?? null) ?? '-' }}</span>
+                                    <span class="text-muted small">{{ __('Days left') }}: {{ $revisionStatus['days_until_due'] ?? '-' }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if($canRecordRevisionCheck)
+                            <form method="POST" action="{{ route('manuals.revision-checks.store', ['manual' => $cmm]) }}" class="row g-2 align-items-end mb-3">
+                                @csrf
+                                <div class="col-md-2">
+                                    <label class="form-label small" for="manual_revision_status">{{ __('Status') }}</label>
+                                    <select id="manual_revision_status" name="status" class="form-select form-select-sm">
+                                        <option value="{{ \App\Models\ManualRevisionCheck::STATUS_UNCHANGED }}">{{ __('Unchanged') }}</option>
+                                        <option value="{{ \App\Models\ManualRevisionCheck::STATUS_CHANGED }}">{{ __('Changed') }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small" for="manual_revision_number">{{ __('Revision No.') }}</label>
+                                    <input id="manual_revision_number" type="text" name="revision_number" class="form-control form-control-sm"
+                                           value="{{ old('revision_number', $latestRevisionCheck?->revision_number) }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small" for="manual_revision_date">{{ __('Revision Date') }}</label>
+                                    <input id="manual_revision_date" type="date" name="revision_date" class="form-control form-control-sm"
+                                           value="{{ old('revision_date', $cmm->revision_date ? \Illuminate\Support\Carbon::parse($cmm->revision_date)->format('Y-m-d') : '') }}" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small" for="manual_checked_at">{{ __('Checked At') }}</label>
+                                    <input id="manual_checked_at" type="date" name="checked_at" class="form-control form-control-sm"
+                                           value="{{ old('checked_at', now()->format('Y-m-d')) }}" max="{{ now()->format('Y-m-d') }}" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small" for="manual_revision_notes">{{ __('Notes') }}</label>
+                                    <input id="manual_revision_notes" type="text" name="notes" class="form-control form-control-sm" value="{{ old('notes') }}">
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="submit" class="btn btn-primary btn-sm w-100">{{ __('Save') }}</button>
+                                </div>
+                            </form>
+                        @endif
+
+                        <div class="table-responsive" style="max-height: 62vh;">
+                            <table class="table table-sm table-hover table-bordered dir-table">
+                                <thead class="bg-gradient">
+                                <tr>
+                                    <th class="text-center bg-gradient">{{ __('Checked At') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Revision No.') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Revision Date') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Checked By') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Stamp') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Status') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Notes') }}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @forelse($revisionChecks as $check)
+                                    <tr>
+                                        <td class="text-center">{{ format_project_date($check->checked_at) ?? '-' }}</td>
+                                        <td class="text-center">{{ $check->revision_number ?: '-' }}</td>
+                                        <td class="text-center">{{ format_project_date($check->revision_date) ?? '-' }}</td>
+                                        <td>{{ $check->checkedBy?->name ?? '-' }}</td>
+                                        <td class="text-center">{{ $check->checked_by_stamp ?: '-' }}</td>
+                                        <td class="text-center">
+                                            <span class="badge text-bg-{{ $check->status === \App\Models\ManualRevisionCheck::STATUS_CHANGED ? 'warning' : 'success' }}">
+                                                {{ ucfirst((string) $check->status) }}
+                                            </span>
+                                        </td>
+                                        <td>{{ $check->notes }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">{{ __('No revision checks yet.') }}</td>
+                                    </tr>
+                                @endforelse
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2358,7 +2449,8 @@
                 parts: '#nav-parts',
                 processes: '#nav-processes',
                 std: '#nav-std',
-                sb: '#nav-sb'
+                sb: '#nav-sb',
+                revision: '#nav-revision'
             };
             const initialParams = new URLSearchParams(window.location.search);
             const partIdToScroll = initialParams.get('part_id');

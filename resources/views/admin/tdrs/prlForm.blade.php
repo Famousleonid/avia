@@ -19,13 +19,15 @@
             --container-padding: 0;
             --container-margin-left: 0;
             --container-margin-right: 0;
-            --print-page-margin: 5mm 5mm 5mm 5mm;
+            --prl-print-edge-margin: 8mm;
+            --print-page-margin: 8mm;
             --print-body-height: 86%;
             --print-body-width: 100%;
-            --table-font-size: 0.875rem;
+            --table-font-size: 13px;
+            --prl-header-font-size: 16px;
             --prl-row-height: 32px;
             --print-footer-width: 100%;
-            --print-footer-font-size: 10px;
+            --print-footer-font-size: 12px;
             --print-footer-padding: 3px 3px;
         }
 
@@ -50,7 +52,7 @@
             /* Задаем размер страницы Letter (8.5 x 11 дюймов) */
             @page {
                 size: letter;
-                margin: var(--print-page-margin);
+                margin: var(--prl-print-edge-margin);
             }
             /* Убираем фиксированное позиционирование */
             .header-page {
@@ -83,6 +85,13 @@
                 margin: 0;
             }
 
+            .page {
+                min-height: calc(279.4mm - (var(--prl-print-edge-margin) * 2));
+                display: flex;
+                flex-direction: column;
+                box-sizing: border-box;
+            }
+
             /* Отключаем разрывы страниц внутри элементов */
             table, h1, p {
                 page-break-inside: avoid;
@@ -105,8 +114,8 @@
 
             /* Колонтитул внизу страницы */
             footer {
-                position: fixed;
-                bottom: 0;
+                position: static;
+                margin-top: auto;
                 width: var(--print-footer-width);
                 text-align: center;
                 font-size: var(--print-footer-font-size);
@@ -126,11 +135,15 @@
                 margin: 0 !important;
                 padding: 0;
                 font-size: var(--table-font-size);
+                --bs-gutter-x: 0;
             }
 
             /* Применение font-size ко всей таблице PRL при печати (включая заголовки) */
             .header-page .row.mt-2.ms-3,
-            .header-page .row.mt-2.ms-3 h6,
+            .header-page .row.mt-2.ms-3 h6 {
+                font-size: var(--prl-header-font-size) !important;
+            }
+
             .all-rows-container .data-row-prl,
             .all-rows-container .data-row-prl h6,
             .stamps-block .data-row-prl,
@@ -139,19 +152,35 @@
             }
 
             .row {
-                margin-left: 10px !important;
+                --bs-gutter-x: 0;
+                margin-left: 0 !important;
                 margin-right: 0 !important;
             }
 
             /* Убираем отступы от ms-2 и других классов */
-            .ms-2 {
+            .ms-2,
+            .ms-3 {
                 margin-left: 0 !important;
+            }
+
+            .header-page .row.ms-3,
+            .all-rows-container .data-row-prl,
+            .stamps-block .data-row-prl,
+            .stamps-block-clone .data-row-prl {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                --bs-gutter-x: 0;
+                box-sizing: border-box;
             }
 
             /* Убеждаемся, что таблица использует всю ширину */
             .col-1, .col-2, .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-10 {
                 padding-left: 0;
                 padding-right: 0;
+                min-width: 0;
+                box-sizing: border-box;
             }
 
             /* Убираем пробел между col-5 и col-7 */
@@ -189,7 +218,10 @@
 
         /* Применение font-size ко всей таблице PRL (включая заголовки) */
         .header-page .row.mt-2.ms-3,
-        .header-page .row.mt-2.ms-3 h6,
+        .header-page .row.mt-2.ms-3 h6 {
+            font-size: var(--prl-header-font-size) !important;
+        }
+
         .all-rows-container .data-row-prl,
         .all-rows-container .data-row-prl h6,
         .stamps-block .data-row-prl,
@@ -356,8 +388,8 @@
         .prl-col-part  { flex: 0 0 35%; max-width: 35%; }
         .prl-col-qty   { flex: 0 0 6%; max-width: 6%; }
         .prl-col-code  { flex: 0 0 6%; max-width: 6%; }
-        .prl-col-po    { flex: 0 0 10%; max-width: 8%; }
-        .prl-col-notes { flex: 0 0 10%; max-width: 8%; }
+        .prl-col-po    { flex: 0 0 8%; max-width: 8%; }
+        .prl-col-notes { flex: 0 0 8%; max-width: 8%; }
 
         /* Минимальная высота для строк PRL (в т.ч. пустых) — настраивается в Print Settings */
         .data-row-prl {
@@ -692,11 +724,14 @@
         </div>
 
     <footer>
-        <div class="row" style="width: 100%; padding: 5px 0;">
-            <div class="col-6 text-start">
+        <div class="row align-items-center" style="width: 100%; padding: 5px 0;">
+            <div class="col-4 text-start">
                <h6>{{__("Form #028")}}</h6>
             </div>
-            <div class="col-6 text-end pe-4 ">
+            <div class="col-4 text-center">
+                <h6 class="prl-page-counter">1 of 1</h6>
+            </div>
+            <div class="col-4 text-end pe-4 ">
                 <h6>{{__('Rev#0, 15/Dec/2012   ')}}</h6>
             </div>
         </div>
@@ -712,7 +747,7 @@
                     ⚙️ Print Settings
                 </h5>
                 <div class="d-flex align-items-center gap-2">
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="langToggleBtn" onclick="toggleTooltipLanguage()">
+                    <button type="button" class="btn btn-sm btn-outline-primary d-none" id="langToggleBtn" onclick="toggleTooltipLanguage()">
                         <span id="langToggleText">US</span>
                     </button>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -732,22 +767,31 @@
 
                         <div class="row mb-3">
                             <div class="col-md-6">
+                                <label for="tableFontSize" class="form-label">
+                                    Table Data Font (px)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="tableFontSize" name="tableFontSize"
+                                           min="6" max="24" step="0.5" value="13">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
                                 <label for="prlTableRows" class="form-label" data-bs-toggle="tooltip"
                                         data-bs-placement="top"
                                         title="Максимальное количество строк в таблице PRL на одной странице. По умолчанию: 19 строк. Используется для всех страниц формы."
                                         data-tooltip-ru="Максимальное количество строк в таблице PRL на одной странице. По умолчанию: 19 строк. Используется для всех страниц формы."
                                         data-tooltip-en="Maximum number of rows in PRL table per page. Default: 19 rows. Used for all pages of the form.">
-                                    PRL Table (row)
+                                    Table (row)
                                 </label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="prlTableRows" name="prlTableRows"
-                                           min="1" max="100" step="1" value="19">
+                                           min="1" max="100" step="1" value="18">
                                 </div>
                             </div>
                         </div>
 
                         <!-- Table Setting (collapse) -->
-                        <div class="accordion mb-3" id="tableSettingsAccordion">
+                        <div class="accordion mb-3 d-none" id="tableSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="tableSettingsHeading">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -787,7 +831,7 @@
                                                     Font Size (rem)
                                                 </label>
                                                 <div class="input-group">
-                                                    <input type="number" class="form-control" id="tableFontSize" name="tableFontSize"
+                                                    <input type="number" class="form-control" id="tableFontSizeLegacy" name="tableFontSizeLegacy"
                                                            min="0.5" max="2" step="0.05" value="0.875">
                                                 </div>
                                             </div>
@@ -800,7 +844,7 @@
                                                     Data Row Height (px)
                                                 </label>
                                                 <div class="input-group">
-                                                    <input type="number" class="form-control" id="prlRowHeight" name="prlRowHeight"
+                                                    <input type="number" class="form-control" id="prlRowHeightLegacy" name="prlRowHeightLegacy"
                                                            min="18" max="60" step="1" value="28">
                                                 </div>
                                             </div>
@@ -813,7 +857,7 @@
 
                     <!-- Page Setting (collapse) -->
                     <div class="mb-4">
-                        <div class="accordion" id="pageSettingsAccordion">
+                        <div class="accordion d-none" id="pageSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="pageSettingsHeading">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -881,7 +925,7 @@
 
                     <!-- Footer Setting (collapse) -->
                     <div class="mb-4">
-                        <div class="accordion" id="footerSettingsAccordion">
+                        <div class="accordion d-none" id="footerSettingsAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header" id="footerSettingsHeading">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -970,20 +1014,35 @@
 <script>
     // Ключ для сохранения настроек печати
     const PRINT_SETTINGS_KEY = 'prlForm_print_settings';
+    const PRINT_SETTINGS_LAYOUT_VERSION = 'prl-family-v2';
     const TOOLTIP_LANG_KEY = 'prlForm_tooltip_lang';
 
     // Настройки по умолчанию
     const defaultSettings = {
-        pageMargin: '5mm 5mm 5mm 5mm',
-        bodyWidth: '102%',
+        layoutVersion: PRINT_SETTINGS_LAYOUT_VERSION,
+        pageMargin: '8mm',
+        bodyWidth: '100%',
         bodyHeight: '86%',
         containerMaxWidth: '1020px',
-        tableFontSize: '0.875rem',
+        tableFontSize: '13px',
+        headerFontSize: '16px',
         footerWidth: '100%',
-        footerFontSize: '10px',
+        footerFontSize: '12px',
         footerPadding: '3px 3px',
-        prlTableRows: '19',
-        prlRowHeight: '28'
+        prlTableRows: '18',
+        prlRowHeight: '32px'
+    };
+
+    const lockedPrintSettings = {
+        pageMargin: '8mm',
+        bodyWidth: '100%',
+        bodyHeight: '86%',
+        containerMaxWidth: '1020px',
+        headerFontSize: '16px',
+        footerWidth: '100%',
+        footerFontSize: '12px',
+        footerPadding: '3px 3px',
+        prlRowHeight: '32px'
     };
 
     // Загрузка настроек из window.UserScopedStorage
@@ -991,13 +1050,23 @@
         const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
             try {
-                return JSON.parse(saved);
+                const parsed = JSON.parse(saved);
+                if (parsed.layoutVersion !== PRINT_SETTINGS_LAYOUT_VERSION) {
+                    return normalizePrintSettings(defaultSettings);
+                }
+                return normalizePrintSettings(parsed);
             } catch (e) {
                 console.error('Ошибка загрузки настроек:', e);
-                return defaultSettings;
+                return normalizePrintSettings(defaultSettings);
             }
         }
-        return defaultSettings;
+        return normalizePrintSettings(defaultSettings);
+    }
+
+    function normalizePrintSettings(settings) {
+        return Object.assign({}, defaultSettings, settings || {}, lockedPrintSettings, {
+            layoutVersion: PRINT_SETTINGS_LAYOUT_VERSION
+        });
     }
 
     // Сохранение настроек в window.UserScopedStorage
@@ -1011,22 +1080,15 @@
                 return defaultValue;
             };
 
-            const settings = {
-                pageMargin: getValue('pageMargin', '5mm 5mm 5mm 5mm', ''),
-                bodyWidth: getValue('bodyWidth', '102', '%'),
-                bodyHeight: getValue('bodyHeight', '86', '%'),
-                containerMaxWidth: getValue('containerMaxWidth', '1020', 'px'),
-                tableFontSize: getValue('tableFontSize', '0.875', 'rem'),
-                footerWidth: getValue('footerWidth', '100', '%'),
-                footerFontSize: getValue('footerFontSize', '10', 'px'),
-                footerPadding: getValue('footerPadding', '3px 3px', ''),
-                prlTableRows: getValue('prlTableRows', '19', ''),
-                prlRowHeight: getValue('prlRowHeight', '28', '') + 'px'
-            };
+            const settings = normalizePrintSettings({
+                tableFontSize: getValue('tableFontSize', '13', 'px'),
+                prlTableRows: getValue('prlTableRows', '18', '')
+            });
 
             window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
             applyTableRowLimits(settings);
+            updatePrlPageCounters();
 
             // Убираем фокус с активного элемента перед закрытием модального окна
             if (document.activeElement && document.activeElement.blur) {
@@ -1052,25 +1114,19 @@
         root.style.setProperty('--print-body-height', settings.bodyHeight || defaultSettings.bodyHeight);
         root.style.setProperty('--container-max-width', settings.containerMaxWidth || defaultSettings.containerMaxWidth);
         root.style.setProperty('--table-font-size', settings.tableFontSize || defaultSettings.tableFontSize);
+        root.style.setProperty('--prl-header-font-size', settings.headerFontSize || defaultSettings.headerFontSize);
         root.style.setProperty('--prl-row-height', (settings.prlRowHeight || defaultSettings.prlRowHeight).replace(/px$/, '') + 'px');
         root.style.setProperty('--print-footer-width', settings.footerWidth || defaultSettings.footerWidth);
         root.style.setProperty('--print-footer-font-size', settings.footerFontSize || defaultSettings.footerFontSize);
         root.style.setProperty('--print-footer-padding', settings.footerPadding || defaultSettings.footerPadding);
+        root.style.setProperty('--prl-print-edge-margin', settings.pageMargin || defaultSettings.pageMargin);
     }
 
     // Загрузка настроек в форму
     function loadSettingsToForm(settings) {
         const elements = {
-            'pageMargin': { suffix: '', default: '5mm 5mm 5mm 5mm' },
-            'bodyWidth': { suffix: '', default: '102' },
-            'bodyHeight': { suffix: '', default: '86' },
-            'containerMaxWidth': { suffix: '', default: '1020' },
-            'tableFontSize': { suffix: '', default: '0.875' },
-            'footerWidth': { suffix: '', default: '100' },
-            'footerFontSize': { suffix: '', default: '10' },
-            'footerPadding': { suffix: '', default: '3px 3px' },
-            'prlTableRows': { suffix: '', default: '19' },
-            'prlRowHeight': { suffix: '', default: '28' }
+            'tableFontSize': { suffix: 'px', default: '13' },
+            'prlTableRows': { suffix: '', default: '18' }
         };
 
         Object.keys(elements).forEach(function(id) {
@@ -1091,7 +1147,7 @@
 
     // Применение ограничений строк таблицы - создание физических страниц
     function applyTableRowLimits(settings) {
-        const prlMaxRows = parseInt(settings.prlTableRows) || 19;
+        const prlMaxRows = parseInt(settings.prlTableRows) || 18;
         console.log('Применение ограничений строк PRL:', { prlMaxRows, settings });
 
         const allRowsContainer = document.querySelector('.all-rows-container');
@@ -1351,6 +1407,19 @@
     }
 
     // Сброс настроек к значениям по умолчанию
+    function updatePrlPageCounters(totalPages) {
+        const pages = document.querySelectorAll('.data-page[data-page-index]');
+        const resolvedTotalPages = totalPages || pages.length || 1;
+
+        pages.forEach(function(page, index) {
+            const pageNumber = parseInt(page.getAttribute('data-page-index'), 10) || (index + 1);
+            const counter = page.querySelector('footer .prl-page-counter');
+            if (counter) {
+                counter.textContent = pageNumber + ' of ' + resolvedTotalPages;
+            }
+        });
+    }
+
     window.resetPrintSettings = function() {
         if (confirm('Reset all print settings to default values?')) {
             window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
@@ -1358,6 +1427,7 @@
             applyPrintSettings(defaultSettings);
             setTimeout(function() {
                 applyTableRowLimits(defaultSettings);
+                updatePrlPageCounters();
             }, 50);
             if (typeof showNotification === 'function') showNotification('Settings reset to default values!', 'success'); else window.notifySuccess('Settings reset to default values!');
         }
@@ -1426,6 +1496,7 @@
         // Применяем ограничения строк при загрузке
         setTimeout(function() {
             applyTableRowLimits(settings);
+            updatePrlPageCounters();
         }, 300);
 
         // Загружаем настройки в форму при открытии модального окна
@@ -1443,6 +1514,7 @@
     window.addEventListener('beforeprint', function() {
         const settings = loadPrintSettings();
         applyTableRowLimits(settings);
+        updatePrlPageCounters();
     });
 </script>
 

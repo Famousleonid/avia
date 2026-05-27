@@ -1719,8 +1719,7 @@ class TdrController extends Controller
         );
         $bushingPrlCount = $woBushing ? $woBushing->lines()->whereHas('component')->count() : 0;
         $kitComponents = $components->filter(fn ($component): bool => ! (bool) ($component->is_bush ?? false));
-        $kitPrlCount = $this->countKitPrlGroups($kitComponents->where('kit', true))
-            + $this->countKitPrlGroups($kitComponents->where('kit_e', true));
+        $kitPrlCount = $this->countKitPrlGroups($kitComponents->where('kit', true));
         $stdFormCounts = [
             'ndt' => $this->countStdFormQty($current_wo, StdProcess::STD_NDT),
             'cad' => $this->countStdFormQty($current_wo, StdProcess::STD_CAD),

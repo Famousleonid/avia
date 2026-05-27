@@ -98,7 +98,7 @@
         }
         .cert-footer {
             width: 100%;
-            font-size: 0.75rem;
+            font-size: 12px;
             color: #000;
             padding: 8px 12px 4px;
             margin-top: 2rem;

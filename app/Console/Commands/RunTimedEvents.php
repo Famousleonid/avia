@@ -6,6 +6,7 @@ use App\Services\DateNotificationService;
 use App\Services\Events\BirthdayInTwoDaysEvent;
 use App\Services\Events\BirthdayTodayEvent;
 use App\Services\Events\EventRunner;
+use App\Services\Events\ManualRevisionCheckDueEvent;
 use App\Services\Events\ProcessReadyForNextReminderEvent;
 use App\Services\Events\TdrProcessOverdueStartEvent;
 use Illuminate\Console\Command;
@@ -21,6 +22,7 @@ class RunTimedEvents extends Command
         $runner->run([
             new TdrProcessOverdueStartEvent(),
             new ProcessReadyForNextReminderEvent(),
+            new ManualRevisionCheckDueEvent(),
             new BirthdayInTwoDaysEvent(),
             new BirthdayTodayEvent(),
         ]);

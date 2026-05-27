@@ -7,8 +7,8 @@
 @endphp
 <script>
 (function() {
-    const PRINT_SETTINGS_KEY = '{{ $storageKey }}_v4';
-    const SETTINGS_VERSION = 4;
+    const PRINT_SETTINGS_KEY = '{{ $storageKey }}_v6';
+    const SETTINGS_VERSION = 6;
     const defaultSettings = {
         processTableMinRows: {{ $formConfig['process_table_min_rows'] ?? 10 }},
         processTableExtraEmptyRows: {{ $formConfig['process_table_extra_empty_rows'] ?? 0 }},
@@ -52,8 +52,8 @@
             const dataRows = container.querySelectorAll('.spec-process-name-row').length;
             const existing = container.querySelectorAll('.spec-process-empty-row').length;
             const minRows = Math.max(10, dataRows);
-            const minEmpty = index === 0 ? Math.max(0, minRows - dataRows) : 0;
-            const totalNeeded = minEmpty + (index === 0 ? (extraEmptyRows || 0) : 0);
+            const minEmpty = Math.max(0, minRows - dataRows);
+            const totalNeeded = minEmpty + (extraEmptyRows || 0);
             const toAdd = Math.max(0, totalNeeded - existing);
             for (let i = 0; i < toAdd; i++) {
                 const row = document.createElement('div');

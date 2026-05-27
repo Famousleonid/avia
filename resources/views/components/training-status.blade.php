@@ -67,7 +67,7 @@
         $historyHtml .= '<ol style="margin:0;padding-left:16px;">';
         foreach ($displayHistory as $h) {
             $d = $h->date_training
-                ? \Carbon\Carbon::parse($h->date_training)->format('M d, Y')
+                ? format_project_date($h->date_training)
                 : '—';
 
             $ft = $h->form_type ?? '—';

@@ -11,8 +11,9 @@ use App\Models\Manual;
 use App\Models\Necessary;
 use App\Models\Workorder;
 use App\Models\Tdr;
-use App\Support\LogCardDestructionCertificate;
 use App\Services\LogCardTdrAccessService;
+use App\Services\ManualIplBranchRuleResolver;
+use App\Support\LogCardDestructionCertificate;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
@@ -137,6 +138,7 @@ class LogCardController extends Controller
             ->where('log_card', 1)
             ->orderBy('ipl_num', 'asc')
             ->get();
+        $components = $this->filterLogCardComponentsForUnit($components, $current_wo);
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)->with(['codes', 'necessaries'])->get();
 
@@ -225,6 +227,23 @@ class LogCardController extends Controller
             'code' => $code,
             'necessary' => $necessary,
         ];
+    }
+
+    private function filterLogCardComponentsForUnit($components, Workorder $workorder)
+    {
+        $resolver = app(ManualIplBranchRuleResolver::class);
+        $manualId = (int) ($workorder->unit->manual_id ?? 0);
+
+        return $components
+            ->filter(function (Component $component) use ($resolver, $workorder, $manualId): bool {
+                return $workorder->unit
+                    && $resolver->allowsComponentForUnit(
+                        $workorder->unit,
+                        (string) ($component->ipl_num ?? ''),
+                        $manualId
+                    );
+            })
+            ->values();
     }
 
     public function logCardForm(Request $request, $id)
@@ -391,7 +410,7 @@ class LogCardController extends Controller
             return redirect()->back()->withErrors(['workorder_id' => $message])->withInput();
         }
 
-        $componentData = $request->input('component_data'); // это уже JSON-строка
+        $componentData = $this->normalizeLogCardComponentData($request->input('component_data'), $workorder);
 
 //        dd($componentData);
 
@@ -434,6 +453,7 @@ class LogCardController extends Controller
             ->where('log_card', 1)
             ->orderBy('ipl_num', 'asc')
             ->get();
+        $components = $this->filterLogCardComponentsForUnit($components, $current_wo);
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)->with(['codes', 'necessaries'])->get();
         $componentData = json_decode($log_card->component_data, true);
@@ -577,7 +597,7 @@ class LogCardController extends Controller
         $beforeComponentData = $log_card->component_data;
 
         $log_card->workorder_id = $request->input('workorder_id');
-        $log_card->component_data = $request->input('component_data');
+        $log_card->component_data = $this->normalizeLogCardComponentData($request->input('component_data'), $workorder);
         if ($log_card->isDirty()) {
             $changes = LogCard::buildActivityChanges([
                 'workorder_id' => [$beforeWorkorderId, $log_card->workorder_id],
@@ -686,6 +706,83 @@ class LogCardController extends Controller
      *
      * @throws ValidationException
      */
+    private function normalizeLogCardComponentData(string $raw, Workorder $workorder): string
+    {
+        $rows = json_decode($raw, true);
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($rows)) {
+            return $raw;
+        }
+
+        $componentIds = collect($rows)
+            ->filter(fn ($row) => is_array($row) && ! empty($row['component_id']))
+            ->map(fn ($row) => (int) $row['component_id'])
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($componentIds->isEmpty()) {
+            return json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
+        }
+
+        $components = Component::with('assemblies')
+            ->whereIn('id', $componentIds)
+            ->get()
+            ->keyBy('id');
+
+        $tdrAssyByComponent = Tdr::where('workorder_id', $workorder->id)
+            ->whereIn('component_id', $componentIds)
+            ->with('orderComponentAssembly')
+            ->get()
+            ->filter(fn (Tdr $tdr) => $tdr->orderComponentAssembly)
+            ->groupBy('component_id')
+            ->map(fn ($items) => $items->first()->orderComponentAssembly);
+
+        foreach ($rows as &$row) {
+            if (! is_array($row) || empty($row['component_id'])) {
+                continue;
+            }
+
+            $componentId = (int) $row['component_id'];
+            $component = $components->get($componentId);
+            $assemblyId = (int) ($row['component_assembly_id'] ?? 0);
+            $assyPartNumber = trim((string) ($row['assy_part_number'] ?? ''));
+            $assyIplNum = trim((string) ($row['assy_ipl_num'] ?? ''));
+            $assembly = null;
+
+            if ($component && $assemblyId > 1) {
+                $assembly = $component->assemblies->firstWhere('id', $assemblyId);
+            }
+
+            if (! $assembly && $assyPartNumber === '' && $assyIplNum === '') {
+                $assembly = $tdrAssyByComponent->get($componentId);
+            }
+
+            if (! $assembly && $component && $assyPartNumber === '' && $assyIplNum === '' && $component->assemblies->count() === 1) {
+                $assembly = $component->assemblies->first();
+            }
+
+            if ($assembly) {
+                $row['component_assembly_id'] = (string) $assembly->id;
+                $row['assy_part_number'] = (string) ($assembly->assy_part_number ?? '');
+                $row['assy_ipl_num'] = (string) ($assembly->assy_ipl_num ?? '');
+                $row['units_assy'] = (string) ($assembly->units_assy ?? ($row['units_assy'] ?? ''));
+
+                continue;
+            }
+
+            if ($component && $assyPartNumber === '' && trim((string) ($component->assy_part_number ?? '')) !== '') {
+                $row['assy_part_number'] = trim((string) $component->assy_part_number);
+            }
+
+            if ($assemblyId === 1 && trim((string) ($row['assy_part_number'] ?? '')) === '' && $assyIplNum === '') {
+                $row['component_assembly_id'] = '';
+            }
+        }
+        unset($row);
+
+        return json_encode(array_values($rows), JSON_UNESCAPED_UNICODE);
+    }
+
     private function validateLogCardComponentData(Request $request): void
     {
         $raw = $request->input('component_data');

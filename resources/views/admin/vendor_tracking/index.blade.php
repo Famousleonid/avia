@@ -183,6 +183,7 @@
 
         .vendor-tracking-results-card {
             min-height: var(--vendor-tracking-results-min-height, 420px);
+            position: relative;
         }
 
         .vendor-tracking-results-card.is-filtering {
@@ -192,6 +193,54 @@
 
         .vendor-tracking-results-card.is-filtering .table-responsive {
             min-height: var(--vendor-tracking-table-min-height, 360px);
+        }
+
+        .vendor-tracking-loading-dots {
+            align-items: center;
+            background: rgba(255, 255, 255, .82);
+            bottom: 0;
+            display: none;
+            justify-content: center;
+            left: 0;
+            pointer-events: none;
+            position: absolute;
+            right: 0;
+            top: 0;
+            z-index: 8;
+        }
+
+        .vendor-tracking-results-card.is-filtering .vendor-tracking-loading-dots {
+            display: flex;
+        }
+
+        .vendor-tracking-loading-dots span {
+            animation: vendorTrackingDots .68s infinite ease-in-out alternate;
+            background: var(--bs-info);
+            border-radius: 50%;
+            display: block;
+            height: 9px;
+            margin: 0 4px;
+            width: 9px;
+        }
+
+        .vendor-tracking-loading-dots span:nth-child(2) {
+            animation-delay: .14s;
+        }
+
+        .vendor-tracking-loading-dots span:nth-child(3) {
+            animation-delay: .28s;
+        }
+
+        @keyframes vendorTrackingDots {
+            from {
+                opacity: .35;
+                transform: translateY(0);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(-8px);
+            }
         }
 
         .vendor-tracking-table.is-column-settings-pending {
@@ -789,6 +838,10 @@
             background: #2B3035;
         }
 
+        html[data-bs-theme="dark"] .vendor-tracking-loading-dots {
+            background: rgba(43, 48, 53, .78);
+        }
+
         html[data-bs-theme="dark"] .vendor-tracking-table {
             --bs-table-bg: #2B3035;
             --bs-table-color: #f8f9fa;
@@ -1055,6 +1108,11 @@
         </div>
 
         <div class="card bg-gradient vendor-tracking-results-card" id="vendorTrackingResultsCard">
+            <div class="vendor-tracking-loading-dots" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
             <div class="card-body p-2">
                 <div class="table-responsive">
                     <table id="vendorTrackingTable" class="table table-sm table-bordered align-middle mb-0 vendor-tracking-table is-column-settings-pending">
@@ -1373,7 +1431,7 @@
             const vendorSettings = await window.UserUiSettings.loadScope(settingsScope);
             const key = 'vendorTrackingSources';
             const vendorNullKey = 'vendorTrackingIncludeVendorNull';
-            const filtersStateKey = 'vendorTrackingFilters';
+            const filtersStateKey = 'filters';
             const screenColumnsKey = 'vendorTrackingScreenColumns';
             const excelColumnsKey = 'vendorTrackingExcelColumns';
             const screenColumnOrderKey = 'vendorTrackingScreenColumnOrder';
@@ -1499,11 +1557,12 @@
             }
 
             function persistSources() {
-                window.UserUiSettings.set(settingsScope, key, selectedSources());
+                const filters = collectFilterState();
+                window.UserUiSettings.set(settingsScope, key, filters.sources);
                 if (vendorNullBox) {
-                    window.UserUiSettings.set(settingsScope, vendorNullKey, Boolean(vendorNullBox.checked));
+                    window.UserUiSettings.set(settingsScope, vendorNullKey, filters.include_vendor_null);
                 }
-                window.UserUiSettings.set(settingsScope, filtersStateKey, collectFilterState());
+                window.UserUiSettings.set(settingsScope, filtersStateKey, filters);
                 updateActiveFilterStyles();
             }
 
@@ -1860,6 +1919,9 @@
             exportBtn?.addEventListener('click', function (event) {
                 event.preventDefault();
                 window.location.href = buildExportUrl();
+            });
+            document.querySelectorAll('.vendor-tracking-sort-link').forEach(function (link) {
+                link.addEventListener('click', markFilteringBeforeSubmit);
             });
 
             applyScreenColumns(getStoredScreenColumns(), getStoredScreenColumnOrder());

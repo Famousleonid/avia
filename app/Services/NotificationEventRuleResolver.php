@@ -211,6 +211,12 @@ class NotificationEventRuleResolver
             'actor_name' => (string) (Arr::get($message, 'ui.actor.name') ?? $message['by_user_name'] ?? $message['fromName'] ?? $message['from_name'] ?? ''),
             'birthday_user_name' => (string) (Arr::get($message, 'ui.birthday.user.name') ?? ''),
             'birthday_age' => (string) (Arr::get($message, 'ui.birthday.age') ?? ''),
+            'manual_number' => (string) (Arr::get($message, 'ui.manual.number') ?? Arr::get($message, 'payload.manual_number') ?? ''),
+            'manual_title' => (string) (Arr::get($message, 'ui.manual.title') ?? Arr::get($message, 'payload.manual_title') ?? ''),
+            'manual_revision_date' => (string) (Arr::get($message, 'ui.manual.revision_date') ?? Arr::get($message, 'payload.manual_revision_date') ?? ''),
+            'manual_last_checked_at' => (string) (Arr::get($message, 'ui.manual.last_checked_at') ?? Arr::get($message, 'payload.manual_last_checked_at') ?? ''),
+            'manual_next_due_at' => (string) (Arr::get($message, 'ui.manual.next_due_at') ?? Arr::get($message, 'payload.manual_next_due_at') ?? ''),
+            'manual_days_until_due' => (string) (Arr::get($message, 'ui.manual.days_until_due') ?? Arr::get($message, 'payload.manual_days_until_due') ?? ''),
         ];
     }
 }

@@ -1,7 +1,36 @@
 <div class="rm-reports-partial">
     <style>
+        .rm-reports-partial {
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .rm-reports-partial > .row {
+            height: 100%;
+            min-height: 0;
+        }
+        .rm-reports-partial > .row > [class*="col-"] {
+            display: flex;
+            height: 100%;
+            max-height: 100%;
+            min-height: 0;
+        }
+        .rm-reports-partial .card {
+            height: 100% !important;
+            max-height: 100%;
+            min-height: 0;
+            width: 100%;
+        }
+        .rm-reports-partial .rm-preview-card-body,
+        .rm-reports-partial .rm-editor-card-body {
+            flex: 1 1 auto;
+            height: 100%;
+            max-height: 100%;
+            min-height: 0;
+            overflow-y: scroll;
+            overflow-x: hidden;
+        }
         .table-scroll-rm-records {
-            max-height: 40vh;
             overflow-y: auto;
             overflow-x: auto;
             position: relative;
@@ -24,6 +53,17 @@
         }
         .table-scroll-rm-records table,
         .table-scroll-technical-notes table { margin-bottom: 0; }
+        .rm-records-table-right {
+            font-size: 12px;
+        }
+        .rm-records-table-right th,
+        .rm-records-table-right td {
+            font-size: 12px;
+        }
+        .rm-reports-partial .rm-section-title {
+            font-size: 1rem;
+            line-height: 1.15;
+        }
         .table-scroll-technical-notes table { border-collapse: separate; border-spacing: 0; }
         .table-scroll-technical-notes tbody tr td {
             padding: 0.25rem 0.5rem;
@@ -70,7 +110,7 @@
         {{-- Card 1: Preview (papyrus) --}}
         <div class="col-md-6">
             <div class="card h-100 preview-papyrus border">
-                <div class="card-body">
+                <div class="card-body rm-preview-card-body">
                     <h4 class="text-center">{{__('Repair and Modification Record WO')}}{{$current_wo->number}}</h4>
                     <div class="p-2">
                         <h6>{{__('Technical Notes')}}</h6>
@@ -97,12 +137,12 @@
         {{-- Card 2: Technical Notes + Repair and Modification --}}
         <div class="col-md-6">
             <div class="card bg-gradient h-100">
-                <div class="card-body">
+                <div class="card-body rm-editor-card-body">
                     {{-- Technical Notes section --}}
-                    <div class="mb-3">
+                    <div class="mb-3 rm-editor-section">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h5 class="text-primary mb-0">{{ __('Technical Notes') }}</h5>
-                            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#technicalNoteModal">
+                            <h5 class="text-primary mb-0 rm-section-title">{{ __('Technical Notes') }}</h5>
+                            <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#technicalNoteModal">
                                 {{ __('Add Notes') }}
                             </button>
                         </div>
@@ -114,9 +154,9 @@
                     </div>
 
                     {{-- Repair and Modification section --}}
-                    <div>
+                    <div class="rm-editor-section rm-editor-section--records">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h5 class="text-primary mb-0">{{ __('Repair and Modification') }}</h5>
+                            <h5 class="text-primary mb-0 rm-section-title">{{ __('Repair and Modification') }}</h5>
                             <div class="d-flex gap-2 align-items-center">
                                 <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#addRmRecordModal">
                                     {{ __('ADD')}}
@@ -132,8 +172,8 @@
 
                             <div id="rmRecordsList">
                                 @if($rm_reports->count() > 0)
-                                    <div class="table-responsive mt-3" style="max-height: calc(100vh - 320px); overflow-y: auto;">
-                                        <table class="table table-hover table-bordered dir-table align-middle bg-gradient">
+                                    <div class="table-responsive mt-3">
+                                        <table class="table table-hover table-bordered dir-table align-middle bg-gradient rm-records-table-right">
                                             <thead class="table-dark" style="position: sticky; top: 0; z-index: 5;">
                                             <tr>
                                                 <th class="text-primary text-center align-middle" style="width: 20%">{{ __('Part
@@ -223,7 +263,7 @@
                         </div>
                         <div class="form-group mt-3">
                             <label for="mod_repair_description">{{ __('Description of Modification or Repair') }}</label>
-                            <input type="text" class="form-control" id="mod_repair_description" name="mod_repair_description" required>
+                            <input type="text" class="form-control" id="mod_repair_description" name="mod_repair_description" maxlength="60" required>
                         </div>
                         <div class="form-group mt-3">
                             <label for="ident_method">{{ __('Identification Method') }}</label>
@@ -275,7 +315,7 @@
                         </div>
                         <div class="form-group mt-3">
                             <label for="edit_mod_repair_description">{{ __('Description of Modification or Repair') }}</label>
-                            <input type="text" class="form-control" id="edit_mod_repair_description" name="mod_repair_description" required>
+                            <input type="text" class="form-control" id="edit_mod_repair_description" name="mod_repair_description" maxlength="60" required>
                         </div>
                         <div class="form-group mt-3">
                             <label for="edit_ident_method">{{ __('Identification Method') }}</label>
@@ -469,7 +509,7 @@
                 var tbody = document.getElementById('rmRecordsTableBody');
                 var rmRecordsList = document.getElementById('rmRecordsList');
                 if (!tbody && rmRecordsList) {
-                    rmRecordsList.innerHTML = '<div class="table-responsive table-scroll-rm-records mt-3"><table class="table table-striped text-center dir-table"><thead><tr><th>{{ __("Part Description") }}</th><th>{{ __("Modification or Repair #") }}</th><th>{{ __("Description") }}</th><th>{{ __("Identification Method") }}</th><th>{{ __("Select Record") }}</th><th>{{ __("Actions") }}</th></tr></thead><tbody id="rmRecordsTableBody"></tbody></table></div>';
+                    rmRecordsList.innerHTML = '<div class="table-responsive mt-3"><table class="table table-striped text-center dir-table rm-records-table-right"><thead><tr><th>{{ __("Part Description") }}</th><th>{{ __("Modification or Repair #") }}</th><th>{{ __("Description") }}</th><th>{{ __("Identification Method") }}</th><th>{{ __("Select Record") }}</th><th>{{ __("Actions") }}</th></tr></thead><tbody id="rmRecordsTableBody"></tbody></table></div>';
                     tbody = document.getElementById('rmRecordsTableBody');
                 }
                 if (tbody) {

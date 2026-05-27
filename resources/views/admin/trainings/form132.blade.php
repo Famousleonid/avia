@@ -26,7 +26,7 @@
             --print-body-width: 107%;
             --print-body-margin-left: 1px;
             --print-footer-width: 920px;
-            --print-footer-font-size: 10px;
+            --print-footer-font-size: 12px;
             --print-footer-padding: 1px 20px;
         }
 

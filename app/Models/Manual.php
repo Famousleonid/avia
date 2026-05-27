@@ -116,6 +116,11 @@ class Manual extends Model implements HasMedia
         return $this->hasMany(ManualServiceBulletin::class, 'manual_id');
     }
 
+    public function revisionChecks()
+    {
+        return $this->hasMany(ManualRevisionCheck::class);
+    }
+
     public function permittedUsers()
     {
         return $this->belongsToMany(User::class, 'manual_user_permissions', 'manual_id', 'user_id')

@@ -129,11 +129,11 @@ class QualityAssuranceService
             'component_pn' => $workorder->unit?->part_number ?? $firstComponent?->part_number ?? '—',
             'serial_number' => $workorder->serial_number ?: ($tdrCollection->first()?->serial_number ?: '—'),
             'manual_number' => $manual?->number ?? '—',
-            'manual_revision' => $manual?->revision_date ? Carbon::parse($manual->revision_date)->format('Y-m-d') : '—',
+            'manual_revision' => format_project_date($manual?->revision_date) ?? '—',
             'manual_lib' => $manual?->lib ?? '—',
-            'open_date' => $workorder->open_at?->format('Y-m-d'),
+            'open_date' => format_project_date($workorder->open_at),
             'approved' => (bool) $workorder->approve_at,
-            'approved_at' => $workorder->approve_at?->format('Y-m-d'),
+            'approved_at' => format_project_date($workorder->approve_at),
             'is_done' => $isDone,
             'photos' => $photos,
             'processes' => $processes,
@@ -290,7 +290,7 @@ class QualityAssuranceService
             'status' => $expired ? 'warning' : 'ok',
             'warning' => $expired ? 'Training expired' : '—',
             'user_name' => $user->name,
-            'last_training' => $lastDate->format('Y-m-d'),
+            'last_training' => format_project_date($lastDate),
             'days_since' => $daysSince,
         ];
     }

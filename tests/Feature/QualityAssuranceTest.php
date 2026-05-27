@@ -418,9 +418,9 @@ class QualityAssuranceTest extends TestCase
         $this->assertStringContainsString('general_task='.$finalInspectionGeneralTask->id, $finalInspectionRow['inspection_url']);
         $this->assertStringContainsString('task='.$finalInspectionTask->id, $finalInspectionRow['inspection_url']);
         $stdRows = collect($response->json('workorder.std_processes'));
-        $this->assertSame('01/May/2026', $stdRows->firstWhere('type', 'ndt')['date_start']);
-        $this->assertSame('02/May/2026', $stdRows->firstWhere('type', 'ndt')['date_finish']);
-        $this->assertSame('03/May/2026', $stdRows->firstWhere('type', 'cad')['date_start']);
+        $this->assertSame('01/may/2026', $stdRows->firstWhere('type', 'ndt')['date_start']);
+        $this->assertSame('02/may/2026', $stdRows->firstWhere('type', 'ndt')['date_finish']);
+        $this->assertSame('03/may/2026', $stdRows->firstWhere('type', 'cad')['date_start']);
         $this->assertSame('-', $stdRows->firstWhere('type', 'cad')['date_finish']);
         $this->assertSame(1, collect($response->json('workorder.repair_orders'))->where('ok', false)->count());
     }
@@ -611,6 +611,32 @@ class QualityAssuranceTest extends TestCase
         $response->assertOk();
         $rows = json_decode(LogCard::where('workorder_id', $workorder->id)->first()->component_data, true);
         $this->assertSame('#d3f9d8', $rows[0]['qa_cell_colors']['description']);
+    }
+
+    public function test_right_log_card_header_part_number_is_saved_in_json(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder();
+        LogCard::create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                ['name' => 'Bolt'],
+            ]),
+        ]);
+
+        $response = $this->actingAs($manager)->postJson(route('quality.forms.log_card.update', $workorder), [
+            'side' => 'right',
+            'section' => 'header',
+            'row' => 0,
+            'field' => 'part_number',
+            'value' => 'DCL1032/04',
+        ]);
+
+        $response->assertOk();
+        $rows = LogCard::where('workorder_id', $workorder->id)->first()->component_data_out;
+        $this->assertSame('DCL1032/04', $rows[0]['qa_header_part_number']);
     }
 
     public function test_manager_can_upload_quality_documents_to_workorder(): void

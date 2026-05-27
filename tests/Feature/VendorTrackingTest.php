@@ -53,6 +53,41 @@ class VendorTrackingTest extends TestCase
         $response->assertDontSee('HIDDEN-RO-2');
     }
 
+    public function test_vendor_tracking_accepts_legacy_saved_filter_key(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $firstVendor = Vendor::query()->create(['name' => 'Legacy Filter Vendor ' . uniqid()]);
+        $secondVendor = Vendor::query()->create(['name' => 'Legacy Hidden Vendor ' . uniqid()]);
+        $firstWorkorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $secondWorkorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        $this->createVendorTrackingTdrProcess($firstWorkorder, $firstVendor, 'LEGACY-RO-1');
+        $this->createVendorTrackingTdrProcess($secondWorkorder, $secondVendor, 'LEGACY-HIDDEN-RO-2');
+
+        UserUiSetting::query()->create([
+            'user_id' => $admin->id,
+            'scope' => 'vendor-tracking.index',
+            'key' => 'vendorTrackingFilters',
+            'value' => [
+                'vendor_id' => (string) $firstVendor->id,
+                'customer_id' => '0',
+                'status' => 'all',
+                'sources' => ['part', 'std', 'bushing'],
+                'include_vendor_null' => false,
+                'workorder' => '',
+                'part_number' => '',
+                'repair_order' => '',
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('vendor-tracking.index'));
+
+        $response->assertOk();
+        $response->assertSee($firstVendor->name);
+        $response->assertSee('LEGACY-RO-1');
+        $response->assertDontSee('LEGACY-HIDDEN-RO-2');
+    }
+
     private function createVendorTrackingTdrProcess($workorder, Vendor $vendor, string $repairOrder): TdrProcess
     {
         $processName = ProcessName::query()->create([
@@ -244,6 +279,74 @@ class VendorTrackingTest extends TestCase
             'id' => $second->id,
             'repair_order' => 'TR-NEW',
         ]);
+    }
+
+    public function test_vendor_tracking_total_count_matches_displayed_traveler_groups(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $vendor = Vendor::query()->create(['name' => 'Traveler Count Vendor ' . uniqid()]);
+        $firstProcessName = ProcessName::query()->create([
+            'name' => 'Traveler Count A ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $secondProcessName = ProcessName::query()->create([
+            'name' => 'Traveler Count B ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'TR-COUNT-' . uniqid(),
+            'name' => 'Traveler Count Component',
+            'ipl_num' => '7-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'TR-COUNT-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $totalBeforeTravelerRows = $this->vendorTrackingTotalRowsCount();
+
+        foreach ([$firstProcessName, $secondProcessName] as $processName) {
+            TdrProcess::query()->create([
+                'tdrs_id' => $tdr->id,
+                'process_names_id' => $processName->id,
+                'repair_order' => 'TR-COUNT',
+                'vendor_id' => $vendor->id,
+                'date_start' => now()->toDateString(),
+                'in_traveler' => true,
+                'traveler_group' => 1,
+            ]);
+        }
+
+        $this->assertSame($totalBeforeTravelerRows + 1, $this->vendorTrackingTotalRowsCount());
+
+        $response = $this->actingAs($admin)->get(route('vendor-tracking.index', [
+            'vendor_id' => $vendor->id,
+            'include_vendor_null' => 0,
+            'sources' => ['part'],
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Selected: &nbsp; <span class="vendor-tracking-count-number">1</span>', false);
+        $response->assertSee('Traveler (2)');
+    }
+
+    private function vendorTrackingTotalRowsCount(): int
+    {
+        $controller = app(\App\Http\Controllers\Admin\VendorTrackingController::class);
+        $method = new \ReflectionMethod($controller, 'totalRowsCount');
+        $method->setAccessible(true);
+
+        return (int) $method->invoke($controller);
     }
 
     public function test_vendor_tracking_traveler_group_one_update_does_not_touch_null_groups_from_other_tdrs(): void

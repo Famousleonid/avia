@@ -14,6 +14,7 @@
 (function() {
     const PRINT_SETTINGS_KEY = '{{ $formConfig['storage_key'] ?? 'ndtFormStd_print_settings' }}';
     const TOOLTIP_LANG_KEY = '{{ $formConfig['tooltip_lang_key'] ?? 'ndtFormStd_tooltip_lang' }}';
+    const LOCKED_PRINT_SETTINGS = @json($formConfig['locked_settings'] ?? []);
 
     const defaultSettings = {
         pageMargin: '{{ $formConfig['page_margin'] ?? 1 }}mm',
@@ -26,20 +27,24 @@
         containerMarginLeft: '{{ $formConfig['container_margin_left'] ?? 10 }}px',
         containerMarginRight: '{{ $formConfig['container_margin_right'] ?? 10 }}px',
         footerWidth: '{{ $formConfig['footer_width'] ?? 800 }}px',
-        footerFontSize: '{{ $formConfig['footer_font_size'] ?? 10 }}px',
+        footerFontSize: '{{ $formConfig['footer_font_size'] ?? 12 }}px',
         footerPadding: '{{ $formConfig['footer_padding'] ?? '3px 3px' }}',
-        componentNameFontSize: '{{ (int) ($formConfig['component_name_font_size'] ?? 12) }}',
-        headerDataFontSize: '{{ $formConfig['header_data_font_size'] ?? 11 }}',
-        tableDataFontSize: '{{ $formConfig['table_data_font_size'] ?? 12 }}',
+        componentNameFontSize: '{{ (int) ($formConfig['component_name_font_size'] ?? 16) }}',
+        headerDataFontSize: '{{ $formConfig['header_data_font_size'] ?? 16 }}',
+        tableDataFontSize: '{{ $formConfig['table_data_font_size'] ?? 13 }}',
         '{{ $tableRowsKey }}': '{{ $tableRowsDefault }}'
     };
+
+    function normalizePrintSettings(settings) {
+        return Object.assign({}, defaultSettings, settings || {}, LOCKED_PRINT_SETTINGS);
+    }
 
     function loadPrintSettings() {
         const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
-            try { return JSON.parse(saved); } catch (e) { return defaultSettings; }
+            try { return normalizePrintSettings(JSON.parse(saved)); } catch (e) { return normalizePrintSettings(defaultSettings); }
         }
-        return defaultSettings;
+        return normalizePrintSettings(defaultSettings);
     }
 
     function applyPrintSettings(settings) {
@@ -91,11 +96,11 @@
         if (el('containerMarginLeft')) el('containerMarginLeft').value = parseNum(settings.containerMarginLeft) || 10;
         if (el('containerMarginRight')) el('containerMarginRight').value = parseNum(settings.containerMarginRight) || 10;
         if (el('footerWidth')) el('footerWidth').value = parseNum(settings.footerWidth) || 800;
-        if (el('footerFontSize')) el('footerFontSize').value = parseNum(settings.footerFontSize) || 10;
+        if (el('footerFontSize')) el('footerFontSize').value = parseNum(settings.footerFontSize) || 12;
         if (el('footerPadding')) el('footerPadding').value = settings.footerPadding || '3px 3px';
-        if (el('componentNameFontSize')) el('componentNameFontSize').value = parseFloat(String(settings.componentNameFontSize || defaultSettings.componentNameFontSize).replace(/[^\d.-]/g, '')) || 12;
-        if (el('headerDataFontSize')) el('headerDataFontSize').value = parseFloat(String(settings.headerDataFontSize || defaultSettings.headerDataFontSize).replace(/[^\d.-]/g, '')) || 11;
-        if (el('tableDataFontSize')) el('tableDataFontSize').value = parseFloat(String(settings.tableDataFontSize || defaultSettings.tableDataFontSize).replace(/[^\d.-]/g, '')) || 12;
+        if (el('componentNameFontSize')) el('componentNameFontSize').value = parseFloat(String(settings.componentNameFontSize || defaultSettings.componentNameFontSize).replace(/[^\d.-]/g, '')) || 16;
+        if (el('headerDataFontSize')) el('headerDataFontSize').value = parseFloat(String(settings.headerDataFontSize || defaultSettings.headerDataFontSize).replace(/[^\d.-]/g, '')) || 16;
+        if (el('tableDataFontSize')) el('tableDataFontSize').value = parseFloat(String(settings.tableDataFontSize || defaultSettings.tableDataFontSize).replace(/[^\d.-]/g, '')) || 13;
         if (el('{{ $tableRowsKey }}')) el('{{ $tableRowsKey }}').value = settings['{{ $tableRowsKey }}'] || defaultSettings['{{ $tableRowsKey }}'];
     }
 
@@ -129,13 +134,14 @@
                 containerMarginLeft: getVal('containerMarginLeft', '10', 'px'),
                 containerMarginRight: getVal('containerMarginRight', '10', 'px'),
                 footerWidth: getVal('footerWidth', '800', 'px'),
-                footerFontSize: getVal('footerFontSize', '10', 'px'),
+                footerFontSize: getVal('footerFontSize', '12', 'px'),
                 footerPadding: g('footerPadding')?.value ?? '3px 3px',
-                componentNameFontSize: g('componentNameFontSize')?.value ?? '12',
-                headerDataFontSize: g('headerDataFontSize')?.value ?? '{{ $formConfig['header_data_font_size'] ?? 11 }}',
-                tableDataFontSize: g('tableDataFontSize')?.value ?? '{{ $formConfig['table_data_font_size'] ?? 12 }}',
+                componentNameFontSize: g('componentNameFontSize')?.value ?? '{{ $formConfig['component_name_font_size'] ?? 16 }}',
+                headerDataFontSize: g('headerDataFontSize')?.value ?? '{{ $formConfig['header_data_font_size'] ?? 16 }}',
+                tableDataFontSize: g('tableDataFontSize')?.value ?? '{{ $formConfig['table_data_font_size'] ?? 13 }}',
                 '{{ $tableRowsKey }}': g('{{ $tableRowsKey }}')?.value ?? '{{ $tableRowsDefault }}'
             };
+            Object.assign(settings, LOCKED_PRINT_SETTINGS);
             window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
             if (typeof window.tdrFormApplyTableRowLimits === 'function') {

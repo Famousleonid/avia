@@ -8,49 +8,88 @@
     $defaultStress = $formConfig['stress_table_rows'] ?? 21;
     $defaultOther = $formConfig['other_table_rows'] ?? 21;
     $defaultContainerWidth = $formConfig['container_max_width'] ?? 1200;
+    $isTravelForm = ($module ?? '') === 'travel-form';
 @endphp
 <script>
 if (typeof window.processesFormScriptInitialized === 'undefined') {
     window.processesFormScriptInitialized = true;
 
     const PRINT_SETTINGS_KEY = '{{ $storageKey }}';
+    const IS_TRAVEL_FORM = @json($isTravelForm);
+    const PRINT_SETTINGS_LAYOUT_VERSION = IS_TRAVEL_FORM ? 'travel-form-v2' : 'process-form-v2';
     const defaultSettings = {
-        pageMargin: '1mm',
-        bodyWidth: '98%',
-        bodyHeight: '99%',
-        bodyMarginLeft: '2px',
-        containerMaxWidth: '{{ $defaultContainerWidth }}px',
-        containerPadding: '5px',
-        containerMarginLeft: '10px',
-        containerMarginRight: '10px',
+        layoutVersion: PRINT_SETTINGS_LAYOUT_VERSION,
+        pageMargin: '8mm',
+        bodyWidth: '100%',
+        bodyHeight: '100%',
+        bodyMarginLeft: '0px',
+        containerMaxWidth: '100%',
+        containerPadding: '0px',
+        containerMarginLeft: '0px',
+        containerMarginRight: '0px',
         containerMaxHeight: '100vh',
-        footerWidth: '800px',
-        footerFontSize: '10px',
-        footerPadding: '3px 3px',
+        footerWidth: '100%',
+        footerFontSize: '12px',
+        footerPadding: '0',
         footerBottom: '0px',
         ndtTableRows: '{{ $defaultNdt }}',
         stressTableRows: '{{ $defaultStress }}',
         otherTableRows: '{{ $defaultOther }}',
-        componentNameFontSize: '12',
+        tableDataFontSize: '13',
+        componentNameFontSize: '16',
         ndtProcessFontSize: '10',
-        ndtTableDataFontSize: '9',
-        stressTableDataFontSize: '9',
-        otherTableDataFontSize: '9'
+        ndtTableDataFontSize: '13',
+        stressTableDataFontSize: '13',
+        otherTableDataFontSize: '13'
     };
+
+    function normalizePrintSettings(settings) {
+        const normalized = Object.assign({}, defaultSettings, settings || {});
+        const saved = settings || {};
+        const isCurrentLayout = saved.layoutVersion === PRINT_SETTINGS_LAYOUT_VERSION;
+        const tableDataFontSize = isCurrentLayout
+            ? (saved.tableDataFontSize || saved.otherTableDataFontSize || saved.ndtTableDataFontSize || saved.stressTableDataFontSize || defaultSettings.tableDataFontSize)
+            : defaultSettings.tableDataFontSize;
+        if (IS_TRAVEL_FORM && !isCurrentLayout) {
+            normalized.otherTableRows = defaultSettings.otherTableRows;
+        }
+        Object.assign(normalized, {
+            layoutVersion: PRINT_SETTINGS_LAYOUT_VERSION,
+            pageMargin: '8mm',
+            bodyWidth: '100%',
+            bodyHeight: '100%',
+            bodyMarginLeft: '0px',
+            containerMaxWidth: '100%',
+            containerPadding: '0px',
+            containerMarginLeft: '0px',
+            containerMarginRight: '0px',
+            footerWidth: '100%',
+            footerFontSize: '12px',
+            footerPadding: '0',
+            footerBottom: '0px',
+            componentNameFontSize: '16',
+            ndtProcessFontSize: '10',
+            tableDataFontSize: tableDataFontSize,
+            ndtTableDataFontSize: tableDataFontSize,
+            stressTableDataFontSize: tableDataFontSize,
+            otherTableDataFontSize: tableDataFontSize
+        });
+        return normalized;
+    }
 
     function loadPrintSettings() {
         const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
-            try { return JSON.parse(saved); } catch (e) { return defaultSettings; }
+            try { return normalizePrintSettings(JSON.parse(saved)); } catch (e) { return normalizePrintSettings(defaultSettings); }
         }
-        return defaultSettings;
+        return normalizePrintSettings(defaultSettings);
     }
 
     window.savePrintSettings = function() {
         try {
             const saved = loadPrintSettings();
             const g = (id) => document.getElementById(id);
-            const settings = {
+            const settings = normalizePrintSettings({
                 pageMargin: (g('pageMargin')?.value ?? parseFloat(saved.pageMargin) ?? 1) + 'mm',
                 bodyWidth: (g('bodyWidth')?.value ?? parseFloat(saved.bodyWidth) ?? 98) + '%',
                 bodyHeight: (g('bodyHeight')?.value ?? parseFloat(saved.bodyHeight) ?? 99) + '%',
@@ -61,29 +100,28 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
                 containerMarginRight: (g('containerMarginRight')?.value ?? parseFloat(saved.containerMarginRight) ?? 10) + 'px',
                 containerMaxHeight: g('containerMaxHeight')?.value ?? saved.containerMaxHeight ?? '100vh',
                 footerWidth: (g('footerWidth')?.value ?? parseFloat(saved.footerWidth) ?? 800) + 'px',
-                footerFontSize: (g('footerFontSize')?.value ?? parseFloat(saved.footerFontSize) ?? 10) + 'px',
+                footerFontSize: (g('footerFontSize')?.value ?? parseFloat(saved.footerFontSize) ?? 12) + 'px',
                 footerPadding: g('footerPadding')?.value ?? saved.footerPadding ?? '3px 3px',
                 footerBottom: (g('footerBottom')?.value ?? parseFloat(saved.footerBottom) ?? 0) + 'px',
                 ndtTableRows: g('ndtTableRows')?.value ?? saved.ndtTableRows ?? defaultSettings.ndtTableRows,
                 stressTableRows: g('stressTableRows')?.value ?? saved.stressTableRows ?? defaultSettings.stressTableRows,
                 otherTableRows: g('otherTableRows')?.value ?? saved.otherTableRows ?? defaultSettings.otherTableRows,
+                tableDataFontSize: g('tableDataFontSize')?.value ?? saved.tableDataFontSize ?? defaultSettings.tableDataFontSize,
                 componentNameFontSize: g('componentNameFontSize')?.value ?? saved.componentNameFontSize ?? defaultSettings.componentNameFontSize,
                 ndtProcessFontSize: g('ndtProcessFontSize')?.value ?? saved.ndtProcessFontSize ?? defaultSettings.ndtProcessFontSize,
                 ndtTableDataFontSize: g('ndtTableDataFontSize')?.value ?? saved.ndtTableDataFontSize ?? defaultSettings.ndtTableDataFontSize,
                 stressTableDataFontSize: g('stressTableDataFontSize')?.value ?? saved.stressTableDataFontSize ?? defaultSettings.stressTableDataFontSize,
                 otherTableDataFontSize: g('otherTableDataFontSize')?.value ?? saved.otherTableDataFontSize ?? defaultSettings.otherTableDataFontSize
-            };
-            window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
+            });
+            const persistSettings = window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
             const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
+            const reloadAfterPersist = () => Promise.resolve(persistSettings).finally(() => setTimeout(() => window.location.reload(), 100));
             if (modal) {
-                document.getElementById('printSettingsModal').addEventListener('hidden.bs.modal', function reload() {
-                    this.removeEventListener('hidden.bs.modal', reload);
-                    setTimeout(() => window.location.reload(), 100);
-                }, { once: true });
+                document.getElementById('printSettingsModal').addEventListener('hidden.bs.modal', reloadAfterPersist, { once: true });
                 modal.hide();
             } else {
-                setTimeout(() => window.location.reload(), 100);
+                reloadAfterPersist();
             }
         } catch (error) {
             console.error('Error saving print settings:', error);
@@ -110,9 +148,12 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
         root.style.setProperty('--print-footer-bottom', settings.footerBottom || defaultSettings.footerBottom);
         root.style.setProperty('--component-name-font-size', (settings.componentNameFontSize || defaultSettings.componentNameFontSize) + 'px');
         root.style.setProperty('--ndt-process-font-size', (settings.ndtProcessFontSize || defaultSettings.ndtProcessFontSize) + 'px');
-        root.style.setProperty('--ndt-table-data-font-size', (settings.ndtTableDataFontSize || defaultSettings.ndtTableDataFontSize) + 'px');
-        root.style.setProperty('--stress-table-data-font-size', (settings.stressTableDataFontSize || defaultSettings.stressTableDataFontSize) + 'px');
-        root.style.setProperty('--other-table-data-font-size', (settings.otherTableDataFontSize || defaultSettings.otherTableDataFontSize) + 'px');
+        root.style.setProperty('--process-table-header-font-size', '12px');
+        root.style.setProperty('--process-header-data-font-size', '16px');
+        const tableDataFontSize = settings.tableDataFontSize || settings.otherTableDataFontSize || defaultSettings.tableDataFontSize;
+        root.style.setProperty('--ndt-table-data-font-size', tableDataFontSize + 'px');
+        root.style.setProperty('--stress-table-data-font-size', tableDataFontSize + 'px');
+        root.style.setProperty('--other-table-data-font-size', tableDataFontSize + 'px');
     }
 
     function addEmptyRowNDT(rowIndex, container) {
@@ -238,17 +279,18 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
         if (el('containerMarginRight')) el('containerMarginRight').value = parseNum(settings.containerMarginRight) || 10;
         if (el('containerMaxHeight')) el('containerMaxHeight').value = settings.containerMaxHeight || '100vh';
         if (el('footerWidth')) el('footerWidth').value = parseNum(settings.footerWidth) || 800;
-        if (el('footerFontSize')) el('footerFontSize').value = parseNum(settings.footerFontSize) || 10;
+        if (el('footerFontSize')) el('footerFontSize').value = parseNum(settings.footerFontSize) || 12;
         if (el('footerPadding')) el('footerPadding').value = settings.footerPadding || '3px 3px';
         if (el('footerBottom')) el('footerBottom').value = parseNum(settings.footerBottom) || 0;
         if (el('ndtTableRows')) el('ndtTableRows').value = settings.ndtTableRows || defaultSettings.ndtTableRows;
         if (el('stressTableRows')) el('stressTableRows').value = settings.stressTableRows || defaultSettings.stressTableRows;
         if (el('otherTableRows')) el('otherTableRows').value = settings.otherTableRows || defaultSettings.otherTableRows;
-        if (el('componentNameFontSize')) el('componentNameFontSize').value = parseNum(settings.componentNameFontSize) || 12;
+        if (el('tableDataFontSize')) el('tableDataFontSize').value = parseNum(settings.tableDataFontSize || settings.otherTableDataFontSize) || 13;
+        if (el('componentNameFontSize')) el('componentNameFontSize').value = parseNum(settings.componentNameFontSize) || 16;
         if (el('ndtProcessFontSize')) el('ndtProcessFontSize').value = parseNum(settings.ndtProcessFontSize) || 10;
-        if (el('ndtTableDataFontSize')) el('ndtTableDataFontSize').value = parseNum(settings.ndtTableDataFontSize) || 9;
-        if (el('stressTableDataFontSize')) el('stressTableDataFontSize').value = parseNum(settings.stressTableDataFontSize) || 9;
-        if (el('otherTableDataFontSize')) el('otherTableDataFontSize').value = parseNum(settings.otherTableDataFontSize) || 9;
+        if (el('ndtTableDataFontSize')) el('ndtTableDataFontSize').value = parseNum(settings.ndtTableDataFontSize) || 13;
+        if (el('stressTableDataFontSize')) el('stressTableDataFontSize').value = parseNum(settings.stressTableDataFontSize) || 13;
+        if (el('otherTableDataFontSize')) el('otherTableDataFontSize').value = parseNum(settings.otherTableDataFontSize) || 13;
     }
 
     function resetPrintSettings() {

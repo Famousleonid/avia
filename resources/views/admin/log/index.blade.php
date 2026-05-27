@@ -32,7 +32,7 @@
                         @csrf
                         <label for="purge_days" class="small text-muted mb-0">Delete older than</label>
                         <select name="days" id="purge_days" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto">
-                            @foreach([30, 60, 90, 180, 365, 730, 1095] as $daysOption)
+                            @foreach($purgeDaysOptions as $daysOption)
                                 <option value="{{ $daysOption }}" @selected((int) old('days', session('purge_days', 90)) === $daysOption)>
                                     {{ $daysOption }} days
                                 </option>
@@ -42,8 +42,9 @@
                                 class="btn btn-sm btn-outline-danger"
                                 data-bs-toggle="modal"
                                 data-bs-target="#useConfirmDelete"
-                                data-title="Delete old logs">
-                            Delete old logs
+                                data-title="Delete old logs"
+                                data-purge-button>
+                            Delete old logs (0)
                         </button>
                     </form>
 

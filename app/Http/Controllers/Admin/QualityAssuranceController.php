@@ -371,7 +371,7 @@ class QualityAssuranceController extends Controller
     {
         $data = $request->validate([
             'side' => ['required', 'in:left,right'],
-            'section' => ['required', 'in:aircraft,primary,note'],
+            'section' => ['required', 'in:aircraft,primary,note,header'],
             'row' => ['required', 'integer', 'min:0', 'max:200'],
             'field' => ['required', 'string', 'max:60'],
             'value' => ['nullable', 'string', 'max:255'],
@@ -404,9 +404,11 @@ class QualityAssuranceController extends Controller
         ];
 
         $noteFields = ['note6_text', 'note6_enabled'];
+        $headerFields = ['part_number'];
         $allowedFields = match ($data['section']) {
             'aircraft' => $aircraftFields,
             'note' => $noteFields,
+            'header' => $headerFields,
             default => $primaryFields,
         };
         abort_unless(in_array($data['field'], $allowedFields, true), 422);
@@ -463,6 +465,10 @@ class QualityAssuranceController extends Controller
             if ($data['field'] === 'note6_enabled') {
                 $rows[0]['qa_note6_enabled'] = in_array((string) ($data['value'] ?? ''), ['1', 'true', 'on', 'yes'], true);
             }
+        } elseif ($data['section'] === 'header') {
+            abort_unless($data['side'] === 'right', 422);
+            $rows[0] ??= [];
+            $rows[0]['qa_header_part_number'] = trim((string) ($data['value'] ?? ''));
         } else {
             $rows[(int) $data['row']] ??= [];
             $value = trim((string) ($data['value'] ?? ''));
@@ -567,6 +573,10 @@ class QualityAssuranceController extends Controller
             return $field === 'note6_enabled'
                 ? '0.qa_note6_enabled'
                 : '0.qa_note6_text';
+        }
+
+        if ($data['section'] === 'header') {
+            return '0.qa_header_'.$field;
         }
 
         if ($data['side'] === 'left') {
@@ -1023,7 +1033,7 @@ class QualityAssuranceController extends Controller
             return '-';
         }
 
-        return Carbon::parse($date)->locale('en')->isoFormat('DD/MMM/YYYY');
+        return format_project_date($date) ?? '-';
     }
 
     private function mainTargetUrl(?Workorder $workorder, array $params): string

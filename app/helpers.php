@@ -16,7 +16,12 @@ if (!function_exists('format_project_date')) {
             return null;
         }
 
-        return strtolower(\Carbon\Carbon::parse($date)->format('d.M.Y'));
+        $raw = trim((string) $date);
+        if (preg_match('/^\d{2}[\/.][a-z]{3}[\/.]\d{4}$/i', $raw)) {
+            return strtolower(str_replace('.', '/', $raw));
+        }
+
+        return strtolower(\Carbon\Carbon::parse($date)->format('d/M/Y'));
     }
 }
 
@@ -32,16 +37,13 @@ if (!function_exists('parse_project_date')) {
             return \Carbon\Carbon::createFromFormat('Y-m-d', $raw)->format('Y-m-d');
         }
 
-        if (!preg_match('/^\d{2}\.[a-z]{3}\.\d{4}$/i', $raw)) {
-            throw new \InvalidArgumentException('Date format must be dd.mmm.yyyy (example: 10.aug.2026).');
+        if (!preg_match('/^\d{2}[\/.][a-z]{3}[\/.]\d{4}$/i', $raw)) {
+            throw new \InvalidArgumentException('Date format must be dd/mmm/yyyy (example: 10/aug/2026).');
         }
 
-        $normalized = preg_replace_callback(
-            '/\.(\w{3})\./',
-            static fn (array $m): string => '.' . ucfirst(strtolower((string) $m[1])) . '.',
-            $raw
-        );
+        $raw = str_replace('.', '/', $raw);
+        $normalized = preg_replace_callback('/\/(\w{3})\//', static fn (array $m): string => '/' . ucfirst(strtolower((string) $m[1])) . '/', $raw);
 
-        return \Carbon\Carbon::createFromFormat('d.M.Y', (string) $normalized)->format('Y-m-d');
+        return \Carbon\Carbon::createFromFormat('d/M/Y', (string) $normalized)->format('Y-m-d');
     }
 }

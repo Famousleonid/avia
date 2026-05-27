@@ -11,6 +11,22 @@
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
 
     <style>
+        :root {
+            --screen-container-max-width: {{ (int) ($formConfig['container_max_width'] ?? 960) }}px;
+            --screen-container-padding: 5px;
+            --screen-container-margin-left: 10px;
+            --screen-container-margin-right: 10px;
+            --print-page-margin: 8mm;
+            --print-container-max-width: 100%;
+            --print-container-padding: 0;
+            --print-container-margin-left: 0;
+            --print-container-margin-right: 0;
+            --print-footer-font-size: 12px;
+            --component-name-font-size: 16px;
+            --other-table-data-font-size: 13px;
+            --traveler-table-header-font-size: 12px;
+        }
+
         body {
             margin: 0;
             padding: 0;
@@ -18,26 +34,32 @@
         }
 
         .container-fluid {
-            max-width: var(--print-container-max-width, 960px);
+            max-width: var(--screen-container-max-width, 960px);
             height: var(--print-container-max-height, 99%);
-            padding: var(--print-container-padding, 5px);
-            margin-left: var(--print-container-margin-left, 10px);
-            margin-right: var(--print-container-margin-right, 10px);
+            padding: var(--screen-container-padding, 5px);
+            margin-left: var(--screen-container-margin-left, 10px);
+            margin-right: var(--screen-container-margin-right, 10px);
+        }
+
+        footer {
+            width: 100%;
+            margin-top: 20px;
+            font-size: var(--print-footer-font-size, 12px);
         }
 
         .parent {
-            font-size: var(--component-name-font-size, 12px);
+            font-size: var(--component-name-font-size, 16px);
         }
 
         .table {
-            font-size: var(--other-table-data-font-size, 10px);
+            font-size: var(--other-table-data-font-size, 13px);
         }
 
         @media print {
             /* Фиксированный размер страницы Letter в альбомной ориентации (11 x 8.5 дюймов = 279.4 x 215.9 мм) */
             @page {
                 size: letter landscape;
-                margin: var(--print-page-margin, 0.5cm);
+                margin: var(--print-page-margin, 8mm);
                 padding: 0;
             }
 
@@ -54,7 +76,7 @@
                 height: var(--print-body-height, 100%) !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                font-size: 12pt !important; /* Фиксированный размер шрифта */
+                font-size: 16px !important; /* Фиксированный размер шрифта */
                 line-height: 1.2 !important;
             }
 
@@ -64,7 +86,7 @@
                 max-width: var(--print-container-max-width, 100%) !important;
                 margin-left: var(--print-container-margin-left, 0) !important;
                 margin-right: var(--print-container-margin-right, 0) !important;
-                padding: var(--print-container-padding, 0.3cm) !important;
+                padding: var(--print-container-padding, 0) !important;
                 height: auto !important;
             }
 
@@ -81,11 +103,11 @@
             /* Колонтитул внизу страницы с фиксированными размерами */
             footer {
                 position: fixed !important;
-                bottom: var(--print-footer-bottom, 0.3cm) !important;
+                bottom: var(--print-footer-bottom, 0) !important;
                 width: var(--print-footer-width, 100%) !important;
                 max-width: 27cm !important;
                 text-align: center !important;
-                font-size: var(--print-footer-font-size, 8pt) !important;
+                font-size: var(--print-footer-font-size, 12px) !important;
                 background-color: #fff !important;
                 padding: var(--print-footer-padding, 2pt) !important;
             }
@@ -100,7 +122,7 @@
             table {
                 width: 100% !important;
                 border-collapse: collapse !important;
-                font-size: 10pt !important;
+                font-size: var(--other-table-data-font-size, 13px) !important;
             }
 
             /* Убираем градиенты и тени при печати */
@@ -110,12 +132,12 @@
 
             /* Фиксированные размеры шрифтов */
             h1, h2, h3, h4, h5, h6 {
-                font-size: 14pt !important;
+                font-size: 16px !important;
                 margin: 5pt 0 !important;
             }
 
             p {
-                font-size: 11pt !important;
+                font-size: 16px !important;
                 margin: 3pt 0 !important;
             }
         }
@@ -289,6 +311,20 @@
             /*min-height: 42px; !* Опционально: для единой высоты строк *!*/
         }
 
+        .traveler-title,
+        .traveler-subtitle,
+        .parent > div {
+            font-size: var(--component-name-font-size, 16px);
+        }
+
+        .traveler-process-table > div {
+            font-size: var(--other-table-data-font-size, 13px) !important;
+        }
+
+        .traveler-process-table > .traveler-table-header {
+            font-size: var(--traveler-table-header-font-size, 12px) !important;
+        }
+
     </style>
 </head>
 <body>
@@ -304,9 +340,9 @@
                  style="width: 180px; margin: 6px 10px 0;">
         </div>
         <div class="col-8 ">
-            <h4 class="pt-4   ms-5 text-black text-"><strong>PART TRAVELER</strong></h4>
+            <h4 class="pt-4 ms-5 text-black traveler-title"><strong>PART TRAVELER</strong></h4>
         </div>
-        <div class="text-center" style="margin-top: -10px">
+        <div class="text-center traveler-subtitle" style="margin-top: -10px">
             <h6>(This document must accompany the part and must be returned to the originator)</h6>
         </div>
 
@@ -326,15 +362,15 @@
         </div>
 
         <div class="table mt-2 traveler-process-table">
-            <div class="div1 border-all " style="min-height: 36px;  align-content: center"></div>
-            <div class="div2 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Task require</strong>d</div>
-            <div class="div3 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Process</strong></div>
-            <div class="div4 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>RO No.</strong></div>
-            <div class="div5 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Vendor Name</strong></div>
-            <div class="div6 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Date
+            <div class="div1 border-all traveler-table-header" style="min-height: 36px;  align-content: center"></div>
+            <div class="div2 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Task require</strong>d</div>
+            <div class="div3 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Process</strong></div>
+            <div class="div4 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>RO No.</strong></div>
+            <div class="div5 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Vendor Name</strong></div>
+            <div class="div6 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Date
                     completed</strong></div>
-            <div class="div7 border-t-r-b" style="min-height: 36px;  align-content: center"> <strong>Vendor stamp</strong></div>
-            <div class="div8 border-t-r-b " style="min-height: 36px;  align-content: center"> <strong>Note</strong></div>
+            <div class="div7 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Vendor stamp</strong></div>
+            <div class="div8 border-t-r-b traveler-table-header" style="min-height: 36px;  align-content: center"> <strong>Note</strong></div>
 
             @php
                 $dateRows = 0;
@@ -541,7 +577,7 @@
     </div>
 
     <footer >
-        <div class="row" style="width: 105%; padding: 5px 0;">
+        <div class="row" style="width: 100%; padding: 5px 0;">
             <div class="col-6 text-start">
                 {{__("Form #032")}}
             </div>

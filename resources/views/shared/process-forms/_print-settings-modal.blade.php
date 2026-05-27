@@ -14,10 +14,19 @@
     $showOther = in_array('other', $showFormTypes);
     $showOtherTableRowLimit = $showOtherTableRowLimit ?? true;
     $showTableRowCountInputs = $showNdt || $showStress || ($showOther && $showOtherTableRowLimit);
+    $visibleTableTypeCount = ($showNdt ? 1 : 0) + ($showStress ? 1 : 0) + (($showOther && $showOtherTableRowLimit) ? 1 : 0);
     $isTravelForm = ($module ?? '') === 'travel-form';
+    $isLockedSingleProcessForm = true;
     $otherTableRowsInputValue = $isTravelForm
         ? (int) ($formConfig['traveler_table_total_rows'] ?? $formConfig['other_table_rows'] ?? 14)
         : (int) ($formConfig['other_table_rows'] ?? 21);
+    $tableDataFontInputValue = (float) (
+        $formConfig['table_data_font_size']
+        ?? $formConfig['other_table_data_font_size']
+        ?? $formConfig['ndt_table_data_font_size']
+        ?? $formConfig['stress_table_data_font_size']
+        ?? 13
+    );
 @endphp
 <div class="modal fade print-settings-modal" id="printSettingsModal" tabindex="-1" aria-labelledby="printSettingsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -25,7 +34,7 @@
             <div class="modal-header justify-content-between">
                 <h5 class="modal-title" id="printSettingsModalLabel">⚙️ Print Settings</h5>
                 <div class="d-flex align-items-center gap-2">
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="langToggleBtn" onclick="toggleTooltipLanguage()">
+                    <button type="button" class="btn btn-sm btn-outline-primary d-none" id="langToggleBtn" onclick="toggleTooltipLanguage()">
                         <span id="langToggleText">US</span>
                     </button>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -48,7 +57,7 @@
                                     title="Максимальное количество строк в таблице NDT."
                                     data-tooltip-ru="Максимальное количество строк в таблице NDT."
                                     data-tooltip-en="Maximum number of rows in NDT table.">
-                                    NDT Table (row)
+                                    {{ $visibleTableTypeCount === 1 ? 'Table (row)' : 'NDT Table (row)' }}
                                 </label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="ndtTableRows" name="ndtTableRows"
@@ -62,7 +71,7 @@
                                     title="Максимальное количество строк в таблице Stress Relief."
                                     data-tooltip-ru="Максимальное количество строк в таблице Stress Relief."
                                     data-tooltip-en="Maximum number of rows in Stress Relief table.">
-                                    Stress Relief Table (row)
+                                    {{ $visibleTableTypeCount === 1 ? 'Table (row)' : 'Stress Relief Table (row)' }}
                                 </label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="stressTableRows" name="stressTableRows"
@@ -82,8 +91,8 @@
                                     data-tooltip-ru="Максимальное количество строк в таблицах других процессов."
                                     data-tooltip-en="Maximum number of rows in other process tables."
                                     @endif>
-                                    @if($isTravelForm)
-                                        Traveler table — total rows
+                                    @if($isTravelForm || $visibleTableTypeCount === 1)
+                                        Table (row)
                                     @else
                                         Other Table (row)
                                     @endif
@@ -97,6 +106,7 @@
                         </div>
                         @endif
                         <div class="row mb-3">
+                            @if(false)
                             <div class="col-md-4">
                                 <label for="componentNameFontSize" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
                                     title="Размер шрифта для Component Name (название компонента в шапке формы)."
@@ -109,7 +119,22 @@
                                         min="6" max="24" step="0.5" value="{{ $formConfig['component_name_font_size'] ?? 12 }}">
                                 </div>
                             </div>
-                            @if($showNdt)
+                            @endif
+                            @if($showTableRowCountInputs)
+                            <div class="col-md-4">
+                                <label for="tableDataFontSize" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
+                                    title="Table data font size."
+                                    data-tooltip-ru="Table data font size."
+                                    data-tooltip-en="Table data font size.">
+                                    Table Data Font (px)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="tableDataFontSize" name="tableDataFontSize"
+                                        min="6" max="20" step="0.5" value="{{ $tableDataFontInputValue }}">
+                                </div>
+                            </div>
+                            @endif
+                            @if(false && $showNdt)
                             <div class="col-md-4">
                                 <label for="ndtProcessFontSize" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
                                     title="Размер шрифта для блока процессов (MAGNETIC PARTICLE, LIQUID PENETRANT и т.д.)."
@@ -126,7 +151,7 @@
                         </div>
                     </div>
 
-                    <div class="accordion mb-3" id="tableSettingsAccordion">
+                    <div class="accordion mb-3 {{ $isLockedSingleProcessForm ? 'd-none' : '' }}" id="tableSettingsAccordion">
                         <div class="accordion-item">
                             <h2 class="accordion-header" id="tableSettingsHeading">
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -189,7 +214,7 @@
                                             </div>
                                         </div>
                                         @endif
-                                        @if($showOther)
+                                        @if($showOther && !$isTravelForm)
                                         <div class="col-md-4 mb-3">
                                             <label for="otherTableDataFontSize" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top"
                                                 title="Размер шрифта данных в таблицах Other (CAD, Machining и т.д.)."
@@ -209,7 +234,7 @@
                         </div>
                     </div>
 
-                    <div class="accordion mb-3" id="pageSettingsAccordion">
+                    <div class="accordion mb-3 {{ $isLockedSingleProcessForm ? 'd-none' : '' }}" id="pageSettingsAccordion">
                         <div class="accordion-item">
                             <h2 class="accordion-header" id="pageSettingsHeading">
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -250,7 +275,7 @@
                         </div>
                     </div>
 
-                    <div class="accordion mb-3" id="footerSettingsAccordion">
+                    <div class="accordion mb-3 {{ $isLockedSingleProcessForm ? 'd-none' : '' }}" id="footerSettingsAccordion">
                         <div class="accordion-item">
                             <h2 class="accordion-header" id="footerSettingsHeading">
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -267,7 +292,7 @@
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label for="footerFontSize" class="form-label">Font Size (px)</label>
-                                            <input type="number" class="form-control" id="footerFontSize" name="footerFontSize" min="6" max="20" step="0.5" value="10">
+                                            <input type="number" class="form-control" id="footerFontSize" name="footerFontSize" min="6" max="20" step="0.5" value="12">
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label for="footerPadding" class="form-label">Padding</label>

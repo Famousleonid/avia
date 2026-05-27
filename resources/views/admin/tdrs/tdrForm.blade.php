@@ -9,19 +9,22 @@
 
     <style>
         :root {
-            --tdr-page-margin: 2mm;
+            --tdr-print-edge-margin: 8mm;
+            --tdr-page-margin: 8mm;
             --tdr-sheet-width: 940px;
             --tdr-sheet-padding: 5px;
             --tdr-sheet-margin-left: 10px;
             --tdr-sheet-margin-right: 10px;
-            --tdr-table-height: 676px;
-            --tdr-data-font-size: 12px;
+            --tdr-table-height: 648px;
+            --tdr-row-min-height: 36px;
+            --tdr-data-font-size: 13px;
             --tdr-data-line-height: 1.15;
             --tdr-data-padding-left: 4px;
             --tdr-data-padding-right: 4px;
             --tdr-footer-width: 800px;
-            --tdr-footer-font-size: 10px;
+            --tdr-footer-font-size: 12px;
             --tdr-footer-padding: 3px 3px;
+            --tdr-footer-print-gap: 8mm;
         }
 
         html,
@@ -261,6 +264,10 @@
             margin-top: 2px;
         }
 
+        .tdr-table .tdr-check {
+            opacity: .38;
+        }
+
         .tdr-lines {
             margin-top: 0;
         }
@@ -293,7 +300,7 @@
             border-bottom: 1px solid #000;
             display: flex;
             align-items: flex-start;
-            min-height: 36px;
+            min-height: var(--tdr-row-min-height);
         }
 
         .tdr-entry-icon-left {
@@ -323,7 +330,7 @@
         }
 
         .tdr-separator {
-            min-height: 36px;
+            min-height: var(--tdr-row-min-height);
             border-bottom: 1px solid #000;
             border-left: 1px solid #000;
             border-right: 1px solid #000;
@@ -397,7 +404,7 @@
         @media print {
             @page {
                 size: letter;
-                margin: var(--tdr-page-margin);
+                margin: var(--tdr-print-edge-margin);
             }
 
             html,
@@ -412,15 +419,28 @@
             }
 
             .tdr-sheet {
-                width: var(--tdr-sheet-width);
-                margin-left: var(--tdr-sheet-margin-left);
-                margin-right: var(--tdr-sheet-margin-right);
-                padding: var(--tdr-sheet-padding);
+                width: 100%;
+                max-width: none;
+                margin: 0;
+                padding: 0;
             }
 
             .tdr-page {
+                min-height: calc(279.4mm - (var(--tdr-print-edge-margin) * 2));
+                display: flex;
+                flex-direction: column;
                 page-break-after: always;
                 break-after: page;
+                box-sizing: border-box;
+            }
+
+            .tdr-footer {
+                margin-top: auto;
+            }
+
+            .tdr-table {
+                min-height: calc(var(--tdr-table-height) - var(--tdr-footer-print-gap));
+                margin-bottom: var(--tdr-footer-print-gap);
             }
 
             .tdr-page:last-child {
@@ -527,131 +547,14 @@
                         <h5 class="mb-3">Tables</h5>
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="tdrTableHeight" class="form-label">TDR table height (px)</label>
-                                <input type="number" class="form-control" id="tdrTableHeight" name="tdrTableHeight"
-                                       min="200" max="1200" step="10" value="640">
-                                <small class="form-text text-muted">Column fills to this height, then continues in the second column.</small>
+                                <label for="tdrGridFontSize" class="form-label">Table Data Font (px)</label>
+                                <input type="number" class="form-control" id="tdrGridFontSize" name="tdrGridFontSize"
+                                       min="6" max="24" step="0.5" value="13">
                             </div>
-                        </div>
-
-                        <div class="accordion mb-3" id="tableSettingsAccordion">
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="tableSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            data-bs-target="#tableSettingsCollapse" aria-expanded="false"
-                                            aria-controls="tableSettingsCollapse">
-                                        Table Setting
-                                    </button>
-                                </h2>
-                                <div id="tableSettingsCollapse" class="accordion-collapse collapse"
-                                     aria-labelledby="tableSettingsHeading" data-bs-parent="#tableSettingsAccordion">
-                                    <div class="accordion-body">
-                                        <div class="row">
-                                            <div class="col-md-4 mb-3">
-                                                <label for="containerMaxWidth" class="form-label">Max Width (px)</label>
-                                                <input type="number" class="form-control" id="containerMaxWidth" name="containerMaxWidth"
-                                                       min="500" max="2000" step="10" value="940">
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label for="containerPadding" class="form-label">Padding (px)</label>
-                                                <input type="number" class="form-control" id="containerPadding" name="containerPadding"
-                                                       min="0" max="50" step="1" value="5">
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label for="containerMarginLeft" class="form-label">Left Margin (px)</label>
-                                                <input type="number" class="form-control" id="containerMarginLeft" name="containerMarginLeft"
-                                                       min="0" max="50" step="1" value="10">
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label for="containerMarginRight" class="form-label">Right Margin (px)</label>
-                                                <input type="number" class="form-control" id="containerMarginRight" name="containerMarginRight"
-                                                       min="0" max="50" step="1" value="10">
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label for="tdrGridFontSize" class="form-label">TDR data font size (px)</label>
-                                                <input type="number" class="form-control" id="tdrGridFontSize" name="tdrGridFontSize"
-                                                       min="6" max="24" step="0.5" value="12">
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label for="tdrGridLineHeight" class="form-label">TDR data line height</label>
-                                                <input type="number" class="form-control" id="tdrGridLineHeight" name="tdrGridLineHeight"
-                                                       min="1" max="1.8" step="0.05" value="1.15">
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label for="tdrGridTextPaddingLeft" class="form-label">TDR text padding left (px)</label>
-                                                <input type="number" class="form-control" id="tdrGridTextPaddingLeft" name="tdrGridTextPaddingLeft"
-                                                       min="0" max="24" step="1" value="4">
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label for="tdrGridTextPaddingRight" class="form-label">TDR text padding right (px)</label>
-                                                <input type="number" class="form-control" id="tdrGridTextPaddingRight" name="tdrGridTextPaddingRight"
-                                                       min="0" max="24" step="1" value="4">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <div class="accordion" id="pageSettingsAccordion">
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="pageSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            data-bs-target="#pageSettingsCollapse" aria-expanded="false"
-                                            aria-controls="pageSettingsCollapse">
-                                        Page Setting
-                                    </button>
-                                </h2>
-                                <div id="pageSettingsCollapse" class="accordion-collapse collapse"
-                                     aria-labelledby="pageSettingsHeading" data-bs-parent="#pageSettingsAccordion">
-                                    <div class="accordion-body">
-                                        <div class="row">
-                                            <div class="col-md-4 mb-3">
-                                                <label for="pageMargin" class="form-label">Page Margin (mm)</label>
-                                                <input type="number" class="form-control" id="pageMargin" name="pageMargin"
-                                                       min="0" max="50" step="0.5" value="2">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <div class="accordion" id="footerSettingsAccordion">
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="footerSettingsHeading">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            data-bs-target="#footerSettingsCollapse" aria-expanded="false"
-                                            aria-controls="footerSettingsCollapse">
-                                        Footer Setting
-                                    </button>
-                                </h2>
-                                <div id="footerSettingsCollapse" class="accordion-collapse collapse"
-                                     aria-labelledby="footerSettingsHeading" data-bs-parent="#footerSettingsAccordion">
-                                    <div class="accordion-body">
-                                        <div class="row">
-                                            <div class="col-md-4 mb-3">
-                                                <label for="footerWidth" class="form-label">Width on page (px)</label>
-                                                <input type="number" class="form-control" id="footerWidth" name="footerWidth"
-                                                       min="400" max="1200" step="10" value="800">
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label for="footerFontSize" class="form-label">Font Size (px)</label>
-                                                <input type="number" class="form-control" id="footerFontSize" name="footerFontSize"
-                                                       min="6" max="20" step="0.5" value="10">
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label for="footerPadding" class="form-label">Padding</label>
-                                                <input type="text" class="form-control" id="footerPadding" name="footerPadding"
-                                                       placeholder="3px 3px" value="3px 3px">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="col-md-6">
+                                <label for="tdrTableRows" class="form-label">Table (row)</label>
+                                <input type="number" class="form-control" id="tdrTableRows" name="tdrTableRows"
+                                       min="1" max="100" step="1" value="18">
                             </div>
                         </div>
                     </div>
@@ -667,20 +570,36 @@
 
 <script>
     const PRINT_SETTINGS_KEY = 'tdrForm_print_settings';
-    const PRINT_SETTINGS_LAYOUT_VERSION = 'pure-css-v4';
+    const PRINT_SETTINGS_LAYOUT_VERSION = 'pure-css-v5';
+    const TDR_ROW_HEIGHT = 36;
 
     const defaultSettings = {
         layoutVersion: PRINT_SETTINGS_LAYOUT_VERSION,
-        tdrTableHeight: '676px',
-        pageMargin: '2mm',
+        tdrTableRows: '18',
+        tdrTableHeight: '648px',
+        pageMargin: '8mm',
         containerMaxWidth: '940px',
         containerPadding: '5px',
         containerMarginLeft: '10px',
         containerMarginRight: '10px',
         footerWidth: '800px',
-        footerFontSize: '10px',
+        footerFontSize: '12px',
         footerPadding: '3px 3px',
-        tdrGridFontSize: '12px',
+        tdrGridFontSize: '13px',
+        tdrGridLineHeight: '1.15',
+        tdrGridTextPaddingLeft: '4px',
+        tdrGridTextPaddingRight: '4px'
+    };
+
+    const lockedPrintSettings = {
+        pageMargin: '8mm',
+        footerFontSize: '12px',
+        footerWidth: '800px',
+        footerPadding: '3px 3px',
+        containerMaxWidth: '940px',
+        containerPadding: '5px',
+        containerMarginLeft: '10px',
+        containerMarginRight: '10px',
         tdrGridLineHeight: '1.15',
         tdrGridTextPaddingLeft: '4px',
         tdrGridTextPaddingRight: '4px'
@@ -694,27 +613,30 @@
     function loadPrintSettings() {
         const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (!saved) {
-            return defaultSettings;
+            return normalizePrintSettings(defaultSettings);
         }
 
         try {
             const parsed = JSON.parse(saved);
-
             if (parsed.layoutVersion !== PRINT_SETTINGS_LAYOUT_VERSION) {
-                return Object.assign({}, defaultSettings, parsed, {
-                    layoutVersion: PRINT_SETTINGS_LAYOUT_VERSION,
-                    tdrTableHeight: defaultSettings.tdrTableHeight,
-                    tdrGridFontSize: defaultSettings.tdrGridFontSize,
-                    tdrGridLineHeight: defaultSettings.tdrGridLineHeight,
-                    tdrGridTextPaddingLeft: defaultSettings.tdrGridTextPaddingLeft,
-                    tdrGridTextPaddingRight: defaultSettings.tdrGridTextPaddingRight
-                });
+                return normalizePrintSettings(defaultSettings);
             }
-
-            return Object.assign({}, defaultSettings, parsed);
+            return normalizePrintSettings(parsed);
         } catch (e) {
-            return defaultSettings;
+            return normalizePrintSettings(defaultSettings);
         }
+    }
+
+    function normalizePrintSettings(settings) {
+        const merged = Object.assign({}, defaultSettings, settings || {}, lockedPrintSettings, {
+            layoutVersion: PRINT_SETTINGS_LAYOUT_VERSION
+        });
+        const rows = parseInt(String(merged.tdrTableRows ?? '').replace(/[^\d]/g, ''), 10)
+            || Math.max(1, Math.round(parseCssPixels(merged.tdrTableHeight, parseCssPixels(defaultSettings.tdrTableHeight, 648)) / TDR_ROW_HEIGHT))
+            || 18;
+        merged.tdrTableRows = String(rows);
+        merged.tdrTableHeight = (rows * TDR_ROW_HEIGHT) + 'px';
+        return merged;
     }
 
     function settingValue(id, fallback, suffix) {
@@ -727,22 +649,13 @@
     }
 
     window.savePrintSettings = function() {
-        const settings = {
+        const rows = parseInt(String(settingValue('tdrTableRows', defaultSettings.tdrTableRows, '')).replace(/[^\d]/g, ''), 10) || 18;
+        const settings = normalizePrintSettings({
             layoutVersion: PRINT_SETTINGS_LAYOUT_VERSION,
-            tdrTableHeight: settingValue('tdrTableHeight', defaultSettings.tdrTableHeight, 'px'),
-            pageMargin: settingValue('pageMargin', defaultSettings.pageMargin, 'mm'),
-            containerMaxWidth: settingValue('containerMaxWidth', defaultSettings.containerMaxWidth, 'px'),
-            containerPadding: settingValue('containerPadding', defaultSettings.containerPadding, 'px'),
-            containerMarginLeft: settingValue('containerMarginLeft', defaultSettings.containerMarginLeft, 'px'),
-            containerMarginRight: settingValue('containerMarginRight', defaultSettings.containerMarginRight, 'px'),
-            footerWidth: settingValue('footerWidth', defaultSettings.footerWidth, 'px'),
-            footerFontSize: settingValue('footerFontSize', defaultSettings.footerFontSize, 'px'),
-            footerPadding: settingValue('footerPadding', defaultSettings.footerPadding, ''),
+            tdrTableRows: String(rows),
+            tdrTableHeight: (rows * TDR_ROW_HEIGHT) + 'px',
             tdrGridFontSize: settingValue('tdrGridFontSize', defaultSettings.tdrGridFontSize, 'px'),
-            tdrGridLineHeight: settingValue('tdrGridLineHeight', defaultSettings.tdrGridLineHeight, ''),
-            tdrGridTextPaddingLeft: settingValue('tdrGridTextPaddingLeft', defaultSettings.tdrGridTextPaddingLeft, 'px'),
-            tdrGridTextPaddingRight: settingValue('tdrGridTextPaddingRight', defaultSettings.tdrGridTextPaddingRight, 'px')
-        };
+        });
 
         window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
         applyPrintSettings(settings);
@@ -757,6 +670,7 @@
     function applyPrintSettings(settings) {
         const root = document.documentElement;
         root.style.setProperty('--tdr-page-margin', settings.pageMargin || defaultSettings.pageMargin);
+        root.style.setProperty('--tdr-print-edge-margin', settings.pageMargin || defaultSettings.pageMargin);
         root.style.setProperty('--tdr-sheet-width', settings.containerMaxWidth || defaultSettings.containerMaxWidth);
         root.style.setProperty('--tdr-sheet-padding', settings.containerPadding || defaultSettings.containerPadding);
         root.style.setProperty('--tdr-sheet-margin-left', settings.containerMarginLeft || defaultSettings.containerMarginLeft);
@@ -802,15 +716,15 @@
 
     function fillTdrTableToHeight(table, nextRowIndex, tableHeight) {
         let contentHeight = Array.from(table.children).reduce(function(total, row) {
-            return total + Math.max(36, Math.ceil(row.getBoundingClientRect().height));
+            return total + Math.max(TDR_ROW_HEIGHT, Math.ceil(row.getBoundingClientRect().height));
         }, 0);
-        const maxBlankRows = Math.ceil(tableHeight / 36) + 2;
+        const maxBlankRows = Math.ceil(tableHeight / TDR_ROW_HEIGHT) + 2;
 
         for (let added = 0; contentHeight < tableHeight - 1 && added < maxBlankRows; added++) {
             const row = createTdrTableRow('', '', nextRowIndex + added);
             row.classList.add('tdr-empty-row');
             table.appendChild(row);
-            contentHeight += Math.max(36, Math.ceil(row.getBoundingClientRect().height));
+            contentHeight += Math.max(TDR_ROW_HEIGHT, Math.ceil(row.getBoundingClientRect().height));
         }
     }
 
@@ -883,7 +797,7 @@
         measureTable.innerHTML = '';
         const row = createTdrTableRow(value, '', 0);
         measureTable.appendChild(row);
-        return Math.max(36, Math.ceil(row.getBoundingClientRect().height));
+        return Math.max(TDR_ROW_HEIGHT, Math.ceil(row.getBoundingClientRect().height));
     }
 
     function createTdrTableRow(leftValue, rightValue, rowIndex) {
@@ -962,19 +876,8 @@
 
     function loadSettingsToForm(settings) {
         const values = {
-            tdrTableHeight: [settings.tdrTableHeight, 'px'],
-            pageMargin: [settings.pageMargin, 'mm'],
-            containerMaxWidth: [settings.containerMaxWidth, 'px'],
-            containerPadding: [settings.containerPadding, 'px'],
-            containerMarginLeft: [settings.containerMarginLeft, 'px'],
-            containerMarginRight: [settings.containerMarginRight, 'px'],
-            footerWidth: [settings.footerWidth, 'px'],
-            footerFontSize: [settings.footerFontSize, 'px'],
-            footerPadding: [settings.footerPadding, ''],
+            tdrTableRows: [settings.tdrTableRows, ''],
             tdrGridFontSize: [settings.tdrGridFontSize, 'px'],
-            tdrGridLineHeight: [settings.tdrGridLineHeight, ''],
-            tdrGridTextPaddingLeft: [settings.tdrGridTextPaddingLeft, 'px'],
-            tdrGridTextPaddingRight: [settings.tdrGridTextPaddingRight, 'px']
         };
 
         Object.keys(values).forEach(function(id) {

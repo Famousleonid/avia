@@ -469,85 +469,108 @@
 
         .qa-info-grid {
             display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
+            grid-template-columns:
+                minmax(0, 1fr)
+                minmax(0, 1.12fr)
+                minmax(0, 1.12fr)
+                minmax(18rem, 2fr);
             gap: .28rem .85rem;
             padding: .45rem .7rem;
         }
 
+        .qa-info-column {
+            min-width: 0;
+            display: grid;
+            grid-template-columns: max-content minmax(0, 1fr);
+            column-gap: 2ch;
+            row-gap: .25rem;
+            align-items: center;
+        }
+
         .qa-info-item {
             min-width: 0;
-            display: flex;
-            align-items: baseline;
-            gap: .35rem;
-            line-height: 1.25;
+            display: grid;
+            grid-template-columns: max-content minmax(0, 1fr);
+            grid-template-columns: subgrid;
+            grid-column: 1 / -1;
+            align-items: center;
+            min-height: 1.85rem;
+            line-height: 1.2;
+            padding: 0 .25rem;
+            box-sizing: border-box;
         }
 
         .qa-info-item-open-date {
-            grid-column: 1;
-            grid-row: 2;
+            grid-column: 1 / -1;
+            grid-row: auto;
         }
 
         .qa-info-item-technician {
-            grid-column: 1;
-            grid-row: 1;
+            grid-column: 1 / -1;
+            grid-row: auto;
         }
 
         .qa-info-item-customer {
-            grid-column: 2;
-            grid-row: 1;
+            grid-column: 1 / -1;
+            grid-row: auto;
         }
 
         .qa-info-item-instruction {
-            grid-column: 3;
-            grid-row: 1;
+            grid-column: 1 / -1;
+            grid-row: auto;
         }
 
         .qa-info-item-manual {
-            grid-column: 3;
-            grid-row: 2;
+            grid-column: 1 / -1;
+            grid-row: auto;
         }
 
         .qa-info-item-manual-revision {
-            grid-column: 2;
-            grid-row: 2;
-        }
-
-        .qa-info-item-modified,
-        .qa-info-item-serial {
-            justify-content: flex-end;
+            grid-column: 1 / -1;
+            grid-row: auto;
         }
 
         .qa-info-item-modified {
-            grid-column: 5;
-            grid-row: 1;
+            display: grid;
+            grid-template-columns: subgrid;
+            align-items: center;
+            grid-column: 1 / -1;
+            grid-row: auto;
+            width: 100%;
         }
 
         .qa-info-item-serial {
-            grid-column: 4;
-            grid-row: 1;
+            grid-column: 1 / -1;
+            grid-row: auto;
         }
 
-        .qa-info-item-modified .qa-info-edit,
         .qa-info-item-serial .qa-info-edit {
-            flex: 0 1 7.5rem;
-            max-width: 7.5rem;
+            width: 100%;
+            max-width: none;
+        }
+
+        .qa-info-item-modified .qa-info-edit {
+            width: 100%;
         }
 
         .qa-info-label {
-            flex: 0 0 auto;
             font-size: .74rem;
             color: var(--bs-secondary-color);
             white-space: nowrap;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .qa-info-value {
             min-width: 0;
-            overflow-wrap: anywhere;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .qa-info-edit {
             display: block;
-            flex: 1 1 auto;
             width: auto;
             min-width: 0;
             border: 0;
@@ -579,65 +602,67 @@
         }
 
         .qa-info-unit-label-row {
-            display: flex;
-            align-items: center;
-            gap: .3rem;
             white-space: nowrap;
         }
 
         .qa-info-item-component-pn {
             display: grid;
-            grid-template-columns: max-content minmax(0, 1fr);
+            grid-template-columns: subgrid;
             align-items: center;
-            column-gap: .45rem;
-            grid-column: 4 / 6;
-            grid-row: 2;
-            justify-self: end;
+            grid-column: 1 / -1;
+            grid-row: auto;
             width: 100%;
         }
 
         .qa-info-item-component-pn .qa-info-label {
             font-size: .72rem;
-            line-height: 1.45rem;
+            line-height: 1.2;
         }
 
         .qa-info-item-component-pn .qa-info-unit-label-row {
-            align-items: center;
-            min-height: 1.45rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .qa-info-item-component-pn .qa-info-unit-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
             align-items: center;
-            min-height: 1.45rem;
+            column-gap: .35rem;
+            min-height: 1.55rem;
+            min-width: 0;
         }
 
         .qa-info-unit-row .select2-container {
             width: 100% !important;
             min-width: 0;
-            height: 1.45rem !important;
+            height: 1.55rem !important;
         }
 
         .qa-page .qa-info-item-component-pn .select2-container--default .select2-selection--single {
-            height: 1.65rem !important;
-            min-height: 1.65rem !important;
+            height: 1.55rem !important;
+            min-height: 1.55rem !important;
             border: 0;
             border-bottom: 1px dashed rgba(13, 202, 240, .6);
             border-radius: 0;
             background: transparent;
-            padding: .1rem .45rem calc(.1rem + 3px) !important;
+            padding: 0 .45rem 0 !important;
             width: 100%;
+            box-sizing: border-box;
         }
 
         .qa-page .qa-info-item-component-pn .select2-container--default .select2-selection--single .select2-selection__rendered {
             color: var(--bs-body-color);
-            line-height: 1.25rem !important;
+            line-height: 1.45rem !important;
             padding: 0 1rem 0 0 !important;
             font-size: 1rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .qa-page .qa-info-item-component-pn .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 1.65rem !important;
+            height: 1.55rem !important;
             top: 0;
             right: 0;
         }
@@ -715,6 +740,7 @@
         .qa-unit-add-button {
             width: 1rem;
             height: 1rem;
+            flex: 0 0 auto;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -957,7 +983,7 @@
             }
 
             .qa-info-item-component-pn {
-                grid-column: 1;
+                grid-column: 1 / -1;
                 justify-self: stretch;
                 width: 100%;
             }
@@ -1208,16 +1234,7 @@
 
                 return `
                     <div class="qa-info-item qa-info-item-component-pn">
-                        <div class="qa-info-unit-label-row">
-                            <label class="qa-info-label" for="qaTopFieldUnitId">${escapeHtml(label)}</label>
-                            <button type="button"
-                                    class="qa-unit-add-button"
-                                    data-qa-add-unit
-                                    title="Add new unit"
-                                    aria-label="Add new unit">
-                                <img src="{{ asset('img/plus.png') }}" alt="">
-                            </button>
-                        </div>
+                        <label class="qa-info-label" for="qaTopFieldUnitId">${escapeHtml(label)}</label>
                         <div class="qa-info-unit-row">
                             <select id="qaTopFieldUnitId"
                                     class="qa-info-select qa-unit-select"
@@ -1225,6 +1242,13 @@
                                     data-original-value="${escapeHtml(selected)}">
                                 ${options}
                             </select>
+                            <button type="button"
+                                    class="qa-unit-add-button"
+                                    data-qa-add-unit
+                                    title="Add new unit"
+                                    aria-label="Add new unit">
+                                <img src="{{ asset('img/plus.png') }}" alt="">
+                            </button>
                         </div>
                     </div>
                 `;
@@ -1368,10 +1392,10 @@
                 }
             };
 
-            const blockHtml = (title, body, titleMeta = '', className = '', id = '') => `
+            const blockHtml = (title, body, titleMeta = '', className = '', id = '', titleHtml = false) => `
                 <section ${id ? `id="${escapeHtml(id)}"` : ''} class="qa-block ${escapeHtml(className)} mb-3">
                     <div class="qa-block-title">
-                        <h6 class="mb-0 text-info">${escapeHtml(title)}</h6>
+                        <h6 class="mb-0 text-info">${titleHtml ? title : escapeHtml(title)}</h6>
                         ${titleMeta}
                     </div>
                     ${body}
@@ -1387,28 +1411,37 @@
             const renderTop = (wo) => {
                 const top = wo.top || {};
                 const approvedDate = top.approved_at && top.approved_at !== '-' ? top.approved_at : '';
-            const approvalMeta = `
+                const instruction = top.instruction && top.instruction !== '-' ? top.instruction : '';
+                const title = instruction
+                    ? `Workorder: <span class="text-white">${escapeHtml(instruction)}</span>`
+                    : 'Workorder';
+                const approvalMeta = `
                 <span class="d-inline-flex align-items-center gap-2">
                     <span class="${top.approved ? 'text-success' : 'text-secondary'} fw-semibold">${top.approved ? 'Approved' : 'Not approved'}</span>
                     ${approvedDate ? `<span class="small text-light">${escapeHtml(approvedDate)}</span>` : ''}
                 </span>
             `;
+                const columnHtml = (rows) => `<div class="qa-info-column">${rows.join('')}</div>`;
                 const fields = [
-                    ['Technician', top.technician, false, null, 'qa-info-item-technician'],
-                    ['Customer', top.customer, false, null, 'qa-info-item-customer'],
-                    ['Instruction', top.instruction, false, null, 'qa-info-item-instruction'],
-                    ['Serial #', top.serial, false, 'serial', 'qa-info-item-serial'],
-                    ['Modified', top.modified, false, 'modified', 'qa-info-item-modified'],
-                    ['Open Date', top.open_date, false, null, 'qa-info-item-open-date'],
-                    ['Manual Rev.', top.manual_revision, false, null, 'qa-info-item-manual-revision'],
-                    ['Manual', manualHtml(top.manual), true, null, 'qa-info-item-manual'],
-                    ['Component PN', top.unit_id, false, 'unit_id'],
-                ].map(([label, value, html, editable, className]) => editable
-                    ? (editable === 'unit_id' ? unitSelectFieldHtml(label, value) : editableFieldHtml(label, value, editable, className || ''))
-                    : fieldHtml(label, value, html, className || '')
-                ).join('');
+                    columnHtml([
+                        fieldHtml('Technician', top.technician, false, 'qa-info-item-technician'),
+                        fieldHtml('Open Date', top.open_date, false, 'qa-info-item-open-date'),
+                    ]),
+                    columnHtml([
+                        fieldHtml('Customer', top.customer, false, 'qa-info-item-customer'),
+                        fieldHtml('Manual Rev.', top.manual_revision, false, 'qa-info-item-manual-revision'),
+                    ]),
+                    columnHtml([
+                        editableFieldHtml('Serial #', top.serial, 'serial', 'qa-info-item-serial'),
+                        fieldHtml('Manual', manualHtml(top.manual), true, 'qa-info-item-manual'),
+                    ]),
+                    columnHtml([
+                        editableFieldHtml('Modified to PN', top.modified, 'modified', 'qa-info-item-modified'),
+                        unitSelectFieldHtml('Component PN', top.unit_id),
+                    ]),
+                ].join('');
 
-                return blockHtml('Workorder', `<div class="qa-info-grid">${fields}</div>${checksHtml(wo.checks)}`, approvalMeta);
+                return blockHtml(title, `<div class="qa-info-grid">${fields}</div>${checksHtml(wo.checks)}`, approvalMeta, '', '', true);
             };
 
             const renderPhotos = (groups) => {
@@ -1616,6 +1649,39 @@
                 return blockHtml('Forms', body, '', 'qa-forms-block');
             };
 
+            const elementTitleText = (element) => {
+                if (!element) return '';
+                if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement) {
+                    return element.value || '';
+                }
+
+                return (element.textContent || '').replace(/\s+/g, ' ').trim();
+            };
+
+            const syncTruncatedTitles = (root = document) => {
+                const selectors = [
+                    '.qa-info-label',
+                    '.qa-info-value',
+                    '.qa-info-edit',
+                    '.qa-page .select2-selection__rendered',
+                ];
+
+                root.querySelectorAll(selectors.join(',')).forEach((element) => {
+                    const isTruncated = element.scrollWidth > element.clientWidth + 1;
+                    if (!isTruncated) {
+                        element.removeAttribute('title');
+                        return;
+                    }
+
+                    const text = elementTitleText(element);
+                    if (text) {
+                        element.setAttribute('title', text);
+                    } else {
+                        element.removeAttribute('title');
+                    }
+                });
+            };
+
             const renderWorkorder = (wo) => {
                 currentWorkorder = wo;
                 setCurrentWorkorder(wo.number, wo.url);
@@ -1627,6 +1693,7 @@
                 ].join('')}</div>`;
                 fitPaperLabels(result);
                 initSelect2Controls();
+                window.requestAnimationFrame(() => syncTruncatedTitles(result));
             };
 
             const updateEndpoint = (workorderId) => updateEndpointTemplate.replace('__WORKORDER_ID__', encodeURIComponent(workorderId));
@@ -1672,6 +1739,7 @@
 
                     select.off('change.qaTopUnit').on('change.qaTopUnit', function () {
                         confirmAndSaveUnitField(this);
+                        window.requestAnimationFrame(() => syncTruncatedTitles(result));
                     });
                 });
             };
@@ -2062,6 +2130,18 @@
                     input.classList.remove('is-invalid');
                     input.blur();
                 }
+            });
+
+            result.addEventListener('focusout', (event) => {
+                const input = event.target.closest('[data-qa-top-field]');
+                if (!input || input.tagName === 'SELECT') return;
+                saveTopField(input);
+            });
+
+            let truncatedTitleResizeTimer = null;
+            window.addEventListener('resize', () => {
+                window.clearTimeout(truncatedTitleResizeTimer);
+                truncatedTitleResizeTimer = window.setTimeout(() => syncTruncatedTitles(result), 120);
             });
         })();
     </script>

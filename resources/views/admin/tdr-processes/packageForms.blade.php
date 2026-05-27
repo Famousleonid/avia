@@ -424,7 +424,7 @@
                                                 </label>
                                                 <div class="input-group">
                                 <input type="number" class="form-control" id="footerFontSize" name="footerFontSize"
-                                       min="6" max="20" step="0.5" value="10">
+                                       min="6" max="20" step="0.5" value="12">
 {{--                                <span class="input-group-text">px</span>--}}
                                                 </div>
                             </div>

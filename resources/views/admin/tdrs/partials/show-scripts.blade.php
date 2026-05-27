@@ -577,7 +577,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function logCardTabSelectedAssemblyInRow(row, componentId) {
         if (!row || !componentId) return null;
-        var all = Array.prototype.filter.call(row.querySelectorAll('input, select'), function(input) {
+        var all = Array.prototype.filter.call(row.querySelectorAll('input[name^="lc_selected_assembly"], select[name^="lc_selected_assembly"]'), function(input) {
             return String(input.dataset.componentId || '') === String(componentId);
         });
         var fallback = null;
@@ -1150,6 +1150,19 @@ document.addEventListener('DOMContentLoaded', function() {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
                 var u = new URL(link.getAttribute('href'), window.location.origin);
+                var processId = link.getAttribute('data-tdr-process-id') || '';
+                var vendorSelect = processId
+                    ? target.querySelector('select.vendor-select[data-tdr-process-id="' + processId + '"]')
+                    : null;
+                if (!vendorSelect) {
+                    var row = link.closest('tr');
+                    vendorSelect = row ? row.querySelector('select.vendor-select') : null;
+                }
+                if (vendorSelect && vendorSelect.value) {
+                    u.searchParams.set('vendor_id', vendorSelect.value);
+                } else {
+                    u.searchParams.delete('vendor_id');
+                }
                 window.open(u.toString(), '_blank');
             });
         });

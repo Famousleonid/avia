@@ -226,7 +226,7 @@
                                                 </label>
                                                 <div class="input-group">
                                                     <input type="number" class="form-control" id="footerFontSize" name="footerFontSize"
-                                                        min="6" max="20" step="0.5" value="{{ $formConfig['footer_font_size'] ?? 10 }}">
+                                                        min="6" max="20" step="0.5" value="{{ $formConfig['footer_font_size'] ?? 12 }}">
                                                 </div>
                                             </div>
                                             <div class="col-md-4 mb-3">

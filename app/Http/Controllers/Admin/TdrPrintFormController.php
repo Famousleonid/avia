@@ -284,33 +284,7 @@ class TdrPrintFormController extends Controller
                 ->get(),
             $workorder
         );
-        $extraComponents = $this->filterComponentsForUnit(
-            Component::query()
-                ->where('manual_id', $manualId)
-                ->where('kit_e', true)
-                ->where(function ($query): void {
-                    $query->where('is_bush', false)->orWhereNull('is_bush');
-                })
-                ->with('manual:id,number')
-                ->get(),
-            $workorder
-        );
-
-        $rows = $this->buildKitPrlRowsForComponents($kitComponents, 'KIT');
-        $extraRows = $this->buildKitPrlRowsForComponents($extraComponents, '');
-
-        if ($extraRows->isNotEmpty()) {
-            $rows = $rows
-                ->concat([[
-                    'kind' => 'section',
-                    'section_title' => 'EXTRA PARTS',
-                    'manual' => null,
-                ]])
-                ->concat($extraRows)
-                ->values();
-        }
-
-        return $rows;
+        return $this->buildKitPrlRowsForComponents($kitComponents, 'KIT');
     }
 
     private function buildKitPrlRowsForComponents($components, string $code)
@@ -1263,6 +1237,11 @@ class TdrPrintFormController extends Controller
         }
 
         // Передаем данные в представление
+        $spPageCount = max(1, $componentChunks->count());
+        $bushingPageCount = WoBushingLine::where('workorder_id', $current_wo->id)->exists() ? 1 : 0;
+        $combinedSpecPageTotal = $spPageCount + $bushingPageCount;
+        $specPageOffset = 0;
+
         return view('admin.tdrs.specProcessForm', [
             'current_wo' => $current_wo,
             'processes' => $result, // Исходная коллекция
@@ -1270,6 +1249,8 @@ class TdrPrintFormController extends Controller
             'ndtSums' => $ndtSums, // Добавляем NDT суммы в представление
             'cadSum' => $cadSum,
             'componentChunks' => $componentChunks,
+            'combinedSpecPageTotal' => $combinedSpecPageTotal,
+            'specPageOffset' => $specPageOffset,
         ], compact('tdrs', 'tdr_ws','processNames','cadSum_ex'));
     }
 
@@ -1499,6 +1480,11 @@ class TdrPrintFormController extends Controller
         }
 
         // Передаем данные в представление
+        $spPageCount = max(1, $componentChunks->count());
+        $bushingPageCount = WoBushingLine::where('workorder_id', $current_wo->id)->exists() ? 1 : 0;
+        $combinedSpecPageTotal = $spPageCount + $bushingPageCount;
+        $specPageOffset = 0;
+
         return view('admin.tdrs.specProcessFormEmp', [
             'current_wo' => $current_wo,
             'processes' => $result,
@@ -1506,6 +1492,8 @@ class TdrPrintFormController extends Controller
             'ndtSums' => $ndtSums,
             'cadSum' => $cadSum,
             'componentChunks' => $componentChunks,
+            'combinedSpecPageTotal' => $combinedSpecPageTotal,
+            'specPageOffset' => $specPageOffset,
         ], compact('tdrs', 'tdr_ws','processNames','cadSum_ex'));
     }
 
@@ -1695,8 +1683,12 @@ class TdrPrintFormController extends Controller
                 $codes = $tdr->codes; // Получаем данные о кодах
                 $description = $tdr->description; // Description
                 if ($component && $necessaries && $codes) {
+                    $componentName = trim((string) $component->name);
+                    $descriptionText = trim((string) $description);
+                    $showDescription = $descriptionText !== ''
+                        && strcasecmp($descriptionText, $componentName) !== 0;
                     // Строим строку в нужном формате
-                    if (!empty($description)) {
+                    if ($showDescription) {
                         // Если description не пустой, выводим с описанием
                         $necessaryComponents[] = sprintf(
                             "(%s) <b>%s</b> IS NECESSARY: %s - %s ( %s )", // Формат вывода

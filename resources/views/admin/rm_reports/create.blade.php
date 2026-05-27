@@ -331,7 +331,7 @@
                             </div>
                             <div class="form-group mt-3">
                                 <label for="mod_repair_description">{{ __('Description of Modification or Repair') }}</label>
-                                <input type="text" class="form-control" id="mod_repair_description" name="mod_repair_description" required>
+                                <input type="text" class="form-control" id="mod_repair_description" name="mod_repair_description" maxlength="60" required>
                             </div>
                             <div class="form-group mt-3">
                                 <label for="ident_method">{{ __('Identification Method') }}</label>
@@ -411,7 +411,7 @@
                             </div>
                             <div class="form-group mt-3">
                                 <label for="edit_mod_repair_description">{{ __('Description of Modification or Repair') }}</label>
-                                <input type="text" class="form-control" id="edit_mod_repair_description" name="mod_repair_description" required>
+                                <input type="text" class="form-control" id="edit_mod_repair_description" name="mod_repair_description" maxlength="60" required>
                             </div>
                             <div class="form-group mt-3">
                                 <label for="edit_ident_method">{{ __('Identification Method') }}</label>

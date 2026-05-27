@@ -31,3 +31,9 @@ Laravel/PHP tests:
 - Не используй browser `localStorage` или `sessionStorage` и не добавляй fallback'и на browser storage.
 - Для явных структурированных настроек используй `window.UserUiSettings` со scope/key.
 - Для старого localStorage-like поведения используй `window.UserScopedStorage` или `window.UserScopedSessionStorage`.
+
+Date format project rule:
+- User-facing dates must be displayed as `dd/mmm/yyyy`, for example `12/may/2026`.
+- In PHP views/services use `format_project_date()` or Blade `@projectDate(...)` for display.
+- In PHP request parsing use `parse_project_date()` when accepting user typed project dates.
+- Keep ISO `Y-m-d` only for database values, JSON/API contracts, tests, filenames, sorting keys, and native HTML `<input type="date">` values.

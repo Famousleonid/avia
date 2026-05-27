@@ -504,7 +504,8 @@ class TdrProcessController extends Controller
 
         $manual = $current_wo->unit->manuals;
 
-        $vendorName = '';
+        $selectedVendor = $request->filled('vendor_id') ? Vendor::find((int) $request->query('vendor_id')) : null;
+        $vendorName = $selectedVendor?->name ?? '';
         $travelerGroup = (int) $request->query('traveler_group', 0);
 
         $tdrProcesses = TdrProcess::with('processName')

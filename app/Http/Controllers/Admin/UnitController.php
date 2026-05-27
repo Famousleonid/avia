@@ -23,7 +23,7 @@ class UnitController extends Controller
     {
         $this->middleware('can:units.view')->only('show');
         $this->middleware('can:units.create')->only('store');
-        $this->middleware('can:units.update')->only(['update', 'assignManual']);
+        $this->middleware('can:units.update')->only(['update', 'updateSingle', 'assignManual']);
         $this->middleware('can:units.delete')->only('destroySingle');
     }
 
@@ -161,15 +161,20 @@ class UnitController extends Controller
             );
 
             foreach ($partNumbersPayload as $unit) {
+                $attributes = [
+                    'name'     => $unit['name'] ?? null,
+                    'verified' => (bool) ($unit['verified'] ?? false),
+                ];
+
+                if (array_key_exists('eff_code', $unit)) {
+                    $attributes['eff_code'] = $unit['eff_code'] !== null && (string) $unit['eff_code'] !== ''
+                        ? (string) $unit['eff_code']
+                        : null;
+                }
+
                 $row = Unit::withTrashed()->updateOrCreate(
                     ['manual_id' => $manualId, 'part_number' => $unit['part_number']],
-                    [
-                        'name'     => $unit['name'] ?? null,
-                        'verified' => (bool) ($unit['verified'] ?? false),
-                        'eff_code' => array_key_exists('eff_code', $unit) && $unit['eff_code'] !== null && (string) $unit['eff_code'] !== ''
-                            ? (string) $unit['eff_code']
-                            : null,
-                    ]
+                    $attributes
                 );
                 if ($row->trashed()) {
                     $row->restore();
@@ -235,13 +240,21 @@ class UnitController extends Controller
             ],
             'name'        => 'nullable|string|max:255',
             'verified'    => 'required|boolean',
+            'eff_code'    => 'sometimes|nullable|string|max:255',
         ], [
             'part_number.unique' => 'Part number already exists in this CMM (manual).',
         ]);
 
-        $data['eff_code'] = null;
+        if ($request->has('eff_code')) {
+            $data['eff_code'] = $request->filled('eff_code')
+                ? (string) $request->input('eff_code')
+                : null;
+        }
+
+        $manualId = (int) $unit->manual_id;
 
         $unit->update($data);
+        app(WorkorderStdProcessItemsService::class)->invalidateForManual($manualId);
 
         return response()->json([
             'success' => true,
@@ -249,6 +262,7 @@ class UnitController extends Controller
             'part_number' => $unit->part_number,
             'name' => $unit->name,
             'verified' => $unit->verified,
+            'eff_code' => $unit->eff_code,
         ]);
     }
 

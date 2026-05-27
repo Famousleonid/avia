@@ -476,7 +476,7 @@
                                 </p>
                                 <p>
                                     <strong>{{ __('Revision Date:') }}</strong>
-                                    {{ $trainingList['first_training']->manual->revision_date }}
+                                    {{ format_project_date($trainingList['first_training']->manual->revision_date) ?? '-' }}
                                 </p>
                                 <p>
                                     <strong>{{ __('AirCraft Type:') }}</strong>

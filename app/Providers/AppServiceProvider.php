@@ -83,6 +83,10 @@ class AppServiceProvider extends ServiceProvider
             return ! auth()->user()->roleIs($rolesArray);
         });
 
+        Blade::directive('projectDate', function ($expression) {
+            return "<?php echo e(format_project_date({$expression}) ?? '-'); ?>";
+        });
+
         Workorder::observe(WorkorderObserver::class);
         Tdr::observe(TdrObserver::class);
         Component::observe(ComponentObserver::class);

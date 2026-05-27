@@ -121,6 +121,8 @@ body {
     margin: 0 auto 18px;
     padding: 0.16in 0.18in 0.31in;
     background: #fff;
+    display: flex;
+    flex-direction: column;
 }
 
 .sb-page-header {
@@ -244,7 +246,7 @@ body {
 }
 
 .sb-screen-stamp {
-    font-size: 10pt;
+    font-size: 12px;
     text-decoration: underline;
 }
 
@@ -341,14 +343,12 @@ body {
 }
 
 .sb-page-footer {
-    position: absolute;
-    left: 0.18in;
-    right: 0.18in;
-    bottom: 0.24in;
+    margin-top: auto;
+    padding-top: 0.08in;
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     align-items: end;
-    font-size: 10pt;
+    font-size: 12px;
 }
 
 .sb-page-footer div:nth-child(1) {

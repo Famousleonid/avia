@@ -4,17 +4,18 @@
         --container-padding: {{ (int) ($tdrFormConfig['container_padding'] ?? 6) }}px;
         --container-margin-left: {{ (int) ($tdrFormConfig['container_margin_left'] ?? 10) }}px;
         --container-margin-right: {{ (int) ($tdrFormConfig['container_margin_right'] ?? 10) }}px;
+        --std-print-edge-margin: 8mm;
         --print-page-margin: {{ $tdrFormConfig['page_margin'] ?? 1 }}mm;
         --print-body-height: {{ (int) ($tdrFormConfig['body_height'] ?? 99) }}%;
         --print-body-width: {{ (int) ($tdrFormConfig['body_width'] ?? 98) }}%;
         --print-body-margin-left: {{ (int) ($tdrFormConfig['body_margin_left'] ?? 2) }}px;
         --print-footer-width: {{ (int) ($tdrFormConfig['footer_width'] ?? 800) }}px;
-        --print-footer-font-size: {{ (int) ($tdrFormConfig['footer_font_size'] ?? 10) }}px;
+        --print-footer-font-size: {{ (int) ($tdrFormConfig['footer_font_size'] ?? 12) }}px;
         --print-footer-padding: {{ $tdrFormConfig['footer_padding'] ?? '3px 3px' }};
         --print-user-scale: 1;
-        --component-name-font-size: {{ (int) ($tdrFormConfig['component_name_font_size'] ?? 12) }}px;
-        --std-header-data-font-size: {{ (float) ($tdrFormConfig['header_data_font_size'] ?? 11) }}px;
-        --std-table-data-font-size: {{ (float) ($tdrFormConfig['table_data_font_size'] ?? 12) }}px;
+        --component-name-font-size: {{ (int) ($tdrFormConfig['component_name_font_size'] ?? 16) }}px;
+        --std-header-data-font-size: {{ (float) ($tdrFormConfig['header_data_font_size'] ?? 16) }}px;
+        --std-table-data-font-size: {{ (float) ($tdrFormConfig['table_data_font_size'] ?? 13) }}px;
         --std-font-size-title: 20px;
         --std-font-size-section: 16px;
         --std-font-size-label: 14px;
@@ -132,6 +133,12 @@
 
     .std-meta-row--right {
         grid-template-columns: var(--std-label-width-right) minmax(0, 1fr);
+    }
+
+    .std-meta-row--right .std-meta-value {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
     }
 
     .std-meta-label {
@@ -474,7 +481,7 @@
     @media print {
         @page {
             size: letter;
-            margin: var(--print-page-margin);
+            margin: var(--std-print-edge-margin);
         }
 
         html,
@@ -503,8 +510,8 @@
             width: 100% !important;
             max-width: none !important;
             margin: 0 !important;
-            padding-left: 2mm !important;
-            padding-right: 2mm !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
             padding-top: 0 !important;
             padding-bottom: 0 !important;
             box-sizing: border-box;
@@ -543,7 +550,7 @@
         }
 
         .std-page {
-            min-height: calc(279.4mm - (var(--print-page-margin) * 2));
+            min-height: calc(279.4mm - (var(--std-print-edge-margin) * 2));
             display: flex;
             flex-direction: column;
             justify-content: flex-start;

@@ -53,7 +53,7 @@ class RmReportController extends Controller
         $validated = $request->validate([
             'part_description' => 'required|string|max:255',
             'mod_repair' => 'required|in:Mod,Repair,SB',
-            'mod_repair_description' => 'required|string|max:255',
+            'mod_repair_description' => 'required|string|max:60',
             'ident_method' => 'nullable|string|max:255',
             'workorder_id' => 'required|exists:workorders,id',
         ]);
@@ -524,21 +524,39 @@ public function rmRecordForm(Request $request, $id)
      */
     public function updateRecord(Request $request, $id)
     {
+        $rmReport = RmReport::findOrFail($id);
+
         $validated = $request->validate([
             'part_description' => 'required|string|max:255',
             'mod_repair' => 'required|in:Mod,Repair,SB',
-            'mod_repair_description' => 'required|string|max:255',
+            'mod_repair_description' => 'required|string',
             'ident_method' => 'nullable|string|max:255',
             'workorder_id' => 'required|exists:workorders,id',
         ]);
 
-        $rmReport = RmReport::findOrFail($id);
+        $newDescription = (string) $validated['mod_repair_description'];
+        $oldDescription = (string) ($rmReport->description ?? '');
+        if ($newDescription !== $oldDescription && mb_strlen($newDescription) > 60) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Description may not be greater than 60 characters.',
+                    'errors' => [
+                        'mod_repair_description' => ['Description may not be greater than 60 characters.'],
+                    ],
+                ], 422);
+            }
+
+            return back()
+                ->withErrors(['mod_repair_description' => 'Description may not be greater than 60 characters.'])
+                ->withInput();
+        }
         
         // Обновляем запись
         $rmReport->update([
             'part_description' => $validated['part_description'],
             'mod_repair' => $validated['mod_repair'],
-            'description' => $validated['mod_repair_description'],
+            'description' => $newDescription,
             'ident_method' => $validated['ident_method'],
         ]);
 

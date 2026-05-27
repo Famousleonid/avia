@@ -117,6 +117,10 @@
     .tdr-processes-table .process-form-col {
         white-space: nowrap;
     }
+    .tdr-processes-table .traveler-vendor-select {
+        min-width: 112px;
+        width: 100%;
+    }
     .tdr-process-inline-options {
         background: var(--dir-table-bg);
         border: 1px dotted var(--bs-info);
