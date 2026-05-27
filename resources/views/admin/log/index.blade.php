@@ -713,6 +713,22 @@
             let deleteForm = null;
             const logsTableWrap = document.querySelector('.logs-table-wrap');
             const logsTable = document.querySelector('.logs-table');
+            const purgeCounts = @json($purgeCounts);
+            const purgeDays = document.getElementById('purge_days');
+            const purgeButton = document.querySelector('[data-purge-button]');
+
+            if (purgeDays && purgeButton) {
+                const formatCount = (value) => new Intl.NumberFormat('en-US').format(Number(value) || 0);
+                const updatePurgeButton = () => {
+                    const count = purgeCounts[purgeDays.value] || 0;
+                    const formatted = formatCount(count);
+                    purgeButton.textContent = `Delete old logs (${formatted})`;
+                    purgeButton.setAttribute('data-title', `Delete ${formatted} old logs`);
+                };
+
+                purgeDays.addEventListener('change', updatePurgeButton);
+                updatePurgeButton();
+            }
 
             if (modal && confirmDeleteBtn) {
                 modal.addEventListener('show.bs.modal', function (event) {
