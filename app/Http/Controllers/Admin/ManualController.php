@@ -330,26 +330,34 @@ class ManualController extends Controller
             ->get();
 
         $dimensionFigures = \App\Models\ManualDimensionFigure::where('manual_id', $cmm->id)
-            ->with(['points.specs.component', 'points.specs.code', 'childFigures'])
+            ->with([
+                'points.specs.inspectionComponent',
+                'points.specs.specCodes.code',
+                'points.specs.repairRules.code',
+                'points.specs.repairRules.processes',
+                'childFigures',
+            ])
             ->orderBy('sort_order')
             ->get();
 
-        $dimensionComponents = \App\Models\Component::where('manual_id', $cmm->id)
-            ->get(['id', 'ipl_num', 'part_number', 'name'])
-            ->sort(fn($a, $b) => strnatcmp($a->ipl_num ?? '', $b->ipl_num ?? ''))
-            ->values();
+        $dimManualProcesses = \App\Models\ManualProcess::where('manual_id', $cmm->id)
+            ->with(['process.process_name'])
+            ->get()
+            ->sortBy(fn($mp) => ($mp->process?->process_name?->name ?? '') . ' ' . ($mp->process?->process ?? ''))
+            ->values()
+            ->map(fn($mp) => [
+                'id'           => $mp->id,
+                'process_name' => $mp->process?->process_name?->name ?? '',
+                'label'        => trim(($mp->process?->process_name?->name ?? '') . ' — ' . ($mp->process?->process ?? '')),
+            ]);
 
-        $repairProcedures = \App\Models\ManualRepairProcedure::where('manual_id', $cmm->id)
-            ->orderBy('name')
-            ->get(['id', 'name']);
 
-        $processList = \App\Models\ProcessName::orderBy('name')->get(['id', 'name']);
 
         $codes = \App\Models\Code::orderBy('name')->get(['id', 'name', 'code']);
 
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
         'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','stdProcessPicklistOptions','serviceBulletins',
-        'dimensionFigures', 'dimensionComponents', 'repairProcedures', 'processList', 'codes'
+        'dimensionFigures', 'dimManualProcesses', 'codes'
         ));
 
     }

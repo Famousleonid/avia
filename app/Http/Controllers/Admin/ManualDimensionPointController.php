@@ -17,9 +17,10 @@ class ManualDimensionPointController extends Controller
     public function store(Request $request, ManualDimensionFigure $manualDimensionFigure)
     {
         $data = $request->validate([
-            'point_type'         => 'required|in:navigation,measurement,circle',
+            'point_type'         => 'required|in:navigation,measurement,circle,text',
             'child_figure_id'    => 'nullable|exists:manual_dimension_figures,id',
-            'code'               => 'required|string|max:50',
+            'child_ic_id'        => 'nullable|exists:manual_inspection_components,id',
+            'code'               => 'required_unless:point_type,text|nullable|string|max:50',
             'description'        => 'nullable|string|max:255',
             'is_fits_clearance'  => 'boolean',
             'x_pct'              => 'required|numeric|min:0|max:100',
@@ -33,19 +34,24 @@ class ManualDimensionPointController extends Controller
             'sort_order'         => 'nullable|integer',
         ]);
 
+        if ($data['point_type'] === 'text' && empty($data['code'])) {
+            $data['code'] = 'lbl_' . ($data['child_ic_id'] ?? uniqid());
+        }
+
         $point = ManualDimensionPoint::create(array_merge($data, [
             'manual_dimension_figure_id' => $manualDimensionFigure->id,
         ]));
 
-        return response()->json($point->load('specs'), 201);
+        return response()->json($point->load('childIc'), 201);
     }
 
     public function update(Request $request, ManualDimensionPoint $manualDimensionPoint)
     {
         $data = $request->validate([
-            'point_type'         => 'sometimes|in:navigation,measurement,circle',
+            'point_type'         => 'sometimes|in:navigation,measurement,circle,text',
             'child_figure_id'    => 'nullable|exists:manual_dimension_figures,id',
-            'code'               => 'sometimes|string|max:50',
+            'child_ic_id'        => 'nullable|exists:manual_inspection_components,id',
+            'code'               => 'sometimes|nullable|string|max:50',
             'description'        => 'nullable|string|max:255',
             'is_fits_clearance'  => 'boolean',
             'x_pct'              => 'sometimes|numeric|min:0|max:100',
@@ -61,7 +67,7 @@ class ManualDimensionPointController extends Controller
 
         $manualDimensionPoint->update($data);
 
-        return response()->json($manualDimensionPoint);
+        return response()->json($manualDimensionPoint->fresh()->load('childIc'));
     }
 
     public function destroy(ManualDimensionPoint $manualDimensionPoint)

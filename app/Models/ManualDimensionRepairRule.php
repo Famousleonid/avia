@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ManualDimensionRepairRule extends Model
 {
@@ -12,8 +13,14 @@ class ManualDimensionRepairRule extends Model
         'codes_id',
         'trigger',
         'repair_action',
-        'manual_repair_procedure_id',
+        'no_repair',
+        'order_replacement',
         'notes',
+    ];
+
+    protected $casts = [
+        'no_repair'         => 'boolean',
+        'order_replacement' => 'boolean',
     ];
 
     public function spec(): BelongsTo
@@ -26,8 +33,9 @@ class ManualDimensionRepairRule extends Model
         return $this->belongsTo(Code::class, 'codes_id');
     }
 
-    public function procedure(): BelongsTo
+    public function processes(): HasMany
     {
-        return $this->belongsTo(ManualRepairProcedure::class, 'manual_repair_procedure_id');
+        return $this->hasMany(ManualDimensionRepairRuleProcess::class, 'repair_rule_id')
+            ->orderBy('sort_order');
     }
 }

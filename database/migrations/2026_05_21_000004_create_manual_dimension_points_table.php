@@ -13,9 +13,9 @@ return new class extends Migration
             $table->foreignId('manual_dimension_figure_id')
                 ->constrained('manual_dimension_figures')
                 ->onDelete('cascade');
-            $table->enum('point_type', ['navigation', 'measurement', 'circle'])->default('measurement');
-            // only for point_type = navigation or circle
+            $table->enum('point_type', ['navigation', 'measurement', 'circle', 'text'])->default('measurement');
             $table->unsignedBigInteger('child_figure_id')->nullable();
+            $table->unsignedBigInteger('child_ic_id')->nullable();
             $table->string('code');
             $table->string('description')->nullable();
             $table->decimal('x_pct', 5, 2);
@@ -33,6 +33,10 @@ return new class extends Migration
 
             $table->foreign('child_figure_id')
                 ->references('id')->on('manual_dimension_figures')
+                ->onDelete('set null');
+
+            $table->foreign('child_ic_id')
+                ->references('id')->on('manual_inspection_components')
                 ->onDelete('set null');
         });
     }

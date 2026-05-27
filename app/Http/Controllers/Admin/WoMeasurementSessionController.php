@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Code;
+use App\Models\ManualDimensionFigure;
+use App\Models\ManualRepairProcedure;
 use App\Models\Workorder;
 use App\Models\WoMeasurementSession;
 use Illuminate\Http\Request;
@@ -17,7 +20,7 @@ class WoMeasurementSessionController extends Controller
     public function index(Workorder $workorder)
     {
         $sessions = WoMeasurementSession::where('workorder_id', $workorder->id)
-            ->with(['tdr.component', 'figure', 'instruction', 'user'])
+            ->with(['instruction', 'user'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -27,9 +30,7 @@ class WoMeasurementSessionController extends Controller
     public function store(Request $request, Workorder $workorder)
     {
         $data = $request->validate([
-            'tdr_id'                     => 'nullable|exists:tdrs,id',
-            'manual_dimension_figure_id' => 'required|exists:manual_dimension_figures,id',
-            'instruction_id'             => 'required|exists:instructions,id',
+            'instruction_id' => 'required|exists:instructions,id',
         ]);
 
         $session = WoMeasurementSession::create(array_merge($data, [
@@ -38,35 +39,48 @@ class WoMeasurementSessionController extends Controller
             'status'       => 'open',
         ]));
 
-        return response()->json($session->load(['tdr.component', 'figure', 'instruction', 'user']), 201);
+        return response()->json($session->load(['instruction', 'user']), 201);
     }
 
     public function show(WoMeasurementSession $woMeasurementSession)
     {
         $session = $woMeasurementSession->load([
-            'tdr.component',
-            'figure.points.specs.component',
-            'figure.points.specs.repairRules.code',
-            'figure.points.specs.repairRules.procedure',
             'instruction',
             'user',
             'measurements.spec',
             'measurements.code',
-            'measurements.repairProcedure',
             'measurements.user',
             'measurements.replaces',
         ]);
+
+        $manual = $woMeasurementSession->workorder->unit->manuals;
+
+        $inspectionComponents = $manual->inspectionComponents()
+            ->with('variants.component')
+            ->get();
+
+        $figures = ManualDimensionFigure::where('manual_id', $manual->id)
+            ->with([
+                'points.specs.inspectionComponent',
+                'points.specs.repairRules.code',
+                'points.specs.repairRules.processes.manualProcess.process.process_name',
+                'points.specs.bushingSpec',
+            ])
+            ->orderBy('sort_order')
+            ->get();
 
         if (request()->expectsJson()) {
             return response()->json($session);
         }
 
-        $codes = \App\Models\Code::orderBy('name')->get(['id', 'name', 'code']);
-        $repairProcedures = \App\Models\ManualRepairProcedure::where('manual_id', $session->figure->manual_id)
+        $codes = Code::orderBy('name')->get(['id', 'name', 'code']);
+        $repairProcedures = ManualRepairProcedure::where('manual_id', $manual->id)
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('admin.measurement_sessions.show', compact('session', 'codes', 'repairProcedures'));
+        return view('admin.measurement_sessions.show', compact(
+            'session', 'inspectionComponents', 'figures', 'codes', 'repairProcedures'
+        ));
     }
 
     public function destroy(WoMeasurementSession $woMeasurementSession)

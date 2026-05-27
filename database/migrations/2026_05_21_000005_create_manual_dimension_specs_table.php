@@ -15,10 +15,9 @@ return new class extends Migration
                 ->onDelete('cascade');
             // 'measurement' — dimensional limits; 'inspection' — visual defect check
             $table->enum('spec_type', ['measurement', 'inspection'])->default('measurement');
-            // component being checked/measured
-            $table->foreignId('component_id')->nullable()->constrained()->onDelete('set null');
-            // for inspection specs: the specific defect code being checked
-            $table->foreignId('codes_id')->nullable()->constrained('codes')->onDelete('set null');
+            // inspection component (role: "Main Fitting", "Bushing", etc.)
+            $table->foreignId('inspection_component_id')->nullable()
+                ->constrained('manual_inspection_components')->onDelete('set null');
             $table->string('description');
             $table->boolean('is_required')->default(true);
 

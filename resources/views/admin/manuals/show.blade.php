@@ -1201,9 +1201,7 @@
                     @include('admin.manuals.partials.dimensions-tab', [
                         'cmm'                => $cmm,
                         'dimensionFigures'   => $dimensionFigures,
-                        'dimensionComponents'=> $dimensionComponents,
-                        'repairProcedures'   => $repairProcedures,
-                        'processList'        => $processList,
+                        'dimManualProcesses' => $dimManualProcesses,
                         'codes'              => $codes,
                     ])
                 </div>

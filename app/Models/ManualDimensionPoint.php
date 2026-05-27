@@ -12,6 +12,7 @@ class ManualDimensionPoint extends Model
         'manual_dimension_figure_id',
         'point_type',
         'child_figure_id',
+        'child_ic_id',
         'code',
         'description',
         'is_fits_clearance',
@@ -40,9 +41,24 @@ class ManualDimensionPoint extends Model
         return $this->belongsTo(ManualDimensionFigure::class, 'child_figure_id');
     }
 
+    public function childIc(): BelongsTo
+    {
+        return $this->belongsTo(ManualInspectionComponent::class, 'child_ic_id');
+    }
+
     public function specs(): HasMany
     {
         return $this->hasMany(ManualDimensionSpec::class, 'manual_dimension_point_id')->orderBy('sort_order');
+    }
+
+    public function parameters(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(
+            ManualParameter::class,
+            'manual_parameter_points',
+            'manual_dimension_point_id',
+            'manual_parameter_id'
+        )->withPivot('id');
     }
 
     public function isNavigation(): bool

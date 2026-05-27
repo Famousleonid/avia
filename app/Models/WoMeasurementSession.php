@@ -10,8 +10,6 @@ class WoMeasurementSession extends Model
 {
     protected $fillable = [
         'workorder_id',
-        'tdr_id',
-        'manual_dimension_figure_id',
         'instruction_id',
         'user_id',
         'status',
@@ -27,16 +25,6 @@ class WoMeasurementSession extends Model
     public function workorder(): BelongsTo
     {
         return $this->belongsTo(Workorder::class);
-    }
-
-    public function tdr(): BelongsTo
-    {
-        return $this->belongsTo(Tdr::class);
-    }
-
-    public function figure(): BelongsTo
-    {
-        return $this->belongsTo(ManualDimensionFigure::class, 'manual_dimension_figure_id');
     }
 
     public function instruction(): BelongsTo
@@ -64,12 +52,14 @@ class WoMeasurementSession extends Model
         return $this->status === 'finalized';
     }
 
-    // All is_required specs have a measurement AND every FAIL has repair_action set.
     public function canFinalize(): bool
     {
-        $figure = $this->figure()->with('points.specs')->first();
+        $manual = $this->workorder->unit->manuals;
 
-        $requiredSpecIds = $figure->points
+        $requiredSpecIds = ManualDimensionFigure::where('manual_id', $manual->id)
+            ->with('points.specs')
+            ->get()
+            ->flatMap->points
             ->flatMap->specs
             ->where('is_required', true)
             ->pluck('id');

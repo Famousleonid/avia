@@ -106,6 +106,23 @@ class Manual extends Model implements HasMedia
         return $this->hasMany(Component::class, 'manual_id');
     }
 
+    public function inspectionComponents()
+    {
+        return $this->hasMany(ManualInspectionComponent::class, 'manual_id')
+            ->orderBy('sort_order')
+            ->with('variants.component');
+    }
+
+    public function dimensionFigures()
+    {
+        return $this->hasMany(ManualDimensionFigure::class, 'manual_id')->orderBy('sort_order');
+    }
+
+    public function parameters()
+    {
+        return $this->hasMany(ManualParameter::class, 'manual_id');
+    }
+
     public function stdProcesses()
     {
         return $this->hasMany(StdProcess::class, 'manual_id');

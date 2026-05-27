@@ -4,14 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
-class ManualDimensionSpec extends Model
+class ManualParameter extends Model
 {
     protected $fillable = [
-        'manual_dimension_point_id',
-        'spec_type',
+        'manual_id',
         'inspection_component_id',
         'description',
         'is_required',
@@ -24,16 +23,17 @@ class ManualDimensionSpec extends Model
     ];
 
     protected $casts = [
-        'is_required'       => 'boolean',
-        'orig_dim_min'      => 'decimal:4',
-        'orig_dim_max'      => 'decimal:4',
-        'wear_dim_min'      => 'decimal:4',
-        'wear_dim_max'      => 'decimal:4',
+        'inspection_component_id' => 'integer',
+        'is_required'             => 'boolean',
+        'orig_dim_min'            => 'decimal:4',
+        'orig_dim_max'            => 'decimal:4',
+        'wear_dim_min'            => 'decimal:4',
+        'wear_dim_max'            => 'decimal:4',
     ];
 
-    public function point(): BelongsTo
+    public function manual(): BelongsTo
     {
-        return $this->belongsTo(ManualDimensionPoint::class, 'manual_dimension_point_id');
+        return $this->belongsTo(Manual::class);
     }
 
     public function inspectionComponent(): BelongsTo
@@ -41,19 +41,24 @@ class ManualDimensionSpec extends Model
         return $this->belongsTo(ManualInspectionComponent::class, 'inspection_component_id');
     }
 
-    public function specCodes(): HasMany
+    public function codes(): HasMany
     {
-        return $this->hasMany(ManualDimensionSpecCode::class, 'manual_dimension_spec_id');
+        return $this->hasMany(ManualParameterCode::class);
     }
 
     public function repairRules(): HasMany
     {
-        return $this->hasMany(ManualDimensionRepairRule::class, 'manual_dimension_spec_id');
+        return $this->hasMany(ManualParameterRepairRule::class)->orderBy('id');
     }
 
-    public function bushingSpec(): HasOne
+    public function points(): BelongsToMany
     {
-        return $this->hasOne(ManualBushingSpec::class, 'hole_spec_id');
+        return $this->belongsToMany(
+            ManualDimensionPoint::class,
+            'manual_parameter_points',
+            'manual_parameter_id',
+            'manual_dimension_point_id'
+        )->withPivot('id');
     }
 
     public function effectiveLimits(bool $useWear): array
