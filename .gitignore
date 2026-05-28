@@ -18,3 +18,4 @@ yarn-error.log
 /codex-test-runtime/
 /sync_media.log
 /sync_media.php
+/.claude/settings.local.json
