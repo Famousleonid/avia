@@ -210,7 +210,7 @@
                                         <div class="page-visit-email">{{ $group->user->email }}</div>
                                     @endif
                                 </td>
-                                <td>{{ strtolower(\Illuminate\Support\Carbon::parse($group->date)->format('d.M.Y')) }}</td>
+                                <td>{{ format_project_date($group->date) ?? '-' }}</td>
                                 <td class="text-center">{{ $group->visits_count }}</td>
                                 <td>
                                     <ul class="page-list">
@@ -238,7 +238,7 @@
                             @foreach($group->visits as $visit)
                                 <tr>
                                     @if($loop->first)
-                                        <td rowspan="{{ $group->visits->count() }}">{{ strtolower(\Illuminate\Support\Carbon::parse($group->date)->format('d.M.Y')) }}</td>
+                                        <td rowspan="{{ $group->visits->count() }}">{{ format_project_date($group->date) ?? '-' }}</td>
                                         <td rowspan="{{ $group->visits->count() }}" class="text-center">{{ $group->visits_count }}</td>
                                     @endif
                                     <td><span class="page-visit-time">{{ $visit->time }}</span></td>

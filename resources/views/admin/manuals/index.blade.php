@@ -305,7 +305,7 @@
                                 </a>
                             </td>
 
-                            <td class="text-center">{{ $cmm->revision_date }}</td>
+                            <td class="text-center">{{ format_project_date($cmm->revision_date) ?? '-' }}</td>
                             <td class="text-center">{{ $cmm->lib }}</td>
 
                             <td class="text-center">

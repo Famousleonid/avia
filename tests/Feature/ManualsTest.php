@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Manual;
 use App\Models\ManualProcess;
+use App\Models\ManualRevisionCheck;
 use App\Models\Component;
 use App\Models\Process;
 use App\Models\ProcessName;
@@ -12,6 +13,7 @@ use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Route;
+use App\Services\Ai\Tools\ListManualRevisionChecksDueTool;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
 
@@ -252,6 +254,94 @@ class ManualsTest extends TestCase
         $response->assertSee('Tabs Process Spec');
         $response->assertSee('Tabs process comment');
         $response->assertSee(route('processes.create', ['manual_id' => $manual->id, 'return_to' => route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes'])]), false);
+    }
+
+    public function test_manual_show_uses_saved_tab_on_first_render(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual([
+            'number' => 'CMM-SAVED-TAB',
+            'title' => 'Saved Tab Manual',
+        ]);
+
+        $this->actingAs($admin)->postJson(route('user-ui-settings.store'), [
+            'scope' => 'manuals.show',
+            'key' => 'activeTab:'.$manual->id,
+            'value' => 'processes',
+        ])->assertOk();
+
+        $response = $this->actingAs($admin)->get(route('manuals.show', [
+            'manual' => $manual->id,
+        ]));
+
+        $response->assertOk();
+        $html = $response->getContent();
+        $this->assertMatchesRegularExpression('/<button class="nav-link\s+active\s*"\s+id="nav-processes-tab"/', $html);
+        $this->assertDoesNotMatchRegularExpression('/<button class="nav-link\s+active\s*"\s+id="nav-components-tab"/', $html);
+    }
+
+    public function test_admin_can_record_manual_revision_check(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual([
+            'number' => 'CMM-REV',
+            'title' => 'Revision Manual',
+            'revision_date' => '2026-01-01',
+        ]);
+
+        $show = $this->actingAs($admin)->get(route('manuals.show', [
+            'manual' => $manual->id,
+            'tab' => 'revision',
+        ]));
+
+        $show->assertOk();
+        $show->assertSee('id="nav-revision-tab"', false);
+        $show->assertSee('Revision Checks');
+
+        $response = $this->actingAs($admin)->post(route('manuals.revision-checks.store', $manual), [
+            'status' => ManualRevisionCheck::STATUS_UNCHANGED,
+            'revision_number' => '9',
+            'revision_date' => '2026-01-01',
+            'checked_at' => now()->toDateString(),
+            'notes' => 'No change',
+        ]);
+
+        $response->assertRedirect(route('manuals.show', ['manual' => $manual->id, 'tab' => 'revision']));
+        $this->assertDatabaseHas('manual_revision_checks', [
+            'manual_id' => $manual->id,
+            'revision_number' => '9',
+            'revision_date' => '2026-01-01',
+            'status' => ManualRevisionCheck::STATUS_UNCHANGED,
+            'notes' => 'No change',
+        ]);
+    }
+
+    public function test_manual_revision_ai_tool_lists_due_manuals(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual([
+            'number' => 'CMM-DUE',
+            'title' => 'Due Manual',
+            'revision_date' => '2026-01-01',
+        ]);
+        ManualRevisionCheck::query()->create([
+            'manual_id' => $manual->id,
+            'revision_number' => '8',
+            'revision_date' => '2026-01-01',
+            'checked_at' => now()->subMonths(3)->subDay()->toDateString(),
+            'checked_by_user_id' => $admin->id,
+            'checked_by_stamp' => $admin->stamp,
+            'status' => ManualRevisionCheck::STATUS_UNCHANGED,
+        ]);
+
+        $result = app(ListManualRevisionChecksDueTool::class)->run($admin, [
+            'days' => 30,
+            'limit' => 10,
+        ]);
+
+        $this->assertTrue($result['ok']);
+        $this->assertNotEmpty($result['manuals']);
+        $this->assertContains('CMM-DUE', collect($result['manuals'])->pluck('manual_number')->all());
     }
 
     public function test_duplicate_sidebar_page_routes_are_removed_but_manual_operations_remain(): void

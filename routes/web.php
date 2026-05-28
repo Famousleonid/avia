@@ -555,6 +555,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('manuals/{manual}/service-bulletins', [ManualServiceBulletinController::class, 'store'])->name('manuals.service-bulletins.store');
     Route::put('manuals/{manual}/service-bulletins/{serviceBulletin}', [ManualServiceBulletinController::class, 'update'])->name('manuals.service-bulletins.update');
     Route::delete('manuals/{manual}/service-bulletins/{serviceBulletin}', [ManualServiceBulletinController::class, 'destroy'])->name('manuals.service-bulletins.destroy');
+    Route::post('manuals/{manual}/revision-checks', [ManualController::class, 'storeRevisionCheck'])->name('manuals.revision-checks.store');
 
     // Notification
 

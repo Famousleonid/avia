@@ -83,16 +83,17 @@ class ProfileController extends Controller
         try {
             if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
                 $date = Carbon::createFromFormat('Y-m-d', $raw);
-            } elseif (preg_match('/^\d{2}\.[a-z]{3}\.\d{4}$/i', $raw)) {
+            } elseif (preg_match('/^\d{2}[\/.][a-z]{3}[\/.]\d{4}$/i', $raw)) {
+                $raw = str_replace('.', '/', $raw);
                 $normalized = preg_replace_callback(
-                    '/\.(\w{3})\./',
-                    static fn (array $m): string => '.' . ucfirst(strtolower((string) $m[1])) . '.',
+                    '/\/(\w{3})\//',
+                    static fn (array $m): string => '/' . ucfirst(strtolower((string) $m[1])) . '/',
                     $raw
                 );
-                $date = Carbon::createFromFormat('d.M.Y', (string) $normalized);
+                $date = Carbon::createFromFormat('d/M/Y', (string) $normalized);
             } else {
                 throw ValidationException::withMessages([
-                    'birthday' => 'Birthday format must be YYYY-MM-DD or dd.mmm.yyyy.',
+                    'birthday' => 'Birthday format must be YYYY-MM-DD or dd/mmm/yyyy.',
                 ]);
             }
         } catch (\Throwable $e) {

@@ -12,6 +12,7 @@
             --qa-paper: #fff;
             --qa-ink: #000;
             --qa-line: #000;
+            --qa-print-mark: #d9d9d9;
         }
 
         html,
@@ -249,7 +250,7 @@
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: clamp(.55rem, .68vw, .78rem);
+            font-size: 14px;
             line-height: 1.12;
         }
 
@@ -259,6 +260,7 @@
             padding: 3px 4px;
             vertical-align: middle;
             overflow-wrap: anywhere;
+            white-space: pre-line;
         }
 
         .qa-table th {
@@ -277,7 +279,6 @@
         .qa-editable {
             background: transparent;
             outline: 0;
-            cursor: text;
             transition: background-color .18s ease, box-shadow .18s ease;
         }
 
@@ -334,12 +335,18 @@
             min-width: 100%;
         }
 
+        .qa-header-edit {
+            display: inline-block;
+            min-width: 88px;
+            cursor: text;
+        }
+
         .qa-footer {
             display: grid;
             grid-template-columns: 1fr max-content 1fr;
             gap: 8px;
             margin-top: 6px;
-            font-size: clamp(.55rem, .7vw, .76rem);
+            font-size: 12px;
         }
 
         .qa-footer div:nth-child(2) {
@@ -435,15 +442,14 @@
             .qa-edit-saving,
             .qa-edit-saved,
             .qa-edit-error {
-                background: transparent !important;
-                font-size: calc((1em + 2px) * 1.1);
+                font-size: inherit;
                 box-shadow: none;
             }
 
             .qa-colored-cell {
-                background-color: transparent !important;
-                print-color-adjust: economy;
-                -webkit-print-color-adjust: economy;
+                background-color: var(--qa-print-mark) !important;
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
             }
 
             .qa-log-card-top .qa-small {
@@ -476,7 +482,7 @@
             }
 
             .qa-table {
-                font-size: calc(clamp(.55rem, .68vw, .78rem) * 1.1);
+                font-size: 14px;
             }
 
             .qa-table th {
@@ -490,7 +496,7 @@
             }
 
             .qa-footer {
-                font-size: calc(clamp(.55rem, .7vw, .76rem) * 1.2);
+                font-size: 12px;
                 transform: translateY(1em);
             }
 
@@ -515,20 +521,43 @@
 <body>
 @php
     $manual = $manuals->firstWhere('id', $current_wo->unit->manual_id);
-    $buildRows = function (array $items) use ($components, $codes) {
-        return collect($items)->map(function ($item, $index) use ($components, $codes) {
+    $twoLineAssyValue = function (?string $value): string {
+        $value = trim((string) $value);
+        if ($value === '' || str_contains($value, "\n")) {
+            return $value;
+        }
+
+        if (preg_match('/^(.+?)\s*\(([^()]*)\)$/', $value, $matches)) {
+            return trim((string) $matches[1]) . "\n(" . trim((string) $matches[2]) . ')';
+        }
+
+        return $value;
+    };
+
+    $buildRows = function (array $items) use ($components, $codes, $twoLineAssyValue) {
+        return collect($items)->map(function ($item, $index) use ($components, $codes, $twoLineAssyValue) {
         $component = $components->firstWhere('id', $item['component_id'] ?? null);
         $hasSerial = !empty($item['serial_number']);
         $hasAssySerial = !empty($item['assy_serial_number']);
-        $assyPartNumber = $item['assy_part_number'] ?? ($component->assy_part_number ?? '');
+        $assyPartNumber = trim((string) ($item['assy_part_number'] ?? ''));
+        if ($assyPartNumber === '') {
+            $assyPartNumber = trim((string) ($component->assy_part_number ?? ''));
+        }
         $reasonCode = $codes->firstWhere('id', $item['reason'] ?? null);
 
         if ($hasAssySerial && !$hasSerial) {
             $partNumber = $assyPartNumber;
             $serialNumber = $item['assy_serial_number'] ?? '';
         } elseif ($hasAssySerial && $hasSerial) {
-            $partNumber = trim(($component->part_number ?? '') . ' (' . $assyPartNumber . ')');
-            $serialNumber = trim(($item['serial_number'] ?? '') . ' (' . ($item['assy_serial_number'] ?? '') . ')');
+            $partNumber = trim((string) ($component->part_number ?? ''));
+            if (trim((string) $assyPartNumber) !== '') {
+                $partNumber .= "\n(" . trim((string) $assyPartNumber) . ')';
+            }
+
+            $serialNumber = trim((string) ($item['serial_number'] ?? ''));
+            if (trim((string) ($item['assy_serial_number'] ?? '')) !== '') {
+                $serialNumber .= "\n(" . trim((string) ($item['assy_serial_number'] ?? '')) . ')';
+            }
         } else {
             $partNumber = $component->part_number ?? '';
             $serialNumber = $item['serial_number'] ?? '';
@@ -537,8 +566,8 @@
         return [
             'source_index' => $index,
             'description' => $item['qa_description'] ?? ($item['name'] ?? $item['description'] ?? ($component->name ?? '')),
-            'part_number' => $item['qa_part_number'] ?? ($item['part_number'] ?? $partNumber),
-            'serial_number' => $item['qa_serial_number'] ?? $serialNumber,
+            'part_number' => $twoLineAssyValue($item['qa_part_number'] ?? ($item['part_number'] ?? $partNumber)),
+            'serial_number' => $twoLineAssyValue($item['qa_serial_number'] ?? $serialNumber),
             'fit_date' => $item['qa_fit_date'] ?? ($item['fit_date'] ?? ''),
             'fit_cso' => $item['qa_fit_cso'] ?? ($item['fit_cso'] ?? ''),
             'fit_csn' => $item['qa_fit_csn'] ?? ($item['fit_csn'] ?? ''),
@@ -613,8 +642,12 @@
         ];
 
         $lines = collect($lineCapacities)->map(function ($capacity, $field) use ($row) {
-            $length = mb_strlen(trim((string) ($row[$field] ?? '')));
-            return max(1, (int) ceil($length / $capacity));
+            $value = trim((string) ($row[$field] ?? ''));
+            $lines = preg_split('/\R/', $value) ?: [''];
+
+            return collect($lines)
+                ->map(fn (string $line): int => max(1, (int) ceil(mb_strlen(trim($line)) / $capacity)))
+                ->sum();
         })->max();
 
         return max(1, min(4, $lines));
@@ -659,6 +692,7 @@
             'aircraft_colors' => $aircraftColorsFor($componentData),
             'note6_text' => $componentData[0]['qa_note6_text'] ?? "The Log Card was created refer to client's provided documents.",
             'note6_enabled' => $componentData[0]['qa_note6_enabled'] ?? true,
+            'header_part_number' => $current_wo->unit->part_number,
         ],
         'right' => [
             'label' => 'Right',
@@ -669,6 +703,7 @@
             'aircraft_colors' => $aircraftColorsFor($componentDataOut),
             'note6_text' => $componentDataOut[0]['qa_note6_text'] ?? "The Log Card was created refer to client's provided documents.",
             'note6_enabled' => $componentDataOut[0]['qa_note6_enabled'] ?? true,
+            'header_part_number' => $componentDataOut[0]['qa_header_part_number'] ?? $current_wo->unit->part_number,
         ],
     ];
 @endphp
@@ -714,7 +749,20 @@
                     <div>
                         <h1 class="qa-title">LANDING GEAR LOG CARD</h1>
                         <div class="qa-title-fields">
-                            <div class="qa-small qa-field"><span>PART NO:</span><span>{{ $current_wo->unit->part_number }}</span></div>
+                            <div class="qa-small qa-field">
+                                <span>PART NO:</span>
+                                @if($side === 'right')
+                                    <span class="qa-editable qa-header-edit"
+                                          contenteditable="true"
+                                          data-qa-edit
+                                          data-side="{{ $side }}"
+                                          data-section="header"
+                                          data-row="0"
+                                          data-field="part_number">{{ $card['header_part_number'] }}</span>
+                                @else
+                                    <span>{{ $card['header_part_number'] }}</span>
+                                @endif
+                            </div>
                             <div class="qa-small qa-field"><span>SERIAL NO:</span><span>{{ $current_wo->serial_number }}</span></div>
                         </div>
                         <img class="qa-card-side-label" src="{{ $card['stamp'] }}" alt="{{ $card['heading'] }} stamp">
@@ -906,6 +954,24 @@
         });
 
         const normalizeCellValue = (cell) => cell.innerText.replace(/\s+/g, ' ').trim();
+        const cssEscape = (value) => {
+            if (window.CSS && typeof window.CSS.escape === 'function') {
+                return window.CSS.escape(String(value));
+            }
+
+            return String(value).replace(/["\\]/g, '\\$&');
+        };
+
+        const matchingRightCellFor = (cell) => {
+            if (cell.dataset.side !== 'left' || cell.dataset.section === 'note' || cell.dataset.section === 'header') {
+                return null;
+            }
+
+            return document.querySelector(
+                `[data-qa-edit][data-side="right"][data-section="${cssEscape(cell.dataset.section || '')}"]` +
+                `[data-row="${cssEscape(cell.dataset.row || '0')}"][data-field="${cssEscape(cell.dataset.field || '')}"]`
+            );
+        };
 
         const saveCell = async (cell) => {
             const value = normalizeCellValue(cell);
@@ -1001,6 +1067,13 @@
                 event.preventDefault();
                 window.clearTimeout(timers.get(cell));
                 saveCellBackground(cell, selectedColor);
+                if (selectedColor) {
+                    const rightCell = matchingRightCellFor(cell);
+                    if (rightCell) {
+                        window.clearTimeout(timers.get(rightCell));
+                        saveCellBackground(rightCell, selectedColor);
+                    }
+                }
                 cell.blur();
             });
 

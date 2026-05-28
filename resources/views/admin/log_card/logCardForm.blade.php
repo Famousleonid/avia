@@ -65,7 +65,7 @@
                 right: 0;
                 width: 100%;
                 text-align: center;
-                font-size: 10px;
+                font-size: 12px;
                 background-color: #fff;
                 padding: 2px 0;
                 margin: 0;

@@ -3,8 +3,12 @@
 namespace App\Exceptions;
 
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -31,6 +35,45 @@ class Handler extends ExceptionHandler
 
     public function render($request, Throwable $e)
     {
+        if ($request->is('api/mobile') || $request->is('api/mobile/*')) {
+            if ($e instanceof ValidationException) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Validation failed.',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+
+            if ($e instanceof AuthenticationException) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Unauthenticated.',
+                ], 401);
+            }
+
+            if ($e instanceof AuthorizationException) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Forbidden.',
+                ], 403);
+            }
+
+            if ($e instanceof ModelNotFoundException) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Not found.',
+                ], 404);
+            }
+
+            if ($e instanceof HttpExceptionInterface) {
+                $status = $e->getStatusCode();
+
+                return response()->json([
+                    'ok' => false,
+                    'message' => $status === 403 ? 'Forbidden.' : ($e->getMessage() ?: 'Request failed.'),
+                ], $status);
+            }
+        }
         // MySQL 1265: Data truncated — часто при вводе не-целого номера WO в INTEGER колонку workorders.number
         if ($e instanceof QueryException) {
             $msg = $e->getMessage();

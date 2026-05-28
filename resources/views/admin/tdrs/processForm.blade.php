@@ -53,7 +53,7 @@
                 bottom: 0;
                 width: 800px;
                 text-align: center;
-                font-size: 10px;
+                font-size: 12px;
                 background-color: #fff;
                 padding: 3px 3px;
             }

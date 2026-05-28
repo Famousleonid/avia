@@ -2,23 +2,24 @@
 
 @section('content')
     @php
-        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'dimensions', 'fc'];
-        $manualShowTab = in_array(request('tab'), $manualTabKeys, true) ? request('tab') : 'components';
-
-        $manualScrollPartId = null;
-        if (request()->filled('part_id') && ctype_digit((string) request('part_id'))) {
-            $pid = (int) request('part_id');
-            if ($parts->pluck('id')->contains($pid)) {
-                $manualScrollPartId = $pid;
-                $manualShowTab = 'parts';
-            }
-        }
+        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'revision'];
+        $manualShowTab = in_array($manualShowTab ?? null, $manualTabKeys, true) ? $manualShowTab : 'components';
 
         $manualUrlParts = route('manuals.show', ['manual' => $cmm, 'tab' => 'parts']);
         $manualUrlProcesses = route('manuals.show', ['manual' => $cmm, 'tab' => 'processes']);
         $manualUrlSb = route('manuals.show', ['manual' => $cmm, 'tab' => 'sb']);
         $manualPartsCount = $parts->count();
         $manualProcessesCount = $manualProcesses->count();
+        $revisionStatusText = [
+            'overdue' => __('Overdue'),
+            'due_today' => __('Due today'),
+            'scheduled' => __('Scheduled'),
+        ][$revisionStatus['status'] ?? 'scheduled'] ?? __('Scheduled');
+        $revisionStatusBadge = [
+            'overdue' => 'danger',
+            'due_today' => 'warning',
+            'scheduled' => 'success',
+        ][$revisionStatus['status'] ?? 'scheduled'] ?? 'secondary';
         $sbRequirementOptions = [
             '' => 'None',
             \App\Models\ManualServiceBulletin::REQUIREMENT_OPTIONAL => 'Optional',
@@ -317,11 +318,11 @@
         }
 
         #nav-sb .manual-sb-pane-body {
-            height: 75vh;
+            flex: 1 1 auto;
+            min-height: 0;
             min-width: 0;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
         }
 
         #nav-sb .manual-sb-table {
@@ -390,7 +391,7 @@
 
         /* Parts tab table: fixed header + scrollable body */
         #nav-parts .parts-table-container {
-            height: 75vh;
+            height: 70vh;
             overflow: auto;
             font-size: 12px;
 
@@ -405,7 +406,7 @@
             color: grey;
         }
         #nav-components .component-table-container {
-            height: 75vh;
+            height: 70vh;
             overflow: auto;
             font-size: 12px;
 
@@ -426,7 +427,7 @@
 
         }
         #nav-processes .process-table-container {
-            height: 75vh;
+            height: 70vh;
             overflow: auto;
             font-size: 12px;
 
@@ -523,13 +524,9 @@
             min-width: 0;
         }
         #nav-std .std-table-container {
-            height: 75vh;
+            max-height: 70vh;
             overflow: auto;
             font-size: 12px;
-        }
-        #fc-table-content-wrap {
-            height: 75vh;
-            overflow-y: auto;
         }
         #nav-std table:not(.dir-table) thead th {
             position: sticky;
@@ -695,6 +692,61 @@
             visibility: hidden;
         }
 
+        .manual-show-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .manual-show-card > .card-header {
+            flex: 0 0 auto;
+        }
+
+        .manual-show-card > .card-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .manual-show-card nav {
+            flex: 0 0 auto;
+        }
+
+        .manual-show-card #nav-tabContent {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .manual-show-card #nav-tabContent > .tab-pane {
+            min-height: 0;
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .manual-show-card #nav-tabContent > .tab-pane.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .manual-show-card #nav-components .component-table-container,
+        .manual-show-card #nav-parts .parts-table-container,
+        .manual-show-card #nav-processes .process-table-container,
+        .manual-show-card #nav-std .std-table-container,
+        .manual-show-card #nav-sb .manual-sb-table-wrap {
+            flex: 1 1 auto;
+            min-height: 0;
+            min-width: 0;
+            height: auto;
+            max-height: none;
+            overflow: auto;
+        }
     </style>
     <div class="card shadow manual-show-card">
         <div class="card-header m-2 ">
@@ -712,7 +764,7 @@
             <div class="ms-3">
                 <h5 class="ms-2"><strong class="text-secondary">{{__('Component PNs:')}}</strong> {{ $cmm->unit_name_training }}</h5>
                 <div class="d-flex">
-                    <h5 class="ms-2"><strong class="text-secondary">{{__('Revision Date:')}}</strong> {{ $cmm->revision_date }}</h5>
+                    <h5 class="ms-2"><strong class="text-secondary">{{__('Revision Date:')}}</strong> @projectDate($cmm->revision_date)</h5>
                         <h5 class="ms-4"><strong class="text-secondary">{{__('Lib:')}}</strong> {{ $cmm->lib }}</h5>
                 </div>
             </div>
@@ -740,8 +792,8 @@
             </div>
             <script>
                 (function () {
-                    var allowedTabs = ['components', 'parts', 'processes', 'std', 'sb'];
-                    var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std', '#nav-sb': 'sb'};
+                    var allowedTabs = ['components', 'parts', 'processes', 'std', 'sb', 'revision'];
+                    var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std', '#nav-sb': 'sb', '#nav-revision': 'revision'};
                     var params = new URLSearchParams(location.search);
                     var q = params.get('tab');
                     var desiredKey = (q && allowedTabs.indexOf(q) !== -1)
@@ -771,13 +823,10 @@
                                 type="button" role="tab" aria-controls="nav-std" aria-selected="{{ $manualShowTab === 'std' ? 'true' : 'false' }}">STD Processes</button>
                         <button class="nav-link @if($manualShowTab === 'sb') active @endif" id="nav-sb-tab" data-bs-toggle="tab" data-bs-target="#nav-sb"
                                 type="button" role="tab" aria-controls="nav-sb" aria-selected="{{ $manualShowTab === 'sb' ? 'true' : 'false' }}">SB</button>
-                        <button class="nav-link @if($manualShowTab === 'dimensions') active @endif" id="nav-dimensions-tab" data-bs-toggle="tab" data-bs-target="#nav-dimensions"
-                                type="button" role="tab" aria-controls="nav-dimensions" aria-selected="{{ $manualShowTab === 'dimensions' ? 'true' : 'false' }}">Dimensions</button>
+                        <button class="nav-link @if($manualShowTab === 'revision') active @endif" id="nav-revision-tab" data-bs-toggle="tab" data-bs-target="#nav-revision"
+                                type="button" role="tab" aria-controls="nav-revision" aria-selected="{{ $manualShowTab === 'revision' ? 'true' : 'false' }}">Revision</button>
                     </div>
                     <div class="ms-3 d-flex align-items-center gap-2" id="nav-tab-actions">
-                        <button type="button" class="btn btn-sm d-none" id="nav-fc-open-btn"
-                                data-tab-target="#nav-dimensions"
-                                style="font-size:inherit;border:1px solid #198754;color:#198754">F&amp;C</button>
                         <button type="button"
                                 class="btn btn-outline-primary btn-sm btn-update-components"
                                 data-tab-target="#nav-components"
@@ -1194,21 +1243,93 @@
                         @endforeach
                     </div>
                 </div>
-            </div>
+                <div class="tab-pane fade @if($manualShowTab === 'revision') show active @endif" id="nav-revision" role="tabpanel" aria-labelledby="nav-revision-tab" tabindex="0">
+                    <div class="m-2">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                            <div>
+                                <h5 class="mb-1">{{ __('Revision Checks') }}</h5>
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <span class="badge text-bg-{{ $revisionStatusBadge }}">{{ $revisionStatusText }}</span>
+                                    <span class="text-muted small">{{ __('Current revision date') }}: {{ format_project_date($cmm->revision_date) ?? '-' }}</span>
+                                    <span class="text-muted small">{{ __('Last check') }}: {{ format_project_date($latestRevisionCheck?->checked_at) ?? '-' }}</span>
+                                    <span class="text-muted small">{{ __('Next due') }}: {{ format_project_date($revisionStatus['next_due_at'] ?? null) ?? '-' }}</span>
+                                    <span class="text-muted small">{{ __('Days left') }}: {{ $revisionStatus['days_until_due'] ?? '-' }}</span>
+                                </div>
+                            </div>
+                        </div>
 
-            <div class="tab-pane fade @if(in_array($manualShowTab, ['dimensions','fc'])) show active @endif" id="nav-dimensions" role="tabpanel" aria-labelledby="nav-dimensions-tab" tabindex="0">
-                <div id="dim-tab-content-wrap">
-                    @include('admin.manuals.partials.dimensions-tab', [
-                        'cmm'                => $cmm,
-                        'dimensionFigures'   => $dimensionFigures,
-                        'dimManualProcesses' => $dimManualProcesses,
-                        'codes'              => $codes,
-                    ])
-                </div>
-                <div id="fc-table-content-wrap" style="display:none">
-                    @include('admin.manuals.partials.fc-table-tab', [
-                        'dimensionFigures' => $dimensionFigures,
-                    ])
+                        @if($canRecordRevisionCheck)
+                            <form method="POST" action="{{ route('manuals.revision-checks.store', ['manual' => $cmm]) }}" class="row g-2 align-items-end mb-3">
+                                @csrf
+                                <div class="col-md-2">
+                                    <label class="form-label small" for="manual_revision_status">{{ __('Status') }}</label>
+                                    <select id="manual_revision_status" name="status" class="form-select form-select-sm">
+                                        <option value="{{ \App\Models\ManualRevisionCheck::STATUS_UNCHANGED }}">{{ __('Unchanged') }}</option>
+                                        <option value="{{ \App\Models\ManualRevisionCheck::STATUS_CHANGED }}">{{ __('Changed') }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small" for="manual_revision_number">{{ __('Revision No.') }}</label>
+                                    <input id="manual_revision_number" type="text" name="revision_number" class="form-control form-control-sm"
+                                           value="{{ old('revision_number', $latestRevisionCheck?->revision_number) }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small" for="manual_revision_date">{{ __('Revision Date') }}</label>
+                                    <input id="manual_revision_date" type="date" name="revision_date" class="form-control form-control-sm"
+                                           value="{{ old('revision_date', $cmm->revision_date ? \Illuminate\Support\Carbon::parse($cmm->revision_date)->format('Y-m-d') : '') }}" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small" for="manual_checked_at">{{ __('Checked At') }}</label>
+                                    <input id="manual_checked_at" type="date" name="checked_at" class="form-control form-control-sm"
+                                           value="{{ old('checked_at', now()->format('Y-m-d')) }}" max="{{ now()->format('Y-m-d') }}" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small" for="manual_revision_notes">{{ __('Notes') }}</label>
+                                    <input id="manual_revision_notes" type="text" name="notes" class="form-control form-control-sm" value="{{ old('notes') }}">
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="submit" class="btn btn-primary btn-sm w-100">{{ __('Save') }}</button>
+                                </div>
+                            </form>
+                        @endif
+
+                        <div class="table-responsive" style="max-height: 62vh;">
+                            <table class="table table-sm table-hover table-bordered dir-table">
+                                <thead class="bg-gradient">
+                                <tr>
+                                    <th class="text-center bg-gradient">{{ __('Checked At') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Revision No.') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Revision Date') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Checked By') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Stamp') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Status') }}</th>
+                                    <th class="text-center bg-gradient">{{ __('Notes') }}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @forelse($revisionChecks as $check)
+                                    <tr>
+                                        <td class="text-center">{{ format_project_date($check->checked_at) ?? '-' }}</td>
+                                        <td class="text-center">{{ $check->revision_number ?: '-' }}</td>
+                                        <td class="text-center">{{ format_project_date($check->revision_date) ?? '-' }}</td>
+                                        <td>{{ $check->checkedBy?->name ?? '-' }}</td>
+                                        <td class="text-center">{{ $check->checked_by_stamp ?: '-' }}</td>
+                                        <td class="text-center">
+                                            <span class="badge text-bg-{{ $check->status === \App\Models\ManualRevisionCheck::STATUS_CHANGED ? 'warning' : 'success' }}">
+                                                {{ ucfirst((string) $check->status) }}
+                                            </span>
+                                        </td>
+                                        <td>{{ $check->notes }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">{{ __('No revision checks yet.') }}</td>
+                                    </tr>
+                                @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1999,12 +2120,12 @@
                 applyPartsSearch();
             }
 
-            // Lazy popover init for Assy buttons — reads data-bs-html/sanitize/content from the element automatically
-            document.addEventListener('focusin', function (e) {
-                var btn = e.target.closest('.assy-popover-button');
-                if (!btn || bootstrap.Popover.getInstance(btn)) return;
-                new bootstrap.Popover(btn).show();
-            }, true);
+            // ÐŸÐµÑ€ÐµÐºÐ»ÑŽÑ‡ÐµÐ½Ð¸Ðµ ÐºÐ½Ð¾Ð¿Ð¾Ðº "Add ..." Ð² Ð½Ð°Ð²Ð¸Ð³Ð°Ñ†Ð¸Ð¸ Ð²ÐºÐ»Ð°Ð´Ð¾Ðº
+            document.querySelectorAll('#nav-parts [data-bs-toggle="popover"]').forEach(function (el) {
+                if (window.bootstrap && bootstrap.Popover) {
+                    bootstrap.Popover.getOrCreateInstance(el, { sanitize: false });
+                }
+            });
 
             async function updateManualPartFlag(input) {
                 var previous = !input.checked;
@@ -2313,46 +2434,6 @@
                     });
             });
 
-            const fcOpenBtn     = document.getElementById('nav-fc-open-btn');
-            const dimWrap       = document.getElementById('dim-tab-content-wrap');
-            const fcWrap        = document.getElementById('fc-table-content-wrap');
-            const dimNavBtn     = document.getElementById('nav-dimensions-tab');
-            let fcVisible       = false;
-
-            function showFcTable() {
-                dimWrap.style.display = 'none';
-                fcWrap.style.display  = '';
-                fcOpenBtn.textContent = '← Dimensions';
-                fcOpenBtn.style.color = '#6c757d';
-                fcOpenBtn.style.borderColor = '#6c757d';
-                fcVisible = true;
-                if (window.dimRenderFcTable) {
-                    fcWrap.innerHTML = window.dimRenderFcTable();
-                }
-            }
-            function showDimensions() {
-                fcWrap.style.display  = 'none';
-                dimWrap.style.display = '';
-                fcOpenBtn.textContent = 'F&C';
-                fcOpenBtn.style.color = '#198754';
-                fcOpenBtn.style.borderColor = '#198754';
-                fcVisible = false;
-            }
-
-            fcOpenBtn.addEventListener('click', function () {
-                if (fcVisible) showDimensions(); else showFcTable();
-            });
-
-            document.querySelectorAll('#nav-tab .nav-link').forEach(function (btn) {
-                btn.addEventListener('shown.bs.tab', function () {
-                    const isDim = btn.id === 'nav-dimensions-tab';
-                    fcOpenBtn.classList.toggle('d-none', !isDim);
-                    if (!isDim && fcVisible) showDimensions();
-                });
-            });
-
-            if (dimNavBtn.classList.contains('active')) fcOpenBtn.classList.remove('d-none');
-
             const navTabs = document.querySelectorAll('#nav-tab .nav-link');
             const actions = document.querySelectorAll('#nav-tab-actions [data-tab-target]');
 
@@ -2368,7 +2449,8 @@
                 parts: '#nav-parts',
                 processes: '#nav-processes',
                 std: '#nav-std',
-                sb: '#nav-sb'
+                sb: '#nav-sb',
+                revision: '#nav-revision'
             };
             const initialParams = new URLSearchParams(window.location.search);
             const partIdToScroll = initialParams.get('part_id');

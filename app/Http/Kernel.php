@@ -70,5 +70,6 @@ class Kernel extends HttpKernel
         'desktop' => \App\Http\Middleware\RedirectMobileToMobile::class,
         'mobile.redirect' => \App\Http\Middleware\RedirectToMobile::class,
         'archive.token' => \App\Http\Middleware\EnsureArchiveToken::class,
+        'mobile.api' => \App\Http\Middleware\AuthenticateMobileApiToken::class,
     ];
 }

@@ -424,6 +424,129 @@ class TdrsTest extends TestCase
         $saved->assertDontSee('lc-include-toggle-all', false);
     }
 
+    public function test_log_card_partial_filters_components_by_ipl_branch_rule(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'part_number' => '2801A0000-02',
+        ]);
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'unit_id' => $unit->id,
+        ]);
+
+        ManualIplBranchRule::query()->create([
+            'manual_id' => $manual->id,
+            'is_default' => true,
+            'unit_match_value' => null,
+            'include_prefix' => '9A-',
+            'exclude_prefix' => '9-',
+        ]);
+        ManualIplBranchRule::query()->create([
+            'manual_id' => $manual->id,
+            'is_default' => false,
+            'unit_match_value' => '2801A0000-02',
+            'include_prefix' => '9-',
+            'exclude_prefix' => '9A-',
+        ]);
+
+        $allowed = Component::query()->create([
+            'manual_id' => $manual->id,
+            'part_number' => 'LC-9',
+            'name' => 'Allowed Log Card Component',
+            'ipl_num' => '9-10',
+            'log_card' => true,
+        ]);
+        $excluded = Component::query()->create([
+            'manual_id' => $manual->id,
+            'part_number' => 'LC-9A',
+            'name' => 'Excluded Log Card Component',
+            'ipl_num' => '9A-10',
+            'log_card' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSee('value="'.$allowed->id.'"', false);
+        $response->assertSee('Allowed Log Card Component', false);
+        $response->assertDontSee('value="'.$excluded->id.'"', false);
+        $response->assertDontSee('Excluded Log Card Component', false);
+    }
+
+    public function test_log_card_ipl_branch_cleanup_command_removes_disallowed_json_rows(): void
+    {
+        $manual = $this->createManual();
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'part_number' => '2801A0000-02',
+        ]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
+
+        ManualIplBranchRule::query()->create([
+            'manual_id' => $manual->id,
+            'is_default' => true,
+            'unit_match_value' => null,
+            'include_prefix' => '9A-',
+            'exclude_prefix' => '9-',
+        ]);
+        ManualIplBranchRule::query()->create([
+            'manual_id' => $manual->id,
+            'is_default' => false,
+            'unit_match_value' => '2801A0000-02',
+            'include_prefix' => '9-',
+            'exclude_prefix' => '9A-',
+        ]);
+
+        $allowed = Component::query()->create([
+            'manual_id' => $manual->id,
+            'part_number' => 'LC-9',
+            'name' => 'Allowed Log Card Component',
+            'ipl_num' => '9-10',
+            'log_card' => true,
+        ]);
+        $excluded = Component::query()->create([
+            'manual_id' => $manual->id,
+            'part_number' => 'LC-9A',
+            'name' => 'Excluded Log Card Component',
+            'ipl_num' => '9A-10',
+            'log_card' => true,
+        ]);
+
+        $logCard = LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                ['component_id' => $allowed->id, 'serial_number' => 'SN-9'],
+                ['component_id' => $excluded->id, 'serial_number' => 'SN-9A'],
+            ]),
+            'component_data_out' => [
+                ['component_id' => $allowed->id, 'serial_number' => 'OUT-9'],
+                ['component_id' => $excluded->id, 'serial_number' => 'OUT-9A'],
+            ],
+        ]);
+
+        $this->artisan('log-cards:clean-ipl-branch-json', [
+            '--workorder' => $workorder->id,
+        ])->assertExitCode(0);
+
+        $dryRunRows = json_decode((string) $logCard->fresh()->component_data, true);
+        $this->assertCount(2, $dryRunRows);
+
+        $this->artisan('log-cards:clean-ipl-branch-json', [
+            '--workorder' => $workorder->id,
+            '--commit' => true,
+        ])->assertExitCode(0);
+
+        $logCard->refresh();
+        $receivedRows = json_decode((string) $logCard->component_data, true);
+        $dispatchedRows = $logCard->component_data_out;
+
+        $this->assertSame([$allowed->id], array_map('intval', array_column($receivedRows, 'component_id')));
+        $this->assertSame([$allowed->id], array_map('intval', array_column($dispatchedRows, 'component_id')));
+    }
+
     public function test_log_card_inline_include_checkbox_state_is_saved(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -811,23 +934,9 @@ class TdrsTest extends TestCase
         $kitResponse->assertSee('KIT-PN-50B');
         $kitResponse->assertSee('KIT-PN-60');
         $kitResponse->assertDontSee('KIT-BUSH-PN-80');
-        $kitResponse->assertSee('EXTRA PARTS');
-        $kitResponse->assertSee('KIT-E-PN-70');
-        $kitResponse->assertSeeInOrder(['KIT-PN-60', 'EXTRA PARTS', 'KIT-E-PN-70']);
+        $kitResponse->assertDontSee('EXTRA PARTS');
+        $kitResponse->assertDontSee('KIT-E-PN-70');
         $kitResponse->assertSee('<h6>KIT</h6>', false);
-
-        $kitHtml = $kitResponse->getContent();
-        $extraPartPosition = strpos($kitHtml, 'KIT-E-PN-70');
-        $this->assertNotFalse($extraPartPosition);
-        $extraPartRowStart = strrpos(substr($kitHtml, 0, $extraPartPosition), '<div class="row data-row-prl');
-        $this->assertNotFalse($extraPartRowStart);
-        $extraPartRowEnd = strpos($kitHtml, '<div class="row data-row-prl', $extraPartPosition);
-        if ($extraPartRowEnd === false) {
-            $extraPartRowEnd = strpos($kitHtml, '<div class="stamps-block', $extraPartPosition);
-        }
-        $this->assertNotFalse($extraPartRowEnd);
-        $extraPartRow = substr($kitHtml, $extraPartRowStart, $extraPartRowEnd - $extraPartRowStart);
-        $this->assertStringNotContainsString('<h6>KIT</h6>', $extraPartRow);
 
         $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
         $showResponse->assertOk();
@@ -849,7 +958,7 @@ class TdrsTest extends TestCase
             'PRL',
             'Bush PRL',
         ], false);
-        $showResponse->assertSee('>3</span>', false);
+        $showResponse->assertSee('>2</span>', false);
     }
 
     private function htmlBetween(string $html, string $startNeedle, string $endNeedle): string

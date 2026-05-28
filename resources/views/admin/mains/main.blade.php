@@ -1588,7 +1588,17 @@
                 const resizeHandle = shell.querySelector('[data-main-tab-resize]');
                 let activeTab = 'overview';
 
+                function readQaMainTarget() {
+                    const match = window.location.hash.match(/^#qa-main:(.+)$/);
+                    return match ? new URLSearchParams(match[1]) : null;
+                }
+
                 async function readTab() {
+                    const hashTab = readQaMainTarget()?.get('tab');
+                    if (hashTab && allowedTabs.includes(hashTab)) {
+                        return hashTab;
+                    }
+
                     let tab = document.documentElement.getAttribute('data-main-tab') || 'overview';
                     tab = await window.UserUiSettings.get(settingsScope, tabKey, tab);
                     return allowedTabs.includes(tab) ? tab : 'overview';
@@ -1675,11 +1685,6 @@
                     document.addEventListener('pointercancel', onUp);
                 });
 
-                function readQaMainTarget() {
-                    const match = window.location.hash.match(/^#qa-main:(.+)$/);
-                    return match ? new URLSearchParams(match[1]) : null;
-                }
-
                 function focusQaMainTarget() {
                     const params = readQaMainTarget();
                     if (!params) return;
@@ -1702,7 +1707,7 @@
 
                         if (!target) return;
 
-                        const gtId = target.closest('form')?.dataset.gtId;
+                        const gtId = params.get('general_task') || target.closest('form')?.dataset.gtId;
                         if (gtId) {
                             document.querySelector(`.js-gt-btn[data-gt-id="${esc(gtId)}"]`)?.click();
                         }

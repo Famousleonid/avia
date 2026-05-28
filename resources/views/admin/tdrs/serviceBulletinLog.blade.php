@@ -150,7 +150,7 @@
                     <footer class="sb-page-footer">
                         <div>Form # 007</div>
                         <div>{{ $pageIndex + 1 }} of {{ $totalPages }}</div>
-                        <div>Rev # 0, 15/Feb/2012</div>
+                        <div>Rev # 0, 15/Dec/2012</div>
                     </footer>
                 </section>
             @endforeach

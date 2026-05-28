@@ -160,7 +160,7 @@
 
 <script>
     window.tdrFormApplyTableRowLimits = function(settings) {
-        const paintMaxRows = parseInt(settings.paintTableRows, 10) || 19;
+        const paintMaxRows = parseInt(settings.stdTableRows ?? settings.paintTableRows, 10) || 18;
         const primarySheet = document.querySelector('.container-fluid.std-sheet-container');
         const allRowsContainer = primarySheet ? primarySheet.querySelector('.all-rows-container') : null;
 

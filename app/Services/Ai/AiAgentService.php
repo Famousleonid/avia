@@ -12,6 +12,7 @@ use App\Services\Ai\Tools\FindWorkorderTool;
 use App\Services\Ai\Tools\LookupManualEditPermissionsTool;
 use App\Services\Ai\Tools\LookupSerialNumberTool;
 use App\Services\Ai\Tools\LookupWorkorderPartsTool;
+use App\Services\Ai\Tools\ListManualRevisionChecksDueTool;
 use App\Services\Ai\Tools\SearchMyWorkordersByOpenProcessTool;
 use App\Services\Ai\Tools\SearchWorkordersByOpenProcessTool;
 use App\Services\Ai\Tools\SearchWorkordersTool;
@@ -29,6 +30,7 @@ class AiAgentService
         protected SearchMyWorkordersByOpenProcessTool $searchMyWorkordersByOpenProcessTool,
         protected SearchWorkordersByOpenProcessTool $searchWorkordersByOpenProcessTool,
         protected LookupManualEditPermissionsTool $lookupManualEditPermissionsTool,
+        protected ListManualRevisionChecksDueTool $listManualRevisionChecksDueTool,
         protected CountWorkorderImagesTool $countWorkorderImagesTool,
         protected LookupSerialNumberTool $lookupSerialNumberTool,
     ) {
@@ -74,6 +76,7 @@ class AiAgentService
             $this->createWorkorderNoteTool->schema(),
             $this->lookupWorkorderPartsTool->schema(),
             $this->lookupManualEditPermissionsTool->schema(),
+            $this->listManualRevisionChecksDueTool->schema(),
             $this->countWorkorderImagesTool->schema(),
             $this->lookupSerialNumberTool->schema(),
         ];
@@ -207,6 +210,7 @@ class AiAgentService
             'createWorkorderNote' => $this->createWorkorderNoteTool->run($user, $arguments),
             'lookupWorkorderParts' => $this->lookupWorkorderPartsTool->run($user, $arguments),
             'lookupManualEditPermissions' => $this->lookupManualEditPermissionsTool->run($user, $arguments),
+            'listManualRevisionChecksDue' => $this->listManualRevisionChecksDueTool->run($user, $arguments),
             'countWorkorderImages' => $this->countWorkorderImagesTool->run($user, $arguments),
             'lookupSerialNumber' => $this->lookupSerialNumberTool->run($user, $arguments),
             default => [
@@ -644,6 +648,7 @@ What you can actually do in THIS app (strict — if the user asks «what can you
 - createWorkorderNote: propose appending a note to a workorder — only after explicit user intent and UI confirmation (not instant).
 - lookupWorkorderParts: look up manual/parts lines for a workorder (read-only).
 - lookupManualEditPermissions: from manual_user_permissions — which CMM manuals a user may edit, who may edit a manual, list all manuals with responsible users, and map manual number ↔ LIB (by manual number or LIB fragments); read-only.
+- listManualRevisionChecksDue: show top CMM manuals whose revision check is overdue or due within X days; read-only.
 - countWorkorderImages: count images/photos for one workorder, list top workorders with the most images/photos, or return the total/sum of all workorder photos across workorders; return links to open the main page when listing workorders (read-only).
 - lookupSerialNumber: find a serial number / S/N across the app and tell which WO it belongs to. Search workorders, TDR rows, unit inspections, Log Card received/dispatched rows, extra process parts, and paint/lost-part records. If a match has no direct WO link, say so plainly.
 - UI navigation help: explain where to click in the admin interface using ONLY the «UI NAVIGATION MAP» block below (no tools; no invented menus).
@@ -665,6 +670,7 @@ Important behavior:
 - If the user wants a list of workorders matching text, use searchWorkorders (all WO fields + related customer/unit/instruction/user). Format each line as: `[WO <number>](open_url) — description…` (link text = WO number only). Optionally add a second markdown link to open the Workorder table with search pre-filled if origin is in context (`…/workorders?q=…`). Missing photos does not affect workorder status or whether it is closed.
 - If the user asks about number of pictures/photos/images on workorders, use countWorkorderImages. For "sum/total across all workorders", call it with `mode: "total"` and answer with the total image count plus how many workorders have images. For "top 10 with most pictures", call it with limit 10 and format each result as `[WO <number>](url) — <N> images`.
 - If the user asks to find a part/unit by serial number, S/N, SN, or asks which workorder a serial belongs to, use lookupSerialNumber. Format matches as `[WO <number>](url) — <source>, <part name>, P/N <part_number>, IPL <ipl_num>, S/N <serial>` when fields exist. If there are multiple matches, list them briefly. If no match is found, say no matching serial number was found.
+- If the user asks which manuals/CMMs need revision checks soon, are due, overdue, or asks for top 10/15/20 manuals with less than X days before revision check, use listManualRevisionChecksDue. Format each result as `[<manual_number>](manual_url) — <title>, rev <last_revision_number if present>, last check <last_checked_at or never>, due <next_due_at>, <days_until_due> days`.
 - If the user asks to create or modify something, first confirm details.
 - If a tool returns an error, explain it plainly in human language.
 - For write actions, request explicit UI confirmation first. Never execute write action immediately after tool proposal.

@@ -259,6 +259,15 @@
                                 $assyPartNumber = $assembly->assy_part_number ?? '';
                                 $assyIplNum = $assembly->assy_ipl_num ?? $assyIplNum;
                             }
+                            if (!$assyPartNumber && $component->relationLoaded('assemblies') && $component->assemblies->count() === 1) {
+                                $assembly = $component->assemblies->first();
+                                $assyPartNumber = $assembly->assy_part_number ?? '';
+                                $assyIplNum = $assembly->assy_ipl_num ?? $assyIplNum;
+                                $assemblyId = $assembly->id ?? $assemblyId;
+                            }
+                            if (!$assyPartNumber && !empty($component->assy_part_number)) {
+                                $assyPartNumber = $component->assy_part_number;
+                            }
                         @endphp
                         <tr class="lc-saved-row"
                             data-row-index="{{ $index }}"

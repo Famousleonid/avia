@@ -24,8 +24,8 @@
             const keys = () => Object.keys(data).filter((key) => data[key] !== null && data[key] !== undefined);
 
             function persist(key, value) {
-                if (!endpoint) return;
-                fetch(endpoint, {
+                if (!endpoint) return Promise.resolve();
+                return fetch(endpoint, {
                     method: 'POST',
                     keepalive: true,
                     headers: {
@@ -54,12 +54,12 @@
                 setItem(key, value) {
                     key = String(key);
                     data[key] = String(value);
-                    persist(key, data[key]);
+                    return persist(key, data[key]);
                 },
                 removeItem(key) {
                     key = String(key);
                     data[key] = null;
-                    persist(key, null);
+                    return persist(key, null);
                 },
                 clear() {
                     keys().forEach((key) => this.removeItem(key));

@@ -32,7 +32,7 @@
                         @csrf
                         <label for="purge_days" class="small text-muted mb-0">Delete older than</label>
                         <select name="days" id="purge_days" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto">
-                            @foreach([30, 60, 90, 180, 365, 730, 1095] as $daysOption)
+                            @foreach($purgeDaysOptions as $daysOption)
                                 <option value="{{ $daysOption }}" @selected((int) old('days', session('purge_days', 90)) === $daysOption)>
                                     {{ $daysOption }} days
                                 </option>
@@ -42,8 +42,9 @@
                                 class="btn btn-sm btn-outline-danger"
                                 data-bs-toggle="modal"
                                 data-bs-target="#useConfirmDelete"
-                                data-title="Delete old logs">
-                            Delete old logs
+                                data-title="Delete old logs"
+                                data-purge-button>
+                            Delete old logs (0)
                         </button>
                     </form>
 
@@ -712,6 +713,22 @@
             let deleteForm = null;
             const logsTableWrap = document.querySelector('.logs-table-wrap');
             const logsTable = document.querySelector('.logs-table');
+            const purgeCounts = @json($purgeCounts);
+            const purgeDays = document.getElementById('purge_days');
+            const purgeButton = document.querySelector('[data-purge-button]');
+
+            if (purgeDays && purgeButton) {
+                const formatCount = (value) => new Intl.NumberFormat('en-US').format(Number(value) || 0);
+                const updatePurgeButton = () => {
+                    const count = purgeCounts[purgeDays.value] || 0;
+                    const formatted = formatCount(count);
+                    purgeButton.textContent = `Delete old logs (${formatted})`;
+                    purgeButton.setAttribute('data-title', `Delete ${formatted} old logs`);
+                };
+
+                purgeDays.addEventListener('change', updatePurgeButton);
+                updatePurgeButton();
+            }
 
             if (modal && confirmDeleteBtn) {
                 modal.addEventListener('show.bs.modal', function (event) {

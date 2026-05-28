@@ -9,6 +9,7 @@ use App\Models\Component;
 use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\StdProcess;
+use App\Models\Tdr;
 use App\Models\Vendor;
 use App\Models\Manual;
 use App\Models\WoBushingBatch;
@@ -23,6 +24,24 @@ class WoBushingController extends Controller
     public function __construct(
         private WoBushingRelationalSync $woBushingSync
     ) {
+    }
+
+    private function countTdrSpecProcessPages(Workorder $workorder): int
+    {
+        $quarantineProcessNameId = ProcessName::where('name', 'Quarantine')->value('id');
+        $columns = Tdr::where('workorder_id', $workorder->id)
+            ->where('use_process_forms', true)
+            ->with('tdrProcesses:id,tdrs_id,process_names_id')
+            ->get()
+            ->sum(function (Tdr $tdr) use ($quarantineProcessNameId): int {
+                if ($quarantineProcessNameId && $tdr->tdrProcesses->contains('process_names_id', (int) $quarantineProcessNameId)) {
+                    return 2;
+                }
+
+                return 1;
+            });
+
+        return max(1, (int) ceil($columns / 6));
     }
 
     /**
@@ -971,6 +990,10 @@ class WoBushingController extends Controller
         });
 
         // Получаем названия процессов для отображения
+        $spPageOffset = $this->countTdrSpecProcessPages($current_wo);
+        $bushingPageCount = 1;
+        $combinedSpecPageTotal = $spPageOffset + $bushingPageCount;
+
         $processNames = ProcessName::whereIn('name', [
             'Machining',
             'Bake (Stress relief)',
@@ -991,7 +1014,9 @@ class WoBushingController extends Controller
             'manuals',
             'manual_id',
             'processGroups',
-            'processNames'
+            'processNames',
+            'spPageOffset',
+            'combinedSpecPageTotal'
         ));
     }
 

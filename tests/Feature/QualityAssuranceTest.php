@@ -143,6 +143,24 @@ class QualityAssuranceTest extends TestCase
         );
     }
 
+    public function test_shipment_release_form_defaults_shipset_to_no(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder(['number' => 988802]);
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.shipment_release', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('WO part of the', false);
+        $response->assertSee('<option value="Yes">Yes</option>', false);
+        $response->assertSee('<option value="No" selected>No</option>', false);
+        $response->assertSee('<span class="shipset-print-value" id="shipsetPrintValue">No</span>', false);
+        $response->assertDontSee('<option value="Yes" selected>Yes</option>', false);
+    }
+
     public function test_serial_search_returns_workorder_links_from_tdr_and_log_card(): void
     {
         $manager = $this->createUserWithRole('Manager', [
@@ -303,6 +321,36 @@ class QualityAssuranceTest extends TestCase
             'date_start' => null,
             'date_finish' => null,
         ]);
+        $finalInspectionGeneralTask = GeneralTask::query()->create([
+            'name' => 'Final inspection',
+            'sort_order' => 98,
+        ]);
+        $submittedFinalTask = Task::query()->create([
+            'name' => 'Submitted for Final Inspection',
+            'general_task_id' => $finalInspectionGeneralTask->id,
+            'task_has_start_date' => false,
+        ]);
+        $finalInspectionTask = Task::query()->create([
+            'name' => 'Final inspection',
+            'general_task_id' => $finalInspectionGeneralTask->id,
+            'task_has_start_date' => false,
+        ]);
+        Main::query()->create([
+            'workorder_id' => $workorder->id,
+            'general_task_id' => $finalInspectionGeneralTask->id,
+            'task_id' => $submittedFinalTask->id,
+            'user_id' => $manager->id,
+            'date_start' => null,
+            'date_finish' => '2026-05-04',
+        ]);
+        Main::query()->create([
+            'workorder_id' => $workorder->id,
+            'general_task_id' => $finalInspectionGeneralTask->id,
+            'task_id' => $finalInspectionTask->id,
+            'user_id' => $manager->id,
+            'date_start' => null,
+            'date_finish' => '2026-05-05',
+        ]);
         $ndtProcessName = ProcessName::query()->create([
             'name' => 'STD NDT List',
             'process_sheet_name' => 'NDT',
@@ -359,13 +407,20 @@ class QualityAssuranceTest extends TestCase
         $this->assertFalse($missingRoCheck['ok']);
         $this->assertFalse($completedTaskCheck['ok']);
         $this->assertStringContainsString('tab=tasks', $completedTaskCheck['url']);
+        $this->assertStringContainsString('general_task='.$completedGeneralTask->id, $completedTaskCheck['url']);
         $this->assertStringContainsString('task='.$completedTask->id, $completedTaskCheck['url']);
         $this->assertFalse($stdProcessesCheck['ok']);
         $this->assertSame('qaStdProcessBlock', $stdProcessesCheck['target']);
+        $finalInspectionRow = collect($response->json('workorder.submitted'))
+            ->firstWhere('missing_inspection', 'Final inspection');
+        $this->assertNotNull($finalInspectionRow);
+        $this->assertStringContainsString('tab=tasks', $finalInspectionRow['inspection_url']);
+        $this->assertStringContainsString('general_task='.$finalInspectionGeneralTask->id, $finalInspectionRow['inspection_url']);
+        $this->assertStringContainsString('task='.$finalInspectionTask->id, $finalInspectionRow['inspection_url']);
         $stdRows = collect($response->json('workorder.std_processes'));
-        $this->assertSame('01/May/2026', $stdRows->firstWhere('type', 'ndt')['date_start']);
-        $this->assertSame('02/May/2026', $stdRows->firstWhere('type', 'ndt')['date_finish']);
-        $this->assertSame('03/May/2026', $stdRows->firstWhere('type', 'cad')['date_start']);
+        $this->assertSame('01/may/2026', $stdRows->firstWhere('type', 'ndt')['date_start']);
+        $this->assertSame('02/may/2026', $stdRows->firstWhere('type', 'ndt')['date_finish']);
+        $this->assertSame('03/may/2026', $stdRows->firstWhere('type', 'cad')['date_start']);
         $this->assertSame('-', $stdRows->firstWhere('type', 'cad')['date_finish']);
         $this->assertSame(1, collect($response->json('workorder.repair_orders'))->where('ok', false)->count());
     }
@@ -422,6 +477,55 @@ class QualityAssuranceTest extends TestCase
         $this->assertFalse($stdRows->firstWhere('type', 'ndt')['ignored']);
         $this->assertTrue($stdRows->firstWhere('type', 'cad')['ignored']);
         $this->assertSame('CAD', $stdRows->firstWhere('type', 'cad')['short_label']);
+    }
+
+    public function test_quality_main_links_target_general_task_when_main_row_is_missing(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder(['number' => 988804]);
+
+        $finalInspectionGeneralTask = GeneralTask::query()->create([
+            'name' => 'Final Test',
+            'sort_order' => 50,
+        ]);
+        $finalInspectionTask = Task::query()->create([
+            'name' => 'Final inspection',
+            'general_task_id' => $finalInspectionGeneralTask->id,
+            'task_has_start_date' => false,
+        ]);
+
+        $completeGeneralTask = GeneralTask::query()->create([
+            'name' => 'Complete',
+            'sort_order' => 60,
+        ]);
+        $completedTask = Task::query()->create([
+            'name' => 'Completed',
+            'general_task_id' => $completeGeneralTask->id,
+            'task_has_start_date' => false,
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('quality.workorder', [
+            'q' => '988804',
+        ]));
+
+        $response->assertOk();
+
+        $finalInspectionRow = collect($response->json('workorder.submitted'))
+            ->firstWhere('missing_inspection', 'Final inspection');
+        $completedTaskCheck = collect($response->json('workorder.checks'))
+            ->firstWhere('label', 'Completed task finished');
+
+        $this->assertNotNull($finalInspectionRow);
+        $this->assertStringContainsString('tab=tasks', $finalInspectionRow['inspection_url']);
+        $this->assertStringContainsString('general_task='.$finalInspectionGeneralTask->id, $finalInspectionRow['inspection_url']);
+        $this->assertStringContainsString('task='.$finalInspectionTask->id, $finalInspectionRow['inspection_url']);
+
+        $this->assertNotNull($completedTaskCheck);
+        $this->assertStringContainsString('tab=tasks', $completedTaskCheck['url']);
+        $this->assertStringContainsString('general_task='.$completeGeneralTask->id, $completedTaskCheck['url']);
+        $this->assertStringContainsString('task='.$completedTask->id, $completedTaskCheck['url']);
     }
 
     public function test_manager_can_update_quality_top_workorder_fields(): void
@@ -507,6 +611,32 @@ class QualityAssuranceTest extends TestCase
         $response->assertOk();
         $rows = json_decode(LogCard::where('workorder_id', $workorder->id)->first()->component_data, true);
         $this->assertSame('#d3f9d8', $rows[0]['qa_cell_colors']['description']);
+    }
+
+    public function test_right_log_card_header_part_number_is_saved_in_json(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder();
+        LogCard::create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                ['name' => 'Bolt'],
+            ]),
+        ]);
+
+        $response = $this->actingAs($manager)->postJson(route('quality.forms.log_card.update', $workorder), [
+            'side' => 'right',
+            'section' => 'header',
+            'row' => 0,
+            'field' => 'part_number',
+            'value' => 'DCL1032/04',
+        ]);
+
+        $response->assertOk();
+        $rows = LogCard::where('workorder_id', $workorder->id)->first()->component_data_out;
+        $this->assertSame('DCL1032/04', $rows[0]['qa_header_part_number']);
     }
 
     public function test_manager_can_upload_quality_documents_to_workorder(): void

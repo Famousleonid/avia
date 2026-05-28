@@ -493,6 +493,16 @@ class ActivityLogController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $purgeDaysOptions = [30, 60, 90, 180, 365, 730, 1095];
+        $purgeCounts = collect($purgeDaysOptions)
+            ->mapWithKeys(function (int $days): array {
+                return [
+                    $days => Activity::query()
+                        ->where('created_at', '<', now()->subDays($days))
+                        ->count(),
+                ];
+            })
+            ->all();
 
         return view('admin.log.index', compact(
             'activities',
@@ -524,7 +534,9 @@ class ActivityLogController extends Controller
             'instructionMap',
             'customerMap',
             'doneUserMap',
-            'notifyUserMap'
+            'notifyUserMap',
+            'purgeDaysOptions',
+            'purgeCounts'
         ));
     }
 

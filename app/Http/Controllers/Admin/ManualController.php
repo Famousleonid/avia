@@ -8,6 +8,7 @@ use App\Models\Component;
 use App\Models\Manual;
 use App\Models\ManualProcess;
 use App\Models\ManualProcessNameLock;
+use App\Models\ManualRevisionCheck;
 use App\Models\ManualServiceBulletin;
 use App\Models\StdProcess;
 use App\Models\Plane;
@@ -16,7 +17,9 @@ use App\Models\ProcessName;
 use App\Models\Scope;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\UserUiSetting;
 use App\Services\ManualIplBranchRuleResolver;
+use App\Services\ManualRevisionCheckService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -180,8 +183,24 @@ class ManualController extends Controller
         $this->ensureManualAccess($cmm);
         $cmm->load('partLock.lockedBy');
 
-        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'dimensions'];
-        $manualShowTab = in_array(request('tab'), $manualTabKeys, true) ? request('tab') : 'components';
+        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'revision'];
+        $requestedTab = (string) request('tab', '');
+        $savedTab = UserUiSetting::query()
+            ->where('user_id', auth()->id())
+            ->where('scope', 'manuals.show')
+            ->where('key', 'activeTab:'.$cmm->id)
+            ->first()
+            ?->value;
+        $savedTab = is_string($savedTab) ? $savedTab : null;
+
+        $manualShowTab = 'components';
+        if (in_array($requestedTab, $manualTabKeys, true)) {
+            $manualShowTab = $requestedTab;
+        } elseif (request()->filled('std_inner')) {
+            $manualShowTab = 'std';
+        } elseif (in_array($savedTab, $manualTabKeys, true)) {
+            $manualShowTab = $savedTab;
+        }
 
         $planes = Plane::all();
         $builders = Builder::all();
@@ -224,6 +243,13 @@ class ManualController extends Controller
 
             return $aKey <=> $bKey ?: $a->id <=> $b->id;
         })->values();
+
+        if (request()->filled('part_id') && ctype_digit((string) request('part_id'))) {
+            $partId = (int) request('part_id');
+            if ($parts->pluck('id')->contains($partId)) {
+                $manualShowTab = 'parts';
+            }
+        }
 
 
         // Processes: процессы руководства с подгруженным именем, сортировка по ProcessName (abc)
@@ -329,37 +355,58 @@ class ManualController extends Controller
             ->orderBy('id')
             ->get();
 
-        $dimensionFigures = \App\Models\ManualDimensionFigure::where('manual_id', $cmm->id)
-            ->with([
-                'points.specs.inspectionComponent',
-                'points.specs.specCodes.code',
-                'points.specs.repairRules.code',
-                'points.specs.repairRules.processes',
-                'childFigures',
-            ])
-            ->orderBy('sort_order')
+        $revisionChecks = ManualRevisionCheck::query()
+            ->where('manual_id', $cmm->id)
+            ->with('checkedBy:id,name')
+            ->latest('checked_at')
+            ->latest('id')
             ->get();
-
-        $dimManualProcesses = \App\Models\ManualProcess::where('manual_id', $cmm->id)
-            ->with(['process.process_name'])
-            ->get()
-            ->sortBy(fn($mp) => ($mp->process?->process_name?->name ?? '') . ' ' . ($mp->process?->process ?? ''))
-            ->values()
-            ->map(fn($mp) => [
-                'id'           => $mp->id,
-                'process_name' => $mp->process?->process_name?->name ?? '',
-                'label'        => trim(($mp->process?->process_name?->name ?? '') . ' — ' . ($mp->process?->process ?? '')),
-            ]);
-
-
-
-        $codes = \App\Models\Code::orderBy('name')->get(['id', 'name', 'code']);
+        $latestRevisionCheck = $revisionChecks->first();
+        $revisionStatus = app(ManualRevisionCheckService::class)->statusFor($cmm, $latestRevisionCheck);
+        $canRecordRevisionCheck = auth()->user()?->can('manuals.update', $cmm) ?? false;
 
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
         'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','stdProcessPicklistOptions','serviceBulletins',
-        'dimensionFigures', 'dimManualProcesses', 'codes'
+        'revisionChecks', 'latestRevisionCheck', 'revisionStatus', 'canRecordRevisionCheck', 'manualShowTab'
         ));
 
+    }
+
+    public function storeRevisionCheck(Request $request, Manual $manual)
+    {
+        $this->ensureManualAccess($manual);
+        abort_unless(auth()->user()?->can('manuals.update', $manual), 403);
+
+        $validated = $request->validate([
+            'status' => ['required', 'in:'.ManualRevisionCheck::STATUS_UNCHANGED.','.ManualRevisionCheck::STATUS_CHANGED],
+            'revision_number' => ['nullable', 'string', 'max:255'],
+            'revision_date' => ['required', 'date'],
+            'checked_at' => ['required', 'date', 'before_or_equal:today'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        DB::transaction(function () use ($manual, $validated): void {
+            if ($validated['status'] === ManualRevisionCheck::STATUS_CHANGED) {
+                $manual->update([
+                    'revision_date' => $validated['revision_date'],
+                ]);
+            }
+
+            ManualRevisionCheck::create([
+                'manual_id' => $manual->id,
+                'revision_number' => $validated['revision_number'] ?? null,
+                'revision_date' => $validated['revision_date'],
+                'checked_at' => $validated['checked_at'],
+                'checked_by_user_id' => auth()->id(),
+                'checked_by_stamp' => auth()->user()?->stamp,
+                'status' => $validated['status'],
+                'notes' => $validated['notes'] ?? null,
+            ]);
+        });
+
+        return redirect()
+            ->route('manuals.show', ['manual' => $manual->id, 'tab' => 'revision'])
+            ->with('success', __('Manual revision check saved.'));
     }
 
     public function edit($id)

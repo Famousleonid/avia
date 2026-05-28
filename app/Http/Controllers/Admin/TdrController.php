@@ -1719,8 +1719,7 @@ class TdrController extends Controller
         );
         $bushingPrlCount = $woBushing ? $woBushing->lines()->whereHas('component')->count() : 0;
         $kitComponents = $components->filter(fn ($component): bool => ! (bool) ($component->is_bush ?? false));
-        $kitPrlCount = $this->countKitPrlGroups($kitComponents->where('kit', true))
-            + $this->countKitPrlGroups($kitComponents->where('kit_e', true));
+        $kitPrlCount = $this->countKitPrlGroups($kitComponents->where('kit', true));
         $stdFormCounts = [
             'ndt' => $this->countStdFormQty($current_wo, StdProcess::STD_NDT),
             'cad' => $this->countStdFormQty($current_wo, StdProcess::STD_CAD),
@@ -1851,10 +1850,7 @@ class TdrController extends Controller
         $hasExtraProcessRecords = ExtraProcess::where('workorder_id', $current_wo->id)->exists();
         $hasExtraProcessRecordsMoreThanOne = ExtraProcess::where('workorder_id', $current_wo->id)->count() > 1;
 
-        $logCardInstructions = ['60M Iinspection', '96M Iinspection', 'Overhaul'];
-        $showLogCardTab = $current_wo->instruction
-            ? in_array($current_wo->instruction->name, $logCardInstructions, true)
-            : false;
+        $showLogCardTab = true;
 
         return compact(
             'current_wo', 'tdrs', 'units', 'components', 'user', 'customers',

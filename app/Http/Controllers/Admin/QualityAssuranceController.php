@@ -8,6 +8,7 @@ use App\Models\Component;
 use App\Models\ExtraProcess;
 use App\Models\LogCard;
 use App\Models\Manual;
+use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\Transfer;
 use App\Models\Unit;
@@ -370,7 +371,7 @@ class QualityAssuranceController extends Controller
     {
         $data = $request->validate([
             'side' => ['required', 'in:left,right'],
-            'section' => ['required', 'in:aircraft,primary,note'],
+            'section' => ['required', 'in:aircraft,primary,note,header'],
             'row' => ['required', 'integer', 'min:0', 'max:200'],
             'field' => ['required', 'string', 'max:60'],
             'value' => ['nullable', 'string', 'max:255'],
@@ -403,9 +404,11 @@ class QualityAssuranceController extends Controller
         ];
 
         $noteFields = ['note6_text', 'note6_enabled'];
+        $headerFields = ['part_number'];
         $allowedFields = match ($data['section']) {
             'aircraft' => $aircraftFields,
             'note' => $noteFields,
+            'header' => $headerFields,
             default => $primaryFields,
         };
         abort_unless(in_array($data['field'], $allowedFields, true), 422);
@@ -462,6 +465,10 @@ class QualityAssuranceController extends Controller
             if ($data['field'] === 'note6_enabled') {
                 $rows[0]['qa_note6_enabled'] = in_array((string) ($data['value'] ?? ''), ['1', 'true', 'on', 'yes'], true);
             }
+        } elseif ($data['section'] === 'header') {
+            abort_unless($data['side'] === 'right', 422);
+            $rows[0] ??= [];
+            $rows[0]['qa_header_part_number'] = trim((string) ($data['value'] ?? ''));
         } else {
             $rows[(int) $data['row']] ??= [];
             $value = trim((string) ($data['value'] ?? ''));
@@ -566,6 +573,10 @@ class QualityAssuranceController extends Controller
             return $field === 'note6_enabled'
                 ? '0.qa_note6_enabled'
                 : '0.qa_note6_text';
+        }
+
+        if ($data['section'] === 'header') {
+            return '0.qa_header_'.$field;
         }
 
         if ($data['side'] === 'left') {
@@ -680,20 +691,21 @@ class QualityAssuranceController extends Controller
             'submitted' => $this->qualityAssuranceService
                 ->buildSubmittedInspectionRows(collect([$qaRow]))
                 ->map(function (array $row) use ($workorder) {
+                    $submittedTarget = [
+                        'task_id' => $row['submitted_task_id'] ?? null,
+                        'general_task_id' => $row['submitted_general_task_id'] ?? null,
+                    ];
+                    $inspectionTarget = [
+                        'task_id' => $row['inspection_task_id'] ?? null,
+                        'general_task_id' => $row['inspection_general_task_id'] ?? null,
+                    ];
+
                     return array_merge($row, [
                         'open_date' => $this->formatQaDate($row['open_date'] ?? null),
                         'submitted_date' => $this->formatQaDate($row['submitted_date'] ?? null),
                         'inspection_date' => $this->formatQaDate($row['inspection_date'] ?? null),
-                        'submitted_url' => $this->mainTargetUrl($workorder, [
-                            'tab' => 'tasks',
-                            'task' => $row['submitted_task_id'] ?? null,
-                            'field' => 'date_finish',
-                        ]),
-                        'inspection_url' => $this->mainTargetUrl($workorder, [
-                            'tab' => 'tasks',
-                            'task' => $row['inspection_task_id'] ?? null,
-                            'field' => 'date_finish',
-                        ]),
+                        'submitted_url' => $this->mainTaskTargetUrl($workorder, $submittedTarget, 'date_finish'),
+                        'inspection_url' => $this->mainTaskTargetUrl($workorder, $inspectionTarget, 'date_finish'),
                     ]);
                 })
                 ->values()
@@ -949,11 +961,28 @@ class QualityAssuranceController extends Controller
             ->filter(fn ($main) => strcasecmp((string) ($main->task?->name ?? ''), 'Completed') === 0)
             ->sortBy(fn ($main) => $main->task?->sort_order ?? $main->task_id ?? 999999)
             ->first();
+        $completedTask = $completedMain
+            ? null
+            : Task::query()
+                ->where('name', 'Completed')
+                ->orderBy('id')
+                ->first(['id', 'general_task_id']);
 
         return $this->mainTargetUrl($workorder, [
             'tab' => 'tasks',
-            'task' => $completedMain?->task_id,
+            'general_task' => $completedMain?->general_task_id ?? $completedTask?->general_task_id,
+            'task' => $completedMain?->task_id ?? $completedTask?->id,
             'field' => 'date_finish',
+        ]);
+    }
+
+    private function mainTaskTargetUrl(?Workorder $workorder, array $target, string $field): string
+    {
+        return $this->mainTargetUrl($workorder, [
+            'tab' => 'tasks',
+            'general_task' => $target['general_task_id'] ?? null,
+            'task' => $target['task_id'] ?? null,
+            'field' => $field,
         ]);
     }
 
@@ -1004,7 +1033,7 @@ class QualityAssuranceController extends Controller
             return '-';
         }
 
-        return Carbon::parse($date)->locale('en')->isoFormat('DD/MMM/YYYY');
+        return format_project_date($date) ?? '-';
     }
 
     private function mainTargetUrl(?Workorder $workorder, array $params): string

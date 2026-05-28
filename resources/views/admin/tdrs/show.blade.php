@@ -936,8 +936,8 @@
                     </div>
                     <div class="tab-pane fade" id="content-rm-reports" role="tabpanel">
                         <div class="card bg-gradient h-100">
-                            <div class="card-body p-2 overflow-auto" id="rmReportsTabBody"
-                                 style="height: calc(100vh - 280px); min-height: 400px;">
+                            <div class="card-body p-2" id="rmReportsTabBody"
+                                 style="height: calc(100dvh - 280px); min-height: 0; overflow: hidden;">
                                 <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
                             </div>
                         </div>

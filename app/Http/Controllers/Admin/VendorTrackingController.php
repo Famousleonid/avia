@@ -162,11 +162,14 @@ class VendorTrackingController extends Controller
     private function filtersFromRequest(Request $request): array
     {
         if ($request->query() === [] && auth()->id()) {
-            $savedFilters = UserUiSetting::query()
+            $savedFiltersByKey = UserUiSetting::query()
                 ->where('user_id', auth()->id())
                 ->where('scope', 'vendor-tracking.index')
-                ->where('key', 'filters')
-                ->value('value');
+                ->whereIn('key', ['filters', 'vendorTrackingFilters'])
+                ->get(['key', 'value'])
+                ->keyBy('key');
+            $savedFilters = $savedFiltersByKey->get('filters')?->value
+                ?? $savedFiltersByKey->get('vendorTrackingFilters')?->value;
 
             if (is_array($savedFilters)) {
                 $request->merge(array_intersect_key($savedFilters, array_flip([
@@ -827,12 +830,23 @@ class VendorTrackingController extends Controller
     private function totalRowsCount(): int
     {
         $stdProcessNameIds = $this->stdProcessNameIds();
-        $tdrCount = TdrProcess::query()
+        $tdrBaseQuery = TdrProcess::query()
             ->where(function ($q): void {
                 $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
             })
             ->whereHas('tdr.workorder')
-            ->when($stdProcessNameIds->isNotEmpty(), fn ($q) => $q->whereNotIn('process_names_id', $stdProcessNameIds))
+            ->when($stdProcessNameIds->isNotEmpty(), fn ($q) => $q->whereNotIn('process_names_id', $stdProcessNameIds));
+
+        $tdrCount = (clone $tdrBaseQuery)
+            ->where(function ($q): void {
+                $q->whereNull('in_traveler')->orWhere('in_traveler', false);
+            })
+            ->count();
+
+        $tdrTravelerGroupCount = (clone $tdrBaseQuery)
+            ->where('in_traveler', true)
+            ->get(['tdrs_id', 'traveler_group'])
+            ->groupBy(fn (TdrProcess $row): string => ((int) $row->tdrs_id) . ':' . ((int) ($row->traveler_group ?: 1)))
             ->count();
 
         $stdCount = WorkorderStdProcess::query()
@@ -862,7 +876,7 @@ class VendorTrackingController extends Controller
                 ->count();
         }
 
-        return $tdrCount + $stdCount + $bushingProcessCount + $bushingBatchCount;
+        return $tdrCount + $tdrTravelerGroupCount + $stdCount + $bushingProcessCount + $bushingBatchCount;
     }
 
     private function normalizeRepairOrder(?string $value): ?string

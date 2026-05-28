@@ -68,7 +68,7 @@
                 bottom: 0;
                 width: 1060px;
                 text-align: center;
-                font-size: 10px;
+                font-size: 12px;
                 background-color: #fff;
                 padding: 1px 1px;
             }
@@ -323,6 +323,26 @@
             line-height: 1;
         }
 
+        .spec-cat-one-label {
+            font-size: 1rem;
+            line-height: 1;
+            margin: 0;
+            text-decoration: underline;
+        }
+
+        .spec-technician-block {
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+
+        .spec-technician-name-row {
+            position: absolute;
+            right: 0;
+            top: 28px;
+            width: 235px;
+        }
+
         .spec-top-count-cell {
             font-size: 0.9rem;
             font-weight: 700;
@@ -396,10 +416,10 @@
             <div class="col-md-5"></div>
         </div>
 
-        <div class="d-flex" style="width: 960px">
+        <div class="d-flex" style="width: 100%; min-height: 43px; position: relative; padding-right: 235px;">
 
             <div class="text-end">
-                <h6 class="pt-1 fs-8" style="width: 60px;"><strong>Cat #1</strong></h6>
+                <h6 class="pt-1 spec-cat-one-label" style="width: 60px;"><strong>Cat #1</strong></h6>
             </div>
             <div class="fs-8">
                 <img src="{{ asset('img/icons/icons8-right-arrow.gif')}}" alt="arrow"
@@ -415,16 +435,15 @@
                 RO No.
             </div>
             <div class="border-all text-center pt-0 fs-75 spec-top-count-cell" style="width: 25px;height: 20px">N/A</div>
-            <div class="text-center fs-7" style="width: 305px;height: 20px"></div>
-            <div class="text-end pt-2 fs-8" style="width: 75px;height: 10px">Technician</div>
-            <div class="border-b text-center" style="width: 120px">{{ $technicianFirstName }}</div>
-            <div class="border-l-t-r" style="width: 40px;height: 28px"></div>
-        </div>
-
-        <div class="d-flex">
-            <div class="text-end fs-7 pe-4" style="width: 880px; height: 15px">Name</div>
-            <div class="" style="width: 29px"></div>
-            <div class="border-l-b-r" style="width: 40px;height: 12px"></div>
+            <div class="spec-technician-block d-flex">
+                <div class="text-end pt-2 fs-8" style="width: 75px;height: 10px">Technician</div>
+                <div class="border-b text-center" style="width: 120px">{{ $technicianFirstName }}</div>
+                <div class="border-l-t-r" style="width: 40px;height: 28px"></div>
+            </div>
+            <div class="spec-technician-name-row d-flex">
+                <div class="text-center fs-7" style="width: 195px; height: 15px">Name</div>
+                <div class="border-l-b-r" style="width: 40px;height: 12px"></div>
+            </div>
         </div>
     </div>
 

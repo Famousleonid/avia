@@ -219,7 +219,7 @@
         const projectDateMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
         function parseProjectDate(value) {
-            const match = String(value || '').trim().match(/^(\d{1,2})\.([a-z]{3})\.(\d{4})$/i);
+            const match = String(value || '').trim().match(/^(\d{1,2})[/.]([a-z]{3})[/.](\d{4})$/i);
             if (!match) return null;
 
             const day = Number(match[1]);
@@ -233,7 +233,7 @@
 
         function formatProjectDate(date) {
             if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
-            return String(date.getDate()).padStart(2, '0') + '.' + projectDateMonths[date.getMonth()] + '.' + date.getFullYear();
+            return String(date.getDate()).padStart(2, '0') + '/' + projectDateMonths[date.getMonth()] + '/' + date.getFullYear();
         }
 
         window.initProjectDatePickers = function (root = document) {
@@ -244,7 +244,7 @@
 
                 input._projectDatePicker = flatpickr(input, {
                     allowInput: true,
-                    dateFormat: 'd.M.Y',
+                    dateFormat: 'd/M/Y',
                     defaultDate: parseProjectDate(input.value) || null,
                     disableMobile: true,
                     formatDate: formatProjectDate,

@@ -71,13 +71,15 @@
 
             /* Колонтитул внизу страницы */
             footer {
-                position: fixed;
-                bottom: 10px;
+                position: relative;
+                bottom: auto;
                 width: 1060px;
+                margin: 4px auto 0;
                 text-align: center;
-                font-size: 10px;
+                font-size: 12px;
                 background-color: #fff;
                 padding: 5px 5px;
+                page-break-inside: avoid;
             }
 
             /* Обрезка контента и размещение на одной странице */
@@ -345,10 +347,52 @@
             line-height: 1;
         }
 
+        .spec-cat-one-label {
+            font-size: 1rem;
+            line-height: 1;
+            margin: 0;
+            text-decoration: underline;
+        }
+
+        .spec-technician-block {
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+
+        .spec-technician-name-row {
+            position: absolute;
+            right: 0;
+            top: 28px;
+            width: 235px;
+        }
+
         .spec-top-count-cell {
             font-size: 0.9rem;
             font-weight: 700;
             padding-top: 0 !important;
+        }
+
+        .spec-top-count-cell--crossed {
+            position: relative;
+        }
+
+        .spec-top-count-cell--crossed::before,
+        .spec-top-count-cell--crossed::after {
+            content: "";
+            position: absolute;
+            left: 2px;
+            right: 2px;
+            top: 50%;
+            border-top: 1px solid black;
+        }
+
+        .spec-top-count-cell--crossed::before {
+            transform: rotate(34deg);
+        }
+
+        .spec-top-count-cell--crossed::after {
+            transform: rotate(-34deg);
         }
 
         .spec-process-table-body .spec-process-row-inner {
@@ -369,6 +413,9 @@
 @foreach($componentChunks as $chunk)
     @php
         $maxColumnsPerPage = 6;
+        $isFirstPage = $loop->first;
+        $pageNumber = ($specPageOffset ?? 0) + $loop->iteration;
+        $pageTotal = $combinedSpecPageTotal ?? $componentChunks->count();
         $columnSlots = [];
         foreach ($chunk as $item) {
             if ($item->hasQuarantine) {
@@ -409,34 +456,34 @@
                 <div class="col-2 pt-2 border-b text-center"> <strong> W{{$current_wo->number}}</strong></div>
                 <div class="col-md-5"></div>
             </div>
-            <div class="d-flex" style="width: 960px">
+            <div class="d-flex" style="width: 100%; min-height: 43px; position: relative; padding-right: 235px;">
                 <div class="text-end">
-                    <h6 class="pt-1 fs-8" style="width: 60px;"><strong>Cat #1</strong></h6>
+                    <h6 class="pt-1 spec-cat-one-label" style="width: 60px;"><strong>Cat #1</strong></h6>
                 </div>
                 <div class=" fs-8" >
                     <img src="{{ asset('img/icons/icons8-right-arrow.gif')}}" alt="arrow"
                          style="width: 24px;height: 20px">
                 </div>
-                <div class="border-l-t-b text-center pt-0 fs-75 spec-top-count-cell" style="width: 25px;height: 20px">
-                    @if($current_wo->instruction_id ==1)
+                <div class="border-l-t-b text-center pt-0 fs-75 spec-top-count-cell {{ $isFirstPage ? '' : 'spec-top-count-cell--crossed' }}" style="width: 25px;height: 20px">
+                    @if($isFirstPage && $current_wo->instruction_id ==1)
                         {{ !isset($ndtSums['mpi']) || $ndtSums['mpi'] === null ? ' ' : $ndtSums['mpi'] }}
-                    @else
+                    @elseif($isFirstPage)
                         {{__(' ')}}
                     @endif
                 </div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 130px;height: 20px; color: lightgray; font-style: italic" >RO
                     No.</div>
-                <div class="border-all text-center pt-0 fs-75 spec-top-count-cell" style="width: 25px;height: 20px">
-                    @if($current_wo->instruction_id ==1)
+                <div class="border-all text-center pt-0 fs-75 spec-top-count-cell {{ $isFirstPage ? '' : 'spec-top-count-cell--crossed' }}" style="width: 25px;height: 20px">
+                    @if($isFirstPage && $current_wo->instruction_id ==1)
                          {{ !isset($ndtSums['fpi']) || $ndtSums['fpi'] === null || $ndtSums['fpi'] === 0 ? ' ' : $ndtSums['fpi'] }}
-                    @else
+                    @elseif($isFirstPage)
                         {{__(' ')}}
                     @endif
                 </div>
                 <div class=" text-center fs-8" style="width: 20px;height: 20px"></div>
                 <div class="border-l-t-b ps-2 fs-8 " style="width: 100px;height: 20px; color: lightgray; font-style:
                 italic" >RO No.</div>
-                <div class="border-all text-center pt-0 fs-75 spec-top-count-cell" style="width: 25px;height: 20px">
+                <div class="border-all text-center pt-0 fs-75 spec-top-count-cell {{ $isFirstPage ? '' : 'spec-top-count-cell--crossed' }}" style="width: 25px;height: 20px">
 
 {{--                    {{ empty($cadSum['total_qty']) ? 'N/A' : $cadSum['total_qty']  }}--}}
                     @php
@@ -446,24 +493,23 @@
                         $hasB = isset($b) && $b !== '' && $b !== 0;
                         $result = ($hasA && $hasB) ? ((int)$a + (int)$b) : (($hasA ? (int)$a : ($hasB ? (int)$b : null)));
                     @endphp
-                    @if($current_wo->instruction_id==1)
+                    @if($isFirstPage && $current_wo->instruction_id==1)
                         {{ ($result !== null && $result > 0) ? $result : ' rr' }}
-                    @else
+                    @elseif($isFirstPage)
                         {{ ($cadSum_ex > 0) ? $cadSum_ex : ' '}}
                     @endif
 
 
                 </div>
-                <div class=" text-center fs-7" style="width: 305px;height: 10px"></div>
-                <div class=" text-end pt-2 fs-8" style="width: 75px;height: 6px">Technician</div>
-                <div class="border-b text-center" style="width: 120px">{{ $technicianFirstName }}</div>
-                <div class="border-l-t-r" style="width: 40px;height: 28px"></div>
-
-            </div>
-            <div class="d-flex">
-                <div class="text-end fs-7 pe-4" style="width: 880px; height: 15px">Name</div>
-                <div class=" " style="width: 29px"></div>
-                <div class="border-l-b-r" style="width: 40px;height: 6px"></div>
+                <div class="spec-technician-block d-flex">
+                    <div class="text-end pt-2 fs-8" style="width: 75px;height: 6px">Technician</div>
+                    <div class="border-b text-center" style="width: 120px">{{ $technicianFirstName }}</div>
+                    <div class="border-l-t-r" style="width: 40px;height: 28px"></div>
+                </div>
+                <div class="spec-technician-name-row d-flex">
+                    <div class="text-center fs-7" style="width: 195px; height: 15px">Name</div>
+                    <div class="border-l-b-r" style="width: 40px;height: 6px"></div>
+                </div>
             </div>
 
         </div>
@@ -697,11 +743,15 @@
 
     <footer >
         <div class="row" style="width: 100%; padding: 10px 10px;">
-            <div class="col-6 text-start">
+            <div class="col-4 text-start">
                 {{__("Form #012")}}
             </div>
 
-            <div class="col-6 text-end pe-4 ">
+            <div class="col-4 text-center">
+                {{ $pageNumber }} of {{ $pageTotal }}
+            </div>
+
+            <div class="col-4 text-end pe-4 ">
                 {{__('Rev#0, 15/Dec/2012   ')}}
             </div>
         </div>

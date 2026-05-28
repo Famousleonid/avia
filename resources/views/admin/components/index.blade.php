@@ -1026,7 +1026,7 @@
                                 <div>
                                     <p><strong>{{ __('CMM:') }}</strong> {{ $manual->number }}</p>
                                     <p><strong>{{ __('Description:') }}</strong> {{ $manual->title }}</p>
-                                    <p><strong>{{ __('Revision Date:') }}</strong> {{ $manual->revision_date ?? 'N/A' }}</p>
+                                    <p><strong>{{ __('Revision Date:') }}</strong> {{ format_project_date($manual->revision_date) ?? 'N/A' }}</p>
                                     <p><strong>{{ __('AirCraft Type:') }}</strong> {{ $planes[$manual->planes_id] ?? 'N/A' }}</p>
                                     <p><strong>{{ __('MFR:') }}</strong> {{ $builders[$manual->builders_id] ?? 'N/A' }}</p>
                                     <p><strong>{{ __('Scope:') }}</strong> {{ $scopes[$manual->scopes_id] ?? 'N/A' }}</p>

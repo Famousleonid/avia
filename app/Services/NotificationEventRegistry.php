@@ -146,6 +146,24 @@ class NotificationEventRegistry
                     'birthday_age',
                 ],
             ],
+            'manual.revision_check_due' => [
+                'label' => 'Manual revision check due',
+                'description' => 'A CMM/manual revision check is due or overdue.',
+                'default_severity' => 'warning',
+                'default_title' => 'Manual revision check due',
+                'default_message' => 'CMM {manual_number}: revision check due {manual_next_due_at}.',
+                'dynamic_recipients' => [
+                    'system_admins' => 'System admins',
+                ],
+                'variables' => [
+                    'manual_number',
+                    'manual_title',
+                    'manual_revision_date',
+                    'manual_last_checked_at',
+                    'manual_next_due_at',
+                    'manual_days_until_due',
+                ],
+            ],
         ];
     }
 

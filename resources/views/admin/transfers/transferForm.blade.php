@@ -58,7 +58,7 @@
                 bottom: 0;
                 width: 960px;
                 text-align: center;
-                font-size: 14px;
+                font-size: 12px;
                 background-color: #fff;
                 padding: 3px 3px;
             }
