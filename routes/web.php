@@ -372,6 +372,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/repair-procedures/{manualRepairProcedure}/reorder-steps', [ManualRepairProcedureController::class, 'reorderSteps'])->name('repair-procedures.steps.reorder');
 
     // --- WO Measurements ---
+    Route::get('/workorders/{workorder}/measurements/fc-table', [WoMeasurementController::class, 'fcTable'])->name('workorders.measurements.fc-table');
     Route::get('/workorders/{workorder}/measurements/data', [WoMeasurementController::class, 'data'])->name('workorders.measurements.data');
     Route::post('/workorders/{workorder}/measurements', [WoMeasurementController::class, 'store'])->name('workorders.measurements.store');
     Route::patch('/measurements/{woMeasurement}', [WoMeasurementController::class, 'update'])->name('measurements.update');

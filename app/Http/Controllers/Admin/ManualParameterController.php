@@ -129,13 +129,19 @@ class ManualParameterController extends Controller
     public function storeCode(Request $request, ManualParameter $manualParameter)
     {
         $data = $request->validate([
-            'codes_id' => 'required|exists:codes,id',
+            'codes_id'        => 'required|exists:codes,id',
+            'finding_context' => 'nullable|in:measurement,inspection',
         ]);
 
-        $code = ManualParameterCode::firstOrCreate([
-            'manual_parameter_id' => $manualParameter->id,
-            'codes_id'            => $data['codes_id'],
-        ]);
+        $code = ManualParameterCode::firstOrCreate(
+            [
+                'manual_parameter_id' => $manualParameter->id,
+                'codes_id'            => $data['codes_id'],
+            ],
+            [
+                'finding_context' => $data['finding_context'] ?? 'inspection',
+            ]
+        );
 
         return response()->json($code->load('code'), 201);
     }
@@ -159,7 +165,7 @@ class ManualParameterController extends Controller
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
-            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,manual',
+            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
             'triggers.*.codes_id'           => 'nullable|exists:codes,id',
         ]);
 
@@ -186,7 +192,7 @@ class ManualParameterController extends Controller
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
-            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,manual',
+            'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
             'triggers.*.codes_id'           => 'nullable|exists:codes,id',
         ]);
 
@@ -226,11 +232,12 @@ class ManualParameterController extends Controller
     private function syncRuleTriggers(ManualParameterRepairRule $rule, array $triggers): void
     {
         $rule->triggers()->delete();
+        $findingTypes = ['finding', 'finding_measurement', 'finding_inspection'];
         foreach ($triggers as $t) {
             ManualParameterRuleTrigger::create([
                 'repair_rule_id' => $rule->id,
                 'trigger'        => $t['trigger'],
-                'codes_id'       => ($t['trigger'] === 'finding') ? ($t['codes_id'] ?? null) : null,
+                'codes_id'       => in_array($t['trigger'], $findingTypes) ? ($t['codes_id'] ?? null) : null,
             ]);
         }
     }
@@ -280,9 +287,10 @@ class ManualParameterController extends Controller
             'inspection'              => $parameter->inspection,
             'sort_order'              => $parameter->sort_order,
             'codes'                   => $parameter->codes->map(fn($c) => [
-                'id'       => $c->id,
-                'codes_id' => $c->codes_id,
-                'name'     => $c->code?->name,
+                'id'              => $c->id,
+                'codes_id'        => $c->codes_id,
+                'name'            => $c->code?->name,
+                'finding_context' => $c->finding_context,
             ])->filter(fn($c) => $c['name'] !== null)->values(),
             'repair_rules'            => $parameter->repairRules->map(fn($r) => $this->rulePayload($r)),
             'point_ids'               => $parameter->points->pluck('id'),

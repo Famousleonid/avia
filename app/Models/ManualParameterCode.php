@@ -12,6 +12,7 @@ class ManualParameterCode extends Model
     protected $fillable = [
         'manual_parameter_id',
         'codes_id',
+        'finding_context',
     ];
 
     public function parameter(): BelongsTo

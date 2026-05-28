@@ -96,7 +96,7 @@ class LookupSerialNumberTool
 
     private function tdrMatches(User $user, string $serial, int $limit): array
     {
-        return Tdr::withTrashed()
+        return Tdr::query()
             ->with([
                 'workorder.customer:id,name',
                 'component:id,name,part_number,ipl_num',

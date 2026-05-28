@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Code;
 use App\Models\Component;
 use App\Models\Condition;
+use App\Models\ManualInspectionComponentVariant;
 use App\Models\ManualParameter;
 use App\Models\ManualParameterRepairRule;
 use App\Models\Necessary;
@@ -30,7 +31,20 @@ class WoMeasurementController extends Controller
         $inspectionComponents = $manual->inspectionComponents()
             ->with('variants.component')
             ->get()
-            ->map(fn($ic) => ['id' => $ic->id, 'label' => $ic->label]);
+            ->map(fn($ic) => [
+                'id'          => $ic->id,
+                'label'       => $ic->label,
+                'ipl_nums'    => $ic->variants
+                    ->map(fn($v) => $v->component?->ipl_num)
+                    ->filter()
+                    ->unique()
+                    ->values(),
+                'part_numbers' => $ic->variants
+                    ->map(fn($v) => $v->component?->part_number)
+                    ->filter()
+                    ->unique()
+                    ->values(),
+            ]);
 
         $figures = $manual->dimensionFigures()
             ->with(['points'])
@@ -75,7 +89,11 @@ class WoMeasurementController extends Controller
                 'wear_dim_max'            => $p->wear_dim_max,
                 'codes'                   => $p->codes
                     ->filter(fn($c) => $c->code !== null)
-                    ->map(fn($c) => ['id' => $c->codes_id, 'name' => $c->code->name])
+                    ->map(fn($c) => [
+                        'id'              => $c->codes_id,
+                        'name'            => $c->code->name,
+                        'finding_context' => $c->finding_context,
+                    ])
                     ->values(),
                 'repair_rules'            => $p->repairRules->map(fn($r) => [
                     'id'               => $r->id,
@@ -114,6 +132,14 @@ class WoMeasurementController extends Controller
             ]);
 
         $codes = Code::orderBy('name')->get(['id', 'name', 'code']);
+        $missingCodeId = Code::where('name', 'Missing')->value('id');
+
+        $tdrComponentIds = Tdr::where('workorder_id', $workorder->id)
+            ->pluck('component_id')->unique()->filter()->all();
+        $icsWithTdr = count($tdrComponentIds) > 0
+            ? ManualInspectionComponentVariant::whereIn('component_id', $tdrComponentIds)
+                ->pluck('inspection_component_id')->unique()->values()->all()
+            : [];
 
         return response()->json([
             'use_wear'             => $useWear,
@@ -122,6 +148,8 @@ class WoMeasurementController extends Controller
             'parameters'           => $parameters,
             'measurements'         => $measurements,
             'codes'                => $codes,
+            'missing_code_id'      => $missingCodeId,
+            'ics_with_tdr'         => $icsWithTdr,
         ]);
     }
 
@@ -136,33 +164,143 @@ class WoMeasurementController extends Controller
             'notes'               => 'nullable|string',
         ]);
 
-        $parameter = ManualParameter::with('repairRules.triggers')->findOrFail($data['manual_parameter_id']);
+        $parameter = ManualParameter::with('repairRules.triggers', 'codes')->findOrFail($data['manual_parameter_id']);
         $useWear   = $workorder->instruction?->name === 'Repair';
         $limits    = $parameter->effectiveLimits($useWear);
 
         $data['limits_source'] = $limits['source'];
-        $data['result']        = $this->computeResult($data['actual_value'] ?? null, $limits);
+        $dimensionalResult     = $this->computeResult($data['actual_value'] ?? null, $limits);
 
-        // Missing part → always FAIL
-        $missingCode = Code::where('name', 'Missing')->first();
-        if ($missingCode && (int)($data['codes_id'] ?? 0) === $missingCode->id) {
-            $data['result'] = 'FAIL';
-        }
+        // Any finding code selected → always FAIL in the saved record,
+        // but pass the raw dimensional result to rule resolution so that
+        // a Damage finding on an in-limits dimension does NOT fall back
+        // to dimensional-FAIL rules (e.g. Rechrome).
+        $data['result'] = !empty($data['codes_id']) ? 'FAIL' : $dimensionalResult;
 
         $data['user_id']       = auth()->id();
         $data['workorder_id']  = $workorder->id;
 
-        // Auto-select repair rule
+        // Determine finding context from the parameter code definition
+        $findingContext = null;
+        if (!empty($data['codes_id'])) {
+            $paramCode = $parameter->codes->firstWhere('codes_id', $data['codes_id']);
+            $findingContext = $paramCode?->finding_context;
+        }
+
+        // Auto-select repair rule — use dimensional result so inspection
+        // findings on passing dimensions don't match dimensional-FAIL rules.
         $data['manual_parameter_repair_rule_id'] = $this->resolveRepairRule(
             $parameter,
-            $data['result'],
+            $dimensionalResult,
             $data['codes_id'] ?? null,
-            $useWear
+            $useWear,
+            $findingContext
         );
 
         $measurement = WoMeasurement::create($data);
 
         return response()->json($measurement->load(['user']), 201);
+    }
+
+    public function fcTable(Workorder $workorder)
+    {
+        $manual  = $workorder->unit->manuals;
+        $useWear = $workorder->instruction?->name === 'Repair';
+
+        $figures = $manual->dimensionFigures()
+            ->with([
+                'parentFigure',
+                'points' => fn($q) => $q->where('point_type', 'measurement')->orderBy('sort_order'),
+                'points.parameters.inspectionComponent.variants.component',
+            ])
+            ->orderBy('sort_order')
+            ->get();
+
+        // Latest measurement per parameter (prefer final over initial)
+        $measByParam = WoMeasurement::where('workorder_id', $workorder->id)
+            ->get()
+            ->groupBy('manual_parameter_id')
+            ->map(function ($ms) {
+                $finals = $ms->where('stage', 'final');
+                return $finals->isNotEmpty()
+                    ? $finals->sortBy('id')->last()
+                    : $ms->sortBy('id')->last();
+            });
+
+        $fcRows    = [];
+        $extraRows = [];
+
+        foreach ($figures as $fig) {
+            foreach ($fig->points as $pt) {
+                $params = $pt->parameters->sortBy('sort_order')->values();
+
+                if ($pt->is_fits_clearance && $params->count() >= 2) {
+                    $pA = $params[0];
+                    $pB = $params[1];
+
+                    $measA = $measByParam[$pA->id] ?? null;
+                    $measB = $measByParam[$pB->id] ?? null;
+                    $limA  = $pA->effectiveLimits($useWear);
+                    $limB  = $pB->effectiveLimits($useWear);
+
+                    $clearOrigMin = ($pA->orig_dim_min !== null && $pB->orig_dim_max !== null)
+                        ? round((float)$pA->orig_dim_min - (float)$pB->orig_dim_max, 4) : null;
+                    $clearOrigMax = ($pA->orig_dim_max !== null && $pB->orig_dim_min !== null)
+                        ? round((float)$pA->orig_dim_max - (float)$pB->orig_dim_min, 4) : null;
+
+                    $aWearMin = $pA->wear_dim_min ?? $pA->orig_dim_min;
+                    $aWearMax = $pA->wear_dim_max ?? $pA->orig_dim_max;
+                    $bWearMin = $pB->wear_dim_min ?? $pB->orig_dim_min;
+                    $bWearMax = $pB->wear_dim_max ?? $pB->orig_dim_max;
+
+                    $permClearMax = ($aWearMax !== null && $bWearMin !== null)
+                        ? round((float)$aWearMax - (float)$bWearMin, 4) : null;
+
+                    $actualClear = ($measA?->actual_value !== null && $measB?->actual_value !== null)
+                        ? round((float)$measA->actual_value - (float)$measB->actual_value, 4) : null;
+
+                    $fcRows[] = [
+                        'fig'          => $fig,
+                        'pt'           => $pt,
+                        'pA'           => $pA,
+                        'pB'           => $pB,
+                        'measA'        => $measA,
+                        'measB'        => $measB,
+                        'compA'        => $pA->inspectionComponent?->variants->first()?->component,
+                        'compB'        => $pB->inspectionComponent?->variants->first()?->component,
+                        'limA'         => $limA,
+                        'limB'         => $limB,
+                        'clearOrigMin' => $clearOrigMin,
+                        'clearOrigMax' => $clearOrigMax,
+                        'aWearMin'     => $aWearMin,
+                        'aWearMax'     => $aWearMax,
+                        'bWearMin'     => $bWearMin,
+                        'bWearMax'     => $bWearMax,
+                        'permClearMax' => $permClearMax,
+                        'actualClear'  => $actualClear,
+                        'resultA'      => $this->computeResult($measA?->actual_value, $limA),
+                        'resultB'      => $this->computeResult($measB?->actual_value, $limB),
+                    ];
+
+                } elseif (!$pt->is_fits_clearance && $params->isNotEmpty()) {
+                    foreach ($params as $param) {
+                        $meas = $measByParam[$param->id] ?? null;
+                        $lim  = $param->effectiveLimits($useWear);
+                        $extraRows[] = [
+                            'fig'    => $fig,
+                            'pt'     => $pt,
+                            'param'  => $param,
+                            'meas'   => $meas,
+                            'comp'   => $param->inspectionComponent?->variants->first()?->component,
+                            'lim'    => $lim,
+                            'result' => $this->computeResult($meas?->actual_value, $lim),
+                        ];
+                    }
+                }
+            }
+        }
+
+        return view('admin.measurements._fc-table', compact('fcRows', 'extraRows', 'workorder', 'useWear'));
     }
 
     public function componentByIpl(Request $request, Workorder $workorder)
@@ -177,6 +315,11 @@ class WoMeasurementController extends Controller
             ->where('ipl_num', 'like', $ipl . '%')
             ->orderBy('ipl_num')
             ->get(['id', 'ipl_num', 'part_number', 'name', 'units_assy'])
+            ->filter(function ($c) use ($ipl) {
+                $suffix = substr($c->ipl_num, strlen($ipl));
+                return $suffix === '' || ctype_alpha($suffix[0]);
+            })
+            ->values()
             ->map(fn($c) => [
                 'id'          => $c->id,
                 'ipl_num'     => $c->ipl_num,
@@ -215,12 +358,12 @@ class WoMeasurementController extends Controller
             return response()->json(['error' => "Component with IPL# '{$data['pn']}' not found in this manual"], 422);
         }
 
-        $qty = $data['qty'] ?? 1;
-        $sn  = $data['sn'] ?: 'NSN';
+        $qty  = $data['qty'] ?? 1;
+        $sn   = $data['sn'] ?: 'NSN';
+        $desc = $component->name;
 
         // ── Missing Part ─────────────────────────────────────────────
         if (!empty($data['missing_meas_id'])) {
-            $missingMeas      = WoMeasurement::findOrFail($data['missing_meas_id']);
             $missingCode      = Code::where('name', 'Missing')->first();
             $necessary        = Necessary::where('name', 'Order New')->firstOrFail();
             $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
@@ -230,13 +373,19 @@ class WoMeasurementController extends Controller
                 'workorder_id'      => $workorder->id,
                 'component_id'      => $component->id,
                 'serial_number'     => $sn,
+                'description'       => $desc,
                 'codes_id'          => $missingCode?->id,
                 'conditions_id'     => $missingCondition?->id,
                 'necessaries_id'    => $necessary->id,
                 'qty'               => $qty,
-                'use_tdr'           => true,
+                'use_tdr'           => false,
                 'use_process_forms' => false,
             ]);
+
+            if (!$workorder->part_missing) {
+                $workorder->part_missing = true;
+                $workorder->save();
+            }
 
             return response()->json([
                 'tdr_id'   => $tdr->id,
@@ -247,6 +396,17 @@ class WoMeasurementController extends Controller
 
         $ruleIds = $data['rule_ids'] ?? [];
 
+        // codes_id: use measurement's own finding code if set;
+        // for dimensional FAILs (no finding selected) fall back to the parameter's
+        // measurement-context finding code (e.g. "Worn" on an OD parameter).
+        $codesId = $measurement->codes_id;
+        if (!$codesId && $measurement->result === 'FAIL') {
+            $parameter = ManualParameter::with('codes')->find($measurement->manual_parameter_id);
+            $codesId = $parameter?->codes
+                ->first(fn($c) => $c->finding_context === 'measurement')
+                ?->codes_id;
+        }
+
         // ── Order New override (no rule, user chose Order New manually) ─
         if (!empty($data['order_new_override'])) {
             $necessary = Necessary::where('name', 'Order New')->firstOrFail();
@@ -255,12 +415,14 @@ class WoMeasurementController extends Controller
                 'workorder_id'      => $workorder->id,
                 'component_id'      => $component->id,
                 'serial_number'     => $sn,
-                'codes_id'          => $measurement->codes_id,
+                'description'       => $desc,
+                'codes_id'          => $codesId,
                 'necessaries_id'    => $necessary->id,
                 'qty'               => $qty,
                 'use_tdr'           => true,
                 'use_process_forms' => false,
             ]);
+            $tdr->update(['use_tdr' => true]);
             return response()->json([
                 'tdr_id'   => $tdr->id,
                 'tdr_type' => $tdr->tdr_type,
@@ -278,12 +440,14 @@ class WoMeasurementController extends Controller
                     'workorder_id'      => $workorder->id,
                     'component_id'      => $component->id,
                     'serial_number'     => $sn,
-                    'codes_id'          => $measurement->codes_id,
+                    'description'       => $desc,
+                    'codes_id'          => $codesId,
                     'necessaries_id'    => $necessary->id,
                     'qty'               => $qty,
                     'use_tdr'           => true,
                     'use_process_forms' => false,
                 ]);
+                $tdr->update(['use_tdr' => true]);
                 return response()->json([
                     'tdr_id'   => $tdr->id,
                     'tdr_type' => $tdr->tdr_type,
@@ -299,12 +463,14 @@ class WoMeasurementController extends Controller
             'workorder_id'      => $workorder->id,
             'component_id'      => $component->id,
             'serial_number'     => $sn,
-            'codes_id'          => $measurement->codes_id,
+            'description'       => $desc,
+            'codes_id'          => $codesId,
             'necessaries_id'    => $necessary->id,
             'qty'               => $qty,
             'use_tdr'           => true,
             'use_process_forms' => true,
         ]);
+        $tdr->update(['use_tdr' => true]);
 
         if (!empty($ruleIds)) {
             $rules = ManualParameterRepairRule::with('processes.manualProcess.process')
@@ -332,7 +498,7 @@ class WoMeasurementController extends Controller
                     'process_names_id' => $processNameId,
                     'processes'        => $group['process_ids'],
                     'sort_order'       => $group['sort_order'],
-                    'in_traveler'      => true,
+                    'in_traveler'      => false,
                 ]);
             }
         }
@@ -362,30 +528,53 @@ class WoMeasurementController extends Controller
         return null;
     }
 
-    private function resolveRepairRule(ManualParameter $parameter, ?string $result, ?int $codesId, bool $useWear): ?int
+    private function resolveRepairRule(ManualParameter $parameter, ?string $result, ?int $codesId, bool $useWear, ?string $findingContext = null): ?int
     {
         $rules = $parameter->repairRules;
 
-        // Finding-based: specific code match first
         if ($codesId) {
-            foreach ($rules as $rule) {
-                if ($rule->triggers->contains(fn($t) => $t->trigger === 'finding' && (int)$t->codes_id === $codesId)) {
-                    return $rule->id;
+            if ($findingContext === 'measurement') {
+                // Finding came from measurement context → match finding_measurement triggers
+                foreach ($rules as $rule) {
+                    if ($rule->triggers->contains(fn($t) => $t->trigger === 'finding_measurement' && (int)$t->codes_id === $codesId)) {
+                        return $rule->id;
+                    }
                 }
-            }
-            // Any defect finding
-            foreach ($rules as $rule) {
-                if ($rule->triggers->contains(fn($t) => $t->trigger === 'finding' && $t->codes_id === null)) {
-                    return $rule->id;
+                foreach ($rules as $rule) {
+                    if ($rule->triggers->contains(fn($t) => $t->trigger === 'finding_measurement' && $t->codes_id === null)) {
+                        return $rule->id;
+                    }
+                }
+            } else {
+                // Finding came from inspection context → match finding_inspection / legacy finding
+                foreach ($rules as $rule) {
+                    if ($rule->triggers->contains(fn($t) => $t->trigger === 'finding_inspection' && (int)$t->codes_id === $codesId)) {
+                        return $rule->id;
+                    }
+                }
+                foreach ($rules as $rule) {
+                    if ($rule->triggers->contains(fn($t) => $t->trigger === 'finding' && (int)$t->codes_id === $codesId)) {
+                        return $rule->id;
+                    }
+                }
+                foreach ($rules as $rule) {
+                    if ($rule->triggers->contains(fn($t) => in_array($t->trigger, ['finding_inspection', 'finding']) && $t->codes_id === null)) {
+                        return $rule->id;
+                    }
                 }
             }
         }
 
-        // Measurement FAIL
+        // Dimensional FAIL (no explicit finding selected)
         if ($result === 'FAIL') {
             $failTriggers = $useWear ? ['below_wear', 'above_wear'] : ['below_orig', 'above_orig'];
             foreach ($rules as $rule) {
                 if ($rule->triggers->contains(fn($t) => in_array($t->trigger, $failTriggers))) {
+                    return $rule->id;
+                }
+            }
+            foreach ($rules as $rule) {
+                if ($rule->triggers->contains(fn($t) => $t->trigger === 'finding_measurement')) {
                     return $rule->id;
                 }
             }

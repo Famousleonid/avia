@@ -762,6 +762,12 @@
                                     role="tab">{{ __('Measurements') }}</button>
                         </li>
                     </ul>
+                    <div id="ms-fc-btn-wrap" class="d-none align-items-center ms-auto" style="margin-right:50px">
+                        <a href="{{ route('workorders.measurements.fc-table', $current_wo->id) }}"
+                           target="_blank" class="btn btn-outline-secondary btn-sm" style="font-size:11px">
+                            &#128438; F&amp;C Table
+                        </a>
+                    </div>
                     <div id="partProcessesShortcutActions" class="d-none d-flex gap-2 align-items-center ms-auto"
                          style="margin-right: 50px;">
                         @if(count($processParts))

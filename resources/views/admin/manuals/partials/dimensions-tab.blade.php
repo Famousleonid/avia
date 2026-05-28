@@ -474,7 +474,7 @@
 
 {{-- Modal: Add / Edit Repair Rule --}}
 <div class="modal fade" id="dimRepairRuleModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="dimRepairRuleModalTitle">Add Repair Rule</h5>
@@ -489,61 +489,70 @@
                     <input type="text" class="form-control form-control-sm" id="dimRuleName" maxlength="100" placeholder="Optional — identifies this repair procedure">
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label form-label-sm">Action</label>
-                    <div class="d-flex gap-3 mt-1">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="dimRuleAction" id="dimRuleActionRepair" value="repair" checked>
-                            <label class="form-check-label" for="dimRuleActionRepair" style="font-size:13px">Repair</label>
+                <div class="row g-3">
+                    {{-- Left column: Action + Triggers --}}
+                    <div class="col-5">
+                        <div class="mb-3">
+                            <label class="form-label form-label-sm">Action</label>
+                            <div class="d-flex gap-3 mt-1">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="dimRuleAction" id="dimRuleActionRepair" value="repair" checked>
+                                    <label class="form-check-label" for="dimRuleActionRepair" style="font-size:13px">Repair</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="dimRuleAction" id="dimRuleActionReplace" value="replace">
+                                    <label class="form-check-label" for="dimRuleActionReplace" style="font-size:13px">Order new</label>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="dimRuleAction" id="dimRuleActionReplace" value="replace">
-                            <label class="form-check-label" for="dimRuleActionReplace" style="font-size:13px">Order new</label>
+
+                        <div class="mb-3">
+                            <label class="form-label form-label-sm">Triggers <span class="text-danger">*</span></label>
+                            <div id="dimRuleTriggerList" class="mb-2"></div>
+                            <div class="d-flex gap-2 align-items-center flex-wrap" id="dimRuleTriggerAddRow">
+                                <select class="form-select form-select-sm" id="dimRuleTriggerSel" style="max-width:220px">
+                                    <option value="">+ Add trigger...</option>
+                                    <optgroup label="Measurement — below min">
+                                        <option value="below_orig">Below original min</option>
+                                        <option value="below_wear">Below wear min</option>
+                                    </optgroup>
+                                    <optgroup label="Measurement — above max">
+                                        <option value="above_orig">Above original max</option>
+                                        <option value="above_wear">Above wear max</option>
+                                    </optgroup>
+                                    <optgroup label="Finding">
+                                        <option value="finding_measurement">Finding — Measurement</option>
+                                        <option value="finding_inspection">Finding — Inspection</option>
+                                    </optgroup>
+                                    <option value="manual">Manual</option>
+                                </select>
+                                <select class="form-select form-select-sm d-none" id="dimRuleTriggerCode" style="max-width:180px">
+                                    <option value="">— Any defect —</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="dimRuleTriggerAddBtn">Add</button>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label form-label-sm">Notes</label>
+                            <textarea class="form-control form-control-sm" id="dimRuleNotes" rows="2" placeholder="Optional notes"></textarea>
+                        </div>
+                    </div>
+
+                    {{-- Right column: Processes --}}
+                    <div class="col-7 border-start ps-3">
+                        <div class="mb-3">
+                            <label class="form-label form-label-sm">Processes</label>
+                            <div id="dimRuleProcessList" class="mb-2"></div>
+                            <select id="dimRuleProcessName" style="width:100%">
+                                <option value=""></option>
+                            </select>
+                            <div id="dimRuleProcessOptions" class="mt-2 d-none" style="display:flex;flex-wrap:wrap;gap:4px"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label form-label-sm">Triggers <span class="text-danger">*</span></label>
-                    <div id="dimRuleTriggerList" class="mb-2"></div>
-                    <div class="d-flex gap-2 align-items-center flex-wrap" id="dimRuleTriggerAddRow">
-                        <select class="form-select form-select-sm" id="dimRuleTriggerSel" style="max-width:220px">
-                            <option value="">+ Add trigger...</option>
-                            <optgroup label="Measurement — below min">
-                                <option value="below_orig">Below original min</option>
-                                <option value="below_wear">Below wear min</option>
-                            </optgroup>
-                            <optgroup label="Measurement — above max">
-                                <option value="above_orig">Above original max</option>
-                                <option value="above_wear">Above wear max</option>
-                            </optgroup>
-                            <option value="finding">Inspection finding</option>
-                            <option value="manual">Manual</option>
-                        </select>
-                        <select class="form-select form-select-sm d-none" id="dimRuleTriggerCode" style="max-width:180px">
-                            <option value="">— Any defect —</option>
-                        </select>
-                        <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="dimRuleTriggerAddBtn">Add</button>
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label form-label-sm">Processes</label>
-                    <div id="dimRuleProcessList" class="mb-2"></div>
-                    <select id="dimRuleProcessName" style="width:100%">
-                        <option value=""></option>
-                    </select>
-                    <div id="dimRuleProcessOptions" class="mt-2 d-none" style="display:flex;flex-wrap:wrap;gap:4px"></div>
-                </div>
-
-                <div class="mb-2">
-                    <label class="form-label form-label-sm">Notes</label>
-                    <textarea class="form-control form-control-sm" id="dimRuleNotes" rows="2" placeholder="Optional notes"></textarea>
-                </div>
-
-
-
-                <div class="text-danger small d-none" id="dimRuleError"></div>
+                <div class="text-danger small d-none mt-2" id="dimRuleError"></div>
             </div>
             <div class="modal-footer d-flex justify-content-between">
                 <button type="button" class="btn btn-outline-danger btn-sm d-none" id="dimRuleDeleteBtn">Delete</button>
@@ -730,12 +739,18 @@
                 <div class="mb-3" id="dimSpecCodesWrap">
                     <label class="form-label form-label-sm">Defect Codes <span class="text-secondary" style="font-size:10px">(leave empty for measurement params)</span></label>
                     <div id="dimSpecCodesList" class="mb-2"></div>
-                    <select class="form-select form-select-sm" id="dimSpecCodesAdd">
-                        <option value="">+ Add defect code...</option>
-                        @foreach($codes as $code)
-                            <option value="{{ $code->id }}" data-name="{{ $code->name }}">{{ $code->name }}</option>
-                        @endforeach
-                    </select>
+                    <div class="d-flex gap-2 align-items-center">
+                        <select class="form-select form-select-sm" id="dimSpecCodesAdd" style="flex:1">
+                            <option value="">+ Add defect code...</option>
+                            @foreach($codes as $code)
+                                <option value="{{ $code->id }}" data-name="{{ $code->name }}">{{ $code->name }}</option>
+                            @endforeach
+                        </select>
+                        <select class="form-select form-select-sm" id="dimSpecCodeContext" style="width:130px" title="Finding context">
+                            <option value="inspection">Inspection</option>
+                            <option value="measurement">Measurement</option>
+                        </select>
+                    </div>
                 </div>
 
                 {{-- Dimensional limits --}}
@@ -1210,7 +1225,7 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#dimSpecComponent').on('change', autoFillParamFromExisting);
 
     // ---- Spec defect codes list ----
-    let dimSpecCodes = []; // [{id, name}]
+    let dimSpecCodes = []; // [{id, name, finding_context}]
 
     function renderSpecCodesList() {
         const wrap = document.getElementById('dimSpecCodesList');
@@ -1220,8 +1235,12 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         wrap.innerHTML = dimSpecCodes.map(function (c, i) {
+            const isMeas = c.finding_context === 'measurement';
+            const ctxBadge = isMeas
+                ? '<span class="badge bg-warning text-dark ms-1" style="font-size:9px">M</span>'
+                : '<span class="badge bg-info text-dark ms-1" style="font-size:9px">I</span>';
             return `<span class="badge text-bg-secondary me-1 mb-1" style="font-size:11px;font-weight:500">
-                ${escHtml(c.name)}
+                ${escHtml(c.name)}${ctxBadge}
                 <button type="button" class="btn-close btn-close-white ms-1 dim-spec-code-remove" data-idx="${i}" style="font-size:8px;vertical-align:middle"></button>
             </span>`;
         }).join('');
@@ -1234,11 +1253,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.getElementById('dimSpecCodesAdd').addEventListener('change', function () {
-        const val  = parseInt(this.value);
-        const name = this.options[this.selectedIndex]?.dataset.name || '';
+        const val     = parseInt(this.value);
+        const name    = this.options[this.selectedIndex]?.dataset.name || '';
+        const context = document.getElementById('dimSpecCodeContext')?.value || 'inspection';
         this.value = '';
         if (!val || dimSpecCodes.find(function (c) { return c.id === val; })) return;
-        dimSpecCodes.push({ id: val, name: name });
+        dimSpecCodes.push({ id: val, name: name, finding_context: context });
         renderSpecCodesList();
     });
 
@@ -2587,9 +2607,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         const pcTxt  = pc > 0 ? ` · ${pc} proc.` : '';
                         const nm     = escHtml(r.name || '—');
 
-                        const trigList   = r.triggers || [];
-                        const measTrigs  = trigList.filter(function (t) { return t.trigger !== 'finding'; });
-                        const findTrigs  = trigList.filter(function (t) { return t.trigger === 'finding'; });
+                        const trigList      = r.triggers || [];
+                        const dimTrigTypes  = ['below_orig','above_orig','below_wear','above_wear'];
+                        const measTrigs     = trigList.filter(function (t) { return dimTrigTypes.includes(t.trigger); });
+                        const measFindTrigs = trigList.filter(function (t) { return t.trigger === 'finding_measurement'; });
+                        const inspFindTrigs = trigList.filter(function (t) { return t.trigger === 'finding_inspection' || t.trigger === 'finding'; });
 
                         const measNames = measTrigs.map(function (t) {
                             return `<span style="font-weight:600;color:var(--bs-body-color)">${escHtml(TRIGGER_LABELS[t.trigger] || t.trigger)}</span>`;
@@ -2598,11 +2620,18 @@ document.addEventListener('DOMContentLoaded', function () {
                             ? `<div style="padding-left:16px;font-size:11px;color:var(--bs-secondary-color);margin-top:2px">Measurement · ${measNames}</div>`
                             : '';
 
-                        const findNames = findTrigs.map(function (t) {
+                        const measFindNames = measFindTrigs.map(function (t) {
                             return t.code_name ? `<span style="font-weight:600;color:var(--bs-body-color)">${escHtml(t.code_name)}</span>` : '<span style="font-style:italic">any</span>';
                         }).join(', ');
-                        const findRow = findTrigs.length > 0
-                            ? `<div style="padding-left:16px;font-size:11px;color:var(--bs-secondary-color);margin-top:1px">Inspection · ${findNames}</div>`
+                        const measFindRow = measFindTrigs.length > 0
+                            ? `<div style="padding-left:16px;font-size:11px;color:var(--bs-secondary-color);margin-top:1px">Meas. Finding · ${measFindNames}</div>`
+                            : '';
+
+                        const inspFindNames = inspFindTrigs.map(function (t) {
+                            return t.code_name ? `<span style="font-weight:600;color:var(--bs-body-color)">${escHtml(t.code_name)}</span>` : '<span style="font-style:italic">any</span>';
+                        }).join(', ');
+                        const findRow = inspFindTrigs.length > 0
+                            ? `<div style="padding-left:16px;font-size:11px;color:var(--bs-secondary-color);margin-top:1px">Insp. Finding · ${inspFindNames}</div>`
                             : '';
 
                         html += `<div class="dim-rule-row" data-rule-id="${r.id}">
@@ -2610,7 +2639,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <span style="font-size:12px;font-weight:700">${nm} <span style="font-weight:400;color:var(--bs-secondary-color)">(${al}${pcTxt})</span></span>
                                 <button class="btn btn-link btn-sm p-0 dim-rule-edit-btn" data-rule-id="${r.id}" data-param-id="${param.id}" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-pencil"></i></button>
                             </div>
-                            ${measRow}${findRow}
+                            ${measRow}${measFindRow}${findRow}
                         </div>`;
                     });
                     html += `</div>`;
@@ -2689,7 +2718,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecWearMax').value     = param.wear_dim_max || '';
         document.getElementById('dimSpecInspection').value  = param.inspection || '';
         document.getElementById('dimSpecSort').value        = param.sort_order || '0';
-        dimSpecCodes = (param.codes || []).map(function (c) { return { id: c.codes_id, name: c.name || '' }; });
+        dimSpecCodes = (param.codes || []).map(function (c) { return { id: c.codes_id, name: c.name || '', finding_context: c.finding_context || 'inspection' }; });
         renderSpecCodesList();
         document.getElementById('dimSpecModalTitle').textContent = 'Edit Parameter — ' + (param.description || '');
         document.getElementById('dimSpecDeleteBtn').classList.remove('d-none');
@@ -2737,12 +2766,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const TRIGGER_LABELS = {
-        below_orig: 'Below orig min',
-        above_orig: 'Above orig max',
-        below_wear: 'Below wear min',
-        above_wear: 'Above wear max',
-        finding:    'Finding',
-        manual:     'Manual',
+        below_orig:          'Below orig min',
+        above_orig:          'Above orig max',
+        below_wear:          'Below wear min',
+        above_wear:          'Above wear max',
+        finding_measurement: 'Finding — Measurement',
+        finding_inspection:  'Finding — Inspection',
+        finding:             'Finding',
+        manual:              'Manual',
     };
 
     function renderRuleTriggerList() {
@@ -2754,7 +2785,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         wrap.innerHTML = dimRuleTriggers.map(function (t, i) {
             const tl = TRIGGER_LABELS[t.trigger] || t.trigger;
-            const cl = t.code_name ? ' · ' + escHtml(t.code_name) : (t.trigger === 'finding' ? ' · any defect' : '');
+            const isFindTrigger = t.trigger === 'finding' || t.trigger === 'finding_measurement' || t.trigger === 'finding_inspection';
+            const cl = t.code_name ? ' · ' + escHtml(t.code_name) : (isFindTrigger ? ' · any defect' : '');
             return `<div class="dim-rule-process-item">
                 <span class="flex-grow-1" style="font-size:12px">${escHtml(tl)}${cl}</span>
                 <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-trig-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)">
@@ -2838,7 +2870,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const val      = this.value;
         const codeEl   = document.getElementById('dimRuleTriggerCode');
         const addBtn   = document.getElementById('dimRuleTriggerAddBtn');
-        const isFinding = val === 'finding';
+        const isFinding = val === 'finding' || val === 'finding_measurement' || val === 'finding_inspection';
         codeEl.classList.toggle('d-none', !isFinding);
         addBtn.classList.toggle('d-none', !val);
     });
@@ -2846,7 +2878,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('dimRuleTriggerAddBtn').addEventListener('click', function () {
         const triggerVal = document.getElementById('dimRuleTriggerSel').value;
         if (!triggerVal) return;
-        const isFinding  = triggerVal === 'finding';
+        const isFinding  = triggerVal === 'finding' || triggerVal === 'finding_measurement' || triggerVal === 'finding_inspection';
         const codesIdVal = isFinding ? (document.getElementById('dimRuleTriggerCode').value || null) : null;
         const codeName   = isFinding && codesIdVal
             ? (document.getElementById('dimRuleTriggerCode').options[document.getElementById('dimRuleTriggerCode').selectedIndex]?.text || null)
@@ -3361,11 +3393,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Sync codes: add new, remove deleted
                 const param = parameters.find(function (p) { return p.id == id; });
                 if (param) {
-                    const existingIds = (param.codes || []).map(function (c) { return c.codes_id; });
-                    const newIds      = dimSpecCodes.map(function (c) { return c.id; });
+                    const newIds = dimSpecCodes.map(function (c) { return c.id; });
                     for (const c of dimSpecCodes) {
-                        if (existingIds.indexOf(c.id) === -1) {
-                            await apiFetch('/parameters/' + id + '/codes', { method: 'POST', body: JSON.stringify({ codes_id: c.id }) });
+                        const existing = (param.codes || []).find(function (e) { return e.codes_id === c.id; });
+                        if (!existing) {
+                            await apiFetch('/parameters/' + id + '/codes', { method: 'POST', body: JSON.stringify({ codes_id: c.id, finding_context: c.finding_context }) });
+                        } else if (existing.finding_context !== c.finding_context) {
+                            // context changed → delete and re-create
+                            await apiFetch('/parameter-codes/' + existing.id, { method: 'DELETE' });
+                            await apiFetch('/parameters/' + id + '/codes', { method: 'POST', body: JSON.stringify({ codes_id: c.id, finding_context: c.finding_context }) });
                         }
                     }
                     for (const existing of (param.codes || [])) {

@@ -15,7 +15,6 @@ class BackfillTdrTypes extends Command
     protected $signature = 'tdrs:backfill-types
         {--write : Persist inferred tdr_type values. Default is dry-run}
         {--overwrite : Recalculate rows that already have tdr_type}
-        {--with-trashed : Include soft-deleted TDR rows}
         {--chunk=500 : Rows to process per chunk}
         {--limit-unknown=50 : Maximum unknown rows to print}
         {--force : Force the operation to run in production}';
@@ -60,13 +59,8 @@ class BackfillTdrTypes extends Command
                 'description',
                 'use_tdr',
                 'use_process_forms',
-                'deleted_at',
             ])
             ->orderBy('id');
-
-        if ((bool) $this->option('with-trashed')) {
-            $query->withTrashed();
-        }
 
         if (! $overwrite) {
             $query->whereNull('tdr_type');
@@ -111,7 +105,6 @@ class BackfillTdrTypes extends Command
                             'description' => $tdr->description,
                             'use_tdr' => (int) $tdr->use_tdr,
                             'use_process_forms' => (int) $tdr->use_process_forms,
-                            'deleted' => $tdr->deleted_at ? 'yes' : 'no',
                         ];
                     }
                 }

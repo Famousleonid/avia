@@ -308,7 +308,7 @@ class ActivityLogController extends Controller
             ->all();
 
         $tdrIds = array_values(array_unique(array_merge($idBuckets['tdrs_id'], $idBuckets['source_tdr_id'])));
-        $tdrMap = Tdr::withTrashed()
+        $tdrMap = Tdr::query()
             ->whereIn('id', $tdrIds)
             ->with([
                 'component' => fn ($query) => $query->withTrashed()->with('manual:id,number,lib'),
@@ -318,7 +318,7 @@ class ActivityLogController extends Controller
                 'conditions:id,name',
                 'necessaries:id,name',
             ])
-            ->get(['id', 'component_id', 'order_component_id', 'workorder_id', 'codes_id', 'conditions_id', 'necessaries_id', 'description', 'deleted_at'])
+            ->get(['id', 'component_id', 'order_component_id', 'workorder_id', 'codes_id', 'conditions_id', 'necessaries_id', 'description'])
             ->mapWithKeys(fn (Tdr $t) => [$t->id => $this->formatTdrActivityLabel($t)])
             ->all();
 
@@ -326,8 +326,7 @@ class ActivityLogController extends Controller
         $tdrProcessMap = TdrProcess::query()
             ->whereIn('id', $tdrProcessIds)
             ->with([
-                'tdr' => fn ($query) => $query->withTrashed()
-                    ->with([
+                'tdr' => fn ($query) => $query->with([
                         'component' => fn ($componentQuery) => $componentQuery->withTrashed()->with('manual:id,number,lib'),
                         'orderComponent' => fn ($componentQuery) => $componentQuery->withTrashed()->with('manual:id,number,lib'),
                         'workorder' => fn ($workorderQuery) => $workorderQuery->withTrashed()->select(['id', 'number']),
@@ -611,10 +610,6 @@ class ActivityLogController extends Controller
 
         if ($tdr->necessaries?->name) {
             $parts[] = 'necessary: '.$tdr->necessaries->name;
-        }
-
-        if ($tdr->trashed()) {
-            $parts[] = 'deleted';
         }
 
         return implode('   ', $parts);

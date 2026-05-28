@@ -64,8 +64,8 @@ class TdrController extends Controller
     }
 
     /**
-     * ÐÐ¾Ñ€Ð¼Ð°Ð»Ð¸Ð·ÑƒÐµÑ‚ IPL Ð½Ð¾Ð¼ÐµÑ€, ÑƒÐ±Ð¸Ñ€Ð°Ñ Ð±ÑƒÐºÐ²ÐµÐ½Ð½Ñ‹Ðµ ÑÑƒÑ„Ñ„Ð¸ÐºÑÑ‹ Ð´Ð»Ñ ÑÑ€Ð°Ð²Ð½ÐµÐ½Ð¸Ñ
-     * ÐÐ°Ð¿Ñ€Ð¸Ð¼ÐµÑ€: 5-90A -> 5-90, 1-1190B -> 1-1190
+     * Нормализует IPL номер, убирая буквенные суффиксы для сравнения
+     * Например: 5-90A -> 5-90, 1-1190B -> 1-1190
      *
      * @param string $iplNum
      * @return string
@@ -76,13 +76,13 @@ class TdrController extends Controller
             return '';
         }
 
-        // Ð£Ð±Ð¸Ñ€Ð°ÐµÐ¼ Ð±ÑƒÐºÐ²ÐµÐ½Ð½Ñ‹Ðµ ÑÑƒÑ„Ñ„Ð¸ÐºÑÑ‹ Ð² ÐºÐ¾Ð½Ñ†Ðµ (A, B, C, Ð¸ Ñ‚.Ð´.)
-        // ÐŸÐ°Ñ‚Ñ‚ÐµÑ€Ð½: ÑƒÐ´Ð°Ð»ÑÐµÐ¼ Ð±ÑƒÐºÐ²Ñ‹ Ð² ÐºÐ¾Ð½Ñ†Ðµ Ð¿Ð¾ÑÐ»Ðµ Ð¿Ð¾ÑÐ»ÐµÐ´Ð½ÐµÐ³Ð¾ Ð´ÐµÑ„Ð¸ÑÐ° Ð¸Ð»Ð¸ Ð² ÐºÐ¾Ð½Ñ†Ðµ ÑÑ‚Ñ€Ð¾ÐºÐ¸
+        // Убираем буквенные суффиксы в конце (A, B, C, и т.д.)
+        // Паттерн: удаляем буквы в конце после последнего дефиса или в конце строки
         return preg_replace('/[A-Z]+$/', '', trim($iplNum));
     }
 
     /**
-     * TDR ÑÐ¾ ÑÑ‚Ð°Ñ‚ÑƒÑÐ°Ð¼Ð¸ Missing / Repair / Order New Ð½Ðµ ÑƒÑ‡Ð°ÑÑ‚Ð²ÑƒÑŽÑ‚ Ð² ÑÑƒÐ¼Ð¼Ðµ Â«ÑƒÐ¶Ðµ Ð² TDRÂ» Ð´Ð»Ñ NDT STD.
+     * TDR со статусами Missing / Repair / Order New не участвуют в сумме «уже в TDR» для NDT STD.
      */
     private function tdrRowExcludedForNdtStd(Tdr $tdr, ?Code $missingCode, ?Code $repairCode, ?Necessary $orderNewNecessary): bool
     {
@@ -100,8 +100,8 @@ class TdrController extends Controller
     }
 
     /**
-     * ÐœÐ°Ð¿Ñ‹ Ð´Ð»Ñ NDT STD: excluded (Missing/Repair/Order New) Ð¸ ÑÑƒÐ¼Ð¼Ð° TDR Ð¿Ð¾ Ð½Ð¾Ñ€Ð¼Ð°Ð»Ð¸Ð·Ð¾Ð²Ð°Ð½Ð½Ð¾Ð¼Ñƒ IPL
-     * (Ð±ÐµÐ· Â«Ð¸ÑÐºÐ»ÑŽÑ‡Ñ‘Ð½Ð½Ñ‹Ñ…Â» TDR) â€” ÐµÐ´Ð¸Ð½Ñ‹ Ð´Ð»Ñ Ð¿ÐµÑ‡Ð°Ñ‚Ð½Ð¾Ð¹ Ñ„Ð¾Ñ€Ð¼Ñ‹ Ð¸ calcNdtSums.
+     * Мапы для NDT STD: excluded (Missing/Repair/Order New) и сумма TDR по нормализованному IPL
+     * (без «исключённых» TDR) — едины для печатной формы и calcNdtSums.
      *
      * @return array{excluded: array<string, int>, tdr: array<string, int>}
      */
@@ -181,7 +181,7 @@ class TdrController extends Controller
     }
 
     /**
-     * units_assy Ð¿Ð¾ Ð½Ð¾Ñ€Ð¼Ð°Ð»Ð¸Ð·Ð¾Ð²Ð°Ð½Ð½Ð¾Ð¼Ñƒ IPL (Ð¿Ñ€Ð¸Ð¾Ñ€Ð¸Ñ‚ÐµÑ‚ â€” ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ñ‹ Ð¸Ð· manual Ñ‚ÐµÐºÑƒÑ‰ÐµÐ³Ð¾ Ð·Ð°ÐºÐ°Ð·Ð°).
+     * units_assy по нормализованному IPL (приоритет — компоненты из manual текущего заказа).
      *
      * @return array<string, int>
      */
@@ -208,7 +208,7 @@ class TdrController extends Controller
     }
 
     /**
-     * units_assy Ð¸Ð· Component Ð´Ð»Ñ ÑÑ‚Ñ€Ð¾ÐºÐ¸ NDT STD: manual Ð¸Ð· ÑÐ½Ð¸Ð¼ÐºÐ° Ð¸Ð»Ð¸ Ð¾Ð±Ñ‰Ð°Ñ Ð¼Ð°Ð¿Ð° Ð¿Ð¾ IPL.
+     * units_assy из Component для строки NDT STD: manual из снимка или общая мапа по IPL.
      */
     private function resolveNdtStdUnitsAssyForRow(array $component, string $iplNum, string $normalizedIpl, array $unitsAssyByIpl): int
     {
@@ -236,8 +236,8 @@ class TdrController extends Controller
     }
 
     /**
-     * ITEM / PART / DESCRIPTION Ð´Ð»Ñ paintFormStd: Ð¸Ð· Component â€” assy_ipl_num, assy_part_number (ÐµÑÐ»Ð¸ Ð·Ð°Ð´Ð°Ð½Ñ‹);
-     * Ð¸Ð½Ð°Ñ‡Ðµ Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ñ Ð¸Ð· ÑÐ½Ð¸Ð¼ÐºÐ° paint. Ð•ÑÐ»Ð¸ Ð·Ð°Ð´Ð°Ð½ Ñ…Ð¾Ñ‚Ñ Ð±Ñ‹ Ð¾Ð´Ð¸Ð½ assy â€” description Ð±ÐµÑ€Ñ‘Ñ‚ÑÑ Ð¸Ð· name ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ð°.
+     * ITEM / PART / DESCRIPTION для paintFormStd: из Component — assy_ipl_num, assy_part_number (если заданы);
+     * иначе значения из снимка paint. Если задан хотя бы один assy — description берётся из name компонента.
      *
      * @param  array<string, mixed>  $paintRow
      * @return array{0: string, 1: string, 2: string}
@@ -284,18 +284,18 @@ class TdrController extends Controller
     }
 
     /**
-     * Ð Ð°ÑÑÑ‡Ð¸Ñ‚Ñ‹Ð²Ð°ÐµÑ‚ Ð¿Ð°Ð³Ð¸Ð½Ð°Ñ†Ð¸ÑŽ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ð¾Ð² Ñ ÑƒÑ‡ÐµÑ‚Ð¾Ð¼ manual-ÑÑ‚Ñ€Ð¾Ðº Ð¸ Ð¿ÑƒÑÑ‚Ñ‹Ñ… ÑÑ‚Ñ€Ð¾Ðº
+     * Рассчитывает пагинацию компонентов с учетом manual-строк и пустых строк
      *
-     * @param array $components ÐœÐ°ÑÑÐ¸Ð² ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ð¾Ð²
-     * @param int $targetRows Ð¦ÐµÐ»ÐµÐ²Ð¾Ðµ ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ ÑÑ‚Ñ€Ð¾Ðº Ð½Ð° ÑÑ‚Ñ€Ð°Ð½Ð¸Ñ†Ðµ (Ð²ÐºÐ»ÑŽÑ‡Ð°Ñ
-     *     manual Ð¸ Ð¿ÑƒÑÑ‚Ñ‹Ðµ)
-     * @return array ÐœÐ°ÑÑÐ¸Ð² chunks, ÐºÐ°Ð¶Ð´Ñ‹Ð¹ chunk ÑÐ¾Ð´ÐµÑ€Ð¶Ð¸Ñ‚:
-     *   - 'components': Ð¼Ð°ÑÑÐ¸Ð² ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ð¾Ð²
-     *   - 'manual_rows': ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ manual-ÑÑ‚Ñ€Ð¾Ðº
-     *   - 'data_rows': ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ ÑÑ‚Ñ€Ð¾Ðº Ñ Ð´Ð°Ð½Ð½Ñ‹Ð¼Ð¸
-     *   - 'empty_rows': ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ Ð¿ÑƒÑÑ‚Ñ‹Ñ… ÑÑ‚Ñ€Ð¾Ðº Ð´Ð»Ñ Ð´Ð¾Ð±Ð°Ð²Ð»ÐµÐ½Ð¸Ñ
-     *   - 'total_rows': Ð¾Ð±Ñ‰ÐµÐµ ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ ÑÑ‚Ñ€Ð¾Ðº
-     *   - 'previous_manual': Ð¿Ð¾ÑÐ»ÐµÐ´Ð½Ð¸Ð¹ manual Ð² chunk (Ð´Ð»Ñ ÑÐ»ÐµÐ´ÑƒÑŽÑ‰ÐµÐ³Ð¾ chunk)
+     * @param array $components Массив компонентов
+     * @param int $targetRows Целевое количество строк на странице (включая
+     *     manual и пустые)
+     * @return array Массив chunks, каждый chunk содержит:
+     *   - 'components': массив компонентов
+     *   - 'manual_rows': количество manual-строк
+     *   - 'data_rows': количество строк с данными
+     *   - 'empty_rows': количество пустых строк для добавления
+     *   - 'total_rows': общее количество строк
+     *   - 'previous_manual': последний manual в chunk (для следующего chunk)
      */
     private function paginateComponentsWithEmptyRows($components, $targetRows = 18)
     {
@@ -308,12 +308,12 @@ class TdrController extends Controller
             $currentManual = $component->manual ?? null;
             $hasManual = ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
 
-            // ÐŸÐ¾Ð´ÑÑ‡Ð¸Ñ‚Ñ‹Ð²Ð°ÐµÐ¼ ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ ÑÑ‚Ñ€Ð¾Ðº Ð² Ñ‚ÐµÐºÑƒÑ‰ÐµÐ¼ chunk Ð‘Ð•Ð— Ð½Ð¾Ð²Ð¾Ð³Ð¾ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ð°
+            // Подсчитываем количество строк в текущем chunk БЕЗ нового компонента
             $rowsInChunk = count($currentChunk);
             $manualRowsInChunk = 0;
             $tempPreviousManual = $previousChunkLastManual ?? $previousManual;
 
-            // Ð¡Ñ‡Ð¸Ñ‚Ð°ÐµÐ¼ manual-ÑÑ‚Ñ€Ð¾ÐºÐ¸ Ð² Ñ‚ÐµÐºÑƒÑ‰ÐµÐ¼ chunk (ÑƒÐ¶Ðµ Ð´Ð¾Ð±Ð°Ð²Ð»ÐµÐ½Ð½Ñ‹Ñ… ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ð¾Ð²)
+            // Считаем manual-строки в текущем chunk (уже добавленных компонентов)
             foreach ($currentChunk as $chunkComponent) {
                 $chunkManual = $chunkComponent->manual ?? null;
                 if ($chunkManual !== null && $chunkManual !== '' && $chunkManual !== $tempPreviousManual) {
@@ -324,36 +324,36 @@ class TdrController extends Controller
                 }
             }
 
-            // Ð•ÑÐ»Ð¸ Ð´Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ ÑÑ‚Ð¾Ñ‚ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚, Ð±ÑƒÐ´ÐµÑ‚ Ð»Ð¸ Ð½Ð¾Ð²Ð°Ñ manual-ÑÑ‚Ñ€Ð¾ÐºÐ°?
+            // Если добавляем этот компонент, будет ли новая manual-строка?
             if ($hasManual) {
                 $manualRowsInChunk++;
             }
 
-            // ÐžÐ±Ñ‰ÐµÐµ ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ ÑÑ‚Ñ€Ð¾Ðº Ð² chunk Ð¡ Ð½Ð¾Ð²Ñ‹Ð¼ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ð¾Ð¼
+            // Общее количество строк в chunk С новым компонентом
             $totalRowsInChunk = $rowsInChunk + $manualRowsInChunk + 1;
 
-            // Ð•ÑÐ»Ð¸ Ð´Ð¾Ð±Ð°Ð²Ð»ÐµÐ½Ð¸Ðµ ÑÑ‚Ð¾Ð³Ð¾ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ð° Ð¿Ñ€ÐµÐ²Ñ‹ÑÐ¸Ñ‚ Ð»Ð¸Ð¼Ð¸Ñ‚, ÑÐ¾Ñ…Ñ€Ð°Ð½ÑÐµÐ¼ Ñ‚ÐµÐºÑƒÑ‰Ð¸Ð¹ chunk
+            // Если добавление этого компонента превысит лимит, сохраняем текущий chunk
             if ($totalRowsInChunk > $targetRows && !empty($currentChunk)) {
-                // Ð Ð°ÑÑÑ‡Ð¸Ñ‚Ñ‹Ð²Ð°ÐµÐ¼ Ð¿ÑƒÑÑ‚Ñ‹Ðµ ÑÑ‚Ñ€Ð¾ÐºÐ¸ Ð´Ð»Ñ Ñ‚ÐµÐºÑƒÑ‰ÐµÐ³Ð¾ chunk
+                // Рассчитываем пустые строки для текущего chunk
                 $chunkInfo = $this->calculateChunkInfo($currentChunk, $targetRows, $previousChunkLastManual ?? $previousManual, false);
                 $chunks[] = $chunkInfo;
                 $previousChunkLastManual = $chunkInfo['previous_manual'];
 
-                // ÐÐ°Ñ‡Ð¸Ð½Ð°ÐµÐ¼ Ð½Ð¾Ð²Ñ‹Ð¹ chunk
+                // Начинаем новый chunk
                 $currentChunk = [];
                 $previousManual = $previousChunkLastManual;
             }
 
-            // Ð”Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚ Ð² Ñ‚ÐµÐºÑƒÑ‰Ð¸Ð¹ chunk
+            // Добавляем компонент в текущий chunk
             $currentChunk[] = $component;
 
-            // ÐžÐ±Ð½Ð¾Ð²Ð»ÑÐµÐ¼ previousManual Ð´Ð»Ñ ÑÐ»ÐµÐ´ÑƒÑŽÑ‰ÐµÐ¹ Ð¸Ñ‚ÐµÑ€Ð°Ñ†Ð¸Ð¸
+            // Обновляем previousManual для следующей итерации
             if ($currentManual !== null && $currentManual !== '') {
                 $previousManual = $currentManual;
             }
         }
 
-        // Ð”Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ Ð¿Ð¾ÑÐ»ÐµÐ´Ð½Ð¸Ð¹ chunk, ÐµÑÐ»Ð¸ Ð¾Ð½ Ð½Ðµ Ð¿ÑƒÑÑ‚Ð¾Ð¹
+        // Добавляем последний chunk, если он не пустой
         if (!empty($currentChunk)) {
             $chunkInfo = $this->calculateChunkInfo($currentChunk, $targetRows, $previousChunkLastManual ?? $previousManual, true);
             $chunks[] = $chunkInfo;
@@ -363,13 +363,13 @@ class TdrController extends Controller
     }
 
     /**
-     * Ð Ð°ÑÑÑ‡Ð¸Ñ‚Ñ‹Ð²Ð°ÐµÑ‚ Ð¸Ð½Ñ„Ð¾Ñ€Ð¼Ð°Ñ†Ð¸ÑŽ Ð¾ chunk: ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ manual-ÑÑ‚Ñ€Ð¾Ðº, data-ÑÑ‚Ñ€Ð¾Ðº Ð¸
-     * Ð¿ÑƒÑÑ‚Ñ‹Ñ… ÑÑ‚Ñ€Ð¾Ðº
+     * Рассчитывает информацию о chunk: количество manual-строк, data-строк и
+     * пустых строк
      *
-     * @param array $chunk ÐœÐ°ÑÑÐ¸Ð² ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ð¾Ð² Ð² chunk
-     * @param int $targetRows Ð¦ÐµÐ»ÐµÐ²Ð¾Ðµ ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ ÑÑ‚Ñ€Ð¾Ðº
-     * @param string|null $previousManual Manual Ð¸Ð· Ð¿Ñ€ÐµÐ´Ñ‹Ð´ÑƒÑ‰ÐµÐ³Ð¾ chunk
-     * @param bool $isLastPage Ð¯Ð²Ð»ÑÐµÑ‚ÑÑ Ð»Ð¸ ÑÑ‚Ð¾ Ð¿Ð¾ÑÐ»ÐµÐ´Ð½ÐµÐ¹ ÑÑ‚Ñ€Ð°Ð½Ð¸Ñ†ÐµÐ¹
+     * @param array $chunk Массив компонентов в chunk
+     * @param int $targetRows Целевое количество строк
+     * @param string|null $previousManual Manual из предыдущего chunk
+     * @param bool $isLastPage Является ли это последней страницей
      * @return array
      */
     private function calculateChunkInfo($chunk, $targetRows, $previousManual = null, $isLastPage = false)
@@ -379,7 +379,7 @@ class TdrController extends Controller
         $tempPreviousManual = $previousManual;
         $lastManual = null;
 
-        // Ð¡Ñ‡Ð¸Ñ‚Ð°ÐµÐ¼ manual-ÑÑ‚Ñ€Ð¾ÐºÐ¸
+        // Считаем manual-строки
         foreach ($chunk as $component) {
             $currentManual = $component->manual ?? null;
             if ($currentManual !== null && $currentManual !== '' && $currentManual !== $tempPreviousManual) {
@@ -394,7 +394,7 @@ class TdrController extends Controller
 
         $totalDataRows = $dataRows + $manualRows;
 
-        // Ð”Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ Ð¿ÑƒÑÑ‚Ñ‹Ðµ ÑÑ‚Ñ€Ð¾ÐºÐ¸ Ð´Ð¾ targetRows Ð½Ð° Ð²ÑÐµÑ… ÑÑ‚Ñ€Ð°Ð½Ð¸Ñ†Ð°Ñ… (Ð²ÐºÐ»ÑŽÑ‡Ð°Ñ Ð¿Ð¾ÑÐ»ÐµÐ´Ð½ÑŽÑŽ)
+        // Добавляем пустые строки до targetRows на всех страницах (включая последнюю)
         $emptyRows = max(0, $targetRows - $totalDataRows);
 
         return [
@@ -446,7 +446,7 @@ class TdrController extends Controller
             || !$manualHasAnyPermissions
             || in_array((int)$manual_id, array_map('intval', $allowedManualIds ?? []), true);
 
-        // Ð”Ð»Ñ Ñ„Ñ€Ð¾Ð½Ñ‚Ð°: Ñ‡Ñ‚Ð¾Ð±Ñ‹ JS-Ñ€Ð°Ð·Ñ€ÐµÑˆÐµÐ½Ð¸Ñ ÑÐ¾Ð²Ð¿Ð°Ð´Ð°Ð»Ð¸ Ñ Ð¿Ñ€Ð°Ð²Ð¸Ð»Ð¾Ð¼ "ÐµÑÐ»Ð¸ manual Ð½Ðµ Ð·Ð°Ð´Ð°Ð½ Ð½Ð¸ÐºÐ¾Ð¼Ñƒ â€” Ñ€Ð°Ð·Ñ€ÐµÑˆÐµÐ½Ð¾ Ð²ÑÐµÐ¼"
+        // Для фронта: чтобы JS-разрешения совпадали с правилом "если manual не задан никому — разрешено всем"
         if (!$canManageAllManualParts && !$manualHasAnyPermissions) {
             $allowedManualIds = array_values(array_unique(array_merge(
                 array_map('intval', $allowedManualIds ?? []),
@@ -454,7 +454,7 @@ class TdrController extends Controller
             )));
         }
 
-        // ÐšÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ñ‹ Ð´Ð»Ñ Ð´Ð°Ð½Ð½Ð¾Ð³Ð¾ manual
+        // Компоненты для данного manual
         $componentsQuery = Component::where('manual_id', $manual_id)
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
             ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'kit_e', 'eff_code');
@@ -471,10 +471,10 @@ class TdrController extends Controller
             $current_wo
         );
 
-        // Ð£ÑÐ»Ð¾Ð²Ð¸Ñ Ð´Ð»Ñ Component - Ð±ÐµÐ· Ñ„Ð¸Ð»ÑŒÑ‚Ñ€Ð°Ñ†Ð¸Ð¸
+        // Условия для Component - без фильтрации
         $component_conditions = Condition::where('unit', false)->get();
 
-        // ÐŸÐ¾Ð»ÑƒÑ‡Ð°ÐµÐ¼ ÐºÐ¾Ð´Ñ‹ Ð¸ necessaries
+        // Получаем коды и necessaries
         $codes = Code::all();
         $necessaries = Necessary::all();
         if ($canManageAllManualParts) {
@@ -556,12 +556,12 @@ class TdrController extends Controller
             'order_component_assembly_id' => 'nullable|exists:component_assemblies,id',
         ]);
 
-        // Ð£ÑÑ‚Ð°Ð½Ð¾Ð²ÐºÐ° Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ð¹ Ð¿Ð¾ ÑƒÐ¼Ð¾Ð»Ñ‡Ð°Ð½Ð¸ÑŽ Ð´Ð»Ñ Ñ„Ð»Ð°Ð³Ð¾Ð²
+        // Установка значений по умолчанию для флагов
         $use_tdr = $request->boolean('use_tdr', false);
         $use_process_forms = $request->boolean('use_process_forms', false);
         $qty = (int)($validated['qty'] ?? 1);
 
-        // Ð—Ð°Ð³Ñ€ÑƒÐ¶Ð°ÐµÐ¼ Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ñ‹Ðµ ÑÑƒÑ‰Ð½Ð¾ÑÑ‚Ð¸ Ð¾Ð´Ð¸Ð½ Ñ€Ð°Ð·
+        // Загружаем необходимые сущности один раз
         $workorder = Workorder::findOrFail($validated['workorder_id']);
         $code = Code::where('name', 'Missing')->first();
         $manufactureCode = Code::where('name', 'Manufacture')->first();
@@ -610,7 +610,7 @@ class TdrController extends Controller
             }
         }
 
-        // Manufacture: ÑÐ¾Ð·Ð´Ð°Ñ‘Ð¼ 2 Ð·Ð°Ð¿Ð¸ÑÐ¸ (Order New + Repair)
+        // Manufacture: создаём 2 записи (Order New + Repair)
         if ($manufactureCode && $validated['codes_id'] == $manufactureCode->id) {
             if (empty($validated['component_id'])) {
                 return redirect()->back()
@@ -629,7 +629,7 @@ class TdrController extends Controller
                 $description = $validated['description'] ?? null;
                 $qty = (int)($validated['qty'] ?? 1);
 
-                // Record 1: Order New â€” conditions_id=null, order_component_id=component_id, use_tdr=1, use_process_forms=0
+                // Record 1: Order New — conditions_id=null, order_component_id=component_id, use_tdr=1, use_process_forms=0
                 Tdr::create([
                     'tdr_type' => Tdr::TYPE_MANUFACTURE_ORDER,
                     'workorder_id' => $validated['workorder_id'],
@@ -646,7 +646,7 @@ class TdrController extends Controller
                     'order_component_id' => $validated['component_id'],
                 ]);
 
-                // Record 2: Repair â€” conditions_id=Manufacture, use_tdr=1, use_process_forms=1
+                // Record 2: Repair — conditions_id=Manufacture, use_tdr=1, use_process_forms=1
                 Tdr::create([
                     'tdr_type' => Tdr::TYPE_MANUFACTURE_REPAIR,
                     'workorder_id' => $validated['workorder_id'],
@@ -689,7 +689,7 @@ class TdrController extends Controller
             }
         }
 
-        // Ð’Ð°Ð»Ð¸Ð´Ð°Ñ†Ð¸Ñ: Missing Ñ‚Ñ€ÐµÐ±ÑƒÐµÑ‚ Ð¾Ð±ÑÐ·Ð°Ñ‚ÐµÐ»ÑŒÐ½Ñ‹Ð¹ component_id
+        // Валидация: Missing требует обязательный component_id
         if ($code && $validated['codes_id'] == $code->id) {
             if (empty($validated['component_id'])) {
                 return redirect()->back()
@@ -697,7 +697,7 @@ class TdrController extends Controller
                     ->withErrors(['component_id' => 'Component ID is required when code is Missing']);
             }
 
-            // Ð’Ð°Ð»Ð¸Ð´Ð°Ñ†Ð¸Ñ: Missing Ñ‚Ñ€ÐµÐ±ÑƒÐµÑ‚ Ð¾Ð±ÑÐ·Ð°Ñ‚ÐµÐ»ÑŒÐ½Ñ‹Ð¹ necessaries_id = Order New (ID = 2)
+            // Валидация: Missing требует обязательный necessaries_id = Order New (ID = 2)
             if (empty($validated['necessaries_id'])) {
                 return redirect()->back()
                     ->withInput()
@@ -717,7 +717,7 @@ class TdrController extends Controller
             }
         }
 
-        // Ð’Ð°Ð»Ð¸Ð´Ð°Ñ†Ð¸Ñ: Ð´Ð»Ñ Ð´Ñ€ÑƒÐ³Ð¸Ñ… codes (Ð½Ðµ Missing, Ð½Ðµ Manufacture) necessaries_id Ð¾Ð±ÑÐ·Ð°Ñ‚ÐµÐ»ÐµÐ½ Ð¸ Ð´Ð¾Ð»Ð¶ÐµÐ½ Ð±Ñ‹Ñ‚ÑŒ Repair Ð¸Ð»Ð¸ Order New
+        // Валидация: для других codes (не Missing, не Manufacture) necessaries_id обязателен и должен быть Repair или Order New
         $isManufacture = $manufactureCode && $validated['codes_id'] == $manufactureCode->id;
         if ($code && $validated['codes_id'] && $validated['codes_id'] != $code->id && !$isManufacture) {
             if (empty($validated['necessaries_id'])) {
@@ -770,7 +770,7 @@ class TdrController extends Controller
                 ->withErrors(['order_component_id' => __('Order component is required for Order New')]);
         }
 
-        // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼ Ð½Ð°Ð»Ð¸Ñ‡Ð¸Ðµ Ð·Ð°Ð¿Ð¸ÑÐµÐ¹ Ñ Missing Ð´Ð¾ ÑÐ¾Ð·Ð´Ð°Ð½Ð¸Ñ (Ð´Ð»Ñ Ð¾Ð¿Ñ‚Ð¸Ð¼Ð¸Ð·Ð°Ñ†Ð¸Ð¸)
+        // Проверяем наличие записей с Missing до создания (для оптимизации)
         $hasExistingMissing = false;
         if ($codeIdInt !== null && $validatedCodesId === $codeIdInt) {
             $hasExistingMissing = Tdr::where('workorder_id', $workorder->id)
@@ -778,10 +778,10 @@ class TdrController extends Controller
                 ->exists();
         }
 
-        // Ð•ÑÐ»Ð¸ codes_id Ñ€Ð°Ð²Ð½Ð¾ Missing, Ð°Ð²Ñ‚Ð¾Ð¼Ð°Ñ‚Ð¸Ñ‡ÐµÑÐºÐ¸ ÑƒÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ conditions_id=1 (PARTS MISSING UPON ARRIVAL)
+        // Если codes_id равно Missing, автоматически устанавливаем conditions_id=1 (PARTS MISSING UPON ARRIVAL)
         $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
         if ($codeIdInt !== null && $validatedCodesId === $codeIdInt && $missingCondition) {
-            // Ð•ÑÐ»Ð¸ conditions_id Ð½Ðµ ÑƒÑÑ‚Ð°Ð½Ð¾Ð²Ð»ÐµÐ½ Ð¸Ð»Ð¸ Ñ€Ð°Ð²ÐµÐ½ null, ÑƒÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ ÐµÐ³Ð¾ Ð² missingCondition->id
+            // Если conditions_id не установлен или равен null, устанавливаем его в missingCondition->id
             if (empty($validated['conditions_id']) || $validated['conditions_id'] === null) {
                 $validated['conditions_id'] = $missingCondition->id;
                 // \Log::info('Auto-set conditions_id to missingCondition', [
@@ -793,7 +793,7 @@ class TdrController extends Controller
         }
 
         try {
-            // Ð¡Ð¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸Ðµ Ð² Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ðµ tdrs
+            // Сохранение в таблице tdrs
             $tdrPayload = [
                 'workorder_id' => $validated['workorder_id'],
                 'component_id' => $validated['component_id'],
@@ -828,8 +828,8 @@ class TdrController extends Controller
                 ->withErrors(['error' => 'Failed to create TDR record']);
         }
 
-        // Ð•ÑÐ»Ð¸ codes_id Ñ€Ð°Ð²Ð½Ð¾ Missing, Ð¾Ð±Ð½Ð¾Ð²Ð»ÑÐµÐ¼ Ð¿Ð¾Ð»Ðµ part_missing Ð² workorders
-        // Ð˜ÑÐ¿Ð¾Ð»ÑŒÐ·ÑƒÐµÐ¼ Ð¿Ñ€Ð¸Ð²ÐµÐ´ÐµÐ½Ð¸Ðµ Ñ‚Ð¸Ð¿Ð¾Ð² Ð´Ð»Ñ ÑÑ€Ð°Ð²Ð½ÐµÐ½Ð¸Ñ, Ñ‚.Ðº. codes_id Ð¼Ð¾Ð¶ÐµÑ‚ Ð±Ñ‹Ñ‚ÑŒ ÑÑ‚Ñ€Ð¾ÐºÐ¾Ð¹ Ð¸Ð· Ñ„Ð¾Ñ€Ð¼Ñ‹
+        // Если codes_id равно Missing, обновляем поле part_missing в workorders
+        // Используем приведение типов для сравнения, т.к. codes_id может быть строкой из формы
         $codesIdInt = $validatedCodesId;
 
         // \Log::info('Checking if codes_id is Missing', [
@@ -843,7 +843,7 @@ class TdrController extends Controller
         // ]);
 
         if ($code && $codesIdInt === $codeIdInt) {
-            // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼ ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ Ð·Ð°Ð¿Ð¸ÑÐµÐ¹ Ñ Missing Ð¿Ð¾ÑÐ»Ðµ ÑÐ¾Ð·Ð´Ð°Ð½Ð¸Ñ (Ð²ÐºÐ»ÑŽÑ‡Ð°Ñ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ñ‡Ñ‚Ð¾ ÑÐ¾Ð·Ð´Ð°Ð½Ð½ÑƒÑŽ)
+            // Проверяем количество записей с Missing после создания (включая только что созданную)
             $missingCount = Tdr::where('workorder_id', $workorder->id)
                 ->where('codes_id', $code->id)
                 ->count();
@@ -856,7 +856,7 @@ class TdrController extends Controller
             //     'part_missing_type' => gettype($workorder->part_missing)
             // ]);
 
-            // Ð•ÑÐ»Ð¸ ÑÑ‚Ð¾ Ð¿ÐµÑ€Ð²Ð°Ñ Ð·Ð°Ð¿Ð¸ÑÑŒ Ñ Missing (count == 1) Ð¸Ð»Ð¸ Ñ„Ð»Ð°Ð³ ÐµÑ‰Ðµ Ð½Ðµ ÑƒÑÑ‚Ð°Ð½Ð¾Ð²Ð»ÐµÐ½ (0 Ð¸Ð»Ð¸ false)
+            // Если это первая запись с Missing (count == 1) или флаг еще не установлен (0 или false)
             if ($missingCount == 1 || $workorder->part_missing == 0 || $workorder->part_missing === false || !$workorder->part_missing) {
                 $workorder->part_missing = true;
                 $workorder->save();
@@ -873,18 +873,18 @@ class TdrController extends Controller
             }
         }
 
-        // Ð’Ñ‚Ð¾Ñ€Ð¾Ðµ ÑƒÑÐ»Ð¾Ð²Ð¸Ðµ: ÐµÑÐ»Ð¸ codes_id Ð½Ðµ Ñ€Ð°Ð²Ð½Ð¾ Missing Ð¸ necessaries_id Ñ€Ð°Ð²Ð½Ð¾ Order New
-        // new_parts=true ÑƒÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÑ‚ÑÑ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ ÐºÐ¾Ð³Ð´Ð° Ñƒ workorder ÐµÑÑ‚ÑŒ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ñ‹ (tdr Ð·Ð°Ð¿Ð¸ÑÐ¸) Ñ necessary = Order New
+        // Второе условие: если codes_id не равно Missing и necessaries_id равно Order New
+        // new_parts=true устанавливается только когда у workorder есть компоненты (tdr записи) с necessary = Order New
         if ($code && $necessary &&
             $codesIdInt !== $codeIdInt &&
             $validatedNecessaryId === $necessaryIdInt) {
 
-            // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼ ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ Ð·Ð°Ð¿Ð¸ÑÐµÐ¹ Ñ Order New Ð¿Ð¾ÑÐ»Ðµ ÑÐ¾Ð·Ð´Ð°Ð½Ð¸Ñ (Ð²ÐºÐ»ÑŽÑ‡Ð°Ñ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ñ‡Ñ‚Ð¾ ÑÐ¾Ð·Ð´Ð°Ð½Ð½ÑƒÑŽ)
+            // Проверяем количество записей с Order New после создания (включая только что созданную)
             $orderNewCount = Tdr::where('workorder_id', $workorder->id)
                 ->where('necessaries_id', $necessary->id)
                 ->count();
 
-            // Ð•ÑÐ»Ð¸ ÑÑ‚Ð¾ Ð¿ÐµÑ€Ð²Ð°Ñ Ð·Ð°Ð¿Ð¸ÑÑŒ Ñ Order New (count == 1) Ð¸Ð»Ð¸ Ñ„Ð»Ð°Ð³ ÐµÑ‰Ðµ Ð½Ðµ ÑƒÑÑ‚Ð°Ð½Ð¾Ð²Ð»ÐµÐ½
+            // Если это первая запись с Order New (count == 1) или флаг еще не установлен
             if ($orderNewCount == 1 || $workorder->new_parts === false || $workorder->new_parts == 0) {
                 $workorder->new_parts = true;
                 $workorder->save();
@@ -922,17 +922,17 @@ class TdrController extends Controller
             'order_component_id' => 'nullable|exists:components,id',
         ]);
 
-        // Ð£ÑÑ‚Ð°Ð½Ð¾Ð²ÐºÐ° Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ð¹ Ð¿Ð¾ ÑƒÐ¼Ð¾Ð»Ñ‡Ð°Ð½Ð¸ÑŽ Ð´Ð»Ñ Ñ„Ð»Ð°Ð³Ð¾Ð²
+        // Установка значений по умолчанию для флагов
         $use_tdr = $request->boolean('use_tdr', false);
         $use_process_forms = $request->boolean('use_process_forms', false);
         $qty = (int)($validated['qty'] ?? 1);
 
-        // Ð—Ð°Ð³Ñ€ÑƒÐ¶Ð°ÐµÐ¼ Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ñ‹Ðµ ÑÑƒÑ‰Ð½Ð¾ÑÑ‚Ð¸ Ð¾Ð´Ð¸Ð½ Ñ€Ð°Ð·
+        // Загружаем необходимые сущности один раз
         $workorder = Workorder::findOrFail($validated['workorder_id']);
         $code = Code::where('name', 'Missing')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
 
-        // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼ Ð½Ð°Ð»Ð¸Ñ‡Ð¸Ðµ Ð·Ð°Ð¿Ð¸ÑÐµÐ¹ Ñ Missing Ð´Ð¾ ÑÐ¾Ð·Ð´Ð°Ð½Ð¸Ñ (Ð´Ð»Ñ Ð¾Ð¿Ñ‚Ð¸Ð¼Ð¸Ð·Ð°Ñ†Ð¸Ð¸)
+        // Проверяем наличие записей с Missing до создания (для оптимизации)
         $hasExistingMissing = false;
         if ($code && $validated['codes_id'] === $code->id) {
             $hasExistingMissing = Tdr::where('workorder_id', $workorder->id)
@@ -940,17 +940,17 @@ class TdrController extends Controller
                 ->exists();
         }
 
-        // Ð•ÑÐ»Ð¸ codes_id Ñ€Ð°Ð²Ð½Ð¾ Missing, Ð°Ð²Ñ‚Ð¾Ð¼Ð°Ñ‚Ð¸Ñ‡ÐµÑÐºÐ¸ ÑƒÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ conditions_id=1 (PARTS MISSING UPON ARRIVAL)
+        // Если codes_id равно Missing, автоматически устанавливаем conditions_id=1 (PARTS MISSING UPON ARRIVAL)
         $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
         if ($code && $validated['codes_id'] === $code->id && $missingCondition) {
-            // Ð•ÑÐ»Ð¸ conditions_id Ð½Ðµ ÑƒÑÑ‚Ð°Ð½Ð¾Ð²Ð»ÐµÐ½, ÑƒÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ ÐµÐ³Ð¾ Ð² missingCondition->id
+            // Если conditions_id не установлен, устанавливаем его в missingCondition->id
             if (empty($validated['conditions_id'])) {
                 $validated['conditions_id'] = $missingCondition->id;
             }
         }
 
         try {
-            // Ð¡Ð¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸Ðµ Ð² Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ðµ tdrs
+            // Сохранение в таблице tdrs
             $tdrPayload = [
                 'workorder_id' => $validated['workorder_id'],
                 'component_id' => $validated['component_id'],
@@ -976,21 +976,21 @@ class TdrController extends Controller
                 ->withErrors(['error' => 'Failed to create TDR record']);
         }
 
-        // Ð•ÑÐ»Ð¸ codes_id Ñ€Ð°Ð²Ð½Ð¾ Missing, Ð¾Ð±Ð½Ð¾Ð²Ð»ÑÐµÐ¼ Ð¿Ð¾Ð»Ðµ part_missing Ð² workorders
+        // Если codes_id равно Missing, обновляем поле part_missing в workorders
         if ($code && $validated['codes_id'] === $code->id) {
-            // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼ ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾ Ð·Ð°Ð¿Ð¸ÑÐµÐ¹ Ñ Missing Ð¿Ð¾ÑÐ»Ðµ ÑÐ¾Ð·Ð´Ð°Ð½Ð¸Ñ (Ð²ÐºÐ»ÑŽÑ‡Ð°Ñ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ñ‡Ñ‚Ð¾ ÑÐ¾Ð·Ð´Ð°Ð½Ð½ÑƒÑŽ)
+            // Проверяем количество записей с Missing после создания (включая только что созданную)
             $missingCount = Tdr::where('workorder_id', $workorder->id)
                 ->where('codes_id', $code->id)
                 ->count();
 
-            // Ð•ÑÐ»Ð¸ ÑÑ‚Ð¾ Ð¿ÐµÑ€Ð²Ð°Ñ Ð·Ð°Ð¿Ð¸ÑÑŒ Ñ Missing (count == 1) Ð¸Ð»Ð¸ Ñ„Ð»Ð°Ð³ ÐµÑ‰Ðµ Ð½Ðµ ÑƒÑÑ‚Ð°Ð½Ð¾Ð²Ð»ÐµÐ½
+            // Если это первая запись с Missing (count == 1) или флаг еще не установлен
             if ($missingCount == 1 || $workorder->part_missing === false) {
                 $workorder->part_missing = true;
                 $workorder->save();
             }
         }
 
-        // Ð’Ñ‚Ð¾Ñ€Ð¾Ðµ ÑƒÑÐ»Ð¾Ð²Ð¸Ðµ: ÐµÑÐ»Ð¸ codes_id Ð½Ðµ Ñ€Ð°Ð²Ð½Ð¾ Missing Ð¸ necessaries_id Ñ€Ð°Ð²Ð½Ð¾ Order New
+        // Второе условие: если codes_id не равно Missing и necessaries_id равно Order New
         if ($code && $necessary &&
             $validated['codes_id'] !== $code->id &&
             $validated['necessaries_id'] === $necessary->id) {
@@ -1015,11 +1015,11 @@ class TdrController extends Controller
 
 
     /**
-     * Ð¡Ñ‚Ñ€Ð¾ÐºÐ¸ Ð¼Ð¾Ð´Ð°Ð»ÐºÐ¸ Group Process Forms Ð´Ð»Ñ Ð²ÐºÐ»Ð°Ð´ÐºÐ¸ All Parts Processes.
-     * ÐÐµ-NDT: Ð´ÐµÑ‚Ð°Ð»Ð¸ Ñ Ð¾Ð´Ð½Ð¸Ð¼ Ð¸ Ñ‚ÐµÐ¼ Ð¶Ðµ Ñ‚Ð¸Ð¿Ð¾Ð¼ Ð³Ñ€ÑƒÐ¿Ð¿Ð¾Ð²Ð¾Ð¹ Ñ„Ð¾Ñ€Ð¼Ñ‹ (process_names / merge Machining), â‰¥2 Ð´ÐµÑ‚Ð°Ð»ÐµÐ¹;
-     * Ð¿Ð¾Ð»Ð½Ñ‹Ð¹ Ð¼Ð°Ñ€ÑˆÑ€ÑƒÑ‚ Ð¼Ð¾Ð¶ÐµÑ‚ Ð¾Ñ‚Ð»Ð¸Ñ‡Ð°Ñ‚ÑŒÑÑ (ÐºÐ°Ðº Ñƒ Ñ€Ð°Ð·Ð½Ñ‹Ñ… NDT Ð¸ Paint), Ð¾Ð±Ñ‰Ð¸Ð¹ ÑˆÐ°Ð³ â€” Ð½Ð°Ð¿Ñ€Ð¸Ð¼ÐµÑ€ Silver plate.
-     * NDT: Ð¾Ð´Ð½Ð° ÑÑ‚Ñ€Ð¾ÐºÐ°, Ð²ÑÐµ Ð´ÐµÑ‚Ð°Ð»Ð¸ Ñ Ð»ÑŽÐ±Ñ‹Ð¼ NDT (Ð² Ð¼Ð¾Ð´Ð°Ð»ÐºÐµ â€” Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ñ‡ÐµÐºÐ±Ð¾ÐºÑÑ‹ Ð¿Ð¾ Ð´ÐµÑ‚Ð°Ð»ÑÐ¼).
-     * totalQty Ð² Ñ€ÐµÐ·ÑƒÐ»ÑŒÑ‚Ð°Ñ‚Ðµ â€” ÑÑƒÐ¼Ð¼Ð° position_count Ð¿Ð¾ ÑÑ‚Ñ€Ð¾ÐºÐ°Ð¼ (Ð¿Ð¾Ð·Ð¸Ñ†Ð¸Ð¸ TDR), Ð½Ðµ ÑÑƒÐ¼Ð¼Ð° qty Ð´ÐµÑ‚Ð°Ð»ÐµÐ¹.
+     * Строки модалки Group Process Forms для вкладки All Parts Processes.
+     * Не-NDT: детали с одним и тем же типом групповой формы (process_names / merge Machining), ≥2 деталей;
+     * полный маршрут может отличаться (как у разных NDT и Paint), общий шаг — например Silver plate.
+     * NDT: одна строка, все детали с любым NDT (в модалке — только чекбоксы по деталям).
+     * totalQty в результате — сумма position_count по строкам (позиции TDR), не сумма qty деталей.
      *
      * @param  \Illuminate\Support\Collection  $tdrProcesses
      * @return array{processGroups: list<array<string, mixed>>, totalQty: int}
@@ -1228,9 +1228,9 @@ class TdrController extends Controller
         $manual_id = $current_wo->unit->manual_id;
         $necessary = Necessary::where('name', 'Order New')->first();
 
-        $manuals = Manual::all();  // Ð¸Ð»Ð¸ Ð¼Ð¾Ð¶Ð½Ð¾ Ð¾Ñ‚Ñ„Ð¸Ð»ÑŒÑ‚Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ñ‚Ð¾Ñ‚, ÐºÐ¾Ñ‚Ð¾Ñ€Ñ‹Ð¹ ÑÐ²ÑÐ·Ð°Ð½ Ñ unit
+        $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
 
-        // Ð˜Ð·Ð²Ð»ÐµÐºÐ°ÐµÐ¼ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ñ‹, ÐºÐ¾Ñ‚Ð¾Ñ€Ñ‹Ðµ ÑÐ²ÑÐ·Ð°Ð½Ñ‹ Ñ ÑÑ‚Ð¸Ð¼ manual_id
+        // Извлекаем компоненты, которые связаны с этим manual_id
         $components = $this->filterComponentsForUnit(Component::where('manual_id', $manual_id)
             ->where(function ($query) {
                 $query->where('kit', false)->orWhereNull('kit');
@@ -1238,11 +1238,11 @@ class TdrController extends Controller
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
             ->get(), $current_wo);
 
-        // ÐžÐ³Ñ€Ð°Ð½Ð¸Ñ‡Ð¸Ð²Ð°ÐµÐ¼ Ð¿Ñ€Ð¾Ñ†ÐµÑÑÑ‹ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ñ‚ÐµÐºÑƒÑ‰Ð¸Ð¼ Workorder: Ð±ÐµÑ€Ñ‘Ð¼ id ÑÐ²ÑÐ·Ð°Ð½Ð½Ñ‹Ñ… TDR
+        // Ограничиваем процессы только текущим Workorder: берём id связанных TDR
         $tdrIds = Tdr::where('workorder_id', $current_wo->id)
             ->pluck('id');
 
-        // Ð—Ð°Ð³Ñ€ÑƒÐ¶Ð°ÐµÐ¼ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð¿Ñ€Ð¾Ñ†ÐµÑÑÑ‹ Ð´Ð»Ñ ÑÑ‚Ð¸Ñ… TDR, Ñ ÑÐ¾Ñ€Ñ‚Ð¸Ñ€Ð¾Ð²ÐºÐ¾Ð¹ Ð¸ Ð½Ð°Ð·Ð²Ð°Ð½Ð¸ÐµÐ¼ Ð¿Ñ€Ð¾Ñ†ÐµÑÑÐ°
+        // Загружаем только процессы для этих TDR, с сортировкой и названием процесса
         $tdrProcessesQuery = TdrProcess::query()
             ->whereIn('tdrs_id', $tdrIds);
         $this->applyStdListProcessesVisibilityForWorkorder($current_wo, $tdrProcessesQuery);
@@ -1279,9 +1279,9 @@ class TdrController extends Controller
         $manual_id = $current_wo->unit->manual_id;
         $necessary = Necessary::where('name', 'Order New')->first();
 
-        $manuals = Manual::all();  // Ð¸Ð»Ð¸ Ð¼Ð¾Ð¶Ð½Ð¾ Ð¾Ñ‚Ñ„Ð¸Ð»ÑŒÑ‚Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ñ‚Ð¾Ñ‚, ÐºÐ¾Ñ‚Ð¾Ñ€Ñ‹Ð¹ ÑÐ²ÑÐ·Ð°Ð½ Ñ unit
+        $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
 
-        // Ð˜Ð·Ð²Ð»ÐµÐºÐ°ÐµÐ¼ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ñ‹, ÐºÐ¾Ñ‚Ð¾Ñ€Ñ‹Ðµ ÑÐ²ÑÐ·Ð°Ð½Ñ‹ Ñ ÑÑ‚Ð¸Ð¼ manual_id
+        // Извлекаем компоненты, которые связаны с этим manual_id
         $components = $this->filterComponentsForUnit(
             Component::where('manual_id', $manual_id)
                 ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
@@ -1290,11 +1290,11 @@ class TdrController extends Controller
             $current_wo
         );
 
-        // ÐžÐ³Ñ€Ð°Ð½Ð¸Ñ‡Ð¸Ð²Ð°ÐµÐ¼ Ð¿Ñ€Ð¾Ñ†ÐµÑÑÑ‹ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ñ‚ÐµÐºÑƒÑ‰Ð¸Ð¼ Workorder: Ð±ÐµÑ€Ñ‘Ð¼ id ÑÐ²ÑÐ·Ð°Ð½Ð½Ñ‹Ñ… TDR
+        // Ограничиваем процессы только текущим Workorder: берём id связанных TDR
         $tdrIds = Tdr::where('workorder_id', $current_wo->id)
             ->pluck('id');
 
-        // Ð—Ð°Ð³Ñ€ÑƒÐ¶Ð°ÐµÐ¼ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð¿Ñ€Ð¾Ñ†ÐµÑÑÑ‹ Ð´Ð»Ñ ÑÑ‚Ð¸Ñ… TDR, Ñ ÑÐ¾Ñ€Ñ‚Ð¸Ñ€Ð¾Ð²ÐºÐ¾Ð¹ Ð¸ Ð½Ð°Ð·Ð²Ð°Ð½Ð¸ÐµÐ¼ Ð¿Ñ€Ð¾Ñ†ÐµÑÑÐ°
+        // Загружаем только процессы для этих TDR, с сортировкой и названием процесса
         $tdrProcessesQuery = TdrProcess::query()
             ->whereIn('tdrs_id', $tdrIds);
         $this->applyStdListProcessesVisibilityForWorkorder($current_wo, $tdrProcessesQuery);
@@ -1348,19 +1348,19 @@ class TdrController extends Controller
         $manual_id = $current_wo->unit->manual_id;
         $necessary = Necessary::where('name', 'Order New')->first();
 
-        // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼, Ð¿ÐµÑ€ÐµÐ´Ð°Ð½ Ð»Ð¸ tdrId Ð´Ð»Ñ Ñ„Ð¸Ð»ÑŒÑ‚Ñ€Ð°Ñ†Ð¸Ð¸ Ð¿Ð¾ ÐºÐ¾Ð½ÐºÑ€ÐµÑ‚Ð½Ð¾Ð¼Ñƒ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ñƒ
+        // Проверяем, передан ли tdrId для фильтрации по конкретному компоненту
         $tdrId = $request->input('tdrId');
 
         if ($tdrId) {
-            // Ð•ÑÐ»Ð¸ Ð¿ÐµÑ€ÐµÐ´Ð°Ð½ tdrId, Ñ„Ð¸Ð»ÑŒÑ‚Ñ€ÑƒÐµÐ¼ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð¿Ñ€Ð¾Ñ†ÐµÑÑÑ‹ Ð´Ð»Ñ ÑÑ‚Ð¾Ð³Ð¾ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ð°
+            // Если передан tdrId, фильтруем только процессы для этого компонента
             $tdr = Tdr::findOrFail($tdrId);
-            // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼, Ñ‡Ñ‚Ð¾ TDR Ð¿Ñ€Ð¸Ð½Ð°Ð´Ð»ÐµÐ¶Ð¸Ñ‚ ÑÑ‚Ð¾Ð¼Ñƒ workorder
+            // Проверяем, что TDR принадлежит этому workorder
             if ($tdr->workorder_id != $current_wo->id) {
                 abort(403, 'TDR does not belong to this workorder');
             }
             $tdrIds = collect([$tdrId]);
         } else {
-            // ÐŸÐ¾Ð»ÑƒÑ‡Ð°ÐµÐ¼ Ð²ÑÐµ TDR Ð´Ð»Ñ ÑÑ‚Ð¾Ð³Ð¾ work order
+            // Получаем все TDR для этого work order
             $tdrIds = Tdr::where('workorder_id', $current_wo->id)
                 ->where('component_id', '!=', null)
                 ->when($necessary, function ($query) use ($necessary) {
@@ -1370,7 +1370,7 @@ class TdrController extends Controller
                 ->pluck('id');
         }
 
-        // ÐŸÐ¾Ð»ÑƒÑ‡Ð°ÐµÐ¼ Ð²ÑÐµ TdrProcess Ð´Ð»Ñ ÑÑ‚Ð¸Ñ… TDR
+        // Получаем все TdrProcess для этих TDR
         $tdrProcessesQuery = TdrProcess::query()
             ->whereIn('tdrs_id', $tdrIds);
         $this->applyStdListProcessesVisibilityForWorkorder($current_wo, $tdrProcessesQuery);
@@ -1378,7 +1378,7 @@ class TdrController extends Controller
             ->orderBy('sort_order')
             ->get();
 
-        // Ð¤Ð¸Ð»ÑŒÑ‚Ñ€ÑƒÐµÐ¼ TdrProcess: NDT â€” Ð²ÑÐµ Ð¸Ð¼ÐµÐ½Ð° Ñ Ð»Ð¸ÑÑ‚Ð¾Ð¼ NDT; Machining + Machining (EC) â€” Ð¾Ð´Ð½Ð° Ð³Ñ€ÑƒÐ¿Ð¿Ð°; Ð¸Ð½Ð°Ñ‡Ðµ â€” ÑÑ‚Ñ€Ð¾Ð³Ð¾ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð½Ñ‹Ð¹ process_name_id.
+        // Фильтруем TdrProcess: NDT — все имена с листом NDT; Machining + Machining (EC) — одна группа; иначе — строго выбранный process_name_id.
         $filteredTdrProcesses = collect();
         $isNdtGroup = $processName->process_sheet_name == 'NDT';
         $ndtProcessNameIds = $isNdtGroup ? ProcessName::where('process_sheet_name', 'NDT')->pluck('id')->toArray() : [];
@@ -1403,7 +1403,7 @@ class TdrController extends Controller
             }
         }
 
-        // ÐŸÐ¾Ð»ÑƒÑ‡Ð°ÐµÐ¼ ÑÐ²ÑÐ·Ð°Ð½Ð½Ñ‹Ðµ Ð´Ð°Ð½Ð½Ñ‹Ðµ
+        // Получаем связанные данные
         $components = $this->filterComponentsForUnit(
             Component::where('manual_id', $manual_id)
                 ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
@@ -1413,24 +1413,24 @@ class TdrController extends Controller
         $manualProcesses = ManualProcess::where('manual_id', $manual_id)
             ->pluck('processes_id');
 
-        // ÐŸÐ¾Ð»ÑƒÑ‡Ð°ÐµÐ¼ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð½Ð¾Ð³Ð¾ vendor (ÐµÑÐ»Ð¸ Ð¿ÐµÑ€ÐµÐ´Ð°Ð½)
+        // Получаем выбранного vendor (если передан)
         $selectedVendor = null;
         $vendorId = $request->input('vendor_id');
         if ($vendorId) {
             $selectedVendor = Vendor::find($vendorId);
         }
 
-        // Ð¤Ð¸Ð»ÑŒÑ‚Ñ€ÑƒÐµÐ¼ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ñ‹ Ð¿Ð¾ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð½Ñ‹Ð¼ component_ids Ð¸ serial_numbers (ÐµÑÐ»Ð¸ Ð¿ÐµÑ€ÐµÐ´Ð°Ð½Ñ‹)
-        // Ð¢ÐµÐ¿ÐµÑ€ÑŒ ÑƒÑ‡Ð¸Ñ‚Ñ‹Ð²Ð°ÐµÐ¼ Ð½Ðµ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ component_id, Ð½Ð¾ Ð¸ serial_number Ð´Ð»Ñ Ñ‚Ð¾Ñ‡Ð½Ð¾Ð¹ Ð¸Ð´ÐµÐ½Ñ‚Ð¸Ñ„Ð¸ÐºÐ°Ñ†Ð¸Ð¸
-        // Ð•ÑÐ»Ð¸ Ð¿ÐµÑ€ÐµÐ´Ð°Ð½ tdrId, Ñ‚Ð¾ Ñ„Ð¸Ð»ÑŒÑ‚Ñ€Ð°Ñ†Ð¸Ñ Ð¿Ð¾ component_ids Ð½Ðµ Ð½ÑƒÐ¶Ð½Ð°, Ñ‚Ð°Ðº ÐºÐ°Ðº ÑƒÐ¶Ðµ Ñ„Ð¸Ð»ÑŒÑ‚Ñ€ÑƒÐµÐ¼ Ð¿Ð¾ Ð¾Ð´Ð½Ð¾Ð¼Ñƒ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ñƒ
+        // Фильтруем компоненты по выбранным component_ids и serial_numbers (если переданы)
+        // Теперь учитываем не только component_id, но и serial_number для точной идентификации
+        // Если передан tdrId, то фильтрация по component_ids не нужна, так как уже фильтруем по одному компоненту
         $componentIds = $request->input('component_ids');
         $serialNumbers = $request->input('serial_numbers');
         $iplNums = $request->input('ipl_nums');
         $partNumbers = $request->input('part_numbers');
 
-        // Ð•ÑÐ»Ð¸ Ð¿ÐµÑ€ÐµÐ´Ð°Ð½ tdrId, Ð¿Ñ€Ð¾Ð¿ÑƒÑÐºÐ°ÐµÐ¼ Ñ„Ð¸Ð»ÑŒÑ‚Ñ€Ð°Ñ†Ð¸ÑŽ Ð¿Ð¾ component_ids, Ñ‚Ð°Ðº ÐºÐ°Ðº ÑƒÐ¶Ðµ Ñ„Ð¸Ð»ÑŒÑ‚Ñ€ÑƒÐµÐ¼ Ð¿Ð¾ Ð¾Ð´Ð½Ð¾Ð¼Ñƒ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ñƒ
+        // Если передан tdrId, пропускаем фильтрацию по component_ids, так как уже фильтруем по одному компоненту
         if ($componentIds && !$tdrId) {
-            // Ð Ð°Ð·Ð±Ð¸Ð²Ð°ÐµÐ¼ ÑÑ‚Ñ€Ð¾ÐºÐ¸ Ð½Ð° Ð¼Ð°ÑÑÐ¸Ð²Ñ‹
+            // Разбиваем строки на массивы
             $filteredComponentIds = is_array($componentIds)
                 ? array_map('intval', $componentIds)
                 : array_map('intval', explode(',', $componentIds));
@@ -1456,7 +1456,7 @@ class TdrController extends Controller
                     : explode(',', $partNumbers);
             }
 
-            // Ð¤Ð¸Ð»ÑŒÑ‚Ñ€ÑƒÐµÐ¼ TdrProcess Ð¿Ð¾ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð½Ñ‹Ð¼ component_id, ipl_num, part_number Ð¸ serial_number
+            // Фильтруем TdrProcess по выбранным component_id, ipl_num, part_number и serial_number
             $filteredTdrProcesses = $filteredTdrProcesses->filter(function($tdrProcess) use (
                 $filteredComponentIds,
                 $filteredSerialNumbers,
@@ -1467,12 +1467,12 @@ class TdrController extends Controller
                     return false;
                 }
 
-                // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼, ÑÐ¾Ð¾Ñ‚Ð²ÐµÑ‚ÑÑ‚Ð²ÑƒÐµÑ‚ Ð»Ð¸ component_id
+                // Проверяем, соответствует ли component_id
                 if (!in_array($tdrProcess->tdr->component->id, $filteredComponentIds)) {
                     return false;
                 }
 
-                // Ð•ÑÐ»Ð¸ Ð¿ÐµÑ€ÐµÐ´Ð°Ð½Ñ‹ serial_numbers, Ð¿Ñ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼ Ð¸Ñ…
+                // Если переданы serial_numbers, проверяем их
                 if (!empty($filteredSerialNumbers)) {
                     $tdrSerialNumber = $tdrProcess->tdr->serial_number ?? '';
                     if (!in_array($tdrSerialNumber, $filteredSerialNumbers)) {
@@ -1480,7 +1480,7 @@ class TdrController extends Controller
                     }
                 }
 
-                // Ð•ÑÐ»Ð¸ Ð¿ÐµÑ€ÐµÐ´Ð°Ð½Ñ‹ ipl_nums, Ð¿Ñ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼ Ð¸Ñ…
+                // Если переданы ipl_nums, проверяем их
                 if (!empty($filteredIplNums)) {
                     $tdrIplNum = $tdrProcess->tdr->component->ipl_num ?? '';
                     if (!in_array($tdrIplNum, $filteredIplNums)) {
@@ -1488,7 +1488,7 @@ class TdrController extends Controller
                     }
                 }
 
-                // Ð•ÑÐ»Ð¸ Ð¿ÐµÑ€ÐµÐ´Ð°Ð½Ñ‹ part_numbers, Ð¿Ñ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼ Ð¸Ñ…
+                // Если переданы part_numbers, проверяем их
                 if (!empty($filteredPartNumbers)) {
                     $tdrPartNumber = $tdrProcess->tdr->component->part_number ?? '';
                     if (!in_array($tdrPartNumber, $filteredPartNumbers)) {
@@ -1500,12 +1500,12 @@ class TdrController extends Controller
             });
         }
 
-        // ID Ð¾Ð¿ÐµÑ€Ð°Ñ†Ð¸Ð¹ Ð¸Ð· ÑÐ¿Ñ€Ð°Ð²Ð¾Ñ‡Ð½Ð¸ÐºÐ° processes, Ñ€ÐµÐ°Ð»ÑŒÐ½Ð¾ Ð½Ð°Ð·Ð½Ð°Ñ‡ÐµÐ½Ð½Ñ‹Ñ… Ð² JSON Ð¼Ð°Ñ€ÑˆÑ€ÑƒÑ‚Ð° (Ð¾Ñ‚Ñ„Ð¸Ð»ÑŒÑ‚Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ñ… TdrProcess)
+        // ID операций из справочника processes, реально назначенных в JSON маршрута (отфильтрованных TdrProcess)
         $assignedCatalogProcessIds = $filteredTdrProcesses->flatMap(function ($tp) {
             return TdrProcess::normalizeStoredProcessIds($tp->processes);
         })->map(fn ($id) => (int) $id)->unique()->filter()->values()->all();
 
-        // ÐœÐ¾Ð´Ð°Ð»ÐºÐ° Ð¿ÐµÑ€ÐµÐ´Ð°Ñ‘Ñ‚ process_ids (id Ð¸Ð· ÑÐ¿Ñ€Ð°Ð²Ð¾Ñ‡Ð½Ð¸ÐºÐ° processes) â€” Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð½Ñ‹Ðµ ÑÑ‚Ñ€Ð¾ÐºÐ¸ Ð½Ð° Ñ„Ð¾Ñ€Ð¼Ðµ
+        // Модалка передаёт process_ids (id из справочника processes) — только выбранные строки на форме
         $allowedCatalogProcessIds = $assignedCatalogProcessIds;
         if ($request->has('process_ids')) {
             $rawIds = $request->input('process_ids');
@@ -1552,7 +1552,7 @@ class TdrController extends Controller
             }
         }
 
-        // Ð‘Ð°Ð·Ð¾Ð²Ñ‹Ðµ Ð´Ð°Ð½Ð½Ñ‹Ðµ Ð´Ð»Ñ Ð¿Ñ€ÐµÐ´ÑÑ‚Ð°Ð²Ð»ÐµÐ½Ð¸Ñ (Ð´Ð»Ñ Ð¾Ð±ÑŠÐµÐ´Ð¸Ð½Ñ‘Ð½Ð½Ð¾Ð¹ Ð³Ñ€ÑƒÐ¿Ð¿Ñ‹ Machining / Machining (EC) Ð·Ð°Ð³Ð¾Ð»Ð¾Ð²Ð¾Ðº â€” Â«MachiningÂ»)
+        // Базовые данные для представления (для объединённой группы Machining / Machining (EC) заголовок — «Machining»)
         $displayProcessName = $isMachiningMergeGroup
             ? (ProcessName::machiningMachiningEcRepresentative() ?? $processName)
             : $processName;
@@ -1570,12 +1570,12 @@ class TdrController extends Controller
                 : [],
         ];
 
-        // Ð”Ð¾Ð±Ð°Ð²Ð»ÑÐµÐ¼ Ð¿ÐµÑ€Ð²Ñ‹Ð¹ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚ Ð´Ð»Ñ Ð·Ð°Ð³Ð¾Ð»Ð¾Ð²ÐºÐ° Ñ„Ð¾Ñ€Ð¼Ñ‹ (ÐµÑÐ»Ð¸ ÐµÑÑ‚ÑŒ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ñ‹)
+        // Добавляем первый компонент для заголовка формы (если есть компоненты)
         $firstTdrProcess = $processTdrComponentsForForm->first() ?? $filteredTdrProcesses->first();
         if ($firstTdrProcess && $firstTdrProcess->tdr && $firstTdrProcess->tdr->component) {
             $viewData['component'] = $firstTdrProcess->tdr->component;
         } else {
-            // Ð•ÑÐ»Ð¸ Ð½ÐµÑ‚ ÐºÐ¾Ð¼Ð¿Ð¾Ð½ÐµÐ½Ñ‚Ð¾Ð², ÑÐ¾Ð·Ð´Ð°ÐµÐ¼ Ð¿ÑƒÑÑ‚Ð¾Ð¹ Ð¾Ð±ÑŠÐµÐºÑ‚
+            // Если нет компонентов, создаем пустой объект
             $viewData['component'] = (object)[
                 'name' => 'Multiple Components',
                 'part_number' => 'Various',
@@ -1583,7 +1583,7 @@ class TdrController extends Controller
             ];
         }
 
-        // ÐžÐ±Ñ€Ð°Ð±Ð¾Ñ‚ÐºÐ° NDT Ñ„Ð¾Ñ€Ð¼Ñ‹ (ÐµÑÐ»Ð¸ Ð½ÑƒÐ¶Ð½Ð¾)
+        // Обработка NDT формы (если нужно)
         if ($processName->process_sheet_name == 'NDT') {
             $processNames = ProcessName::whereIn('name', [
                 'NDT-1', 'NDT-2', 'NDT-3', 'NDT-4', 'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8',
@@ -1619,7 +1619,7 @@ class TdrController extends Controller
             ], $ndt_ids));
         }
 
-        // ÐžÐ±Ñ‹Ñ‡Ð½Ñ‹Ðµ Ð¿Ñ€Ð¾Ñ†ÐµÑÑÑ‹: ÑÐ¿Ñ€Ð°Ð²Ð¾Ñ‡Ð½Ð¸Ðº Ð´Ð»Ñ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð½Ð¾Ð³Ð¾ process_names_id (Ð¸Ð»Ð¸ Machining + Machining (EC) Ð²Ð¼ÐµÑÑ‚Ðµ) Ð¸ Ð¾Ð¿ÐµÑ€Ð°Ñ†Ð¸Ð¸ Ð¸Ð· Ð¼Ð°Ñ€ÑˆÑ€ÑƒÑ‚Ð° (JSON)
+        // Обычные процессы: справочник для выбранного process_names_id (или Machining + Machining (EC) вместе) и операции из маршрута (JSON)
         $process_components_query = Process::whereIn('id', $manualProcesses);
         if ($isMachiningMergeGroup && count($machiningMergeNameIds) > 0) {
             $process_components_query->whereIn('process_names_id', $machiningMergeNameIds);
@@ -1967,11 +1967,11 @@ class TdrController extends Controller
      */
     public function update(Request $request, $id)
     {
-        // ÐÐ°Ñ…Ð¾Ð´Ð¸Ð¼ Ð·Ð°Ð¿Ð¸ÑÑŒ Tdr Ð¿Ð¾ ID
+        // Находим запись Tdr по ID
         $tdr = Tdr::findOrFail($id);
         $canReplaceTdrComponent = (bool) ($request->user()?->isSystemAdmin() ?? false);
 
-        // Ð’Ð°Ð»Ð¸Ð´Ð°Ñ†Ð¸Ñ Ð²Ñ…Ð¾Ð´Ð½Ñ‹Ñ… Ð´Ð°Ð½Ð½Ñ‹Ñ…
+        // Валидация входных данных
         $rules = [
             'assy_serial_number' => 'nullable|string',
             'codes_id' => 'nullable|exists:codes,id',
@@ -1991,21 +1991,21 @@ class TdrController extends Controller
             unset($validated['component_id'], $validated['serial_number']);
         }
 
-        // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼, ÐµÑÐ»Ð¸ Ð²Ñ‹Ð±Ñ€Ð°Ð½ Ð½ÐµÐ¾Ð±Ñ…Ð¾Ð´Ð¸Ð¼Ñ‹Ð¹ Ð¿ÑƒÐ½ÐºÑ‚ "Order New"
+        // Проверяем, если выбран необходимый пункт "Order New"
         $necessary = Necessary::where('name', 'Order New')->first();
 
         if ($necessary && isset($validated['necessaries_id']) && (int) $validated['necessaries_id'] === (int) $necessary->id) {
-            $validated['use_process_forms'] = false; // Ð˜ÑÐ¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¾ Ð¿Ñ€Ð¸ÑÐ²Ð°Ð¸Ð²Ð°Ð½Ð¸Ðµ
+            $validated['use_process_forms'] = false; // Исправлено присваивание
         }
 
-        // ÐžÐ±Ð½Ð¾Ð²Ð»ÑÐµÐ¼ Ð·Ð°Ð¿Ð¸ÑÑŒ Tdr
+        // Обновляем запись Tdr
         $tdr->update($validated);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json(['success' => true, 'redirect' => route('tdrs.show', ['id' => $request->workorder_id])]);
         }
 
-        // ÐŸÐµÑ€ÐµÐ½Ð°Ð¿Ñ€Ð°Ð²Ð»ÑÐµÐ¼ Ð½Ð° ÑÑ‚Ñ€Ð°Ð½Ð¸Ñ†Ñƒ Ð¿Ñ€Ð¾ÑÐ¼Ð¾Ñ‚Ñ€Ð° Ñ ÑÐ¾Ð¾Ð±Ñ‰ÐµÐ½Ð¸ÐµÐ¼ Ð¾Ð± ÑƒÑÐ¿ÐµÑ…Ðµ
+        // Перенаправляем на страницу просмотра с сообщением об успехе
         return redirect()
             ->route('tdrs.show', ['id' => $request->workorder_id])
             ->with('success', 'TDR for Component updated successfully');
@@ -2015,7 +2015,7 @@ class TdrController extends Controller
 
 
 
-    // ÐÐµ Ð·Ð°Ð±ÑƒÐ´ÑŒÑ‚Ðµ Ð´Ð¾Ð±Ð°Ð²Ð¸Ñ‚ÑŒ use League\Csv\Reader; Ð²Ð²ÐµÑ€Ñ…Ñƒ Ñ„Ð°Ð¹Ð»Ð°!
+    // Не забудьте добавить use League\Csv\Reader; вверху файла!
 
 
 
@@ -2023,10 +2023,10 @@ class TdrController extends Controller
 
 
     /**
-     * Ð Ð°Ð·Ð±Ð¸ÐµÐ½Ð¸Ðµ ÑÑ‚Ñ€Ð¾Ðº Stress/CAD std-Ñ„Ð¾Ñ€Ð¼ Ð¿Ð¾ ÑÑ‚Ñ€Ð°Ð½Ð¸Ñ†Ð°Ð¼ Ð½Ð° ÑÐµÑ€Ð²ÐµÑ€Ðµ.
-     * Ð­Ð»ÐµÐ¼ÐµÐ½Ñ‚Ñ‹: kind = manual | data | empty.
+     * Разбиение строк Stress/CAD std-форм по страницам на сервере.
+     * Элементы: kind = manual | data | empty.
      *
-     * @param  array<int, object>  $components  Ð¾Ð±ÑŠÐµÐºÑ‚Ñ‹ Ñ Ð¿Ð¾Ð»ÐµÐ¼ manual (ÐºÐ°Ðº Ð² stress/cad)
+     * @param  array<int, object>  $components  объекты с полем manual (как в stress/cad)
      * @return array<int, array<int, array<string, mixed>>>
      */
 
@@ -2034,7 +2034,7 @@ class TdrController extends Controller
 
 
     /**
-     * ÐÐ°Ñ…Ð¾Ð´Ð¸Ñ‚ Ð¸Ð½Ð´ÐµÐºÑ ÐºÐ¾Ð»Ð¾Ð½ÐºÐ¸ Ð¿Ð¾ Ð²Ð¾Ð·Ð¼Ð¾Ð¶Ð½Ñ‹Ð¼ Ð½Ð°Ð·Ð²Ð°Ð½Ð¸ÑÐ¼
+     * Находит индекс колонки по возможным названиям
      */
 
 
@@ -2059,32 +2059,32 @@ class TdrController extends Controller
      */
     public function destroy($id)
     {
-        // Ð›Ð¾Ð³Ð¸Ñ€ÑƒÐµÐ¼ Ð½Ð°Ñ‡Ð°Ð»Ð¾ Ð¼ÐµÑ‚Ð¾Ð´Ð°
-        // Log::info('ÐÐ°Ñ‡Ð°Ð»Ð¾ ÑƒÐ´Ð°Ð»ÐµÐ½Ð¸Ñ Ð·Ð°Ð¿Ð¸ÑÐ¸ TDR Ñ ID: ' . $id);
+        // Логируем начало метода
+        // Log::info('Начало удаления записи TDR с ID: ' . $id);
 
-        // ÐÐ°Ð¹Ñ‚Ð¸ Ð·Ð°Ð¿Ð¸ÑÑŒ Tdr Ð¿Ð¾ ID
+        // Найти запись Tdr по ID
         $tdr = Tdr::findOrFail($id);
 
-        // Ð—Ð°Ð¿Ð¾Ð¼Ð½Ð¸Ñ‚ÑŒ workorder_id Ð¸ codes_id Ð´Ð»Ñ Ð´Ð°Ð»ÑŒÐ½ÐµÐ¹ÑˆÐµÐ³Ð¾ Ð¸ÑÐ¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ð½Ð¸Ñ
+        // Запомнить workorder_id и codes_id для дальнейшего использования
         $workorderId = $tdr->workorder_id;
         $tdrCodesId = $tdr->codes_id;
 
-        // Ð›Ð¾Ð³Ð¸Ñ€ÑƒÐµÐ¼ workorder_id
+        // Логируем workorder_id
         // Log::info('Workorder ID: ' . $workorderId);
 
-        // Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ ÑÐ²ÑÐ·Ð°Ð½Ð½Ñ‹Ðµ Ð·Ð°Ð¿Ð¸ÑÐ¸ Ð¸Ð· tdr_processes
+        // Удалить связанные записи из tdr_processes
         TdrProcess::where('tdrs_id', $id)
             ->get()
             ->each
             ->delete();
-        // Log::info('Ð£Ð´Ð°Ð»ÐµÐ½Ñ‹ ÑÐ²ÑÐ·Ð°Ð½Ð½Ñ‹Ðµ Ð¿Ñ€Ð¾Ñ†ÐµÑÑÑ‹ Ð´Ð»Ñ TDR Ñ ID: ' . $id);
+        // Log::info('Удалены связанные процессы для TDR с ID: ' . $id);
 
-        // ÐžÐ¿Ñ€ÐµÐ´ÐµÐ»ÑÐµÐ¼ component_id Ð´Ð»Ñ Ð¿Ð¾Ð¸ÑÐºÐ° transfers
+        // Определяем component_id для поиска transfers
         $componentId = $tdr->order_component_id ?? $tdr->component_id;
 
-        // Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ ÑÐ²ÑÐ·Ð°Ð½Ð½Ñ‹Ðµ Ð·Ð°Ð¿Ð¸ÑÐ¸ Ð¸Ð· transfers Ð¸ ÐºÐ»Ð¾Ð½Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ðµ TDR Ð² WO-Ð¸ÑÑ‚Ð¾Ñ‡Ð½Ð¸ÐºÐ°Ñ… (ÐµÑÐ»Ð¸ ÐµÑÑ‚ÑŒ)
+        // Удалить связанные записи из transfers и клонированные TDR в WO-источниках (если есть)
         if ($componentId) {
-            // ÐÐ°Ñ…Ð¾Ð´Ð¸Ð¼ Ð²ÑÐµ transfers, ÑÐ²ÑÐ·Ð°Ð½Ð½Ñ‹Ðµ Ñ ÑÑ‚Ð¸Ð¼ TDR
+            // Находим все transfers, связанные с этим TDR
             $transfers = Transfer::where('workorder_id', $workorderId)
                 ->where('component_id', $componentId)
                 ->get();
@@ -2092,15 +2092,15 @@ class TdrController extends Controller
             $deletedTransfers = 0;
             $deletedClonedTdrs = 0;
 
-            // ÐšÐ¾Ð´ Missing (Ð´Ð»Ñ ÑƒÐ¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¸Ñ Ñ„Ð»Ð°Ð³Ð¾Ð¼ part_missing Ð² workorders Ð¸ÑÑ‚Ð¾Ñ‡Ð½Ð¸ÐºÐ¾Ð²)
+            // Код Missing (для управления флагом part_missing в workorders источников)
             $missingCode = Code::where('name', 'Missing')->first();
 
             foreach ($transfers as $transfer) {
-                // Ð”Ð»Ñ ÐºÐ°Ð¶Ð´Ð¾Ð³Ð¾ transfer Ð¿Ñ‹Ñ‚Ð°ÐµÐ¼ÑÑ ÑƒÐ´Ð°Ð»Ð¸Ñ‚ÑŒ "ÐºÐ»Ð¾Ð½Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ð¹" TDR Ð² workorder_source
+                // Для каждого transfer пытаемся удалить "клонированный" TDR в workorder_source
                 if ($transfer->workorder_source) {
                     $cloned = Tdr::where('workorder_id', $transfer->workorder_source)
                         ->where(function ($q) use ($tdr) {
-                            // ÐŸÑ‹Ñ‚Ð°ÐµÐ¼ÑÑ Ð½Ð°Ð¹Ñ‚Ð¸ Ð·Ð°Ð¿Ð¸ÑÑŒ, Ð¼Ð°ÐºÑÐ¸Ð¼Ð°Ð»ÑŒÐ½Ð¾ Ð¿Ð¾Ñ…Ð¾Ð¶ÑƒÑŽ Ð½Ð° Ð¸ÑÑ…Ð¾Ð´Ð½Ñ‹Ð¹ TDR
+                            // Пытаемся найти запись, максимально похожую на исходный TDR
                             $q->where('component_id', $tdr->component_id)
                                 ->where('order_component_id', $tdr->order_component_id)
                                 ->where('codes_id', $tdr->codes_id)
@@ -2110,15 +2110,15 @@ class TdrController extends Controller
                                 ->where('serial_number', $tdr->serial_number);
                         })
                         ->where('id', '!=', $tdr->id)
-                        ->orderByDesc('id') // Ð±ÐµÑ€Ñ‘Ð¼ ÑÐ°Ð¼ÑƒÑŽ "ÑÐ²ÐµÐ¶ÑƒÑŽ" ÐºÐ°Ðº Ð²ÐµÑ€Ð¾ÑÑ‚Ð½Ñ‹Ð¹ ÐºÐ»Ð¾Ð½
+                        ->orderByDesc('id') // берём самую "свежую" как вероятный клон
                         ->first();
 
                     if ($cloned) {
                         $cloned->delete();
                         $deletedClonedTdrs++;
-                        // Log::info('Ð£Ð´Ð°Ð»Ñ‘Ð½ ÐºÐ»Ð¾Ð½Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ð¹ TDR Ñ ID: ' . $cloned->id . ' Ð² WO-Ð¸ÑÑ‚Ð¾Ñ‡Ð½Ð¸ÐºÐµ: ' . $transfer->workorder_source);
+                        // Log::info('Удалён клонированный TDR с ID: ' . $cloned->id . ' в WO-источнике: ' . $transfer->workorder_source);
 
-                        // Ð•ÑÐ»Ð¸ ÑÑ‚Ð¾ Ð±Ñ‹Ð»Ð° Ð·Ð°Ð¿Ð¸ÑÑŒ Ñ ÐºÐ¾Ð´Ð¾Ð¼ Missing, Ð²Ð¾Ð·Ð¼Ð¾Ð¶Ð½Ð¾ Ð½ÑƒÐ¶Ð½Ð¾ Ð¾Ð±Ð½Ð¾Ð²Ð¸Ñ‚ÑŒ part_missing Ð´Ð»Ñ WO-Ð¸ÑÑ‚Ð¾Ñ‡Ð½Ð¸ÐºÐ°
+                        // Если это была запись с кодом Missing, возможно нужно обновить part_missing для WO-источника
                         if ($missingCode && $tdr->codes_id === $missingCode->id) {
                             $remainingMissingForSource = Tdr::where('workorder_id', $transfer->workorder_source)
                                 ->where('codes_id', $missingCode->id)
@@ -2129,7 +2129,7 @@ class TdrController extends Controller
                                 if ($sourceWo && $sourceWo->part_missing) {
                                     $sourceWo->part_missing = false;
                                     $sourceWo->save();
-                                    // Log::info('Ð¤Ð»Ð°Ð³ part_missing Ð´Ð»Ñ WO-Ð¸ÑÑ‚Ð¾Ñ‡Ð½Ð¸ÐºÐ° ' . $transfer->workorder_source . ' Ð¾Ð±Ð½Ð¾Ð²Ð»Ñ‘Ð½ Ð½Ð° false (Ð¿Ð¾ÑÐ»Ðµ ÑƒÐ´Ð°Ð»ÐµÐ½Ð¸Ñ ÐºÐ»Ð¾Ð½Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ð¾Ð³Ð¾ Missing TDR).');
+                                    // Log::info('Флаг part_missing для WO-источника ' . $transfer->workorder_source . ' обновлён на false (после удаления клонированного Missing TDR).');
                                 }
 
                             }
@@ -2142,74 +2142,74 @@ class TdrController extends Controller
             }
 
             if ($deletedTransfers > 0) {
-                // Log::info('Ð£Ð´Ð°Ð»ÐµÐ½Ñ‹ ÑÐ²ÑÐ·Ð°Ð½Ð½Ñ‹Ðµ transfers Ð´Ð»Ñ TDR Ñ ID: ' . $id . ' (ÑƒÐ´Ð°Ð»ÐµÐ½Ð¾ transfers: ' . $deletedTransfers . ', ÑƒÐ´Ð°Ð»ÐµÐ½Ð¾ ÐºÐ»Ð¾Ð½Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð½Ñ‹Ñ… TDR: ' . $deletedClonedTdrs . ')');
+                // Log::info('Удалены связанные transfers для TDR с ID: ' . $id . ' (удалено transfers: ' . $deletedTransfers . ', удалено клонированных TDR: ' . $deletedClonedTdrs . ')');
             }
         }
 
-        // Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ Ð·Ð°Ð¿Ð¸ÑÑŒ Tdr
+        // Удалить запись Tdr
         $tdr->delete();
-        // Log::info('Ð—Ð°Ð¿Ð¸ÑÑŒ Tdr Ñ ID: ' . $id . ' Ð±Ñ‹Ð»Ð° ÑƒÐ´Ð°Ð»ÐµÐ½Ð°.');
+        // Log::info('Запись Tdr с ID: ' . $id . ' была удалена.');
 
 
 
-        // ÐÐ°Ð¹Ñ‚Ð¸ necessary Ñ Ð¸Ð¼ÐµÐ½ÐµÐ¼ 'Missing'
+        // Найти necessary с именем 'Missing'
         $necessary = Necessary::where('name', 'Order New')->first();
-        // Log::info('ÐÐ°Ð¹Ð´ÐµÐ½ necessary Ñ Ð¸Ð¼ÐµÐ½ÐµÐ¼ "Order New": ' . ($necessary ? 'Ð”Ð°' : 'ÐÐµÑ‚'));
+        // Log::info('Найден necessary с именем "Order New": ' . ($necessary ? 'Да' : 'Нет'));
 
         if ($necessary) {
-            // ÐŸÑ€Ð¾Ð²ÐµÑ€Ð¸Ñ‚ÑŒ, ÐµÑÐ»Ð¸ ÑÑ‚Ð¾ Ð¿Ð¾ÑÐ»ÐµÐ´Ð½ÑÑ Ð·Ð°Ð¿Ð¸ÑÑŒ Ñ necessaries_id = $necessary->id
+            // Проверить, если это последняя запись с necessaries_id = $necessary->id
             $remainingPartsWithNecessary = Tdr::where('workorder_id', $workorderId)
                 ->where('necessaries_id', $necessary->id)
                 ->count();
-            // Log::info('ÐžÑÑ‚Ð°Ð²ÑˆÐ¸ÐµÑÑ Ð·Ð°Ð¿Ð¸ÑÐ¸ Ñ ÐºÐ¾Ð´Ð¾Ð¼ Order New Ð´Ð»Ñ workorder_id ' . $workorderId . ': ' .
+            // Log::info('Оставшиеся записи с кодом Order New для workorder_id ' . $workorderId . ': ' .
             //     $remainingPartsWithNecessary);
             if ($remainingPartsWithNecessary == 0) {
-                // ÐžÐ±Ð½Ð¾Ð²Ð»ÑÐµÐ¼ Ð¿Ð¾Ð»Ðµ part_missing Ð² workorder
+                // Обновляем поле part_missing в workorder
                 $workorder = Workorder::find($workorderId);
                 if ($workorder && $workorder->new_parts == true) {
-                    // ÐœÐµÐ½ÑÐµÐ¼ Ð½Ð° false, ÐµÑÐ»Ð¸ part_missing Ñ€Ð°Ð²Ð½Ð¾ true
+                    // Меняем на false, если part_missing равно true
                     $workorder->new_parts = false;
                     $workorder->save();
-                    // Log::info('ÐŸÐ¾Ð»Ðµ new_parts Ð´Ð»Ñ workorder_id ' . $workorderId . ' Ð¾Ð±Ð½Ð¾Ð²Ð»ÐµÐ½Ð¾ Ð½Ð° false');
+                    // Log::info('Поле new_parts для workorder_id ' . $workorderId . ' обновлено на false');
                 } else {
-                    // Log::info('ÐŸÐ¾Ð»Ðµ new_parts Ð´Ð»Ñ workorder_id ' . $workorderId . ' ÑƒÐ¶Ðµ false Ð¸Ð»Ð¸ workorder Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½.');
+                    // Log::info('Поле new_parts для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
                 }
 
             }
         }
 
-        // ÐÐ°Ð¹Ñ‚Ð¸ ÐºÐ¾Ð´ Ñ Ð¸Ð¼ÐµÐ½ÐµÐ¼ 'Missing'
+        // Найти код с именем 'Missing'
         $code = Code::where('name', 'Missing')->first();
-        // Log::info('ÐÐ°Ð¹Ð´ÐµÐ½ ÐºÐ¾Ð´ Ñ Ð¸Ð¼ÐµÐ½ÐµÐ¼ "Missing": ' . ($code ? 'Ð”Ð°' : 'ÐÐµÑ‚'));
+        // Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
 
-        // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼, Ð±Ñ‹Ð»Ð° Ð»Ð¸ ÑƒÐ´Ð°Ð»ÑÐµÐ¼Ð°Ñ Ð·Ð°Ð¿Ð¸ÑÑŒ Ñ ÐºÐ¾Ð´Ð¾Ð¼ Missing
-        $wasMissingRecord = $code && $tdrCodesId === $code->id;
-        // Log::info('Ð£Ð´Ð°Ð»ÑÐµÐ¼Ð°Ñ Ð·Ð°Ð¿Ð¸ÑÑŒ Ð±Ñ‹Ð»Ð° Ñ ÐºÐ¾Ð´Ð¾Ð¼ Missing: ' . ($wasMissingRecord ? 'Ð”Ð°' : 'ÐÐµÑ‚') . ' (codes_id: ' . $tdrCodesId . ')');
+        // Проверяем, была ли удаляемая запись с кодом Missing
+        $wasMissingRecord = $code && (int) $tdrCodesId === (int) $code->id;
+        // Log::info('Удаляемая запись была с кодом Missing: ' . ($wasMissingRecord ? 'Да' : 'Нет') . ' (codes_id: ' . $tdrCodesId . ')');
 
-        if ($code) {
-            // ÐŸÑ€Ð¾Ð²ÐµÑ€Ð¸Ñ‚ÑŒ, ÐµÑÐ»Ð¸ ÑÑ‚Ð¾ Ð¿Ð¾ÑÐ»ÐµÐ´Ð½ÑÑ Ð·Ð°Ð¿Ð¸ÑÑŒ Ñ codes_id = $code->id
-            // Ð—Ð°Ð¿Ð¸ÑÑŒ ÑƒÐ¶Ðµ ÑƒÐ´Ð°Ð»ÐµÐ½Ð° Ð²Ñ‹ÑˆÐµ, Ð¿Ð¾ÑÑ‚Ð¾Ð¼Ñƒ Ð¿Ñ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼ Ð¾ÑÑ‚Ð°Ð²ÑˆÐ¸ÐµÑÑ
+        if ($wasMissingRecord) {
+            // Проверить, если это последняя запись с codes_id = $code->id
+            // Запись уже удалена выше, поэтому проверяем оставшиеся
             $remainingPartsWithCodes7 = Tdr::where('workorder_id', $workorderId)
                 ->where('codes_id', $code->id)
                 ->count();
 
-            // Log::info('ÐžÑÑ‚Ð°Ð²ÑˆÐ¸ÐµÑÑ Ð·Ð°Ð¿Ð¸ÑÐ¸ Ñ ÐºÐ¾Ð´Ð¾Ð¼ Missing Ð´Ð»Ñ workorder_id ' . $workorderId . ': ' . $remainingPartsWithCodes7);
+            // Log::info('Оставшиеся записи с кодом Missing для workorder_id ' . $workorderId . ': ' . $remainingPartsWithCodes7);
 
-            // Ð•ÑÐ»Ð¸ ÑÑ‚Ð¾ Ð±Ñ‹Ð»Ð° Ð¿Ð¾ÑÐ»ÐµÐ´Ð½ÑÑ Ð·Ð°Ð¿Ð¸ÑÑŒ Ñ Ñ‚Ð°ÐºÐ¸Ð¼ ÐºÐ¾Ð´Ð¾Ð¼, Ð¾Ð±Ð½Ð¾Ð²Ð»ÑÐµÐ¼ Ð¿Ð¾Ð»Ðµ part_missing Ð² workorder
+            // Если это была последняя запись с таким кодом, обновляем поле part_missing в workorder
             if ($remainingPartsWithCodes7 == 0) {
-                // ÐžÐ±Ð½Ð¾Ð²Ð»ÑÐµÐ¼ Ð¿Ð¾Ð»Ðµ part_missing Ð² workorder
+                // Обновляем поле part_missing в workorder
                 $workorder = Workorder::find($workorderId);
 
                 if ($workorder && $workorder->part_missing === true) {
-                    // ÐœÐµÐ½ÑÐµÐ¼ Ð½Ð° false, ÐµÑÐ»Ð¸ part_missing Ñ€Ð°Ð²Ð½Ð¾ true
+                    // Меняем на false, если part_missing равно true
                     $workorder->part_missing = false;
                     $workorder->save();
-                    // Log::info('ÐŸÐ¾Ð»Ðµ part_missing Ð´Ð»Ñ workorder_id ' . $workorderId . ' Ð¾Ð±Ð½Ð¾Ð²Ð»ÐµÐ½Ð¾ Ð½Ð° false');
+                    // Log::info('Поле part_missing для workorder_id ' . $workorderId . ' обновлено на false');
                 } else {
-                    // Log::info('ÐŸÐ¾Ð»Ðµ part_missing Ð´Ð»Ñ workorder_id ' . $workorderId . ' ÑƒÐ¶Ðµ false Ð¸Ð»Ð¸ workorder Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½.');
+                    // Log::info('Поле part_missing для workorder_id ' . $workorderId . ' уже false или workorder не найден.');
                 }
 
-                // Ð£Ð´Ð°Ð»ÑÐµÐ¼ ÑÑ‚Ð°Ñ€Ñ‹Ðµ Ð¿ÑƒÑÑ‚Ñ‹Ðµ Ð·Ð°Ð¿Ð¸ÑÐ¸ Ñ missingCondition (ÑÐ¾Ð·Ð´Ð°Ð½Ð½Ñ‹Ðµ Ð´Ð¾ Ð¸Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ð¹)
+                // Удаляем старые пустые записи с missingCondition (созданные до изменений)
                 $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
                 if ($missingCondition) {
                     $emptyMissingRecords = Tdr::where('workorder_id', $workorderId)
@@ -2220,7 +2220,7 @@ class TdrController extends Controller
 
                     foreach ($emptyMissingRecords as $emptyRecord) {
                         $emptyRecord->delete();
-                        // Log::info('Ð£Ð´Ð°Ð»ÐµÐ½Ð° ÑÑ‚Ð°Ñ€Ð°Ñ Ð¿ÑƒÑÑ‚Ð°Ñ Ð·Ð°Ð¿Ð¸ÑÑŒ Ñ condition_id ' . $missingCondition->id . ' Ð´Ð»Ñ workorder_id ' . $workorderId);
+                        // Log::info('Удалена старая пустая запись с condition_id ' . $missingCondition->id . ' для workorder_id ' . $workorderId);
                     }
                 }
             }
@@ -2231,36 +2231,27 @@ class TdrController extends Controller
     }
 
     /**
-     * Ð Ð°ÑÑ‡ÐµÑ‚ ÑÑƒÐ¼Ð¼ NDT Ð¸Ð· Ð´Ð°Ð½Ð½Ñ‹Ñ… CSV Ð´Ð»Ñ Ñ€Ð°Ð±Ð¾Ñ‡ÐµÐ³Ð¾ Ð·Ð°ÐºÐ°Ð·Ð°
-     * Ð¢Ð° Ð¶Ðµ Ð»Ð¾Ð³Ð¸ÐºÐ°, Ñ‡Ñ‚Ð¾ Ð¸ ndtStd: min(QTY Ð¸Ð· ÑÑ‚Ñ€Ð¾ÐºÐ¸ STD, units_assy), excludedQty, tdrQty
+     * Расчет сумм NDT из данных CSV для рабочего заказа
+     * Та же логика, что и ndtStd: min(QTY из строки STD, units_assy), excludedQty, tdrQty
      *
-     * @param int $workorder_id ID Ñ€Ð°Ð±Ð¾Ñ‡ÐµÐ³Ð¾ Ð·Ð°ÐºÐ°Ð·Ð°
-     * @return array{total: int, mpi: int, fpi: int} ÐœÐ°ÑÑÐ¸Ð² Ñ Ð¾Ð±Ñ‰Ð¸Ð¼Ð¸ ÑÑƒÐ¼Ð¼Ð°Ð¼Ð¸,
-     *     MPI Ð¸ FPI
+     * @param int $workorder_id ID рабочего заказа
+     * @return array{total: int, mpi: int, fpi: int} Массив с общими суммами,
+     *     MPI и FPI
      */
 
 
 
-
-
-
-
-
-
-
-
-
     /**
-     * ÐŸÑ€Ð¸Ð²Ð¾Ð´Ð¸Ñ‚ ÑÑ‚Ñ€Ð¾ÐºÑƒ Ðº ÑÐ¾Ð¿Ð¾ÑÑ‚Ð°Ð²Ð¸Ð¼Ð¾Ð¼Ñƒ Ð²Ð¸Ð´Ñƒ: Ð·Ð°Ð¼ÐµÐ½ÑÐµÑ‚ ÐºÐ¸Ñ€Ð¸Ð»Ð»Ð¸Ñ†Ñƒ Ð½Ð° Ð»Ð°Ñ‚Ð¸Ð½Ð¸Ñ†Ñƒ,
-     * Ð¿ÐµÑ€ÐµÐ²Ð¾Ð´Ð¸Ñ‚ Ð² Ð²ÐµÑ€Ñ…Ð½Ð¸Ð¹ Ñ€ÐµÐ³Ð¸ÑÑ‚Ñ€ Ð¸ ÑƒÐ´Ð°Ð»ÑÐµÑ‚ Ð²ÑÐµ Ð½Ðµ Ð±ÑƒÐºÐ²ÐµÐ½Ð½Ð¾-Ñ†Ð¸Ñ„Ñ€Ð¾Ð²Ñ‹Ðµ ÑÐ¸Ð¼Ð²Ð¾Ð»Ñ‹
+     * Приводит строку к сопоставимому виду: заменяет кириллицу на латиницу,
+     * переводит в верхний регистр и удаляет все не буквенно-цифровые символы
      */
 
     /**
-     * ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÑ‚, Ð½ÑƒÐ¶Ð½Ð¾ Ð»Ð¸ Ð¿Ñ€Ð¾Ð¿ÑƒÑÑ‚Ð¸Ñ‚ÑŒ ÑÐ»ÐµÐ¼ÐµÐ½Ñ‚ Ð½Ð° Ð¾ÑÐ½Ð¾Ð²Ðµ ÑÑƒÑ‰ÐµÑÑ‚Ð²ÑƒÑŽÑ‰Ð¸Ñ… IPL Ð½Ð¾Ð¼ÐµÑ€Ð¾Ð²
+     * Проверяет, нужно ли пропустить элемент на основе существующих IPL номеров
      */
 
     /**
-     * ÐžÐ±Ð½Ð¾Ð²Ð»ÐµÐ½Ð¸Ðµ po_num Ð¸Ð»Ð¸ received Ð´Ð»Ñ Ð·Ð°Ð¿Ð¸ÑÐ¸ Tdr
+     * Обновление po_num или received для записи Tdr
      */
     public function updatePartField(Request $request, $id)
     {
@@ -2274,7 +2265,7 @@ class TdrController extends Controller
         $field = $request->input('field');
         $value = $request->input('value');
 
-        // Ð•ÑÐ»Ð¸ Ð¿Ð¾Ð»Ðµ received Ð¸ Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ðµ Ð¿ÑƒÑÑ‚Ð¾Ðµ, ÑƒÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ null
+        // Если поле received и значение пустое, устанавливаем null
         if ($field === 'received' && empty($value)) {
             $tdr->received = null;
         } else {
@@ -2290,8 +2281,8 @@ class TdrController extends Controller
     }
 
     /**
-     * Ð§ÐµÑ‚Ñ‹Ñ€Ðµ Ð¿Ñ€Ð¾Ñ†ÐµÑÑÐ° STD List (Ð¸Ð¼ÐµÐ½Ð° Ð¸Ð· WorkorderStdListProcessesService) Ð² Ð²Ñ‹Ð±Ð¾Ñ€ÐºÐµ â€”
-     * Ñ‚Ð¾Ð»ÑŒÐºÐ¾ ÐµÑÐ»Ð¸ Ð²Ð¾Ñ€ÐºÐ¾Ñ€Ð´ÐµÑ€ Overhaul (ÐºÐ°Ðº main / Paint).
+     * Четыре процесса STD List (имена из WorkorderStdListProcessesService) в выборке —
+     * только если воркордер Overhaul (как main / Paint).
      */
     private function applyStdListProcessesVisibilityForWorkorder(Workorder $currentWo, EloquentBuilder $query): void
     {

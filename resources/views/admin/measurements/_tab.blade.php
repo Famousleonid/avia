@@ -18,6 +18,7 @@
     .ms-sdot.pass { background:#198754; border-color:#28a745; } .ms-sdot.fail { background:#dc3545; border-color:#e04657; }
     .ms-sdot.partial { background:#ffc107; border-color:#ffca2c; } .ms-sdot.none { background:#6c757d; border-color:#868e96; }
     .ms-pdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .ms-part-prog { font-size: 9px; color: var(--bs-secondary-color); flex-shrink: 0; }
     .ms-pdot.pass { background:#198754; } .ms-pdot.fail { background:#dc3545; } .ms-pdot.partial { background:#ffc107; } .ms-pdot.none { background:#6c757d; }
 
     #ms-tab-viewer { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; }
@@ -50,9 +51,18 @@
     .ms-text-label { position: absolute; transform: translate(-50%,-50%); background: rgba(20,184,166,.1); border: 1.5px solid #14b8a6; border-radius: 8px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #0d9488; white-space: nowrap; z-index: 9; pointer-events: none; }
     .ms-dim-marker { position: absolute; transform: translate(-50%,-50%); width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #6c757d; background: rgba(108,117,125,.2); font-size: 7px; color: #6c757d; display: flex; align-items: center; justify-content: center; z-index: 8; pointer-events: none; }
 
-    #ms-tab-entry { width: 420px; min-width: 300px; border-left: 1px solid var(--bs-border-color); display: flex; flex-direction: column; overflow: hidden; }
-    #ms-tab-entry-hdr { padding: 6px 10px; border-bottom: 1px solid var(--bs-border-color); flex-shrink: 0; }
-    #ms-tab-entry-body { flex: 1 1 auto; overflow-y: auto; padding: 8px; }
+    #ms-tab-entry { width: 460px; min-width: 320px; border-left: 1px solid var(--bs-border-color); display: flex; flex-direction: column; overflow: hidden; }
+    #ms-comp-hdr { padding: 6px 10px; border-bottom: 1px solid var(--bs-border-color); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    #ms-comp-title { font-size: 13px; font-weight: 600; }
+    #ms-comp-sub { font-size: 10px; color: var(--bs-secondary-color); }
+    #ms-tab-entry-body { flex: 1 1 auto; overflow-y: auto; padding: 6px; }
+    .ms-acc-row { border: 1px solid var(--bs-border-color); border-radius: 5px; margin-bottom: 3px; overflow: hidden; }
+    .ms-acc-hdr { padding: 5px 8px; display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; user-select: none; border-left: 3px solid transparent; }
+    .ms-acc-hdr:hover { background: rgba(13,110,253,.06); }
+    .ms-acc-hdr.active { background: rgba(13,110,253,.1); border-left-color: #0d6efd; }
+    .ms-acc-body { padding: 8px; border-top: 1px solid var(--bs-border-color); display: none; }
+    .ms-acc-body.open { display: block; }
+    .ms-acc-last { font-family: monospace; font-size: 11px; flex-shrink: 0; margin-left: auto; padding-right: 4px; }
 
     .ms-spec-lims { border: 1px solid var(--bs-border-color); border-radius: 5px; display: flex; flex-wrap: nowrap; gap: 0; margin-bottom: 8px; overflow: hidden; }
     .ms-lim-cell { flex: 1 1 0; min-width: 0; background: rgba(0,0,0,.03); padding: 3px 6px; border-right: 1px solid var(--bs-border-color); }
@@ -68,6 +78,18 @@
     .ms-form-wrap { padding: 8px; border: 1px solid var(--bs-border-color); border-radius: 6px; }
     .ms-flabel { font-size: 11px; color: var(--bs-secondary-color); margin-bottom: 2px; }
     .ms-frow { margin-bottom: 6px; }
+    .ms-rule-chip { font-size: 10px; color: #fd7e14; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ms-acc-rule-hint { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; flex-shrink: 1; }
+    .ms-acc-hdr.active .ms-acc-rule-hint { display: none; }
+    .ms-hint-worn { color: #dc3545; font-weight: 700; }
+    .ms-hint-ok   { color: #198754; font-weight: 700; }
+    .ms-hint-insp { color: #e6a817; font-weight: 700; }
+    .ms-hint-rule { color: #fd7e14; }
+    .ms-hint-lim  { color: var(--bs-secondary-color); font-family: monospace; }
+    .ms-hint-val  { color: #dc3545; font-family: monospace; }
+    .ms-hint-sep  { opacity: .35; margin: 0 2px; }
+    .ms-finding-badge { font-size: 10px; padding: 1px 6px; border-radius: 3px; background: rgba(220,53,69,.15); color: #dc3545; font-weight: 600; flex-shrink: 0; }
+    .ms-finding-badge.insp { background: rgba(255,193,7,.15); color: #ffc107; }
 </style>
 
 <div id="ms-tab-body">
@@ -117,7 +139,7 @@
                         <div id="msTdrCompList" class="list-group mt-1" style="display:none;max-height:140px;overflow-y:auto;font-size:12px"></div>
                         <div class="text-secondary mt-1" style="font-size:11px;min-height:14px" id="msTdrComponentInfo"></div>
                     </div>
-                    <div class="mb-2">
+                    <div class="mb-2" id="msTdrSnRow">
                         <label class="form-label form-label-sm mb-1">Serial Number (SN)</label>
                         <input type="text" class="form-control form-control-sm" id="msTdrSn" placeholder="Optional">
                     </div>
@@ -135,18 +157,23 @@
         </div>
     </div>
 
-    {{-- Entry panel --}}
+    {{-- Component panel --}}
     <div id="ms-tab-entry">
-        <div id="ms-tab-entry-hdr">
-            <div id="ms-tab-entry-title" style="font-size:13px;font-weight:600;color:var(--bs-secondary-color)">Select a parameter</div>
-            <div id="ms-tab-entry-sub" style="font-size:10px;color:var(--bs-secondary-color);display:none"></div>
-        </div>
-        <div id="ms-tab-entry-body">
-            <div id="ms-tab-entry-empty" class="text-center text-secondary py-4" style="font-size:11px">
-                <i class="bi bi-rulers" style="font-size:1.8rem;display:block;opacity:.2;margin-bottom:.4rem"></i>
-                Select a parameter to record measurements
+        <div id="ms-comp-hdr" style="display:none">
+            <div>
+                <div id="ms-comp-title"></div>
+                <div id="ms-comp-sub"></div>
             </div>
-            <div id="ms-tab-param-panel" class="d-none"></div>
+            <button id="ms-add-tdr-btn" class="btn btn-outline-danger btn-sm flex-shrink-0" disabled style="font-size:11px">
+                <i class="bi bi-plus-circle"></i> Add to TDR
+            </button>
+        </div>
+        <div id="ms-tab-entry-empty" class="text-center text-secondary py-4" style="font-size:11px">
+            <i class="bi bi-rulers" style="font-size:1.8rem;display:block;opacity:.2;margin-bottom:.4rem"></i>
+            Select a part
+        </div>
+        <div id="ms-tab-entry-body" style="display:none">
+            <div id="ms-acc-wrap"></div>
         </div>
     </div>
 </div>
@@ -159,22 +186,23 @@
     let inspComponents = [], figures = [], parameters = [], measurements = [], USE_WEAR = false;
     let allCodes = [], MISSING_CODE_ID = null;
     let partsTree = [];
-    let expandedPartIds = new Set(), activePartId = null, activeParam = null, activeFigure = null;
+    let icsWithTdr = new Set();
+    let activePartId = null, activeParam = null, activeFigure = null;
     let callouts = [];
     let loaded = false;
 
-    const partsList   = document.getElementById('ms-tab-parts-list');
-    const loadingEl   = document.getElementById('ms-tab-loading');
-    const figLabel    = document.getElementById('ms-tab-fig-label');
-    const figNav      = document.getElementById('ms-tab-fig-nav');
-    const emptyViewer = document.getElementById('ms-tab-empty-viewer');
-    const figContainer= document.getElementById('ms-tab-fig-container');
-    const figImg      = document.getElementById('ms-tab-fig-img');
-    const overlay     = document.getElementById('ms-tab-overlay');
-    const entryTitle  = document.getElementById('ms-tab-entry-title');
-    const entrySub    = document.getElementById('ms-tab-entry-sub');
-    const entryEmpty  = document.getElementById('ms-tab-entry-empty');
-    const paramPanel  = document.getElementById('ms-tab-param-panel');
+    const partsList    = document.getElementById('ms-tab-parts-list');
+    const loadingEl    = document.getElementById('ms-tab-loading');
+    const figLabel     = document.getElementById('ms-tab-fig-label');
+    const figNav       = document.getElementById('ms-tab-fig-nav');
+    const emptyViewer  = document.getElementById('ms-tab-empty-viewer');
+    const figContainer = document.getElementById('ms-tab-fig-container');
+    const figImg       = document.getElementById('ms-tab-fig-img');
+    const overlay      = document.getElementById('ms-tab-overlay');
+    const entryEmpty   = document.getElementById('ms-tab-entry-empty');
+    const entryBody    = document.getElementById('ms-tab-entry-body');
+    const compHdr      = document.getElementById('ms-comp-hdr');
+    const accWrap      = document.getElementById('ms-acc-wrap');
 
     function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function fmtDim(v) { return v!=null ? parseFloat(v).toFixed(4) : '—'; }
@@ -330,6 +358,72 @@
         if(cur.result==='FAIL') return 'fail';
         return 'partial';
     }
+    function paramFailRuleLabel(param) {
+        const ms = paramMeasurements(param);
+        const failMeas = [...ms].reverse().find(m => m.result === 'FAIL' && m.manual_parameter_repair_rule_id);
+        if (!failMeas) return null;
+        const rule = (param.repair_rules || []).find(r => r.id === failMeas.manual_parameter_repair_rule_id);
+        if (!rule) return null;
+        let label = rule.name || '';
+        if (!label && rule.processes?.length) label = rule.processes.map(p => p.label).filter(Boolean).slice(0, 2).join(', ');
+        if (!label && rule.order_replacement) label = 'Order New';
+        return label || null;
+    }
+
+    function buildParamHintHtml(param) {
+        const ms = paramMeasurements(param);
+        const lastFail = [...ms].reverse().find(m =>
+            m.result === 'FAIL' && !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID)
+        );
+        if (!lastFail) return '';
+
+        const lim = effectiveLimits(param);
+        const hasDimLimits = lim.min !== null && lim.max !== null;
+
+        let dimFail = false;
+        if (hasDimLimits && lastFail.actual_value != null) {
+            dimFail = !(lastFail.actual_value >= lim.min && lastFail.actual_value <= lim.max);
+        }
+
+        const inspCode = lastFail.codes_id
+            ? param.codes?.find(c => c.id == lastFail.codes_id && c.finding_context === 'inspection')
+            : null;
+        const inspName = inspCode?.name || null;
+
+        let ruleName = null;
+        if (lastFail.manual_parameter_repair_rule_id) {
+            const rule = (param.repair_rules || []).find(r => r.id === lastFail.manual_parameter_repair_rule_id);
+            if (rule) {
+                ruleName = rule.name || '';
+                if (!ruleName && rule.processes?.length)
+                    ruleName = rule.processes.map(p => p.label).filter(Boolean).slice(0, 2).join(', ');
+                if (!ruleName) ruleName = rule.order_replacement ? 'Order New' : null;
+            }
+        }
+
+        const sep = '<span class="ms-hint-sep">·</span>';
+        const tokens = [];
+
+        if (hasDimLimits && lastFail.actual_value != null) {
+            if (dimFail) {
+                const wornCode = param.codes?.find(c => c.finding_context === 'measurement');
+                tokens.push(`<span class="ms-hint-worn">${esc(wornCode?.name || 'Worn')}</span>`);
+            } else if (inspName) {
+                tokens.push(`<span class="ms-hint-ok">OK</span>`);
+            }
+        }
+
+        if (inspName) tokens.push(`<span class="ms-hint-insp">${esc(inspName)}</span>`);
+        if (ruleName) tokens.push(`<span class="ms-hint-rule">${esc(ruleName)}</span>`);
+
+        if (!tokens.length) return '';
+
+        if (dimFail && lastFail.actual_value != null)
+            tokens.push(`<span class="ms-hint-val">${fmtDim(lastFail.actual_value)}</span>`);
+
+        return `<span class="ms-acc-rule-hint">${tokens.join(sep)}</span>`;
+    }
+
     function partStatus(part) {
         const req=part.params.filter(p=>p.is_required);
         if(!req.length) return 'none';
@@ -341,25 +435,27 @@
 
     /* ── Left panel ───────────────────────────────────────────── */
     function renderPartsList() {
-        partsList.innerHTML='';
-        if(!partsTree.length){ partsList.innerHTML='<div class="px-3 py-2 text-secondary" style="font-size:11px">No parts defined</div>'; return; }
-        partsTree.forEach(part=>{
-            const isOpen=expandedPartIds.has(part.id), pSt=partStatus(part);
-            const g=document.createElement('div'); g.className='ms-part-group';
-            const h=document.createElement('div'); h.className='ms-part-header';
-            h.innerHTML=`<span class="ms-pdot ${pSt}"></span><span>${esc(part.label)}</span><i class="bi bi-chevron-${isOpen?'up':'down'} ms-part-chevron"></i>`;
-            h.addEventListener('click',()=>{ expandedPartIds.has(part.id)?expandedPartIds.delete(part.id):expandedPartIds.add(part.id); renderPartsList(); });
-            g.appendChild(h);
-            const pl=document.createElement('div'); pl.className='ms-part-params'+(isOpen?' open':'');
-            part.params.forEach(param=>{
-                const st=paramStatus(param), isActive=activeParam?.id===param.id&&activePartId===part.id;
-                const el=document.createElement('div'); el.className='ms-tab-param-item'+(isActive?' active':'');
-                const ptCodes=[...new Set(param.locations.map(l=>l.pt.code))].join(', ');
-                el.innerHTML=`<span class="ms-sdot ${st}"></span><span class="ms-tab-param-desc">${esc(param.description)}</span>${ptCodes?`<span class="ms-pt-code">${esc(ptCodes)}</span>`:''}`;
-                el.addEventListener('click',()=>selectParam(part,param));
-                pl.appendChild(el);
-            });
-            g.appendChild(pl); partsList.appendChild(g);
+        partsList.innerHTML = '';
+        if (!partsTree.length) {
+            partsList.innerHTML = '<div class="px-3 py-2 text-secondary" style="font-size:11px">No parts defined</div>';
+            return;
+        }
+        partsTree.forEach(part => {
+            const isActive = activePartId === part.id;
+            const pSt = partStatus(part);
+            const total = part.params.length;
+            const done  = part.params.filter(p => paramStatus(p) !== 'none').length;
+            const progHtml = total > 0
+                ? (done === total
+                    ? `<span class="ms-part-prog" style="color:#198754">✓</span>`
+                    : `<span class="ms-part-prog">${done}/${total}</span>`)
+                : '';
+            const el = document.createElement('div');
+            el.className = 'ms-tab-param-item' + (isActive ? ' active' : '');
+            el.style.cssText = 'padding:6px 10px;border-left-width:3px';
+            el.innerHTML = `<span class="ms-pdot ${pSt}"></span><span class="ms-tab-param-desc" style="font-size:12px;font-weight:600">${esc(part.label)}</span>${progHtml}`;
+            el.addEventListener('click', () => selectComponent(part));
+            partsList.appendChild(el);
         });
     }
 
@@ -483,7 +579,7 @@
                     m.style.left=(tx+lxp/100*iw*scale)+'px';
                     m.style.top =(ty+lyp/100*ih*scale)+'px';
                     m.title=param.description+(pt.code?' · '+pt.code:'');
-                    m.addEventListener('click',e=>{ e.stopPropagation(); const p=partsTree.find(p=>p.id===part.id); if(p) selectParam(p,param); });
+                    m.addEventListener('click',e=>{ e.stopPropagation(); const p=partsTree.find(p=>p.id===part.id); if(!p) return; if(activePartId!==p.id){activePartId=p.id;activeParam=null;renderPartsList();renderComponentPanel(p);} expandAccordionRow(p,param); });
                     overlay.appendChild(m);
                     callouts.push({type:'line', x_pct:pt.x_pct, y_pct:pt.y_pct, x2_pct:pt.x2_pct, y2_pct:pt.y2_pct, lx_pct:hasExtLabel?pt.label_x_pct:null, ly_pct:hasExtLabel?pt.label_y_pct:null, color, dim:!isActiveParam});
                     return;
@@ -506,7 +602,9 @@
                 m.addEventListener('click',e=>{
                     e.stopPropagation();
                     const p=partsTree.find(p=>p.id===part.id);
-                    if(p) selectParam(p, param);
+                    if(!p) return;
+                    if(activePartId!==p.id){activePartId=p.id;activeParam=null;renderPartsList();renderComponentPanel(p);}
+                    expandAccordionRow(p,param);
                 });
                 overlay.appendChild(m);
             });
@@ -514,68 +612,172 @@
         updateCalloutLines();
     }
 
-    /* ── Select param ─────────────────────────────────────────── */
-    function selectParam(part, param) {
-        activePartId=part.id; activeParam=param;
-        expandedPartIds.add(part.id);
+    /* ── Select component ─────────────────────────────────────── */
+    function selectComponent(part) {
+        activePartId = part.id;
+        activeParam  = part.params.length > 0 ? part.params[0] : null;
         renderPartsList();
-
-        const figs=uniqueFigures(param);
-        const fig = (activeFigure && param.locations.some(l=>l.fig.id===activeFigure.id))
-            ? activeFigure : figs[0];
-
-        if(fig) { showFigure(fig); }
-        else { emptyViewer.style.display=''; figContainer.style.display='none'; overlay.innerHTML=''; svgEl.innerHTML=''; callouts=[]; figNav.classList.remove('visible'); figLabel.textContent='— no figure —'; }
-
-        renderEntryPanel(part, param);
+        renderComponentPanel(part);
+        if (activeParam) {
+            const figs = uniqueFigures(activeParam);
+            const fig = figs[0] || null;
+            activeFigure = fig;
+            if (fig) showFigure(fig);
+            else {
+                emptyViewer.style.display = '';
+                figContainer.style.display = 'none';
+                overlay.innerHTML = ''; svgEl.innerHTML = ''; callouts = [];
+                figNav.classList.remove('visible');
+                figLabel.textContent = '— no figure —';
+            }
+        }
     }
 
-    /* ── Entry panel ──────────────────────────────────────────── */
-    function renderEntryPanel(part, param) {
-        entryTitle.innerHTML=`<span style="color:var(--bs-secondary-color);font-weight:400;font-size:11px">${esc(part.label)}</span><br>${esc(param.description)}`;
-        entryTitle.style.color='';
-        const ptCodes=[...new Set(param.locations.map(l=>l.pt.code))].join(' · ');
-        entrySub.textContent=ptCodes ? 'Points: '+ptCodes : '';
-        entrySub.style.display=ptCodes?'':'none';
+    /* ── Component panel (accordion) ─────────────────────────── */
+    function renderComponentPanel(part) {
+        compHdr.style.display = '';
+        entryEmpty.style.display = 'none';
+        entryBody.style.display  = '';
 
-        entryEmpty.classList.add('d-none');
-        paramPanel.classList.remove('d-none');
-        paramPanel.innerHTML='';
+        document.getElementById('ms-comp-title').textContent = part.label;
+        const ic = inspComponents.find(c => c.id === part.id);
+        const ipl = (ic?.ipl_nums || [])[0] || '';
+        const pn  = (ic?.part_numbers || [])[0] || '';
+        const subParts = [];
+        if (ipl) subParts.push('IPL# ' + ipl);
+        if (pn)  subParts.push('P/N ' + pn);
+        document.getElementById('ms-comp-sub').textContent = subParts.join('  ·  ');
 
-        const lim=effectiveLimits(param);
-        const hasLim=lim.min!==null||lim.max!==null;
+        updateTdrBtnState(part);
 
-        if(hasLim){
-            const limDiv=document.createElement('div'); limDiv.className='ms-spec-lims';
-            limDiv.innerHTML=`
-                <div class="ms-lim-cell"><div class="ms-lim-lbl">orig min</div><div class="ms-lim-val">${fmtDim(param.orig_dim_min)}</div></div>
-                <div class="ms-lim-cell"><div class="ms-lim-lbl">orig max</div><div class="ms-lim-val">${fmtDim(param.orig_dim_max)}</div></div>
-                ${param.wear_dim_min!=null?`<div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear min</div><div class="ms-lim-val">${fmtDim(param.wear_dim_min)}</div></div><div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear max</div><div class="ms-lim-val">${fmtDim(param.wear_dim_max)}</div></div>`:''}`;
-            paramPanel.appendChild(limDiv);
+        accWrap.innerHTML = '';
+        part.params.forEach(param => accWrap.appendChild(buildAccordionRow(part, param)));
+    }
+
+    function updateTdrBtnState(part) {
+        const btn = document.getElementById('ms-add-tdr-btn');
+        if (!btn) return;
+        if (icsWithTdr.has(part.id)) {
+            btn.disabled = true;
+            btn.classList.remove('btn-outline-danger');
+            btn.classList.add('btn-outline-success');
+            return;
+        }
+        btn.classList.remove('btn-outline-success');
+        btn.classList.add('btn-outline-danger');
+        const hasAnyFail = part.params.some(p =>
+            paramMeasurements(p).some(m => m.result === 'FAIL')
+        );
+        btn.disabled = !hasAnyFail;
+    }
+
+    function buildAccordionRow(part, param) {
+        const isActive = activeParam?.id === param.id;
+        const st   = paramStatus(param);
+        const ms   = paramMeasurements(param);
+        const last = ms[ms.length - 1] || null;
+        const ptCodes = [...new Set(param.locations.map(l => l.pt.code))].join(', ');
+
+        let lastHtml = '';
+        if (last) {
+            const rc = last.result === 'PASS' ? 'ms-rpass' : last.result === 'FAIL' ? 'ms-rfail' : 'ms-rnull';
+            const codeName = last.codes_id
+                ? (param.codes?.find(c => c.id == last.codes_id)?.name || allCodes.find(c => c.id == last.codes_id)?.name || 'Finding')
+                : null;
+            const val = last.actual_value != null ? fmtDim(last.actual_value) : (codeName || '—');
+            lastHtml = `<span class="ms-acc-last ${rc}">${val}</span>`;
         }
 
-        const recDiv=document.createElement('div'); recDiv.id='ms-prec-'+param.id;
-        const frmDiv=document.createElement('div'); frmDiv.id='ms-pfrm-'+param.id;
-        paramPanel.appendChild(recDiv); paramPanel.appendChild(frmDiv);
-        renderParamRows(param, paramMeasurements(param));
+        const row = document.createElement('div');
+        row.className = 'ms-acc-row';
+        row.dataset.paramId = param.id;
+
+        const hdr = document.createElement('div');
+        hdr.className = 'ms-acc-hdr' + (isActive ? ' active' : '');
+        hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
+            <span class="ms-tab-param-desc">${esc(param.description)}</span>
+            ${buildParamHintHtml(param)}
+            ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
+            ${lastHtml}`;
+        hdr.addEventListener('click', () => expandAccordionRow(part, param));
+
+        const body = document.createElement('div');
+        body.className = 'ms-acc-body' + (isActive ? ' open' : '');
+        body.id = 'ms-acc-body-' + param.id;
+        if (isActive) fillAccordionBody(body, param);
+
+        row.appendChild(hdr);
+        row.appendChild(body);
+        return row;
     }
 
-    function renderParamRows(param, ms) {
-        const rec=document.getElementById('ms-prec-'+param.id);
-        const frm=document.getElementById('ms-pfrm-'+param.id);
+    function expandAccordionRow(part, param) {
+        // toggle: second click on open row collapses it
+        if (activeParam?.id === param.id) {
+            activeParam = null;
+            accWrap.querySelectorAll('.ms-acc-hdr').forEach(h => h.classList.remove('active'));
+            accWrap.querySelectorAll('.ms-acc-body').forEach(b => b.classList.remove('open'));
+            return;
+        }
+
+        activeParam = param;
+
+        // collapse all
+        accWrap.querySelectorAll('.ms-acc-hdr').forEach(h => h.classList.remove('active'));
+        accWrap.querySelectorAll('.ms-acc-body').forEach(b => b.classList.remove('open'));
+
+        // expand this
+        const row = accWrap.querySelector(`[data-param-id="${param.id}"]`);
+        if (row) {
+            row.querySelector('.ms-acc-hdr').classList.add('active');
+            const body = row.querySelector('.ms-acc-body');
+            body.classList.add('open');
+            fillAccordionBody(body, param);
+        }
+
+        // update viewer
+        const figs = uniqueFigures(param);
+        const fig = (activeFigure && param.locations.some(l => l.fig.id === activeFigure.id))
+            ? activeFigure : (figs[0] || null);
+        if (fig) showFigure(fig);
+        else {
+            emptyViewer.style.display = '';
+            figContainer.style.display = 'none';
+            overlay.innerHTML = ''; svgEl.innerHTML = ''; callouts = [];
+            figNav.classList.remove('visible');
+            figLabel.textContent = '— no figure —';
+        }
+    }
+
+    function fillAccordionBody(body, param) {
+        body.innerHTML = '';
+        const lim    = effectiveLimits(param);
+        const hasLim = lim.min !== null || lim.max !== null;
+
+        if (hasLim) {
+            const limDiv = document.createElement('div'); limDiv.className = 'ms-spec-lims';
+            limDiv.innerHTML = `
+                <div class="ms-lim-cell"><div class="ms-lim-lbl">orig min</div><div class="ms-lim-val">${fmtDim(param.orig_dim_min)}</div></div>
+                <div class="ms-lim-cell"><div class="ms-lim-lbl">orig max</div><div class="ms-lim-val">${fmtDim(param.orig_dim_max)}</div></div>
+                ${param.wear_dim_min != null ? `<div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear min</div><div class="ms-lim-val">${fmtDim(param.wear_dim_min)}</div></div><div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear max</div><div class="ms-lim-val">${fmtDim(param.wear_dim_max)}</div></div>` : ''}`;
+            body.appendChild(limDiv);
+        }
+
+        const recDiv = document.createElement('div'); recDiv.id = 'ms-prec-' + param.id;
+        const frmDiv = document.createElement('div'); frmDiv.id = 'ms-pfrm-' + param.id;
+        body.appendChild(recDiv);
+        body.appendChild(frmDiv);
+        renderParamRows(param, paramMeasurements(param), recDiv, frmDiv);
+    }
+
+    function renderParamRows(param, ms, rec, frm) {
+        if (!rec) rec = document.getElementById('ms-prec-'+param.id);
+        if (!frm) frm = document.getElementById('ms-pfrm-'+param.id);
         if(!rec||!frm) return;
         rec.innerHTML=''; frm.innerHTML='';
         const inits=ms.filter(m=>m.stage==='initial'), fins=ms.filter(m=>m.stage==='final');
         const lastInit=inits[inits.length-1]||null, lastFin=fins[fins.length-1]||null;
         ms.forEach(m=>rec.appendChild(buildMeasRow(m,param)));
-
-        const failMeas = ms.filter(m=>m.result==='FAIL');
-        if(failMeas.length){
-            const tdrBtn=document.createElement('div'); tdrBtn.className='mt-1';
-            tdrBtn.innerHTML=`<button class="btn btn-outline-danger btn-sm w-100" style="font-size:11px"><i class="bi bi-plus-circle"></i> Add to TDR</button>`;
-            tdrBtn.querySelector('button').addEventListener('click',()=>openTdrModal(param, failMeas));
-            rec.appendChild(tdrBtn);
-        }
 
         if(!lastInit){ frm.appendChild(buildForm(param,'initial',null)); }
         else if(lastInit.result==='FAIL'&&!lastFin){
@@ -589,13 +791,63 @@
     function buildMeasRow(m, param) {
         const rc=m.result==='PASS'?'ms-rpass':m.result==='FAIL'?'ms-rfail':'ms-rnull';
         const isMissingPart = MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID;
+
+        const codeName = m.codes_id && !isMissingPart
+            ? (param.codes?.find(c => c.id == m.codes_id)?.name
+               || allCodes.find(c => c.id == m.codes_id)?.name || '')
+            : '';
+        const findingCtx = m.codes_id
+            ? (param.codes?.find(c => c.id == m.codes_id)?.finding_context || '')
+            : '';
+        const findingBadgeHtml = codeName
+            ? `<span class="ms-finding-badge ${findingCtx==='inspection'?'insp':''}">${esc(codeName)}</span>`
+            : '';
+
+        let ruleChipHtml = '';
+        if (m.result === 'FAIL' && m.manual_parameter_repair_rule_id) {
+            const rule = (param.repair_rules || []).find(r => r.id === m.manual_parameter_repair_rule_id);
+            if (rule) {
+                let label = rule.name || '';
+                if (!label && rule.processes?.length) {
+                    label = rule.processes.map(p => p.label).filter(Boolean).slice(0, 2).join(', ');
+                }
+                if (!label) label = rule.order_replacement ? 'Order New' : '';
+                if (label) ruleChipHtml = `<span class="ms-rule-chip w-100">→ ${esc(label)}</span>`;
+            }
+        }
+
+        // Compute dimensional result client-side to detect "dim OK but finding FAIL"
+        const lim = effectiveLimits(param);
+        const hasDimLimits = lim.min !== null && lim.max !== null;
+        let dimResult = null;
+        if (hasDimLimits && m.actual_value != null) {
+            dimResult = (m.actual_value >= lim.min && m.actual_value <= lim.max) ? 'PASS' : 'FAIL';
+        }
+        // Split display: dimension is in-tolerance but a finding makes it FAIL
+        const splitDisplay = !isMissingPart && m.actual_value != null && codeName && dimResult === 'PASS';
+
+        let valueHtml = '';
+        if (m.actual_value != null) {
+            if (splitDisplay) {
+                valueHtml = `<span class="ms-mval ms-rpass">${fmtDim(m.actual_value)}</span><span class="ms-rpass" style="font-weight:700;font-size:12px">OK</span>`;
+            } else {
+                valueHtml = `<span class="ms-mval ${rc}">${fmtDim(m.actual_value)}</span><span class="${rc}" style="font-weight:700;font-size:12px">${m.result||'—'}</span>`;
+            }
+        } else if (m.result) {
+            valueHtml = `<span class="${rc}" style="font-weight:700;font-size:12px">${m.result}</span>`;
+        }
+        const splitFailHtml = splitDisplay ? `<span class="ms-rfail" style="font-weight:700;font-size:12px">FAIL</span>` : '';
+
         const d=document.createElement('div'); d.className='ms-meas-row flex-wrap';
         d.innerHTML=`<span class="ms-stage-badge">${m.stage}</span>
             ${isMissingPart?`<span class="badge bg-danger ms-1" style="font-size:10px">Missing Part</span>`:''}
-            ${m.actual_value!=null?`<span class="ms-mval ${rc}">${fmtDim(m.actual_value)}</span><span class="${rc}" style="font-weight:700;font-size:12px">${m.result||'—'}</span>`:''}
+            ${valueHtml}
+            ${findingBadgeHtml}
+            ${splitFailHtml}
             ${m.notes?'<span class="ms-meta text-truncate">'+esc(m.notes)+'</span>':''}
             <span class="ms-meta ms-auto">${m.user?.name?'by '+m.user.name:''}</span>
-            <button class="btn btn-link btn-sm p-0 ms-1 text-danger ms-del-btn" style="font-size:11px" title="Delete"><i class="bi bi-x-lg"></i></button>`;
+            <button class="btn btn-link btn-sm p-0 ms-1 text-danger ms-del-btn" style="font-size:11px" title="Delete"><i class="bi bi-x-lg"></i></button>
+            ${ruleChipHtml}`;
         d.querySelector('.ms-del-btn').addEventListener('click',async()=>{
             if(!confirm('Delete this measurement?')) return;
             try {
@@ -610,8 +862,9 @@
     function buildForm(param, stage, replacesId) {
         const uid = param.id+'_'+stage;
         const hasMeas = param.orig_dim_min !== null || param.orig_dim_max !== null;
-        const hasInsp = (param.codes||[]).length > 0;
-        const codesOpts = (param.codes||[]).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+        const inspCodes = (param.codes||[]).filter(c => c.finding_context !== 'measurement');
+        const hasInsp = inspCodes.length > 0;
+        const codesOpts = inspCodes.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
 
         const d=document.createElement('div'); d.className='ms-form-wrap mt-2';
         d.innerHTML=`
@@ -664,14 +917,38 @@
     }
 
     function refreshActive() {
-        const part=partsTree.find(p=>p.id===activePartId);
-        if(part&&activeParam){
-            const freshParam=part.params.find(p=>p.id===activeParam.id)||activeParam;
-            activeParam=freshParam;
-            renderParamRows(freshParam, paramMeasurements(freshParam));
-            renderPartsList();
-            if(activeFigure) renderMarkers(part, freshParam, activeFigure);
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part) return;
+        renderPartsList();
+        updateTdrBtnState(part);
+        if (!activeParam) return;
+        const freshParam = part.params.find(p => p.id === activeParam.id) || activeParam;
+        activeParam = freshParam;
+        const row = accWrap.querySelector(`[data-param-id="${freshParam.id}"]`);
+        if (row) {
+            const st = paramStatus(freshParam);
+            const ms = paramMeasurements(freshParam);
+            const last = ms[ms.length - 1] || null;
+            const ptCodes = [...new Set(freshParam.locations.map(l => l.pt.code))].join(', ');
+            let lastHtml = '';
+            if (last) {
+                const rc = last.result === 'PASS' ? 'ms-rpass' : last.result === 'FAIL' ? 'ms-rfail' : 'ms-rnull';
+                const codeName = last.codes_id
+                    ? (freshParam.codes?.find(c => c.id == last.codes_id)?.name || allCodes.find(c => c.id == last.codes_id)?.name || 'Finding')
+                    : null;
+                const val = last.actual_value != null ? fmtDim(last.actual_value) : (codeName || '—');
+                lastHtml = `<span class="ms-acc-last ${rc}">${val}</span>`;
+            }
+            const hdr = row.querySelector('.ms-acc-hdr');
+            hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
+                <span class="ms-tab-param-desc">${esc(freshParam.description)}</span>
+                ${buildParamHintHtml(freshParam)}
+                ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
+                ${lastHtml}`;
+            const body = row.querySelector('.ms-acc-body');
+            if (body && body.classList.contains('open')) fillAccordionBody(body, freshParam);
         }
+        if (activeFigure) renderMarkers(part, freshParam, activeFigure);
     }
 
     /* ── Load data ────────────────────────────────────────────── */
@@ -684,10 +961,10 @@
             parameters=data.parameters;
             measurements=data.measurements;
             allCodes=data.codes||[];
-            MISSING_CODE_ID=(allCodes.find(c=>c.name==='Missing')||{}).id||null;
+            MISSING_CODE_ID=data.missing_code_id||null;
+            icsWithTdr=new Set(data.ics_with_tdr||[]);
             partsTree=buildPartsTree();
             if(loadingEl) loadingEl.style.display='none';
-            if(partsTree.length) expandedPartIds.add(partsTree[0].id);
             renderPartsList();
         } catch(e) {
             if(loadingEl){ loadingEl.style.display=''; loadingEl.textContent='Failed to load: '+e.message; }
@@ -698,21 +975,27 @@
     let tdrModal = null;
     let activeTdrMeasurement = null;
     let activeTdrParam = null;
+    let autoMissingMeasId = null;
 
     function openTdrModal(param, failMeas) {
         activeTdrParam = param;
-        activeTdrMeasurement = failMeas[0]; // fallback для isMissing check
+        activeTdrMeasurement = failMeas[0];
+        autoMissingMeasId = null;
 
         const part = partsTree.find(p => p.id === activePartId);
         document.getElementById('msTdrParamLabel').textContent =
             (part ? part.label + ' — ' : '') + param.description;
-        document.getElementById('msTdrPn').value = '';
         document.getElementById('msTdrSn').value = '';
         document.getElementById('msTdrQty').value = '1';
         document.getElementById('msTdrComponentInfo').textContent = '';
         document.getElementById('msTdrCompList').style.display = 'none';
         document.getElementById('msTdrErr').classList.add('d-none');
         document.getElementById('msTdrRuleNote').classList.add('d-none');
+
+        // Auto-fill IPL from inspection component
+        const ic = inspComponents.find(c => c.id === param.inspection_component_id);
+        const iplNums = ic?.ipl_nums || [];
+        document.getElementById('msTdrPn').value = iplNums.length > 0 ? iplNums[0] : '';
 
         // Collect unique matched rules from fail measurements
         const matchedRuleIds = new Set(
@@ -728,12 +1011,21 @@
         const ruleList = document.getElementById('msTdrRuleList');
         ruleList.innerHTML = '';
 
-        const repairRules  = matchedRules.filter(r => !r.order_replacement);
+        const repairRules   = matchedRules.filter(r => !r.order_replacement);
         const orderNewRules = matchedRules.filter(r => r.order_replacement);
-        const totalChoices = repairRules.length + orderNewRules.length
-            + (hasNoRuleFail ? 1 : 0) + missingFails.length;
 
-        if (totalChoices > 0) {
+        // If ALL fails are Missing — no choice, always Order New, skip rule block
+        const nonMissingFails = failMeas.filter(m => !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID));
+        const onlyMissing = missingFails.length > 0 && nonMissingFails.length === 0;
+        if (onlyMissing) {
+            autoMissingMeasId = missingFails[0].id;
+            ruleWrap.classList.add('d-none');
+        }
+
+        const totalChoices = repairRules.length + orderNewRules.length
+            + (hasNoRuleFail ? 1 : 0) + (onlyMissing ? 0 : missingFails.length);
+
+        if (!onlyMissing && totalChoices > 0) {
             ruleWrap.classList.remove('d-none');
 
             // Missing Part entries (always order_new, no rule)
@@ -758,7 +1050,7 @@
                     data-group="order_new" data-rule-id="${r.id}"
                     id="msTdrRule-${r.id}" checked>
                     <label class="form-check-label" for="msTdrRule-${r.id}">
-                        <span class="fw-semibold">${escHtml(r.name || 'Rule #' + r.id)}</span>
+                        <span class="fw-semibold">${esc(r.name || 'Rule #' + r.id)}</span>
                         <span class="text-secondary ms-1">Order New</span>
                     </label>`;
                 ruleList.appendChild(item);
@@ -773,7 +1065,7 @@
                     data-group="repair" data-rule-id="${r.id}"
                     id="msTdrRule-${r.id}" checked>
                     <label class="form-check-label" for="msTdrRule-${r.id}">
-                        <span class="fw-semibold">${escHtml(r.name || 'Rule #' + r.id)}</span>
+                        <span class="fw-semibold">${esc(r.name || 'Rule #' + r.id)}</span>
                         <span class="text-secondary ms-1">Repair · ${procCount} proc.</span>
                     </label>`;
                 ruleList.appendChild(item);
@@ -818,11 +1110,13 @@
                         document.getElementById('msTdrRuleNote').classList.add('d-none');
                     }
                 }
+                updateTdrSnVisibility();
             });
 
             // Add override options if only one group present
+            // missingFails are always Order New — they don't trigger Repair override
             const hasRepairItems   = repairRules.length > 0 || hasNoRuleFail;
-            const hasOrderNewItems = orderNewRules.length > 0 || missingFails.length > 0;
+            const hasOrderNewItems = orderNewRules.length > 0;
 
             if (hasOrderNewItems && !hasRepairItems) {
                 // Only Order New matched → offer Repair override
@@ -869,8 +1163,13 @@
             ruleWrap.classList.add('d-none');
         }
 
+        updateTdrSnVisibility();
         if (!tdrModal) tdrModal = new bootstrap.Modal(document.getElementById('msTdrModal'));
         tdrModal.show();
+
+        // Auto-trigger IPL search if pre-filled
+        const prefilledIpl = document.getElementById('msTdrPn').value.trim();
+        if (prefilledIpl) runIplSearch(prefilledIpl);
     }
 
     let iplLookupTimer = null;
@@ -883,43 +1182,60 @@
         document.getElementById('msTdrCompList').innerHTML = '';
     }
 
+    function updateTdrSnVisibility() {
+        const snRow = document.getElementById('msTdrSnRow');
+        if (!snRow) return;
+        if (autoMissingMeasId) { snRow.style.display = 'none'; return; }
+        const ruleWrap = document.getElementById('msTdrRuleWrap');
+        if (!ruleWrap || ruleWrap.classList.contains('d-none')) {
+            snRow.style.display = '';
+            return;
+        }
+        const hasRepair = [...document.querySelectorAll('#msTdrRuleList .ms-tdr-rule-cb:checked')]
+            .some(cb => cb.dataset.group === 'repair');
+        snRow.style.display = hasRepair ? '' : 'none';
+    }
+
+    async function runIplSearch(val) {
+        const info = document.getElementById('msTdrComponentInfo');
+        const list = document.getElementById('msTdrCompList');
+        if (!val) { info.textContent = ''; list.style.display = 'none'; list.innerHTML = ''; return; }
+        try {
+            const items = await apiFetch('/workorders/' + WO_ID + '/component-by-ipl?ipl_num=' + encodeURIComponent(val));
+            list.innerHTML = '';
+            if (!items || items.length === 0) {
+                info.textContent = 'Not found';
+                list.style.display = 'none';
+                document.getElementById('msTdrQty').value = '1';
+            } else if (items.length === 1) {
+                selectTdrComponent(items[0]);
+            } else {
+                info.textContent = '';
+                items.forEach(comp => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'list-group-item list-group-item-action py-1 px-2';
+                    btn.innerHTML = '<span class="fw-semibold">' + esc(comp.ipl_num) + '</span>'
+                        + ' <span class="text-secondary">' + esc(comp.part_number) + '</span>'
+                        + (comp.name ? ' <span class="text-muted fst-italic">' + esc(comp.name) + '</span>' : '');
+                    btn.addEventListener('click', () => selectTdrComponent(comp));
+                    list.appendChild(btn);
+                });
+                list.style.display = 'block';
+            }
+        } catch { info.textContent = ''; }
+    }
+
     document.getElementById('msTdrPn')?.addEventListener('input', function () {
         clearTimeout(iplLookupTimer);
         const val = this.value.trim();
-        const info = document.getElementById('msTdrComponentInfo');
-        const list = document.getElementById('msTdrCompList');
         if (!val) {
-            info.textContent = '';
-            list.style.display = 'none';
-            list.innerHTML = '';
+            document.getElementById('msTdrComponentInfo').textContent = '';
+            document.getElementById('msTdrCompList').style.display = 'none';
+            document.getElementById('msTdrCompList').innerHTML = '';
             return;
         }
-        iplLookupTimer = setTimeout(async () => {
-            try {
-                const items = await apiFetch('/workorders/' + WO_ID + '/component-by-ipl?ipl_num=' + encodeURIComponent(val));
-                list.innerHTML = '';
-                if (!items || items.length === 0) {
-                    info.textContent = 'Not found';
-                    list.style.display = 'none';
-                    document.getElementById('msTdrQty').value = '1';
-                } else if (items.length === 1) {
-                    selectTdrComponent(items[0]);
-                } else {
-                    info.textContent = '';
-                    items.forEach(comp => {
-                        const btn = document.createElement('button');
-                        btn.type = 'button';
-                        btn.className = 'list-group-item list-group-item-action py-1 px-2';
-                        btn.innerHTML = '<span class="fw-semibold">' + escHtml(comp.ipl_num) + '</span>'
-                            + ' <span class="text-secondary">' + escHtml(comp.part_number) + '</span>'
-                            + (comp.name ? ' <span class="text-muted fst-italic">' + escHtml(comp.name) + '</span>' : '');
-                        btn.addEventListener('click', () => selectTdrComponent(comp));
-                        list.appendChild(btn);
-                    });
-                    list.style.display = 'block';
-                }
-            } catch { info.textContent = ''; }
-        }, 400);
+        iplLookupTimer = setTimeout(() => runIplSearch(val), 400);
     });
 
     document.getElementById('msTdrSaveBtn')?.addEventListener('click', async function () {
@@ -932,8 +1248,8 @@
         // Collect checked rules
         const checkedCbs = [...document.querySelectorAll('#msTdrRuleList .ms-tdr-rule-cb:checked')];
         const isMissingSelected = checkedCbs.some(cb => cb.dataset.missing === '1');
-        const missingMeasId = isMissingSelected
-            ? parseInt(checkedCbs.find(cb => cb.dataset.missing === '1').dataset.measId, 10) : null;
+        const missingMeasId = autoMissingMeasId
+            ?? (isMissingSelected ? parseInt(checkedCbs.find(cb => cb.dataset.missing === '1').dataset.measId, 10) : null);
         const ruleIds = checkedCbs
             .filter(cb => !cb.dataset.missing && cb.dataset.ruleId)
             .map(cb => parseInt(cb.dataset.ruleId, 10));
@@ -957,6 +1273,11 @@
                 }),
             });
             tdrModal.hide();
+            icsWithTdr.add(activePartId);
+            const createdPart = partsTree.find(p => p.id === activePartId);
+            if (createdPart) updateTdrBtnState(createdPart);
+            document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
+            if (typeof showNotification === 'function') showNotification('TDR record created', 'success');
         } catch (e) {
             err.textContent = e.message;
             err.classList.remove('d-none');
@@ -965,11 +1286,33 @@
         }
     });
 
+    document.getElementById('ms-add-tdr-btn')?.addEventListener('click', function () {
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part) return;
+        const allFailMeas = [];
+        let firstFailParam = null;
+        part.params.forEach(param => {
+            const fails = paramMeasurements(param).filter(m => m.result === 'FAIL');
+            if (fails.length && !firstFailParam) firstFailParam = param;
+            allFailMeas.push(...fails);
+        });
+        if (!firstFailParam || !allFailMeas.length) return;
+        openTdrModal(firstFailParam, allFailMeas);
+    });
+
     document.getElementById('tab-measurements')?.addEventListener('shown.bs.tab', function(){
         if(!loaded){ loaded=true; loadData(); }
+        const w = document.getElementById('ms-fc-btn-wrap');
+        if (w) { w.classList.remove('d-none'); w.classList.add('d-flex'); }
+    });
+    document.getElementById('tab-measurements')?.addEventListener('hide.bs.tab', function(){
+        const w = document.getElementById('ms-fc-btn-wrap');
+        if (w) { w.classList.remove('d-flex'); w.classList.add('d-none'); }
     });
     if(document.getElementById('content-measurements')?.classList.contains('active')){
         loaded=true; loadData();
+        const w = document.getElementById('ms-fc-btn-wrap');
+        if (w) { w.classList.remove('d-none'); w.classList.add('d-flex'); }
     }
 })();
 </script>
