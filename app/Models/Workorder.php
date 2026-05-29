@@ -95,6 +95,15 @@ class Workorder extends Model implements HasMedia
         return $this->belongsTo(Instruction::class);
     }
 
+    /**
+     * Overhaul requires orig (factory) limits; everything else uses wear limits.
+     * Instructions: Overhaul → false, Repair/Test & inspect/60M/96M → true.
+     */
+    public function usesWearLimits(): bool
+    {
+        return $this->instruction?->name !== 'Overhaul';
+    }
+
     public function customer()
     {
         return $this->belongsTo(Customer::class);

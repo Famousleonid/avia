@@ -26,7 +26,7 @@ class WoMeasurementController extends Controller
     public function data(Workorder $workorder)
     {
         $manual  = $workorder->unit->manuals;
-        $useWear = $workorder->instruction?->name === 'Repair';
+        $useWear = $workorder->usesWearLimits();
 
         $inspectionComponents = $manual->inspectionComponents()
             ->with('variants.component')
@@ -165,7 +165,7 @@ class WoMeasurementController extends Controller
         ]);
 
         $parameter = ManualParameter::with('repairRules.triggers', 'codes')->findOrFail($data['manual_parameter_id']);
-        $useWear   = $workorder->instruction?->name === 'Repair';
+        $useWear   = $workorder->usesWearLimits();
         $limits    = $parameter->effectiveLimits($useWear);
 
         $data['limits_source'] = $limits['source'];
@@ -205,7 +205,7 @@ class WoMeasurementController extends Controller
     public function fcTable(Workorder $workorder)
     {
         $manual  = $workorder->unit->manuals;
-        $useWear = $workorder->instruction?->name === 'Repair';
+        $useWear = $workorder->usesWearLimits();
 
         $figures = $manual->dimensionFigures()
             ->with([
