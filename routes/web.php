@@ -354,9 +354,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'updateRule'])->name('parameter-rules.update');
     Route::delete('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'destroyRule'])->name('parameter-rules.destroy');
 
-    // --- Repair Steps ---
-    Route::get('/dimension-points/{manualDimensionPoint}/repair-steps', [ManualRepairStepController::class, 'index'])->name('dimension-points.repair-steps.index');
-    Route::post('/dimension-points/{manualDimensionPoint}/repair-steps', [ManualRepairStepController::class, 'store'])->name('dimension-points.repair-steps.store');
+    // --- Repair Steps (per parameter) ---
+    Route::get('/parameters/{manualParameter}/repair-steps', [ManualRepairStepController::class, 'index'])->name('parameters.repair-steps.index');
+    Route::post('/parameters/{manualParameter}/repair-steps', [ManualRepairStepController::class, 'store'])->name('parameters.repair-steps.store');
     Route::patch('/repair-steps/{manualRepairStep}', [ManualRepairStepController::class, 'update'])->name('repair-steps.update');
     Route::delete('/repair-steps/{manualRepairStep}', [ManualRepairStepController::class, 'destroy'])->name('repair-steps.destroy');
 

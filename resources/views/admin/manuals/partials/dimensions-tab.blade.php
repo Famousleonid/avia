@@ -2761,19 +2761,17 @@ document.addEventListener('DOMContentLoaded', function () {
         const multiPoint = (param.point_ids || []).length > 1;
         document.getElementById('dimSpecDetachBtn').classList.toggle('d-none', !multiPoint);
         document.getElementById('dimSpecError').classList.add('d-none');
-        // Load repair steps for the first point of this parameter
+        // Load repair steps for this parameter (independent per part)
         closeRepairStepForm();
-        const firstPointId = (param.point_ids || [])[0] || null;
-        loadRepairSteps(firstPointId, param.id);
+        loadRepairSteps(param.id);
         specModal.show();
     }
 
     // ==========================
     // Repair Steps (inside Edit Parameter modal)
     // ==========================
-    let dimRsSteps   = [];   // loaded steps for active point
-    let dimRsPointId = null; // current point id
-    let dimRsParamId = null; // current parameter id (for dims)
+    let dimRsSteps   = [];   // loaded steps for active parameter
+    let dimRsParamId = null; // current parameter id
     let dimRsIplTimer = null;
 
     function fmtDim4(v) { return v != null ? parseFloat(v).toFixed(4) : '—'; }
@@ -2786,8 +2784,8 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         list.innerHTML = dimRsSteps.map(function (s) {
-            const dim = (s.dims || []).find(function (d) { return d.manual_parameter_id == dimRsParamId; });
-            const dimStr = dim ? (fmtDim4(dim.dim_min) + ' – ' + fmtDim4(dim.dim_max)) : '—';
+            const dimStr = (s.dim_min != null || s.dim_max != null)
+                ? (fmtDim4(s.dim_min) + ' – ' + fmtDim4(s.dim_max)) : '—';
             const compStr = s.component ? (s.component.ipl_num + ' ' + (s.component.part_number || '')) : '—';
             return `<div class="d-flex align-items-center gap-2 py-1 border-bottom" style="font-size:12px">
                 <span class="fw-semibold text-info" style="min-width:36px">${escHtml(s.step_no)}</span>
@@ -2812,14 +2810,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    async function loadRepairSteps(pointId, paramId) {
-        dimRsPointId = pointId;
+    async function loadRepairSteps(paramId) {
         dimRsParamId = paramId;
         dimRsSteps   = [];
         renderRepairSteps();
-        if (!pointId) return;
+        if (!paramId) return;
         try {
-            dimRsSteps = await apiFetch('/dimension-points/' + pointId + '/repair-steps');
+            dimRsSteps = await apiFetch('/parameters/' + paramId + '/repair-steps');
             renderRepairSteps();
         } catch (e) { console.error('loadRepairSteps', e); }
     }
@@ -2832,12 +2829,11 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimRsCompList').innerHTML = '';
 
         if (editId) {
-            const s   = dimRsSteps.find(function (x) { return x.id === editId; });
-            const dim = s ? (s.dims || []).find(function (d) { return d.manual_parameter_id == dimRsParamId; }) : null;
+            const s = dimRsSteps.find(function (x) { return x.id === editId; });
             document.getElementById('dimRsEditId').value  = editId;
             document.getElementById('dimRsStepNo').value  = s ? s.step_no : '';
-            document.getElementById('dimRsDimMin').value  = dim ? (dim.dim_min || '') : '';
-            document.getElementById('dimRsDimMax').value  = dim ? (dim.dim_max || '') : '';
+            document.getElementById('dimRsDimMin').value  = s ? (s.dim_min || '') : '';
+            document.getElementById('dimRsDimMax').value  = s ? (s.dim_max || '') : '';
             document.getElementById('dimRsIpl').value     = s && s.component ? s.component.ipl_num : '';
             document.getElementById('dimRsComponentId').value = s && s.component ? s.component.id : '';
             document.getElementById('dimRsCompInfo').textContent = s && s.component
@@ -2918,7 +2914,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const compId = document.getElementById('dimRsComponentId').value || null;
 
         if (!stepNo) { err.textContent = 'Step No. is required.'; err.classList.remove('d-none'); return; }
-        if (!dimRsPointId) { err.textContent = 'No point selected.'; err.classList.remove('d-none'); return; }
+        if (!dimRsParamId) { err.textContent = 'No parameter selected.'; err.classList.remove('d-none'); return; }
 
         this.disabled = true;
         try {
@@ -2926,18 +2922,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const body = {
                 step_no:      stepNo,
                 component_id: compId ? parseInt(compId) : null,
-                dims: [{
-                    manual_parameter_id: dimRsParamId,
-                    dim_min: dimMin !== '' ? parseFloat(dimMin) : null,
-                    dim_max: dimMax !== '' ? parseFloat(dimMax) : null,
-                }],
+                dim_min:      dimMin !== '' ? parseFloat(dimMin) : null,
+                dim_max:      dimMax !== '' ? parseFloat(dimMax) : null,
             };
             if (editId) {
                 saved = await apiFetch('/repair-steps/' + editId, { method: 'PATCH', body: JSON.stringify(body) });
                 const idx = dimRsSteps.findIndex(function (s) { return s.id == editId; });
                 if (idx !== -1) dimRsSteps[idx] = saved;
             } else {
-                saved = await apiFetch('/dimension-points/' + dimRsPointId + '/repair-steps', { method: 'POST', body: JSON.stringify(body) });
+                saved = await apiFetch('/parameters/' + dimRsParamId + '/repair-steps', { method: 'POST', body: JSON.stringify(body) });
                 dimRsSteps.push(saved);
             }
             renderRepairSteps();

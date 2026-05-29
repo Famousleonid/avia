@@ -4,29 +4,34 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ManualRepairStep extends Model
 {
     protected $fillable = [
-        'dimension_point_id',
+        'manual_parameter_id',
         'step_no',
         'component_id',
+        'dim_min',
+        'dim_max',
+        'after_dim_min',
+        'after_dim_max',
         'sort_order',
     ];
 
-    public function point(): BelongsTo
+    protected $casts = [
+        'dim_min'       => 'decimal:4',
+        'dim_max'       => 'decimal:4',
+        'after_dim_min' => 'decimal:4',
+        'after_dim_max' => 'decimal:4',
+    ];
+
+    public function parameter(): BelongsTo
     {
-        return $this->belongsTo(ManualDimensionPoint::class, 'dimension_point_id');
+        return $this->belongsTo(ManualParameter::class, 'manual_parameter_id');
     }
 
     public function component(): BelongsTo
     {
         return $this->belongsTo(Component::class, 'component_id');
-    }
-
-    public function dims(): HasMany
-    {
-        return $this->hasMany(ManualRepairStepDim::class, 'repair_step_id');
     }
 }
