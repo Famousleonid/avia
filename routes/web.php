@@ -41,6 +41,7 @@ use App\Http\Controllers\Admin\ManualDimensionFigureController;
 use App\Http\Controllers\Admin\ManualDimensionPointController;
 use App\Http\Controllers\Admin\ManualDimensionSpecController;
 use App\Http\Controllers\Admin\ManualParameterController;
+use App\Http\Controllers\Admin\ManualRepairStepController;
 use App\Http\Controllers\Admin\ManualInspectionComponentController;
 use App\Http\Controllers\Admin\ManualRepairProcedureController;
 use App\Http\Controllers\Admin\WoMeasurementController;
@@ -319,6 +320,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     // --- Inspection Components ---
     Route::get('/manuals/{manual}/inspection-components', [ManualInspectionComponentController::class, 'index'])->name('manuals.inspection-components.index');
+    Route::get('/manuals/{manual}/inspection-components/component-search', [ManualInspectionComponentController::class, 'componentSearch'])->name('manuals.inspection-components.component-search');
     Route::post('/manuals/{manual}/inspection-components', [ManualInspectionComponentController::class, 'store'])->name('manuals.inspection-components.store');
     Route::post('/manuals/{manual}/inspection-components/reorder', [ManualInspectionComponentController::class, 'reorder'])->name('manuals.inspection-components.reorder');
     Route::patch('/inspection-components/{manualInspectionComponent}', [ManualInspectionComponentController::class, 'update'])->name('inspection-components.update');
@@ -351,6 +353,12 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/parameters/{manualParameter}/rules', [ManualParameterController::class, 'storeRule'])->name('parameters.rules.store');
     Route::patch('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'updateRule'])->name('parameter-rules.update');
     Route::delete('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'destroyRule'])->name('parameter-rules.destroy');
+
+    // --- Repair Steps ---
+    Route::get('/dimension-points/{manualDimensionPoint}/repair-steps', [ManualRepairStepController::class, 'index'])->name('dimension-points.repair-steps.index');
+    Route::post('/dimension-points/{manualDimensionPoint}/repair-steps', [ManualRepairStepController::class, 'store'])->name('dimension-points.repair-steps.store');
+    Route::patch('/repair-steps/{manualRepairStep}', [ManualRepairStepController::class, 'update'])->name('repair-steps.update');
+    Route::delete('/repair-steps/{manualRepairStep}', [ManualRepairStepController::class, 'destroy'])->name('repair-steps.destroy');
 
     // --- Bushing Specs ---
     Route::post('/dimension-specs/{manualDimensionSpec}/bushing-spec', [ManualDimensionSpecController::class, 'storeBushingSpec'])->name('dimension-specs.bushing-spec.store');

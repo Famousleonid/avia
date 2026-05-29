@@ -761,10 +761,47 @@
                             <div class="col"><label class="form-label form-label-sm">Orig Max</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecOrigMax" placeholder="0.0000"></div>
                         </div>
                         <div class="fw-semibold mb-1" style="font-size:11px;color:var(--bs-secondary-color)">Wear limits — leave empty to use original</div>
-                        <div class="row g-2">
+                        <div class="row g-2 mb-3">
                             <div class="col"><label class="form-label form-label-sm">Wear Min</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecWearMin" placeholder="—"></div>
                             <div class="col"><label class="form-label form-label-sm">Wear Max</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecWearMax" placeholder="—"></div>
                         </div>
+
+                        <div class="fw-semibold mb-1" style="font-size:11px;color:var(--bs-secondary-color)">
+                            Repair Steps <span class="fw-normal">(oversize, in)</span>
+                        </div>
+                        <div id="dimRepairStepsList" class="mb-2"></div>
+                        <div id="dimRepairStepForm" class="d-none border rounded p-2 mb-2" style="background:rgba(0,0,0,.04)">
+                            <input type="hidden" id="dimRsEditId">
+                            <div class="row g-2 mb-2">
+                                <div class="col-3">
+                                    <label class="form-label form-label-sm">Step No.</label>
+                                    <input type="text" class="form-control form-control-sm" id="dimRsStepNo" placeholder="R01">
+                                </div>
+                                <div class="col">
+                                    <label class="form-label form-label-sm">Min (before plating)</label>
+                                    <input type="number" step="0.0001" class="form-control form-control-sm" id="dimRsDimMin" placeholder="0.0000">
+                                </div>
+                                <div class="col">
+                                    <label class="form-label form-label-sm">Max (before plating)</label>
+                                    <input type="number" step="0.0001" class="form-control form-control-sm" id="dimRsDimMax" placeholder="0.0000">
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label form-label-sm">Component (IPL#)</label>
+                                <input type="text" class="form-control form-control-sm" id="dimRsIpl" placeholder="e.g. 11-14" autocomplete="off">
+                                <div id="dimRsCompList" class="list-group mt-1" style="display:none;max-height:120px;overflow-y:auto;font-size:12px"></div>
+                                <div class="text-secondary mt-1" style="font-size:11px;min-height:14px" id="dimRsCompInfo"></div>
+                                <input type="hidden" id="dimRsComponentId">
+                            </div>
+                            <div class="text-danger small d-none mb-1" id="dimRsErr"></div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-secondary btn-sm" id="dimRsCancelBtn">Cancel</button>
+                                <button type="button" class="btn btn-primary btn-sm" id="dimRsSaveBtn">Save Step</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="dimAddRepairStepBtn" style="font-size:11px">
+                            <i class="bi bi-plus-lg"></i> Add Repair Step
+                        </button>
                     </div>
                 </div>
 
@@ -2724,8 +2761,194 @@ document.addEventListener('DOMContentLoaded', function () {
         const multiPoint = (param.point_ids || []).length > 1;
         document.getElementById('dimSpecDetachBtn').classList.toggle('d-none', !multiPoint);
         document.getElementById('dimSpecError').classList.add('d-none');
+        // Load repair steps for the first point of this parameter
+        closeRepairStepForm();
+        const firstPointId = (param.point_ids || [])[0] || null;
+        loadRepairSteps(firstPointId, param.id);
         specModal.show();
     }
+
+    // ==========================
+    // Repair Steps (inside Edit Parameter modal)
+    // ==========================
+    let dimRsSteps   = [];   // loaded steps for active point
+    let dimRsPointId = null; // current point id
+    let dimRsParamId = null; // current parameter id (for dims)
+    let dimRsIplTimer = null;
+
+    function fmtDim4(v) { return v != null ? parseFloat(v).toFixed(4) : '—'; }
+
+    function renderRepairSteps() {
+        const list = document.getElementById('dimRepairStepsList');
+        if (!list) return;
+        if (!dimRsSteps.length) {
+            list.innerHTML = '<div class="text-secondary" style="font-size:11px">No repair steps yet</div>';
+            return;
+        }
+        list.innerHTML = dimRsSteps.map(function (s) {
+            const dim = (s.dims || []).find(function (d) { return d.manual_parameter_id == dimRsParamId; });
+            const dimStr = dim ? (fmtDim4(dim.dim_min) + ' – ' + fmtDim4(dim.dim_max)) : '—';
+            const compStr = s.component ? (s.component.ipl_num + ' ' + (s.component.part_number || '')) : '—';
+            return `<div class="d-flex align-items-center gap-2 py-1 border-bottom" style="font-size:12px">
+                <span class="fw-semibold text-info" style="min-width:36px">${escHtml(s.step_no)}</span>
+                <span class="font-monospace flex-grow-1">${escHtml(dimStr)}</span>
+                <span class="text-secondary" style="font-size:11px">${escHtml(compStr)}</span>
+                <button type="button" class="btn btn-link btn-sm p-0 dim-rs-edit-btn" data-id="${s.id}" title="Edit" style="color:var(--bs-secondary-color);font-size:11px"><i class="bi bi-pencil"></i></button>
+                <button type="button" class="btn btn-link btn-sm p-0 dim-rs-del-btn" data-id="${s.id}" title="Delete" style="color:#dc3545;font-size:11px"><i class="bi bi-trash3"></i></button>
+            </div>`;
+        }).join('');
+        list.querySelectorAll('.dim-rs-edit-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { openRepairStepForm(parseInt(btn.dataset.id)); });
+        });
+        list.querySelectorAll('.dim-rs-del-btn').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                if (!confirm('Delete repair step?')) return;
+                try {
+                    await apiFetch('/repair-steps/' + btn.dataset.id, { method: 'DELETE' });
+                    dimRsSteps = dimRsSteps.filter(function (s) { return s.id != btn.dataset.id; });
+                    renderRepairSteps();
+                } catch (e) { alert(e.message); }
+            });
+        });
+    }
+
+    async function loadRepairSteps(pointId, paramId) {
+        dimRsPointId = pointId;
+        dimRsParamId = paramId;
+        dimRsSteps   = [];
+        renderRepairSteps();
+        if (!pointId) return;
+        try {
+            dimRsSteps = await apiFetch('/dimension-points/' + pointId + '/repair-steps');
+            renderRepairSteps();
+        } catch (e) { console.error('loadRepairSteps', e); }
+    }
+
+    function openRepairStepForm(editId) {
+        const form = document.getElementById('dimRepairStepForm');
+        const err  = document.getElementById('dimRsErr');
+        err.classList.add('d-none');
+        document.getElementById('dimRsCompList').style.display = 'none';
+        document.getElementById('dimRsCompList').innerHTML = '';
+
+        if (editId) {
+            const s   = dimRsSteps.find(function (x) { return x.id === editId; });
+            const dim = s ? (s.dims || []).find(function (d) { return d.manual_parameter_id == dimRsParamId; }) : null;
+            document.getElementById('dimRsEditId').value  = editId;
+            document.getElementById('dimRsStepNo').value  = s ? s.step_no : '';
+            document.getElementById('dimRsDimMin').value  = dim ? (dim.dim_min || '') : '';
+            document.getElementById('dimRsDimMax').value  = dim ? (dim.dim_max || '') : '';
+            document.getElementById('dimRsIpl').value     = s && s.component ? s.component.ipl_num : '';
+            document.getElementById('dimRsComponentId').value = s && s.component ? s.component.id : '';
+            document.getElementById('dimRsCompInfo').textContent = s && s.component
+                ? (s.component.ipl_num + ' — ' + (s.component.part_number || '') + (s.component.name ? ' ' + s.component.name : ''))
+                : '';
+        } else {
+            document.getElementById('dimRsEditId').value  = '';
+            document.getElementById('dimRsStepNo').value  = '';
+            document.getElementById('dimRsDimMin').value  = '';
+            document.getElementById('dimRsDimMax').value  = '';
+            document.getElementById('dimRsIpl').value     = '';
+            document.getElementById('dimRsComponentId').value = '';
+            document.getElementById('dimRsCompInfo').textContent = '';
+        }
+        form.classList.remove('d-none');
+        document.getElementById('dimAddRepairStepBtn').classList.add('d-none');
+        document.getElementById('dimRsStepNo').focus();
+    }
+
+    function closeRepairStepForm() {
+        document.getElementById('dimRepairStepForm').classList.add('d-none');
+        document.getElementById('dimAddRepairStepBtn').classList.remove('d-none');
+    }
+
+    document.getElementById('dimAddRepairStepBtn').addEventListener('click', function () {
+        openRepairStepForm(null);
+    });
+
+    document.getElementById('dimRsCancelBtn').addEventListener('click', closeRepairStepForm);
+
+    // IPL# autocomplete for component in repair step form
+    document.getElementById('dimRsIpl').addEventListener('input', function () {
+        clearTimeout(dimRsIplTimer);
+        const val = this.value.trim();
+        document.getElementById('dimRsComponentId').value = '';
+        document.getElementById('dimRsCompInfo').textContent = '';
+        if (!val) { document.getElementById('dimRsCompList').style.display = 'none'; return; }
+        dimRsIplTimer = setTimeout(async function () {
+            try {
+                const items = await apiFetch('/manuals/' + MANUAL_ID + '/inspection-components/component-search?ipl_num=' + encodeURIComponent(val));
+                const list  = document.getElementById('dimRsCompList');
+                list.innerHTML = '';
+                if (!items || !items.length) {
+                    document.getElementById('dimRsCompInfo').textContent = 'Not found';
+                    list.style.display = 'none';
+                } else if (items.length === 1) {
+                    selectRsComponent(items[0]);
+                } else {
+                    items.forEach(function (c) {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'list-group-item list-group-item-action py-1 px-2';
+                        btn.innerHTML = '<span class="fw-semibold">' + escHtml(c.ipl_num) + '</span> <span class="text-secondary">' + escHtml(c.part_number || '') + '</span>';
+                        btn.addEventListener('click', function () { selectRsComponent(c); });
+                        list.appendChild(btn);
+                    });
+                    list.style.display = 'block';
+                }
+            } catch (e) {}
+        }, 350);
+    });
+
+    function selectRsComponent(c) {
+        document.getElementById('dimRsIpl').value          = c.ipl_num;
+        document.getElementById('dimRsComponentId').value  = c.id;
+        document.getElementById('dimRsCompInfo').textContent = c.ipl_num + ' — ' + (c.part_number || '') + (c.name ? ' ' + c.name : '');
+        document.getElementById('dimRsCompList').style.display = 'none';
+        document.getElementById('dimRsCompList').innerHTML  = '';
+    }
+
+    document.getElementById('dimRsSaveBtn').addEventListener('click', async function () {
+        const err    = document.getElementById('dimRsErr');
+        err.classList.add('d-none');
+        const editId = document.getElementById('dimRsEditId').value;
+        const stepNo = document.getElementById('dimRsStepNo').value.trim();
+        const dimMin = document.getElementById('dimRsDimMin').value;
+        const dimMax = document.getElementById('dimRsDimMax').value;
+        const compId = document.getElementById('dimRsComponentId').value || null;
+
+        if (!stepNo) { err.textContent = 'Step No. is required.'; err.classList.remove('d-none'); return; }
+        if (!dimRsPointId) { err.textContent = 'No point selected.'; err.classList.remove('d-none'); return; }
+
+        this.disabled = true;
+        try {
+            let saved;
+            const body = {
+                step_no:      stepNo,
+                component_id: compId ? parseInt(compId) : null,
+                dims: [{
+                    manual_parameter_id: dimRsParamId,
+                    dim_min: dimMin !== '' ? parseFloat(dimMin) : null,
+                    dim_max: dimMax !== '' ? parseFloat(dimMax) : null,
+                }],
+            };
+            if (editId) {
+                saved = await apiFetch('/repair-steps/' + editId, { method: 'PATCH', body: JSON.stringify(body) });
+                const idx = dimRsSteps.findIndex(function (s) { return s.id == editId; });
+                if (idx !== -1) dimRsSteps[idx] = saved;
+            } else {
+                saved = await apiFetch('/dimension-points/' + dimRsPointId + '/repair-steps', { method: 'POST', body: JSON.stringify(body) });
+                dimRsSteps.push(saved);
+            }
+            renderRepairSteps();
+            closeRepairStepForm();
+        } catch (e) {
+            err.textContent = e.message;
+            err.classList.remove('d-none');
+        } finally {
+            this.disabled = false;
+        }
+    });
 
     // ==========================
     // Repair Rule modal

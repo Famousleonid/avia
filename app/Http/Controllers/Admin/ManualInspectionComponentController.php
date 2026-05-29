@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Component;
 use App\Models\Manual;
 use App\Models\ManualInspectionComponent;
 use App\Models\ManualInspectionComponentVariant;
@@ -87,6 +88,34 @@ class ManualInspectionComponentController extends Controller
     {
         $manualInspectionComponent->delete();
         return response()->json(['ok' => true]);
+    }
+
+    // --- Component search by IPL# (for repair steps) ---
+
+    public function componentSearch(Request $request, Manual $manual)
+    {
+        $ipl = trim($request->query('ipl_num', ''));
+        if ($ipl === '') {
+            return response()->json([]);
+        }
+
+        $components = Component::where('manual_id', $manual->id)
+            ->where('ipl_num', 'like', $ipl . '%')
+            ->orderBy('ipl_num')
+            ->get(['id', 'ipl_num', 'part_number', 'name'])
+            ->filter(function ($c) use ($ipl) {
+                $suffix = substr($c->ipl_num, strlen($ipl));
+                return $suffix === '' || ctype_alpha($suffix[0]);
+            })
+            ->values()
+            ->map(fn($c) => [
+                'id'          => $c->id,
+                'ipl_num'     => $c->ipl_num,
+                'part_number' => $c->part_number,
+                'name'        => $c->name,
+            ]);
+
+        return response()->json($components);
     }
 
     // --- Variants ---

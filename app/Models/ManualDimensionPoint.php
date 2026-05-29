@@ -61,6 +61,11 @@ class ManualDimensionPoint extends Model
         )->withPivot('id');
     }
 
+    public function repairSteps(): HasMany
+    {
+        return $this->hasMany(ManualRepairStep::class, 'dimension_point_id')->orderBy('sort_order');
+    }
+
     public function isNavigation(): bool
     {
         return $this->point_type === 'navigation';
