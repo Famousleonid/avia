@@ -183,7 +183,7 @@ class ManualController extends Controller
         $this->ensureManualAccess($cmm);
         $cmm->load('partLock.lockedBy');
 
-        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'revision'];
+        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'revision', 'dimensions', 'fc'];
         $requestedTab = (string) request('tab', '');
         $savedTab = UserUiSetting::query()
             ->where('user_id', auth()->id())
@@ -365,9 +365,26 @@ class ManualController extends Controller
         $revisionStatus = app(ManualRevisionCheckService::class)->statusFor($cmm, $latestRevisionCheck);
         $canRecordRevisionCheck = auth()->user()?->can('manuals.update', $cmm) ?? false;
 
+        $dimensionFigures = \App\Models\ManualDimensionFigure::where('manual_id', $cmm->id)
+            ->with(['points' => fn($q) => $q->orderBy('sort_order')])
+            ->orderBy('sort_order')
+            ->get();
+
+        $dimManualProcesses = \App\Models\ManualProcess::where('manual_id', $cmm->id)
+            ->with('process.process_name')
+            ->get()
+            ->map(fn($mp) => [
+                'id'           => $mp->id,
+                'process_name' => $mp->process?->process_name?->name ?? '',
+                'label'        => trim(($mp->process?->process_name?->name ?? '') . ' — ' . ($mp->process?->process ?? '')),
+            ]);
+
+        $codes = \App\Models\Code::orderBy('name')->get(['id', 'name', 'code']);
+
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
         'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','stdProcessPicklistOptions','serviceBulletins',
-        'revisionChecks', 'latestRevisionCheck', 'revisionStatus', 'canRecordRevisionCheck', 'manualShowTab'
+        'revisionChecks', 'latestRevisionCheck', 'revisionStatus', 'canRecordRevisionCheck', 'manualShowTab',
+        'dimensionFigures', 'dimManualProcesses', 'codes'
         ));
 
     }

@@ -1,8 +1,9 @@
 ﻿@extends('admin.master')
 
 @section('content')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"/>
     @php
-        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'revision'];
+        $manualTabKeys = ['components', 'parts', 'processes', 'std', 'sb', 'revision', 'dimensions', 'fc'];
         $manualShowTab = in_array($manualShowTab ?? null, $manualTabKeys, true) ? $manualShowTab : 'components';
 
         $manualUrlParts = route('manuals.show', ['manual' => $cmm, 'tab' => 'parts']);
@@ -708,6 +709,7 @@
             flex: 1 1 auto;
             min-height: 0;
             height: auto;
+            padding: 0 !important;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -746,6 +748,28 @@
             height: auto;
             max-height: none;
             overflow: auto;
+        }
+
+        /* Dimensions tab */
+        .manual-show-card #nav-dimensions,
+        .manual-show-card #nav-dimensions.active {
+            padding: 0 !important;
+            overflow: hidden;
+        }
+        /* display:flex prevents <style>/<script> tags from taking up block height */
+        .manual-show-card #nav-dimensions #dim-tab-content-wrap {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        /* F&C: proper flex item, gets height when dim-tab-content-wrap is hidden */
+        #fc-table-content-wrap {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            background: var(--bs-body-bg);
         }
     </style>
     <div class="card shadow manual-show-card">
@@ -792,8 +816,8 @@
             </div>
             <script>
                 (function () {
-                    var allowedTabs = ['components', 'parts', 'processes', 'std', 'sb', 'revision'];
-                    var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std', '#nav-sb': 'sb', '#nav-revision': 'revision'};
+                    var allowedTabs = ['components', 'parts', 'processes', 'std', 'sb', 'revision', 'dimensions', 'fc'];
+                    var hashToTab = {'#nav-components': 'components', '#nav-parts': 'parts', '#nav-processes': 'processes', '#nav-std': 'std', '#nav-sb': 'sb', '#nav-revision': 'revision', '#nav-dimensions': 'dimensions'};
                     var params = new URLSearchParams(location.search);
                     var q = params.get('tab');
                     var desiredKey = (q && allowedTabs.indexOf(q) !== -1)
@@ -825,8 +849,13 @@
                                 type="button" role="tab" aria-controls="nav-sb" aria-selected="{{ $manualShowTab === 'sb' ? 'true' : 'false' }}">SB</button>
                         <button class="nav-link @if($manualShowTab === 'revision') active @endif" id="nav-revision-tab" data-bs-toggle="tab" data-bs-target="#nav-revision"
                                 type="button" role="tab" aria-controls="nav-revision" aria-selected="{{ $manualShowTab === 'revision' ? 'true' : 'false' }}">Revision</button>
+                        <button class="nav-link @if(in_array($manualShowTab, ['dimensions','fc'])) active @endif" id="nav-dimensions-tab" data-bs-toggle="tab" data-bs-target="#nav-dimensions"
+                                type="button" role="tab" aria-controls="nav-dimensions" aria-selected="{{ in_array($manualShowTab, ['dimensions','fc']) ? 'true' : 'false' }}">Dimensions</button>
                     </div>
                     <div class="ms-3 d-flex align-items-center gap-2" id="nav-tab-actions">
+                        <button type="button" class="btn btn-sm d-none" id="nav-fc-open-btn"
+                                data-tab-target="#nav-dimensions"
+                                style="font-size:inherit;border:1px solid #198754;color:#198754">F&amp;C</button>
                         <button type="button"
                                 class="btn btn-outline-primary btn-sm btn-update-components"
                                 data-tab-target="#nav-components"
@@ -1329,6 +1358,22 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade @if(in_array($manualShowTab, ['dimensions','fc'])) show active @endif" id="nav-dimensions" role="tabpanel" aria-labelledby="nav-dimensions-tab" tabindex="0">
+                    <div id="dim-tab-content-wrap">
+                        @include('admin.manuals.partials.dimensions-tab', [
+                            'cmm'                => $cmm,
+                            'dimensionFigures'   => $dimensionFigures,
+                            'dimManualProcesses' => $dimManualProcesses,
+                            'codes'              => $codes,
+                        ])
+                    </div>
+                    <div id="fc-table-content-wrap" style="display:none">
+                        @include('admin.manuals.partials.fc-table-tab', [
+                            'dimensionFigures' => $dimensionFigures,
+                        ])
                     </div>
                 </div>
             </div>
@@ -2434,6 +2479,50 @@
                     });
             });
 
+            const fcOpenBtn     = document.getElementById('nav-fc-open-btn');
+            const dimWrap       = document.getElementById('dim-tab-content-wrap');
+            const fcWrap        = document.getElementById('fc-table-content-wrap');
+            const dimNavBtn     = document.getElementById('nav-dimensions-tab');
+            let fcVisible       = false;
+
+            function showFcTable() {
+                dimWrap.style.display = 'none';
+                fcWrap.style.display  = '';
+                fcOpenBtn.textContent = '← Dimensions';
+                fcOpenBtn.style.color = '#6c757d';
+                fcOpenBtn.style.borderColor = '#6c757d';
+                fcVisible = true;
+                if (window.dimRenderFcTable) {
+                    fcWrap.innerHTML = window.dimRenderFcTable();
+                }
+            }
+            function showDimensions() {
+                fcWrap.style.display  = 'none';
+                dimWrap.style.display = '';
+                fcOpenBtn.textContent = 'F&C';
+                fcOpenBtn.style.color = '#198754';
+                fcOpenBtn.style.borderColor = '#198754';
+                fcVisible = false;
+            }
+
+            if (fcOpenBtn) {
+                fcOpenBtn.addEventListener('click', function () {
+                    if (fcVisible) showDimensions(); else showFcTable();
+                });
+            }
+
+            document.querySelectorAll('#nav-tab .nav-link').forEach(function (btn) {
+                btn.addEventListener('shown.bs.tab', function () {
+                    const isDim = btn.id === 'nav-dimensions-tab';
+                    if (fcOpenBtn) fcOpenBtn.classList.toggle('d-none', !isDim);
+                    if (!isDim && fcVisible) showDimensions();
+                });
+            });
+
+            if (dimNavBtn && dimNavBtn.classList.contains('active') && fcOpenBtn) {
+                fcOpenBtn.classList.remove('d-none');
+            }
+
             const navTabs = document.querySelectorAll('#nav-tab .nav-link');
             const actions = document.querySelectorAll('#nav-tab-actions [data-tab-target]');
 
@@ -2450,7 +2539,9 @@
                 processes: '#nav-processes',
                 std: '#nav-std',
                 sb: '#nav-sb',
-                revision: '#nav-revision'
+                revision: '#nav-revision',
+                dimensions: '#nav-dimensions',
+                fc: '#nav-dimensions'
             };
             const initialParams = new URLSearchParams(window.location.search);
             const partIdToScroll = initialParams.get('part_id');

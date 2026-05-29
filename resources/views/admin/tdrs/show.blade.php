@@ -952,11 +952,12 @@
                             </div>
                         </div>
                     @endif
-
+                    @role('Admin')
                     {{-- Measurements tab --}}
                     <div class="tab-pane fade" id="content-measurements" role="tabpanel">
                         @include('admin.measurements._tab', ['wo' => $current_wo])
                     </div>
+                    @endrole
                 </div>
             </div>
         </div>

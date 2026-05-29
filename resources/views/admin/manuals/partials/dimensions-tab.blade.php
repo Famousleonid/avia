@@ -1,5 +1,4 @@
 {{-- Dimensions tab: figure list (left) + figure viewer with points (right) --}}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"/>
 <style>
     #dim-tab-wrap {
         display: flex;
@@ -3523,6 +3522,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? Math.round((parseFloat(a) - parseFloat(b)) * 1e4) / 1e4 : null;
         };
 
+        // Figure label with parent prefix: "Parent: Child" (same as WO Measurements F&C)
+        var figLabel = function (figure) {
+            if (!figure) return '';
+            var parent = figure.parent_figure_id
+                ? figures.find(function (f) { return f.id == figure.parent_figure_id; })
+                : null;
+            return parent ? (parent.title + ': ' + figure.title) : figure.title;
+        };
+
         // Build pointFigureMap: point_id → {point, figure}
         var pointFigureMap = {};
         figures.forEach(function (figure) {
@@ -3624,7 +3632,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 var wMin = r.param.wear_dim_min != null ? r.param.wear_dim_min : r.param.orig_dim_min;
                 var wMax = r.param.wear_dim_max != null ? r.param.wear_dim_max : r.param.orig_dim_max;
                 h += '<tr data-is-fc="' + isFc + '">' +
-                    '<td class="text-center text-secondary" style="font-size:11px">' + escHtml(r.figure.title) + '</td>' +
+                    '<td class="text-center text-secondary" style="font-size:11px">' + escHtml(figLabel(r.figure)) + '</td>' +
                     '<td class="text-center fw-semibold">' + escHtml(r.point.code) + '</td>' +
                     '<td class="text-center">' + fcBadge + '</td>' +
                     '<td>' + compLabel + '</td>' +
@@ -3669,7 +3677,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 var negMax = r.clearOrigMax !== null && r.clearOrigMax < 0 ? ' text-danger' : '';
                 var negP   = r.permClearMax !== null && r.permClearMax < 0 ? ' text-danger' : '';
                 h += '<tr>' +
-                    '<td rowspan="2" class="text-center align-middle text-secondary" style="font-size:11px">' + escHtml(r.figure.title) + '</td>' +
+                    '<td rowspan="2" class="text-center align-middle text-secondary" style="font-size:11px">' + escHtml(figLabel(r.figure)) + '</td>' +
                     '<td rowspan="2" class="text-center align-middle fw-semibold">' + escHtml(r.point.code) + '</td>' +
                     '<td>' + dA + iA + '</td>' +
                     '<td class="text-end">' + fcFmt(r.pA.orig_dim_min) + '</td>' +
