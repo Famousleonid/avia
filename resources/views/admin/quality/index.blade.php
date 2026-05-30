@@ -646,7 +646,7 @@
             border-bottom: 1px dashed rgba(13, 202, 240, .6);
             border-radius: 0;
             background: transparent;
-            padding: 0 .45rem 0 !important;
+            padding: 0 .45rem 0 0 !important;
             width: 100%;
             box-sizing: border-box;
         }

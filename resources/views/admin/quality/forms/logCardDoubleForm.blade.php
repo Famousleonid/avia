@@ -78,6 +78,8 @@
         }
 
         .qa-color-swatch {
+            box-sizing: border-box;
+            flex: 0 0 auto;
             width: 22px;
             height: 22px;
             border: 1px solid rgba(255, 255, 255, .76);
@@ -88,11 +90,14 @@
         }
 
         .qa-color-swatch.is-selected {
-            outline: 2px solid #fff;
-            outline-offset: 2px;
+            box-shadow:
+                0 0 0 2px #fff,
+                0 0 0 4px rgba(13, 202, 240, .55);
         }
 
         .qa-color-picker {
+            box-sizing: border-box;
+            flex: 0 0 auto;
             width: 30px;
             height: 24px;
             border: 1px solid rgba(255, 255, 255, .76);
@@ -102,13 +107,38 @@
             cursor: pointer;
         }
 
+        .qa-color-picker::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        .qa-color-picker::-webkit-color-swatch {
+            border: 0;
+            border-radius: 2px;
+        }
+
         .qa-color-clear {
+            box-sizing: border-box;
+            flex: 0 0 auto;
             border: 1px solid rgba(255, 255, 255, .65);
             border-radius: 4px;
             padding: 2px 7px;
             background: transparent;
             color: #fff;
             cursor: pointer;
+        }
+
+        .qa-color-picker.is-selected,
+        .qa-color-clear.is-selected {
+            box-shadow:
+                0 0 0 2px #fff,
+                0 0 0 4px rgba(13, 202, 240, .55);
+        }
+
+        .qa-color-swatch:focus-visible,
+        .qa-color-picker:focus-visible,
+        .qa-color-clear:focus-visible {
+            outline: 2px solid #fff;
+            outline-offset: 2px;
         }
 
         .qa-card-side-label {
@@ -250,7 +280,7 @@
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 14px;
+            font-size: 13px;
             line-height: 1.12;
         }
 
@@ -279,6 +309,11 @@
         .qa-editable {
             background: transparent;
             outline: 0;
+            transition: background-color .18s ease, box-shadow .18s ease;
+        }
+
+        .qa-color-cell {
+            border-radius: 2px;
             transition: background-color .18s ease, box-shadow .18s ease;
         }
 
@@ -364,6 +399,22 @@
         @media (max-width: 1200px) {
             .qa-log-card-stage {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media screen {
+            .qa-overhaul-life-field {
+                gap: 4px;
+                white-space: nowrap;
+            }
+
+            .qa-overhaul-life-field span:first-child {
+                font-size: .88em;
+            }
+
+            .qa-overhaul-life-field span:last-child {
+                font-size: .9em;
+                line-height: 1.05;
             }
         }
 
@@ -456,6 +507,11 @@
                 font-size: calc(clamp(.58rem, .72vw, .82rem) * 1.2);
             }
 
+            .qa-log-card-top .qa-title-fields .qa-small {
+                font-size: calc(clamp(.58rem, .72vw, .82rem) * 1.32);
+                line-height: 1.1;
+            }
+
             .qa-title-fields {
                 margin-bottom: 6px;
             }
@@ -533,9 +589,81 @@
 
         return $value;
     };
+    $formatLogCardNumber = function ($value): string {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
 
-    $buildRows = function (array $items) use ($components, $codes, $twoLineAssyValue) {
-        return collect($items)->map(function ($item, $index) use ($components, $codes, $twoLineAssyValue) {
+        $normalized = str_replace(',', '', $value);
+        if (!preg_match('/^-?\d+(?:\.\d+)?$/', $normalized)) {
+            return $value;
+        }
+
+        $decimals = str_contains($normalized, '.')
+            ? strlen(rtrim(substr(strrchr($normalized, '.'), 1), '0'))
+            : 0;
+
+        return number_format((float) $normalized, $decimals, '.', ',');
+    };
+    $formatLogCardTextNumbers = function ($value) use ($formatLogCardNumber): string {
+        return preg_replace_callback('/(?<![\w.,-])-?\d{4,}(?:\.\d+)?(?![\w.-])/', function ($matches) use ($formatLogCardNumber) {
+            return $formatLogCardNumber($matches[0]);
+        }, (string) $value) ?? (string) $value;
+    };
+    $formatLogCardDate = function ($value): string {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
+
+        $formatDateParts = static function (int $year, int $month, int $day): ?string {
+            if (!checkdate($month, $day, $year)) {
+                return null;
+            }
+
+            return \Carbon\Carbon::create($year, $month, $day)->format('d/M/Y');
+        };
+        $monthMap = [
+            'jan' => 1, 'january' => 1,
+            'feb' => 2, 'february' => 2,
+            'mar' => 3, 'march' => 3,
+            'apr' => 4, 'april' => 4,
+            'may' => 5,
+            'jun' => 6, 'june' => 6,
+            'jul' => 7, 'july' => 7,
+            'aug' => 8, 'august' => 8,
+            'sep' => 9, 'sept' => 9, 'september' => 9,
+            'oct' => 10, 'october' => 10,
+            'nov' => 11, 'november' => 11,
+            'dec' => 12, 'december' => 12,
+        ];
+
+        try {
+            if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $value, $matches)) {
+                return $formatDateParts((int) $matches[1], (int) $matches[2], (int) $matches[3]) ?? $value;
+            }
+
+            if (preg_match('/^(\d{1,2})[\/.\-]([a-z]{3,9})[\/.\-](\d{4})$/i', $value, $matches)) {
+                $month = $monthMap[strtolower($matches[2])] ?? null;
+
+                return $month !== null
+                    ? ($formatDateParts((int) $matches[3], $month, (int) $matches[1]) ?? $value)
+                    : $value;
+            }
+
+            if (preg_match('/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/', $value, $matches)) {
+                return $formatDateParts((int) $matches[3], (int) $matches[2], (int) $matches[1]) ?? $value;
+            }
+
+            return \Carbon\Carbon::parse($value)->format('d/M/Y');
+        } catch (\Throwable) {
+            return $value;
+        }
+    };
+
+    $buildRows = function (array $items) use ($components, $codes, $twoLineAssyValue, $formatLogCardDate) {
+        return collect($items)->map(function ($item, $index) use ($components, $codes, $twoLineAssyValue, $formatLogCardDate) {
         $component = $components->firstWhere('id', $item['component_id'] ?? null);
         $hasSerial = !empty($item['serial_number']);
         $hasAssySerial = !empty($item['assy_serial_number']);
@@ -543,35 +671,46 @@
         if ($assyPartNumber === '') {
             $assyPartNumber = trim((string) ($component->assy_part_number ?? ''));
         }
+        $hasAssyPartNumber = $assyPartNumber !== '';
         $reasonCode = $codes->firstWhere('id', $item['reason'] ?? null);
+        $basePartNumber = trim((string) ($item['part_number'] ?? ($component->part_number ?? '')));
+        $baseSerialNumber = trim((string) ($item['serial_number'] ?? ''));
 
-        if ($hasAssySerial && !$hasSerial) {
+        if ($hasAssyPartNumber && !$hasAssySerial) {
+            $partNumber = $basePartNumber !== ''
+                ? $basePartNumber . "\n(" . $assyPartNumber . ')'
+                : $assyPartNumber;
+            $serialNumber = $baseSerialNumber !== '' ? $baseSerialNumber . "\n\u{00A0}" : '';
+        } elseif ($hasAssySerial && !$hasSerial) {
             $partNumber = $assyPartNumber;
             $serialNumber = $item['assy_serial_number'] ?? '';
         } elseif ($hasAssySerial && $hasSerial) {
-            $partNumber = trim((string) ($component->part_number ?? ''));
+            $partNumber = $basePartNumber;
             if (trim((string) $assyPartNumber) !== '') {
                 $partNumber .= "\n(" . trim((string) $assyPartNumber) . ')';
             }
 
-            $serialNumber = trim((string) ($item['serial_number'] ?? ''));
+            $serialNumber = $baseSerialNumber;
             if (trim((string) ($item['assy_serial_number'] ?? '')) !== '') {
                 $serialNumber .= "\n(" . trim((string) ($item['assy_serial_number'] ?? '')) . ')';
             }
         } else {
-            $partNumber = $component->part_number ?? '';
-            $serialNumber = $item['serial_number'] ?? '';
+            $partNumber = $basePartNumber;
+            $serialNumber = $baseSerialNumber;
         }
+
+        $qaPartNumber = trim((string) ($item['qa_part_number'] ?? ''));
+        $qaSerialNumber = trim((string) ($item['qa_serial_number'] ?? ''));
 
         return [
             'source_index' => $index,
             'description' => $item['qa_description'] ?? ($item['name'] ?? $item['description'] ?? ($component->name ?? '')),
-            'part_number' => $twoLineAssyValue($item['qa_part_number'] ?? ($item['part_number'] ?? $partNumber)),
-            'serial_number' => $twoLineAssyValue($item['qa_serial_number'] ?? $serialNumber),
-            'fit_date' => $item['qa_fit_date'] ?? ($item['fit_date'] ?? ''),
+            'part_number' => $twoLineAssyValue($qaPartNumber !== '' ? $qaPartNumber : $partNumber),
+            'serial_number' => $twoLineAssyValue($qaSerialNumber !== '' ? $qaSerialNumber : $serialNumber),
+            'fit_date' => $formatLogCardDate($item['qa_fit_date'] ?? ($item['fit_date'] ?? '')),
             'fit_cso' => $item['qa_fit_cso'] ?? ($item['fit_cso'] ?? ''),
             'fit_csn' => $item['qa_fit_csn'] ?? ($item['fit_csn'] ?? ''),
-            'removed_date' => $item['qa_removed_date'] ?? ($item['removed_date'] ?? ''),
+            'removed_date' => $formatLogCardDate($item['qa_removed_date'] ?? ($item['removed_date'] ?? '')),
             'removed_cso' => $item['qa_removed_cso'] ?? ($item['removed_cso'] ?? ''),
             'removed_csn' => $item['qa_removed_csn'] ?? ($item['removed_csn'] ?? ''),
             'reason' => $item['qa_reason'] ?? ($reasonCode?->name ?? ($item['reason'] ?? '')),
@@ -592,12 +731,34 @@
         'reason',
     ];
 
-    $aircraftRowsFor = function (array $items) use ($aircraftFields) {
+    $aircraftNumberFields = [
+        'fit_cso',
+        'fit_csn',
+        'fit_cycles',
+        'removed_cso',
+        'removed_csn',
+        'removed_cycles',
+    ];
+
+    $aircraftDateFields = [
+        'fit_date',
+        'removed_date',
+    ];
+
+    $aircraftRowsFor = function (array $items) use ($aircraftFields, $aircraftNumberFields, $aircraftDateFields, $formatLogCardNumber, $formatLogCardDate) {
         $stored = $items[0]['qa_aircraft_records'] ?? [];
-        return collect(range(0, 5))->map(function ($index) use ($stored, $aircraftFields) {
+        return collect(range(0, 5))->map(function ($index) use ($stored, $aircraftFields, $aircraftNumberFields, $aircraftDateFields, $formatLogCardNumber, $formatLogCardDate) {
             $row = [];
             foreach ($aircraftFields as $field) {
-                $row[$field] = $stored[$index][$field] ?? '';
+                $value = $stored[$index][$field] ?? '';
+                if (in_array($field, $aircraftNumberFields, true)) {
+                    $row[$field] = $formatLogCardNumber($value);
+                    continue;
+                }
+
+                $row[$field] = in_array($field, $aircraftDateFields, true)
+                    ? $formatLogCardDate($value)
+                    : $value;
             }
             return $row;
         });
@@ -605,6 +766,11 @@
 
     $aircraftColorsFor = function (array $items) {
         $stored = $items[0]['qa_aircraft_cell_colors'] ?? [];
+        return is_array($stored) ? $stored : [];
+    };
+
+    $headerColorsFor = function (array $items) {
+        $stored = $items[0]['qa_header_cell_colors'] ?? [];
         return is_array($stored) ? $stored : [];
     };
 
@@ -690,6 +856,7 @@
             'rows' => $buildRows($componentData),
             'aircraft_rows' => $aircraftRowsFor($componentData),
             'aircraft_colors' => $aircraftColorsFor($componentData),
+            'header_colors' => $headerColorsFor($componentData),
             'note6_text' => $componentData[0]['qa_note6_text'] ?? "The Log Card was created refer to client's provided documents.",
             'note6_enabled' => $componentData[0]['qa_note6_enabled'] ?? true,
             'header_part_number' => $current_wo->unit->part_number,
@@ -701,6 +868,7 @@
             'rows' => $buildRows($componentDataOut),
             'aircraft_rows' => $aircraftRowsFor($componentDataOut),
             'aircraft_colors' => $aircraftColorsFor($componentDataOut),
+            'header_colors' => $headerColorsFor($componentDataOut),
             'note6_text' => $componentDataOut[0]['qa_note6_text'] ?? "The Log Card was created refer to client's provided documents.",
             'note6_enabled' => $componentDataOut[0]['qa_note6_enabled'] ?? true,
             'header_part_number' => $componentDataOut[0]['qa_header_part_number'] ?? $current_wo->unit->part_number,
@@ -718,7 +886,7 @@
                 title="{{ $color }}"></button>
     @endforeach
     <input type="color" class="qa-color-picker" value="#fff3bf" title="Custom color">
-    <button type="button" class="qa-color-clear" data-qa-color="">Clear</button>
+    <button type="button" class="qa-color-clear" data-qa-clear-color>Clear</button>
 </div>
 
 <main class="qa-log-card-stage">
@@ -744,23 +912,35 @@
                     <div>
                         <img class="qa-logo" src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo">
                         <div class="qa-small qa-field"><span>UNIT:</span><span>{{ $manual->title ?? '' }}</span></div>
-                        <div class="qa-small qa-field"><span>AUTHORIZED OVERHAUL LIFE:</span><span>{{ $manual->ovh_life ?? '' }}</span></div>
+                        <div class="qa-small qa-field qa-overhaul-life-field"><span>AUTHORIZED OVERHAUL LIFE:</span><span>{{ $formatLogCardTextNumbers($manual->ovh_life ?? '') }}</span></div>
                     </div>
                     <div>
                         <h1 class="qa-title">LANDING GEAR LOG CARD</h1>
                         <div class="qa-title-fields">
                             <div class="qa-small qa-field">
                                 <span>PART NO:</span>
+                                @php
+                                    $headerPartNumberColor = $card['header_colors']['part_number'] ?? '';
+                                    $headerPartNumberStyle = $cellStyle($headerPartNumberColor);
+                                @endphp
                                 @if($side === 'right')
-                                    <span class="qa-editable qa-header-edit"
+                                    <span class="qa-editable qa-header-edit qa-color-cell{{ $headerPartNumberStyle ? ' qa-colored-cell' : '' }}"
+                                          style="{{ $headerPartNumberStyle }}"
                                           contenteditable="true"
                                           data-qa-edit
+                                          data-qa-color-cell
                                           data-side="{{ $side }}"
                                           data-section="header"
                                           data-row="0"
                                           data-field="part_number">{{ $card['header_part_number'] }}</span>
                                 @else
-                                    <span>{{ $card['header_part_number'] }}</span>
+                                    <span class="qa-header-edit qa-color-cell{{ $headerPartNumberStyle ? ' qa-colored-cell' : '' }}"
+                                          style="{{ $headerPartNumberStyle }}"
+                                          data-qa-color-cell
+                                          data-side="{{ $side }}"
+                                          data-section="header"
+                                          data-row="0"
+                                          data-field="part_number">{{ $card['header_part_number'] }}</span>
                                 @endif
                             </div>
                             <div class="qa-small qa-field"><span>SERIAL NO:</span><span>{{ $current_wo->serial_number }}</span></div>
@@ -808,6 +988,7 @@
                                         style="{{ $style }}"
                                         contenteditable="true"
                                         data-qa-edit
+                                        data-qa-color-cell
                                         data-side="{{ $side }}"
                                         data-section="aircraft"
                                         data-row="{{ $aircraftIndex }}"
@@ -858,6 +1039,7 @@
                                     style="{{ $style }}"
                                     contenteditable="true"
                                     data-qa-edit
+                                    data-qa-color-cell
                                     data-side="{{ $side }}"
                                     data-section="primary"
                                     data-row="{{ $row['source_index'] }}"
@@ -919,14 +1101,18 @@
         const saveUrl = @json(route('quality.forms.log_card.update', ['workorder' => $current_wo->id]));
         const csrfToken = @json(csrf_token());
         const timers = new WeakMap();
-        const swatches = Array.from(document.querySelectorAll('[data-qa-color]'));
+        const swatches = Array.from(document.querySelectorAll('.qa-color-swatch[data-qa-color]'));
         const customColor = document.querySelector('.qa-color-picker');
+        const clearColorButton = document.querySelector('[data-qa-clear-color]');
+        const colorControls = [...swatches, customColor, clearColorButton].filter(Boolean);
         let selectedColor = swatches[0]?.dataset.qaColor || '#fff3bf';
 
-        const setSelectedColor = (color) => {
+        const setSelectedColor = (color, selectedControl = null) => {
             selectedColor = color;
-            swatches.forEach((swatch) => {
-                swatch.classList.toggle('is-selected', swatch.dataset.qaColor === color);
+            const matchingPreset = swatches.find((swatch) => swatch.dataset.qaColor === color) || null;
+            const activeControl = selectedControl || (color === '' ? clearColorButton : matchingPreset || customColor);
+            colorControls.forEach((control) => {
+                control.classList.toggle('is-selected', control === activeControl);
             });
             if (customColor && color) {
                 customColor.value = color;
@@ -934,10 +1120,11 @@
         };
 
         swatches.forEach((swatch) => {
-            swatch.addEventListener('click', () => setSelectedColor(swatch.dataset.qaColor || ''));
+            swatch.addEventListener('click', () => setSelectedColor(swatch.dataset.qaColor || '', swatch));
         });
 
-        customColor?.addEventListener('input', () => setSelectedColor(customColor.value));
+        customColor?.addEventListener('input', () => setSelectedColor(customColor.value, customColor));
+        clearColorButton?.addEventListener('click', () => setSelectedColor('', clearColorButton));
         setSelectedColor(selectedColor);
 
         document.querySelectorAll('[data-print-side]').forEach((button) => {
@@ -954,6 +1141,101 @@
         });
 
         const normalizeCellValue = (cell) => cell.innerText.replace(/\s+/g, ' ').trim();
+        const aircraftNumberFields = new Set([
+            'fit_cso',
+            'fit_csn',
+            'fit_cycles',
+            'removed_cso',
+            'removed_csn',
+            'removed_cycles',
+        ]);
+        const dateFields = new Set([
+            'fit_date',
+            'removed_date',
+        ]);
+        const isAircraftNumberCell = (cell) => (
+            cell.dataset.section === 'aircraft'
+            && aircraftNumberFields.has(cell.dataset.field || '')
+        );
+        const isLogCardDateCell = (cell) => dateFields.has(cell.dataset.field || '');
+        const formatLogCardNumber = (value) => {
+            const text = String(value || '').replace(/,/g, '').trim();
+            if (!/^-?\d+(?:\.\d+)?$/.test(text)) {
+                return String(value || '').trim();
+            }
+
+            const [, decimal = ''] = text.split('.');
+            return Number(text).toLocaleString('en-US', {
+                minimumFractionDigits: decimal.replace(/0+$/, '').length,
+                maximumFractionDigits: decimal.length,
+            });
+        };
+        const logCardMonthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const logCardMonthMap = new Map([
+            ['jan', 1], ['january', 1],
+            ['feb', 2], ['february', 2],
+            ['mar', 3], ['march', 3],
+            ['apr', 4], ['april', 4],
+            ['may', 5],
+            ['jun', 6], ['june', 6],
+            ['jul', 7], ['july', 7],
+            ['aug', 8], ['august', 8],
+            ['sep', 9], ['sept', 9], ['september', 9],
+            ['oct', 10], ['october', 10],
+            ['nov', 11], ['november', 11],
+            ['dec', 12], ['december', 12],
+        ]);
+        const formatDateParts = (year, month, day) => {
+            const date = new Date(Date.UTC(year, month - 1, day));
+            if (
+                date.getUTCFullYear() !== year
+                || date.getUTCMonth() !== month - 1
+                || date.getUTCDate() !== day
+            ) {
+                return null;
+            }
+
+            return `${String(day).padStart(2, '0')}/${logCardMonthNames[month - 1]}/${year}`;
+        };
+        const formatLogCardDate = (value) => {
+            const text = String(value || '').replace(/\s+/g, ' ').trim();
+            let match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (match) {
+                return formatDateParts(Number(match[1]), Number(match[2]), Number(match[3])) || text;
+            }
+
+            match = text.match(/^(\d{1,2})[\/.\-]([A-Za-z]{3,9})[\/.\-](\d{4})$/);
+            if (match) {
+                const month = logCardMonthMap.get(match[2].toLowerCase());
+                return month ? (formatDateParts(Number(match[3]), month, Number(match[1])) || text) : text;
+            }
+
+            match = text.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+            if (match) {
+                return formatDateParts(Number(match[3]), Number(match[2]), Number(match[1])) || text;
+            }
+
+            return text;
+        };
+        const normalizeEditableCell = (cell) => {
+            if (isLogCardDateCell(cell)) {
+                const value = normalizeCellValue(cell);
+                const formatted = formatLogCardDate(value);
+                if (formatted !== value) {
+                    cell.innerText = formatted;
+                }
+                return;
+            }
+
+            if (!isAircraftNumberCell(cell)) {
+                return;
+            }
+
+            const formatted = formatLogCardNumber(normalizeCellValue(cell));
+            if (formatted !== normalizeCellValue(cell)) {
+                cell.innerText = formatted;
+            }
+        };
         const cssEscape = (value) => {
             if (window.CSS && typeof window.CSS.escape === 'function') {
                 return window.CSS.escape(String(value));
@@ -963,17 +1245,18 @@
         };
 
         const matchingRightCellFor = (cell) => {
-            if (cell.dataset.side !== 'left' || cell.dataset.section === 'note' || cell.dataset.section === 'header') {
+            if (cell.dataset.side !== 'left' || cell.dataset.section === 'note') {
                 return null;
             }
 
             return document.querySelector(
-                `[data-qa-edit][data-side="right"][data-section="${cssEscape(cell.dataset.section || '')}"]` +
+                `[data-qa-color-cell][data-side="right"][data-section="${cssEscape(cell.dataset.section || '')}"]` +
                 `[data-row="${cssEscape(cell.dataset.row || '0')}"][data-field="${cssEscape(cell.dataset.field || '')}"]`
             );
         };
 
         const saveCell = async (cell) => {
+            normalizeEditableCell(cell);
             const value = normalizeCellValue(cell);
 
             if (value === (cell.dataset.originalValue ?? '')) {
@@ -1056,11 +1339,10 @@
             }
         };
 
-        document.querySelectorAll('[data-qa-edit]').forEach((cell) => {
-            cell.dataset.originalValue = normalizeCellValue(cell);
-
+        const colorableCells = Array.from(document.querySelectorAll('[data-qa-color-cell]'));
+        colorableCells.forEach((cell) => {
             cell.addEventListener('click', (event) => {
-                if (!event.ctrlKey || event.button !== 0 || cell.tagName !== 'TD') {
+                if (!event.ctrlKey || event.button !== 0) {
                     return;
                 }
 
@@ -1076,6 +1358,10 @@
                 }
                 cell.blur();
             });
+        });
+
+        document.querySelectorAll('[data-qa-edit]').forEach((cell) => {
+            cell.dataset.originalValue = normalizeCellValue(cell);
 
             cell.addEventListener('input', () => {
                 window.clearTimeout(timers.get(cell));

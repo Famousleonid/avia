@@ -92,7 +92,11 @@ class AppServiceProvider extends ServiceProvider
         Component::observe(ComponentObserver::class);
 
         View::composer($this->printFormViews(), function (): void {
-            $this->disableDebugbarForPrintResponse();
+            $this->disableDebugbarForResponse();
+        });
+
+        View::composer($this->mobileViews(), function (): void {
+            $this->disableDebugbarForResponse();
         });
     }
 
@@ -131,7 +135,17 @@ class AppServiceProvider extends ServiceProvider
         ];
     }
 
-    private function disableDebugbarForPrintResponse(): void
+    /**
+     * @return array<int, string>
+     */
+    private function mobileViews(): array
+    {
+        return [
+            'mobile.*',
+        ];
+    }
+
+    private function disableDebugbarForResponse(): void
     {
         if (! $this->app->bound('debugbar')) {
             return;

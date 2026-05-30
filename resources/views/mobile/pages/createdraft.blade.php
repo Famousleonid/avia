@@ -52,6 +52,37 @@
 
         /* modal dark */
         .modal-content.bg-dark { border: 1px solid #6c757d; }
+
+        .draft-flags-row .form-check {
+            min-height: 34px;
+            margin-bottom: 0;
+        }
+
+        .draft-flags-row .form-check span {
+            line-height: 1.15;
+        }
+
+        .draft-box-row {
+            min-height: 38px;
+        }
+
+        .draft-box-status {
+            min-width: 0;
+            letter-spacing: 0;
+        }
+
+        .draft-box-status-value {
+            letter-spacing: 0;
+        }
+
+        .draft-box-notes-preview {
+            letter-spacing: 0;
+        }
+
+        .draft-box-choice {
+            min-height: 42px;
+            text-transform: uppercase;
+        }
     </style>
 @endsection
 
@@ -72,10 +103,23 @@
                 <form method="POST" action="{{ route('mobile.draft.store') }}" id="draftForm">
                     @csrf
 
-                    {{-- Draft number preview (not sent) --}}
-                    <div class="mb-2">
-                        <label class="form-label small text-white-50 mb-1">Draft Number</label>
-                        <input type="text" class="form-control bg-black text-info border-secondary" value="{{ $draftNumber }}" readonly>
+                    <div class="row g-2 mb-2">
+                        {{-- Draft number preview (not sent) --}}
+                        <div class="col-6">
+                            <label class="form-label small text-white-50 mb-1">Draft Number</label>
+                            <input type="text" class="form-control bg-black text-info border-secondary" value="{{ $draftNumber }}" readonly>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-white-50 mb-1">Open date</label>
+                            <input type="text" name="open_at" id="draftOpenAt"
+                                   class="form-control bg-black text-light border-secondary @error('open_at') is-invalid @enderror"
+                                   maxlength="11"
+                                   value="{{ old('open_at', $defaultOpenDate) }}"
+                                   placeholder="10/Aug/2026"
+                                   data-project-date
+                                   autocomplete="off">
+                            @error('open_at') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
                     </div>
 
                     {{-- Unit with Select2 + Add button --}}
@@ -114,25 +158,12 @@
                         @error('customer_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <label class="form-label small text-white-50 mb-1">Serial number</label>
-                            <input name="serial_number"
-                                   class="form-control bg-black text-light border-secondary @error('serial_number') is-invalid @enderror"
-                                   value="{{ old('serial_number') }}" placeholder="s/n">
-                            @error('serial_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small text-white-50 mb-1">Open date</label>
-                            <input type="text" name="open_at"
-                                   class="form-control bg-black text-light border-secondary @error('open_at') is-invalid @enderror"
-                                   maxlength="11"
-                                   value="{{ old('open_at') }}"
-                                   placeholder="10.aug.2026"
-                                   data-project-date
-                                   autocomplete="off">
-                            @error('open_at') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
+                    <div class="mb-2">
+                        <label class="form-label small text-white-50 mb-1">Serial number</label>
+                        <input name="serial_number"
+                               class="form-control bg-black text-light border-secondary @error('serial_number') is-invalid @enderror"
+                               value="{{ old('serial_number') }}" placeholder="s/n">
+                        @error('serial_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
                     <div class="mt-2">
@@ -162,7 +193,7 @@
                             </div>
 
                             <div class="col-4">
-                                <input name="storage_2"
+                                <input name="storage_level"
                                        placeholder="Level"
                                        class="form-control bg-black text-light border-secondary @error('storage_level') is-invalid @enderror">
                             </div>
@@ -176,7 +207,7 @@
                     </div>
 
                     <div class="mt-3">
-                        <div class="row g-2 small">
+                        <div class="row g-2 small draft-flags-row">
                             <div class="col-6">
                                 <label class="form-check d-flex align-items-center gap-2">
                                     <input class="form-check-input" type="checkbox" name="external_damage" value="1" @checked(old('external_damage'))>
@@ -185,30 +216,35 @@
                             </div>
                             <div class="col-6">
                                 <label class="form-check d-flex align-items-center gap-2">
-                                    <input class="form-check-input" type="checkbox" name="received_disassembly" value="1" @checked(old('received_disassembly'))>
-                                    <span>Received Disassembly</span>
-                                </label>
-                            </div>
-{{--                            <div class="col-6">--}}
-{{--                                <label class="form-check d-flex align-items-center gap-2">--}}
-{{--                                    <input class="form-check-input" type="checkbox" name="disassembly_upon_arrival" value="1" @checked(old('disassembly_upon_arrival'))>--}}
-{{--                                    <span>Disassembly Upon Arrival</span>--}}
-{{--                                </label>--}}
-{{--                            </div>--}}
-                            <div class="col-6">
-                                <label class="form-check d-flex align-items-center gap-2">
                                     <input class="form-check-input" type="checkbox" name="nameplate_missing" value="1" @checked(old('nameplate_missing'))>
                                     <span>Name Plate Missing</span>
                                 </label>
                             </div>
-                            <div class="col-6">
-                                <label class="form-check d-flex align-items-center gap-2">
-                                    <input class="form-check-input" type="checkbox" name="extra_parts" value="1" @checked(old('extra_parts'))>
-                                    <span>Extra Parts</span>
-                                </label>
-                            </div>
                         </div>
                     </div>
+
+                    <div class="draft-box-row d-flex align-items-center gap-2 mt-3">
+                        <input type="hidden"
+                               name="arrival_box_status"
+                               id="arrivalBoxStatus"
+                               value="{{ old('arrival_box_status') }}">
+                        <input type="hidden"
+                               name="arrival_box_notes"
+                               id="arrivalBoxNotes"
+                               value="{{ old('arrival_box_notes') }}">
+                        <button type="button"
+                                class="btn btn-outline-info btn-sm px-3"
+                                data-bs-toggle="modal"
+                                data-bs-target="#arrivalBoxModal">
+                            Box
+                        </button>
+                        <div class="draft-box-status flex-fill text-white-50 small text-truncate">
+                            Box: <span id="arrivalBoxStatusText" class="draft-box-status-value text-secondary fw-semibold">—</span>
+                            <span id="arrivalBoxNotesText" class="draft-box-notes-preview text-white-50"></span>
+                        </div>
+                    </div>
+                    @error('arrival_box_status') <div class="small text-danger mt-1">{{ $message }}</div> @enderror
+                    @error('arrival_box_notes') <div class="small text-danger mt-1">{{ $message }}</div> @enderror
 
                     <div class="d-flex gap-2 mt-4">
                         <button type="submit" class="btn btn-outline-info flex-fill">Save Draft</button>
@@ -218,6 +254,41 @@
 
 
 
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL: Arrival box condition --}}
+    <div class="modal fade" id="arrivalBoxModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header border-secondary">
+                    <h6 class="modal-title">Box condition</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-success w-100 draft-box-choice" data-box-status="ok">OK</button>
+                        <button type="button" class="btn btn-outline-info w-100 draft-box-choice" data-box-status="easy">Easy repair</button>
+                        <button type="button" class="btn btn-outline-warning w-100 draft-box-choice" data-box-status="medium">Medium repair</button>
+                        <button type="button" class="btn btn-outline-danger w-100 draft-box-choice" data-box-status="hard">Hard repair</button>
+                        <button type="button" class="btn btn-outline-light w-100 draft-box-choice" data-box-status="replace">Replace</button>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label small text-white-50 mb-1" for="arrivalBoxNotesInput">Notes</label>
+                        <textarea id="arrivalBoxNotesInput"
+                                  class="form-control bg-black text-light border-secondary"
+                                  rows="3"
+                                  maxlength="1000"
+                                  placeholder="Box notes">{{ old('arrival_box_notes') }}</textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-info" data-bs-dismiss="modal">Done</button>
+                </div>
             </div>
         </div>
     </div>
@@ -270,6 +341,44 @@
             const hasSelect2 = !!(window.jQuery && typeof window.jQuery.fn?.select2 === 'function');
             const $ = window.jQuery;
 
+            const openAtInput = document.getElementById('draftOpenAt');
+            function normalizeOpenDateMonth() {
+                if (!openAtInput) return;
+
+                openAtInput.value = String(openAtInput.value || '').replace(/\/([a-z]{3})\//i, function (_, month) {
+                    return '/' + month.charAt(0).toUpperCase() + month.slice(1).toLowerCase() + '/';
+                });
+            }
+
+            normalizeOpenDateMonth();
+            openAtInput?.addEventListener('input', normalizeOpenDateMonth);
+            openAtInput?.addEventListener('change', function () {
+                setTimeout(normalizeOpenDateMonth, 0);
+            });
+
+            function attachOpenDatePickerNormalizer() {
+                normalizeOpenDateMonth();
+
+                const picker = openAtInput?._projectDatePicker;
+                if (!picker || picker._draftCapitalMonthNormalizerInstalled) return;
+
+                picker._draftCapitalMonthNormalizerInstalled = true;
+
+                picker.config.onChange.push(function () {
+                    setTimeout(normalizeOpenDateMonth, 0);
+                });
+
+                picker.config.onClose.push(function () {
+                    setTimeout(normalizeOpenDateMonth, 0);
+                });
+            }
+
+            attachOpenDatePickerNormalizer();
+            window.addEventListener('load', function () {
+                setTimeout(attachOpenDatePickerNormalizer, 0);
+                setTimeout(attachOpenDatePickerNormalizer, 250);
+            });
+
             // --- Unit select2 (search + no overflow)
             if (hasSelect2 && document.getElementById('unit_id')) {
                 const $unit = $('#unit_id');
@@ -306,6 +415,59 @@
                     if (!desc.value) desc.value = name;
                 });
             }
+
+            const arrivalBoxStatus = document.getElementById('arrivalBoxStatus');
+            const arrivalBoxNotes = document.getElementById('arrivalBoxNotes');
+            const arrivalBoxNotesInput = document.getElementById('arrivalBoxNotesInput');
+            const arrivalBoxStatusText = document.getElementById('arrivalBoxStatusText');
+            const arrivalBoxNotesText = document.getElementById('arrivalBoxNotesText');
+            const arrivalBoxLabels = {
+                ok: 'OK',
+                easy: 'Easy repair',
+                medium: 'Medium repair',
+                hard: 'Hard repair',
+                replace: 'Replace',
+            };
+            const arrivalBoxTextClasses = {
+                ok: 'text-success',
+                easy: 'text-info',
+                medium: 'text-warning',
+                hard: 'text-danger',
+                replace: 'text-light',
+            };
+
+            function updateArrivalBoxNotes() {
+                if (!arrivalBoxNotes || !arrivalBoxNotesInput || !arrivalBoxNotesText) return;
+
+                const notes = String(arrivalBoxNotesInput.value || '').trim();
+                arrivalBoxNotes.value = notes;
+                arrivalBoxNotesText.textContent = notes ? ' · ' + notes : '';
+                arrivalBoxNotesText.title = notes;
+            }
+
+            function updateArrivalBoxStatus(status) {
+                if (!arrivalBoxStatus || !arrivalBoxStatusText) return;
+
+                arrivalBoxStatus.value = status || '';
+                arrivalBoxStatusText.textContent = arrivalBoxLabels[status] || '—';
+                arrivalBoxStatusText.classList.remove('text-secondary', 'text-success', 'text-info', 'text-warning', 'text-danger', 'text-light');
+                arrivalBoxStatusText.classList.add(arrivalBoxTextClasses[status] || 'text-secondary');
+
+                document.querySelectorAll('[data-box-status]').forEach(button => {
+                    button.classList.toggle('active', button.dataset.boxStatus === status);
+                });
+            }
+
+            updateArrivalBoxStatus(arrivalBoxStatus?.value || '');
+            updateArrivalBoxNotes();
+
+            arrivalBoxNotesInput?.addEventListener('input', updateArrivalBoxNotes);
+
+            document.querySelectorAll('[data-box-status]').forEach(button => {
+                button.addEventListener('click', () => {
+                    updateArrivalBoxStatus(button.dataset.boxStatus || '');
+                });
+            });
 
             // --- Create pending Unit (part_number only; manager assigns manual later)
             const btnCreateUnit = document.getElementById('btnCreateUnit');

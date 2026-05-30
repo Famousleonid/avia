@@ -197,6 +197,13 @@
         line-height: 1;
     }
 
+    #tdr_process_Table .tdr-action-cell .tdr-process-icon {
+        display: block;
+        height: 22px;
+        width: 22px;
+        object-fit: contain;
+    }
+
     #tdr_process_Table .tdr-action-cell .btn.me-2 {
         margin-right: .2rem !important;
     }
@@ -620,7 +627,9 @@
                                     <button type="button" class="btn btn-outline-primary btn-sm me-2 open-part-processes-tab"
                                             title="{{ __('Part Processes') }}"
                                             data-tdr-id="{{ $tdr->id }}">
-                                        <i class="bi bi-bar-chart-steps"></i>
+                                        <img src="{{ asset('img/icons/tdr-process-train.png') }}"
+                                             alt=""
+                                             class="tdr-process-icon">
                                     </button>
                                     <button type="button" class="btn btn-outline-primary btn-sm me-2" title="{{ __('Part
                                     Inspection Edit') }}"

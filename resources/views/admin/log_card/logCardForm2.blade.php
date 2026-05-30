@@ -606,7 +606,8 @@
                 $comp = $components->firstWhere('id', $item['component_id']);
                 $hasSerialNumber = !empty($item['serial_number']);
                 $hasAssySerialNumber = isset($item['assy_serial_number']) && !empty($item['assy_serial_number']);
-                $hasAssyPartNumber = $comp && $comp->assy_part_number;
+                $assyPartNumber = trim((string) ($item['assy_part_number'] ?? ($comp->assy_part_number ?? '')));
+                $hasAssyPartNumber = $assyPartNumber !== '';
                 $displayName = $item['name'] ?? $item['description'] ?? ($comp->name ?? '');
                 $displayPartNumber = $item['part_number'] ?? ($comp->part_number ?? '');
             @endphp
@@ -619,12 +620,21 @@
 {{--                @endif--}}
             </div>
             <div class="div14 border-b-r text-center pt-1 fs-7 " style="line-height: 1.2" >
-                @if($hasAssySerialNumber && !$hasSerialNumber)
-                    {{ $comp ? $comp->assy_part_number : '' }}
+                @if($hasAssyPartNumber && !$hasAssySerialNumber)
+                    @if($displayPartNumber)
+                        {{ $displayPartNumber }} <br>
+                        ({{ $assyPartNumber }})
+                    @else
+                        {{ $assyPartNumber }}
+                    @endif
+                @elseif($hasAssySerialNumber && !$hasSerialNumber)
+                    {{ $assyPartNumber }}
                 @else
                     @if($hasAssySerialNumber && $hasSerialNumber)
                         {{ $displayPartNumber }} <br>
-                        ({{ $comp->assy_part_number}})
+                        @if($assyPartNumber !== '')
+                            ({{ $assyPartNumber }})
+                        @endif
                     @else
                         {{ $displayPartNumber }}
                     @endif
@@ -644,7 +654,12 @@
 {{--                    ({{ $item['assy_serial_number']}})--}}
 {{--                @endif--}}
 
-                @if($hasAssySerialNumber && !$hasSerialNumber)
+                @if($hasAssyPartNumber && !$hasAssySerialNumber)
+                    {{ $item['serial_number'] ?? '' }}
+                    @if(!empty($item['serial_number']))
+                        <br>&nbsp;
+                    @endif
+                @elseif($hasAssySerialNumber && !$hasSerialNumber)
                     {{ $item['assy_serial_number'] }}
                 @else
                     @if($hasAssySerialNumber && $hasSerialNumber)
@@ -725,7 +740,8 @@
                     $comp = $components->firstWhere('id', $item['component_id']);
                     $hasSerialNumber = !empty($item['serial_number']);
                     $hasAssySerialNumber = isset($item['assy_serial_number']) && !empty($item['assy_serial_number']);
-                    $hasAssyPartNumber = $comp && $comp->assy_part_number;
+                    $assyPartNumber = trim((string) ($item['assy_part_number'] ?? ($comp->assy_part_number ?? '')));
+                    $hasAssyPartNumber = $assyPartNumber !== '';
                     $displayName = $item['name'] ?? $item['description'] ?? ($comp->name ?? '');
                     $displayPartNumber = $item['part_number'] ?? ($comp->part_number ?? '');
                 @endphp
@@ -739,12 +755,21 @@
 {{--                    @endif--}}
                 </div>
                 <div class="div14 border-b-r text-center pt-1 fs-7" style="line-height: 1.2">
-                    @if($hasAssySerialNumber && !$hasSerialNumber)
-                        {{ $comp ? $comp->assy_part_number : '' }}
+                    @if($hasAssyPartNumber && !$hasAssySerialNumber)
+                        @if($displayPartNumber)
+                            {{ $displayPartNumber }} <br>
+                            ({{ $assyPartNumber }})
+                        @else
+                            {{ $assyPartNumber }}
+                        @endif
+                    @elseif($hasAssySerialNumber && !$hasSerialNumber)
+                        {{ $assyPartNumber }}
                     @else
                         @if($hasAssySerialNumber && $hasSerialNumber)
                             {{ $displayPartNumber }} <br>
-                            ({{ $comp->assy_part_number}})
+                            @if($assyPartNumber !== '')
+                                ({{ $assyPartNumber }})
+                            @endif
                         @else
                             {{ $displayPartNumber }}
                         @endif
@@ -754,7 +779,12 @@
 
                 </div>
                 <div class="div15 border-b-r  text-center pt-1 fs-7" style="line-height: 1.2">
-                    @if($hasAssySerialNumber && !$hasSerialNumber)
+                    @if($hasAssyPartNumber && !$hasAssySerialNumber)
+                        {{ $item['serial_number'] ?? '' }}
+                        @if(!empty($item['serial_number']))
+                            <br>&nbsp;
+                        @endif
+                    @elseif($hasAssySerialNumber && !$hasSerialNumber)
                         {{ $item['assy_serial_number'] }}
                     @else
                         @if($hasAssySerialNumber && $hasSerialNumber)

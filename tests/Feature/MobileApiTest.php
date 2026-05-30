@@ -234,6 +234,8 @@ class MobileApiTest extends TestCase
                 'storage_rack' => 7,
                 'storage_level' => 8,
                 'storage_column' => 9,
+                'arrival_box_status' => 'replace',
+                'arrival_box_notes' => 'Corner dented',
             ]);
 
         $response->assertCreated()
@@ -246,8 +248,13 @@ class MobileApiTest extends TestCase
             'id' => $workorderId,
             'is_draft' => 1,
             'description' => 'API Draft',
+            'arrival_box_status' => 'replace',
+            'arrival_box_notes' => 'Corner dented',
+            'arrival_box_recorded_by' => $shipper->id,
         ]);
-        $this->assertSame('Draft', Workorder::withDrafts()->findOrFail($workorderId)->instruction?->name);
+        $workorder = Workorder::withDrafts()->findOrFail($workorderId);
+        $this->assertSame('Draft', $workorder->instruction?->name);
+        $this->assertNotNull($workorder->arrival_box_recorded_at);
     }
 
     public function test_mobile_api_can_create_and_reuse_pending_draft_unit(): void

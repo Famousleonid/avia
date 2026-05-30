@@ -335,6 +335,8 @@ class MobileApiController extends Controller
             'storage_rack' => ['nullable', 'integer', 'min:0', 'max:999'],
             'storage_level' => ['nullable', 'integer', 'min:0', 'max:999'],
             'storage_column' => ['nullable', 'integer', 'min:0', 'max:999'],
+            'arrival_box_status' => ['nullable', 'in:ok,easy,medium,hard,replace'],
+            'arrival_box_notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         try {
@@ -349,6 +351,12 @@ class MobileApiController extends Controller
 
         $data['user_id'] = $request->user()->id;
         $data['instruction_id'] = Instruction::query()->firstOrCreate(['name' => 'Draft'])->id;
+        $data['arrival_box_notes'] = trim((string) ($data['arrival_box_notes'] ?? '')) ?: null;
+
+        if (! empty($data['arrival_box_status']) || $data['arrival_box_notes'] !== null) {
+            $data['arrival_box_recorded_by'] = $request->user()->id;
+            $data['arrival_box_recorded_at'] = now();
+        }
 
         $workorder = Workorder::createDraft($data);
         app(WorkorderNotifyService::class)->draftCreated(
@@ -926,6 +934,12 @@ class MobileApiController extends Controller
                 'column' => $workorder->storage_column,
                 'location' => $workorder->storage_location,
                 'can_update' => $user->roleIs(['Shipping', 'Manager', 'Admin']),
+            ],
+            'arrival_box' => [
+                'status' => $workorder->arrival_box_status,
+                'notes' => $workorder->arrival_box_notes,
+                'recorded_by' => $workorder->arrival_box_recorded_by,
+                'recorded_at' => optional($workorder->arrival_box_recorded_at)?->toIso8601String(),
             ],
             'media_groups' => collect($this->mediaGroups())->map(function ($label, $key) use ($workorder) {
                 $items = $workorder->getMedia((string) $key);

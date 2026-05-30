@@ -964,11 +964,16 @@ class MobileController extends Controller
     {
 
         $draftNumber = Workorder::nextDraftNumber();
+        $defaultOpenDate = preg_replace_callback(
+            '/\/([a-z]{3})\//',
+            static fn (array $m): string => '/' . ucfirst($m[1]) . '/',
+            format_project_date(now())
+        );
         $units = Unit::query()->with('manual')->orderBy('part_number')->get();
         $customers = Customer::query()->orderBy('name')->get(['id','name']);
         $manuals = Manual::query()->orderBy('title')->get(['id','number']);
 
-        return view('mobile.pages.createdraft', compact('draftNumber','units','customers', 'manuals'));
+        return view('mobile.pages.createdraft', compact('draftNumber','defaultOpenDate','units','customers', 'manuals'));
 
     }
 
@@ -991,6 +996,8 @@ class MobileController extends Controller
             'storage_rack'   => ['nullable','integer','min:0','max:999'],
             'storage_level'  => ['nullable','integer','min:0','max:999'],
             'storage_column' => ['nullable','integer','min:0','max:999'],
+            'arrival_box_status' => ['nullable','in:ok,easy,medium,hard,replace'],
+            'arrival_box_notes' => ['nullable','string','max:1000'],
         ]);
 
         // чекбоксы → bool
@@ -1006,6 +1013,12 @@ class MobileController extends Controller
 
         $data['user_id'] = auth()->id();
         $data['instruction_id'] = 6 ;
+        $data['arrival_box_notes'] = trim((string) ($data['arrival_box_notes'] ?? '')) ?: null;
+
+        if (! empty($data['arrival_box_status']) || $data['arrival_box_notes'] !== null) {
+            $data['arrival_box_recorded_by'] = auth()->id();
+            $data['arrival_box_recorded_at'] = now();
+        }
 
 
         // createDraft сам присвоит number и is_draft=true
