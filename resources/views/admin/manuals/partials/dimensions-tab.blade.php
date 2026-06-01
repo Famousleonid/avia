@@ -52,6 +52,8 @@
     .dim-ic-expand { opacity: 0; transition: opacity .15s; }
     .dim-insp-comp-row:hover .dim-ic-expand { opacity: .5; }
     .dim-ic-expand:hover { opacity: 1 !important; }
+    .dim-ic-plan { opacity: .55; transition: opacity .15s, color .15s; }
+    .dim-ic-plan:hover { opacity: 1 !important; color: #0d6efd !important; }
     .dim-figure-item {
         padding: 6px 12px;
         cursor: pointer;
@@ -761,10 +763,47 @@
                             <div class="col"><label class="form-label form-label-sm">Orig Max</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecOrigMax" placeholder="0.0000"></div>
                         </div>
                         <div class="fw-semibold mb-1" style="font-size:11px;color:var(--bs-secondary-color)">Wear limits — leave empty to use original</div>
-                        <div class="row g-2">
+                        <div class="row g-2 mb-3">
                             <div class="col"><label class="form-label form-label-sm">Wear Min</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecWearMin" placeholder="—"></div>
                             <div class="col"><label class="form-label form-label-sm">Wear Max</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecWearMax" placeholder="—"></div>
                         </div>
+
+                        <div class="fw-semibold mb-1" style="font-size:11px;color:var(--bs-secondary-color)">
+                            Repair Steps <span class="fw-normal">(oversize, in)</span>
+                        </div>
+                        <div id="dimRepairStepsList" class="mb-2"></div>
+                        <div id="dimRepairStepForm" class="d-none border rounded p-2 mb-2" style="background:rgba(0,0,0,.04)">
+                            <input type="hidden" id="dimRsEditId">
+                            <div class="row g-2 mb-2">
+                                <div class="col-3">
+                                    <label class="form-label form-label-sm">Step No.</label>
+                                    <input type="text" class="form-control form-control-sm" id="dimRsStepNo" placeholder="R01">
+                                </div>
+                                <div class="col">
+                                    <label class="form-label form-label-sm">Min (before plating)</label>
+                                    <input type="number" step="0.0001" class="form-control form-control-sm" id="dimRsDimMin" placeholder="0.0000">
+                                </div>
+                                <div class="col">
+                                    <label class="form-label form-label-sm">Max (before plating)</label>
+                                    <input type="number" step="0.0001" class="form-control form-control-sm" id="dimRsDimMax" placeholder="0.0000">
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label form-label-sm">Component (IPL#) <span class="text-secondary fw-normal" style="font-size:10px">— optional</span></label>
+                                <input type="text" class="form-control form-control-sm" id="dimRsIpl" placeholder="e.g. 11-14" autocomplete="off">
+                                <div id="dimRsCompList" class="list-group mt-1" style="display:none;max-height:120px;overflow-y:auto;font-size:12px"></div>
+                                <div class="text-secondary mt-1" style="font-size:11px;min-height:14px" id="dimRsCompInfo"></div>
+                                <input type="hidden" id="dimRsComponentId">
+                            </div>
+                            <div class="text-danger small d-none mb-1" id="dimRsErr"></div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-secondary btn-sm" id="dimRsCancelBtn">Cancel</button>
+                                <button type="button" class="btn btn-primary btn-sm" id="dimRsSaveBtn">Save Step</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="dimAddRepairStepBtn" style="font-size:11px">
+                            <i class="bi bi-plus-lg"></i> Add Repair Step
+                        </button>
                     </div>
                 </div>
 
@@ -794,11 +833,174 @@
     </div>
 </div>
 
+{{-- Modal: Repair Plan (MasterRule — Start / Main / Finish) --}}
+<div class="modal fade" id="dimMasterRuleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dimMrTitle">Repair Plan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="dimMrRuleId">
+
+                {{-- START phase --}}
+                <div class="border rounded p-2 mb-2">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="fw-semibold" style="font-size:12px">START <span class="text-secondary fw-normal">— before main work</span></span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm ms-auto dim-mr-add" data-phase="start" style="font-size:11px"><i class="bi bi-plus-lg"></i> Add rule</button>
+                    </div>
+                    <div id="dimMrStartList"></div>
+                </div>
+
+                {{-- MAIN phase (informational) --}}
+                <div class="border rounded p-2 mb-2" style="background:rgba(13,110,253,.04)">
+                    <span class="fw-semibold" style="font-size:12px">MAIN <span class="text-secondary fw-normal">— auto-assembled from failed points (point rules)</span></span>
+                </div>
+
+                {{-- FINISH phase --}}
+                <div class="border rounded p-2 mb-2">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="fw-semibold" style="font-size:12px">FINISH <span class="text-secondary fw-normal">— after main work</span></span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm ms-auto dim-mr-add" data-phase="finish" style="font-size:11px"><i class="bi bi-plus-lg"></i> Add rule</button>
+                    </div>
+                    <div id="dimMrFinishList"></div>
+                </div>
+
+                {{-- Inline add/edit rule form --}}
+                <div id="dimMrForm" class="d-none border rounded p-2 mb-2" style="background:rgba(0,0,0,.04)">
+                    <input type="hidden" id="dimMrFormPhase">
+                    <input type="hidden" id="dimMrFormEditId">
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">Rule name <span class="text-secondary fw-normal" style="font-size:10px">— optional</span></label>
+                        <input type="text" class="form-control form-control-sm" id="dimMrName" placeholder="e.g. Stress Relief, Cadmium Plating">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">Processes</label>
+                        <div id="dimMrProcessList" class="mb-2"></div>
+                        <select id="dimMrProcessName" style="width:100%">
+                            <option value=""></option>
+                        </select>
+                        <div id="dimMrProcessOptions" class="mt-2 d-none" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm">Condition <span class="text-secondary fw-normal" style="font-size:10px">— when this rule applies</span></label>
+                        <select class="form-select form-select-sm" id="dimMrCondType">
+                            <option value="always">Always</option>
+                            <option value="has_defect">Only if defect present</option>
+                            <option value="has_main_process">Only if Main has process</option>
+                            <option value="any_point_fail">Only if any point is repaired</option>
+                        </select>
+                        <div class="mt-2 d-none" id="dimMrCondDefectWrap">
+                            <label class="form-label form-label-sm">Defect(s)</label>
+                            <select id="dimMrCondDefects" multiple style="width:100%"></select>
+                        </div>
+                        <div class="mt-2 d-none" id="dimMrCondProcWrap">
+                            <label class="form-label form-label-sm">Main process(es)</label>
+                            <select id="dimMrCondProcs" multiple style="width:100%"></select>
+                        </div>
+                    </div>
+                    <div class="text-danger small d-none mb-1" id="dimMrErr"></div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-secondary btn-sm" id="dimMrCancelBtn">Cancel</button>
+                        <button type="button" class="btn btn-primary btn-sm" id="dimMrSaveBtn">Save rule</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal: Process Drawing editor (full-screen) --}}
+<style>
+    #pdw-canvas { flex:1 1 auto; overflow:hidden; position:relative; background:rgba(0,0,0,.05); cursor:grab; }
+    #pdw-canvas.grabbing { cursor:grabbing; }
+    #pdw-canvas.add-mode { cursor:crosshair; }
+    #pdw-img-container { position:absolute; transform-origin:0 0; user-select:none; }
+    #pdw-img { display:block; }
+    #pdw-overlay { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+    #pdw-svg { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; z-index:4; }
+    .pdw-dim-label { position:absolute; transform:translate(-50%,-50%); background:#fff; border:1.5px solid #0d6efd; border-radius:3px;
+        font-size:12px; font-weight:700; color:#0d6efd; padding:1px 6px; white-space:nowrap; cursor:pointer; z-index:10; pointer-events:all; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+    .pdw-dim-label:hover { box-shadow:0 0 0 2px rgba(13,110,253,.35); }
+    .pdw-text-label { position:absolute; transform:translate(-50%,-50%); background:rgba(20,184,166,.12); border:1.5px solid #14b8a6;
+        border-radius:8px; padding:2px 8px; font-size:12px; font-weight:600; color:#0d9488; white-space:nowrap; cursor:pointer; z-index:10; pointer-events:all; }
+</style>
+<div class="modal fade" id="pdwModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title mb-0" id="pdwTitle">Process Drawing</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body d-flex flex-column p-0" style="overflow:hidden">
+                <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom flex-wrap" style="flex-shrink:0">
+                    <button class="btn btn-outline-secondary btn-sm" id="pdwUploadBtn"><i class="bi bi-upload"></i> Image</button>
+                    <input type="file" id="pdwFileInput" accept="image/png,image/jpeg,image/webp,image/gif" class="d-none">
+                    <span class="border-start ps-2 ms-1"></span>
+                    <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="diameter" id="pdwAddDiaBtn" title="Add diameter Ø (1 click)"><i class="bi bi-circle"></i> Ø Diameter</button>
+                    <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="linear" id="pdwAddLinBtn" title="Add linear dimension (2 clicks)"><i class="bi bi-rulers"></i> Linear</button>
+                    <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="label" id="pdwAddLblBtn" title="Add text label (1 click)"><i class="bi bi-tag"></i> Label</button>
+                    <span class="text-secondary ms-auto" id="pdwHint" style="font-size:11px"></span>
+                    <button class="btn btn-outline-secondary btn-sm py-0 px-2" id="pdwZoomReset" title="Reset zoom">↺</button>
+                    <button class="btn btn-outline-danger btn-sm d-none" id="pdwDeleteBtn" title="Remove drawing from this process"><i class="bi bi-trash3"></i> Remove drawing</button>
+                </div>
+                <div id="pdw-elem-form" class="d-none px-3 py-2 border-bottom d-flex gap-2 align-items-center flex-wrap" style="background:rgba(13,110,253,.06);flex-shrink:0">
+                    {{-- dimension fields --}}
+                    <div id="pdw-ef-dim" class="d-none d-flex gap-2 align-items-center flex-wrap">
+                        <span style="font-size:12px;font-weight:600">Value:</span>
+                        <select id="pdw-ef-source" class="form-select form-select-sm" style="width:auto;font-size:12px">
+                            <option value="static">Static value</option>
+                            <option value="measurement">From measurement (WO)</option>
+                        </select>
+                        <input id="pdw-ef-static" type="number" step="0.0001" class="form-control form-control-sm" style="width:120px;font-size:12px" placeholder="0.0000">
+                        <select id="pdw-ef-param" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
+                    </div>
+                    {{-- label fields --}}
+                    <div id="pdw-ef-lbl" class="d-none d-flex gap-2 align-items-center flex-wrap">
+                        <span style="font-size:12px;font-weight:600">Label:</span>
+                        <select id="pdw-ef-lbltype" class="form-select form-select-sm" style="width:auto;font-size:12px">
+                            <option value="text">Free text</option>
+                            <option value="placeholder">Placeholder (WO data)</option>
+                        </select>
+                        <input id="pdw-ef-text" type="text" class="form-control form-control-sm" style="width:200px;font-size:12px" placeholder="text">
+                        <select id="pdw-ef-placeholder" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
+                    </div>
+                    <button id="pdw-ef-save" class="btn btn-primary btn-sm ms-2" style="font-size:12px">Add</button>
+                    <button id="pdw-ef-cancel" class="btn btn-secondary btn-sm" style="font-size:12px">Cancel</button>
+                </div>
+                <div id="pdw-canvas">
+                    <div id="pdw-empty" class="d-flex align-items-center justify-content-center h-100 text-secondary" style="font-size:13px">
+                        <div class="text-center"><i class="bi bi-image" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.4rem"></i>Upload an image to start</div>
+                    </div>
+                    <div id="pdw-img-container" class="d-none">
+                        <img id="pdw-img" src="" alt="">
+                        <svg id="pdw-svg"></svg>
+                        <div id="pdw-overlay"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const MANUAL_ID       = @json($manualId);
     const CSRF            = @json($csrfToken);
     const DIM_PROCESSES   = @json($dimManualProcesses);
+    const DIM_CODES       = @json($codes);
+    // unique process names {id: process_names_id, name} — for has_main_process condition
+    const DIM_PROCESS_NAMES = (function () {
+        const seen = {}, out = [];
+        DIM_PROCESSES.forEach(function (p) {
+            if (p.process_names_id && !seen[p.process_names_id]) { seen[p.process_names_id] = 1; out.push({ id: p.process_names_id, name: p.process_name }); }
+        });
+        return out.sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+    })();
     const DIM_PROCESSES_BY_NAME = (function () {
         const map = {};
         DIM_PROCESSES.forEach(function (p) {
@@ -913,6 +1115,7 @@ document.addEventListener('DOMContentLoaded', function () {
                   </div>` : '';
             return `<div class="dim-insp-comp-row" data-ic-id="${ic.id}" draggable="true">
                 <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
+                <button class="btn btn-link p-0 dim-ic-plan" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Repair Plan (Start/Finish)"><i class="bi bi-diagram-3"></i></button>
                 <span class="dim-insp-comp-name fw-semibold flex-grow-1" data-ic-id="${ic.id}" style="color:#5ee3ff;font-size:11px" title="Double-click to rename">${escHtml(ic.label)}</span>
                 <button class="btn btn-link p-0 dim-ic-expand" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Variants">
                     <i class="bi bi-${isOpen ? 'chevron-up' : 'chevron-down'}"></i>
@@ -928,6 +1131,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 const id = parseInt(btn.dataset.icId);
                 expandedIcId = (expandedIcId === id) ? null : id;
                 renderInspComponents();
+            });
+        });
+
+        // open repair plan (MasterRule)
+        list.querySelectorAll('.dim-ic-plan').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const id = parseInt(btn.dataset.icId);
+                const ic = inspComponents.find(function (x) { return x.id === id; });
+                openMasterRuleModal(id, ic ? ic.label : '');
             });
         });
 
@@ -2724,8 +2936,187 @@ document.addEventListener('DOMContentLoaded', function () {
         const multiPoint = (param.point_ids || []).length > 1;
         document.getElementById('dimSpecDetachBtn').classList.toggle('d-none', !multiPoint);
         document.getElementById('dimSpecError').classList.add('d-none');
+        // Load repair steps for this parameter (independent per part)
+        closeRepairStepForm();
+        loadRepairSteps(param.id);
         specModal.show();
     }
+
+    // ==========================
+    // Repair Steps (inside Edit Parameter modal)
+    // ==========================
+    let dimRsSteps   = [];   // loaded steps for active parameter
+    let dimRsParamId = null; // current parameter id
+    let dimRsIplTimer = null;
+
+    function fmtDim4(v) { return v != null ? parseFloat(v).toFixed(4) : '—'; }
+
+    function renderRepairSteps() {
+        const list = document.getElementById('dimRepairStepsList');
+        if (!list) return;
+        if (!dimRsSteps.length) {
+            list.innerHTML = '<div class="text-secondary" style="font-size:11px">No repair steps yet</div>';
+            return;
+        }
+        list.innerHTML = dimRsSteps.map(function (s) {
+            const dimStr = (s.dim_min != null || s.dim_max != null)
+                ? (fmtDim4(s.dim_min) + ' – ' + fmtDim4(s.dim_max)) : '—';
+            const compStr = s.component ? (s.component.ipl_num + ' ' + (s.component.part_number || '')) : '—';
+            return `<div class="d-flex align-items-center gap-2 py-1 border-bottom" style="font-size:12px">
+                <span class="fw-semibold text-info" style="min-width:36px">${escHtml(s.step_no)}</span>
+                <span class="font-monospace flex-grow-1">${escHtml(dimStr)}</span>
+                <span class="text-secondary" style="font-size:11px">${escHtml(compStr)}</span>
+                <button type="button" class="btn btn-link btn-sm p-0 dim-rs-edit-btn" data-id="${s.id}" title="Edit" style="color:var(--bs-secondary-color);font-size:11px"><i class="bi bi-pencil"></i></button>
+                <button type="button" class="btn btn-link btn-sm p-0 dim-rs-del-btn" data-id="${s.id}" title="Delete" style="color:#dc3545;font-size:11px"><i class="bi bi-trash3"></i></button>
+            </div>`;
+        }).join('');
+        list.querySelectorAll('.dim-rs-edit-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { openRepairStepForm(parseInt(btn.dataset.id)); });
+        });
+        list.querySelectorAll('.dim-rs-del-btn').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                if (!confirm('Delete repair step?')) return;
+                try {
+                    await apiFetch('/repair-steps/' + btn.dataset.id, { method: 'DELETE' });
+                    dimRsSteps = dimRsSteps.filter(function (s) { return s.id != btn.dataset.id; });
+                    renderRepairSteps();
+                } catch (e) { alert(e.message); }
+            });
+        });
+    }
+
+    async function loadRepairSteps(paramId) {
+        dimRsParamId = paramId;
+        dimRsSteps   = [];
+        renderRepairSteps();
+        if (!paramId) return;
+        try {
+            dimRsSteps = await apiFetch('/parameters/' + paramId + '/repair-steps');
+            renderRepairSteps();
+        } catch (e) { console.error('loadRepairSteps', e); }
+    }
+
+    function openRepairStepForm(editId) {
+        const form = document.getElementById('dimRepairStepForm');
+        const err  = document.getElementById('dimRsErr');
+        err.classList.add('d-none');
+        document.getElementById('dimRsCompList').style.display = 'none';
+        document.getElementById('dimRsCompList').innerHTML = '';
+
+        if (editId) {
+            const s = dimRsSteps.find(function (x) { return x.id === editId; });
+            document.getElementById('dimRsEditId').value  = editId;
+            document.getElementById('dimRsStepNo').value  = s ? s.step_no : '';
+            document.getElementById('dimRsDimMin').value  = s ? (s.dim_min || '') : '';
+            document.getElementById('dimRsDimMax').value  = s ? (s.dim_max || '') : '';
+            document.getElementById('dimRsIpl').value     = s && s.component ? s.component.ipl_num : '';
+            document.getElementById('dimRsComponentId').value = s && s.component ? s.component.id : '';
+            document.getElementById('dimRsCompInfo').textContent = s && s.component
+                ? (s.component.ipl_num + ' — ' + (s.component.part_number || '') + (s.component.name ? ' ' + s.component.name : ''))
+                : '';
+        } else {
+            document.getElementById('dimRsEditId').value  = '';
+            document.getElementById('dimRsStepNo').value  = '';
+            document.getElementById('dimRsDimMin').value  = '';
+            document.getElementById('dimRsDimMax').value  = '';
+            document.getElementById('dimRsIpl').value     = '';
+            document.getElementById('dimRsComponentId').value = '';
+            document.getElementById('dimRsCompInfo').textContent = '';
+        }
+        form.classList.remove('d-none');
+        document.getElementById('dimAddRepairStepBtn').classList.add('d-none');
+        document.getElementById('dimRsStepNo').focus();
+    }
+
+    function closeRepairStepForm() {
+        document.getElementById('dimRepairStepForm').classList.add('d-none');
+        document.getElementById('dimAddRepairStepBtn').classList.remove('d-none');
+    }
+
+    document.getElementById('dimAddRepairStepBtn').addEventListener('click', function () {
+        openRepairStepForm(null);
+    });
+
+    document.getElementById('dimRsCancelBtn').addEventListener('click', closeRepairStepForm);
+
+    // IPL# autocomplete for component in repair step form
+    document.getElementById('dimRsIpl').addEventListener('input', function () {
+        clearTimeout(dimRsIplTimer);
+        const val = this.value.trim();
+        document.getElementById('dimRsComponentId').value = '';
+        document.getElementById('dimRsCompInfo').textContent = '';
+        if (!val) { document.getElementById('dimRsCompList').style.display = 'none'; return; }
+        dimRsIplTimer = setTimeout(async function () {
+            try {
+                const items = await apiFetch('/manuals/' + MANUAL_ID + '/inspection-components/component-search?ipl_num=' + encodeURIComponent(val));
+                const list  = document.getElementById('dimRsCompList');
+                list.innerHTML = '';
+                if (!items || !items.length) {
+                    document.getElementById('dimRsCompInfo').textContent = 'Not found';
+                    list.style.display = 'none';
+                } else if (items.length === 1) {
+                    selectRsComponent(items[0]);
+                } else {
+                    items.forEach(function (c) {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'list-group-item list-group-item-action py-1 px-2';
+                        btn.innerHTML = '<span class="fw-semibold">' + escHtml(c.ipl_num) + '</span> <span class="text-secondary">' + escHtml(c.part_number || '') + '</span>';
+                        btn.addEventListener('click', function () { selectRsComponent(c); });
+                        list.appendChild(btn);
+                    });
+                    list.style.display = 'block';
+                }
+            } catch (e) {}
+        }, 350);
+    });
+
+    function selectRsComponent(c) {
+        document.getElementById('dimRsIpl').value          = c.ipl_num;
+        document.getElementById('dimRsComponentId').value  = c.id;
+        document.getElementById('dimRsCompInfo').textContent = c.ipl_num + ' — ' + (c.part_number || '') + (c.name ? ' ' + c.name : '');
+        document.getElementById('dimRsCompList').style.display = 'none';
+        document.getElementById('dimRsCompList').innerHTML  = '';
+    }
+
+    document.getElementById('dimRsSaveBtn').addEventListener('click', async function () {
+        const err    = document.getElementById('dimRsErr');
+        err.classList.add('d-none');
+        const editId = document.getElementById('dimRsEditId').value;
+        const stepNo = document.getElementById('dimRsStepNo').value.trim();
+        const dimMin = document.getElementById('dimRsDimMin').value;
+        const dimMax = document.getElementById('dimRsDimMax').value;
+        const compId = document.getElementById('dimRsComponentId').value || null;
+
+        if (!stepNo) { err.textContent = 'Step No. is required.'; err.classList.remove('d-none'); return; }
+        if (!dimRsParamId) { err.textContent = 'No parameter selected.'; err.classList.remove('d-none'); return; }
+
+        this.disabled = true;
+        try {
+            let saved;
+            const body = {
+                step_no:      stepNo,
+                component_id: compId ? parseInt(compId) : null,
+                dim_min:      dimMin !== '' ? parseFloat(dimMin) : null,
+                dim_max:      dimMax !== '' ? parseFloat(dimMax) : null,
+            };
+            if (editId) {
+                saved = await apiFetch('/repair-steps/' + editId, { method: 'PATCH', body: JSON.stringify(body) });
+                const idx = dimRsSteps.findIndex(function (s) { return s.id == editId; });
+                if (idx !== -1) dimRsSteps[idx] = saved;
+            } else {
+                saved = await apiFetch('/parameters/' + dimRsParamId + '/repair-steps', { method: 'POST', body: JSON.stringify(body) });
+                dimRsSteps.push(saved);
+            }
+            renderRepairSteps();
+            closeRepairStepForm();
+        } catch (e) {
+            err.textContent = e.message;
+            err.classList.remove('d-none');
+        } finally {
+            this.disabled = false;
+        }
+    });
 
     // ==========================
     // Repair Rule modal
@@ -2748,9 +3139,13 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         wrap.innerHTML = dimRuleProcesses.map(function (p, i) {
+            const drawBtn = p.rule_process_id
+                ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-draw" data-rpid="${p.rule_process_id}" data-label="${escHtml(p.label)}" title="${p.has_drawing ? 'Process drawing (has image)' : 'Add process drawing'}" style="font-size:11px;color:${p.has_drawing ? '#0d6efd' : 'var(--bs-secondary-color)'};opacity:${p.has_drawing ? '1' : '.5'}"><i class="bi bi-${p.has_drawing ? 'pencil-square' : 'image'}"></i></button>`
+                : '';
             return `<div class="dim-rule-process-item">
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
                 <span class="flex-grow-1">${escHtml(p.label)}</span>
+                ${drawBtn}
                 <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)">
                     <i class="bi bi-x"></i>
                 </button>
@@ -2760,6 +3155,11 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.addEventListener('click', function () {
                 dimRuleProcesses.splice(parseInt(btn.dataset.idx), 1);
                 renderRuleProcessList();
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-proc-draw').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                openProcessDrawingModal(parseInt(btn.dataset.rpid), btn.dataset.label);
             });
         });
     }
@@ -2841,7 +3241,7 @@ document.addEventListener('DOMContentLoaded', function () {
         dimRuleProcesses = (rule.processes || []).slice().sort(function (a, b) {
             return (a.sort_order || 0) - (b.sort_order || 0);
         }).map(function (p) {
-            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id) };
+            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), rule_process_id: p.id, has_drawing: !!p.has_drawing };
         });
         dimRuleTriggers = (rule.triggers || []).map(function (t) {
             return { trigger: t.trigger, codes_id: t.codes_id || null, code_name: t.code_name || null };
@@ -3700,6 +4100,651 @@ document.addEventListener('DOMContentLoaded', function () {
         h += '</div></div>';
         return h;
     };
+
+    // ==========================
+    // Repair Plan (MasterRule) modal
+    // ==========================
+    let masterRuleModal = null;
+    let dimMrData       = null;  // current master rule {id, phase_rules:[]}
+    let dimMrIcId       = null;
+
+    function getMasterRuleModal() {
+        if (!masterRuleModal) masterRuleModal = new bootstrap.Modal(document.getElementById('dimMasterRuleModal'));
+        return masterRuleModal;
+    }
+
+    let dimMrProcesses = []; // selected processes [{manual_process_id, label}]
+
+    function renderMrProcessList() {
+        const wrap = document.getElementById('dimMrProcessList');
+        if (!wrap) return;
+        if (!dimMrProcesses.length) {
+            wrap.innerHTML = '<div class="text-secondary" style="font-size:11px">No processes added</div>';
+            return;
+        }
+        wrap.innerHTML = dimMrProcesses.map(function (p, i) {
+            return `<div class="dim-rule-process-item">
+                <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
+                <span class="flex-grow-1">${escHtml(p.label)}</span>
+                <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-mr-proc-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-x"></i></button>
+            </div>`;
+        }).join('');
+        wrap.querySelectorAll('.dim-mr-proc-remove').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dimMrProcesses.splice(parseInt(btn.dataset.idx), 1);
+                renderMrProcessList();
+                updateMrProcOptButtons();
+            });
+        });
+    }
+
+    function updateMrProcOptButtons() {
+        const wrap = document.getElementById('dimMrProcessOptions');
+        if (!wrap) return;
+        wrap.querySelectorAll('.dim-mr-proc-opt').forEach(function (btn) {
+            const id = parseInt(btn.dataset.id);
+            const already = dimMrProcesses.some(function (p) { return p.manual_process_id === id; });
+            btn.classList.toggle('active', already);
+            btn.onclick = function () {
+                const idx = dimMrProcesses.findIndex(function (p) { return p.manual_process_id === id; });
+                if (idx !== -1) dimMrProcesses.splice(idx, 1);
+                else dimMrProcesses.push({ manual_process_id: id, label: btn.dataset.label });
+                renderMrProcessList();
+                updateMrProcOptButtons();
+            };
+        });
+    }
+
+    // init process name Select2 + option buttons once
+    (function initMrProcessSelect() {
+        const sel = document.getElementById('dimMrProcessName');
+        Object.keys(DIM_PROCESSES_BY_NAME).sort().forEach(function (name) {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            sel.appendChild(opt);
+        });
+        $('#dimMrProcessName').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#dimMasterRuleModal'),
+            placeholder: 'Process name...',
+            allowClear: true,
+            width: '100%',
+        });
+        $('#dimMrProcessName').on('change', function () {
+            const name = this.value;
+            const wrap = document.getElementById('dimMrProcessOptions');
+            if (!name) { wrap.classList.add('d-none'); wrap.innerHTML = ''; return; }
+            const procs  = DIM_PROCESSES_BY_NAME[name] || [];
+            const prefix = name + ' — ';
+            wrap.innerHTML = procs.map(function (p) {
+                const shortLabel = p.label.startsWith(prefix) ? p.label.slice(prefix.length) : p.label;
+                return `<button type="button" class="btn btn-outline-secondary btn-sm dim-mr-proc-opt" data-id="${p.id}" data-label="${escHtml(p.label)}" style="font-size:12px">${escHtml(shortLabel)}</button>`;
+            }).join('');
+            wrap.classList.remove('d-none');
+            updateMrProcOptButtons();
+        });
+        // defect picker for condition
+        const dsel = document.getElementById('dimMrCondDefects');
+        (DIM_CODES || []).forEach(function (c) {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            dsel.appendChild(opt);
+        });
+        $('#dimMrCondDefects').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#dimMasterRuleModal'),
+            placeholder: 'Select defect(s)...',
+            width: '100%',
+            closeOnSelect: false,
+        });
+        // main process picker (for has_main_process)
+        const psel = document.getElementById('dimMrCondProcs');
+        DIM_PROCESS_NAMES.forEach(function (p) {
+            const opt = document.createElement('option');
+            opt.value = p.id; opt.textContent = p.name;
+            psel.appendChild(opt);
+        });
+        $('#dimMrCondProcs').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#dimMasterRuleModal'),
+            placeholder: 'Select Main process(es)...',
+            width: '100%',
+            closeOnSelect: false,
+        });
+        // toggle extra inputs by condition type
+        document.getElementById('dimMrCondType').addEventListener('change', function () {
+            document.getElementById('dimMrCondDefectWrap').classList.toggle('d-none', this.value !== 'has_defect');
+            document.getElementById('dimMrCondProcWrap').classList.toggle('d-none', this.value !== 'has_main_process');
+        });
+    })();
+
+    async function openMasterRuleModal(icId, label) {
+        dimMrIcId = icId;
+        document.getElementById('dimMrTitle').textContent = 'Repair Plan — ' + (label || '');
+        closeMrForm();
+        document.getElementById('dimMrStartList').innerHTML  = '<div class="text-secondary" style="font-size:11px">Loading…</div>';
+        document.getElementById('dimMrFinishList').innerHTML = '';
+        getMasterRuleModal().show();
+        try {
+            dimMrData = await apiFetch('/inspection-components/' + icId + '/master-rule');
+            renderMrPhases();
+        } catch (e) {
+            document.getElementById('dimMrStartList').innerHTML = '<div class="text-danger" style="font-size:11px">' + escHtml(e.message) + '</div>';
+        }
+    }
+
+    function mrConditionLabel(cond) {
+        if (!cond || !cond.type || cond.type === 'always') return '';
+        let txt = '';
+        if (cond.type === 'has_defect') {
+            const names = (cond.codes_ids || []).map(function (id) {
+                const c = (DIM_CODES || []).find(function (x) { return x.id == id; });
+                return c ? c.name : id;
+            });
+            txt = 'if defect: ' + names.join(', ');
+        } else if (cond.type === 'has_main_process') {
+            const names = (cond.process_name_ids || []).map(function (id) {
+                const p = DIM_PROCESS_NAMES.find(function (x) { return x.id == id; });
+                return p ? p.name : id;
+            });
+            txt = 'if Main has: ' + names.join(', ');
+        } else if (cond.type === 'any_point_fail') {
+            txt = 'if any point repaired';
+        } else {
+            txt = cond.type;
+        }
+        return ` <span class="badge bg-warning text-dark" style="font-size:9px;font-weight:500">${escHtml(txt)}</span>`;
+    }
+
+    function renderMrPhases() {
+        ['start', 'finish'].forEach(function (phase) {
+            const wrap = document.getElementById(phase === 'start' ? 'dimMrStartList' : 'dimMrFinishList');
+            const rules = (dimMrData.phase_rules || []).filter(function (r) { return r.phase === phase; });
+            if (!rules.length) {
+                wrap.innerHTML = '<div class="text-secondary" style="font-size:11px">No ' + phase + ' rules</div>';
+                return;
+            }
+            wrap.innerHTML = rules.map(function (r) {
+                const procs = (r.processes || []).map(function (p) { return escHtml(p.label); }).join(', ') || '<span class="text-secondary">no processes</span>';
+                const condHtml = mrConditionLabel(r.condition);
+                return `<div class="d-flex align-items-start gap-2 py-1 border-bottom" style="font-size:12px">
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold">${escHtml(r.name || '(unnamed)')}${condHtml}</div>
+                        <div class="text-secondary" style="font-size:11px">${procs}</div>
+                    </div>
+                    <button type="button" class="btn btn-link btn-sm p-0 dim-mr-edit" data-id="${r.id}" title="Edit" style="color:var(--bs-secondary-color);font-size:11px"><i class="bi bi-pencil"></i></button>
+                    <button type="button" class="btn btn-link btn-sm p-0 dim-mr-del" data-id="${r.id}" title="Delete" style="color:#dc3545;font-size:11px"><i class="bi bi-trash3"></i></button>
+                </div>`;
+            }).join('');
+            wrap.querySelectorAll('.dim-mr-edit').forEach(function (b) {
+                b.addEventListener('click', function () { openMrForm(phase, parseInt(b.dataset.id)); });
+            });
+            wrap.querySelectorAll('.dim-mr-del').forEach(function (b) {
+                b.addEventListener('click', async function () {
+                    if (!confirm('Delete this rule?')) return;
+                    try {
+                        await apiFetch('/master-rule-phase-rules/' + b.dataset.id, { method: 'DELETE' });
+                        dimMrData.phase_rules = dimMrData.phase_rules.filter(function (r) { return r.id != b.dataset.id; });
+                        renderMrPhases();
+                    } catch (e) { alert(e.message); }
+                });
+            });
+        });
+    }
+
+    function openMrForm(phase, editId) {
+        document.getElementById('dimMrFormPhase').value  = phase;
+        document.getElementById('dimMrFormEditId').value = editId || '';
+        document.getElementById('dimMrErr').classList.add('d-none');
+        let name = '', cond = null;
+        dimMrProcesses = [];
+        if (editId) {
+            const r = (dimMrData.phase_rules || []).find(function (x) { return x.id === editId; });
+            if (r) {
+                name = r.name || '';
+                dimMrProcesses = (r.processes || []).map(function (p) { return { manual_process_id: p.manual_process_id, label: p.label }; });
+                cond = r.condition || null;
+            }
+        }
+        document.getElementById('dimMrName').value = name;
+        renderMrProcessList();
+        // reset process name picker
+        $('#dimMrProcessName').val(null).trigger('change');
+        const optWrap = document.getElementById('dimMrProcessOptions');
+        if (optWrap) { optWrap.classList.add('d-none'); optWrap.innerHTML = ''; }
+        // condition
+        const condType = (cond && cond.type) ? cond.type : 'always';
+        document.getElementById('dimMrCondType').value = condType;
+        document.getElementById('dimMrCondDefectWrap').classList.toggle('d-none', condType !== 'has_defect');
+        document.getElementById('dimMrCondProcWrap').classList.toggle('d-none', condType !== 'has_main_process');
+        const defIds = (cond && cond.codes_ids) ? cond.codes_ids.map(String) : [];
+        $('#dimMrCondDefects').val(defIds).trigger('change');
+        const procIds2 = (cond && cond.process_name_ids) ? cond.process_name_ids.map(String) : [];
+        $('#dimMrCondProcs').val(procIds2).trigger('change');
+        document.getElementById('dimMrForm').classList.remove('d-none');
+    }
+
+    function closeMrForm() {
+        const f = document.getElementById('dimMrForm');
+        if (f) f.classList.add('d-none');
+    }
+
+    document.querySelectorAll('.dim-mr-add').forEach(function (btn) {
+        btn.addEventListener('click', function () { openMrForm(btn.dataset.phase, null); });
+    });
+
+    document.getElementById('dimMrCancelBtn').addEventListener('click', closeMrForm);
+
+    document.getElementById('dimMrSaveBtn').addEventListener('click', async function () {
+        const err    = document.getElementById('dimMrErr');
+        err.classList.add('d-none');
+        const phase  = document.getElementById('dimMrFormPhase').value;
+        const editId = document.getElementById('dimMrFormEditId').value;
+        const name   = document.getElementById('dimMrName').value.trim();
+        const procs  = dimMrProcesses.map(function (p) { return p.manual_process_id; });
+
+        // build condition
+        const condType = document.getElementById('dimMrCondType').value;
+        let condition = null;
+        if (condType === 'has_defect') {
+            const codes = ($('#dimMrCondDefects').val() || []).map(function (v) { return parseInt(v); });
+            condition = { type: 'has_defect', codes_ids: codes };
+        } else if (condType === 'has_main_process') {
+            const pn = ($('#dimMrCondProcs').val() || []).map(function (v) { return parseInt(v); });
+            condition = { type: 'has_main_process', process_name_ids: pn };
+        } else if (condType === 'any_point_fail') {
+            condition = { type: 'any_point_fail' };
+        } // 'always' → null
+
+        this.disabled = true;
+        try {
+            const body = { phase: phase, name: name || null, processes: procs, condition: condition };
+            let saved;
+            if (editId) {
+                saved = await apiFetch('/master-rule-phase-rules/' + editId, { method: 'PATCH', body: JSON.stringify(body) });
+                const idx = dimMrData.phase_rules.findIndex(function (r) { return r.id == editId; });
+                if (idx !== -1) dimMrData.phase_rules[idx] = saved;
+            } else {
+                saved = await apiFetch('/master-rules/' + dimMrData.id + '/phase-rules', { method: 'POST', body: JSON.stringify(body) });
+                dimMrData.phase_rules.push(saved);
+            }
+            renderMrPhases();
+            closeMrForm();
+        } catch (e) {
+            err.textContent = e.message;
+            err.classList.remove('d-none');
+        } finally {
+            this.disabled = false;
+        }
+    });
+
+    // ==========================
+    // Process Drawing editor
+    // ==========================
+    let pdwModal = null, pdwDrawing = null;
+    let pdwScale = 1, pdwTx = 0, pdwTy = 0;
+    let pdwDragging = false, pdwDragSX = 0, pdwDragSY = 0, pdwDragTx = 0, pdwDragTy = 0;
+    let pdwMode = null, pdwLinearStart = null;
+
+    const pdwCanvas    = document.getElementById('pdw-canvas');
+    const pdwImgCont   = document.getElementById('pdw-img-container');
+    const pdwImg       = document.getElementById('pdw-img');
+    const pdwOverlay   = document.getElementById('pdw-overlay');
+    const pdwSvg       = document.getElementById('pdw-svg');
+    const pdwEmpty     = document.getElementById('pdw-empty');
+
+    function getPdwModal() {
+        if (!pdwModal) pdwModal = new bootstrap.Modal(document.getElementById('pdwModal'));
+        return pdwModal;
+    }
+
+    let pdwRuleProcessId = null;
+
+    async function openProcessDrawingModal(ruleProcessId, label) {
+        pdwRuleProcessId = ruleProcessId;
+        document.getElementById('pdwTitle').textContent = 'Process Drawing — ' + (label || '');
+        pdwSetMode(null);
+        pdwDrawing = null;
+        pdwEmpty.classList.remove('d-none');
+        pdwImgCont.classList.add('d-none');
+        document.getElementById('pdwDeleteBtn').classList.add('d-none');
+        getPdwModal().show();
+        try {
+            pdwDrawing = await apiFetch('/rule-processes/' + ruleProcessId + '/drawing');
+            if (pdwDrawing.image_path) pdwShowImage(pdwDrawing.image_path);
+            // show delete button only if a drawing actually exists
+            document.getElementById('pdwDeleteBtn').classList.toggle('d-none', !pdwDrawing.id);
+        } catch (e) { alert(e.message); }
+    }
+
+    document.getElementById('pdwDeleteBtn').addEventListener('click', async function () {
+        if (!pdwDrawing || !pdwDrawing.id) return;
+        if (!confirm('Remove the entire drawing from this process?')) return;
+        try {
+            await apiFetch('/process-drawings/' + pdwDrawing.id, { method: 'DELETE' });
+            // mark process button as empty again
+            const rp = dimRuleProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
+            if (rp) { rp.has_drawing = false; renderRuleProcessList(); }
+            getPdwModal().hide();
+        } catch (e) { alert(e.message); }
+    });
+
+    // Lazily create the drawing record on first real action (upload / add element)
+    async function pdwEnsureDrawing() {
+        if (pdwDrawing && pdwDrawing.id) return pdwDrawing.id;
+        const created = await apiFetch('/rule-processes/' + pdwRuleProcessId + '/drawing', { method: 'POST' });
+        pdwDrawing = Object.assign(created, { elements: created.elements || [] });
+        document.getElementById('pdwDeleteBtn').classList.remove('d-none');
+        return pdwDrawing.id;
+    }
+
+    function pdwShowImage(src) {
+        pdwEmpty.classList.add('d-none');
+        pdwImgCont.classList.remove('d-none');
+        if (pdwImg.src !== src) {
+            pdwImg.onload = function () { pdwFit(); pdwRenderElements(); };
+            pdwImg.src = src;
+        } else { pdwFit(); pdwRenderElements(); }
+    }
+
+    function pdwFit() {
+        if (!pdwImg.naturalWidth) return;
+        const r = pdwCanvas.getBoundingClientRect();
+        const iw = pdwImg.naturalWidth, ih = pdwImg.naturalHeight;
+        pdwImg.style.width = iw + 'px'; pdwImg.style.height = ih + 'px';
+        pdwImgCont.style.width = iw + 'px'; pdwImgCont.style.height = ih + 'px';
+        pdwScale = Math.min(r.width / iw, r.height / ih) * 0.95;
+        pdwTx = (r.width - iw * pdwScale) / 2;
+        pdwTy = (r.height - ih * pdwScale) / 2;
+        pdwApply();
+    }
+
+    function pdwApply() {
+        pdwImgCont.style.transform = 'translate(' + pdwTx + 'px,' + pdwTy + 'px) scale(' + pdwScale + ')';
+        pdwPositionElements();
+    }
+
+    function pdwPositionElements() {
+        const iw = pdwImg.naturalWidth, ih = pdwImg.naturalHeight;
+        if (!iw || !ih) return;
+        pdwOverlay.querySelectorAll('[data-xp]').forEach(function (el) {
+            const xp = parseFloat(el.dataset.xp), yp = parseFloat(el.dataset.yp);
+            el.style.left = (pdwTx + xp / 100 * iw * pdwScale) + 'px';
+            el.style.top  = (pdwTy + yp / 100 * ih * pdwScale) + 'px';
+        });
+        pdwDrawSvg();
+    }
+
+    function pdwDrawSvg() {
+        const iw = pdwImg.naturalWidth, ih = pdwImg.naturalHeight;
+        pdwSvg.innerHTML = '';
+        if (!iw || !ih || !pdwDrawing) return;
+        const ns = 'http://www.w3.org/2000/svg';
+        (pdwDrawing.elements || []).forEach(function (e) {
+            if (e.element_type === 'dimension' && e.mask === 'linear' && e.x2_pct != null) {
+                const ax = pdwTx + e.x_pct / 100 * iw * pdwScale, ay = pdwTy + e.y_pct / 100 * ih * pdwScale;
+                const bx = pdwTx + e.x2_pct / 100 * iw * pdwScale, by = pdwTy + e.y2_pct / 100 * ih * pdwScale;
+                const ln = document.createElementNS(ns, 'line');
+                ln.setAttribute('x1', ax); ln.setAttribute('y1', ay); ln.setAttribute('x2', bx); ln.setAttribute('y2', by);
+                ln.setAttribute('stroke', '#0d6efd'); ln.setAttribute('stroke-width', '1.5');
+                ln.setAttribute('marker-start', 'url(#pdw-arrow)'); ln.setAttribute('marker-end', 'url(#pdw-arrow)');
+                pdwSvg.appendChild(ln);
+            }
+        });
+        const defs = document.createElementNS(ns, 'defs');
+        defs.innerHTML = '<marker id="pdw-arrow" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M0,0 L0,5 L6,2.5 z" fill="#0d6efd"/></marker>';
+        pdwSvg.appendChild(defs);
+    }
+
+    function pdwFmt(v) { return v != null ? parseFloat(v).toFixed(4).replace(/\.?0+$/, '') : ''; }
+
+    function pdwRenderElements() {
+        pdwOverlay.innerHTML = '';
+        if (!pdwDrawing) return;
+        (pdwDrawing.elements || []).forEach(function (e) {
+            let el;
+            if (e.element_type === 'dimension') {
+                el = document.createElement('div');
+                el.className = 'pdw-dim-label';
+                const prefix = e.mask === 'diameter' ? 'Ø' : '';
+                let valTxt;
+                if (e.value_source === 'measurement') {
+                    const sp = (pdwDrawing.source_parameters || []).find(function (p) { return p.id == e.source_parameter_id; });
+                    valTxt = '⟨' + (sp ? (sp.description || 'param') : 'measure') + '⟩';
+                    el.style.borderStyle = 'dashed';
+                } else {
+                    valTxt = pdwFmt(e.static_value);
+                }
+                el.textContent = prefix + valTxt;
+                let xp = e.label_x_pct, yp = e.label_y_pct;
+                if (xp == null) {
+                    if (e.mask === 'linear' && e.x2_pct != null) { xp = (parseFloat(e.x_pct) + parseFloat(e.x2_pct)) / 2; yp = (parseFloat(e.y_pct) + parseFloat(e.y2_pct)) / 2; }
+                    else { xp = e.x_pct; yp = e.y_pct; }
+                }
+                el.dataset.xp = xp; el.dataset.yp = yp;
+            } else {
+                el = document.createElement('div');
+                el.className = 'pdw-text-label';
+                if (e.placeholder) { el.textContent = e.placeholder; el.style.borderStyle = 'dashed'; }
+                else el.textContent = e.text || '';
+                el.dataset.xp = e.x_pct; el.dataset.yp = e.y_pct;
+            }
+            el.dataset.elId = e.id;
+            el.title = 'Drag to move · double-click to delete';
+            pdwAddElementDrag(el, e);
+            el.addEventListener('dblclick', async function (ev) {
+                ev.stopPropagation();
+                if (!confirm('Delete this element?')) return;
+                try {
+                    await apiFetch('/process-drawing-elements/' + e.id, { method: 'DELETE' });
+                    pdwDrawing.elements = pdwDrawing.elements.filter(function (x) { return x.id !== e.id; });
+                    pdwRenderElements();
+                } catch (err) { alert(err.message); }
+            });
+            pdwOverlay.appendChild(el);
+        });
+        pdwPositionElements();
+    }
+
+    function pdwAddElementDrag(el, e) {
+        el.addEventListener('mousedown', function (ev) {
+            if (ev.button !== 0 || pdwMode) return;
+            ev.stopPropagation();
+            const sx = ev.clientX, sy = ev.clientY; let moved = false;
+            function mv(ev2) {
+                const dx = ev2.clientX - sx, dy = ev2.clientY - sy;
+                if (!moved && Math.hypot(dx, dy) > 4) moved = true;
+                if (moved) el.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
+            }
+            async function up(ev2) {
+                document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
+                el.style.transform = '';
+                if (!moved) return;
+                const iw = pdwImg.naturalWidth, ih = pdwImg.naturalHeight;
+                const dxp = (ev2.clientX - sx) / (iw * pdwScale) * 100;
+                const dyp = (ev2.clientY - sy) / (ih * pdwScale) * 100;
+                const newX = Math.min(Math.max(parseFloat(el.dataset.xp) + dxp, 0), 100);
+                const newY = Math.min(Math.max(parseFloat(el.dataset.yp) + dyp, 0), 100);
+                // store on label_x/y for dimensions, x/y for labels
+                const body = (e.element_type === 'dimension')
+                    ? { label_x_pct: newX, label_y_pct: newY }
+                    : { x_pct: newX, y_pct: newY };
+                try {
+                    const saved = await apiFetch('/process-drawing-elements/' + e.id, { method: 'PATCH', body: JSON.stringify(body) });
+                    const idx = pdwDrawing.elements.findIndex(function (x) { return x.id === e.id; });
+                    if (idx !== -1) pdwDrawing.elements[idx] = saved;
+                    pdwRenderElements();
+                } catch (err) { alert(err.message); pdwRenderElements(); }
+            }
+            document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+        });
+    }
+
+    // ---- zoom / pan ----
+    pdwCanvas.addEventListener('wheel', function (ev) {
+        if (pdwImgCont.classList.contains('d-none')) return;
+        ev.preventDefault();
+        const r = pdwCanvas.getBoundingClientRect();
+        const mx = ev.clientX - r.left, my = ev.clientY - r.top;
+        const d = ev.deltaY < 0 ? 1.12 : 1 / 1.12;
+        const ns = Math.min(Math.max(pdwScale * d, 0.1), 10);
+        pdwTx = mx - (mx - pdwTx) * (ns / pdwScale); pdwTy = my - (my - pdwTy) * (ns / pdwScale); pdwScale = ns;
+        pdwApply();
+    }, { passive: false });
+    pdwCanvas.addEventListener('mousedown', function (ev) {
+        if (ev.button !== 0 || pdwMode) return;
+        if (ev.target.closest('[data-el-id]')) return;
+        pdwDragging = true; pdwDragSX = ev.clientX; pdwDragSY = ev.clientY; pdwDragTx = pdwTx; pdwDragTy = pdwTy;
+        pdwCanvas.classList.add('grabbing');
+    });
+    window.addEventListener('mousemove', function (ev) {
+        if (!pdwDragging) return;
+        pdwTx = pdwDragTx + (ev.clientX - pdwDragSX); pdwTy = pdwDragTy + (ev.clientY - pdwDragSY); pdwApply();
+    });
+    window.addEventListener('mouseup', function () { if (pdwDragging) { pdwDragging = false; pdwCanvas.classList.remove('grabbing'); } });
+    document.getElementById('pdwZoomReset').addEventListener('click', pdwFit);
+
+    // ---- add modes ----
+    function pdwSetMode(mode) {
+        pdwMode = mode; pdwLinearStart = null;
+        document.querySelectorAll('.pdw-mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === mode); });
+        pdwCanvas.classList.toggle('add-mode', !!mode);
+        document.getElementById('pdwHint').textContent = mode === 'linear' ? 'Click start point, then end point'
+            : mode === 'diameter' ? 'Click the diameter location'
+            : mode === 'label' ? 'Click where to place the label' : '';
+    }
+    document.querySelectorAll('.pdw-mode-btn').forEach(function (b) {
+        b.addEventListener('click', function () { pdwSetMode(pdwMode === b.dataset.mode ? null : b.dataset.mode); });
+    });
+
+    // WO placeholders available for labels
+    const PDW_PLACEHOLDERS = [
+        { value: '{wo_number}',      label: 'WO Number' },
+        { value: '{repair_number}',  label: 'Repair Number' },
+        { value: '{serial_number}',  label: 'Serial Number' },
+        { value: '{component_pn}',   label: 'Component P/N' },
+        { value: '{date}',           label: 'Date' },
+    ];
+    let pdwPending = null; // {element_type, coords...} awaiting form fill
+
+    pdwImgCont.addEventListener('click', function (ev) {
+        if (!pdwMode || !pdwDrawing && pdwMode) { if (!pdwMode) return; }
+        if (!pdwMode) return;
+        const r = pdwImg.getBoundingClientRect();
+        const xp = ((ev.clientX - r.left) / r.width * 100).toFixed(2);
+        const yp = ((ev.clientY - r.top) / r.height * 100).toFixed(2);
+
+        if (pdwMode === 'linear') {
+            if (!pdwLinearStart) { pdwLinearStart = { x: xp, y: yp }; document.getElementById('pdwHint').textContent = 'Click end point'; return; }
+            pdwPending = { element_type: 'dimension', mask: 'linear', x_pct: pdwLinearStart.x, y_pct: pdwLinearStart.y, x2_pct: xp, y2_pct: yp };
+            pdwLinearStart = null; pdwShowElemForm('dimension');
+        } else if (pdwMode === 'diameter') {
+            pdwPending = { element_type: 'dimension', mask: 'diameter', x_pct: xp, y_pct: yp };
+            pdwShowElemForm('dimension');
+        } else if (pdwMode === 'label') {
+            pdwPending = { element_type: 'label', x_pct: xp, y_pct: yp };
+            pdwShowElemForm('label');
+        }
+        pdwSetMode(null);
+    });
+
+    // ---- element settings form ----
+    function pdwShowElemForm(type) {
+        const form = document.getElementById('pdw-elem-form');
+        document.getElementById('pdw-ef-dim').classList.toggle('d-none', type !== 'dimension');
+        document.getElementById('pdw-ef-lbl').classList.toggle('d-none', type !== 'label');
+        if (type === 'dimension') {
+            // populate source params
+            const psel = document.getElementById('pdw-ef-param');
+            psel.innerHTML = (pdwDrawing.source_parameters || []).map(function (p) {
+                return `<option value="${p.id}">${escHtml((p.part ? p.part + ' · ' : '') + (p.description || ''))}</option>`;
+            }).join('');
+            document.getElementById('pdw-ef-source').value = 'static';
+            document.getElementById('pdw-ef-static').value = '';
+            document.getElementById('pdw-ef-static').classList.remove('d-none');
+            psel.classList.add('d-none');
+        } else {
+            const plsel = document.getElementById('pdw-ef-placeholder');
+            plsel.innerHTML = PDW_PLACEHOLDERS.map(function (p) { return `<option value="${p.value}">${escHtml(p.label)}</option>`; }).join('');
+            document.getElementById('pdw-ef-lbltype').value = 'text';
+            document.getElementById('pdw-ef-text').value = '';
+            document.getElementById('pdw-ef-text').classList.remove('d-none');
+            plsel.classList.add('d-none');
+        }
+        form.classList.remove('d-none');
+    }
+    function pdwHideElemForm() {
+        document.getElementById('pdw-elem-form').classList.add('d-none');
+        pdwPending = null;
+    }
+    document.getElementById('pdw-ef-source').addEventListener('change', function () {
+        const meas = this.value === 'measurement';
+        document.getElementById('pdw-ef-static').classList.toggle('d-none', meas);
+        document.getElementById('pdw-ef-param').classList.toggle('d-none', !meas);
+    });
+    document.getElementById('pdw-ef-lbltype').addEventListener('change', function () {
+        const ph = this.value === 'placeholder';
+        document.getElementById('pdw-ef-text').classList.toggle('d-none', ph);
+        document.getElementById('pdw-ef-placeholder').classList.toggle('d-none', !ph);
+    });
+    document.getElementById('pdw-ef-cancel').addEventListener('click', pdwHideElemForm);
+    document.getElementById('pdw-ef-save').addEventListener('click', async function () {
+        if (!pdwPending) return;
+        const body = Object.assign({}, pdwPending);
+        if (pdwPending.element_type === 'dimension') {
+            const src = document.getElementById('pdw-ef-source').value;
+            body.value_source = src;
+            if (src === 'measurement') {
+                body.source_parameter_id = parseInt(document.getElementById('pdw-ef-param').value) || null;
+            } else {
+                const v = document.getElementById('pdw-ef-static').value;
+                body.static_value = v !== '' ? parseFloat(v) : null;
+            }
+        } else {
+            const lt = document.getElementById('pdw-ef-lbltype').value;
+            if (lt === 'placeholder') body.placeholder = document.getElementById('pdw-ef-placeholder').value;
+            else body.text = document.getElementById('pdw-ef-text').value;
+        }
+        await pdwCreateElement(body);
+        pdwHideElemForm();
+    });
+
+    async function pdwCreateElement(body) {
+        try {
+            const did = await pdwEnsureDrawing();
+            const saved = await apiFetch('/process-drawings/' + did + '/elements', { method: 'POST', body: JSON.stringify(body) });
+            if (!pdwDrawing.elements) pdwDrawing.elements = [];
+            pdwDrawing.elements.push(saved);
+            pdwRenderElements();
+        } catch (e) { alert(e.message); }
+    }
+
+    // ---- image upload ----
+    document.getElementById('pdwUploadBtn').addEventListener('click', function () { document.getElementById('pdwFileInput').click(); });
+    document.getElementById('pdwFileInput').addEventListener('change', async function () {
+        const file = this.files[0]; if (!file) return;
+        const fd = new FormData(); fd.append('image', file); fd.append('_token', CSRF);
+        try {
+            const did = await pdwEnsureDrawing();
+            const res = await fetch('/process-drawings/' + did + '/upload-image', { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || 'Upload failed');
+            // detect dims, save path on drawing
+            const img = new Image();
+            img.onload = async function () {
+                await apiFetch('/process-drawings/' + pdwDrawing.id, { method: 'PATCH', body: JSON.stringify({ image_path: json.path, image_width: img.naturalWidth, image_height: img.naturalHeight }) });
+                pdwDrawing.image_path = json.path;
+                pdwShowImage(json.path);
+                // mark the process button as having a drawing
+                const rp = dimRuleProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
+                if (rp) { rp.has_drawing = true; renderRuleProcessList(); }
+            };
+            img.src = json.path;
+        } catch (e) { alert(e.message); }
+        this.value = '';
+    });
 
     // ==========================
     // Init

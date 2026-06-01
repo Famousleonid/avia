@@ -374,9 +374,10 @@ class ManualController extends Controller
             ->with('process.process_name')
             ->get()
             ->map(fn($mp) => [
-                'id'           => $mp->id,
-                'process_name' => $mp->process?->process_name?->name ?? '',
-                'label'        => trim(($mp->process?->process_name?->name ?? '') . ' — ' . ($mp->process?->process ?? '')),
+                'id'               => $mp->id,
+                'process_name'     => $mp->process?->process_name?->name ?? '',
+                'process_names_id' => $mp->process?->process_name?->id,
+                'label'            => trim(($mp->process?->process_name?->name ?? '') . ' — ' . ($mp->process?->process ?? '')),
             ]);
 
         $codes = \App\Models\Code::orderBy('name')->get(['id', 'name', 'code']);

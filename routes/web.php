@@ -41,6 +41,9 @@ use App\Http\Controllers\Admin\ManualDimensionFigureController;
 use App\Http\Controllers\Admin\ManualDimensionPointController;
 use App\Http\Controllers\Admin\ManualDimensionSpecController;
 use App\Http\Controllers\Admin\ManualParameterController;
+use App\Http\Controllers\Admin\ManualRepairStepController;
+use App\Http\Controllers\Admin\MasterRuleController;
+use App\Http\Controllers\Admin\ProcessDocumentController;
 use App\Http\Controllers\Admin\ManualInspectionComponentController;
 use App\Http\Controllers\Admin\ManualRepairProcedureController;
 use App\Http\Controllers\Admin\WoMeasurementController;
@@ -319,6 +322,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     // --- Inspection Components ---
     Route::get('/manuals/{manual}/inspection-components', [ManualInspectionComponentController::class, 'index'])->name('manuals.inspection-components.index');
+    Route::get('/manuals/{manual}/inspection-components/component-search', [ManualInspectionComponentController::class, 'componentSearch'])->name('manuals.inspection-components.component-search');
     Route::post('/manuals/{manual}/inspection-components', [ManualInspectionComponentController::class, 'store'])->name('manuals.inspection-components.store');
     Route::post('/manuals/{manual}/inspection-components/reorder', [ManualInspectionComponentController::class, 'reorder'])->name('manuals.inspection-components.reorder');
     Route::patch('/inspection-components/{manualInspectionComponent}', [ManualInspectionComponentController::class, 'update'])->name('inspection-components.update');
@@ -351,6 +355,33 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/parameters/{manualParameter}/rules', [ManualParameterController::class, 'storeRule'])->name('parameters.rules.store');
     Route::patch('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'updateRule'])->name('parameter-rules.update');
     Route::delete('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'destroyRule'])->name('parameter-rules.destroy');
+
+    // --- Process Documents (per process in a point rule: documents -> pages -> elements) ---
+    Route::get('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'index'])->name('rule-processes.documents.index');
+    Route::post('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'storeDocument'])->name('rule-processes.documents.store');
+    Route::patch('/process-documents/{processDocument}', [ProcessDocumentController::class, 'updateDocument'])->name('process-documents.update');
+    Route::delete('/process-documents/{processDocument}', [ProcessDocumentController::class, 'destroyDocument'])->name('process-documents.destroy');
+    // pages
+    Route::post('/process-documents/{processDocument}/pages', [ProcessDocumentController::class, 'storePage'])->name('process-documents.pages.store');
+    Route::post('/process-document-pages/{processDocumentPage}/image', [ProcessDocumentController::class, 'uploadPageImage'])->name('process-document-pages.image');
+    Route::patch('/process-document-pages/{processDocumentPage}', [ProcessDocumentController::class, 'updatePage'])->name('process-document-pages.update');
+    Route::delete('/process-document-pages/{processDocumentPage}', [ProcessDocumentController::class, 'destroyPage'])->name('process-document-pages.destroy');
+    // elements
+    Route::post('/process-document-pages/{processDocumentPage}/elements', [ProcessDocumentController::class, 'storeElement'])->name('process-document-pages.elements.store');
+    Route::patch('/process-document-elements/{processDocumentElement}', [ProcessDocumentController::class, 'updateElement'])->name('process-document-elements.update');
+    Route::delete('/process-document-elements/{processDocumentElement}', [ProcessDocumentController::class, 'destroyElement'])->name('process-document-elements.destroy');
+
+    // --- Master Rules (repair plan per part) ---
+    Route::get('/inspection-components/{manualInspectionComponent}/master-rule', [MasterRuleController::class, 'show'])->name('inspection-components.master-rule.show');
+    Route::post('/master-rules/{masterRule}/phase-rules', [MasterRuleController::class, 'storePhaseRule'])->name('master-rules.phase-rules.store');
+    Route::patch('/master-rule-phase-rules/{masterRulePhaseRule}', [MasterRuleController::class, 'updatePhaseRule'])->name('master-rule-phase-rules.update');
+    Route::delete('/master-rule-phase-rules/{masterRulePhaseRule}', [MasterRuleController::class, 'destroyPhaseRule'])->name('master-rule-phase-rules.destroy');
+
+    // --- Repair Steps (per parameter) ---
+    Route::get('/parameters/{manualParameter}/repair-steps', [ManualRepairStepController::class, 'index'])->name('parameters.repair-steps.index');
+    Route::post('/parameters/{manualParameter}/repair-steps', [ManualRepairStepController::class, 'store'])->name('parameters.repair-steps.store');
+    Route::patch('/repair-steps/{manualRepairStep}', [ManualRepairStepController::class, 'update'])->name('repair-steps.update');
+    Route::delete('/repair-steps/{manualRepairStep}', [ManualRepairStepController::class, 'destroy'])->name('repair-steps.destroy');
 
     // --- Bushing Specs ---
     Route::post('/dimension-specs/{manualDimensionSpec}/bushing-spec', [ManualDimensionSpecController::class, 'storeBushingSpec'])->name('dimension-specs.bushing-spec.store');

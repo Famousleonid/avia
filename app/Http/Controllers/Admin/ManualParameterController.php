@@ -244,7 +244,7 @@ class ManualParameterController extends Controller
 
     private function rulePayload(ManualParameterRepairRule $rule): array
     {
-        $rule->load(['triggers.code', 'processes.manualProcess.process.process_name']);
+        $rule->load(['triggers.code', 'processes.manualProcess.process.process_name', 'processes.documents.pages']);
         $data = $rule->toArray();
         $data['triggers'] = $rule->triggers->map(fn($t) => [
             'id'        => $t->id,
@@ -255,11 +255,15 @@ class ManualParameterController extends Controller
         $data['processes'] = $rule->processes->map(function ($rp) {
             $mp    = $rp->manualProcess;
             $label = trim(($mp?->process?->process_name?->name ?? '') . ' — ' . ($mp?->process?->process ?? ''));
+            // has_drawing = at least one document with at least one page that has an image
+            $hasDrawing = $rp->documents->contains(fn($d) =>
+                $d->pages->contains(fn($p) => !empty($p->image_path)));
             return [
                 'id'                => $rp->id,
                 'manual_process_id' => $rp->manual_process_id,
                 'sort_order'        => $rp->sort_order,
                 'label'             => $label,
+                'has_drawing'       => $hasDrawing,
             ];
         })->values()->all();
         return $data;
