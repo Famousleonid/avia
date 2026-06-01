@@ -14,8 +14,30 @@ class MainStepHandler implements StepHandler
 {
     public function resolve(PipelineContext $ctx, ?MasterRule $masterRule): void
     {
+        $byNameId = $this->collectByNameId($ctx);
+        if (!empty($byNameId)) {
+            $ctx->addPhaseGroups('main', $byNameId);
+        }
+    }
+
+    /**
+     * Process_names_id list that Main will contribute — used to pre-fill the
+     * context BEFORE Start runs, so Start/Finish conditions can reference Main.
+     *
+     * @return int[]
+     */
+    public function previewNameIds(PipelineContext $ctx): array
+    {
+        return array_keys($this->collectByNameId($ctx));
+    }
+
+    /**
+     * @return array<int,int[]>  [process_names_id => [process_id, ...]]
+     */
+    private function collectByNameId(PipelineContext $ctx): array
+    {
         if (empty($ctx->mainRuleIds)) {
-            return;
+            return [];
         }
 
         $rules = ManualParameterRepairRule::with('processes.manualProcess.process')
@@ -29,11 +51,10 @@ class MainStepHandler implements StepHandler
                 if (!$process) {
                     continue;
                 }
-                $nameId = $process->process_names_id;
-                $byNameId[$nameId][] = $process->id;
+                $byNameId[$process->process_names_id][] = $process->id;
             }
         }
 
-        $ctx->addPhaseGroups('main', $byNameId);
+        return $byNameId;
     }
 }

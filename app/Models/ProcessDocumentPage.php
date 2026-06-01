@@ -6,24 +6,24 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class ProcessDrawing extends Model
+class ProcessDocumentPage extends Model
 {
     protected $fillable = [
-        'rule_process_id',
-        'drawing_type',
-        'title',
+        'document_id',
+        'page_no',
         'image_path',
         'image_width',
         'image_height',
+        'sort_order',
     ];
 
-    public function ruleProcess(): BelongsTo
+    public function document(): BelongsTo
     {
-        return $this->belongsTo(ManualParameterRuleProcess::class, 'rule_process_id');
+        return $this->belongsTo(ProcessDocument::class, 'document_id');
     }
 
     public function elements(): HasMany
     {
-        return $this->hasMany(ProcessDrawingElement::class, 'drawing_id')->orderBy('sort_order');
+        return $this->hasMany(ProcessDocumentElement::class, 'page_id')->orderBy('sort_order');
     }
 }

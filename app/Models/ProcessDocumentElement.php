@@ -5,10 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ProcessDrawingElement extends Model
+class ProcessDocumentElement extends Model
 {
     protected $fillable = [
-        'drawing_id',
+        'page_id',
         'element_type',
         'x_pct',
         'y_pct',
@@ -35,9 +35,9 @@ class ProcessDrawingElement extends Model
         'static_value' => 'decimal:4',
     ];
 
-    public function drawing(): BelongsTo
+    public function page(): BelongsTo
     {
-        return $this->belongsTo(ProcessDrawing::class, 'drawing_id');
+        return $this->belongsTo(ProcessDocumentPage::class, 'page_id');
     }
 
     public function sourceParameter(): BelongsTo

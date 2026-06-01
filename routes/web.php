@@ -43,7 +43,7 @@ use App\Http\Controllers\Admin\ManualDimensionSpecController;
 use App\Http\Controllers\Admin\ManualParameterController;
 use App\Http\Controllers\Admin\ManualRepairStepController;
 use App\Http\Controllers\Admin\MasterRuleController;
-use App\Http\Controllers\Admin\ProcessDrawingController;
+use App\Http\Controllers\Admin\ProcessDocumentController;
 use App\Http\Controllers\Admin\ManualInspectionComponentController;
 use App\Http\Controllers\Admin\ManualRepairProcedureController;
 use App\Http\Controllers\Admin\WoMeasurementController;
@@ -356,14 +356,20 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'updateRule'])->name('parameter-rules.update');
     Route::delete('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'destroyRule'])->name('parameter-rules.destroy');
 
-    // --- Process Drawings (per process in a point rule) ---
-    Route::get('/rule-processes/{manualParameterRuleProcess}/drawing', [ProcessDrawingController::class, 'show'])->name('rule-processes.drawing.show');
-    Route::post('/rule-processes/{manualParameterRuleProcess}/drawing', [ProcessDrawingController::class, 'store'])->name('rule-processes.drawing.store');
-    Route::post('/process-drawings/{processDrawing}/upload-image', [ProcessDrawingController::class, 'uploadImage'])->name('process-drawings.upload-image');
-    Route::patch('/process-drawings/{processDrawing}', [ProcessDrawingController::class, 'update'])->name('process-drawings.update');
-    Route::post('/process-drawings/{processDrawing}/elements', [ProcessDrawingController::class, 'storeElement'])->name('process-drawings.elements.store');
-    Route::patch('/process-drawing-elements/{processDrawingElement}', [ProcessDrawingController::class, 'updateElement'])->name('process-drawing-elements.update');
-    Route::delete('/process-drawing-elements/{processDrawingElement}', [ProcessDrawingController::class, 'destroyElement'])->name('process-drawing-elements.destroy');
+    // --- Process Documents (per process in a point rule: documents -> pages -> elements) ---
+    Route::get('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'index'])->name('rule-processes.documents.index');
+    Route::post('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'storeDocument'])->name('rule-processes.documents.store');
+    Route::patch('/process-documents/{processDocument}', [ProcessDocumentController::class, 'updateDocument'])->name('process-documents.update');
+    Route::delete('/process-documents/{processDocument}', [ProcessDocumentController::class, 'destroyDocument'])->name('process-documents.destroy');
+    // pages
+    Route::post('/process-documents/{processDocument}/pages', [ProcessDocumentController::class, 'storePage'])->name('process-documents.pages.store');
+    Route::post('/process-document-pages/{processDocumentPage}/image', [ProcessDocumentController::class, 'uploadPageImage'])->name('process-document-pages.image');
+    Route::patch('/process-document-pages/{processDocumentPage}', [ProcessDocumentController::class, 'updatePage'])->name('process-document-pages.update');
+    Route::delete('/process-document-pages/{processDocumentPage}', [ProcessDocumentController::class, 'destroyPage'])->name('process-document-pages.destroy');
+    // elements
+    Route::post('/process-document-pages/{processDocumentPage}/elements', [ProcessDocumentController::class, 'storeElement'])->name('process-document-pages.elements.store');
+    Route::patch('/process-document-elements/{processDocumentElement}', [ProcessDocumentController::class, 'updateElement'])->name('process-document-elements.update');
+    Route::delete('/process-document-elements/{processDocumentElement}', [ProcessDocumentController::class, 'destroyElement'])->name('process-document-elements.destroy');
 
     // --- Master Rules (repair plan per part) ---
     Route::get('/inspection-components/{manualInspectionComponent}/master-rule', [MasterRuleController::class, 'show'])->name('inspection-components.master-rule.show');

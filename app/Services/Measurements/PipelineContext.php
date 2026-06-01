@@ -24,7 +24,8 @@ class PipelineContext
      */
     public array $processGroups = [];
 
-    /** process_names_id collected during Main — used by Finish conditions */
+    /** process_names_id that Main contributes — pre-computed before Start runs,
+     *  so BOTH Start and Finish conditions can reference what's in Main. */
     public array $mainProcessNameIds = [];
 
     /** EC gate flag (Stage 4 — reserved) */
@@ -48,9 +49,6 @@ class PipelineContext
                 'sort_order'       => $this->sortCursor++,
                 'phase'            => $phase,
             ];
-            if ($phase === 'main') {
-                $this->mainProcessNameIds[] = $nameId;
-            }
         }
     }
 

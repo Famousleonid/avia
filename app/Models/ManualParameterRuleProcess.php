@@ -26,8 +26,8 @@ class ManualParameterRuleProcess extends Model
         return $this->belongsTo(ManualProcess::class, 'manual_process_id');
     }
 
-    public function drawings(): HasMany
+    public function documents(): HasMany
     {
-        return $this->hasMany(ProcessDrawing::class, 'rule_process_id');
+        return $this->hasMany(ProcessDocument::class, 'rule_process_id');
     }
 }

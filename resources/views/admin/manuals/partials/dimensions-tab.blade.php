@@ -888,11 +888,16 @@
                         <select class="form-select form-select-sm" id="dimMrCondType">
                             <option value="always">Always</option>
                             <option value="has_defect">Only if defect present</option>
+                            <option value="has_main_process">Only if Main has process</option>
                             <option value="any_point_fail">Only if any point is repaired</option>
                         </select>
                         <div class="mt-2 d-none" id="dimMrCondDefectWrap">
                             <label class="form-label form-label-sm">Defect(s)</label>
                             <select id="dimMrCondDefects" multiple style="width:100%"></select>
+                        </div>
+                        <div class="mt-2 d-none" id="dimMrCondProcWrap">
+                            <label class="form-label form-label-sm">Main process(es)</label>
+                            <select id="dimMrCondProcs" multiple style="width:100%"></select>
                         </div>
                     </div>
                     <div class="text-danger small d-none mb-1" id="dimMrErr"></div>
@@ -941,6 +946,7 @@
                     <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="label" id="pdwAddLblBtn" title="Add text label (1 click)"><i class="bi bi-tag"></i> Label</button>
                     <span class="text-secondary ms-auto" id="pdwHint" style="font-size:11px"></span>
                     <button class="btn btn-outline-secondary btn-sm py-0 px-2" id="pdwZoomReset" title="Reset zoom">↺</button>
+                    <button class="btn btn-outline-danger btn-sm d-none" id="pdwDeleteBtn" title="Remove drawing from this process"><i class="bi bi-trash3"></i> Remove drawing</button>
                 </div>
                 <div id="pdw-elem-form" class="d-none px-3 py-2 border-bottom d-flex gap-2 align-items-center flex-wrap" style="background:rgba(13,110,253,.06);flex-shrink:0">
                     {{-- dimension fields --}}
@@ -987,6 +993,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const CSRF            = @json($csrfToken);
     const DIM_PROCESSES   = @json($dimManualProcesses);
     const DIM_CODES       = @json($codes);
+    // unique process names {id: process_names_id, name} — for has_main_process condition
+    const DIM_PROCESS_NAMES = (function () {
+        const seen = {}, out = [];
+        DIM_PROCESSES.forEach(function (p) {
+            if (p.process_names_id && !seen[p.process_names_id]) { seen[p.process_names_id] = 1; out.push({ id: p.process_names_id, name: p.process_name }); }
+        });
+        return out.sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+    })();
     const DIM_PROCESSES_BY_NAME = (function () {
         const map = {};
         DIM_PROCESSES.forEach(function (p) {
@@ -4185,9 +4199,24 @@ document.addEventListener('DOMContentLoaded', function () {
             width: '100%',
             closeOnSelect: false,
         });
-        // toggle defect picker by condition type
+        // main process picker (for has_main_process)
+        const psel = document.getElementById('dimMrCondProcs');
+        DIM_PROCESS_NAMES.forEach(function (p) {
+            const opt = document.createElement('option');
+            opt.value = p.id; opt.textContent = p.name;
+            psel.appendChild(opt);
+        });
+        $('#dimMrCondProcs').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#dimMasterRuleModal'),
+            placeholder: 'Select Main process(es)...',
+            width: '100%',
+            closeOnSelect: false,
+        });
+        // toggle extra inputs by condition type
         document.getElementById('dimMrCondType').addEventListener('change', function () {
             document.getElementById('dimMrCondDefectWrap').classList.toggle('d-none', this.value !== 'has_defect');
+            document.getElementById('dimMrCondProcWrap').classList.toggle('d-none', this.value !== 'has_main_process');
         });
     })();
 
@@ -4215,6 +4244,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 return c ? c.name : id;
             });
             txt = 'if defect: ' + names.join(', ');
+        } else if (cond.type === 'has_main_process') {
+            const names = (cond.process_name_ids || []).map(function (id) {
+                const p = DIM_PROCESS_NAMES.find(function (x) { return x.id == id; });
+                return p ? p.name : id;
+            });
+            txt = 'if Main has: ' + names.join(', ');
         } else if (cond.type === 'any_point_fail') {
             txt = 'if any point repaired';
         } else {
@@ -4283,8 +4318,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const condType = (cond && cond.type) ? cond.type : 'always';
         document.getElementById('dimMrCondType').value = condType;
         document.getElementById('dimMrCondDefectWrap').classList.toggle('d-none', condType !== 'has_defect');
+        document.getElementById('dimMrCondProcWrap').classList.toggle('d-none', condType !== 'has_main_process');
         const defIds = (cond && cond.codes_ids) ? cond.codes_ids.map(String) : [];
         $('#dimMrCondDefects').val(defIds).trigger('change');
+        const procIds2 = (cond && cond.process_name_ids) ? cond.process_name_ids.map(String) : [];
+        $('#dimMrCondProcs').val(procIds2).trigger('change');
         document.getElementById('dimMrForm').classList.remove('d-none');
     }
 
@@ -4313,6 +4351,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (condType === 'has_defect') {
             const codes = ($('#dimMrCondDefects').val() || []).map(function (v) { return parseInt(v); });
             condition = { type: 'has_defect', codes_ids: codes };
+        } else if (condType === 'has_main_process') {
+            const pn = ($('#dimMrCondProcs').val() || []).map(function (v) { return parseInt(v); });
+            condition = { type: 'has_main_process', process_name_ids: pn };
         } else if (condType === 'any_point_fail') {
             condition = { type: 'any_point_fail' };
         } // 'always' → null
@@ -4368,18 +4409,34 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwDrawing = null;
         pdwEmpty.classList.remove('d-none');
         pdwImgCont.classList.add('d-none');
+        document.getElementById('pdwDeleteBtn').classList.add('d-none');
         getPdwModal().show();
         try {
             pdwDrawing = await apiFetch('/rule-processes/' + ruleProcessId + '/drawing');
             if (pdwDrawing.image_path) pdwShowImage(pdwDrawing.image_path);
+            // show delete button only if a drawing actually exists
+            document.getElementById('pdwDeleteBtn').classList.toggle('d-none', !pdwDrawing.id);
         } catch (e) { alert(e.message); }
     }
+
+    document.getElementById('pdwDeleteBtn').addEventListener('click', async function () {
+        if (!pdwDrawing || !pdwDrawing.id) return;
+        if (!confirm('Remove the entire drawing from this process?')) return;
+        try {
+            await apiFetch('/process-drawings/' + pdwDrawing.id, { method: 'DELETE' });
+            // mark process button as empty again
+            const rp = dimRuleProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
+            if (rp) { rp.has_drawing = false; renderRuleProcessList(); }
+            getPdwModal().hide();
+        } catch (e) { alert(e.message); }
+    });
 
     // Lazily create the drawing record on first real action (upload / add element)
     async function pdwEnsureDrawing() {
         if (pdwDrawing && pdwDrawing.id) return pdwDrawing.id;
         const created = await apiFetch('/rule-processes/' + pdwRuleProcessId + '/drawing', { method: 'POST' });
         pdwDrawing = Object.assign(created, { elements: created.elements || [] });
+        document.getElementById('pdwDeleteBtn').classList.remove('d-none');
         return pdwDrawing.id;
     }
 

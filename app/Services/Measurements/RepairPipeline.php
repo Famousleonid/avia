@@ -16,19 +16,13 @@ use App\Services\Measurements\Steps\StartStepHandler;
  */
 class RepairPipeline
 {
-    /** @return \App\Services\Measurements\Steps\StepHandler[] */
-    private function handlers(): array
-    {
-        return [
-            new StartStepHandler(),
-            new MainStepHandler(),
-            new FinishStepHandler(),
-        ];
-    }
-
     /**
      * Resolve the full ordered list of process groups for a part.
      * Returns processGroups: each ['process_names_id', 'process_ids', 'sort_order', 'phase'].
+     *
+     * Two-pass: Main's process_names are pre-computed first so BOTH Start and
+     * Finish conditions can reference what Main will contain. Output order stays
+     * Start -> Main -> Finish.
      */
     public function run(PipelineContext $ctx): PipelineContext
     {
@@ -38,9 +32,15 @@ class RepairPipeline
                 ->first()
             : null;
 
-        foreach ($this->handlers() as $handler) {
-            $handler->resolve($ctx, $masterRule);
-        }
+        $main = new MainStepHandler();
+
+        // Pass 0 — pre-compute what Main will contribute (no output yet)
+        $ctx->mainProcessNameIds = $main->previewNameIds($ctx);
+
+        // Pass 1 — append in fixed execution order
+        (new StartStepHandler())->resolve($ctx, $masterRule);
+        $main->resolve($ctx, $masterRule);
+        (new FinishStepHandler())->resolve($ctx, $masterRule);
 
         return $ctx;
     }
