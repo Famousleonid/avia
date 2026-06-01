@@ -740,6 +740,7 @@
                         vendorModalTitle.textContent = data.vendor?.name || 'Vendor';
                     }
                     setVendorStatus('Vendor saved.');
+                    vendorModal?.hide();
                 } catch (error) {
                     setVendorStatus('Failed to save vendor.', true);
                 } finally {

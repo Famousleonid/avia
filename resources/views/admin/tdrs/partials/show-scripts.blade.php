@@ -1288,9 +1288,13 @@ document.addEventListener('DOMContentLoaded', function() {
         var nameSelect = container.querySelector('[data-inline-process-name]');
         var processOptions = container.querySelector('[data-inline-process-options]');
         var processText = container.querySelector('[data-inline-process-text]');
+        var createProcessBtn = container.querySelector('[data-inline-process-create]');
         var descriptionInput = container.querySelector('[data-inline-process-description]');
         var saveBtn = container.querySelector('[data-inline-process-save]');
         var selectedProcessId = '';
+        var selectedProcessName = '';
+        var selectedProcessCanCreate = false;
+        var selectedProcessCreateMessage = '';
         var closeInlineProcessTimer = null;
 
         if (!addRow || !createRow || !addBtn || !nameSelect || !saveBtn) return;
@@ -1346,7 +1350,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 processText.classList.add('text-muted');
                 processText.classList.remove('d-none');
             }
+            if (createProcessBtn) {
+                createProcessBtn.classList.add('d-none');
+                createProcessBtn.disabled = false;
+                createProcessBtn.removeAttribute('title');
+            }
             if (descriptionInput) descriptionInput.value = '';
+            selectedProcessName = '';
+            selectedProcessCanCreate = false;
+            selectedProcessCreateMessage = '';
             saveBtn.disabled = false;
             saveBtn.textContent = '{{ __("Save") }}';
         }
@@ -1362,6 +1374,7 @@ document.addEventListener('DOMContentLoaded', function() {
             window.clearTimeout(closeInlineProcessTimer);
             closeInlineProcessTimer = window.setTimeout(function() {
                 if (createRow.classList.contains('d-none')) return;
+                if (document.getElementById('inlineProcessDefinitionModal')?.classList.contains('show')) return;
                 if (createRow.matches(':hover')) return;
                 if (createRow.contains(document.activeElement)) return;
                 closeInlineProcessRow();
@@ -1377,6 +1390,14 @@ document.addEventListener('DOMContentLoaded', function() {
             window.setTimeout(scheduleInlineProcessClose, 0);
         });
 
+        if (processOptions) {
+            processOptions.addEventListener('change', function(event) {
+                var input = event.target.closest('input[type="radio"]');
+                if (!input) return;
+                selectedProcessId = input.checked ? input.value : '';
+            });
+        }
+
         addBtn.addEventListener('click', function() {
             resetInlineProcessRow();
             createRow.classList.remove('d-none');
@@ -1389,6 +1410,7 @@ document.addEventListener('DOMContentLoaded', function() {
         nameSelect.addEventListener('change', function() {
             selectedProcessId = '';
             var processNameId = nameSelect.value;
+            selectedProcessName = nameSelect.options[nameSelect.selectedIndex]?.text || '';
             var manualId = wrapper.dataset.manualId || '';
             if (!processNameId) {
                 if (processOptions) {
@@ -1400,6 +1422,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     processText.classList.add('text-muted');
                     processText.classList.remove('d-none');
                 }
+                if (createProcessBtn) {
+                    createProcessBtn.classList.add('d-none');
+                    createProcessBtn.disabled = false;
+                    createProcessBtn.removeAttribute('title');
+                }
+                selectedProcessCanCreate = false;
+                selectedProcessCreateMessage = '';
                 saveBtn.disabled = false;
                 return;
             }
@@ -1412,6 +1441,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (processOptions) {
                 processOptions.innerHTML = '';
                 processOptions.classList.add('d-none');
+            }
+            if (createProcessBtn) {
+                createProcessBtn.classList.add('d-none');
+                createProcessBtn.disabled = false;
+                createProcessBtn.removeAttribute('title');
             }
             saveBtn.disabled = true;
 
@@ -1433,6 +1467,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         throw new Error(result.data.message || result.data.error || '{{ __("Failed to load processes.") }}');
                     }
                     var processes = result.data.existingProcesses || [];
+                    selectedProcessCanCreate = result.data.canCreateProcess === true || result.data.canCreateProcess === 1 || result.data.canCreateProcess === '1';
+                    selectedProcessCreateMessage = result.data.createProcessMessage || '';
+
+                    if (createProcessBtn) {
+                        createProcessBtn.classList.remove('d-none');
+                        createProcessBtn.disabled = !selectedProcessCanCreate;
+                        if (selectedProcessCanCreate) {
+                            createProcessBtn.removeAttribute('title');
+                        } else {
+                            createProcessBtn.setAttribute('title', selectedProcessCreateMessage || '{{ __("Creating new process is not allowed.") }}');
+                        }
+                    }
+
                     if (!processes.length) {
                         selectedProcessId = '';
                         if (processText) {
@@ -1492,6 +1539,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(function(error) {
                     selectedProcessId = '';
+                    selectedProcessCanCreate = false;
+                    selectedProcessCreateMessage = error.message || '{{ __("Failed to load processes.") }}';
                     if (processText) {
                         processText.textContent = error.message || '{{ __("Failed to load processes.") }}';
                         processText.classList.add('text-muted');
@@ -1501,9 +1550,56 @@ document.addEventListener('DOMContentLoaded', function() {
                         processOptions.innerHTML = '';
                         processOptions.classList.add('d-none');
                     }
+                    if (createProcessBtn) {
+                        createProcessBtn.classList.add('d-none');
+                        createProcessBtn.disabled = false;
+                        createProcessBtn.removeAttribute('title');
+                    }
                     saveBtn.disabled = false;
                 });
         });
+
+        if (createProcessBtn) {
+            createProcessBtn.addEventListener('click', function() {
+                var processNameId = nameSelect.value;
+                if (!processNameId) {
+                    window.tdrShowNotify('{{ __("Please select Process Name before adding specification.") }}', 'warning');
+                    return;
+                }
+                if (!selectedProcessCanCreate) {
+                    window.tdrShowNotify(selectedProcessCreateMessage || '{{ __("Creating new process is not allowed.") }}', 'warning');
+                    return;
+                }
+
+                var modal = document.getElementById('inlineProcessDefinitionModal');
+                if (!modal) return;
+
+                modal.dataset.tdrId = wrapper.dataset.tdrId || '';
+                modal.dataset.manualId = wrapper.dataset.manualId || '';
+                modal.dataset.processNameId = processNameId;
+                modal.dataset.targetWrapperId = wrapper.dataset.tdrId || '';
+
+                var modalProcessName = modal.querySelector('[data-inline-process-modal-name]');
+                var modalInput = modal.querySelector('[data-inline-process-modal-input]');
+                var modalMessage = modal.querySelector('[data-inline-process-modal-message]');
+                var modalSave = modal.querySelector('[data-inline-process-modal-save]');
+                if (modalProcessName) modalProcessName.textContent = selectedProcessName;
+                if (modalInput) {
+                    modalInput.value = '';
+                    modalInput.disabled = false;
+                }
+                if (modalMessage) {
+                    modalMessage.textContent = '';
+                    modalMessage.classList.add('d-none');
+                }
+                if (modalSave) {
+                    modalSave.disabled = false;
+                    modalSave.textContent = '{{ __("Save Process") }}';
+                }
+
+                bootstrap.Modal.getOrCreateInstance(modal).show();
+            });
+        }
 
         saveBtn.addEventListener('click', function() {
             var processNameId = nameSelect.value;
@@ -1554,6 +1650,118 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         });
     }
+
+    (function initInlineProcessDefinitionModal() {
+        var modal = document.getElementById('inlineProcessDefinitionModal');
+        if (!modal || modal.dataset.initialized === '1') return;
+        modal.dataset.initialized = '1';
+
+        var modalInput = modal.querySelector('[data-inline-process-modal-input]');
+        var modalMessage = modal.querySelector('[data-inline-process-modal-message]');
+        var modalSave = modal.querySelector('[data-inline-process-modal-save]');
+
+        function setModalMessage(message, type) {
+            if (!modalMessage) return;
+            modalMessage.textContent = message || '';
+            modalMessage.classList.toggle('d-none', !message);
+            modalMessage.classList.toggle('text-danger', type === 'error');
+            modalMessage.classList.toggle('text-info', type !== 'error');
+        }
+
+        if (modalInput) {
+            modal.addEventListener('shown.bs.modal', function() {
+                modalInput.focus();
+            });
+        }
+
+        if (!modalSave) return;
+        modalSave.addEventListener('click', function() {
+            var processNameId = modal.dataset.processNameId || '';
+            var manualId = modal.dataset.manualId || '';
+            var newProcess = modalInput ? modalInput.value.trim() : '';
+
+            if (!processNameId || !manualId) {
+                setModalMessage('{{ __("Please select Process Name before adding specification.") }}', 'error');
+                return;
+            }
+            if (!newProcess) {
+                setModalMessage('{{ __("Please enter the new process name.") }}', 'error');
+                return;
+            }
+
+            modalSave.disabled = true;
+            modalSave.textContent = '{{ __("Saving...") }}';
+            setModalMessage('', 'info');
+
+            fetch('{{ route("processes.store") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    process_names_id: processNameId,
+                    process: newProcess,
+                    manual_id: manualId
+                })
+            })
+                .then(function(response) {
+                    return response.json().catch(function() { return {}; }).then(function(data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function(result) {
+                    if (!result.ok || !result.data.success || !result.data.process) {
+                        throw new Error(result.data.message || result.data.error || '{{ __("Save failed.") }}');
+                    }
+
+                    var tabBody = document.getElementById('componentProcessesTabBody');
+                    var activeWrapper = tabBody ? tabBody.querySelector('.processes-modal-body') : null;
+                    if (activeWrapper && activeWrapper.dataset.tdrId === modal.dataset.tdrId) {
+                        var activeContainer = activeWrapper.closest('#componentProcessesTabBody') || tabBody;
+                        var nameSelect = activeContainer.querySelector('[data-inline-process-name]');
+                        var processOptions = activeContainer.querySelector('[data-inline-process-options]');
+                        var processText = activeContainer.querySelector('[data-inline-process-text]');
+
+                        if (nameSelect && String(nameSelect.value) === String(processNameId) && processOptions) {
+                            var label = document.createElement('label');
+                            label.className = 'tdr-process-inline-option';
+
+                            var input = document.createElement('input');
+                            input.type = 'radio';
+                            input.name = 'inline_process_' + modal.dataset.tdrId;
+                            input.value = String(result.data.process.id);
+                            input.checked = true;
+
+                            var text = document.createElement('span');
+                            text.textContent = result.data.process.process || ('#' + result.data.process.id);
+
+                            label.appendChild(input);
+                            label.appendChild(text);
+                            processOptions.appendChild(label);
+                            processOptions.classList.remove('d-none');
+                            if (processText) processText.classList.add('d-none');
+
+                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+
+                    window.tdrShowNotify(result.data.message || '{{ __("Process added successfully.") }}', 'success', 2000);
+                    bootstrap.Modal.getOrCreateInstance(modal).hide();
+                    if (modalInput) modalInput.value = '';
+                })
+                .catch(function(error) {
+                    setModalMessage(error.message || '{{ __("Save failed.") }}', 'error');
+                })
+                .finally(function() {
+                    modalSave.disabled = false;
+                    modalSave.textContent = '{{ __("Save Process") }}';
+                });
+        });
+    })();
 
     function bindProcessHandlers(wrapper, container) {
         var target = container || body;

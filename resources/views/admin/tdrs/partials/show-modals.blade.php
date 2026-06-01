@@ -1,4 +1,30 @@
 {{-- Missing Modal --}}
+<div class="modal fade" id="inlineProcessDefinitionModal" tabindex="-1" aria-labelledby="inlineProcessDefinitionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-gradient">
+            <div class="modal-header">
+                <h5 class="modal-title" id="inlineProcessDefinitionModalLabel">
+                    {{ __('Enter Process') }} (<span data-inline-process-modal-name></span>)
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <label for="inlineProcessDefinitionInput" class="form-label">{{ __('New Process') }}</label>
+                <input type="text"
+                       class="form-control"
+                       id="inlineProcessDefinitionInput"
+                       data-inline-process-modal-input
+                       placeholder="{{ __('Enter new process') }}">
+                <div class="small text-info mt-2 d-none" data-inline-process-modal-message></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                <button type="button" class="btn btn-primary" data-inline-process-modal-save>{{ __('Save Process') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade " id="missingModal{{$current_wo->number}}" tabindex="-1" role="dialog" aria-labelledby="missingModalLabel{{$current_wo->number}}" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered" role="document" style="max-width: min(1100px, calc(100vw - 2rem));">
         <div class="modal-content bg-gradient" style="width: 90%; margin: 0 auto;">

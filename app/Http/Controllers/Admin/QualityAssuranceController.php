@@ -431,12 +431,20 @@ class QualityAssuranceController extends Controller
         $beforeComparable = $this->normalizeLogCardActivityComparable($beforeValue);
 
         if ($style === 'background') {
-            abort_unless(in_array($data['section'], ['aircraft', 'primary'], true), 422);
+            abort_unless(in_array($data['section'], ['aircraft', 'primary', 'header'], true), 422);
             $color = trim((string) ($data['value'] ?? ''));
             abort_unless($color === '' || preg_match('/^#[0-9A-Fa-f]{6}$/', $color), 422);
             $color = strtolower($color);
 
-            if ($data['section'] === 'aircraft') {
+            if ($data['section'] === 'header') {
+                $rows[0] ??= [];
+                $rows[0]['qa_header_cell_colors'] ??= [];
+                if ($color === '') {
+                    unset($rows[0]['qa_header_cell_colors'][$data['field']]);
+                } else {
+                    $rows[0]['qa_header_cell_colors'][$data['field']] = $color;
+                }
+            } elseif ($data['section'] === 'aircraft') {
                 $rows[0] ??= [];
                 $rows[0]['qa_aircraft_cell_colors'] ??= [];
                 if ($color === '') {
@@ -560,9 +568,11 @@ class QualityAssuranceController extends Controller
         $field = (string) $data['field'];
 
         if ($style === 'background') {
-            return $data['section'] === 'aircraft'
-                ? "0.qa_aircraft_cell_colors.{$row}.{$field}"
-                : "{$row}.qa_cell_colors.{$field}";
+            return match ($data['section']) {
+                'aircraft' => "0.qa_aircraft_cell_colors.{$row}.{$field}",
+                'header' => "0.qa_header_cell_colors.{$field}",
+                default => "{$row}.qa_cell_colors.{$field}",
+            };
         }
 
         if ($data['section'] === 'aircraft') {
@@ -1033,7 +1043,54 @@ class QualityAssuranceController extends Controller
             return '-';
         }
 
-        return format_project_date($date) ?? '-';
+        $formatDateParts = static function (int $year, int $month, int $day): ?string {
+            if (! checkdate($month, $day, $year)) {
+                return null;
+            }
+
+            return Carbon::create($year, $month, $day)->format('d/M/Y');
+        };
+        $monthMap = [
+            'jan' => 1, 'january' => 1,
+            'feb' => 2, 'february' => 2,
+            'mar' => 3, 'march' => 3,
+            'apr' => 4, 'april' => 4,
+            'may' => 5,
+            'jun' => 6, 'june' => 6,
+            'jul' => 7, 'july' => 7,
+            'aug' => 8, 'august' => 8,
+            'sep' => 9, 'sept' => 9, 'september' => 9,
+            'oct' => 10, 'october' => 10,
+            'nov' => 11, 'november' => 11,
+            'dec' => 12, 'december' => 12,
+        ];
+
+        try {
+            if ($date instanceof \DateTimeInterface) {
+                return Carbon::instance($date)->format('d/M/Y');
+            }
+
+            $value = trim((string) $date);
+            if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $value, $matches)) {
+                return $formatDateParts((int) $matches[1], (int) $matches[2], (int) $matches[3]) ?? $value;
+            }
+
+            if (preg_match('/^(\d{1,2})[\/.\-]([a-z]{3,9})[\/.\-](\d{4})$/i', $value, $matches)) {
+                $month = $monthMap[strtolower($matches[2])] ?? null;
+
+                return $month !== null
+                    ? ($formatDateParts((int) $matches[3], $month, (int) $matches[1]) ?? $value)
+                    : $value;
+            }
+
+            if (preg_match('/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/', $value, $matches)) {
+                return $formatDateParts((int) $matches[3], (int) $matches[2], (int) $matches[1]) ?? $value;
+            }
+
+            return Carbon::parse($value)->format('d/M/Y');
+        } catch (\Throwable) {
+            return trim((string) $date) ?: '-';
+        }
     }
 
     private function mainTargetUrl(?Workorder $workorder, array $params): string

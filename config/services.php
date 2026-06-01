@@ -30,6 +30,10 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'quantum_sync' => [
+        'token' => env('QUANTUM_SYNC_TOKEN', ''),
+    ],
+
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'model'   => env('OPENAI_MODEL', 'gpt-5.4'),

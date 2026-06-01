@@ -18,11 +18,7 @@
         }, true);
     </script>
     @php
-        $technicianFullName = trim((string) optional($current_wo->user)->name);
-        $technicianNameParts = preg_split('/\s+/', $technicianFullName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        $technicianFirstName = count($technicianNameParts) > 1
-            ? $technicianNameParts[1]
-            : ($technicianNameParts[0] ?? '');
+        $technicianDisplayName = trim((string) optional($current_wo->user)->name);
     @endphp
 
     <style>
@@ -358,13 +354,44 @@
             position: absolute;
             right: 0;
             top: 0;
+            width: 285px;
         }
 
         .spec-technician-name-row {
             position: absolute;
             right: 0;
             top: 28px;
-            width: 235px;
+            width: 285px;
+        }
+
+        .spec-technician-label {
+            flex: 0 0 70px;
+            height: 6px;
+        }
+
+        .spec-technician-name-line {
+            flex: 0 0 175px;
+            min-width: 0;
+            white-space: nowrap;
+        }
+
+        .spec-technician-name-line.is-long {
+            font-size: 0.75rem;
+        }
+
+        .spec-technician-stamp-cell {
+            flex: 0 0 40px;
+            height: 28px;
+        }
+
+        .spec-technician-name-caption {
+            flex: 0 0 245px;
+            height: 15px;
+        }
+
+        .spec-technician-sign-cell {
+            flex: 0 0 40px;
+            height: 6px;
         }
 
         .spec-top-count-cell {
@@ -456,7 +483,7 @@
                 <div class="col-2 pt-2 border-b text-center"> <strong> W{{$current_wo->number}}</strong></div>
                 <div class="col-md-5"></div>
             </div>
-            <div class="d-flex" style="width: 100%; min-height: 43px; position: relative; padding-right: 235px;">
+            <div class="d-flex" style="width: 100%; min-height: 43px; position: relative; padding-right: 285px;">
                 <div class="text-end">
                     <h6 class="pt-1 spec-cat-one-label" style="width: 60px;"><strong>Cat #1</strong></h6>
                 </div>
@@ -502,13 +529,13 @@
 
                 </div>
                 <div class="spec-technician-block d-flex">
-                    <div class="text-end pt-2 fs-8" style="width: 75px;height: 6px">Technician</div>
-                    <div class="border-b text-center" style="width: 120px">{{ $technicianFirstName }}</div>
-                    <div class="border-l-t-r" style="width: 40px;height: 28px"></div>
+                    <div class="spec-technician-label text-end pt-2 fs-8">Technician</div>
+                    <div class="spec-technician-name-line border-b text-center {{ strlen($technicianDisplayName) > 20 ? 'is-long' : '' }}">{{ $technicianDisplayName }}</div>
+                    <div class="spec-technician-stamp-cell border-l-t-r"></div>
                 </div>
                 <div class="spec-technician-name-row d-flex">
-                    <div class="text-center fs-7" style="width: 195px; height: 15px">Name</div>
-                    <div class="border-l-b-r" style="width: 40px;height: 6px"></div>
+                    <div class="spec-technician-name-caption text-center fs-7">Name</div>
+                    <div class="spec-technician-sign-cell border-l-b-r"></div>
                 </div>
             </div>
 

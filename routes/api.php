@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\ArchiveController;
 use App\Http\Controllers\Api\Mobile\MobileApiController;
+use App\Http\Controllers\Api\QuantumRoSyncController;
 
 /*
 |--------------------------------------------------------------------------
@@ -72,4 +73,9 @@ Route::prefix('mobile')->name('api.mobile.')->group(function () {
         Route::get('/materials', [MobileApiController::class, 'materials'])->name('materials.index');
         Route::patch('/materials/{material}', [MobileApiController::class, 'updateMaterial'])->name('materials.update');
     });
+});
+
+Route::prefix('quantum')->name('api.quantum.')->group(function () {
+    Route::get('/ro-sync/state', [QuantumRoSyncController::class, 'state'])->name('ro-sync.state');
+    Route::post('/ro-sync', [QuantumRoSyncController::class, 'store'])->name('ro-sync.store');
 });

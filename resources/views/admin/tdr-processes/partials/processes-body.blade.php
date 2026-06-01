@@ -432,6 +432,11 @@
                 <td class="tdr-process-inline-process-cell">
                     <div class="tdr-process-inline-options d-none" data-inline-process-options></div>
                     <div class="tdr-process-inline-process-text text-center text-muted" data-inline-process-text>{{ __('Select process name') }}</div>
+                    <button type="button"
+                            class="btn btn-link btn-sm p-0 mt-1 d-none"
+                            data-inline-process-create>
+                        <i class="fas fa-plus"></i> {{ __('Add Process') }}
+                    </button>
                 </td>
                 <td>
                     <input type="text" class="form-control form-control-sm" data-inline-process-description placeholder="{{ __('Page & Fig') }}">
