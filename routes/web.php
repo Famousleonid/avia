@@ -42,6 +42,8 @@ use App\Http\Controllers\Admin\ManualDimensionPointController;
 use App\Http\Controllers\Admin\ManualDimensionSpecController;
 use App\Http\Controllers\Admin\ManualParameterController;
 use App\Http\Controllers\Admin\ManualRepairStepController;
+use App\Http\Controllers\Admin\MasterRuleController;
+use App\Http\Controllers\Admin\ProcessDrawingController;
 use App\Http\Controllers\Admin\ManualInspectionComponentController;
 use App\Http\Controllers\Admin\ManualRepairProcedureController;
 use App\Http\Controllers\Admin\WoMeasurementController;
@@ -353,6 +355,21 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/parameters/{manualParameter}/rules', [ManualParameterController::class, 'storeRule'])->name('parameters.rules.store');
     Route::patch('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'updateRule'])->name('parameter-rules.update');
     Route::delete('/parameter-rules/{manualParameterRepairRule}', [ManualParameterController::class, 'destroyRule'])->name('parameter-rules.destroy');
+
+    // --- Process Drawings (per process in a point rule) ---
+    Route::get('/rule-processes/{manualParameterRuleProcess}/drawing', [ProcessDrawingController::class, 'show'])->name('rule-processes.drawing.show');
+    Route::post('/rule-processes/{manualParameterRuleProcess}/drawing', [ProcessDrawingController::class, 'store'])->name('rule-processes.drawing.store');
+    Route::post('/process-drawings/{processDrawing}/upload-image', [ProcessDrawingController::class, 'uploadImage'])->name('process-drawings.upload-image');
+    Route::patch('/process-drawings/{processDrawing}', [ProcessDrawingController::class, 'update'])->name('process-drawings.update');
+    Route::post('/process-drawings/{processDrawing}/elements', [ProcessDrawingController::class, 'storeElement'])->name('process-drawings.elements.store');
+    Route::patch('/process-drawing-elements/{processDrawingElement}', [ProcessDrawingController::class, 'updateElement'])->name('process-drawing-elements.update');
+    Route::delete('/process-drawing-elements/{processDrawingElement}', [ProcessDrawingController::class, 'destroyElement'])->name('process-drawing-elements.destroy');
+
+    // --- Master Rules (repair plan per part) ---
+    Route::get('/inspection-components/{manualInspectionComponent}/master-rule', [MasterRuleController::class, 'show'])->name('inspection-components.master-rule.show');
+    Route::post('/master-rules/{masterRule}/phase-rules', [MasterRuleController::class, 'storePhaseRule'])->name('master-rules.phase-rules.store');
+    Route::patch('/master-rule-phase-rules/{masterRulePhaseRule}', [MasterRuleController::class, 'updatePhaseRule'])->name('master-rule-phase-rules.update');
+    Route::delete('/master-rule-phase-rules/{masterRulePhaseRule}', [MasterRuleController::class, 'destroyPhaseRule'])->name('master-rule-phase-rules.destroy');
 
     // --- Repair Steps (per parameter) ---
     Route::get('/parameters/{manualParameter}/repair-steps', [ManualRepairStepController::class, 'index'])->name('parameters.repair-steps.index');

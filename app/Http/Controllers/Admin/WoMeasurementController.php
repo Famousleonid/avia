@@ -14,6 +14,8 @@ use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\WoMeasurement;
 use App\Models\Workorder;
+use App\Services\Measurements\PipelineContext;
+use App\Services\Measurements\RepairPipeline;
 use Illuminate\Http\Request;
 
 class WoMeasurementController extends Controller
@@ -472,35 +474,25 @@ class WoMeasurementController extends Controller
         ]);
         $tdr->update(['use_tdr' => true]);
 
-        if (!empty($ruleIds)) {
-            $rules = ManualParameterRepairRule::with('processes.manualProcess.process')
-                ->whereIn('id', $ruleIds)->get();
+        // Run repair pipeline: Start (part rules) -> Main (point rules) -> Finish (part rules).
+        // If the part has no MasterRule, only Main runs — same result as the previous flat merge.
+        $parameter = ManualParameter::find($measurement->manual_parameter_id);
 
-            $grouped   = [];
-            $sortIndex = 0;
-            foreach ($rules as $rule) {
-                foreach ($rule->processes as $rp) {
-                    $process = $rp->manualProcess?->process;
-                    if (!$process) continue;
-                    $nameId = $process->process_names_id;
-                    if (!isset($grouped[$nameId])) {
-                        $grouped[$nameId] = ['sort_order' => $sortIndex++, 'process_ids' => []];
-                    }
-                    if (!in_array($process->id, $grouped[$nameId]['process_ids'])) {
-                        $grouped[$nameId]['process_ids'][] = $process->id;
-                    }
-                }
-            }
+        $ctx = new PipelineContext();
+        $ctx->inspectionComponentId = $parameter?->inspection_component_id;
+        $ctx->mainRuleIds           = $ruleIds;
+        $ctx->defectCodeIds         = array_values(array_filter([$codesId]));
 
-            foreach ($grouped as $processNameId => $group) {
-                TdrProcess::create([
-                    'tdrs_id'          => $tdr->id,
-                    'process_names_id' => $processNameId,
-                    'processes'        => $group['process_ids'],
-                    'sort_order'       => $group['sort_order'],
-                    'in_traveler'      => false,
-                ]);
-            }
+        app(RepairPipeline::class)->run($ctx);
+
+        foreach ($ctx->processGroups as $group) {
+            TdrProcess::create([
+                'tdrs_id'          => $tdr->id,
+                'process_names_id' => $group['process_names_id'],
+                'processes'        => $group['process_ids'],
+                'sort_order'       => $group['sort_order'],
+                'in_traveler'      => false,
+            ]);
         }
 
         return response()->json([

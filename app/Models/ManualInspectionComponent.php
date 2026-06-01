@@ -32,4 +32,9 @@ class ManualInspectionComponent extends Model
             'inspection_component_id', 'component_id')
             ->withTimestamps();
     }
+
+    public function masterRule(): HasMany
+    {
+        return $this->hasMany(MasterRule::class, 'inspection_component_id');
+    }
 }
