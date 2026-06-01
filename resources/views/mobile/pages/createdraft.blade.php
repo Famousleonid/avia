@@ -175,14 +175,6 @@
                     </div>
 
                     <div class="mt-2">
-                        <label class="form-label small text-white-50 mb-1">Customer PO</label>
-                        <input name="customer_po"
-                               class="form-control bg-black text-light border-secondary @error('customer_po') is-invalid @enderror"
-                               value="{{ old('customer_po') }}">
-                        @error('customer_po') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    </div>
-
-                    <div class="mt-2">
                         <label class="form-label small text-white-50 mb-1">Storage</label>
 
                         <div class="row g-2">

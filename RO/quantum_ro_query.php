@@ -10,6 +10,21 @@ function buildQuantumRoQuery(array $params): array
     $changedSince = trim((string)($params['changed_since'] ?? ''));
     $roNumber = $params['ro_number'] ?? null;
     $vendor   = $params['vendor'] ?? null;
+    $unresolvedRoNumbers = array_values(array_filter(array_unique(array_map(
+        static fn($value): string => strtoupper(trim((string)$value)),
+        (array)($params['unresolved_ro_numbers'] ?? [])
+    ))));
+    $trackedRefRoNumbers = array_values(array_filter(array_unique(array_map(
+        static fn($value): string => strtoupper(trim((string)$value)),
+        (array)($params['tracked_ref_ro_numbers'] ?? [])
+    ))));
+    $wobChangeColumn = strtoupper(trim((string)($params['wob_change_column'] ?? '')));
+    $wobChangeExpression = preg_match('/^[A-Z][A-Z0-9_]*$/', $wobChangeColumn)
+        ? 'wb.' . $wobChangeColumn
+        : "DATE '1900-01-01'";
+    $wobChangeSelect = preg_match('/^[A-Z][A-Z0-9_]*$/', $wobChangeColumn)
+        ? "TO_CHAR({$wobChangeExpression}, 'YYYY-MM-DD HH24:MI:SS')"
+        : 'NULL';
 
     // Current RO part-matching diagnostic mode:
     // Print real RO rows with Quantum part master data from RO_DETAIL.PNM_AUTO_KEY.
@@ -34,10 +49,12 @@ SELECT
     TO_CHAR(rd.LAST_DELIVERY_DATE, 'YYYY-MM-DD HH24:MI:SS') AS LAST_DELIVERY_DATE,
     TO_CHAR(rh.LAST_MODIFIED, 'YYYY-MM-DD HH24:MI:SS') AS RO_LAST_MODIFIED,
     TO_CHAR(rd.LAST_MODIFIED, 'YYYY-MM-DD HH24:MI:SS') AS DETAIL_LAST_MODIFIED,
+    {$wobChangeSelect} AS BOM_LAST_MODIFIED,
     TO_CHAR(
         GREATEST(
             NVL(rd.LAST_MODIFIED, DATE '1900-01-01'),
             NVL(rh.LAST_MODIFIED, DATE '1900-01-01'),
+            NVL({$wobChangeExpression}, DATE '1900-01-01'),
             NVL(rh.ENTRY_DATE, DATE '1900-01-01')
         ),
         'YYYY-MM-DD HH24:MI:SS'
@@ -51,6 +68,7 @@ SELECT
         WHEN pm_rd.PN IS NOT NULL THEN 'DETAIL_PROCESS'
         ELSE 'UNKNOWN'
     END AS CLASS,
+    wb.REF AS BOM_REF,
     rd.QTY_REPAIR,
     rd.QTY_RESERVED,
     rd.QTY_REPAIRED,
@@ -73,6 +91,47 @@ WHERE 1 = 1
 ";
 
     $binds = [];
+    $buildRoNumberCondition = static function (array $roNumbers, string $prefix, ?int $limit = null) use (&$binds): string {
+        $conditions = [];
+        $index = 0;
+        $roNumbers = $limit === null ? $roNumbers : array_slice($roNumbers, 0, $limit);
+
+        foreach (array_chunk($roNumbers, 900) as $chunk) {
+            $bindNames = [];
+
+            foreach ($chunk as $roNumber) {
+                if ($roNumber === '' || !preg_match('/^R[0-9A-Z_-]+$/', $roNumber)) {
+                    continue;
+                }
+
+                $bindName = ':' . $prefix . '_' . $index;
+                $binds[$bindName] = $roNumber;
+                $bindNames[] = $bindName;
+                $index++;
+            }
+
+            if ($bindNames) {
+                $conditions[] = 'rh.RO_NUMBER IN (' . implode(', ', $bindNames) . ')';
+            }
+        }
+
+        if ($conditions === []) {
+            return '';
+        }
+
+        return ' OR (' . implode(' OR ', $conditions) . ')';
+    };
+
+    $unresolvedCondition = $buildRoNumberCondition($unresolvedRoNumbers, 'unresolved_ro', 50);
+    $trackedRefCondition = $buildRoNumberCondition($trackedRefRoNumbers, 'tracked_ref_ro');
+
+    $refWatchCondition = '';
+    if (!$roNumber) {
+        $refWatchCondition = "
+      OR TRIM(wb.REF) IS NOT NULL
+      {$trackedRefCondition}
+";
+    }
 
     if ($roNumber) {
         $sql .= "
@@ -81,11 +140,16 @@ WHERE 1 = 1
         $binds[':ro_number'] = $roNumber;
     } elseif ($changedSince !== '') {
         $sql .= "
-  AND GREATEST(
+  AND (
+      GREATEST(
       NVL(rd.LAST_MODIFIED, DATE '1900-01-01'),
       NVL(rh.LAST_MODIFIED, DATE '1900-01-01'),
+      NVL({$wobChangeExpression}, DATE '1900-01-01'),
       NVL(rh.ENTRY_DATE, DATE '1900-01-01')
-  ) >= TO_DATE(:changed_since, 'YYYY-MM-DD HH24:MI:SS')
+      ) >= TO_DATE(:changed_since, 'YYYY-MM-DD HH24:MI:SS')
+      {$unresolvedCondition}
+      {$refWatchCondition}
+  )
 ";
         $binds[':changed_since'] = $changedSince;
     } elseif ($hasDaysFilter) {
@@ -93,6 +157,9 @@ WHERE 1 = 1
   AND (
       rh.LAST_MODIFIED >= SYSDATE - :days_back
       OR rd.LAST_MODIFIED >= SYSDATE - :days_back
+      OR {$wobChangeExpression} >= SYSDATE - :days_back
+      {$unresolvedCondition}
+      {$refWatchCondition}
   )
 ";
         $binds[':days_back'] = $daysBack;
@@ -102,6 +169,9 @@ WHERE 1 = 1
       rh.ENTRY_DATE >= TRUNC(SYSDATE)
       OR rh.LAST_MODIFIED >= TRUNC(SYSDATE)
       OR rd.LAST_MODIFIED >= TRUNC(SYSDATE)
+      OR {$wobChangeExpression} >= TRUNC(SYSDATE)
+      {$unresolvedCondition}
+      {$refWatchCondition}
   )
 ";
     }
@@ -118,6 +188,7 @@ ORDER BY
     GREATEST(
         NVL(rd.LAST_MODIFIED, DATE '1900-01-01'),
         NVL(rh.LAST_MODIFIED, DATE '1900-01-01'),
+        NVL({$wobChangeExpression}, DATE '1900-01-01'),
         NVL(rh.ENTRY_DATE, DATE '1900-01-01')
     ) DESC,
     rh.RO_NUMBER,

@@ -108,16 +108,9 @@
 
 @section('content')
     @php
-        $canManageVendorTracking = auth()->check() && auth()->user()->hasAnyRole('Admin|Manager');
-        // TODO(main-vendor-tracking-columns): Decide whether to restore RO/Vendor columns here or remove the related UI permanently.
-        $showMainRoVendorColumns = false;
-        $vendors = $vendors ?? collect();
-        $processSequenceGuard = app(\App\Services\ProcessSequenceGuard::class);
-        $canBypassProcessSequence = auth()->check() && auth()->user()?->isAdmin();
+        $mainReadonlyDate = static fn ($date): string => format_project_date($date) ?? '';
+        $mainReadonlyText = static fn ($value): string => trim((string) ($value ?? ''));
     @endphp
-    <script>
-        window.mainsProcessSequenceBypass = @json($canBypassProcessSequence);
-    </script>
 
     <div class="card dir-page">
         <div class="card-body p-0 shadow-lg">
@@ -715,10 +708,7 @@
                                                                                                 <col class="wo-bush-col-ipl">
                                                                                                 <col class="wo-bush-col-process">
                                                                                                 <col class="wo-bush-col-qty">
-                                                                                                @if($canManageVendorTracking && $showMainRoVendorColumns)
-                                                                                                    <col class="wo-bush-col-ro">
-                                                                                                    <col class="wo-bush-col-vendor">
-                                                                                                @endif
+                                                                                                <col class="wo-bush-col-ro">
                                                                                                 <col class="wo-bush-col-dt">
                                                                                                 <col class="wo-bush-col-dt">
                                                                                             </colgroup>
@@ -728,10 +718,7 @@
                                                                                                 <th class="wo-bush-col-ipl text-center">IPL</th>
                                                                                                 <th class="wo-bush-col-process">{{ __('Process') }}</th>
                                                                                                 <th class="text-center wo-bush-col-qty">Qty</th>
-                                                                                            @if($canManageVendorTracking && $showMainRoVendorColumns)
-                                                                                                    <th class="wo-bush-col-ro">Rep order</th>
-                                                                                                    <th class="wo-bush-col-vendor">Vendor</th>
-                                                                                                @endif
+                                                                                                <th class="wo-bush-col-ro">RO</th>
                                                                                                 <th class="text-center wo-bush-col-dt">Sent</th>
                                                                                                 <th class="text-center wo-bush-col-dt">Return</th>
                                                                                             </tr>
@@ -776,69 +763,23 @@
                                                                                                         </td>
                                                                                                         <td class="text-center small wo-bush-col-qty align-middle fw-semibold text-info"
                                                                                                             title="{{ __('Sum of quantities in this batch') }}">{{ $batchQtySum }}</td>
-                                                                                                @if($canManageVendorTracking && $showMainRoVendorColumns)
+                                                                                                        @php
+                                                                                                            $batchRoDisplay = $mainReadonlyText($batch['repair_order'] ?? '');
+                                                                                                            $batchStartDisplay = $mainReadonlyDate($batch['date_start'] ?? null);
+                                                                                                            $batchFinishDisplay = $mainReadonlyDate($batch['date_finish'] ?? null);
+                                                                                                        @endphp
                                                                                                         <td class="align-middle wo-bush-col-ro px-1" onclick="event.stopPropagation();">
-                                                                                                            <form method="POST"
-                                                                                                                  action="{{ route('wo_bushing_batches.updateRepairOrder', $batch['id']) }}"
-                                                                                                                  class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
-                                                                                                                  data-no-spinner>
-                                                                                                                @csrf
-                                                                                                                @method('PATCH')
-                                                                                                                <input type="text"
-                                                                                                                       name="repair_order"
-                                                                                                                       class="form-control form-control-sm pe-4"
-                                                                                                                       value="{{ $batch['repair_order'] ?? '' }}"
-                                                                                                                       placeholder="…"
-                                                                                                                       autocomplete="off"
-                                                                                                                       data-original="{{ $batch['repair_order'] ?? '' }}">
-                                                                                                                <i class="bi bi-save save-indicator d-none"></i>
-                                                                                                            </form>
-                                                                                                        </td>
-                                                                                                        <td class="align-middle wo-bush-col-vendor px-1" onclick="event.stopPropagation();">
-                                                                                                            <form method="POST"
-                                                                                                                  action="{{ route('wo_bushing_batches.updateRepairOrder', $batch['id']) }}"
-                                                                                                                  class="auto-submit-form js-ajax"
-                                                                                                                  data-no-spinner>
-                                                                                                                @csrf
-                                                                                                                @method('PATCH')
-                                                                                                                <select name="vendor_id" class="form-select form-select-sm">
-                                                                                                                    <option value="">...</option>
-                                                                                                                    @foreach($vendors as $vendor)
-                                                                                                                        <option value="{{ $vendor->id }}" @selected((int) ($batch['vendor_id'] ?? 0) === (int) $vendor->id)>{{ $vendor->name }}</option>
-                                                                                                                    @endforeach
-                                                                                                                </select>
-                                                                                                            </form>
-                                                                                                        </td>
-                                                                                                        @endif
-                                                                                                        <td class="align-middle text-center wo-bush-col-dt px-1" onclick="event.stopPropagation();">
-                                                                                                            <form method="POST"
-                                                                                                                  action="{{ route('wo_bushing_batches.updateDate', $batch['id']) }}"
-                                                                                                                  class="auto-submit-form js-ajax"
-                                                                                                                  data-no-spinner>
-                                                                                                                @csrf
-                                                                                                                @method('PATCH')
-                                                                                                                <input type="text" data-fp name="date_start" class="form-control form-control-sm finish-input"
-                                                                                                                       value="{{ $batch['date_start']?->format('Y-m-d') }}"
-                                                                                                                       data-original="{{ $batch['date_start']?->format('Y-m-d') ?? '' }}"
-                                                                                                                       placeholder="…" autocomplete="off">
-                                                                                                            </form>
+                                                                                                            <span class="main-readonly-ro {{ $batchRoDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $batchRoDisplay }}</span>
                                                                                                         </td>
                                                                                                         <td class="align-middle text-center wo-bush-col-dt px-1" onclick="event.stopPropagation();">
-                                                                                                            <form method="POST"
-                                                                                                                  action="{{ route('wo_bushing_batches.updateDate', $batch['id']) }}"
-                                                                                                                  class="auto-submit-form js-ajax"
-                                                                                                                  data-no-spinner>
-                                                                                                                @csrf
-                                                                                                                @method('PATCH')
-                                                                                                                <input type="text" data-fp name="date_finish" class="form-control form-control-sm finish-input"
-                                                                                                                       value="{{ $batch['date_finish']?->format('Y-m-d') }}"
-                                                                                                                       data-original="{{ $batch['date_finish']?->format('Y-m-d') ?? '' }}"
-                                                                                                                       placeholder="…" autocomplete="off">
-                                                                                                            </form>
+                                                                                                            <span class="main-readonly-date {{ $batchStartDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $batchStartDisplay }}</span>
+                                                                                                        </td>
+                                                                                                        <td class="align-middle text-center wo-bush-col-dt px-1" onclick="event.stopPropagation();">
+                                                                                                            <span class="main-readonly-date {{ $batchFinishDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $batchFinishDisplay }}</span>
                                                                                                         </td>
                                                                                                     </tr>
                                                                                                     <tr class="collapse" id="{{ $batchCollapseId }}">
-                                                                                                  <td colspan="{{ ($canManageVendorTracking && $showMainRoVendorColumns) ? 8 : 6 }}" class="p-0 border-secondary bg-opacity-10" style="background: rgba(0,0,0,.15);">
+                                                                                                  <td colspan="7" class="p-0 border-secondary bg-opacity-10" style="background: rgba(0,0,0,.15);">
                                                                                                             <div class="wo-bush-batch-nested-wrap">
                                                                                                                 <table class="table table-sm table-dark table-bordered mb-0 wo-bush-batch-nested">
                                                                                                                     <tbody>
@@ -874,71 +815,23 @@
                                                                                                             'date_finish' => $batch['date_finish'] ?? null,
                                                                                                         ]];
                                                                                                         $wbr = $woBushProcRows[0] ?? [];
+                                                                                                        $woBushRoDisplay = $mainReadonlyText($wbr['repair_order'] ?? '');
+                                                                                                        $woBushStartDisplay = $mainReadonlyDate($wbr['date_start'] ?? null);
+                                                                                                        $woBushFinishDisplay = $mainReadonlyDate($wbr['date_finish'] ?? null);
                                                                                                     @endphp
                                                                                                     <tr data-bush-line-qty="{{ (int) ($item['qty'] ?? 0) }}">
                                                                                                         <td class="small wo-bush-col-part" @if($__pn !== '') title="{{ e($__pn) }}" @endif>{{ $__pn !== '' ? $__pn : '—' }}</td>
                                                                                                         <td class="small wo-bush-col-ipl" @if($__ipl !== '') title="{{ e($__ipl) }}" @endif>{{ $__ipl !== '' ? $__ipl : '—' }}</td>
                                                                                                         <td class="small text-info wo-bush-col-process" @if($__pd !== '') title="{{ e($__pd) }}" @endif>{{ $__pd !== '' ? $__pd : '—' }}</td>
                                                                                                         <td class="text-center wo-bush-col-qty">{{ $item['qty'] ?? 0 }}</td>
-                                                                                                  @if($canManageVendorTracking && $showMainRoVendorColumns)
                                                                                                         <td class="wo-bush-col-ro">
-                                                                                                            <form method="POST"
-                                                                                                                  action="{{ route('wo_bushing_processes.updateRepairOrder', $wbr['id']) }}"
-                                                                                                                  class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
-                                                                                                                  data-no-spinner>
-                                                                                                                @csrf
-                                                                                                                @method('PATCH')
-                                                                                                                <input type="text"
-                                                                                                                       name="repair_order"
-                                                                                                                       class="form-control form-control-sm pe-4"
-                                                                                                                       value="{{ $wbr['repair_order'] ?? '' }}"
-                                                                                                                       placeholder="…"
-                                                                                                                       autocomplete="off"
-                                                                                                                       data-original="{{ $wbr['repair_order'] ?? '' }}">
-                                                                                                                <i class="bi bi-save save-indicator d-none"></i>
-                                                                                                            </form>
-                                                                                                        </td>
-                                                                                                        <td class="wo-bush-col-vendor">
-                                                                                                            <form method="POST"
-                                                                                                                  action="{{ route('wo_bushing_processes.updateRepairOrder', $wbr['id']) }}"
-                                                                                                                  class="auto-submit-form js-ajax"
-                                                                                                                  data-no-spinner>
-                                                                                                                @csrf
-                                                                                                                @method('PATCH')
-                                                                                                                <select name="vendor_id" class="form-select form-select-sm">
-                                                                                                                    <option value="">...</option>
-                                                                                                                    @foreach($vendors as $vendor)
-                                                                                                                        <option value="{{ $vendor->id }}" @selected((int) ($wbr['vendor_id'] ?? 0) === (int) $vendor->id)>{{ $vendor->name }}</option>
-                                                                                                                    @endforeach
-                                                                                                                </select>
-                                                                                                            </form>
-                                                                                                        </td>
-                                                                                                        @endif
-                                                                                                        <td class="text-center wo-bush-col-dt">
-                                                                                                            <form method="POST"
-                                                                                                                  action="{{ route('wo_bushing_processes.updateDate', $wbr['id']) }}"
-                                                                                                                  class="auto-submit-form js-ajax"
-                                                                                                                  data-no-spinner>
-                                                                                                                @csrf
-                                                                                                                @method('PATCH')
-                                                                                                                <input type="text" data-fp name="date_start" class="form-control form-control-sm finish-input"
-                                                                                                                       value="{{ optional($wbr['date_start'] ?? null)->format('Y-m-d') }}"
-                                                                                                                       data-original="{{ optional($wbr['date_start'] ?? null)->format('Y-m-d') }}"
-                                                                                                                       placeholder="…" autocomplete="off">
-                                                                                                            </form>
+                                                                                                            <span class="main-readonly-ro {{ $woBushRoDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $woBushRoDisplay }}</span>
                                                                                                         </td>
                                                                                                         <td class="text-center wo-bush-col-dt">
-                                                                                                            <form method="POST"
-                                                                                                                  action="{{ route('wo_bushing_processes.updateDate', $wbr['id']) }}"
-                                                                                                                  class="auto-submit-form js-ajax"
-                                                                                                                  data-no-spinner>
-                                                                                                                @csrf
-                                                                                                                @method('PATCH')
-                                                                                                                <input type="text" data-fp name="date_finish" class="form-control form-control-sm finish-input"
-                                                                                                                       value="{{ optional($wbr['date_finish'] ?? null)->format('Y-m-d') }}"
-                                                                                                                       data-original="{{ optional($wbr['date_finish'] ?? null)->format('Y-m-d') }}"
-                                                                                                                       placeholder="…" autocomplete="off">
-                                                                                                            </form>
+                                                                                                            <span class="main-readonly-date {{ $woBushStartDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $woBushStartDisplay }}</span>
+                                                                                                        </td>
+                                                                                                        <td class="text-center wo-bush-col-dt">
+                                                                                                            <span class="main-readonly-date {{ $woBushFinishDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $woBushFinishDisplay }}</span>
                                                                                                         </td>
                                                                                                     </tr>
                                                                                                 @endif
@@ -984,10 +877,7 @@
                                         <col class="main-col-ignore">
                                         <col class="main-col-tech">
                                         <col class="main-col-name">
-                                        @if($canManageVendorTracking && $showMainRoVendorColumns)
-                                            <col class="main-col-ro">
-                                            <col class="main-col-vendor">
-                                        @endif
+                                        <col class="main-col-ro">
                                         <col class="main-col-date">
                                         <col class="main-col-date">
                                     </colgroup>
@@ -996,15 +886,11 @@
                                         <th class="fw-normal text-muted small text-center">I</th>
                                         <th class="fw-normal text-muted small text-center">Technik</th>
                                         <th class="fw-normal text-muted small">List</th>
-                                        @if($canManageVendorTracking && $showMainRoVendorColumns)
-                                            <th class="fw-normal text-muted small text-center">Repair Order
-                                            </th>
-                                            <th class="fw-normal text-muted small text-center">Vendor
-                                            </th>
-                                        @endif
-                                        <th class="fw-normal text-muted small text-center main-date-cell">Sent (edit)
+                                        <th class="fw-normal text-muted small text-center">RO
                                         </th>
-                                        <th class="fw-normal text-muted small text-center main-date-cell">Returned (edit)
+                                        <th class="fw-normal text-muted small text-center main-date-cell">Sent
+                                        </th>
+                                        <th class="fw-normal text-muted small text-center main-date-cell">Returned
                                         </th>
                                     </tr>
                                     </thead>
@@ -1030,10 +916,9 @@
                                                     : (! empty($pr->date_start) ? ($startEditedBy ?: '—') : '—');
                                                 $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
                                                 $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
-                                                $stdSequenceState = $processSequenceGuard->stdInputState($pr);
-                                                $stdStartDisabled = $isIgnoredStd || (! $canBypassProcessSequence && $stdSequenceState['date_start_disabled']);
-                                                $stdFinishDisabled = $isIgnoredStd || (! $canBypassProcessSequence && $stdSequenceState['date_finish_disabled']);
-                                                $stdSequenceReason = $canBypassProcessSequence ? '' : ($stdSequenceState['reason'] ?? '');
+                                                $stdRoDisplay = $mainReadonlyText($pr->repair_order ?? '');
+                                                $stdStartDisplay = $mainReadonlyDate($pr->date_start);
+                                                $stdFinishDisplay = $mainReadonlyDate($pr->date_finish);
                                             @endphp
                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}" data-std-row="1"
                                                 class="{{ $isIgnoredStd ? 'text-muted std-ignored-row' : '' }}">
@@ -1072,76 +957,14 @@
                                                 <td>
                                                     <span class="text-info">{{ $label }}</span>
                                                 </td>
-                                                @if($canManageVendorTracking && $showMainRoVendorColumns)
                                                 <td>
-                                                    <form method="POST"
-                                                          action="{{ route('workorder_std_processes.updateRepairOrder', $pr) }}"
-                                                          class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
-                                                          data-no-spinner>
-                                                        @csrf
-                                                        @method('PATCH')
-                                                        <input type="text"
-                                                               name="repair_order"
-                                                               class="form-control form-control-sm pe-4 js-std-editable {{ $isIgnoredStd ? 'bg-dark text-secondary' : '' }}"
-                                                               value="{{ $pr->repair_order ?? '' }}"
-                                                               placeholder="..."
-                                                               autocomplete="off"
-                                                               data-original="{{ $pr->repair_order ?? '' }}"
-                                                               @if($isIgnoredStd) disabled @endif>
-                                                       <i class="bi bi-save save-indicator d-none"></i>
-                                                    </form>
-                                                </td>
-                                                <td>
-                                                    <form method="POST"
-                                                          action="{{ route('workorder_std_processes.updateRepairOrder', $pr) }}"
-                                                          class="auto-submit-form js-ajax"
-                                                          data-no-spinner>
-                                                        @csrf
-                                                        @method('PATCH')
-                                                        <select name="vendor_id"
-                                                                class="form-select form-select-sm js-std-editable {{ $isIgnoredStd ? 'bg-dark text-secondary' : '' }}"
-                                                                @if($isIgnoredStd) disabled @endif>
-                                                            <option value="">...</option>
-                                                            @foreach($vendors as $vendor)
-                                                                <option value="{{ $vendor->id }}" @selected((int) ($pr->vendor_id ?? 0) === (int) $vendor->id)>{{ $vendor->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                    </form>
-                                                </td>
-                                                @endif
-                                                <td class="main-date-cell">
-                                                    <form method="POST"
-                                                          action="{{ route('workorder_std_processes.updateDate', $pr) }}"
-                                                          class="auto-submit-form js-ajax"
-                                                          data-no-spinner>
-                                                        @csrf
-                                                        @method('PATCH')
-                                                        <input type="text" data-fp name="date_start"
-                                                               class="form-control form-control-sm finish-input js-std-editable {{ $isIgnoredStd ? 'is-ignored' : '' }}"
-                                                               value="{{ $pr->date_start?->format('Y-m-d') }}"
-                                                               data-original="{{ $pr->date_start?->format('Y-m-d') ?? '' }}"
-                                                               title="{{ $stdStartDisabled && $stdSequenceReason !== '' ? $stdSequenceReason : $startDateTitle }}"
-                                                               placeholder="..."
-                                                               @if($stdStartDisabled && ! $isIgnoredStd) data-fp-locked readonly @endif
-                                                               @if($isIgnoredStd) disabled @endif>
-                                                    </form>
+                                                    <span class="main-readonly-ro {{ $stdRoDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $stdRoDisplay }}</span>
                                                 </td>
                                                 <td class="main-date-cell">
-                                                    <form method="POST"
-                                                          action="{{ route('workorder_std_processes.updateDate', $pr) }}"
-                                                          class="auto-submit-form js-ajax"
-                                                          data-no-spinner>
-                                                        @csrf
-                                                        @method('PATCH')
-                                                        <input type="text" data-fp name="date_finish"
-                                                               class="form-control form-control-sm finish-input js-std-editable {{ $isIgnoredStd ? 'is-ignored' : '' }}"
-                                                               value="{{ $pr->date_finish?->format('Y-m-d') }}"
-                                                               data-original="{{ $pr->date_finish?->format('Y-m-d') ?? '' }}"
-                                                               title="{{ $stdFinishDisabled && $stdSequenceReason !== '' ? $stdSequenceReason : $finishDateTitle }}"
-                                                               placeholder="..."
-                                                               @if($stdFinishDisabled && ! $isIgnoredStd) data-fp-locked readonly @endif
-                                                               @if($isIgnoredStd) disabled @endif>
-                                                    </form>
+                                                    <span class="main-readonly-date {{ $stdStartDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $startDateTitle }}">{{ $stdStartDisplay }}</span>
+                                                </td>
+                                                <td class="main-date-cell">
+                                                    <span class="main-readonly-date {{ $stdFinishDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $finishDateTitle }}">{{ $stdFinishDisplay }}</span>
                                                 </td>
                                             </tr>
                                         @endif
@@ -1211,10 +1034,7 @@
                                                         <colgroup>
                                                             <col class="main-col-tech">
                                                             <col class="main-col-name">
-                                                            @if($canManageVendorTracking && $showMainRoVendorColumns)
-                                                                <col class="main-col-ro">
-                                                                <col class="main-col-vendor">
-                                                            @endif
+                                                            <col class="main-col-ro">
                                                             <col class="main-col-date">
                                                             <col class="main-col-date">
                                                         </colgroup>
@@ -1230,15 +1050,11 @@
                                                                         </span>
                                                                 </div>
                                                             </th>
-                                                            @if($canManageVendorTracking && $showMainRoVendorColumns)
-                                                                <th class="fw-normal text-muted text-center">Repair Order
-                                                                </th>
-                                                                <th class="fw-normal text-muted text-center">Vendor
-                                                                </th>
-                                                            @endif
-                                                            <th class="fw-normal text-muted text-center main-date-cell">Sent (edit)
+                                                            <th class="fw-normal text-muted text-center">RO
                                                             </th>
-                                                            <th class="fw-normal text-muted text-center main-date-cell">Returned (edit)
+                                                            <th class="fw-normal text-muted text-center main-date-cell">Sent
+                                                            </th>
+                                                            <th class="fw-normal text-muted text-center main-date-cell">Returned
                                                             </th>
                                                         </tr>
                                                         </thead>
@@ -1266,10 +1082,9 @@
                                                                         : (! empty($travelerLeader->date_start) ? ($trStartEditedBy ?: '—') : '—');
                                                                     $trStartDateTitle = $trStartEditedBy ? ('Start date last edited by ' . $trStartEditedBy) : 'Start date editor: not recorded';
                                                                     $trFinishDateTitle = $trFinishEditedBy ? ('Finish date last edited by ' . $trFinishEditedBy) : 'Finish date editor: not recorded';
-                                                                    $trSequenceState = $processSequenceGuard->travelerGroupInputState($tdr, (int) $travelerGroup);
-                                                                    $trStartDisabled = ! $canBypassProcessSequence && $trSequenceState['date_start_disabled'];
-                                                                    $trFinishDisabled = ! $canBypassProcessSequence && $trSequenceState['date_finish_disabled'];
-                                                                    $trSequenceReason = $canBypassProcessSequence ? '' : ($trSequenceState['reason'] ?? '');
+                                                                    $trRoDisplay = $mainReadonlyText($travelerLeader->repair_order ?? '');
+                                                                    $trStartDisplay = $mainReadonlyDate($travelerLeader->date_start);
+                                                                    $trFinishDisplay = $mainReadonlyDate($travelerLeader->date_finish);
                                                                 @endphp
                                                             <tr data-closed="{{ $trClosed ? 1 : 0 }}"
                                                                 data-traveler-row="1"
@@ -1289,78 +1104,15 @@
                                                                 </td>
                                                                 <td><span class="text-info">Traveler {{ (int) $travelerGroup }}</span></td>
 
-                                                                @if($canManageVendorTracking && $showMainRoVendorColumns)
                                                                 <td>
-                                                                    <form method="POST"
-                                                                          action="{{ route('tdrprocesses.updateTravelerGroupRepairOrder', $tdr) }}"
-                                                                          class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
-                                                                          data-no-spinner>
-                                                                        @csrf
-                                                                        @method('PATCH')
-                                                                        <input type="hidden" name="traveler_group" value="{{ (int) $travelerGroup }}">
-
-                                                                        <input type="text"
-                                                                               name="repair_order"
-                                                                               class="form-control form-control-sm pe-4"
-                                                                               value="{{ $travelerLeader->repair_order ?? '' }}"
-                                                                               placeholder="..."
-                                                                               autocomplete="off"
-                                                                               data-original="{{ $travelerLeader->repair_order ?? '' }}">
-
-                                                                        <i class="bi bi-save save-indicator d-none"></i>
-                                                                    </form>
+                                                                    <span class="main-readonly-ro {{ $trRoDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $trRoDisplay }}</span>
                                                                 </td>
-                                                                <td>
-                                                                    <form method="POST"
-                                                                          action="{{ route('tdrprocesses.updateTravelerGroupRepairOrder', $tdr) }}"
-                                                                          class="auto-submit-form js-ajax"
-                                                                          data-no-spinner>
-                                                                        @csrf
-                                                                        @method('PATCH')
-                                                                        <input type="hidden" name="traveler_group" value="{{ (int) $travelerGroup }}">
-                                                                        <select name="vendor_id" class="form-select form-select-sm">
-                                                                            <option value="">...</option>
-                                                                            @foreach($vendors as $vendor)
-                                                                                <option value="{{ $vendor->id }}" @selected((int) ($travelerLeader->vendor_id ?? 0) === (int) $vendor->id)>{{ $vendor->name }}</option>
-                                                                            @endforeach
-                                                                        </select>
-                                                                    </form>
-                                                                </td>
-                                                                @endif
 
                                                                 <td class="main-date-cell">
-                                                                    <form method="POST"
-                                                                          action="{{ route('tdrprocesses.updateTravelerGroupDates', $tdr) }}"
-                                                                          class="auto-submit-form js-ajax"
-                                                                          data-no-spinner>
-                                                                        @csrf
-                                                                        @method('PATCH')
-                                                                        <input type="hidden" name="traveler_group" value="{{ (int) $travelerGroup }}">
-                                                                        <input type="text" data-fp name="date_start"
-                                                                               class="form-control form-control-sm finish-input"
-                                                                               value="{{ $travelerLeader->date_start?->format('Y-m-d') }}"
-                                                                               data-original="{{ $travelerLeader->date_start?->format('Y-m-d') ?? '' }}"
-                                                                               title="{{ $trStartDisabled && $trSequenceReason !== '' ? $trSequenceReason : $trStartDateTitle }}"
-                                                                               placeholder="..."
-                                                                               @if($trStartDisabled) data-fp-locked readonly @endif>
-                                                                    </form>
+                                                                    <span class="main-readonly-date {{ $trStartDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $trStartDateTitle }}">{{ $trStartDisplay }}</span>
                                                                 </td>
                                                                 <td class="main-date-cell">
-                                                                    <form method="POST"
-                                                                          action="{{ route('tdrprocesses.updateTravelerGroupDates', $tdr) }}"
-                                                                          class="auto-submit-form js-ajax"
-                                                                          data-no-spinner>
-                                                                        @csrf
-                                                                        @method('PATCH')
-                                                                        <input type="hidden" name="traveler_group" value="{{ (int) $travelerGroup }}">
-                                                                        <input type="text" data-fp name="date_finish"
-                                                                               class="form-control form-control-sm finish-input"
-                                                                               value="{{ $travelerLeader->date_finish?->format('Y-m-d') }}"
-                                                                               data-original="{{ $travelerLeader->date_finish?->format('Y-m-d') ?? '' }}"
-                                                                               title="{{ $trFinishDisabled && $trSequenceReason !== '' ? $trSequenceReason : $trFinishDateTitle }}"
-                                                                               placeholder="..."
-                                                                               @if($trFinishDisabled) data-fp-locked readonly @endif>
-                                                                    </form>
+                                                                    <span class="main-readonly-date {{ $trFinishDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $trFinishDateTitle }}">{{ $trFinishDisplay }}</span>
                                                                 </td>
                                                             </tr>
                                                             @else
@@ -1374,15 +1126,13 @@
                                                                         : (! empty($pr->date_start) ? ($startEditedBy ?: '—') : '—');
                                                                     $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date editor: not recorded';
                                                                     $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date editor: not recorded';
-                                                                    $processSequenceState = $processSequenceGuard->tdrInputState($pr);
-                                                                    $processStartDisabled = ! $canBypassProcessSequence && $processSequenceState['date_start_disabled'];
-                                                                    $processFinishDisabled = ! $canBypassProcessSequence && $processSequenceState['date_finish_disabled'];
-                                                                    $processSequenceReason = $canBypassProcessSequence ? '' : ($processSequenceState['reason'] ?? '');
+                                                                    $processRoDisplay = $mainReadonlyText($pr->repair_order ?? '');
+                                                                    $processStartDisplay = $mainReadonlyDate($pr->date_start);
+                                                                    $processFinishDisplay = $mainReadonlyDate($pr->date_finish);
                                                                 @endphp
 
                                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}"
-                                                                data-qa-process-id="{{ (int) $pr->id }}"
-                                                                data-sequence-exempt="{{ $pr->processName?->sequence_exempt ? 1 : 0 }}">
+                                                                data-qa-process-id="{{ (int) $pr->id }}">
                                                                 <td class="text-center small text-info js-last-user"
                                                                     data-tippy-content="
                                                                     <span style='color:#adb5bd'>Sent date editor:</span>
@@ -1398,84 +1148,16 @@
                                                                 </td>
                                                                 <td>{{ $pr->processName->name ?? '—' }}</td>
 
-                                                                @if($canManageVendorTracking && $showMainRoVendorColumns)
                                                                 <td>
-                                                                    <form method="POST"
-                                                                          action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
-                                                                          class="auto-submit-form js-auto-submit auto-submit-order position-relative js-ajax"
-                                                                          data-no-spinner>
-                                                                        @csrf
-                                                                        @method('PATCH')
-
-                                                                        <input type="text"
-                                                                               name="repair_order"
-                                                                               class="form-control form-control-sm pe-4"
-                                                                               value="{{ $pr->repair_order ?? '' }}"
-                                                                               placeholder="..."
-                                                                               autocomplete="off"
-                                                                               data-original="{{ $pr->repair_order ?? '' }}">
-
-                                                                        {{-- 💾 индикатор несохранённого --}}
-                                                                        <i class="bi bi-save save-indicator d-none"></i>
-                                                                    </form>
-                                                                    {{-- removed readonly repair order for non manager --}}
-                                                                    @if(false)
+                                                                    <span class="main-readonly-ro {{ $processRoDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $processRoDisplay }}</span>
                                                                         {{-- только просмотр --}}
-                                                                        <input type="text"
-                                                                               class="form-control form-control-sm pe-4 bg-dark"
-                                                                               value="{{ $pr->repair_order ?? '' }}"
-                                                                               readonly>
-                                                                        @endif
                                                                 </td>
 
-                                                                <td>
-                                                                    <form method="POST"
-                                                                          action="{{ route('tdrprocesses.updateRepairOrder', $pr) }}"
-                                                                          class="auto-submit-form js-ajax"
-                                                                          data-no-spinner>
-                                                                        @csrf
-                                                                        @method('PATCH')
-                                                                        <select name="vendor_id" class="form-select form-select-sm">
-                                                                            <option value="">...</option>
-                                                                            @foreach($vendors as $vendor)
-                                                                                <option value="{{ $vendor->id }}" @selected((int) ($pr->vendor_id ?? 0) === (int) $vendor->id)>{{ $vendor->name }}</option>
-                                                                            @endforeach
-                                                                        </select>
-                                                                    </form>
-                                                                </td>
-                                                                @endif
-
                                                                 <td class="main-date-cell">
-                                                                    <form method="POST"
-                                                                          action="{{ route('tdrprocesses.updateDate', $pr) }}"
-                                                                          class="auto-submit-form js-ajax"
-                                                                          data-no-spinner>
-                                                                        @csrf
-                                                                        @method('PATCH')
-                                                                        <input type="text" data-fp name="date_start"
-                                                                               class="form-control form-control-sm finish-input"
-                                                                               value="{{ $pr->date_start?->format('Y-m-d') }}"
-                                                                               data-original="{{ $pr->date_start?->format('Y-m-d') ?? '' }}"
-                                                                               title="{{ $processStartDisabled && $processSequenceReason !== '' ? $processSequenceReason : $startDateTitle }}"
-                                                                               placeholder="..."
-                                                                               @if($processStartDisabled) data-fp-locked readonly @endif>
-                                                                    </form>
+                                                                    <span class="main-readonly-date {{ $processStartDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $startDateTitle }}">{{ $processStartDisplay }}</span>
                                                                 </td>
                                                                 <td class="main-date-cell">
-                                                                    <form method="POST"
-                                                                          action="{{ route('tdrprocesses.updateDate', $pr) }}"
-                                                                          class="auto-submit-form js-ajax"
-                                                                          data-no-spinner>
-                                                                        @csrf
-                                                                        @method('PATCH')
-                                                                        <input type="text" data-fp name="date_finish"
-                                                                               class="form-control form-control-sm finish-input"
-                                                                               value="{{ $pr->date_finish?->format('Y-m-d') }}"
-                                                                               data-original="{{ $pr->date_finish?->format('Y-m-d') ?? '' }}"
-                                                                               title="{{ $processFinishDisabled && $processSequenceReason !== '' ? $processSequenceReason : $finishDateTitle }}"
-                                                                               placeholder="..."
-                                                                               @if($processFinishDisabled) data-fp-locked readonly @endif>
-                                                                    </form>
+                                                                    <span class="main-readonly-date {{ $processFinishDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $finishDateTitle }}">{{ $processFinishDisplay }}</span>
                                                                 </td>
                                                             </tr>
                                                             @endif

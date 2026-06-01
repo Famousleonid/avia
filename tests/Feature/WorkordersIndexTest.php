@@ -3,6 +3,10 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use App\Models\Component;
+use App\Models\ProcessName;
+use App\Models\Tdr;
+use App\Models\TdrProcess;
 use App\Models\UserUiSetting;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
@@ -201,6 +205,95 @@ class WorkordersIndexTest extends TestCase
         $response->assertJsonPath('total_count', 1);
         $response->assertSee((string) $matching->number);
         $response->assertDontSee((string) $other->number);
+    }
+
+    public function test_ec_sort_works_with_active_filter(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $ecName = ProcessName::query()->firstOrCreate(['name' => 'EC'], [
+            'process_sheet_name' => 'EC',
+            'form_number' => 'EC',
+        ]);
+
+        $finished = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 107700,
+            'description' => 'Finished EC workorder',
+        ]);
+        $started = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 107701,
+            'description' => 'Started EC workorder',
+        ]);
+        for ($i = 0; $i < 10; $i++) {
+            $this->createWorkorder([
+                'user_id' => $admin->id,
+                'number' => 107710 + $i,
+                'description' => 'No EC workorder ' . $i,
+            ]);
+        }
+
+        $this->createEcTdrProcess($finished, $ecName, [
+            'date_start' => '2026-05-01',
+            'date_finish' => '2026-05-02',
+        ]);
+        $this->createEcTdrProcess($started, $ecName, [
+            'date_start' => '2026-05-03',
+            'date_finish' => null,
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('workorders.index', [
+            'fragment' => 1,
+            'per_page' => 10,
+            'only_my' => 0,
+            'only_active' => 1,
+            'sort' => 'ec',
+            'direction' => 'desc',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Finished EC workorder');
+
+        $cursor = $response->json('next_cursor');
+        $this->assertNotEmpty($cursor);
+
+        $nextResponse = $this->actingAs($admin)->getJson(route('workorders.index', [
+            'fragment' => 1,
+            'per_page' => 10,
+            'only_my' => 0,
+            'only_active' => 1,
+            'sort' => 'ec',
+            'direction' => 'desc',
+            'cursor' => $cursor,
+        ]));
+
+        $nextResponse->assertOk();
+        $nextResponse->assertJsonStructure(['html', 'next_cursor', 'has_more']);
+    }
+
+    private function createEcTdrProcess($workorder, ProcessName $processName, array $attributes = []): TdrProcess
+    {
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'EC-PN-' . uniqid(),
+            'name' => 'EC Component',
+            'ipl_num' => '1-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'EC-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        return TdrProcess::query()->create(array_merge([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+        ], $attributes));
     }
 
     public function test_user_ui_settings_are_saved_per_user(): void

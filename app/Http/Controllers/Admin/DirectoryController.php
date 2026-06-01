@@ -290,6 +290,44 @@ class DirectoryController extends Controller
         return redirect()->route("$slug.index")->with('success', 'Updated');
     }
 
+    public function updateField(Request $request, string $directory, int $id, string $field)
+    {
+        $this->authorizeDirectoryAccess();
+
+        $dir = $this->dir($directory);
+        $normalizedFields = $this->normalizedFields($dir);
+        abort_unless(array_key_exists($field, $normalizedFields), 404);
+
+        $modelClass = $dir['model'];
+        $item = $modelClass::findOrFail($id);
+
+        $fieldRules = $this->injectUniqueIgnoreIfNeeded(
+            $normalizedFields[$field]['rules'] ?? ['nullable'],
+            $dir,
+            $field,
+            (int) $item->id
+        );
+
+        $validated = $request->validate([
+            $field => $fieldRules,
+        ]);
+
+        $data = $this->normalizeDataForSave(
+            $request,
+            [$field => $normalizedFields[$field]],
+            Arr::only($validated, [$field])
+        );
+
+        $item->fill($data)->save();
+
+        return response()->json([
+            'ok' => true,
+            'id' => $item->id,
+            'field' => $field,
+            'value' => $item->{$field},
+        ]);
+    }
+
     public function destroy(Request $request, $id)
     {
         $this->authorizeDirectoryDelete();

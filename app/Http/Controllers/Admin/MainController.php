@@ -16,7 +16,6 @@ use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Training;
 use App\Models\User;
-use App\Models\Vendor;
 use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
 use App\Models\Workorder;
@@ -334,8 +333,6 @@ class MainController extends Controller
         $stdListTdrProcesses = app(WorkorderStdListProcessesService::class)
             ->resolveForWorkorder($current_workorder);
 
-        $vendors = Vendor::query()->orderBy('name')->get(['id', 'name']);
-
         $wpCollection = WoBushingProcess::query()
             ->whereHas('line', fn ($q) => $q->where('workorder_id', $current_workorder->id))
             ->with(['line.component', 'process.process_name', 'batch', 'vendor'])
@@ -573,7 +570,6 @@ class MainController extends Controller
             'trainingWoLatest',
             'trainingHistoryWo',
             'stdListTdrProcesses',
-            'vendors',
             'bushingTotalPcs',
             'bushingProcessGroupedRows',
             'bushingProcessSections',

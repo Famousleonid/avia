@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Exports\VendorTrackingExport;
 use App\Models\Customer;
 use App\Models\Process;
+use App\Models\QuantumRoLine;
 use App\Models\TdrProcess;
 use App\Models\Vendor;
 use App\Models\UserUiSetting;
@@ -38,6 +39,7 @@ class VendorTrackingController extends Controller
         'returned',
         'ecd',
         'days',
+        'changed_at',
     ];
 
     private const SOURCE_MAP = [
@@ -63,6 +65,8 @@ class VendorTrackingController extends Controller
 
         $vendors = Vendor::query()->orderBy('name')->get(['id', 'name']);
         $customers = Customer::query()->orderBy('name')->get(['id', 'name']);
+        $quantumUnparsedRows = $this->quantumUnparsedRows();
+        $quantumUnparsedTotal = $this->quantumUnparsedTotal();
 
         $summary = [
             'filtered_total' => $rows->total(),
@@ -70,7 +74,15 @@ class VendorTrackingController extends Controller
             'total_rows' => $totalRowsCount,
         ];
 
-        return view('admin.vendor_tracking.index', compact('rows', 'vendors', 'customers', 'filters', 'summary'));
+        return view('admin.vendor_tracking.index', compact(
+            'rows',
+            'vendors',
+            'customers',
+            'filters',
+            'summary',
+            'quantumUnparsedRows',
+            'quantumUnparsedTotal'
+        ));
     }
 
     public function export(Request $request): BinaryFileResponse
@@ -95,7 +107,6 @@ class VendorTrackingController extends Controller
             'id' => ['required', 'integer', 'min:1'],
             'traveler_group' => ['nullable', 'integer', 'min:1'],
             'vendor_id' => ['nullable', 'integer', 'exists:vendors,id'],
-            'repair_order' => ['nullable', 'string', 'max:255'],
         ]);
 
         $modelClass = self::SOURCE_MAP[$data['source_key']] ?? null;
@@ -112,7 +123,6 @@ class VendorTrackingController extends Controller
 
             foreach ($rows as $row) {
                 $row->vendor_id = $data['vendor_id'] ?? null;
-                $row->repair_order = $this->normalizeRepairOrder($data['repair_order'] ?? null);
                 if (auth()->id()) {
                     $row->user_id = auth()->id();
                 }
@@ -134,7 +144,6 @@ class VendorTrackingController extends Controller
         /** @var TdrProcess|WorkorderStdProcess|WoBushingProcess|WoBushingBatch $row */
         $row = $modelClass::query()->findOrFail($data['id']);
         $row->vendor_id = $data['vendor_id'] ?? null;
-        $row->repair_order = $this->normalizeRepairOrder($data['repair_order'] ?? null);
 
         if (($row instanceof TdrProcess || $row instanceof WorkorderStdProcess) && auth()->id()) {
             $row->user_id = auth()->id();
@@ -218,7 +227,7 @@ class VendorTrackingController extends Controller
 
     private function normalizeSort(string $value): string
     {
-        return in_array($value, ['vendor', 'type', 'wo', 'ipl', 'process', 'sent_date'], true)
+        return in_array($value, ['vendor', 'type', 'wo', 'ipl', 'process', 'sent_date', 'changed_at'], true)
             ? $value
             : 'sent_date';
     }
@@ -375,6 +384,7 @@ class VendorTrackingController extends Controller
                 'ipl' => $this->compareText($a->ipl_num ?? null, $b->ipl_num ?? null),
                 'process' => $this->compareText($a->process_name ?? null, $b->process_name ?? null),
                 'sent_date' => $this->compareDate($a->date_start ?? null, $b->date_start ?? null),
+                'changed_at' => $this->compareDate($a->changed_at ?? null, $b->changed_at ?? null),
                 'wo' => $this->compareText($a->workorder?->number ?? null, $b->workorder?->number ?? null, true),
                 default => 0,
             };
@@ -481,6 +491,7 @@ class VendorTrackingController extends Controller
             'date_start' => $row->date_start,
             'date_finish' => $row->date_finish,
             'date_promise' => $row->date_promise,
+            'changed_at' => $row->updated_at,
             'is_returned' => ! empty($row->date_finish),
         ];
     }
@@ -548,6 +559,7 @@ class VendorTrackingController extends Controller
             'date_start' => $row->date_start,
             'date_finish' => $row->date_finish,
             'date_promise' => $row->date_promise,
+            'changed_at' => $row->updated_at,
             'is_returned' => ! empty($row->date_finish),
         ];
     }
@@ -586,6 +598,49 @@ class VendorTrackingController extends Controller
                 $inner->orWhereNull('traveler_group');
             }
         });
+    }
+
+    private function quantumUnparsedRows(): Collection
+    {
+        if (! Schema::hasTable('quantum_ro_lines') || ! Schema::hasColumn('quantum_ro_lines', 'apply_status')) {
+            return collect();
+        }
+
+        return QuantumRoLine::query()
+            ->where(function ($query): void {
+                $query
+                    ->whereIn('apply_status', ['unresolved', 'error'])
+                    ->orWhere(function ($pending): void {
+                        $pending
+                            ->whereNotNull('bom_ref')
+                            ->where('bom_ref', '<>', '')
+                            ->whereNull('apply_status');
+                    });
+            })
+            ->orderByDesc('source_last_modified')
+            ->orderByDesc('id')
+            ->limit(200)
+            ->get();
+    }
+
+    private function quantumUnparsedTotal(): int
+    {
+        if (! Schema::hasTable('quantum_ro_lines') || ! Schema::hasColumn('quantum_ro_lines', 'apply_status')) {
+            return 0;
+        }
+
+        return QuantumRoLine::query()
+            ->where(function ($query): void {
+                $query
+                    ->whereIn('apply_status', ['unresolved', 'error'])
+                    ->orWhere(function ($pending): void {
+                        $pending
+                            ->whereNotNull('bom_ref')
+                            ->where('bom_ref', '<>', '')
+                            ->whereNull('apply_status');
+                    });
+            })
+            ->count();
     }
 
     private function normalizeTdrTravelerGroup(Collection $group): object
@@ -667,6 +722,7 @@ class VendorTrackingController extends Controller
             'date_start' => $leader->date_start,
             'date_finish' => $leader->date_finish,
             'date_promise' => $leader->date_promise,
+            'changed_at' => $group->max('updated_at'),
             'is_returned' => ! empty($leader->date_finish),
             'is_traveler_group' => true,
             'traveler_children' => $children,
@@ -777,6 +833,7 @@ class VendorTrackingController extends Controller
             'date_start' => $row->date_start,
             'date_finish' => $row->date_finish,
             'date_promise' => $row->date_promise,
+            'changed_at' => $row->updated_at,
             'is_returned' => ! empty($row->date_finish),
         ];
     }
@@ -809,6 +866,7 @@ class VendorTrackingController extends Controller
             'date_start' => $row->date_start,
             'date_finish' => $row->date_finish,
             'date_promise' => $row->date_promise,
+            'changed_at' => $row->updated_at,
             'is_returned' => ! empty($row->date_finish),
         ];
     }
@@ -877,13 +935,6 @@ class VendorTrackingController extends Controller
         }
 
         return $tdrCount + $tdrTravelerGroupCount + $stdCount + $bushingProcessCount + $bushingBatchCount;
-    }
-
-    private function normalizeRepairOrder(?string $value): ?string
-    {
-        $value = trim((string) $value);
-
-        return $value === '' ? null : $value;
     }
 
     private function normalizeWorkorderFilter(string $value): string

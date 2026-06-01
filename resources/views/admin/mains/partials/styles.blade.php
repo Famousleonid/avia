@@ -223,6 +223,7 @@
     .main-tabs-shell {
         --main-tab-panel-width: var(--initial-main-tab-panel-width, 100%);
         --main-date-col-width: 7.75rem;
+        --main-ro-col-width: 4.5rem;
         flex: 1 1 auto;
         min-height: 0;
         display: flex;
@@ -589,11 +590,11 @@
     .main-std-processes-block col.main-col-ignore { width: 2.25rem; }
     .main-std-processes-block col.main-col-tech { width: 7.25rem; }
     .main-std-processes-block col.main-col-name { width: auto; }
-    .main-std-processes-block col.main-col-ro { width: 9rem; }
+    .main-std-processes-block col.main-col-ro { width: var(--main-ro-col-width); }
     .main-std-processes-block col.main-col-vendor { width: 10rem; }
     .main-parts-processes-block col.main-col-tech { width: 7.75rem; }
     .main-parts-processes-block col.main-col-name { width: auto; }
-    .main-parts-processes-block col.main-col-ro { width: 9rem; }
+    .main-parts-processes-block col.main-col-ro { width: var(--main-ro-col-width); }
     .main-parts-processes-block col.main-col-vendor { width: 10rem; }
 
     .main-std-processes-block col.main-col-date,
@@ -619,6 +620,50 @@
     .main-parts-processes-block .fp-alt-wrap {
         width: 100%;
         min-width: 0;
+    }
+
+    .main-readonly-ro,
+    .main-readonly-date {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        min-width: 0;
+        min-height: calc(1.8125rem + 2px);
+        box-sizing: border-box;
+        border: 1px solid rgba(108,117,125,.55);
+        border-radius: .25rem;
+        background: var(--main-pane-control-bg);
+        color: var(--main-pane-control-text);
+        padding: .25rem .35rem;
+        font-size: .78rem;
+        line-height: 1.2;
+        font-variant-numeric: tabular-nums;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .main-readonly-ro {
+        justify-content: flex-start;
+    }
+
+    .main-readonly-date {
+        justify-content: center;
+    }
+
+    .main-readonly-date.has-value {
+        border-color: rgba(25, 135, 84, .55);
+        background-color: rgba(25, 135, 84, .1);
+        color: #d1e7dd;
+    }
+
+    html[data-bs-theme="light"] .main-readonly-date.has-value {
+        color: #146c43;
+    }
+
+    .main-readonly-ro.is-empty,
+    .main-readonly-date.is-empty {
+        color: transparent;
     }
 
     /* =========================================================
@@ -1255,10 +1300,10 @@
         text-align: center;
     }
     .wo-bushings-table .wo-bush-col-ro{
-        width: 8.5rem;
-        white-space: normal;
-        word-wrap: break-word;
-        overflow-wrap: anywhere;
+        width: var(--main-ro-col-width);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .wo-bushings-table .wo-bush-col-vendor{
         width: 10rem;
@@ -1280,6 +1325,7 @@
         word-break: break-word;
     }
     .wo-bushings-table .wo-bush-col-ro .form-control,
+    .wo-bushings-table .wo-bush-col-ro .main-readonly-ro,
     .wo-bushings-table .wo-bush-col-vendor .form-select{
         max-width: 100%;
         min-width: 0;
@@ -1290,6 +1336,7 @@
         min-width: 0;
     }
     .wo-bushings-table .wo-bush-col-dt .finish-input,
+    .wo-bushings-table .wo-bush-col-dt .main-readonly-date,
     .wo-bushings-table .wo-bush-col-dt .fp-alt{
         width: 100% !important;
         max-width: 100% !important;
@@ -1363,13 +1410,15 @@
             line-height: 1.2;
         }
         /* Rep order — компактнее; Sent/Return как при большом разрешении */
-        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-ro .form-control-sm {
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-ro .form-control-sm,
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-ro .main-readonly-ro {
             font-size: 0.65rem;
             padding: 0.08rem 0.2rem;
             min-height: 1.45rem;
             line-height: 1.2;
         }
         .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-dt .finish-input,
+        .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-dt .main-readonly-date,
         .wo-bush-strip-accordion .accordion-body table.wo-bushings-table > tbody > tr > td.wo-bush-col-dt .fp-alt {
             font-size: .78rem !important;
             padding-left: .35rem !important;
@@ -1411,12 +1460,15 @@
 
     html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .form-control-sm,
     html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .form-select-sm,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .main-readonly-ro,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .main-readonly-date,
     html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .finish-input,
     html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .fp-alt {
         font-size: .875rem !important;
     }
 
     html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .wo-bush-col-dt .finish-input,
+    html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .wo-bush-col-dt .main-readonly-date,
     html[data-main-tab="bushings"] .main-tabs-shell .wo-bushings-table .wo-bush-col-dt .fp-alt {
         font-size: .78rem !important;
     }

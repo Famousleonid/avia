@@ -234,6 +234,86 @@ Meaning:
 |---|---|
 | WOB_AUTO_KEY | Work Order BOM row key |
 | WOO_AUTO_KEY | Link to WO_OPERATION |
+| REF | Quantum UI `Ref` field on "Adding Bill of Materials" |
+
+### Ref field diagnostic
+
+The Quantum UI "Adding Bill of Materials" form has a visible `Ref` field.
+For RO `R8934`, WO `W107731`, source row `rod:32330`, the user entered `C P`
+in that field when creating the line.
+
+Confirmed by read-only diagnostic:
+
+```text
+WO_BOM.REF = C P
+```
+
+Diagnostic command:
+
+```bash
+cd C:\OSPanel\domains\avia.loc\RO
+php find_quantum_ref_field.php --rod=32330 --value="C P"
+```
+
+The script checks text columns on:
+
+```text
+QCTL.RO_DETAIL
+QCTL.WO_BOM
+QCTL.WO_OPERATION
+```
+
+and writes `quantum_ref_field_search_YYYYMMDD_HHMMSS.csv`.
+
+To audit historical `REF` usage on RO rows:
+
+```bash
+cd C:\OSPanel\domains\avia.loc\RO
+php audit_quantum_bom_ref_usage.php --days=730
+```
+
+This writes:
+
+```text
+quantum_bom_ref_usage_all_time_summary_YYYYMMDD_HHMMSS.csv
+quantum_bom_ref_usage_summary_YYYYMMDD_HHMMSS.csv
+quantum_bom_ref_usage_details_YYYYMMDD_HHMMSS.csv
+```
+
+`sync.php` now detects a WO_BOM change-date column at runtime using `all_tab_columns`.
+If one of these columns exists on `QCTL.WO_BOM`, it is included in incremental sync:
+
+```text
+LAST_MODIFIED
+SYSUR_MODIFIED
+LAST_UPDATE_DATE
+UPDATED_DATE
+MODIFIED_DATE
+DATE_MODIFIED
+CHANGE_DATE
+LAST_STATUS_CHG
+SYSUR_LAST_STATUS_CHG
+```
+
+When detected, that value is stored in `quantum_ro_lines.bom_last_modified`
+and participates in `SOURCE_LAST_MODIFIED`, so a corrected Quantum `Ref` can be
+picked up by the 5-minute cron.
+
+Fallback:
+
+```text
+The Laravel sync state also returns unresolved RO numbers.
+The bridge adds those RO numbers to the next Quantum query, even if no change
+date moved. This lets a corrected `Ref` be refreshed from Quantum while the row
+is still unresolved.
+```
+
+Read-only diagnostic for the actual Quantum columns:
+
+```bash
+cd C:\OSPanel\domains\avia.loc\RO
+php check_quantum_wob_change_columns.php
+```
 
 ---
 

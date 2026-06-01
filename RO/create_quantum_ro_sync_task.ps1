@@ -50,7 +50,7 @@ Register-ScheduledTask `
     -Trigger $trigger `
     -Settings $settings `
     -Principal $principal `
-    -Description "Runs C:\OSPanel\domains\avia.loc\RO\sync.php every $IntervalMinutes minutes for Quantum RO staging sync using hidden wscript runner." `
+    -Description "Runs Quantum RO staging sync and Laravel buffer parser every $IntervalMinutes minutes using hidden wscript runner." `
     -Force | Out-Null
 
 Write-Host "Scheduled task created: $TaskName"
@@ -58,6 +58,7 @@ Write-Host "Runs every $IntervalMinutes minutes."
 Write-Host "PHP: $PhpPath"
 Write-Host "Script: $syncScript"
 Write-Host "Hidden runner: $hiddenRunner"
+Write-Host "Parser: C:\OSPanel\domains\avia.loc\artisan quantum-ro:apply"
 Write-Host ""
 Write-Host "Useful commands:"
 Write-Host "  Get-ScheduledTask -TaskName '$TaskName'"

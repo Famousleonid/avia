@@ -26,6 +26,7 @@ class VendorTrackingExport implements FromArray, ShouldAutoSize, WithEvents
         'returned' => 'Returned',
         'ecd' => 'ECD',
         'days' => 'Days',
+        'changed_at' => 'Changed',
     ];
 
     private Collection $rows;
@@ -112,11 +113,23 @@ class VendorTrackingExport implements FromArray, ShouldAutoSize, WithEvents
             'returned' => optional($returned)->format('Y-m-d') ?? '',
             'ecd' => optional($ecd)->format('Y-m-d') ?? '',
             'days' => $days ?? '',
+            'changed_at' => $this->formatProjectDateTime($row->changed_at ?? null),
         ];
 
         return array_map(
             fn (string $column) => $data[$column] ?? '',
             $this->columns
         );
+    }
+
+    private function formatProjectDateTime(mixed $value): string
+    {
+        if (! $value) {
+            return '';
+        }
+
+        $date = \Carbon\Carbon::parse($value);
+
+        return format_project_date($date) . ' ' . $date->format('H:i');
     }
 }

@@ -12,26 +12,37 @@ class CustomerPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('customer.viewAny');
+        return $this->canUseCustomerDirectory($user, 'viewAny');
     }
 
     public function view(User $user, Customer $customer): bool
     {
-        return $user->can('customer.view', $customer);
+        return $this->canUseCustomerDirectory($user, 'view', $customer);
     }
 
     public function create(User $user): bool
     {
-        return $user->can('customer.create');
+        return $this->canUseCustomerDirectory($user, 'create');
     }
 
     public function update(User $user, Customer $customer): bool
     {
-        return $user->can('customer.update', $customer);
+        return $this->canUseCustomerDirectory($user, 'update', $customer);
     }
 
     public function delete(User $user, Customer $customer): bool
     {
-        return $user->can('customer.delete', $customer);
+        return $user->roleIs('Admin');
+    }
+
+    private function canUseCustomerDirectory(User $user, string $ability, ?Customer $customer = null): bool
+    {
+        if ($user->roleIs(['Admin', 'Manager'])) {
+            return true;
+        }
+
+        return $customer === null
+            ? $user->can("customer.{$ability}")
+            : $user->can("customer.{$ability}", $customer);
     }
 }

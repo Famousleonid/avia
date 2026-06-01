@@ -149,6 +149,59 @@
             text-decoration: none;
         }
 
+        .vendor-tracking-ro-filter,
+        .vendor-tracking-readonly-date {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            min-width: 0;
+            min-height: calc(1.8125rem + 2px);
+            box-sizing: border-box;
+            border: 1px solid rgba(108, 117, 125, .55);
+            border-radius: .25rem;
+            background: #ffffff;
+            color: #1f2937;
+            padding: .25rem .35rem;
+            font-size: .78rem;
+            line-height: 1.2;
+            font-variant-numeric: tabular-nums;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .vendor-tracking-ro-filter {
+            justify-content: flex-start;
+            text-align: left;
+        }
+
+        .vendor-tracking-ro-filter.has-value {
+            cursor: pointer;
+        }
+
+        .vendor-tracking-ro-filter.has-value:hover,
+        .vendor-tracking-ro-filter.has-value:focus {
+            border-color: rgba(13, 202, 240, .65);
+            color: var(--bs-info);
+            outline: none;
+        }
+
+        .vendor-tracking-readonly-date {
+            justify-content: center;
+        }
+
+        .vendor-tracking-readonly-date.has-value {
+            border-color: rgba(25, 135, 84, .55);
+            background-color: rgba(25, 135, 84, .1);
+            color: #146c43;
+        }
+
+        .vendor-tracking-ro-filter.is-empty,
+        .vendor-tracking-readonly-date.is-empty {
+            color: transparent;
+            pointer-events: none;
+        }
+
         .vendor-tracking-wo-link:hover,
         .vendor-tracking-wo-link:focus {
             text-decoration: none;
@@ -616,6 +669,90 @@
             border-color: #22c55e;
         }
 
+        .vendor-tracking-toolbar-btn.btn-outline-warning {
+            color: #713f12;
+            border-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .vendor-tracking-toolbar-btn.btn-outline-warning:hover,
+        .vendor-tracking-toolbar-btn.btn-outline-warning:focus {
+            color: #451a03;
+            background: #fde68a;
+            border-color: #f59e0b;
+        }
+
+        .quantum-buffer-modal .modal-dialog {
+            max-width: min(1560px, calc(100vw - 2rem));
+        }
+
+        .quantum-buffer-modal .modal-body {
+            max-height: calc(100vh - 190px);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: .9rem;
+        }
+
+        .quantum-buffer-rules {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(170px, 1fr));
+            gap: .65rem;
+        }
+
+        .quantum-buffer-rule {
+            border: 1px solid #d7e0ea;
+            border-radius: 8px;
+            background: #f8fafc;
+            padding: .65rem .75rem;
+            min-height: 84px;
+        }
+
+        .quantum-buffer-rule-title {
+            font-size: .82rem;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: .25rem;
+        }
+
+        .quantum-buffer-rule-text {
+            font-size: .78rem;
+            color: #64748b;
+            line-height: 1.35;
+        }
+
+        .quantum-buffer-table-wrap {
+            flex: 1 1 auto;
+            min-height: 280px;
+            overflow: auto;
+            border: 1px solid #d7e0ea;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+
+        .quantum-buffer-table {
+            min-width: 1320px;
+            margin-bottom: 0;
+        }
+
+        .quantum-buffer-table th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #f1f5f9;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        .quantum-buffer-table td {
+            vertical-align: top;
+        }
+
+        .quantum-buffer-message {
+            max-width: 340px;
+            white-space: normal;
+        }
+
         .vendor-tracking-page .table-responsive {
             background: #2B3035;
             border-radius: 10px;
@@ -794,6 +931,19 @@
             border: 1px solid rgba(255, 255, 255, 0.14);
         }
 
+        html[data-bs-theme="dark"] .vendor-tracking-ro-filter,
+        html[data-bs-theme="dark"] .vendor-tracking-readonly-date {
+            background-color: #171b22;
+            color: #f8f9fa;
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+
+        html[data-bs-theme="dark"] .vendor-tracking-readonly-date.has-value {
+            border-color: rgba(25, 135, 84, .55);
+            background-color: rgba(25, 135, 84, .18);
+            color: #d1e7dd;
+        }
+
         html[data-bs-theme="dark"] .vendor-tracking-inline-select {
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23adb5bd' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 5.5 8 12l6.5-6.5-.9-.9L8 10.2 2.4 4.6z'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
@@ -832,6 +982,19 @@
             color: #08140d;
             background: #39d98a;
             border-color: #39d98a;
+        }
+
+        html[data-bs-theme="dark"] .vendor-tracking-toolbar-btn.btn-outline-warning {
+            color: #fff2c2;
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.16);
+        }
+
+        html[data-bs-theme="dark"] .vendor-tracking-toolbar-btn.btn-outline-warning:hover,
+        html[data-bs-theme="dark"] .vendor-tracking-toolbar-btn.btn-outline-warning:focus {
+            color: #211407;
+            background: #fbbf24;
+            border-color: #fbbf24;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-page .table-responsive {
@@ -910,7 +1073,8 @@
         }
 
         html[data-bs-theme="dark"] #vendorTrackingSettingsModal .modal-content,
-        html[data-bs-theme="dark"] #vendorInfoModal .modal-content {
+        html[data-bs-theme="dark"] #vendorInfoModal .modal-content,
+        html[data-bs-theme="dark"] #quantumRoBufferModal .modal-content {
             background: #232525;
             color: #f8f9fa;
             border: 1px solid rgba(255, 255, 255, 0.12);
@@ -919,8 +1083,51 @@
         html[data-bs-theme="dark"] #vendorTrackingSettingsModal .modal-header,
         html[data-bs-theme="dark"] #vendorTrackingSettingsModal .modal-footer,
         html[data-bs-theme="dark"] #vendorInfoModal .modal-header,
-        html[data-bs-theme="dark"] #vendorInfoModal .modal-footer {
+        html[data-bs-theme="dark"] #vendorInfoModal .modal-footer,
+        html[data-bs-theme="dark"] #quantumRoBufferModal .modal-header,
+        html[data-bs-theme="dark"] #quantumRoBufferModal .modal-footer {
             border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        html[data-bs-theme="dark"] .quantum-buffer-rule {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        html[data-bs-theme="dark"] .quantum-buffer-rule-title {
+            color: #e5e7eb;
+        }
+
+        html[data-bs-theme="dark"] .quantum-buffer-rule-text {
+            color: #adb5bd;
+        }
+
+        html[data-bs-theme="dark"] .quantum-buffer-table-wrap {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: #2B3035;
+        }
+
+        html[data-bs-theme="dark"] .quantum-buffer-table {
+            --bs-table-bg: #2B3035;
+            --bs-table-color: #f8f9fa;
+            --bs-table-border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        html[data-bs-theme="dark"] .quantum-buffer-table th {
+            background: #1f2329;
+            color: #adb5bd;
+        }
+
+        @media (max-width: 1100px) {
+            .quantum-buffer-rules {
+                grid-template-columns: repeat(2, minmax(170px, 1fr));
+            }
+        }
+
+        @media (max-width: 700px) {
+            .quantum-buffer-rules {
+                grid-template-columns: 1fr;
+            }
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-column-item {
@@ -978,7 +1185,9 @@
             $currentSort = $filters['sort'] ?? 'sent_date';
             $currentDirection = $filters['direction'] ?? 'asc';
             $sortUrl = function (string $column) use ($currentSort, $currentDirection) {
-                $direction = $currentSort === $column && $currentDirection === 'asc' ? 'desc' : 'asc';
+                $direction = $currentSort === $column
+                    ? ($currentDirection === 'asc' ? 'desc' : 'asc')
+                    : ($column === 'changed_at' ? 'desc' : 'asc');
 
                 return route('vendor-tracking.index', array_merge(request()->query(), [
                     'sort' => $column,
@@ -993,6 +1202,8 @@
 
                 return $currentDirection === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down';
             };
+            $vendorTrackingReadonlyDate = static fn ($date): string => format_project_date($date) ?? '';
+            $vendorTrackingReadonlyText = static fn ($value): string => trim((string) ($value ?? ''));
         @endphp
         <div class="vendor-tracking-sticky-shell">
             <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1005,6 +1216,12 @@
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-warning btn-sm vendor-tracking-toolbar-btn" data-bs-toggle="modal" data-bs-target="#quantumRoBufferModal" title="Quantum buffer unresolved rows">
+                        <i class="bi bi-database-exclamation me-1"></i> Quantum
+                        @if(($quantumUnparsedTotal ?? 0) > 0)
+                            <span class="badge text-bg-warning ms-1">{{ number_format($quantumUnparsedTotal) }}</span>
+                        @endif
+                    </button>
                     <button type="button" class="btn btn-outline-secondary btn-sm vendor-tracking-toolbar-btn" id="vendorTrackingSettingsBtn" title="Table settings">
                         <i class="bi bi-gear me-1"></i> Settings
                     </button>
@@ -1158,14 +1375,20 @@
                                 </th>
                                 <th class="text-center vendor-tracking-date-col" data-col="sent">
                                     <a href="{{ $sortUrl('sent_date') }}" class="vendor-tracking-sort-link {{ $currentSort === 'sent_date' ? 'is-active' : '' }}">
-                                        <span>Sent (edit)</span>
+                                        <span>Sent</span>
                                         <i class="bi {{ $sortIcon('sent_date') }} vendor-tracking-sort-icon"></i>
                                     </a>
                                 </th>
-                                <th class="text-center vendor-tracking-date-col" data-col="returned">Returned (edit)</th>
+                                <th class="text-center vendor-tracking-date-col" data-col="returned">Returned</th>
                                 <th class="text-center vendor-tracking-date-col" data-col="ecd">ECD</th>
                                 <th class="text-center" data-col="days">Days</th>
                                 <th class="text-center" data-col="status">Status</th>
+                                <th class="text-center vendor-tracking-date-col" data-col="changed_at">
+                                    <a href="{{ $sortUrl('changed_at') }}" class="vendor-tracking-sort-link {{ $currentSort === 'changed_at' ? 'is-active' : '' }}">
+                                        <span>Changed</span>
+                                        <i class="bi {{ $sortIcon('changed_at') }} vendor-tracking-sort-icon"></i>
+                                    </a>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="vendorTrackingBody">
@@ -1190,14 +1413,28 @@
                                     $travelerChildren = collect($row->traveler_children ?? []);
                                     $rowKey = (string) ($row->row_key ?? $row->id);
                                     $travelerGroup = (int) ($row->traveler_group ?? 0);
+                                    $changedAt = $row->changed_at ? \Carbon\Carbon::parse($row->changed_at) : null;
+                                    $changedDisplay = $changedAt ? format_project_date($changedAt) . ' ' . $changedAt->format('H:i') : '--';
+                                    $repairOrderDisplay = $vendorTrackingReadonlyText($row->repair_order ?? '');
+                                    $sentDisplay = $vendorTrackingReadonlyDate($sent);
+                                    $returnedDisplay = $vendorTrackingReadonlyDate($returned);
                                 @endphp
                                 <tr data-row-id="{{ $row->id }}"
                                     data-row-key="{{ $rowKey }}"
                                     data-source-key="{{ $row->source_key }}"
                                     @if($travelerGroup > 0) data-traveler-group="{{ $travelerGroup }}" @endif
                                     @class(['vendor-tracking-traveler-row' => $isTravelerGroup])>
-                                    <td class="vendor-tracking-save-cell vendor-tracking-repair-col" data-col="repair_order">
-                                        <input type="text" class="form-control form-control-sm vendor-tracking-inline-input js-vendor-tracking-repair-order" value="{{ $row->repair_order ?? '' }}" autocomplete="off" spellcheck="false">
+                                    <td class="vendor-tracking-repair-col" data-col="repair_order">
+                                        @if($repairOrderDisplay !== '')
+                                            <button type="button"
+                                                    class="btn btn-sm vendor-tracking-ro-filter js-vendor-tracking-ro-filter has-value"
+                                                    data-repair-order="{{ $repairOrderDisplay }}"
+                                                    title="Filter by RO {{ $repairOrderDisplay }}">
+                                                {{ $repairOrderDisplay }}
+                                            </button>
+                                        @else
+                                            <span class="vendor-tracking-ro-filter is-empty"></span>
+                                        @endif
                                     </td>
                                     <td class="vendor-tracking-type-col" data-col="type"><span class="fw-semibold {{ $typeTextClass }}">{{ $row->source }}</span></td>
                                     <td class="vendor-tracking-save-cell text-center" data-col="info">
@@ -1241,27 +1478,11 @@
                                             {{ $row->process_name ?? '--' }}
                                         @endif
                                     </td>
-                                    <td class="vendor-tracking-save-cell" data-col="sent">
-                                        <input
-                                            type="text"
-                                            data-fp
-                                            data-date-url="{{ $row->date_update_url }}"
-                                            name="date_start"
-                                            class="form-control form-control-sm finish-input js-vendor-tracking-date"
-                                            value="{{ optional($sent)->format('Y-m-d') }}"
-                                            data-original="{{ optional($sent)->format('Y-m-d') ?? '' }}"
-                                        >
+                                    <td class="text-center" data-col="sent">
+                                        <span class="vendor-tracking-readonly-date {{ $sentDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $sentDisplay }}</span>
                                     </td>
-                                    <td class="vendor-tracking-save-cell" data-col="returned">
-                                        <input
-                                            type="text"
-                                            data-fp
-                                            data-date-url="{{ $row->date_update_url }}"
-                                            name="date_finish"
-                                            class="form-control form-control-sm finish-input js-vendor-tracking-date"
-                                            value="{{ optional($returned)->format('Y-m-d') }}"
-                                            data-original="{{ optional($returned)->format('Y-m-d') ?? '' }}"
-                                        >
+                                    <td class="text-center" data-col="returned">
+                                        <span class="vendor-tracking-readonly-date {{ $returnedDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $returnedDisplay }}</span>
                                     </td>
                                     <td class="vendor-tracking-save-cell" data-col="ecd">
                                         <input
@@ -1284,6 +1505,7 @@
                                             <span class="badge text-bg-secondary">Planned</span>
                                         @endif
                                     </td>
+                                    <td class="text-center text-muted small" data-col="changed_at">{{ $changedDisplay }}</td>
                                 </tr>
                                 @if($isTravelerGroup)
                                     <tr class="vendor-tracking-detail-row d-none"
@@ -1292,7 +1514,7 @@
                                         data-row-key="{{ $rowKey }}"
                                         data-source-key="{{ $row->source_key }}"
                                         @if($travelerGroup > 0) data-traveler-group="{{ $travelerGroup }}" @endif>
-                                        <td class="vendor-tracking-detail-cell" colspan="16">
+                                        <td class="vendor-tracking-detail-cell" colspan="17">
                                             <div class="vendor-tracking-detail-panel">
                                                 <div class="vendor-tracking-detail-layout">
                                                     <table class="table table-sm table-bordered align-middle dir-table vendor-tracking-detail-table">
@@ -1327,7 +1549,7 @@
                                 @endif
                             @empty
                                 <tr>
-                                    <td colspan="16" class="text-muted text-center py-4 vendor-tracking-empty-cell">No vendor process records found.</td>
+                                    <td colspan="17" class="text-muted text-center py-4 vendor-tracking-empty-cell">No vendor process records found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -1340,6 +1562,112 @@
 
                 <div class="vendor-tracking-loadmore {{ $rows->hasMorePages() ? '' : 'is-hidden' }}" id="vendorTrackingLoadMore">
                     Loading more records...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade quantum-buffer-modal" id="quantumRoBufferModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title mb-0">Quantum RO Buffer</h5>
+                        <div class="small text-muted">
+                            Unparsed rows: {{ number_format($quantumUnparsedTotal ?? 0) }}
+                            @if(($quantumUnparsedRows ?? collect())->count() < ($quantumUnparsedTotal ?? 0))
+                                · showing latest {{ number_format(($quantumUnparsedRows ?? collect())->count()) }}
+                            @endif
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <div class="small text-muted">
+                            Fix incorrect Ref values in Quantum. Laravel process codes are treated as a fixed parser dictionary.
+                        </div>
+                    </div>
+
+                    <div class="quantum-buffer-rules">
+                        <div class="quantum-buffer-rule">
+                            <div class="quantum-buffer-rule-title">1. Ref code</div>
+                            <div class="quantum-buffer-rule-text">Quantum `WO_BOM.REF` must match exactly one `process_names.code`. Spaces and case are ignored.</div>
+                        </div>
+                        <div class="quantum-buffer-rule">
+                            <div class="quantum-buffer-rule-title">2. Target</div>
+                            <div class="quantum-buffer-rule-text">Parser finds the WO, then one matching TDR process or one STD process for that process name.</div>
+                        </div>
+                        <div class="quantum-buffer-rule">
+                            <div class="quantum-buffer-rule-title">3. Part rows</div>
+                            <div class="quantum-buffer-rule-text">For `DETAIL_PART`, the Quantum PN must match the avia component PN on that WO.</div>
+                        </div>
+                        <div class="quantum-buffer-rule">
+                            <div class="quantum-buffer-rule-title">4. Apply</div>
+                            <div class="quantum-buffer-rule-text">When target is unique, parser writes RO, vendor, sent date and first returned date; ambiguous rows stay here.</div>
+                        </div>
+                    </div>
+
+                    <div class="quantum-buffer-table-wrap">
+                        <table class="table table-sm table-bordered align-middle quantum-buffer-table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Reason</th>
+                                    <th>RO</th>
+                                    <th>WO</th>
+                                    <th>Vendor</th>
+                                    <th>PN</th>
+                                    <th>Description</th>
+                                    <th>Class</th>
+                                    <th>Ref</th>
+                                    <th>Sent</th>
+                                    <th>Returned</th>
+                                    <th>Qty</th>
+                                    <th>Source</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($quantumUnparsedRows as $line)
+                                    <tr>
+                                        <td>
+                                            <span class="badge {{ $line->apply_status === 'error' ? 'text-bg-danger' : 'text-bg-warning' }}">
+                                                {{ $line->apply_status ?: 'pending' }}
+                                            </span>
+                                        </td>
+                                        <td class="quantum-buffer-message">{{ $line->apply_message ?: 'Not parsed yet.' }}</td>
+                                        <td>{{ $line->ro_number ?: '--' }}</td>
+                                        <td>{{ $line->wo_number ?: '--' }}</td>
+                                        <td>{{ $line->vendor_name ?: '--' }}</td>
+                                        <td>{{ $line->pn ?: '--' }}</td>
+                                        <td>{{ $line->description ?: '--' }}</td>
+                                        <td>{{ $line->class ?: '--' }}</td>
+                                        <td><code>{{ $line->bom_ref ?: '--' }}</code></td>
+                                        <td>{{ format_project_date($line->out_date) ?? '--' }}</td>
+                                        <td>{{ format_project_date($line->returned_date) ?? '--' }}</td>
+                                        <td>
+                                            <span class="d-block">To Repair: {{ $line->qty_repair ?? '--' }}</span>
+                                            <span class="d-block">Reserved: {{ $line->qty_reserved ?? '--' }}</span>
+                                            <span class="d-block">Repaired: {{ $line->qty_repaired ?? '--' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="d-block">{{ $line->source_uid ?: '--' }}</span>
+                                            <span class="d-block small text-muted">
+                                                {{ $line->source_last_modified ? ((format_project_date($line->source_last_modified) ?? '--') . ' ' . $line->source_last_modified->format('H:i')) : '--' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="13" class="text-center text-muted py-4">No unparsed Quantum RO rows.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -1438,9 +1766,9 @@
             const excelColumnOrderKey = 'vendorTrackingExcelColumnOrder';
             const excelTitleKey = 'vendorTrackingExcelTitle';
             const settingsVersionKey = 'vendorTrackingSettingsVersion';
-            const currentSettingsVersion = '2';
-            const defaultScreenColumns = ['repair_order', 'type', 'info', 'vendor', 'wo', 'customer', 'ipl', 'part_number', 'part_name', 'serial', 'process', 'sent', 'returned', 'ecd', 'days', 'status'];
-            const defaultExcelColumns = ['repair_order', 'type', 'vendor', 'wo', 'customer', 'ipl', 'part_number', 'part_name', 'serial', 'process', 'sent', 'returned', 'ecd', 'days'];
+            const currentSettingsVersion = '3';
+            const defaultScreenColumns = ['repair_order', 'type', 'info', 'vendor', 'wo', 'customer', 'ipl', 'part_number', 'part_name', 'serial', 'process', 'sent', 'returned', 'ecd', 'days', 'status', 'changed_at'];
+            const defaultExcelColumns = ['repair_order', 'type', 'vendor', 'wo', 'customer', 'ipl', 'part_number', 'part_name', 'serial', 'process', 'sent', 'returned', 'ecd', 'days', 'changed_at'];
             const screenColumnDefs = [
                 { key: 'repair_order', label: 'RO' },
                 { key: 'type', label: 'Type' },
@@ -1458,6 +1786,7 @@
                 { key: 'ecd', label: 'ECD' },
                 { key: 'days', label: 'Days' },
                 { key: 'status', label: 'Status' },
+                { key: 'changed_at', label: 'Changed' },
             ];
             const excelColumnDefs = screenColumnDefs.filter(def => !['info', 'status'].includes(def.key));
             const form = document.querySelector('.vendor-tracking-page form');
@@ -1619,6 +1948,9 @@
                 if (settingValue(settingsVersionKey, null) !== currentSettingsVersion && !columns.includes('part_name')) {
                     columns.splice(Math.max(0, columns.indexOf('part_number') + 1), 0, 'part_name');
                 }
+                if (settingValue(settingsVersionKey, null) !== currentSettingsVersion && !columns.includes('changed_at')) {
+                    columns.push('changed_at');
+                }
                 return columns;
             }
 
@@ -1626,6 +1958,9 @@
                 const columns = sanitizeColumns(settingValue(excelColumnsKey, null), excelColumnDefs.map(def => def.key), defaultExcelColumns, ['process']);
                 if (settingValue(settingsVersionKey, null) !== currentSettingsVersion && !columns.includes('part_name')) {
                     columns.splice(Math.max(0, columns.indexOf('part_number') + 1), 0, 'part_name');
+                }
+                if (settingValue(settingsVersionKey, null) !== currentSettingsVersion && !columns.includes('changed_at')) {
+                    columns.push('changed_at');
                 }
                 return columns;
             }
@@ -1719,8 +2054,8 @@
             function updateEmptyStateColspan() {
                 const visibleCount = document.querySelectorAll('thead [data-col]').length
                     ? Array.from(document.querySelectorAll('thead [data-col]')).filter(cell => cell.style.display !== 'none').length
-                    : 16;
-                const fullCount = document.querySelectorAll('#vendorTrackingTable > thead [data-col]').length || 16;
+                    : 17;
+                const fullCount = document.querySelectorAll('#vendorTrackingTable > thead [data-col]').length || 17;
 
                 tbody?.querySelectorAll('.vendor-tracking-empty-cell').forEach(function (cell) {
                     cell.colSpan = Math.max(1, visibleCount);
@@ -1930,7 +2265,6 @@
                 return;
             }
 
-            const repairOrderTimers = new WeakMap();
             let currentInfoVendorId = null;
 
             const setCellState = function (cell, state) {
@@ -2018,7 +2352,6 @@
                             source_key: row.dataset.sourceKey,
                             traveler_group: Number(row.dataset.travelerGroup || 0) || null,
                             vendor_id: payload.vendor_id,
-                            repair_order: payload.repair_order,
                         }),
                     });
                 };
@@ -2090,33 +2423,6 @@
                 });
             };
 
-            const updateStatusCell = function (row, dateStart, dateFinish) {
-                const daysCell = row.querySelector('.js-vendor-tracking-days');
-                const statusCell = row.querySelector('.js-vendor-tracking-status');
-
-                if (daysCell) {
-                    if (!dateStart) {
-                        daysCell.textContent = '--';
-                    } else {
-                        const start = new Date(`${dateStart}T00:00:00`);
-                        const finish = dateFinish ? new Date(`${dateFinish}T00:00:00`) : new Date();
-                        const diffMs = finish.getTime() - start.getTime();
-                        const diffDays = Number.isNaN(diffMs) ? '--' : Math.max(0, Math.floor(diffMs / 86400000));
-                        daysCell.textContent = String(diffDays);
-                    }
-                }
-
-                if (statusCell) {
-                    if (dateStart && !dateFinish) {
-                        statusCell.innerHTML = '<span class="badge text-bg-warning">At vendor</span>';
-                    } else if (dateFinish) {
-                        statusCell.innerHTML = '<span class="badge text-bg-success">Returned</span>';
-                    } else {
-                        statusCell.innerHTML = '<span class="badge text-bg-secondary">Planned</span>';
-                    }
-                }
-            };
-
             const setInfoStatus = function (message, isError) {
                 if (!vendorInfoStatus) {
                     return;
@@ -2172,10 +2478,6 @@
                     select.dataset.lastSavedValue = select.value;
                 });
 
-                row.querySelectorAll('.js-vendor-tracking-repair-order').forEach(function (input) {
-                    input.dataset.lastSavedValue = input.value;
-                });
-
                 row.querySelectorAll('.js-vendor-tracking-date').forEach(function (input) {
                     input.dataset.lastSavedValue = input.value || '';
                     input.dataset.original = input.value || '';
@@ -2202,12 +2504,8 @@
 
                 const dateUrl = input.dataset.dateUrl;
                 const cell = input.closest('td');
-                const startInput = row.querySelector('.js-vendor-tracking-date[name="date_start"]');
-                const finishInput = row.querySelector('.js-vendor-tracking-date[name="date_finish"]');
                 const promiseInput = row.querySelector('.js-vendor-tracking-date[name="date_promise"]');
 
-                setVisibleInvalid(startInput, false);
-                setVisibleInvalid(finishInput, false);
                 setVisibleInvalid(promiseInput, false);
                 setCellState(cell, 'is-saving');
 
@@ -2231,36 +2529,6 @@
                         throw data;
                     }
 
-                    if (startInput) {
-                        const startValue = data.date_start ?? '';
-                        startInput.value = startValue;
-                        startInput.dataset.lastSavedValue = startValue;
-                        startInput.dataset.original = startValue;
-                        if (startInput._flatpickr) {
-                            if (startValue) {
-                                startInput._flatpickr.setDate(startValue, false, 'Y-m-d');
-                            } else {
-                                startInput._flatpickr.clear(false);
-                            }
-                        }
-                        refreshFinishInputState(startInput);
-                    }
-
-                    if (finishInput) {
-                        const finishValue = data.date_finish ?? '';
-                        finishInput.value = finishValue;
-                        finishInput.dataset.lastSavedValue = finishValue;
-                        finishInput.dataset.original = finishValue;
-                        if (finishInput._flatpickr) {
-                            if (finishValue) {
-                                finishInput._flatpickr.setDate(finishValue, false, 'Y-m-d');
-                            } else {
-                                finishInput._flatpickr.clear(false);
-                            }
-                        }
-                        refreshFinishInputState(finishInput);
-                    }
-
                     if (promiseInput) {
                         const promiseValue = data.date_promise ?? '';
                         promiseInput.value = promiseValue;
@@ -2276,7 +2544,6 @@
                         refreshFinishInputState(promiseInput);
                     }
 
-                    updateStatusCell(row, data.date_start ?? '', data.date_finish ?? '');
                     markSaved(cell);
                 } catch (error) {
                     const errors = error?.errors || {};
@@ -2453,10 +2720,8 @@
 
                 row._vendorTrackingSaveSeq = (row._vendorTrackingSaveSeq || 0) + 1;
                 const saveSeq = row._vendorTrackingSaveSeq;
-                const sentRepairOrder = payload.repair_order ?? '';
                 const vendorCell = row.querySelector('.js-vendor-tracking-vendor')?.closest('td');
-                const repairOrderCell = row.querySelector('.js-vendor-tracking-repair-order')?.closest('td');
-                const cells = [vendorCell, repairOrderCell].filter(Boolean);
+                const cells = [vendorCell].filter(Boolean);
 
                 cells.forEach(function (cell) {
                     setCellState(cell, 'is-saving');
@@ -2478,17 +2743,9 @@
                     }
 
                     const vendorSelect = row.querySelector('.js-vendor-tracking-vendor');
-                    const repairInput = row.querySelector('.js-vendor-tracking-repair-order');
                     if (vendorSelect) {
                         vendorSelect.value = payload.vendor_id ? String(payload.vendor_id) : '';
                         vendorSelect.dataset.lastSavedValue = vendorSelect.value;
-                    }
-                    if (repairInput) {
-                        const savedRepairOrder = data.repair_order ?? '';
-                        if (repairInput.value === sentRepairOrder) {
-                            repairInput.value = savedRepairOrder;
-                        }
-                        repairInput.dataset.lastSavedValue = savedRepairOrder;
                     }
 
                     updateRowVendorButtons(row, payload.vendor_id ? Number(payload.vendor_id) : null);
@@ -2499,13 +2756,9 @@
                     }
 
                     const vendorSelect = row.querySelector('.js-vendor-tracking-vendor');
-                    const repairInput = row.querySelector('.js-vendor-tracking-repair-order');
 
                     if (vendorSelect) {
                         vendorSelect.value = vendorSelect.dataset.lastSavedValue ?? '';
-                    }
-                    if (repairInput && document.activeElement !== repairInput && repairInput.value === sentRepairOrder) {
-                        repairInput.value = repairInput.dataset.lastSavedValue ?? '';
                     }
 
                     updateRowVendorButtons(row, vendorSelect && vendorSelect.value !== '' ? Number(vendorSelect.value) : null);
@@ -2524,6 +2777,20 @@
             tbody.querySelectorAll('tr').forEach(initRow);
 
             tbody.addEventListener('click', function (event) {
+                const roFilterButton = event.target.closest('.js-vendor-tracking-ro-filter');
+                if (roFilterButton) {
+                    const repairOrder = roFilterButton.dataset.repairOrder || '';
+                    const repairOrderFilter = form?.querySelector('input[name="repair_order"]');
+                    if (!repairOrder || !repairOrderFilter) {
+                        return;
+                    }
+
+                    repairOrderFilter.value = repairOrder;
+                    persistSources();
+                    submitFilters();
+                    return;
+                }
+
                 const ungroupButton = event.target.closest('.js-vendor-traveler-ungroup');
                 if (ungroupButton) {
                     const url = ungroupButton.dataset.ungroupUrl;
@@ -2612,58 +2879,7 @@
                 updateRowVendorButtons(row, vendorId);
                 saveTrackingRow(row, {
                     vendor_id: vendorId,
-                    repair_order: row.querySelector('.js-vendor-tracking-repair-order')?.value ?? '',
                 });
-            });
-
-            const flushRepairOrderSave = function (input) {
-                if (!input) {
-                    return;
-                }
-
-                const previousValue = input.dataset.lastSavedValue ?? '';
-                if (input.value === previousValue) {
-                    return;
-                }
-
-                const row = input.closest('tr');
-                const vendorSelect = row.querySelector('.js-vendor-tracking-vendor');
-
-                saveTrackingRow(row, {
-                    vendor_id: vendorSelect && vendorSelect.value !== '' ? Number(vendorSelect.value) : null,
-                    repair_order: input.value,
-                });
-            };
-
-            tbody.addEventListener('input', function (event) {
-                const input = event.target.closest('.js-vendor-tracking-repair-order');
-                if (!input) {
-                    return;
-                }
-
-                window.clearTimeout(repairOrderTimers.get(input));
-            });
-
-            tbody.addEventListener('blur', function (event) {
-                const input = event.target.closest('.js-vendor-tracking-repair-order');
-                if (!input) {
-                    return;
-                }
-
-                window.clearTimeout(repairOrderTimers.get(input));
-                flushRepairOrderSave(input);
-            }, true);
-
-            tbody.addEventListener('keydown', function (event) {
-                const input = event.target.closest('.js-vendor-tracking-repair-order');
-                if (!input || event.key !== 'Enter') {
-                    return;
-                }
-
-                event.preventDefault();
-                window.clearTimeout(repairOrderTimers.get(input));
-                flushRepairOrderSave(input);
-                input.blur();
             });
 
             const loadVendorData = async function (vendorId) {

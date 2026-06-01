@@ -28,6 +28,24 @@ class QuantumRoSyncController extends Controller
 
         $lastSourceModified = QuantumRoLine::query()->max('source_last_modified');
         $recommendedSince = null;
+        $unresolvedRoNumbers = QuantumRoLine::query()
+            ->whereNotNull('ro_number')
+            ->whereIn('apply_status', ['unresolved', 'error'])
+            ->distinct()
+            ->orderBy('ro_number')
+            ->limit(50)
+            ->pluck('ro_number')
+            ->values()
+            ->all();
+        $trackedRefRoNumbers = QuantumRoLine::query()
+            ->whereNotNull('ro_number')
+            ->whereNotNull('bom_ref')
+            ->whereRaw("TRIM(bom_ref) <> ''")
+            ->distinct()
+            ->orderBy('ro_number')
+            ->pluck('ro_number')
+            ->values()
+            ->all();
 
         if ($lastSourceModified) {
             $recommendedSince = Carbon::parse($lastSourceModified)
@@ -46,6 +64,8 @@ class QuantumRoSyncController extends Controller
                 'recommended_since' => $recommendedSince,
                 'overlap_minutes' => self::INCREMENTAL_OVERLAP_MINUTES,
                 'staged_lines' => QuantumRoLine::query()->count(),
+                'unresolved_ro_numbers' => $unresolvedRoNumbers,
+                'tracked_ref_ro_numbers' => $trackedRefRoNumbers,
             ],
         ]);
     }
@@ -178,11 +198,13 @@ class QuantumRoSyncController extends Controller
             'pn' => $this->cleanString($row['pn'] ?? null),
             'description' => $this->cleanString($row['description'] ?? $row['desc'] ?? null),
             'class' => $this->cleanString($row['class'] ?? null),
+            'bom_ref' => $this->cleanString($row['bom_ref'] ?? $row['ref'] ?? null),
             'entry_date' => $this->parseDate($row['entry_date'] ?? null),
             'out_date' => $this->parseDate($row['out_date'] ?? $row['sent_date'] ?? null),
             'returned_date' => $this->parseDate($row['returned_date'] ?? null),
             'ro_last_modified' => $this->parseDate($row['ro_last_modified'] ?? null),
             'detail_last_modified' => $this->parseDate($row['detail_last_modified'] ?? null),
+            'bom_last_modified' => $this->parseDate($row['bom_last_modified'] ?? null),
             'source_last_modified' => $this->parseDate($row['source_last_modified'] ?? null),
             'qty_repair' => $this->cleanDecimal($row['qty_repair'] ?? null),
             'qty_reserved' => $this->cleanDecimal($row['qty_reserved'] ?? null),

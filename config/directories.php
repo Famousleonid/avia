@@ -102,12 +102,16 @@ return [
         'key' => 'process_names',
         'title' => 'Process Names',
         'model' => \App\Models\ProcessName::class,
-        'order' => ['id' => 'desc'],
+        'order' => ['name' => 'asc'],
 
         'fields' => [
             'name' => [
                 'label' => 'Name',
                 'rules' => ['required','string','max:255'],
+            ],
+            'code' => [
+                'label' => 'Code',
+                'rules' => ['nullable','string','max:80','unique:process_names,code'],
             ],
             'process_sheet_name' => [
                 'label' => 'Process sheet name',

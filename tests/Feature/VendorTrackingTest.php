@@ -3,12 +3,18 @@
 namespace Tests\Feature;
 
 use App\Models\Component;
+use App\Models\GeneralTask;
 use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\UserUiSetting;
 use App\Models\Vendor;
+use App\Models\WoBushing;
+use App\Models\WoBushingLine;
+use App\Models\WoBushingProcess;
+use App\Models\WorkorderStdProcess;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
@@ -121,6 +127,41 @@ class VendorTrackingTest extends TestCase
         ]);
     }
 
+    public function test_vendor_tracking_can_sort_by_last_changed_rows(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $vendor = Vendor::query()->create(['name' => 'Changed Sort Vendor ' . uniqid()]);
+
+        $older = $this->createVendorTrackingTdrProcess(
+            $this->createWorkorder(['user_id' => $admin->id]),
+            $vendor,
+            'OLDER-CHANGE-RO'
+        );
+        $newer = $this->createVendorTrackingTdrProcess(
+            $this->createWorkorder(['user_id' => $admin->id]),
+            $vendor,
+            'NEWER-CHANGE-RO'
+        );
+
+        $older->timestamps = false;
+        $older->forceFill(['updated_at' => Carbon::parse('2026-05-01 09:00:00')])->saveQuietly();
+        $newer->timestamps = false;
+        $newer->forceFill(['updated_at' => Carbon::parse('2026-06-01 11:30:00')])->saveQuietly();
+
+        $this->actingAs($admin)
+            ->get(route('vendor-tracking.index', [
+                'sort' => 'changed_at',
+                'direction' => 'desc',
+                'sort_user' => 1,
+            ]))
+            ->assertOk()
+            ->assertSee('Changed')
+            ->assertSeeInOrder([
+                'NEWER-CHANGE-RO',
+                'OLDER-CHANGE-RO',
+            ]);
+    }
+
     public function test_admin_can_assign_vendor_to_tdr_process_and_view_tracking(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -151,7 +192,8 @@ class VendorTrackingTest extends TestCase
             'tdrs_id' => $tdr->id,
             'process_names_id' => $processName->id,
             'repair_order' => 'RO-123',
-            'date_start' => now()->toDateString(),
+            'date_start' => '2026-05-25',
+            'date_finish' => '2026-05-26',
         ]);
 
         $this->actingAs($admin)
@@ -174,10 +216,180 @@ class VendorTrackingTest extends TestCase
             ->assertSee($vendor->name)
             ->assertSee('RO-123');
 
-        $this->actingAs($admin)
-            ->get(route('mains.show', $workorder))
+        $response = $this->actingAs($admin)->get(route('mains.show', $workorder));
+
+        $response
             ->assertOk()
-            ->assertSee('Vendor');
+            ->assertSee('RO')
+            ->assertSee('RO-123')
+            ->assertSee('25/may/2026')
+            ->assertSee('26/may/2026')
+            ->assertDontSee('Sent (edit)')
+            ->assertDontSee('Returned (edit)')
+            ->assertDontSee(route('tdrprocesses.updateDate', $tdrProcess), false);
+    }
+
+    public function test_vendor_tracking_shows_ro_and_sent_returned_dates_readonly(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $vendor = Vendor::query()->create(['name' => 'Readonly Vendor ' . uniqid()]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Readonly Vendor Process ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'VT-RO-READONLY-' . uniqid(),
+            'name' => 'Readonly Component',
+            'ipl_num' => '2-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'VT-RO-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $tdrProcess = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'vendor_id' => $vendor->id,
+            'repair_order' => 'RO-READ',
+            'date_start' => '2026-05-25',
+            'date_finish' => '2026-05-26',
+            'date_promise' => '2026-05-30',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('vendor-tracking.index', [
+            'repair_order' => 'RO-READ',
+        ]));
+
+        $response
+            ->assertOk()
+            ->assertSee('RO-READ')
+            ->assertSee('25/may/2026')
+            ->assertSee('26/may/2026')
+            ->assertSee('data-repair-order="RO-READ"', false)
+            ->assertSee('js-vendor-tracking-ro-filter', false)
+            ->assertSee('name="date_promise"', false)
+            ->assertSee(route('tdrprocesses.updateDate', $tdrProcess), false)
+            ->assertDontSee('Sent (edit)')
+            ->assertDontSee('Returned (edit)')
+            ->assertDontSee('js-vendor-tracking-repair-order', false)
+            ->assertDontSee('name="date_start"', false)
+            ->assertDontSee('name="date_finish"', false);
+    }
+
+    public function test_main_process_windows_show_ro_and_readonly_quantum_dates(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
+        GeneralTask::query()->create([
+            'name' => 'QA Main Task',
+            'sort_order' => 1,
+            'has_start_date' => true,
+        ]);
+
+        $stdProcessName = ProcessName::query()->create([
+            'name' => 'STD NDT List',
+            'process_sheet_name' => 'NDT',
+            'form_number' => 'NDT',
+        ]);
+        $stdProcess = WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'ndt',
+            'process_name_id' => $stdProcessName->id,
+            'repair_order' => 'STD-RO-777',
+            'date_start' => '2026-05-10',
+            'date_finish' => '2026-05-11',
+        ]);
+
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'MAIN-PN-' . uniqid(),
+            'name' => 'Main Component',
+            'ipl_num' => '1-1',
+            'eff_code' => 'ALL',
+        ]);
+        $partProcessName = ProcessName::query()->create([
+            'name' => 'Main Part Process ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'MAIN-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $tdrProcess = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $partProcessName->id,
+            'repair_order' => 'PART-RO-888',
+            'date_start' => '2026-05-12',
+            'date_finish' => '2026-05-13',
+        ]);
+
+        $bushingProcessName = ProcessName::query()->create([
+            'name' => 'Machining',
+            'process_sheet_name' => 'MACH',
+            'form_number' => 'MACH',
+        ]);
+        $bushingProcess = Process::query()->create([
+            'process_names_id' => $bushingProcessName->id,
+            'process' => 'Machining',
+        ]);
+        $woBushing = WoBushing::query()->create([
+            'workorder_id' => $workorder->id,
+        ]);
+        $woBushingLine = WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 1,
+            'qty_remaining' => 0,
+            'group_key' => 'qa',
+            'sort_order' => 1,
+        ]);
+        $woBushingProcess = WoBushingProcess::query()->create([
+            'wo_bushing_line_id' => $woBushingLine->id,
+            'process_id' => $bushingProcess->id,
+            'qty' => 1,
+            'repair_order' => 'BUSH-RO-999',
+            'date_start' => '2026-05-14',
+            'date_finish' => '2026-05-15',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('mains.show', $workorder));
+
+        $response
+            ->assertOk()
+            ->assertSee('RO')
+            ->assertSee('STD-RO-777')
+            ->assertSee('PART-RO-888')
+            ->assertSee('BUSH-RO-999')
+            ->assertSee('10/may/2026')
+            ->assertSee('11/may/2026')
+            ->assertSee('12/may/2026')
+            ->assertSee('13/may/2026')
+            ->assertSee('14/may/2026')
+            ->assertSee('15/may/2026')
+            ->assertDontSee('Sent (edit)')
+            ->assertDontSee('Returned (edit)')
+            ->assertDontSee(route('workorder_std_processes.updateDate', $stdProcess), false)
+            ->assertDontSee(route('tdrprocesses.updateDate', $tdrProcess), false)
+            ->assertDontSee(route('wo_bushing_processes.updateDate', $woBushingProcess), false);
     }
 
     public function test_vendor_tracking_groups_tdr_traveler_processes(): void
@@ -269,15 +481,17 @@ class VendorTrackingTest extends TestCase
                 'repair_order' => 'TR-NEW',
             ])
             ->assertOk()
-            ->assertJson(['ok' => true, 'repair_order' => 'TR-NEW']);
+            ->assertJson(['ok' => true, 'repair_order' => 'TR-OLD']);
 
         $this->assertDatabaseHas('tdr_processes', [
             'id' => $first->id,
-            'repair_order' => 'TR-NEW',
+            'repair_order' => 'TR-OLD',
+            'vendor_id' => $vendor->id,
         ]);
         $this->assertDatabaseHas('tdr_processes', [
             'id' => $second->id,
-            'repair_order' => 'TR-NEW',
+            'repair_order' => 'TR-OLD',
+            'vendor_id' => $vendor->id,
         ]);
     }
 
@@ -410,11 +624,11 @@ class VendorTrackingTest extends TestCase
                 'repair_order' => 'TR-NEW',
             ])
             ->assertOk()
-            ->assertJson(['ok' => true, 'repair_order' => 'TR-NEW']);
+            ->assertJson(['ok' => true, 'repair_order' => 'TR-OLD']);
 
         $this->assertDatabaseHas('tdr_processes', [
             'id' => $target->id,
-            'repair_order' => 'TR-NEW',
+            'repair_order' => 'TR-OLD',
             'vendor_id' => $vendor->id,
         ]);
         $this->assertDatabaseHas('tdr_processes', [

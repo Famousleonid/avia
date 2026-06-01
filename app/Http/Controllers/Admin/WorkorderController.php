@@ -499,7 +499,7 @@ class WorkorderController extends Controller
                                     ELSE 0
                                 END
                             ")
-                            ->where('tdr_processes.process_names_id', $ecProcessNameId)
+                            ->whereRaw('tdr_processes.process_names_id = ' . (int) $ecProcessNameId)
                             ->whereColumn('tdrs.workorder_id', 'workorders.id'),
                     ])->orderBy('ec_sort', $direction);
                 }
@@ -592,13 +592,7 @@ class WorkorderController extends Controller
 
     private function getEcProcessNameId(): ?int
     {
-        static $ecProcessNameId;
-        static $resolved = false;
-
-        if (!$resolved) {
-            $ecProcessNameId = ProcessName::query()->where('name', 'EC')->value('id');
-            $resolved = true;
-        }
+        $ecProcessNameId = ProcessName::query()->where('name', 'EC')->value('id');
 
         return $ecProcessNameId ? (int) $ecProcessNameId : null;
     }

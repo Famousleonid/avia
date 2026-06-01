@@ -6,6 +6,8 @@
 
 require __DIR__ . '/quantum_ro_query.php';
 
+date_default_timezone_set(getenv('AVIA_SYNC_TIMEZONE') ?: 'America/Toronto');
+
 $startedAt = date('c');
 
 // =========================
@@ -59,6 +61,8 @@ $hasDaysFilter = false;
 $changedSince = null;
 $filterMode = 'incremental';
 $syncState = null;
+$unresolvedRoNumbers = [];
+$trackedRefRoNumbers = [];
 
 if ($daysBack <= 0) {
     $daysBack = DEFAULT_INITIAL_BACKFILL_DAYS;
@@ -75,6 +79,8 @@ if ($roNumber) {
 } else {
     $syncState = fetchSyncState();
     $changedSince = $syncState['state']['recommended_since'] ?? null;
+    $unresolvedRoNumbers = $syncState['state']['unresolved_ro_numbers'] ?? [];
+    $trackedRefRoNumbers = $syncState['state']['tracked_ref_ro_numbers'] ?? [];
 
     if ($changedSince) {
         $filterMode = 'incremental';
@@ -99,12 +105,17 @@ if (!$conn) {
 // Build and execute query
 // =========================
 
+$wobChangeColumn = detectWoBomChangeColumn($conn);
+
 $queryData = buildQuantumRoQuery([
     'days_back' => $daysBack,
     'has_days_filter' => $hasDaysFilter,
     'changed_since' => $changedSince,
     'ro_number' => $roNumber,
     'vendor'    => $vendor,
+    'wob_change_column' => $wobChangeColumn,
+    'unresolved_ro_numbers' => $unresolvedRoNumbers ?? [],
+    'tracked_ref_ro_numbers' => $trackedRefRoNumbers ?? [],
 ]);
 
 assertReadOnlySql($queryData['sql']);
@@ -205,17 +216,76 @@ function failSync(string $startedAt, string $message): never
     exit(1);
 }
 
+function detectWoBomChangeColumn($conn): ?string
+{
+    $preferred = [
+        'LAST_MODIFIED',
+        'SYSUR_MODIFIED',
+        'LAST_UPDATE_DATE',
+        'UPDATED_DATE',
+        'MODIFIED_DATE',
+        'DATE_MODIFIED',
+        'CHANGE_DATE',
+        'LAST_STATUS_CHG',
+        'SYSUR_LAST_STATUS_CHG',
+    ];
+
+    $sql = "
+SELECT column_name
+FROM all_tab_columns
+WHERE owner = 'QCTL'
+  AND table_name = 'WO_BOM'
+  AND column_name IN (
+      'LAST_MODIFIED',
+      'SYSUR_MODIFIED',
+      'LAST_UPDATE_DATE',
+      'UPDATED_DATE',
+      'MODIFIED_DATE',
+      'DATE_MODIFIED',
+      'CHANGE_DATE',
+      'LAST_STATUS_CHG',
+      'SYSUR_LAST_STATUS_CHG'
+  )
+";
+
+    $stid = oci_parse($conn, $sql);
+
+    if (!oci_execute($stid)) {
+        oci_free_statement($stid);
+        return null;
+    }
+
+    $found = [];
+    while ($row = oci_fetch_assoc($stid)) {
+        $column = strtoupper(trim((string)($row['COLUMN_NAME'] ?? '')));
+        if (preg_match('/^[A-Z][A-Z0-9_]*$/', $column)) {
+            $found[] = $column;
+        }
+    }
+
+    oci_free_statement($stid);
+
+    foreach ($preferred as $column) {
+        if (in_array($column, $found, true)) {
+            return $column;
+        }
+    }
+
+    return null;
+}
+
 function writeSyncLog(string $startedAt, string $finishedAt, array $context): void
 {
-    $parts = [
-        '[' . date('Y-m-d H:i:s') . ']',
-        'started=' . fmtLogDate($startedAt),
-        'finished=' . fmtLogDate($finishedAt),
-    ];
+    $parts = ['[' . date('Y-m-d H:i:s') . ']'];
 
     if (!empty($context['error'])) {
         $parts[] = 'status=error';
-        $parts[] = 'message="' . logValue($context['error']) . '"';
+        $parts[] = 'quantum_rows=' . (int)($context['rows_from_quantum'] ?? 0);
+        $parts[] = 'received=0';
+        $parts[] = 'inserted=0';
+        $parts[] = 'updated=0';
+        $parts[] = 'unchanged=0';
+        $parts[] = 'result="' . logValue($context['error']) . '"';
         appendSyncLog(implode(' ', $parts));
         return;
     }
@@ -224,42 +294,20 @@ function writeSyncLog(string $startedAt, string $finishedAt, array $context): vo
     $stats = is_array($apiResult) ? ($apiResult['stats'] ?? []) : [];
 
     $parts[] = 'status=' . ($apiResult['status'] ?? 'unknown');
-    $parts[] = 'mode=' . ($context['filter_mode'] ?? '-');
-
-    if (!empty($context['changed_since'])) {
-        $parts[] = 'since="' . logValue($context['changed_since']) . '"';
-    } elseif (($context['filter_mode'] ?? '') === 'days') {
-        $parts[] = 'days=' . (int)($context['days_back'] ?? 0);
-    }
-
-    if (!empty($context['state_last_source_modified'])) {
-        $parts[] = 'checkpoint="' . logValue($context['state_last_source_modified']) . '"';
-    }
-
-    if (!empty($context['ro_number'])) {
-        $parts[] = 'ro=' . logValue($context['ro_number']);
-    }
-
-    if (!empty($context['vendor'])) {
-        $parts[] = 'vendor="' . logValue($context['vendor']) . '"';
-    }
-
     $parts[] = 'quantum_rows=' . (int)($context['rows_from_quantum'] ?? 0);
+    $parts[] = 'received=' . (int)($stats['rows_received'] ?? 0);
+    $parts[] = 'inserted=' . (int)($stats['rows_inserted'] ?? 0);
+    $parts[] = 'updated=' . (int)($stats['rows_updated'] ?? 0);
+    $parts[] = 'unchanged=' . (int)($stats['rows_unchanged'] ?? 0);
 
     if ($stats) {
-        $parts[] = 'run_id=' . (int)($stats['run_id'] ?? 0);
-        $parts[] = 'received=' . (int)($stats['rows_received'] ?? 0);
-        $parts[] = 'inserted=' . (int)($stats['rows_inserted'] ?? 0);
-        $parts[] = 'updated=' . (int)($stats['rows_updated'] ?? 0);
-        $parts[] = 'unchanged=' . (int)($stats['rows_unchanged'] ?? 0);
-
         if ((int)($stats['rows_inserted'] ?? 0) === 0 && (int)($stats['rows_updated'] ?? 0) === 0) {
             $parts[] = 'result="nothing new"';
         } else {
             $parts[] = 'result="rows transferred"';
         }
     } else {
-        $parts[] = 'message="' . logValue($apiResult['message'] ?? 'no API stats') . '"';
+        $parts[] = 'result="' . logValue($apiResult['message'] ?? 'no API stats') . '"';
     }
 
     appendSyncLog(implode(' ', $parts));
@@ -291,6 +339,7 @@ function normalizeQuantumRow(array $row): array
         'pn'            => clean($row['PN'] ?? null),
         'desc'          => clean($row['DESC'] ?? null),
         'class'         => clean($row['CLASS'] ?? null),
+        'bom_ref'       => clean($row['BOM_REF'] ?? null),
         'roh_auto_key'  => clean($row['ROH_AUTO_KEY'] ?? null),
         'rod_auto_key'  => clean($row['ROD_AUTO_KEY'] ?? null),
         'wob_auto_key'  => clean($row['WOB_AUTO_KEY'] ?? null),
@@ -305,6 +354,7 @@ function normalizeQuantumRow(array $row): array
         'returned_date' => fmtDate($row['LAST_DELIVERY_DATE'] ?? null),
         'ro_last_modified' => fmtDate($row['RO_LAST_MODIFIED'] ?? null),
         'detail_last_modified' => fmtDate($row['DETAIL_LAST_MODIFIED'] ?? null),
+        'bom_last_modified' => fmtDate($row['BOM_LAST_MODIFIED'] ?? null),
         'source_last_modified' => fmtDate($row['SOURCE_LAST_MODIFIED'] ?? null),
         'qty_repair'    => clean($row['QTY_REPAIR'] ?? null),
         'qty_reserved'  => clean($row['QTY_RESERVED'] ?? null),
@@ -438,11 +488,13 @@ function apiQuantumRow(array $row): array
         'pn' => nullableValue($row['pn']),
         'description' => nullableValue($row['desc']),
         'class' => nullableValue($row['class']),
+        'bom_ref' => nullableValue($row['bom_ref']),
         'entry_date' => nullableValue($row['entry_date']),
         'out_date' => nullableValue($row['sent_date']),
         'returned_date' => nullableValue($row['returned_date']),
         'ro_last_modified' => nullableValue($row['ro_last_modified']),
         'detail_last_modified' => nullableValue($row['detail_last_modified']),
+        'bom_last_modified' => nullableValue($row['bom_last_modified']),
         'source_last_modified' => nullableValue($row['source_last_modified']),
         'qty_repair' => nullableValue($row['qty_repair']),
         'qty_reserved' => nullableValue($row['qty_reserved']),

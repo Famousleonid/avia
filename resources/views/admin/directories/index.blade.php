@@ -8,12 +8,17 @@
         .dir-vendor-media-thumb { width: 100%; height: 120px; object-fit: cover; border-radius: .5rem; margin-bottom: .6rem; }
         .dir-vendor-media-link { display: block; text-decoration: none; color: inherit; }
         .dir-vendor-media-link:hover { color: inherit; }
+        .dir-code-quick-cell { cursor: pointer; white-space: nowrap; }
+        .dir-code-quick-cell:hover { background: rgba(var(--bs-primary-rgb), .08); }
+        .dir-code-quick-value { font-family: var(--bs-font-monospace); font-size: 1rem; font-weight: 600; }
+        .dir-code-edit-status { min-height: 1.25rem; }
     </style>
 @endsection
 
 @section('content')
     @php
         $isVendorDirectory = $slug === 'vendors';
+        $isProcessNamesDirectory = $slug === 'process_names';
         $canDeleteDirectoryItems = auth()->check() && auth()->user()->roleIs('Admin');
         $hideProcessNameTableFields = ! $canDeleteDirectoryItems && $slug === 'process_names'
             ? ['notify_user_id', 'print_form']
@@ -105,10 +110,17 @@
                                             if ($type === 'boolean' || $type === 'checkbox') {
                                                 $display = $val ? 'Yes' : 'No';
                                             }
+                                            $isQuickCodeCell = $isProcessNamesDirectory && $field === 'code';
                                         @endphp
-                                        <td class="px-2 {{ $field === 'print_form' ? 'text-center' : '' }}" title="{{ (string)$display }}">
+                                        <td
+                                            class="px-2 {{ $field === 'print_form' ? 'text-center' : '' }} {{ $isQuickCodeCell ? 'dir-code-quick-cell js-dir-code-cell' : '' }}"
+                                            title="{{ (string)$display }}"
+                                            @if($isQuickCodeCell) role="button" tabindex="0" aria-label="Edit code" @endif
+                                        >
                                             @if($type === 'boolean' || $type === 'checkbox')
                                                 <button type="button" class="btn btn-sm js-dir-toggle {{ $val ? 'btn-success' : 'btn-outline-secondary' }}" data-id="{{ $item->id }}" data-field="{{ $field }}" data-value="{{ $val ? 1 : 0 }}">{{ $val ? 'Yes' : 'No' }}</button>
+                                            @elseif($isQuickCodeCell)
+                                                <span class="dir-code-quick-value js-dir-code-value">{{ $display !== '' && $display !== null ? $display : '--' }}</span>
                                             @elseif($field === 'description')
                                                 <div class="dir-description-cell">{{ $display !== '' && $display !== null ? \Illuminate\Support\Str::limit((string)$display, 140) : '--' }}</div>
                                             @else
@@ -257,6 +269,31 @@
         </div>
     </div>
 
+    @if($isProcessNamesDirectory)
+        <div class="modal fade" id="dirCodeQuickModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-sm modal-dialog-centered">
+                <div class="modal-content modal-gray shadow">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title mb-0">Code</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form id="dirCodeQuickForm" data-no-spinner>
+                        <div class="modal-body">
+                            <input type="text" id="dirCodeQuickInput" class="form-control" maxlength="80" autocomplete="off">
+                            <div id="dirCodeQuickStatus" class="dir-code-edit-status small text-muted mt-2"></div>
+                        </div>
+                        <div class="modal-footer py-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary btn-sm" id="dirCodeQuickSave">
+                                <i class="bi bi-save2 me-1"></i>Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="modal fade" id="dirDeleteModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content modal-gray shadow">
@@ -331,15 +368,28 @@
 @endsection
 
 @section('scripts')
+    @php
+        $fieldUpdateUrlTemplate = $slug === 'process_names'
+            ? route('directories.field.update', ['directory' => $slug, 'id' => '__ID__', 'field' => '__FIELD__'])
+            : '';
+    @endphp
     <script>
         (function () {
             const DIR = @json($cfg);
             const IS_VENDOR_DIR = DIR.key === 'vendors';
+            const IS_PROCESS_NAMES_DIR = DIR.key === 'process_names';
             const table = document.getElementById('dirTable');
             const tbody = document.getElementById('dirTbody');
             const searchInput = document.getElementById('dirSearchInput');
             const noResults = document.getElementById('dirNoResults');
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const fieldUpdateUrlTemplate = @json($fieldUpdateUrlTemplate);
+            const codeModalEl = IS_PROCESS_NAMES_DIR ? document.getElementById('dirCodeQuickModal') : null;
+            const codeModal = codeModalEl ? bootstrap.Modal.getOrCreateInstance(codeModalEl) : null;
+            const codeForm = document.getElementById('dirCodeQuickForm');
+            const codeInput = document.getElementById('dirCodeQuickInput');
+            const codeSaveBtn = document.getElementById('dirCodeQuickSave');
+            const codeStatus = document.getElementById('dirCodeQuickStatus');
             const vendorShowUrlTemplate = IS_VENDOR_DIR ? @json(route('vendors.show', ['vendor' => '__VENDOR__'])) : '';
             const vendorMetaUrlTemplate = IS_VENDOR_DIR ? @json(route('vendors.meta.update', ['vendor' => '__VENDOR__'])) : '';
             const vendorMediaUploadUrlTemplate = IS_VENDOR_DIR ? @json(route('vendors.media.upload', ['vendor' => '__VENDOR__'])) : '';
@@ -356,11 +406,19 @@
             const vendorMediaUploadBtn = document.getElementById('dirVendorMediaUploadBtn');
             const vendorSaveBtn = document.getElementById('dirVendorSaveBtn');
             let currentVendorRow = null;
+            let currentCodeRow = null;
 
             if (!table || !tbody || !searchInput || !noResults) {
                 return;
             }
             tbody.addEventListener('click', (event) => {
+                const codeCell = event.target.closest('.js-dir-code-cell');
+                if (codeCell && IS_PROCESS_NAMES_DIR) {
+                    event.preventDefault();
+                    openCodeQuickEditor(codeCell);
+                    return;
+                }
+
                 const toggleBtn = event.target.closest('.js-dir-toggle');
                 if (toggleBtn) {
                     return;
@@ -373,6 +431,20 @@
 
                 tbody.querySelectorAll('tr.is-active').forEach(row => row.classList.remove('is-active'));
                 tr.classList.add('is-active');
+            });
+
+            tbody.addEventListener('keydown', (event) => {
+                if (!IS_PROCESS_NAMES_DIR || !['Enter', ' '].includes(event.key)) {
+                    return;
+                }
+
+                const codeCell = event.target.closest('.js-dir-code-cell');
+                if (!codeCell) {
+                    return;
+                }
+
+                event.preventDefault();
+                openCodeQuickEditor(codeCell);
             });
 
             async function toggleBoolean(btn) {
@@ -428,6 +500,112 @@
                 event.preventDefault();
                 event.stopPropagation();
                 await toggleBoolean(btn);
+            });
+
+            function buildFieldUrl(template, id, field) {
+                return template.replace('__ID__', encodeURIComponent(String(id))).replace('__FIELD__', encodeURIComponent(String(field)));
+            }
+
+            function setCodeStatus(message, isError = false) {
+                if (!codeStatus) {
+                    return;
+                }
+
+                codeStatus.textContent = message || '';
+                codeStatus.classList.toggle('text-danger', Boolean(isError));
+                codeStatus.classList.toggle('text-muted', !isError);
+            }
+
+            function openCodeQuickEditor(cell) {
+                const row = cell.closest('tr[data-row]');
+                if (!row || !codeInput || !codeModal) {
+                    return;
+                }
+
+                currentCodeRow = row;
+                codeInput.value = row.dataset.code || '';
+                setCodeStatus('');
+                codeModal.show();
+                codeModalEl?.addEventListener('shown.bs.modal', () => {
+                    codeInput.focus();
+                    codeInput.select();
+                }, { once: true });
+            }
+
+            function updateCodeCell(row, value) {
+                const normalized = String(value ?? '');
+                row.dataset.code = normalized;
+
+                const cell = row.querySelector('.js-dir-code-cell');
+                if (!cell) {
+                    return;
+                }
+
+                cell.title = normalized;
+                const valueEl = cell.querySelector('.js-dir-code-value');
+                if (valueEl) {
+                    valueEl.textContent = normalized !== '' ? normalized : '--';
+                }
+            }
+
+            function firstValidationMessage(data, fallback) {
+                const errors = data && typeof data === 'object' ? data.errors : null;
+                if (errors && typeof errors === 'object') {
+                    const first = Object.values(errors)[0];
+                    if (Array.isArray(first) && first.length) {
+                        return first[0];
+                    }
+                }
+
+                return data?.message || fallback;
+            }
+
+            async function saveQuickCode() {
+                if (!currentCodeRow || !codeInput || !codeSaveBtn) {
+                    return;
+                }
+
+                const id = currentCodeRow.dataset.id;
+                if (!id) {
+                    return;
+                }
+
+                codeSaveBtn.disabled = true;
+                setCodeStatus('Saving...');
+
+                try {
+                    const response = await fetch(buildFieldUrl(fieldUpdateUrlTemplate, id, 'code'), {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ code: codeInput.value.trim() }),
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok || data.ok === false) {
+                        throw new Error(firstValidationMessage(data, 'Unable to update code.'));
+                    }
+
+                    updateCodeCell(currentCodeRow, data.value ?? '');
+                    setCodeStatus('Saved.');
+                    if (typeof window.notifySuccess === 'function') {
+                        window.notifySuccess('Code updated.', 2000);
+                    }
+                    codeModal?.hide();
+                } catch (error) {
+                    setCodeStatus(error.message || 'Unable to update code.', true);
+                } finally {
+                    codeSaveBtn.disabled = false;
+                }
+            }
+
+            codeForm?.addEventListener('submit', (event) => {
+                event.preventDefault();
+                saveQuickCode();
             });
 
             function applyFilter() {

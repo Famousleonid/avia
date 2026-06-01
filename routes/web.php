@@ -610,6 +610,7 @@ Route::middleware(['auth', 'verified', 'desktop'])
     ->group(function () {
 
         Route::patch('{directory}/toggle/{id}/{field}', [DirectoryController::class, 'toggle'])->name('directories.toggle');
+        Route::patch('{directory}/{id}/field/{field}', [DirectoryController::class, 'updateField'])->name('directories.field.update');
 
         foreach (array_keys(config('directories')) as $slug) {
             $storeRouteName = $slug === 'vendors' ? 'directories.vendors.store' : "{$slug}.store";
