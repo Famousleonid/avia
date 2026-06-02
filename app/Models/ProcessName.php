@@ -16,6 +16,16 @@ class ProcessName extends Model
     public const MACHINING_EC_MERGE_NAMES = ['Machining', 'Machining (EC)', 'Machining(EC)'];
     public const SYSTEM_TRAVELER_NAME = 'Traveler';
 
+    private const MANUAL_DATE_EDITABLE_NAME_KEYS = [
+        'machining',
+        'machiningec',
+        'ec',
+        'stressrelief',
+        'paint',
+        'stdstressrelieflist',
+        'stdpaintlist',
+    ];
+
     protected $fillable = [
         'name','code','process_sheet_name','form_number','std_days', 'notify_user_id','print_form','show_in_process_picker','sequence_exempt',
     ];
@@ -37,6 +47,18 @@ class ProcessName extends Model
     public function isSequenceExempt(): bool
     {
         return (bool) ($this->sequence_exempt ?? false);
+    }
+
+    public function allowsManualDateEditing(): bool
+    {
+        return self::allowsManualDateEditingForName($this->name);
+    }
+
+    public static function allowsManualDateEditingForName(?string $name): bool
+    {
+        $key = preg_replace('/[^a-z0-9]+/', '', strtolower((string) $name));
+
+        return in_array($key, self::MANUAL_DATE_EDITABLE_NAME_KEYS, true);
     }
     public function processes()
     {

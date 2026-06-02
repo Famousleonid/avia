@@ -682,57 +682,221 @@
             border-color: #f59e0b;
         }
 
+        .quantum-buffer-modal {
+            --quantum-buffer-modal-margin: .5rem;
+            --quantum-buffer-splitter-size: 18px;
+            --quantum-unparsed-height: 42%;
+        }
+
         .quantum-buffer-modal .modal-dialog {
-            max-width: min(1560px, calc(100vw - 2rem));
+            height: calc(100vh - (var(--quantum-buffer-modal-margin) * 2));
+            margin: var(--quantum-buffer-modal-margin) auto;
+            max-width: calc(100vw - (var(--quantum-buffer-modal-margin) * 2));
+            width: calc(100vw - (var(--quantum-buffer-modal-margin) * 2));
+        }
+
+        @supports (height: 100dvh) {
+            .quantum-buffer-modal .modal-dialog {
+                height: calc(100dvh - (var(--quantum-buffer-modal-margin) * 2));
+            }
+        }
+
+        .quantum-buffer-modal .modal-content {
+            height: 100%;
+            max-height: 100%;
+        }
+
+        .quantum-buffer-modal .modal-header,
+        .quantum-buffer-modal .modal-footer {
+            flex: 0 0 auto;
+            padding: .35rem .75rem;
+        }
+
+        .quantum-buffer-modal .modal-title {
+            font-size: 1rem;
+            line-height: 1.2;
         }
 
         .quantum-buffer-modal .modal-body {
-            max-height: calc(100vh - 190px);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            gap: .9rem;
-        }
-
-        .quantum-buffer-rules {
             display: grid;
-            grid-template-columns: repeat(4, minmax(170px, 1fr));
-            gap: .65rem;
+            flex: 1 1 auto;
+            gap: .45rem;
+            grid-template-rows: minmax(150px, var(--quantum-unparsed-height, 42%)) var(--quantum-buffer-splitter-size) minmax(170px, 1fr);
+            max-height: none;
+            min-height: 0;
+            overflow: hidden;
+            padding: .55rem .75rem;
         }
 
-        .quantum-buffer-rule {
-            border: 1px solid #d7e0ea;
-            border-radius: 8px;
-            background: #f8fafc;
-            padding: .65rem .75rem;
-            min-height: 84px;
+        .quantum-buffer-title-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: .35rem .8rem;
         }
 
-        .quantum-buffer-rule-title {
-            font-size: .82rem;
-            font-weight: 700;
-            color: #334155;
-            margin-bottom: .25rem;
-        }
-
-        .quantum-buffer-rule-text {
-            font-size: .78rem;
+        .quantum-buffer-title-meta {
+            font-size: .74rem;
             color: #64748b;
-            line-height: 1.35;
+        }
+
+        .quantum-buffer-status-counts {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: .25rem .35rem;
+            margin-left: .35rem;
+            vertical-align: middle;
+        }
+
+        .quantum-buffer-status-count {
+            align-items: center;
+            border: 1px solid #d7e0ea;
+            border-radius: 999px;
+            display: inline-flex;
+            gap: .25rem;
+            line-height: 1.1;
+            padding: .12rem .38rem;
+            white-space: nowrap;
+        }
+
+        .quantum-buffer-status-count strong {
+            color: #334155;
+            font-weight: 700;
         }
 
         .quantum-buffer-table-wrap {
             flex: 1 1 auto;
-            min-height: 280px;
+            min-height: 0;
             overflow: auto;
             border: 1px solid #d7e0ea;
             border-radius: 8px;
             background: #ffffff;
         }
 
+        .quantum-buffer-section {
+            display: flex;
+            min-height: 0;
+            overflow: hidden;
+            flex-direction: column;
+            gap: .45rem;
+        }
+
+        .quantum-buffer-unparsed-section {
+            min-height: 0;
+        }
+
+        .quantum-buffer-recent-section {
+            min-height: 0;
+        }
+
+        .quantum-buffer-recent-section.is-collapsed {
+            display: none;
+        }
+
+        .quantum-buffer-recent-section.is-collapsed .quantum-buffer-recent-wrap,
+        .quantum-buffer-recent-section.is-collapsed #quantumRecentLoadState {
+            display: none !important;
+        }
+
+        .quantum-buffer-modal.is-recent-hidden .modal-body {
+            grid-template-rows: minmax(0, 1fr);
+        }
+
+        .quantum-buffer-modal.is-recent-hidden .quantum-buffer-unparsed-section {
+            min-height: 0;
+        }
+
+        .quantum-buffer-modal.is-recent-hidden .quantum-buffer-splitter {
+            display: none;
+        }
+
+        .quantum-buffer-modal.is-recent-hidden .quantum-buffer-unparsed-wrap {
+            flex: 1 1 auto;
+            max-height: none;
+        }
+
+        .quantum-buffer-section-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .quantum-buffer-section-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: .75rem;
+        }
+
+        .quantum-buffer-section-title {
+            font-size: .9rem;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .quantum-buffer-recent-wrap {
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .quantum-buffer-unparsed-wrap {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: none;
+        }
+
+        .quantum-buffer-splitter {
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid #d7e0ea;
+            border-radius: 8px;
+            cursor: row-resize;
+            display: flex;
+            justify-content: center;
+            min-height: var(--quantum-buffer-splitter-size);
+            outline: none;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .quantum-buffer-splitter:hover,
+        .quantum-buffer-splitter:focus {
+            border-color: rgba(13, 202, 240, .65);
+            background: #eef8fb;
+        }
+
+        .quantum-buffer-splitter-lines {
+            display: grid;
+            gap: 3px;
+            width: 46px;
+        }
+
+        .quantum-buffer-splitter-lines span {
+            background: #94a3b8;
+            border-radius: 999px;
+            display: block;
+            height: 2px;
+        }
+
+        .quantum-buffer-splitter.is-dragging .quantum-buffer-splitter-lines span {
+            background: #0dcaf0;
+        }
+
+        body.quantum-buffer-is-resizing {
+            cursor: row-resize;
+            user-select: none;
+        }
+
         .quantum-buffer-table {
             min-width: 1320px;
             margin-bottom: 0;
+        }
+
+        .quantum-buffer-table.is-compact {
+            min-width: 1240px;
+            font-size: .78rem;
         }
 
         .quantum-buffer-table th {
@@ -1089,17 +1253,20 @@
             border-color: rgba(255, 255, 255, 0.12);
         }
 
-        html[data-bs-theme="dark"] .quantum-buffer-rule {
-            border-color: rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.04);
-        }
-
-        html[data-bs-theme="dark"] .quantum-buffer-rule-title {
+        html[data-bs-theme="dark"] .quantum-buffer-section-title {
             color: #e5e7eb;
         }
 
-        html[data-bs-theme="dark"] .quantum-buffer-rule-text {
+        html[data-bs-theme="dark"] .quantum-buffer-title-meta {
             color: #adb5bd;
+        }
+
+        html[data-bs-theme="dark"] .quantum-buffer-status-count {
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+
+        html[data-bs-theme="dark"] .quantum-buffer-status-count strong {
+            color: #e5e7eb;
         }
 
         html[data-bs-theme="dark"] .quantum-buffer-table-wrap {
@@ -1118,16 +1285,19 @@
             color: #adb5bd;
         }
 
-        @media (max-width: 1100px) {
-            .quantum-buffer-rules {
-                grid-template-columns: repeat(2, minmax(170px, 1fr));
-            }
+        html[data-bs-theme="dark"] .quantum-buffer-splitter {
+            background: #1f2329;
+            border-color: rgba(255, 255, 255, 0.12);
         }
 
-        @media (max-width: 700px) {
-            .quantum-buffer-rules {
-                grid-template-columns: 1fr;
-            }
+        html[data-bs-theme="dark"] .quantum-buffer-splitter:hover,
+        html[data-bs-theme="dark"] .quantum-buffer-splitter:focus {
+            background: #26313a;
+            border-color: rgba(13, 202, 240, .55);
+        }
+
+        html[data-bs-theme="dark"] .quantum-buffer-splitter-lines span {
+            background: #adb5bd;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-column-item {
@@ -1204,6 +1374,23 @@
             };
             $vendorTrackingReadonlyDate = static fn ($date): string => format_project_date($date) ?? '';
             $vendorTrackingReadonlyText = static fn ($value): string => trim((string) ($value ?? ''));
+            $quantumRoQty = static function ($value): string {
+                if ($value === null || $value === '') {
+                    return '--';
+                }
+
+                return rtrim(rtrim(number_format((float) $value, 4, '.', ''), '0'), '.');
+            };
+            $quantumStatusCounts = $quantumStatusCounts ?? [];
+            $quantumStatusCountItems = [
+                ['key' => 'unresolved', 'label' => 'unresolved'],
+                ['key' => 'pending', 'label' => 'pending'],
+                ['key' => 'wo_not_found', 'label' => 'WO not found'],
+                ['key' => 'wo_not_found_old', 'label' => 'WO not found: old'],
+                ['key' => 'applied', 'label' => 'applied'],
+                ['key' => 'not_applicable', 'label' => 'N/A'],
+                ['key' => 'error', 'label' => 'error'],
+            ];
         @endphp
         <div class="vendor-tracking-sticky-shell">
             <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1571,99 +1758,157 @@
         <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <div>
+                    <div class="quantum-buffer-title-row">
                         <h5 class="modal-title mb-0">Quantum RO Buffer</h5>
-                        <div class="small text-muted">
-                            Unparsed rows: {{ number_format($quantumUnparsedTotal ?? 0) }}
-                            @if(($quantumUnparsedRows ?? collect())->count() < ($quantumUnparsedTotal ?? 0))
-                                · showing latest {{ number_format(($quantumUnparsedRows ?? collect())->count()) }}
-                            @endif
+                        <div class="quantum-buffer-title-meta">
+                            Latest received:
+                            <span id="quantumRecentTotalCount">{{ number_format($quantumRecentTotal ?? 0) }}</span>
+                            total rows
+                            &middot; unresolved:
+                            <span id="quantumUnparsedTotalCount">{{ number_format($quantumUnparsedTotal ?? 0) }}</span>
                         </div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                        <div class="small text-muted">
-                            Fix incorrect Ref values in Quantum. Laravel process codes are treated as a fixed parser dictionary.
+                    <div class="quantum-buffer-section quantum-buffer-unparsed-section">
+                        <div class="quantum-buffer-section-head">
+                            <div class="quantum-buffer-section-title">Unresolved / needs attention</div>
+                            <div class="small text-muted">
+                                <span id="quantumUnparsedSectionCount">{{ number_format($quantumUnparsedTotal ?? 0) }}</span> rows
+                            </div>
+                        </div>
+                        <div class="quantum-buffer-table-wrap quantum-buffer-unparsed-wrap">
+                            <table class="table table-sm table-bordered align-middle quantum-buffer-table">
+                                <thead>
+                                    <tr>
+                                        <th>Status</th>
+                                        <th>Reason</th>
+                                        <th>RO</th>
+                                        <th>WO</th>
+                                        <th>Vendor</th>
+                                        <th>PN</th>
+                                        <th>Description</th>
+                                        <th>Class</th>
+                                        <th>Ref</th>
+                                        <th>Sent</th>
+                                        <th>Returned</th>
+                                        <th>Qty</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="quantumUnparsedRowsBody">
+                                    @forelse($quantumUnparsedRows as $line)
+                                        <tr data-quantum-line-id="{{ $line->id }}">
+                                            <td>
+                                                <span class="badge {{ $line->apply_status === 'error' ? 'text-bg-danger' : 'text-bg-warning' }}">
+                                                    {{ $line->apply_status ?: 'pending' }}
+                                                </span>
+                                            </td>
+                                            <td class="quantum-buffer-message">{{ $line->apply_message ?: 'Not parsed yet.' }}</td>
+                                            <td>{{ $line->ro_number ?: '--' }}</td>
+                                            <td>{{ $line->wo_number ?: '--' }}</td>
+                                            <td>{{ $line->vendor_name ?: '--' }}</td>
+                                            <td>{{ $line->pn ?: '--' }}</td>
+                                            <td>{{ $line->description ?: '--' }}</td>
+                                            <td>{{ $line->class ?: '--' }}</td>
+                                            <td><code>{{ $line->bom_ref ?: '--' }}</code></td>
+                                            <td>{{ format_project_date($line->out_date) ?? '--' }}</td>
+                                            <td>{{ format_project_date($line->returned_date) ?? '--' }}</td>
+                                            <td class="text-nowrap">qty - {{ $quantumRoQty($line->qty_repair) }} / {{ $quantumRoQty($line->qty_reserved) }} / {{ $quantumRoQty($line->qty_repaired) }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr class="js-quantum-unparsed-empty">
+                                            <td colspan="12" class="text-center text-muted py-4">No unresolved Quantum RO rows.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
-                    <div class="quantum-buffer-rules">
-                        <div class="quantum-buffer-rule">
-                            <div class="quantum-buffer-rule-title">1. Ref code</div>
-                            <div class="quantum-buffer-rule-text">Quantum `WO_BOM.REF` must match exactly one `process_names.code`. Spaces and case are ignored.</div>
-                        </div>
-                        <div class="quantum-buffer-rule">
-                            <div class="quantum-buffer-rule-title">2. Target</div>
-                            <div class="quantum-buffer-rule-text">Parser finds the WO, then one matching TDR process or one STD process for that process name.</div>
-                        </div>
-                        <div class="quantum-buffer-rule">
-                            <div class="quantum-buffer-rule-title">3. Part rows</div>
-                            <div class="quantum-buffer-rule-text">For `DETAIL_PART`, the Quantum PN must match the avia component PN on that WO.</div>
-                        </div>
-                        <div class="quantum-buffer-rule">
-                            <div class="quantum-buffer-rule-title">4. Apply</div>
-                            <div class="quantum-buffer-rule-text">When target is unique, parser writes RO, vendor, sent date and first returned date; ambiguous rows stay here.</div>
-                        </div>
+                    <div
+                        class="quantum-buffer-splitter"
+                        id="quantumBufferSplitter"
+                        role="separator"
+                        aria-orientation="horizontal"
+                        aria-label="Resize Quantum buffer tables"
+                        tabindex="0"
+                        title="Resize"
+                    >
+                        <span class="quantum-buffer-splitter-lines" aria-hidden="true">
+                            <span></span>
+                            <span></span>
+                        </span>
                     </div>
 
-                    <div class="quantum-buffer-table-wrap">
-                        <table class="table table-sm table-bordered align-middle quantum-buffer-table">
-                            <thead>
-                                <tr>
-                                    <th>Status</th>
-                                    <th>Reason</th>
-                                    <th>RO</th>
-                                    <th>WO</th>
-                                    <th>Vendor</th>
-                                    <th>PN</th>
-                                    <th>Description</th>
-                                    <th>Class</th>
-                                    <th>Ref</th>
-                                    <th>Sent</th>
-                                    <th>Returned</th>
-                                    <th>Qty</th>
-                                    <th>Source</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($quantumUnparsedRows as $line)
-                                    <tr>
-                                        <td>
-                                            <span class="badge {{ $line->apply_status === 'error' ? 'text-bg-danger' : 'text-bg-warning' }}">
-                                                {{ $line->apply_status ?: 'pending' }}
+                    <div class="quantum-buffer-section quantum-buffer-recent-section">
+                        <div class="quantum-buffer-section-head">
+                            <div class="quantum-buffer-section-title">
+                                Latest received from Quantum
+                                <span class="quantum-buffer-status-counts">
+                                    @foreach($quantumStatusCountItems as $countItem)
+                                        @php($countValue = (int) ($quantumStatusCounts[$countItem['key']] ?? 0))
+                                        @if($countValue > 0)
+                                            <span class="quantum-buffer-status-count">
+                                                {{ $countItem['label'] }}
+                                                <strong>{{ number_format($countValue) }}</strong>
                                             </span>
-                                        </td>
-                                        <td class="quantum-buffer-message">{{ $line->apply_message ?: 'Not parsed yet.' }}</td>
-                                        <td>{{ $line->ro_number ?: '--' }}</td>
-                                        <td>{{ $line->wo_number ?: '--' }}</td>
-                                        <td>{{ $line->vendor_name ?: '--' }}</td>
-                                        <td>{{ $line->pn ?: '--' }}</td>
-                                        <td>{{ $line->description ?: '--' }}</td>
-                                        <td>{{ $line->class ?: '--' }}</td>
-                                        <td><code>{{ $line->bom_ref ?: '--' }}</code></td>
-                                        <td>{{ format_project_date($line->out_date) ?? '--' }}</td>
-                                        <td>{{ format_project_date($line->returned_date) ?? '--' }}</td>
-                                        <td>
-                                            <span class="d-block">To Repair: {{ $line->qty_repair ?? '--' }}</span>
-                                            <span class="d-block">Reserved: {{ $line->qty_reserved ?? '--' }}</span>
-                                            <span class="d-block">Repaired: {{ $line->qty_repaired ?? '--' }}</span>
-                                        </td>
-                                        <td>
-                                            <span class="d-block">{{ $line->source_uid ?: '--' }}</span>
-                                            <span class="d-block small text-muted">
-                                                {{ $line->source_last_modified ? ((format_project_date($line->source_last_modified) ?? '--') . ' ' . $line->source_last_modified->format('H:i')) : '--' }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                @empty
+                                        @endif
+                                    @endforeach
+                                </span>
+                            </div>
+                            <div class="small text-muted">
+                                <label class="quantum-buffer-section-toggle mb-0">
+                                    <input
+                                        type="checkbox"
+                                        class="form-check-input mt-0"
+                                        id="quantumRecentVisibleToggle"
+                                        checked
+                                    >
+                                    <span>Show table</span>
+                                </label>
+                                <span class="mx-1">&middot;</span>
+                                All statuses
+                                @if(($quantumRecentRows ?? collect())->count() < ($quantumRecentTotal ?? 0))
+                                    &middot; scroll to load more
+                                @endif
+                            </div>
+                        </div>
+                        <div
+                            class="quantum-buffer-table-wrap quantum-buffer-recent-wrap js-quantum-recent-scroll"
+                            data-fetch-url="{{ route('vendor-tracking.quantum-lines.recent') }}"
+                            data-next-page="{{ ($quantumRecentRows ?? collect())->count() < ($quantumRecentTotal ?? 0) ? 2 : '' }}"
+                            data-has-more="{{ ($quantumRecentRows ?? collect())->count() < ($quantumRecentTotal ?? 0) ? '1' : '0' }}"
+                        >
+                            <table class="table table-sm table-bordered align-middle quantum-buffer-table is-compact">
+                                <thead>
                                     <tr>
-                                        <td colspan="13" class="text-center text-muted py-4">No unparsed Quantum RO rows.</td>
+                                        <th>Seen</th>
+                                        <th>Status</th>
+                                        <th>RO</th>
+                                        <th>WO</th>
+                                        <th>Vendor</th>
+                                        <th>PN</th>
+                                        <th>Class</th>
+                                        <th>Ref</th>
+                                        <th>Sent</th>
+                                        <th>Returned</th>
+                                        <th>Target</th>
+                                        <th>Message</th>
                                     </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody id="quantumRecentRowsBody">
+                                    @if(($quantumRecentRows ?? collect())->isNotEmpty())
+                                        @include('admin.vendor_tracking.partials.quantum_recent_rows', ['quantumRecentRows' => $quantumRecentRows])
+                                    @else
+                                        <tr class="js-quantum-recent-empty">
+                                            <td colspan="12" class="text-center text-muted py-4">No Quantum RO rows received yet.</td>
+                                        </tr>
+                                    @endif
+                                </tbody>
+                            </table>
+                            <div class="quantum-buffer-load-more small text-muted text-center py-2 d-none" id="quantumRecentLoadState">Loading more rows...</div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1766,6 +2011,8 @@
             const excelColumnOrderKey = 'vendorTrackingExcelColumnOrder';
             const excelTitleKey = 'vendorTrackingExcelTitle';
             const settingsVersionKey = 'vendorTrackingSettingsVersion';
+            const quantumRecentVisibleKey = 'quantumRecentVisible';
+            const quantumSplitRatioKey = 'quantumRoBufferSplitRatio';
             const currentSettingsVersion = '3';
             const defaultScreenColumns = ['repair_order', 'type', 'info', 'vendor', 'wo', 'customer', 'ipl', 'part_number', 'part_name', 'serial', 'process', 'sent', 'returned', 'ecd', 'days', 'status', 'changed_at'];
             const defaultExcelColumns = ['repair_order', 'type', 'vendor', 'wo', 'customer', 'ipl', 'part_number', 'part_name', 'serial', 'process', 'sent', 'returned', 'ecd', 'days', 'changed_at'];
@@ -2334,6 +2581,285 @@
                     return false;
                 }
             };
+
+            const quantumRecentScroll = document.querySelector('.js-quantum-recent-scroll');
+            const quantumRecentBody = document.getElementById('quantumRecentRowsBody');
+            const quantumUnparsedBody = document.getElementById('quantumUnparsedRowsBody');
+            const quantumRecentLoadState = document.getElementById('quantumRecentLoadState');
+            const quantumBufferModalEl = document.getElementById('quantumRoBufferModal');
+            const quantumBufferModalBody = quantumBufferModalEl?.querySelector('.modal-body') || null;
+            const quantumUnparsedSection = document.querySelector('.quantum-buffer-unparsed-section');
+            const quantumRecentSection = document.querySelector('.quantum-buffer-recent-section');
+            const quantumBufferSplitter = document.getElementById('quantumBufferSplitter');
+            const quantumRecentVisibleToggle = document.getElementById('quantumRecentVisibleToggle');
+            let isLoadingQuantumRecent = false;
+            let quantumSplitRatio = Number(settingValue(quantumSplitRatioKey, 0.42));
+
+            const quantumBodyGridGap = function () {
+                if (!quantumBufferModalBody) {
+                    return 0;
+                }
+
+                const styles = window.getComputedStyle(quantumBufferModalBody);
+                const rowGap = parseFloat(styles.rowGap || styles.gap || '0');
+
+                return Number.isFinite(rowGap) ? rowGap : 0;
+            };
+
+            const setQuantumRecentVisible = function (visible, persist = false) {
+                quantumRecentSection?.classList.toggle('is-collapsed', !visible);
+                quantumBufferModalEl?.classList.toggle('is-recent-hidden', !visible);
+                if (quantumRecentVisibleToggle) {
+                    quantumRecentVisibleToggle.checked = visible;
+                }
+                if (persist) {
+                    window.UserUiSettings.set(settingsScope, quantumRecentVisibleKey, visible);
+                }
+                requestAnimationFrame(function () {
+                    applyQuantumSplitRatio(quantumSplitRatio, false);
+                });
+            };
+
+            const clampQuantumSplitHeight = function (height) {
+                if (!quantumBufferModalBody) {
+                    return height;
+                }
+
+                const bodyHeight = quantumBufferModalBody.clientHeight || 0;
+                const splitterHeight = quantumBufferSplitter?.offsetHeight || 0;
+                const minTop = 150;
+                const minBottom = 170;
+                const rowGaps = quantumBodyGridGap() * 2;
+                const availableHeight = Math.max(0, bodyHeight - splitterHeight - rowGaps);
+                const maxTop = Math.max(minTop, availableHeight - minBottom);
+
+                return Math.max(minTop, Math.min(maxTop, Math.round(height)));
+            };
+
+            const setQuantumSplitterAria = function (height) {
+                if (!quantumBufferSplitter || !quantumBufferModalBody) {
+                    return;
+                }
+
+                const bodyHeight = quantumBufferModalBody.clientHeight || 1;
+                quantumBufferSplitter.setAttribute('aria-valuemin', '0');
+                quantumBufferSplitter.setAttribute('aria-valuemax', '100');
+                quantumBufferSplitter.setAttribute('aria-valuenow', String(Math.round((height / bodyHeight) * 100)));
+            };
+
+            const applyQuantumSplitRatio = function (ratio, persist = false) {
+                if (!quantumBufferModalBody || !quantumUnparsedSection || !quantumBufferModalEl || quantumBufferModalEl.classList.contains('is-recent-hidden')) {
+                    return;
+                }
+
+                const bodyHeight = quantumBufferModalBody.clientHeight || 0;
+                if (bodyHeight <= 0) {
+                    return;
+                }
+
+                const safeRatio = Math.max(0.25, Math.min(0.75, Number(ratio) || 0.42));
+                const height = clampQuantumSplitHeight(bodyHeight * safeRatio);
+                quantumSplitRatio = height / bodyHeight;
+                quantumBufferModalEl.style.setProperty('--quantum-unparsed-height', `${height}px`);
+                setQuantumSplitterAria(height);
+
+                if (persist) {
+                    window.UserUiSettings.set(settingsScope, quantumSplitRatioKey, Number(quantumSplitRatio.toFixed(4)));
+                }
+            };
+
+            setQuantumRecentVisible(settingValue(quantumRecentVisibleKey, true) !== false);
+
+            quantumRecentVisibleToggle?.addEventListener('change', function () {
+                setQuantumRecentVisible(Boolean(quantumRecentVisibleToggle.checked), true);
+            });
+
+            const resizeQuantumSplitBy = function (delta, persist = true) {
+                if (!quantumBufferModalBody || !quantumUnparsedSection) {
+                    return;
+                }
+
+                const bodyHeight = quantumBufferModalBody.clientHeight || 0;
+                if (bodyHeight <= 0) {
+                    return;
+                }
+
+                const currentHeight = quantumUnparsedSection.getBoundingClientRect().height;
+                const nextHeight = clampQuantumSplitHeight(currentHeight + delta);
+                applyQuantumSplitRatio(nextHeight / bodyHeight, persist);
+            };
+
+            if (quantumBufferSplitter && quantumBufferModalBody && quantumUnparsedSection) {
+                let splitterDragStartY = 0;
+                let splitterDragStartHeight = 0;
+                let splitterDragging = false;
+
+                const stopQuantumSplitterDrag = function () {
+                    if (!splitterDragging) {
+                        return;
+                    }
+
+                    splitterDragging = false;
+                    quantumBufferSplitter.classList.remove('is-dragging');
+                    document.body.classList.remove('quantum-buffer-is-resizing');
+                    document.removeEventListener('pointermove', onQuantumSplitterPointerMove);
+                    document.removeEventListener('pointerup', stopQuantumSplitterDrag);
+                    document.removeEventListener('pointercancel', stopQuantumSplitterDrag);
+                    window.UserUiSettings.set(settingsScope, quantumSplitRatioKey, Number(quantumSplitRatio.toFixed(4)));
+                };
+
+                var onQuantumSplitterPointerMove = function (event) {
+                    if (!splitterDragging) {
+                        return;
+                    }
+
+                    const bodyHeight = quantumBufferModalBody.clientHeight || 0;
+                    if (bodyHeight <= 0) {
+                        return;
+                    }
+
+                    const nextHeight = clampQuantumSplitHeight(splitterDragStartHeight + (event.clientY - splitterDragStartY));
+                    applyQuantumSplitRatio(nextHeight / bodyHeight, false);
+                    event.preventDefault();
+                };
+
+                quantumBufferSplitter.addEventListener('pointerdown', function (event) {
+                    if (event.button !== undefined && event.button !== 0) {
+                        return;
+                    }
+
+                    splitterDragging = true;
+                    splitterDragStartY = event.clientY;
+                    splitterDragStartHeight = quantumUnparsedSection.getBoundingClientRect().height;
+                    quantumBufferSplitter.classList.add('is-dragging');
+                    document.body.classList.add('quantum-buffer-is-resizing');
+                    document.addEventListener('pointermove', onQuantumSplitterPointerMove);
+                    document.addEventListener('pointerup', stopQuantumSplitterDrag);
+                    document.addEventListener('pointercancel', stopQuantumSplitterDrag);
+                    event.preventDefault();
+                });
+
+                quantumBufferSplitter.addEventListener('keydown', function (event) {
+                    if (event.key === 'ArrowUp') {
+                        resizeQuantumSplitBy(-24);
+                        event.preventDefault();
+                    } else if (event.key === 'ArrowDown') {
+                        resizeQuantumSplitBy(24);
+                        event.preventDefault();
+                    } else if (event.key === 'Home') {
+                        applyQuantumSplitRatio(0.25, true);
+                        event.preventDefault();
+                    } else if (event.key === 'End') {
+                        applyQuantumSplitRatio(0.75, true);
+                        event.preventDefault();
+                    }
+                });
+
+                quantumBufferModalEl?.addEventListener('shown.bs.modal', function () {
+                    requestAnimationFrame(function () {
+                        applyQuantumSplitRatio(quantumSplitRatio, false);
+                    });
+                });
+
+                window.addEventListener('resize', function () {
+                    requestAnimationFrame(function () {
+                        applyQuantumSplitRatio(quantumSplitRatio, false);
+                    });
+                });
+            }
+
+            const setQuantumCountText = function (id, value) {
+                const element = document.getElementById(id);
+                if (!element || value === undefined || value === null) {
+                    return;
+                }
+
+                element.textContent = Number(value).toLocaleString('en-US');
+            };
+
+            const setQuantumLoadState = function (message, visible, isError = false) {
+                if (!quantumRecentLoadState) {
+                    return;
+                }
+
+                quantumRecentLoadState.textContent = message || '';
+                quantumRecentLoadState.classList.toggle('d-none', !visible);
+                quantumRecentLoadState.classList.toggle('text-danger', Boolean(isError));
+                quantumRecentLoadState.classList.toggle('text-muted', !isError);
+            };
+
+            const appendQuantumRecentRows = function (html) {
+                if (!quantumRecentBody || !html) {
+                    return;
+                }
+
+                quantumRecentBody.querySelector('.js-quantum-recent-empty')?.remove();
+
+                const template = document.createElement('template');
+                template.innerHTML = html.trim();
+                Array.from(template.content.children).forEach(function (row) {
+                    quantumRecentBody.appendChild(row);
+                });
+            };
+
+            const loadMoreQuantumRecent = async function () {
+                if (!quantumRecentScroll || !quantumRecentBody || isLoadingQuantumRecent || quantumRecentScroll.dataset.hasMore !== '1') {
+                    return;
+                }
+
+                const page = Number(quantumRecentScroll.dataset.nextPage || 0);
+                const fetchUrl = quantumRecentScroll.dataset.fetchUrl || '';
+                if (!page || !fetchUrl) {
+                    return;
+                }
+
+                isLoadingQuantumRecent = true;
+                setQuantumLoadState('Loading more rows...', true);
+
+                const url = new URL(fetchUrl, window.location.origin);
+                url.searchParams.set('page', String(page));
+
+                const request = function () {
+                    return fetch(url.toString(), {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        spinner: false,
+                        ignoreSessionExpiry: true,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+                };
+
+                try {
+                    let response = await request();
+                    if (response.status === 419 && await refreshCsrfToken()) {
+                        response = await request();
+                    }
+
+                    const data = await response.json();
+                    if (!response.ok || data.success === false) {
+                        throw new Error(data.message || 'Failed to load Quantum rows');
+                    }
+
+                    appendQuantumRecentRows(data.html || '');
+                    quantumRecentScroll.dataset.hasMore = data.has_more ? '1' : '0';
+                    quantumRecentScroll.dataset.nextPage = data.next_page ? String(data.next_page) : '';
+                    setQuantumCountText('quantumRecentTotalCount', data.total);
+                    setQuantumLoadState('', false);
+                } catch (error) {
+                    setQuantumLoadState('Failed to load more rows.', true, true);
+                } finally {
+                    isLoadingQuantumRecent = false;
+                }
+            };
+
+            quantumRecentScroll?.addEventListener('scroll', function () {
+                if (quantumRecentScroll.scrollTop + quantumRecentScroll.clientHeight >= quantumRecentScroll.scrollHeight - 90) {
+                    loadMoreQuantumRecent();
+                }
+            });
 
             const fetchTrackingRowUpdate = async function (row, payload) {
                 const request = function () {

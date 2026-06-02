@@ -644,7 +644,8 @@
     }
 
     .main-readonly-ro {
-        justify-content: flex-start;
+        justify-content: center;
+        text-align: center;
     }
 
     .main-readonly-date {

@@ -1,0 +1,2 @@
+[2026-06-02 15:06:50] status=error mode=- rows=0 message="PHP OCI8 extension is not available"
+[2026-06-02 15:10:19] status=ok mode=count rows=7757 file="C:\OSPanel\domains\avia.loc\WO\log\quantum_wo_count_20260602_151019.csv"

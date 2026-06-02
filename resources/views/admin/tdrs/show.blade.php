@@ -556,7 +556,7 @@
                                     </div>
                                 @endif
                                 <span id="bushingSpFormHeaderBtn">
-                                    @if($woBushing)
+                                    @if($woBushing && (($bushingSpFormColumnsCount ?? 0) > 0))
                                         <span class="position-relative d-inline-block">
                                             <x-paper-button text="Bushing Form"
                                                             href="{{ route('wo_bushings.specProcessForm', $woBushing->id) }}"

@@ -72,6 +72,151 @@ class WoBushingController extends Controller
         );
     }
 
+    /**
+     * Labels used by the bushing special process print form.
+     *
+     * @return array<string, string>
+     */
+    private static function bushingProcessPrintLabels(): array
+    {
+        return [
+            'machining' => 'Machining',
+            'stress_relief' => 'Bake (Stress relief)',
+            'ndt' => 'NDT',
+            'passivation' => 'Passivation',
+            'cad' => 'CAD',
+            'anodizing' => 'Anodizing',
+            'xylan' => 'Xylan',
+        ];
+    }
+
+    private function resolveBatchProcessKey(WoBushingBatch $batch): string
+    {
+        $stored = trim((string) ($batch->process_column_key ?? ''));
+        if ($stored !== '') {
+            return $stored;
+        }
+
+        return WoBushingProcessColumnKey::fromProcess($batch->process);
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private function batchLabelsByProcessForWorkorder(int $workorderId): array
+    {
+        $batches = WoBushingBatch::query()
+            ->where('workorder_id', $workorderId)
+            ->whereHas('woBushingProcesses')
+            ->with('process.process_name')
+            ->orderBy('id')
+            ->get(['id', 'workorder_id', 'process_id', 'process_column_key']);
+
+        $idsByProcess = [];
+        foreach ($batches as $batch) {
+            $key = $this->resolveBatchProcessKey($batch);
+            if (! array_key_exists($key, self::bushingProcessPrintLabels())) {
+                continue;
+            }
+            $idsByProcess[$key][] = (int) $batch->id;
+        }
+
+        $labels = [];
+        foreach (array_keys(self::bushingProcessPrintLabels()) as $key) {
+            $ids = $idsByProcess[$key] ?? [];
+            sort($ids, SORT_NUMERIC);
+            foreach ($ids as $idx => $id) {
+                $labels[$key][$id] = 'B' . ($idx + 1);
+            }
+        }
+
+        return $labels;
+    }
+
+    private function hasBushingSpecProcessBatches(?WoBushing $woBushing): bool
+    {
+        if (! $woBushing) {
+            return false;
+        }
+
+        return WoBushingBatch::query()
+            ->where('workorder_id', $woBushing->workorder_id)
+            ->whereHas('woBushingProcesses')
+            ->exists();
+    }
+
+    /**
+     * The bushing SP form is printed from real batches only; loose single bushing
+     * processes stay visible in the tab but do not create a print form.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function buildBushingSpecProcessGroups(Workorder $workorder): array
+    {
+        $labelsByProcess = $this->batchLabelsByProcessForWorkorder((int) $workorder->id);
+        $labelMap = self::bushingProcessPrintLabels();
+        $sortOrder = array_flip(array_keys($labelMap));
+
+        $groups = [];
+        $batches = WoBushingBatch::query()
+            ->where('workorder_id', $workorder->id)
+            ->whereHas('woBushingProcesses')
+            ->with([
+                'process.process_name',
+                'woBushingProcesses.line.component',
+            ])
+            ->orderBy('id')
+            ->get();
+
+        foreach ($batches as $batch) {
+            $key = $this->resolveBatchProcessKey($batch);
+            $processLabel = $labelMap[$key] ?? null;
+            if (! $processLabel) {
+                continue;
+            }
+
+            $components = [];
+            $totalQty = 0;
+            foreach ($batch->woBushingProcesses as $woProcess) {
+                $component = $woProcess->line?->component;
+                if (! $component) {
+                    continue;
+                }
+
+                $qty = max(1, (int) ($woProcess->qty ?: ($woProcess->line?->qty ?? 1)));
+                $components[] = [
+                    'component' => $component,
+                    'qty' => $qty,
+                ];
+                $totalQty += $qty;
+            }
+
+            if ($components === []) {
+                continue;
+            }
+
+            $groups[] = [
+                'batch_id' => (int) $batch->id,
+                'batch_label' => $labelsByProcess[$key][(int) $batch->id] ?? 'B?',
+                'process_key' => $key,
+                'processes' => [$processLabel],
+                'components' => $components,
+                'total_qty' => $totalQty,
+                'process_numbers' => [$processLabel => 1],
+            ];
+        }
+
+        usort($groups, function (array $left, array $right) use ($sortOrder): int {
+            $leftOrder = $sortOrder[$left['process_key'] ?? ''] ?? 999;
+            $rightOrder = $sortOrder[$right['process_key'] ?? ''] ?? 999;
+
+            return ($leftOrder <=> $rightOrder)
+                ?: ((int) ($left['batch_id'] ?? 0) <=> (int) ($right['batch_id'] ?? 0));
+        });
+
+        return array_values($groups);
+    }
+
     private function buildProcessAssignments(?WoBushing $woBushing): array
     {
         if (! $woBushing) {
@@ -195,7 +340,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Stress Relief: процессы для Bake (Stress relief) и Stress Relief
         $stressReliefProcesses = Process::whereHas('process_name', function ($query) {
                 $query->whereIn('name', self::stressReliefProcessNames());
             })
@@ -205,7 +349,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // NDT processes - показываем process_name (NDT-1, NDT-4 и т.д.)
         $ndtProcesses = Process::whereHas('process_name', function($query) {
                 $query->whereIn('name', self::bushingNdtProcessNames());
             })
@@ -224,7 +367,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // CAD processes - все процессы для 'Cad plate'
         $cadProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Cad plate');
             })
@@ -234,7 +376,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Anodizing processes - все процессы для 'Anodizing'
         $anodizingProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Anodizing');
             })
@@ -244,7 +385,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Xylan processes - все процессы для 'Xylan coating'
         $xylanProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Xylan coating');
             })
@@ -345,7 +485,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Stress Relief: Bake (Stress relief) и Stress Relief
         $stressReliefProcesses = Process::whereHas('process_name', function ($query) {
                 $query->whereIn('name', self::stressReliefProcessNames());
             })
@@ -355,7 +494,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // NDT processes - показываем process_name (NDT-1, NDT-4 и т.д.)
         $ndtProcesses = Process::whereHas('process_name', function($query) {
                 $query->whereIn('name', self::bushingNdtProcessNames());
             })
@@ -374,7 +512,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // CAD processes - все процессы для 'Cad plate'
         $cadProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Cad plate');
             })
@@ -384,7 +521,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Anodizing processes - все процессы для 'Anodizing'
         $anodizingProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Anodizing');
             })
@@ -394,7 +530,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Xylan processes - все процессы для 'Xylan coating'
         $xylanProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Xylan coating');
             })
@@ -404,11 +539,11 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Get existing WoBushing data if available (из нормализованных таблиц или legacy JSON)
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->with('lines')->first();
         $linesExist = $woBushing && $woBushing->lines->isNotEmpty();
         $bushData = $linesExist ? $this->woBushingSync->resolveBushDataForViews($woBushing) : [];
         $processAssignments = $this->buildProcessAssignments($woBushing);
+        $hasBushingSpecProcessBatches = $this->hasBushingSpecProcessBatches($woBushing);
 
         // Get all vendors
         $vendors = Vendor::all();
@@ -427,6 +562,7 @@ class WoBushingController extends Controller
             'bushData',
             'linesExist',
             'processAssignments',
+            'hasBushingSpecProcessBatches',
             'vendors'
         ));
     }
@@ -476,6 +612,7 @@ class WoBushingController extends Controller
         $linesExist = $woBushing && $woBushing->lines->isNotEmpty();
         $bushData = $linesExist ? $this->woBushingSync->resolveBushDataForViews($woBushing) : [];
         $processAssignments = $this->buildProcessAssignments($woBushing);
+        $hasBushingSpecProcessBatches = $this->hasBushingSpecProcessBatches($woBushing);
 
         $vendors = Vendor::all();
         $manuals = Manual::all();
@@ -498,6 +635,7 @@ class WoBushingController extends Controller
             'bushData',
             'linesExist',
             'processAssignments',
+            'hasBushingSpecProcessBatches',
             'vendors'
         ));
     }
@@ -535,7 +673,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // NDT processes - показываем process_name (NDT-1, NDT-4 и т.д.)
         $ndtProcesses = Process::whereHas('process_name', function($query) {
                 $query->whereIn('name', self::bushingNdtProcessNames());
             })
@@ -554,7 +691,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // CAD processes - все процессы для 'Cad plate'
         $cadProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Cad plate');
             })
@@ -564,7 +700,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Anodizing processes - все процессы для 'Anodizing'
         $anodizingProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Anodizing');
             })
@@ -574,7 +709,6 @@ class WoBushingController extends Controller
             ->with('process_name')
             ->get();
 
-        // Xylan processes - все процессы для 'Xylan coating'
         $xylanProcesses = Process::whereHas('process_name', function($query) {
                 $query->where('name', 'Xylan coating');
             })
@@ -677,20 +811,17 @@ class WoBushingController extends Controller
             return redirect()->back()->with('error', __('There is no form for this process.'));
         }
 
-        // Получаем vendor_id из запроса
         $vendorId = $request->input('vendor_id');
         $selectedVendor = null;
         if ($vendorId) {
             $selectedVendor = Vendor::find($vendorId);
         }
 
-        // Получаем связанные данные
         $manual_id = $current_wo->unit->manual_id;
         $components = Component::where('manual_id', $manual_id)->get();
         $manualProcesses = \App\Models\ManualProcess::where('manual_id', $manual_id)
             ->pluck('processes_id');
 
-        // Базовые данные для представления
         $viewData = [
             'current_wo' => $current_wo,
             'components' => $components,
@@ -705,6 +836,40 @@ class WoBushingController extends Controller
         ];
 
         $bushData = $this->woBushingSync->resolveBushDataForViews($woBushing);
+        $processKey = $this->resolveProcessKey($processName->name, $processName->process_sheet_name);
+        $batchLabelsByProcess = $this->batchLabelsByProcessForWorkorder((int) $current_wo->id);
+        $batchMetaByComponentAndProcess = [];
+        $lineComponentIds = $woBushing->lines()
+            ->pluck('component_id', 'id')
+            ->mapWithKeys(fn ($componentId, $lineId) => [(int) $lineId => (int) $componentId])
+            ->all();
+
+        foreach ($this->buildProcessAssignments($woBushing) as $lineId => $assignments) {
+            $componentId = $lineComponentIds[(int) $lineId] ?? 0;
+            if ($componentId <= 0 || ! is_array($assignments)) {
+                continue;
+            }
+
+            foreach ($assignments as $assignmentKey => $assignment) {
+                $batchId = (int) ($assignment['batch_id'] ?? 0);
+                if ($batchId <= 0) {
+                    continue;
+                }
+
+                $batchMetaByComponentAndProcess[$componentId][$assignmentKey] = [
+                    'batch_id' => $batchId,
+                    'batch_label' => $batchLabelsByProcess[$assignmentKey][$batchId] ?? 'B?',
+                ];
+            }
+        }
+
+        $rawBatchIds = $request->input('bushing_batch_ids', []);
+        $filterBushingBatchIds = array_values(array_unique(array_filter(array_map(
+            'intval',
+            is_array($rawBatchIds) ? $rawBatchIds : [$rawBatchIds]
+        ))));
+        $filterBushingBatchIds = array_slice($filterBushingBatchIds, 0, 1);
+        $allowedBatchIds = array_flip($filterBushingBatchIds);
 
         $filterBushingComponentIds = null;
         if ($request->has('bushing_component_ids')) {
@@ -712,20 +877,54 @@ class WoBushingController extends Controller
             $filterBushingComponentIds = array_values(array_unique(array_filter(array_map('intval', is_array($raw) ? $raw : [$raw]))));
         }
 
-        $applyBushingComponentFilter = function (array $rows) use ($filterBushingComponentIds) {
-            if ($filterBushingComponentIds === null) {
-                return $rows;
+        $selectedBatchLabels = [];
+        foreach ($filterBushingBatchIds as $batchId) {
+            $label = $batchLabelsByProcess[$processKey][$batchId] ?? null;
+            if ($label) {
+                $selectedBatchLabels[] = $label;
             }
-            $allowed = array_flip($filterBushingComponentIds);
-            return array_values(array_filter($rows, function ($row) use ($allowed) {
+        }
+        $viewData['formHeaderRepairOrder'] = implode(', ', array_values(array_unique($selectedBatchLabels)));
+
+        $applyBushingBatchFilter = function (array $rows) use (
+            $processKey,
+            $batchMetaByComponentAndProcess,
+            $allowedBatchIds,
+            $filterBushingComponentIds
+        ) {
+            $allowedComponentIds = $filterBushingComponentIds === null
+                ? null
+                : array_flip($filterBushingComponentIds);
+
+            $filtered = [];
+            foreach ($rows as $row) {
                 $c = $row['component'] ?? null;
-                return $c && isset($allowed[$c->id]);
-            }));
+                if (! $c) {
+                    continue;
+                }
+
+                if ($allowedComponentIds !== null && ! isset($allowedComponentIds[(int) $c->id])) {
+                    continue;
+                }
+
+                $batchMeta = $batchMetaByComponentAndProcess[(int) $c->id][$processKey] ?? null;
+                if (! $batchMeta) {
+                    continue;
+                }
+
+                if (! isset($allowedBatchIds[(int) $batchMeta['batch_id']])) {
+                    continue;
+                }
+
+                $row['batch_id'] = (int) $batchMeta['batch_id'];
+                $row['batch_label'] = $batchMeta['batch_label'];
+                $filtered[] = $row;
+            }
+
+            return array_values($filtered);
         };
 
-        // Обработка NDT формы
         if ($processName->process_sheet_name == 'NDT') {
-            // Получаем ID process names одним запросом
             $processNames = ProcessName::whereIn('name', [
                 'NDT-1',
                 'NDT-4',
@@ -733,7 +932,6 @@ class WoBushingController extends Controller
                 'BNI'
             ])->pluck('id', 'name');
 
-            // Извлекаем ID по именам
             $ndt_ids = [
                 'ndt1_name_id' => $processNames['NDT-1'] ?? null,
                 'ndt4_name_id' => $processNames['NDT-4'] ?? null,
@@ -741,12 +939,10 @@ class WoBushingController extends Controller
                 'ndt5_name_id' => $processNames['BNI'] ?? null
             ];
 
-            // Получаем NDT processes
             $ndt_processes = Process::whereIn('id', $manualProcesses)
                 ->whereIn('process_names_id', $ndt_ids)
                 ->get();
 
-            // Функция для извлечения номера NDT из имени процесса
             $getNdtNumber = function($processName) {
                 if (strpos($processName->name, 'NDT-') === 0) {
                     return substr($processName->name, 4);
@@ -758,10 +954,8 @@ class WoBushingController extends Controller
                 return substr($processName->name, -1);
             };
 
-            // Создаем массив данных для отображения в таблице
-            // Группируем NDT процессы по компоненту для объединения номеров
             $tableData = [];
-            $componentNdtMap = []; // Карта для группировки NDT по компонентам
+            $componentNdtMap = [];
             
             if ($bushData && is_array($bushData)) {
                 foreach ($bushData as $bushItem) {
@@ -770,7 +964,6 @@ class WoBushingController extends Controller
                         if ($component) {
                             $componentId = $component->id;
                             
-                            // Инициализируем запись для компонента, если её еще нет
                             if (!isset($componentNdtMap[$componentId])) {
                                 $componentNdtMap[$componentId] = [
                                     'component' => $component,
@@ -780,7 +973,6 @@ class WoBushingController extends Controller
                                 ];
                             }
                             
-                            // NDT может быть массивом или одним значением
                             $ndtProcessIds = is_array($bushItem['processes']['ndt']) 
                                 ? $bushItem['processes']['ndt'] 
                                 : [$bushItem['processes']['ndt']];
@@ -788,11 +980,9 @@ class WoBushingController extends Controller
                             foreach ($ndtProcessIds as $ndtProcessId) {
                                 $process = Process::find($ndtProcessId);
                                 if ($process) {
-                                    // Получаем конкретный process_name для правильного отображения номера
                                     $specificProcessName = ProcessName::find($process->process_names_id);
                                     if ($specificProcessName) {
                                         $ndtNumber = $getNdtNumber($specificProcessName);
-                                        // Добавляем номер, если его еще нет
                                         if (!in_array($ndtNumber, $componentNdtMap[$componentId]['ndt_numbers'])) {
                                             $componentNdtMap[$componentId]['ndt_numbers'][] = $ndtNumber;
                                             $componentNdtMap[$componentId]['processes'][] = $process;
@@ -805,35 +995,31 @@ class WoBushingController extends Controller
                 }
             }
             
-            // Преобразуем карту в массив tableData с объединенными номерами
             foreach ($componentNdtMap as $componentData) {
                 if (empty($componentData['ndt_numbers'])) {
-                    continue; // Пропускаем компоненты без NDT номеров
+                    continue;
                 }
                 
-                // Сортируем номера для правильного отображения (преобразуем в числа для корректной сортировки)
                 $ndtNumbers = $componentData['ndt_numbers'];
                 usort($ndtNumbers, function($a, $b) {
                     return (int)$a <=> (int)$b;
                 });
                 
-                // Объединяем номера через " / "
                 $combinedNdtNumber = implode(' / ', $ndtNumbers);
                 
-                // Используем первый процесс для совместимости с шаблоном
                 $firstProcess = !empty($componentData['processes']) ? $componentData['processes'][0] : null;
                 
                 $tableData[] = [
                     'component' => $componentData['component'],
                     'wo_bushing' => $woBushing,
                     'qty' => $componentData['qty'],
-                    'combined_ndt_number' => $combinedNdtNumber, // Всегда устанавливаем combined_ndt_number
+                    'combined_ndt_number' => $combinedNdtNumber,
                     'process' => $firstProcess,
                     'process_name' => $firstProcess ? ProcessName::find($firstProcess->process_names_id) : null
                 ];
             }
 
-            $tableData = $applyBushingComponentFilter($tableData);
+            $tableData = $applyBushingBatchFilter($tableData);
 
             return view('admin.wo_bushings.processesForm', array_merge($viewData, [
                 'ndt_processes' => $ndt_processes,
@@ -841,12 +1027,10 @@ class WoBushingController extends Controller
             ], $ndt_ids));
         }
 
-        // Обработка обычных процессов
         $process_components = Process::whereIn('id', $manualProcesses)
             ->where('process_names_id', $processNameId)
             ->get();
 
-        // Создаем массив данных для отображения в таблице
         $tableData = [];
         if ($bushData) {
             foreach ($bushData as $bushItem) {
@@ -881,7 +1065,6 @@ class WoBushingController extends Controller
                         if ($processId) {
                             $process = Process::find($processId);
                             if ($process) {
-                                // Получаем конкретный process_name для правильного отображения номера
                                 $specificProcessName = ProcessName::find($process->process_names_id);
                                 $tableData[] = [
                                     'process_name' => $specificProcessName,
@@ -897,7 +1080,7 @@ class WoBushingController extends Controller
             }
         }
 
-        $tableData = $applyBushingComponentFilter($tableData);
+        $tableData = $applyBushingBatchFilter($tableData);
 
         return view('admin.wo_bushings.processesForm', array_merge($viewData, [
             'process_components' => $process_components,
@@ -916,82 +1099,14 @@ class WoBushingController extends Controller
         $woBushing = WoBushing::findOrFail($id);
         $current_wo = Workorder::findOrFail($woBushing->workorder_id);
         
-        // Получаем связанные данные
         $manual_id = $current_wo->unit->manual_id;
         $components = Component::where('manual_id', $manual_id)->get();
         $manuals = \App\Models\Manual::where('id', $manual_id)->get();
 
-        $bushData = $this->woBushingSync->resolveBushDataForViews($woBushing);
+        $processGroups = $this->buildBushingSpecProcessGroups($current_wo);
 
-        // Группируем втулки по процессам
-        $processGroups = [];
-        
-        if ($bushData) {
-            foreach ($bushData as $bushItem) {
-                if (isset($bushItem['bushing']) && isset($bushItem['processes'])) {
-                    $component = Component::find($bushItem['bushing']);
-                    if ($component) {
-                        $processes = $bushItem['processes'];
-                        // Собираем активные процессы в правильном порядке
-                        $activeProcesses = [];
-                        $processOrder = [
-                            'Machining' => 'machining',
-                            'Bake (Stress relief)' => 'stress_relief',
-                            'NDT' => 'ndt',
-                            'Passivation' => 'passivation',
-                            'CAD' => 'cad',
-                            'Anodizing' => 'anodizing',
-                            'Xylan' => 'xylan'
-                        ];
-                        
-                        foreach ($processOrder as $processType => $processKey) {
-                            if ($processKey === 'ndt') {
-                                $ndtVal = $processes['ndt'] ?? null;
-                                if (is_array($ndtVal) && !empty($ndtVal)) {
-                                    $activeProcesses[] = $processType;
-                                }
-                            } elseif (isset($processes[$processKey]) && $processes[$processKey] !== null && $processes[$processKey] !== '') {
-                                $activeProcesses[] = $processType;
-                            }
-                        }
-                        
-                        // Создаем уникальный ключ группы БЕЗ сортировки
-                        $groupKey = implode('|', $activeProcesses);
-                        
-                        if (!isset($processGroups[$groupKey])) {
-                            $processGroups[$groupKey] = [
-                                'processes' => $activeProcesses,
-                                'components' => [],
-                                'total_qty' => 0,
-                                'process_numbers' => []
-                            ];
-                            
-                            // Рассчитываем номера процессов для этой группы
-                            $processNumber = 1;
-                            foreach ($activeProcesses as $process) {
-                                $processGroups[$groupKey]['process_numbers'][$process] = $processNumber;
-                                $processNumber++;
-                            }
-                        }
-                        
-                        $processGroups[$groupKey]['components'][] = [
-                            'component' => $component,
-                            'qty' => $bushItem['qty'] ?? 1
-                        ];
-                        $processGroups[$groupKey]['total_qty'] += $bushItem['qty'] ?? 1;
-                    }
-                }
-            }
-        }
-
-        // Сортируем группы по количеству процессов (от большего к меньшему)
-        uasort($processGroups, function($a, $b) {
-            return count($b['processes']) - count($a['processes']);
-        });
-
-        // Получаем названия процессов для отображения
         $spPageOffset = $this->countTdrSpecProcessPages($current_wo);
-        $bushingPageCount = 1;
+        $bushingPageCount = max(1, (int) ceil(max(1, count($processGroups)) / 6));
         $combinedSpecPageTotal = $spPageOffset + $bushingPageCount;
 
         $processNames = ProcessName::whereIn('name', [
@@ -1169,7 +1284,6 @@ class WoBushingController extends Controller
                 abort(422, 'Some selected rows are invalid.');
             }
 
-            // Одна колонка шапки (NDT, Machining, …), не NDT-1 vs NDT-4.
             $columnKeys = $rows->map(fn (WoBushingProcess $wp) => WoBushingProcessColumnKey::fromProcess($wp->process));
             if ($columnKeys->unique()->count() !== 1) {
                 abort(422, 'Batch must contain only one process column (header).');
@@ -1192,8 +1306,6 @@ class WoBushingController extends Controller
 
             $canonicalProcessId = (int) $rows->first()->process_id;
 
-            // Всегда создаём новую группу при нажатии Group.
-            // Иначе все последующие клики попадали бы в одну и ту же партию (в UI всегда Grp1).
             $batch = WoBushingBatch::create([
                 'workorder_id' => $woBushing->workorder_id,
                 'process_id' => $canonicalProcessId,

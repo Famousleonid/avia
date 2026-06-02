@@ -6,11 +6,13 @@ use App\Models\Component;
 use App\Models\GeneralTask;
 use App\Models\Process;
 use App\Models\ProcessName;
+use App\Models\QuantumRoLine;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\UserUiSetting;
 use App\Models\Vendor;
 use App\Models\WoBushing;
+use App\Models\WoBushingBatch;
 use App\Models\WoBushingLine;
 use App\Models\WoBushingProcess;
 use App\Models\WorkorderStdProcess;
@@ -92,6 +94,172 @@ class VendorTrackingTest extends TestCase
         $response->assertSee($firstVendor->name);
         $response->assertSee('LEGACY-RO-1');
         $response->assertDontSee('LEGACY-HIDDEN-RO-2');
+    }
+
+    public function test_quantum_modal_shows_latest_received_rows_with_all_apply_statuses(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $suffix = (string) random_int(100000, 999999);
+
+        QuantumRoLine::query()->create([
+            'source_uid' => 'latest-unresolved-' . $suffix,
+            'ro_number' => 'R-OLD-' . $suffix,
+            'wo_number' => 'W107616',
+            'bom_ref' => 'BAD',
+            'apply_status' => 'unresolved',
+            'apply_message' => 'No target process',
+            'qty_repair' => '1.0000',
+            'qty_reserved' => '1.0000',
+            'qty_repaired' => '0.0000',
+            'source_hash' => str_repeat('a', 64),
+            'last_seen_at' => Carbon::parse('2026-05-30 09:00:00'),
+        ]);
+        QuantumRoLine::query()->create([
+            'source_uid' => 'latest-pending-' . $suffix,
+            'ro_number' => 'R-PENDING-' . $suffix,
+            'wo_number' => 'W107617',
+            'bom_ref' => null,
+            'apply_status' => null,
+            'source_hash' => str_repeat('b', 64),
+            'last_seen_at' => Carbon::parse('2026-05-31 09:00:00'),
+        ]);
+        QuantumRoLine::query()->create([
+            'source_uid' => 'latest-applied-' . $suffix,
+            'ro_number' => 'R-NEW-' . $suffix,
+            'wo_number' => 'W107618',
+            'bom_ref' => 'CP',
+            'apply_status' => 'applied',
+            'apply_message' => 'Applied to target',
+            'applied_target_table' => 'tdr_processes',
+            'applied_target_id' => 123,
+            'source_hash' => str_repeat('c', 64),
+            'last_seen_at' => Carbon::parse('2026-06-01 09:00:00'),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('vendor-tracking.index'));
+
+        $response
+            ->assertOk()
+            ->assertSee('Quantum RO Buffer')
+            ->assertSee('Latest received:')
+            ->assertSee('Latest received from Quantum')
+            ->assertSee('All statuses')
+            ->assertSee('unresolved')
+            ->assertSee('pending')
+            ->assertSee('id="quantumBufferSplitter"', false)
+            ->assertSee('quantum-buffer-splitter-lines', false)
+            ->assertSee('quantumRoBufferSplitRatio', false)
+            ->assertSee('window.UserUiSettings.set(settingsScope, quantumSplitRatioKey', false)
+            ->assertSee('applied')
+            ->assertSee('pending')
+            ->assertSee('unresolved')
+            ->assertSee('<td class="text-nowrap">', false)
+            ->assertSee('qty - 1 / 1 / 0', false)
+            ->assertDontSee('To Repair:')
+            ->assertDontSee('Reserved:')
+            ->assertDontSee('Repaired:')
+            ->assertDontSee('<th>Source</th>', false)
+            ->assertDontSee('1.0000')
+            ->assertSee('tdr_processes #123')
+            ->assertDontSee('Fix incorrect Ref values')
+            ->assertDontSee('1. Ref code')
+            ->assertSeeInOrder([
+                'Unresolved / needs attention',
+                'R-OLD-' . $suffix,
+                'Latest received from Quantum',
+                'R-NEW-' . $suffix,
+                'R-PENDING-' . $suffix,
+                'R-OLD-' . $suffix,
+            ]);
+    }
+
+    public function test_quantum_recent_rows_endpoint_paginates_latest_rows(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $suffix = (string) random_int(100000, 999999);
+        $baseSeenAt = Carbon::parse('2030-01-01 00:00:00');
+
+        for ($i = 0; $i < 201; $i++) {
+            QuantumRoLine::query()->create([
+                'source_uid' => sprintf('recent-page-%s-%03d', $suffix, $i),
+                'ro_number' => sprintf('R-INF-%03d-%s', $i, $suffix),
+                'wo_number' => 'W107616',
+                'bom_ref' => $i % 2 === 0 ? 'CP' : null,
+                'apply_status' => $i % 2 === 0 ? 'applied' : null,
+                'source_hash' => hash('sha256', 'recent-page-' . $suffix . '-' . $i),
+                'last_seen_at' => $baseSeenAt->copy()->addMinutes($i),
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->getJson(route('vendor-tracking.quantum-lines.recent', [
+            'page' => 2,
+        ]));
+
+        $response->assertOk()->assertJson(['success' => true]);
+        $this->assertStringContainsString('R-INF-000-' . $suffix, (string) $response->json('html'));
+        $this->assertStringNotContainsString('R-INF-200-' . $suffix, (string) $response->json('html'));
+    }
+
+    public function test_quantum_not_applicable_rows_do_not_show_in_unparsed_section(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $suffix = (string) random_int(100000, 999999);
+
+        QuantumRoLine::query()->create([
+            'source_uid' => 'na-workorder-' . $suffix,
+            'ro_number' => 'R-NA-' . $suffix,
+            'wo_number' => 'W999999',
+            'bom_ref' => 'CP',
+            'apply_status' => 'N/A',
+            'apply_message' => 'Workorder not found: W999999',
+            'source_hash' => str_repeat('d', 64),
+            'applied_source_hash' => str_repeat('d', 64),
+            'last_seen_at' => Carbon::parse('2026-06-01 10:00:00'),
+        ]);
+
+        QuantumRoLine::query()->create([
+            'source_uid' => 'old-workorder-' . $suffix,
+            'ro_number' => 'R-OLD-WO-' . $suffix,
+            'wo_number' => 'W106999',
+            'bom_ref' => 'CP',
+            'apply_status' => 'unresolved',
+            'apply_message' => 'Workorder not found: W106999',
+            'source_hash' => str_repeat('f', 64),
+            'applied_source_hash' => str_repeat('f', 64),
+            'last_seen_at' => Carbon::parse('2026-06-01 11:00:00'),
+        ]);
+
+        QuantumRoLine::query()->create([
+            'source_uid' => 'unresolved-target-' . $suffix,
+            'ro_number' => 'R-UNRES-' . $suffix,
+            'wo_number' => 'W107616',
+            'bom_ref' => 'BAD',
+            'apply_status' => 'unresolved',
+            'apply_message' => 'No target process',
+            'source_hash' => str_repeat('e', 64),
+            'last_seen_at' => Carbon::parse('2026-06-01 09:00:00'),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('vendor-tracking.index'));
+
+        $response->assertOk();
+        $html = (string) $response->getContent();
+        $unparsedStart = strpos($html, 'Unresolved / needs attention');
+        $latestStart = strpos($html, 'Latest received from Quantum');
+
+        $this->assertNotFalse($unparsedStart);
+        $this->assertNotFalse($latestStart);
+
+        $unparsedHtml = substr($html, $unparsedStart, $latestStart - $unparsedStart);
+        $latestHtml = substr($html, $latestStart);
+
+        $this->assertStringContainsString('R-UNRES-' . $suffix, $unparsedHtml);
+        $this->assertStringNotContainsString('R-NA-' . $suffix, $unparsedHtml);
+        $this->assertStringNotContainsString('R-OLD-WO-' . $suffix, $unparsedHtml);
+        $this->assertStringContainsString('R-NA-' . $suffix, $latestHtml);
+        $this->assertStringContainsString('R-OLD-WO-' . $suffix, $latestHtml);
+        $this->assertStringContainsString('WO not found', $latestHtml);
+        $this->assertStringContainsString('WO not found: old', $latestHtml);
     }
 
     private function createVendorTrackingTdrProcess($workorder, Vendor $vendor, string $repairOrder): TdrProcess
@@ -362,13 +530,36 @@ class VendorTrackingTest extends TestCase
             'group_key' => 'qa',
             'sort_order' => 1,
         ]);
+        $looseBushingLine = WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 1,
+            'qty_remaining' => 0,
+            'group_key' => 'qa-loose',
+            'sort_order' => 2,
+        ]);
+        $woBushingBatch = WoBushingBatch::query()->create([
+            'workorder_id' => $workorder->id,
+            'process_id' => $bushingProcess->id,
+            'process_column_key' => 'machining',
+            'repair_order' => 'BUSH-BATCH-RO-999',
+            'date_start' => '2026-05-14',
+            'date_finish' => '2026-05-15',
+        ]);
         $woBushingProcess = WoBushingProcess::query()->create([
             'wo_bushing_line_id' => $woBushingLine->id,
             'process_id' => $bushingProcess->id,
+            'batch_id' => $woBushingBatch->id,
             'qty' => 1,
-            'repair_order' => 'BUSH-RO-999',
-            'date_start' => '2026-05-14',
-            'date_finish' => '2026-05-15',
+        ]);
+        $looseWoBushingProcess = WoBushingProcess::query()->create([
+            'wo_bushing_line_id' => $looseBushingLine->id,
+            'process_id' => $bushingProcess->id,
+            'qty' => 1,
+            'repair_order' => 'BUSH-LOOSE-RO-999',
+            'date_start' => '2026-05-16',
+            'date_finish' => '2026-05-17',
         ]);
 
         $response = $this->actingAs($admin)->get(route('mains.show', $workorder));
@@ -378,18 +569,99 @@ class VendorTrackingTest extends TestCase
             ->assertSee('RO')
             ->assertSee('STD-RO-777')
             ->assertSee('PART-RO-888')
-            ->assertSee('BUSH-RO-999')
+            ->assertSee('BUSH-BATCH-RO-999')
+            ->assertDontSee('BUSH-LOOSE-RO-999')
             ->assertSee('10/may/2026')
             ->assertSee('11/may/2026')
             ->assertSee('12/may/2026')
             ->assertSee('13/may/2026')
             ->assertSee('14/may/2026')
             ->assertSee('15/may/2026')
+            ->assertDontSee('16/may/2026')
+            ->assertDontSee('17/may/2026')
             ->assertDontSee('Sent (edit)')
             ->assertDontSee('Returned (edit)')
             ->assertDontSee(route('workorder_std_processes.updateDate', $stdProcess), false)
             ->assertDontSee(route('tdrprocesses.updateDate', $tdrProcess), false)
-            ->assertDontSee(route('wo_bushing_processes.updateDate', $woBushingProcess), false);
+            ->assertDontSee(route('wo_bushing_processes.updateDate', $woBushingProcess), false)
+            ->assertDontSee(route('wo_bushing_processes.updateDate', $looseWoBushingProcess), false);
+    }
+
+    public function test_mains_show_renders_date_edit_forms_for_manual_date_editable_process_names(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
+
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'MAIN-EDIT-' . uniqid(),
+            'name' => 'Editable Main Component',
+            'ipl_num' => '7-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'MAIN-EDIT-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $machiningEcName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Machining (EC)'],
+            [
+                'process_sheet_name' => 'MACHINING',
+                'form_number' => '018',
+                'show_in_process_picker' => true,
+            ]
+        );
+        $regularName = ProcessName::query()->create([
+            'name' => 'Readonly Main Process ' . uniqid(),
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $editableTdrProcess = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $machiningEcName->id,
+            'sort_order' => 1,
+            'date_start' => '2026-05-25',
+        ]);
+        $readonlyTdrProcess = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $regularName->id,
+            'sort_order' => 2,
+            'date_start' => '2026-05-26',
+        ]);
+        $stdPaintName = ProcessName::query()->firstOrCreate(
+            ['name' => 'STD Paint List'],
+            [
+                'process_sheet_name' => 'STD',
+                'form_number' => 'PAINT',
+                'show_in_process_picker' => false,
+            ]
+        );
+        $stdPaint = WorkorderStdProcess::query()->updateOrCreate(
+            [
+                'workorder_id' => $workorder->id,
+                'process_name_id' => $stdPaintName->id,
+            ],
+            [
+                'std_type' => 'paint',
+                'date_start' => '2026-05-27',
+            ]
+        );
+
+        $response = $this->actingAs($admin)->get(route('mains.show', $workorder));
+
+        $response
+            ->assertOk()
+            ->assertSee(route('tdrprocesses.updateDate', $editableTdrProcess), false)
+            ->assertSee(route('workorder_std_processes.updateDate', $stdPaint), false)
+            ->assertDontSee(route('tdrprocesses.updateDate', $readonlyTdrProcess), false);
     }
 
     public function test_vendor_tracking_groups_tdr_traveler_processes(): void

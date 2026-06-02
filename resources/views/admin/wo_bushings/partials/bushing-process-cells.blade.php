@@ -8,7 +8,7 @@
     $componentId = (int) ($component->id ?? 0);
     $hasNdts = isset($ndtNames) && is_array($ndtNames) && count($ndtNames) > 0;
     $hasProcess = !empty($process) || $hasNdts;
-    $batchLabel = $batchLabel ?? 'Grp';
+    $batchLabel = $batchLabel ?? 'B';
     $sentLabelsByProcess = $sentLabelsByProcess ?? [];
     $retLabelsByProcess = $retLabelsByProcess ?? [];
     $sentLabel = 'sent';
@@ -22,7 +22,6 @@
         } elseif ($finished) {
             $sentLabel = 'ret';
         }
-        // иначе одиночная без партии, только Sent: остаётся начальное 'sent'
     }
     $titleText = $detailTitle ?? '';
     if ($titleText === '' && !empty($process)) {
@@ -72,7 +71,6 @@
                        title="{{ __('Select for forms / print') }}" autocomplete="off">
             </div>
         @else
-            {{-- Процесс есть в строке, но нет wo_bushing_process id в карте — группировать не с чем; как «нет партии» --}}
             <span class="text-muted" title="{{ __('No batch action for this cell') }}">—</span>
         @endif
     @else

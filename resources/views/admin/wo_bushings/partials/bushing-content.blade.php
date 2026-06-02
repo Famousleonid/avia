@@ -60,8 +60,47 @@
         }
         $batchCreateUrl = route('wo_bushings.batches.create', $woBushing);
         $batchUngroupUrl = route('wo_bushings.batches.ungroup', $woBushing);
+
+        $lineComponentIds = [];
+        foreach (($woBushing?->lines ?? collect()) as $line) {
+            $lineComponentIds[(int) $line->id] = (int) $line->component_id;
+        }
+
+        $batchLabelsByProcess = [];
+        foreach ($processAssignments as $lineId => $componentAssignments) {
+            if (!is_array($componentAssignments)) {
+                continue;
+            }
+            foreach ($componentAssignments as $pKey => $assignment) {
+                $bId = (int) ($assignment['batch_id'] ?? 0);
+                if ($bId <= 0) {
+                    continue;
+                }
+                $batchLabelsByProcess[$pKey][$bId] = true;
+            }
+        }
+        foreach ($batchLabelsByProcess as $pKey => $batches) {
+            $ids = array_keys($batches);
+            sort($ids, SORT_NUMERIC);
+            $labels = [];
+            foreach ($ids as $idx => $idVal) {
+                $labels[$idVal] = 'B' . ($idx + 1);
+            }
+            $batchLabelsByProcess[$pKey] = $labels;
+        }
+
+        $sentLabelsByProcess = [];
+        $retLabelsByProcess = [];
+        foreach ($batchLabelsByProcess as $pKey => $labels) {
+            $ids = array_keys($labels);
+            sort($ids, SORT_NUMERIC);
+            foreach ($ids as $idx => $idVal) {
+                $n = $idx + 1;
+                $sentLabelsByProcess[$pKey][(int) $idVal] = 'sent'.$n;
+                $retLabelsByProcess[$pKey][(int) $idVal] = 'Ret('.$n.')';
+            }
+        }
     @endphp
-    {{-- Показ сохраненных данных в режиме просмотра --}}
     <style>
         .bushing-view-table {
             table-layout: fixed;
@@ -286,6 +325,13 @@
                             ];
                         @endphp
                         @foreach($headerCells as $hc)
+                            @php
+                                $batchLabels = $batchLabelsByProcess[$hc['key']] ?? [];
+                                $formHref = null;
+                                if ($hc['pn'] && $hc['has'] && !empty($batchLabels)) {
+                                    $formHref = route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $hc['pn']->id]);
+                                }
+                            @endphp
                             <th class="bushing-subcol-batch bushing-col-{{ $hc['key'] }} text-center p-1">
                                 @if($woBushing)
                                     <div class="d-flex flex-column gap-1 align-items-stretch">
@@ -296,8 +342,8 @@
                                                     <option style="font-size: 14px;" value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                                 @endforeach
                                             </select>
-                                            @if($hc['pn'] && $hc['has'])
-                                                <a href="{{ route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $hc['pn']->id]) }}"
+                                            @if($formHref)
+                                                <a href="{{ $formHref }}"
                                                    target="_blank" class="btn btn-sm btn-outline-warning form-btn"
                                                    data-vendor-select="{{ $hc['vendor'] }}" data-process-key="{{ $hc['key'] }}">{{ __('Form') }}</a>
                                             @else
@@ -392,46 +438,6 @@
                             );
                         });
                     @endphp
-                    @php
-                        $batchLabelsByProcess = [];
-                        foreach ($processAssignments as $componentAssignments) {
-                            if (!is_array($componentAssignments)) {
-                                continue;
-                            }
-                            foreach ($componentAssignments as $pKey => $assignment) {
-                                $bId = (int) ($assignment['batch_id'] ?? 0);
-                                if ($bId <= 0) {
-                                    continue;
-                                }
-                                if (!isset($batchLabelsByProcess[$pKey])) {
-                                    $batchLabelsByProcess[$pKey] = [];
-                                }
-                                $batchLabelsByProcess[$pKey][$bId] = true;
-                            }
-                        }
-                        foreach ($batchLabelsByProcess as $pKey => $batches) {
-                            $ids = array_keys($batches);
-                            sort($ids, SORT_NUMERIC);
-                            $labels = [];
-                            foreach ($ids as $idx => $idVal) {
-                                $labels[$idVal] = 'Grp ' . ($idx + 1);
-                            }
-                            $batchLabelsByProcess[$pKey] = $labels;
-                        }
-                        $sentLabelsByProcess = [];
-                        $retLabelsByProcess = [];
-                        foreach ($batchLabelsByProcess as $pKey => $labels) {
-                            $ids = array_keys($labels);
-                            sort($ids, SORT_NUMERIC);
-                            $sentLabelsByProcess[$pKey] = [];
-                            $retLabelsByProcess[$pKey] = [];
-                            foreach ($ids as $idx => $idVal) {
-                                $n = $idx + 1;
-                                $sentLabelsByProcess[$pKey][(int) $idVal] = 'sent'.$n;
-                                $retLabelsByProcess[$pKey][(int) $idVal] = 'Ret('.$n.')';
-                            }
-                        }
-                    @endphp
                     @foreach($savedBushingsGrouped as $groupKey => $savedBushings)
                         @foreach($savedBushings as $savedBushing)
                             @php
@@ -462,7 +468,7 @@
                                     'process' => $machiningProcess,
                                     'assignment' => $assignments['machining'] ?? null,
                                     'detailTitle' => $machiningProcess ? trim((string) $machiningProcess->process) : '',
-                                    'batchLabel' => $batchLabelsByProcess['machining'][(int) (($assignments['machining']['batch_id'] ?? 0))] ?? 'Grp',
+                                    'batchLabel' => $batchLabelsByProcess['machining'][(int) (($assignments['machining']['batch_id'] ?? 0))] ?? 'B',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
                                     'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
@@ -472,7 +478,7 @@
                                     'process' => $stressReliefProcess,
                                     'assignment' => $assignments['stress_relief'] ?? null,
                                     'detailTitle' => $stressReliefProcess ? trim((string) $stressReliefProcess->process) : '',
-                                    'batchLabel' => $batchLabelsByProcess['stress_relief'][(int) (($assignments['stress_relief']['batch_id'] ?? 0))] ?? 'Grp',
+                                    'batchLabel' => $batchLabelsByProcess['stress_relief'][(int) (($assignments['stress_relief']['batch_id'] ?? 0))] ?? 'B',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
                                     'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
@@ -483,7 +489,7 @@
                                     'ndtNames' => $ndtNames,
                                     'assignment' => $assignments['ndt'] ?? null,
                                     'detailTitle' => count($ndtNames) ? implode(' / ', $ndtNames) : '',
-                                    'batchLabel' => $batchLabelsByProcess['ndt'][(int) (($assignments['ndt']['batch_id'] ?? 0))] ?? 'Grp',
+                                    'batchLabel' => $batchLabelsByProcess['ndt'][(int) (($assignments['ndt']['batch_id'] ?? 0))] ?? 'B',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
                                     'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
@@ -493,7 +499,7 @@
                                     'process' => $passivationProcess,
                                     'assignment' => $assignments['passivation'] ?? null,
                                     'detailTitle' => $passivationProcess ? trim((string) $passivationProcess->process) : '',
-                                    'batchLabel' => $batchLabelsByProcess['passivation'][(int) (($assignments['passivation']['batch_id'] ?? 0))] ?? 'Grp',
+                                    'batchLabel' => $batchLabelsByProcess['passivation'][(int) (($assignments['passivation']['batch_id'] ?? 0))] ?? 'B',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
                                     'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
@@ -503,7 +509,7 @@
                                     'process' => $cadProcess,
                                     'assignment' => $assignments['cad'] ?? null,
                                     'detailTitle' => $cadProcess ? trim((string) $cadProcess->process) : '',
-                                    'batchLabel' => $batchLabelsByProcess['cad'][(int) (($assignments['cad']['batch_id'] ?? 0))] ?? 'Grp',
+                                    'batchLabel' => $batchLabelsByProcess['cad'][(int) (($assignments['cad']['batch_id'] ?? 0))] ?? 'B',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
                                     'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
@@ -513,7 +519,7 @@
                                     'process' => $anodizingProcess,
                                     'assignment' => $assignments['anodizing'] ?? null,
                                     'detailTitle' => $anodizingProcess ? trim((string) $anodizingProcess->process) : '',
-                                    'batchLabel' => $batchLabelsByProcess['anodizing'][(int) (($assignments['anodizing']['batch_id'] ?? 0))] ?? 'Grp',
+                                    'batchLabel' => $batchLabelsByProcess['anodizing'][(int) (($assignments['anodizing']['batch_id'] ?? 0))] ?? 'B',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
                                     'retLabelsByProcess' => $retLabelsByProcess,
                                 ])
@@ -523,7 +529,7 @@
                                     'process' => $xylanProcess,
                                     'assignment' => $assignments['xylan'] ?? null,
                                     'detailTitle' => $xylanProcess ? trim((string) $xylanProcess->process) : '',
-                                    'batchLabel' => $batchLabelsByProcess['xylan'][(int) (($assignments['xylan']['batch_id'] ?? 0))] ?? 'Grp',
+                                    'batchLabel' => $batchLabelsByProcess['xylan'][(int) (($assignments['xylan']['batch_id'] ?? 0))] ?? 'B',
                                     'sentLabelsByProcess' => $sentLabelsByProcess,
                                     'retLabelsByProcess' => $retLabelsByProcess,
                                 ])

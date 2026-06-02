@@ -5,7 +5,7 @@ namespace App\Support;
 use App\Models\Process;
 
 /**
- * Ключ колонки шапки в таблице bushing (NDT, Machining, …), без детализации NDT-1 vs NDT-4.
+ * Resolves the bushing table column key without splitting NDT into specific variants.
  */
 final class WoBushingProcessColumnKey
 {

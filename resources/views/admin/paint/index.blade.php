@@ -572,8 +572,8 @@
                                     $isQueued = $wo->paint_queue_order !== null;
                                     $isMaster = (bool) ($row->is_queue_master ?? false);
                                     $canAddToPaintQueue = ! $isQueued && $isMaster && ! $hasFinish;
-                                    $startEditedBy = $editTp?->dateStartUpdatedBy?->name;
-                                    $finishEditedBy = $editTp?->dateFinishUpdatedBy?->name;
+                                    $startEditedBy = $editTp?->date_start_user ?: $editTp?->dateStartUpdatedBy?->name;
+                                    $finishEditedBy = $editTp?->date_finish_user ?: $editTp?->dateFinishUpdatedBy?->name;
                                     $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date';
                                     $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date';
                                 @endphp

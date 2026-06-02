@@ -29,8 +29,9 @@ function buildQuantumRoQuery(array $params): array
     // Current RO part-matching diagnostic mode:
     // Print real RO rows with Quantum part master data from RO_DETAIL.PNM_AUTO_KEY.
     //
-    // Important user hint:
+    // Current parser routing hint:
     // - PN = NDT or CAD means STD/list bucket
+    // - PN = NDTB, CADB, Anodizing, Passivation means bushing batch bucket
     // - PN = real part number means detail/part matching candidate
     //
     // PN/DESC/CLASS are returned as separate columns for easier XLS filtering.
@@ -63,9 +64,12 @@ SELECT
     pm_rd.PN,
     pm_rd.DESCRIPTION AS \"DESC\",
     CASE
-        WHEN UPPER(pm_rd.PN) IN ('NDT', 'CAD') THEN 'STD_LIST_' || UPPER(pm_rd.PN)
+        WHEN REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '') IN ('NDT', 'CAD')
+            THEN 'STD_LIST_' || REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '')
+        WHEN REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '') IN ('NDTB', 'CADB', 'ANODIZING', 'ANODISING', 'PASSIVATION')
+            THEN 'BUSHING_' || REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '')
         WHEN REGEXP_LIKE(pm_rd.PN, '[[:digit:]]') THEN 'DETAIL_PART'
-        WHEN pm_rd.PN IS NOT NULL THEN 'DETAIL_PROCESS'
+        WHEN pm_rd.PN IS NOT NULL THEN 'UNSUPPORTED_PN'
         ELSE 'UNKNOWN'
     END AS CLASS,
     wb.REF AS BOM_REF,

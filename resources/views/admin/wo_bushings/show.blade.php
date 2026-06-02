@@ -204,6 +204,16 @@
                     window.showNotification(m, 'error');
                 }
             }
+            function uncheckOtherBushingBatches(processKey, batchId) {
+                if (!processKey || !batchId || batchId === '0') return;
+                document.querySelectorAll(
+                    '.bushing-batch-ungroup-checkbox[data-process-key="' + processKey + '"]:checked'
+                ).forEach(function(cb) {
+                    if ((cb.getAttribute('data-batch-id') || '') !== batchId) {
+                        cb.checked = false;
+                    }
+                });
+            }
             document.querySelectorAll('.form-btn').forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -218,16 +228,16 @@
                     var queryParts = [];
                     if (processKey) {
                         var seen = {};
-                        document.querySelectorAll('.bushing-batch-group-checkbox:checked, .bushing-batch-ungroup-checkbox:checked').forEach(function(cb) {
+                        document.querySelectorAll('.bushing-batch-ungroup-checkbox:checked').forEach(function(cb) {
                             if ((cb.getAttribute('data-process-key') || '') !== processKey) return;
-                            var cid = cb.getAttribute('data-component-id');
-                            if (cid && !seen[cid]) {
-                                seen[cid] = true;
-                                queryParts.push('bushing_component_ids[]=' + encodeURIComponent(cid));
+                            var batchId = cb.getAttribute('data-batch-id') || '';
+                            if (batchId !== '' && batchId !== '0' && !seen[batchId]) {
+                                seen[batchId] = true;
+                                queryParts.push('bushing_batch_ids[]=' + encodeURIComponent(batchId));
                             }
                         });
                         if (queryParts.length === 0) {
-                            bushingToastWarn({!! json_encode(__('Select at least one bushing for this process using Group checkboxes in the table.')) !!});
+                            bushingToastWarn({!! json_encode(__('Select a batch (B1/B2) for this process before printing.')) !!});
                             return;
                         }
                     }
@@ -242,6 +252,14 @@
                 });
             });
 
+            document.body.addEventListener('change', function(e) {
+                var batchCheckbox = e.target.closest('.bushing-batch-ungroup-checkbox');
+                if (!batchCheckbox || !batchCheckbox.checked) return;
+                var processKey = batchCheckbox.getAttribute('data-process-key') || '';
+                var batchId = batchCheckbox.getAttribute('data-batch-id') || '';
+                uncheckOtherBushingBatches(processKey, batchId);
+            });
+
             document.body.addEventListener('click', function(e) {
                 var groupLabelBtn = e.target.closest('.js-bushing-batch-label');
                 if (groupLabelBtn) {
@@ -254,6 +272,9 @@
                     ));
                     if (!groupBoxes.length) return;
                     var allChecked = groupBoxes.every(function (cb) { return !!cb.checked; });
+                    if (!allChecked) {
+                        uncheckOtherBushingBatches(grpProcessKey, grpBatchId);
+                    }
                     groupBoxes.forEach(function (cb) { cb.checked = !allChecked; });
                     return;
                 }
@@ -276,8 +297,8 @@
                 }).filter(function (row) { return !!row.id; });
                 if (selected.length === 0) {
                     bushingToastWarn(createBatchBtn
-                        ? {!! json_encode(__('Select rows using the small “batch” checkbox (not grouped yet).')) !!}
-                        : {!! json_encode(__('Select rows using the small checkbox next to “Grp” to ungroup.')) !!});
+                        ? {!! json_encode(__('Select rows using the small batch checkbox (not grouped yet).')) !!}
+                        : {!! json_encode(__('Select rows using the small checkbox next to B to ungroup.')) !!});
                     return;
                 }
                 var processKeys = Array.from(new Set(selected.map(function (r) { return r.processKey; })));

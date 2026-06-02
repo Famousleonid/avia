@@ -1037,6 +1037,20 @@ window.hapticTap = function (pattern = 10) {
             repairInp.dataset.original = repairInp.value ?? '';
         }
 
+        if (data && Object.prototype.hasOwnProperty.call(data, 'repair_order')) {
+            const roValue = String(data.repair_order || '').trim();
+            const roCell = tr?.querySelector('.main-readonly-ro');
+            if (roCell) {
+                roCell.textContent = roValue || '--';
+                roCell.classList.toggle('has-value', roValue !== '');
+                roCell.classList.toggle('is-empty', roValue === '');
+            }
+            if (repairInp) {
+                repairInp.value = roValue;
+                repairInp.dataset.original = roValue;
+            }
+        }
+
         const rowDatesUpdated = applyRowDateSavedState(form, data);
 
         if (!rowDatesUpdated) form.querySelectorAll('input.finish-input[name="date_start"], input.finish-input[name="date_finish"]').forEach(inp => {
@@ -1080,6 +1094,14 @@ window.hapticTap = function (pattern = 10) {
 
             inp.dataset.original = inp.value ?? '';
         });
+
+        const stdIgnoreCheckbox = form.querySelector('.js-std-ignore-row');
+        if (stdIgnoreCheckbox && data && Object.prototype.hasOwnProperty.call(data, 'ignore_row')) {
+            stdIgnoreCheckbox.checked = !!data.ignore_row;
+            if (typeof window.applyStdIgnoreState === 'function') {
+                window.applyStdIgnoreState(stdIgnoreCheckbox, data);
+            }
+        }
 
         refreshWoBushingStripCounts(form);
         applyGeneralTaskButtonState(form, data);

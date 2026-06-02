@@ -335,6 +335,8 @@ class MainController extends Controller
 
         $wpCollection = WoBushingProcess::query()
             ->whereHas('line', fn ($q) => $q->where('workorder_id', $current_workorder->id))
+            ->whereNotNull('batch_id')
+            ->whereHas('batch')
             ->with(['line.component', 'process.process_name', 'batch', 'vendor'])
             ->get();
 

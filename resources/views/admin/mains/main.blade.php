@@ -909,8 +909,8 @@
                                             @php
                                                 $isClosed = !empty($pr->date_finish);
                                                 $isIgnoredStd = (bool) ($pr->ignore_row ?? false);
-                                                $startEditedBy = $pr->dateStartUpdatedBy?->name;
-                                                $finishEditedBy = $pr->dateFinishUpdatedBy?->name;
+                                                $startEditedBy = $pr->date_start_user ?: $pr->dateStartUpdatedBy?->name;
+                                                $finishEditedBy = $pr->date_finish_user ?: $pr->dateFinishUpdatedBy?->name;
                                                 $dateUserName = ! empty($pr->date_finish)
                                                     ? ($finishEditedBy ?: '—')
                                                     : (! empty($pr->date_start) ? ($startEditedBy ?: '—') : '—');
@@ -919,6 +919,7 @@
                                                 $stdRoDisplay = $mainReadonlyText($pr->repair_order ?? '');
                                                 $stdStartDisplay = $mainReadonlyDate($pr->date_start);
                                                 $stdFinishDisplay = $mainReadonlyDate($pr->date_finish);
+                                                $stdCanEditDates = (bool) ($pr->processName?->allowsManualDateEditing() ?? false);
                                             @endphp
                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}" data-std-row="1"
                                                 class="{{ $isIgnoredStd ? 'text-muted std-ignored-row' : '' }}">
@@ -961,10 +962,46 @@
                                                     <span class="main-readonly-ro {{ $stdRoDisplay !== '' ? 'has-value' : 'is-empty' }}">{{ $stdRoDisplay }}</span>
                                                 </td>
                                                 <td class="main-date-cell">
-                                                    <span class="main-readonly-date {{ $stdStartDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $startDateTitle }}">{{ $stdStartDisplay }}</span>
+                                                    @if($stdCanEditDates)
+                                                        <form method="POST"
+                                                              action="{{ route('workorder_std_processes.updateDate', $pr) }}"
+                                                              class="js-main-inline-ajax js-ajax"
+                                                              data-no-spinner>
+                                                            @csrf
+                                                            @method('PATCH')
+                                                            <input type="text"
+                                                                   name="date_start"
+                                                                   class="form-control form-control-sm js-start finish-input js-std-editable {{ $pr->date_start ? 'has-finish' : '' }}"
+                                                                   value="{{ optional($pr->date_start)->format('Y-m-d') }}"
+                                                                   placeholder="..."
+                                                                   title="{{ $startDateTitle }}"
+                                                                   data-fp
+                                                                   @if($isIgnoredStd) disabled @endif>
+                                                        </form>
+                                                    @else
+                                                        <span class="main-readonly-date {{ $stdStartDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $startDateTitle }}">{{ $stdStartDisplay }}</span>
+                                                    @endif
                                                 </td>
                                                 <td class="main-date-cell">
-                                                    <span class="main-readonly-date {{ $stdFinishDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $finishDateTitle }}">{{ $stdFinishDisplay }}</span>
+                                                    @if($stdCanEditDates)
+                                                        <form method="POST"
+                                                              action="{{ route('workorder_std_processes.updateDate', $pr) }}"
+                                                              class="js-main-inline-ajax js-ajax"
+                                                              data-no-spinner>
+                                                            @csrf
+                                                            @method('PATCH')
+                                                            <input type="text"
+                                                                   name="date_finish"
+                                                                   class="form-control form-control-sm js-finish finish-input js-std-editable {{ $pr->date_finish ? 'has-finish' : '' }}"
+                                                                   value="{{ optional($pr->date_finish)->format('Y-m-d') }}"
+                                                                   placeholder="..."
+                                                                   title="{{ $finishDateTitle }}"
+                                                                   data-fp
+                                                                   @if($isIgnoredStd) disabled @endif>
+                                                        </form>
+                                                    @else
+                                                        <span class="main-readonly-date {{ $stdFinishDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $finishDateTitle }}">{{ $stdFinishDisplay }}</span>
+                                                    @endif
                                                 </td>
                                             </tr>
                                         @endif
@@ -1075,8 +1112,8 @@
                                                                         return ! empty($p->date_finish);
                                                                     });
                                                                     $trUserRow = $travelerUpdatedByRow ?? $travelerLeader;
-                                                                    $trStartEditedBy = $travelerLeader->dateStartUpdatedBy?->name;
-                                                                    $trFinishEditedBy = $travelerLeader->dateFinishUpdatedBy?->name;
+                                                                    $trStartEditedBy = $travelerLeader->date_start_user ?: $travelerLeader->dateStartUpdatedBy?->name;
+                                                                    $trFinishEditedBy = $travelerLeader->date_finish_user ?: $travelerLeader->dateFinishUpdatedBy?->name;
                                                                     $trDateUserName = ! empty($travelerLeader->date_finish)
                                                                         ? ($trFinishEditedBy ?: '—')
                                                                         : (! empty($travelerLeader->date_start) ? ($trStartEditedBy ?: '—') : '—');
@@ -1119,8 +1156,8 @@
                                                                 @php
                                                                     $pr = $mainProcessRow['process'];
                                                                     $isClosed = !empty($pr->date_finish);
-                                                                    $startEditedBy = $pr->dateStartUpdatedBy?->name;
-                                                                    $finishEditedBy = $pr->dateFinishUpdatedBy?->name;
+                                                                    $startEditedBy = $pr->date_start_user ?: $pr->dateStartUpdatedBy?->name;
+                                                                    $finishEditedBy = $pr->date_finish_user ?: $pr->dateFinishUpdatedBy?->name;
                                                                     $dateUserName = ! empty($pr->date_finish)
                                                                         ? ($finishEditedBy ?: '—')
                                                                         : (! empty($pr->date_start) ? ($startEditedBy ?: '—') : '—');
@@ -1129,6 +1166,7 @@
                                                                     $processRoDisplay = $mainReadonlyText($pr->repair_order ?? '');
                                                                     $processStartDisplay = $mainReadonlyDate($pr->date_start);
                                                                     $processFinishDisplay = $mainReadonlyDate($pr->date_finish);
+                                                                    $processCanEditDates = (bool) ($pr->processName?->allowsManualDateEditing() ?? false);
                                                                 @endphp
 
                                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}"
@@ -1154,10 +1192,44 @@
                                                                 </td>
 
                                                                 <td class="main-date-cell">
-                                                                    <span class="main-readonly-date {{ $processStartDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $startDateTitle }}">{{ $processStartDisplay }}</span>
+                                                                    @if($processCanEditDates)
+                                                                        <form method="POST"
+                                                                              action="{{ route('tdrprocesses.updateDate', $pr) }}"
+                                                                              class="js-main-inline-ajax js-ajax"
+                                                                              data-no-spinner>
+                                                                            @csrf
+                                                                            @method('PATCH')
+                                                                            <input type="text"
+                                                                                   name="date_start"
+                                                                                   class="form-control form-control-sm js-start finish-input {{ $pr->date_start ? 'has-finish' : '' }}"
+                                                                                   value="{{ optional($pr->date_start)->format('Y-m-d') }}"
+                                                                                   placeholder="..."
+                                                                                   title="{{ $startDateTitle }}"
+                                                                                   data-fp>
+                                                                        </form>
+                                                                    @else
+                                                                        <span class="main-readonly-date {{ $processStartDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $startDateTitle }}">{{ $processStartDisplay }}</span>
+                                                                    @endif
                                                                 </td>
                                                                 <td class="main-date-cell">
-                                                                    <span class="main-readonly-date {{ $processFinishDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $finishDateTitle }}">{{ $processFinishDisplay }}</span>
+                                                                    @if($processCanEditDates)
+                                                                        <form method="POST"
+                                                                              action="{{ route('tdrprocesses.updateDate', $pr) }}"
+                                                                              class="js-main-inline-ajax js-ajax"
+                                                                              data-no-spinner>
+                                                                            @csrf
+                                                                            @method('PATCH')
+                                                                            <input type="text"
+                                                                                   name="date_finish"
+                                                                                   class="form-control form-control-sm js-finish finish-input {{ $pr->date_finish ? 'has-finish' : '' }}"
+                                                                                   value="{{ optional($pr->date_finish)->format('Y-m-d') }}"
+                                                                                   placeholder="..."
+                                                                                   title="{{ $finishDateTitle }}"
+                                                                                   data-fp>
+                                                                        </form>
+                                                                    @else
+                                                                        <span class="main-readonly-date {{ $processFinishDisplay !== '' ? 'has-value' : 'is-empty' }}" title="{{ $finishDateTitle }}">{{ $processFinishDisplay }}</span>
+                                                                    @endif
                                                                 </td>
                                                             </tr>
                                                             @endif
@@ -1412,7 +1484,7 @@
                 window.addEventListener('hashchange', focusQaMainTarget);
             })();
 
-            window.applyStdIgnoreState = function (checkbox) {
+            window.applyStdIgnoreState = function (checkbox, data = null) {
                 const tr = checkbox?.closest?.('tr');
                 if (!tr) return;
 
@@ -1426,6 +1498,27 @@
                         el._flatpickr.altInput.readOnly = isIgnored;
                         el._flatpickr.altInput.classList.toggle('fp-locked', isIgnored);
                         el._flatpickr.altInput.style.cursor = isIgnored ? 'not-allowed' : '';
+                        el._flatpickr.altInput.disabled = isIgnored;
+                    }
+                });
+
+                if (!isIgnored && typeof window.__mainsInitDatePickers === 'function') {
+                    window.__mainsInitDatePickers();
+                }
+
+                tr.querySelectorAll('.js-std-editable').forEach((el) => {
+                    if (!isIgnored && el._flatpickr) {
+                        const hasServerValue = data && Object.prototype.hasOwnProperty.call(data, el.name);
+                        const value = String(hasServerValue ? (data[el.name] || '') : (el.value || '')).trim();
+                        if (hasServerValue) {
+                            el.value = value;
+                            el.dataset.original = value;
+                        }
+                        if (value) {
+                            el._flatpickr.setDate(value, false, 'Y-m-d');
+                        } else {
+                            el._flatpickr.clear(false);
+                        }
                     }
                 });
             };

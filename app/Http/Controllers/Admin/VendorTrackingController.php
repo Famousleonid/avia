@@ -14,6 +14,7 @@ use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
 use App\Models\WorkorderStdProcess;
 use App\Services\WorkorderStdListProcessesService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -50,6 +51,8 @@ class VendorTrackingController extends Controller
         'wo_bushing_batch' => WoBushingBatch::class,
     ];
 
+    private const QUANTUM_RECENT_PAGE_SIZE = 200;
+
     public function index(Request $request)
     {
         abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
@@ -65,8 +68,11 @@ class VendorTrackingController extends Controller
 
         $vendors = Vendor::query()->orderBy('name')->get(['id', 'name']);
         $customers = Customer::query()->orderBy('name')->get(['id', 'name']);
+        $quantumRecentRows = $this->quantumRecentRows();
+        $quantumRecentTotal = $this->quantumRecentTotal();
         $quantumUnparsedRows = $this->quantumUnparsedRows();
         $quantumUnparsedTotal = $this->quantumUnparsedTotal();
+        $quantumStatusCounts = $this->quantumStatusCounts();
 
         $summary = [
             'filtered_total' => $rows->total(),
@@ -80,8 +86,11 @@ class VendorTrackingController extends Controller
             'customers',
             'filters',
             'summary',
+            'quantumRecentRows',
+            'quantumRecentTotal',
             'quantumUnparsedRows',
-            'quantumUnparsedTotal'
+            'quantumUnparsedTotal',
+            'quantumStatusCounts'
         ));
     }
 
@@ -156,6 +165,38 @@ class VendorTrackingController extends Controller
             'ok' => true,
             'vendor_name' => $row->vendor?->name,
             'repair_order' => $row->repair_order,
+        ]);
+    }
+
+    public function recentQuantumRoLines(Request $request): JsonResponse
+    {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        if (! $this->quantumRoLinesTableReady()) {
+            return response()->json([
+                'success' => true,
+                'html' => '',
+                'has_more' => false,
+                'next_page' => null,
+                'total' => 0,
+            ]);
+        }
+
+        $page = max(1, (int) $request->query('page', 1));
+        $rows = $this->quantumRecentRowsQuery()
+            ->forPage($page, self::QUANTUM_RECENT_PAGE_SIZE)
+            ->get();
+        $total = $this->quantumRecentTotal();
+        $hasMore = ($page * self::QUANTUM_RECENT_PAGE_SIZE) < $total;
+
+        return response()->json([
+            'success' => true,
+            'html' => view('admin.vendor_tracking.partials.quantum_recent_rows', [
+                'quantumRecentRows' => $rows,
+            ])->render(),
+            'has_more' => $hasMore,
+            'next_page' => $hasMore ? $page + 1 : null,
+            'total' => $total,
         ]);
     }
 
@@ -602,45 +643,142 @@ class VendorTrackingController extends Controller
 
     private function quantumUnparsedRows(): Collection
     {
-        if (! Schema::hasTable('quantum_ro_lines') || ! Schema::hasColumn('quantum_ro_lines', 'apply_status')) {
+        if (! $this->quantumRoLinesTableReady()) {
             return collect();
         }
 
         return QuantumRoLine::query()
-            ->where(function ($query): void {
-                $query
-                    ->whereIn('apply_status', ['unresolved', 'error'])
-                    ->orWhere(function ($pending): void {
-                        $pending
-                            ->whereNotNull('bom_ref')
-                            ->where('bom_ref', '<>', '')
-                            ->whereNull('apply_status');
-                    });
-            })
+            ->where('apply_status', 'unresolved')
             ->orderByDesc('source_last_modified')
             ->orderByDesc('id')
-            ->limit(200)
+            ->get()
+            ->reject(fn (QuantumRoLine $line): bool => $this->isOldQuantumWorkorderNotFound($line, trim((string) $line->apply_status)))
+            ->take(200)
+            ->values();
+    }
+
+    private function quantumRecentRows(): Collection
+    {
+        if (! $this->quantumRoLinesTableReady()) {
+            return collect();
+        }
+
+        return $this->quantumRecentRowsQuery()
+            ->limit(self::QUANTUM_RECENT_PAGE_SIZE)
             ->get();
+    }
+
+    private function quantumRecentTotal(): int
+    {
+        if (! $this->quantumRoLinesTableReady()) {
+            return 0;
+        }
+
+        return QuantumRoLine::query()->count();
     }
 
     private function quantumUnparsedTotal(): int
     {
-        if (! Schema::hasTable('quantum_ro_lines') || ! Schema::hasColumn('quantum_ro_lines', 'apply_status')) {
+        if (! $this->quantumRoLinesTableReady()) {
             return 0;
         }
 
         return QuantumRoLine::query()
-            ->where(function ($query): void {
-                $query
-                    ->whereIn('apply_status', ['unresolved', 'error'])
-                    ->orWhere(function ($pending): void {
-                        $pending
-                            ->whereNotNull('bom_ref')
-                            ->where('bom_ref', '<>', '')
-                            ->whereNull('apply_status');
-                    });
-            })
+            ->where('apply_status', 'unresolved')
+            ->get(['apply_status', 'apply_message', 'wo_number'])
+            ->reject(fn (QuantumRoLine $line): bool => $this->isOldQuantumWorkorderNotFound($line, trim((string) $line->apply_status)))
             ->count();
+    }
+
+    private function quantumRoLinesTableReady(): bool
+    {
+        return Schema::hasTable('quantum_ro_lines')
+            && Schema::hasColumn('quantum_ro_lines', 'apply_status');
+    }
+
+    private function quantumStatusCounts(): array
+    {
+        $counts = [
+            'total' => 0,
+            'unresolved' => 0,
+            'pending' => 0,
+            'wo_not_found' => 0,
+            'wo_not_found_old' => 0,
+            'applied' => 0,
+            'not_applicable' => 0,
+            'error' => 0,
+            'other' => 0,
+        ];
+
+        if (! $this->quantumRoLinesTableReady()) {
+            return $counts;
+        }
+
+        QuantumRoLine::query()
+            ->get(['apply_status', 'apply_message', 'wo_number'])
+            ->each(function (QuantumRoLine $line) use (&$counts): void {
+                $counts['total']++;
+                $counts[$this->quantumStatusCountKey($line)]++;
+            });
+
+        return $counts;
+    }
+
+    private function quantumStatusCountKey(QuantumRoLine $line): string
+    {
+        $status = trim((string) $line->apply_status);
+
+        if ($this->isOldQuantumWorkorderNotFound($line, $status)) {
+            return 'wo_not_found_old';
+        }
+
+        if ($this->isQuantumWorkorderNotFound($line, $status)) {
+            return 'wo_not_found';
+        }
+
+        return match ($status) {
+            '', 'pending' => 'pending',
+            'unresolved' => 'unresolved',
+            'applied' => 'applied',
+            'N/A' => 'not_applicable',
+            'error' => 'error',
+            default => 'other',
+        };
+    }
+
+    private function isOldQuantumWorkorderNotFound(QuantumRoLine $line, string $status): bool
+    {
+        if ($status === 'WO not found: old') {
+            return true;
+        }
+
+        $woNumber = preg_replace('/\D+/', '', (string) $line->wo_number);
+        if ($woNumber === '' || (int) $woNumber >= 107000) {
+            return false;
+        }
+
+        return $this->hasQuantumWorkorderNotFoundMessage($line);
+    }
+
+    private function isQuantumWorkorderNotFound(QuantumRoLine $line, string $status): bool
+    {
+        return in_array($status, ['N/A', 'unresolved'], true)
+            && $this->hasQuantumWorkorderNotFoundMessage($line);
+    }
+
+    private function hasQuantumWorkorderNotFoundMessage(QuantumRoLine $line): bool
+    {
+        return str_contains((string) $line->apply_message, 'Workorder not found')
+            || str_contains((string) $line->apply_message, 'WO not found');
+    }
+
+    private function quantumRecentRowsQuery(): Builder
+    {
+        return QuantumRoLine::query()
+            ->orderByRaw('COALESCE(last_seen_at, updated_at, first_seen_at, created_at) DESC')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('first_seen_at')
+            ->orderByDesc('id');
     }
 
     private function normalizeTdrTravelerGroup(Collection $group): object

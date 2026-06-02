@@ -233,7 +233,6 @@ class Workorder extends Model implements HasMedia
 
     public function recalcGeneralTaskStatuses(?int $onlyGeneralTaskId = null): void
     {
-        // Берём задачи (нужно имя, чтобы найти "Completed")
         $tasksQuery = \App\Models\Task::query()->select('id', 'name', 'general_task_id');
 
         if ($onlyGeneralTaskId) {
@@ -241,46 +240,35 @@ class Workorder extends Model implements HasMedia
         }
 
         $tasksByGeneral = $tasksQuery->get()->groupBy('general_task_id');
-
-        // Берём mains по workorder для task-строк
         $mainsByTask = \App\Models\Main::where('workorder_id', $this->id)
             ->whereNotNull('task_id')
             ->get()
             ->keyBy('task_id');
 
-        $now    = now();
+        $now = now();
         $userId = auth()->id();
 
         foreach ($tasksByGeneral as $gtId => $gtTasks) {
+            $isDone = $gtTasks->isNotEmpty()
+                && $gtTasks->pluck('id')->every(function ($taskId) use ($mainsByTask): bool {
+                    $main = $mainsByTask->get($taskId);
 
-            // если в этапе нет задач — не done
-            if ($gtTasks->isEmpty()) {
-                $isDone = false;
-            } else {
+                    if (! $main) {
+                        return false;
+                    }
 
-                // ✅ Если в этом general_task есть задача "Completed" — этап done = isDone()
-                $hasCompletedTask = $gtTasks->contains(fn($t) => $t->name === 'Completed');
+                    if ($main->ignore_row) {
+                        return true;
+                    }
 
-                if ($hasCompletedTask) {
-                    $isDone = $this->isDone(); // твоя существующая логика (Completed.date_finish)
-                } else {
-                    // Обычное правило: все задачи этапа закрыты (или ignore_row)
-                    $isDone = $gtTasks->pluck('id')->every(function ($taskId) use ($mainsByTask) {
-                        $m = $mainsByTask->get($taskId);
-
-                        if (!$m) return false;           // нет строки main -> не done
-                        if ($m->ignore_row) return true; // игнор -> считается done
-
-                        return !empty($m->date_finish);  // иначе нужен finish
-                    });
-                }
-            }
+                    return ! empty($main->date_finish);
+                });
 
             \App\Models\WorkorderGeneralTaskStatus::updateOrCreate(
                 ['workorder_id' => $this->id, 'general_task_id' => $gtId],
                 [
-                    'is_done'      => $isDone,
-                    'done_at'      => $isDone ? $now : null,
+                    'is_done' => $isDone,
+                    'done_at' => $isDone ? $now : null,
                     'done_user_id' => $isDone ? $userId : null,
                 ]
             );
