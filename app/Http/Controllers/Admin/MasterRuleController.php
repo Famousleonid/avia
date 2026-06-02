@@ -100,7 +100,7 @@ class MasterRuleController extends Controller
 
     private function payload(MasterRule $rule): array
     {
-        $rule->load('phaseRules.processes.manualProcess.process.process_name');
+        $rule->load('phaseRules.processes.manualProcess.process.process_name', 'phaseRules.processes.documents.pages');
 
         return [
             'id'                      => $rule->id,
@@ -122,11 +122,13 @@ class MasterRuleController extends Controller
             'processes'  => $pr->processes->map(function ($rp) {
                 $mp    = $rp->manualProcess;
                 $label = trim(($mp?->process?->process_name?->name ?? '') . ' — ' . ($mp?->process?->process ?? ''));
+                $hasDrawing = $rp->documents->contains(fn($d) => $d->pages->contains(fn($p) => !empty($p->image_path)));
                 return [
                     'id'                => $rp->id,
                     'manual_process_id' => $rp->manual_process_id,
                     'sort_order'        => $rp->sort_order,
                     'label'             => $label,
+                    'has_drawing'       => $hasDrawing,
                 ];
             })->values(),
         ];

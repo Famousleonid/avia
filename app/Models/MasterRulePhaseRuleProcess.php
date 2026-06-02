@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class MasterRulePhaseRuleProcess extends Model
 {
@@ -23,5 +24,10 @@ class MasterRulePhaseRuleProcess extends Model
     public function manualProcess(): BelongsTo
     {
         return $this->belongsTo(ManualProcess::class, 'manual_process_id');
+    }
+
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(ProcessDocument::class, 'documentable');
     }
 }

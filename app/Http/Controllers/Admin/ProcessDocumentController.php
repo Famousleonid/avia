@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ManualParameter;
 use App\Models\ManualParameterRuleProcess;
+use App\Models\MasterRulePhaseRuleProcess;
 use App\Models\ProcessDocument;
 use App\Models\ProcessDocumentElement;
 use App\Models\ProcessDocumentPage;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 
 class ProcessDocumentController extends Controller
@@ -17,38 +19,61 @@ class ProcessDocumentController extends Controller
         $this->middleware('auth');
     }
 
-    // ── Documents ─────────────────────────────────────────────────
+    // ── Documents (Main = point rule process) ─────────────────────
 
-    /** List all documents of a rule process (+ source parameters for measurement values). */
+    /** List documents of a Main process (+ F&C source parameters for measurement values). */
     public function index(ManualParameterRuleProcess $manualParameterRuleProcess)
     {
-        $docs = $manualParameterRuleProcess->documents()
+        return $this->listDocuments($manualParameterRuleProcess, $this->sourceParameters($manualParameterRuleProcess));
+    }
+
+    public function storeDocument(Request $request, ManualParameterRuleProcess $manualParameterRuleProcess)
+    {
+        return $this->createDocument($request, $manualParameterRuleProcess);
+    }
+
+    // ── Documents (Start/Finish = master-rule phase process) ──────
+    // Accompanying docs only (manual page copies) — no measurement source params.
+
+    public function indexPhase(MasterRulePhaseRuleProcess $masterRulePhaseRuleProcess)
+    {
+        return $this->listDocuments($masterRulePhaseRuleProcess, []);
+    }
+
+    public function storePhaseDocument(Request $request, MasterRulePhaseRuleProcess $masterRulePhaseRuleProcess)
+    {
+        return $this->createDocument($request, $masterRulePhaseRuleProcess, 'manual_page');
+    }
+
+    // ── shared ────────────────────────────────────────────────────
+
+    private function listDocuments(Model $documentable, array $sourceParams)
+    {
+        $docs = $documentable->documents()
             ->with('pages.elements')
             ->orderBy('sort_order')
             ->get()
             ->map(fn($d) => $this->docPayload($d));
 
         return response()->json([
-            'rule_process_id'   => $manualParameterRuleProcess->id,
             'documents'         => $docs,
-            'source_parameters' => $this->sourceParameters($manualParameterRuleProcess),
+            'source_parameters' => $sourceParams,
         ]);
     }
 
-    public function storeDocument(Request $request, ManualParameterRuleProcess $manualParameterRuleProcess)
+    private function createDocument(Request $request, Model $documentable, string $defaultType = 'drawing')
     {
         $data = $request->validate([
             'doc_type' => 'nullable|string|max:50',
             'title'    => 'nullable|string|max:255',
         ]);
 
-        $maxOrder = $manualParameterRuleProcess->documents()->max('sort_order') ?? -1;
+        $maxOrder = $documentable->documents()->max('sort_order') ?? -1;
 
-        $doc = ProcessDocument::create([
-            'rule_process_id' => $manualParameterRuleProcess->id,
-            'doc_type'        => $data['doc_type'] ?? 'drawing',
-            'title'           => $data['title'] ?? null,
-            'sort_order'      => $maxOrder + 1,
+        $doc = $documentable->documents()->create([
+            'doc_type'   => $data['doc_type'] ?? $defaultType,
+            'title'      => $data['title'] ?? null,
+            'sort_order' => $maxOrder + 1,
         ]);
 
         return response()->json($this->docPayload($doc->load('pages.elements')), 201);

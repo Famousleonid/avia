@@ -4172,12 +4172,21 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         wrap.innerHTML = dimMrProcesses.map(function (p, i) {
+            const drawBtn = p.rule_process_id
+                ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-mr-proc-doc" data-rpid="${p.rule_process_id}" data-label="${escHtml(p.label)}" title="${p.has_drawing ? 'Documents (has image)' : 'Add documents'}" style="font-size:11px;color:${p.has_drawing ? '#0d6efd' : 'var(--bs-secondary-color)'};opacity:${p.has_drawing ? '1' : '.5'}"><i class="bi bi-${p.has_drawing ? 'file-earmark-text-fill' : 'file-earmark-text'}"></i></button>`
+                : '';
             return `<div class="dim-rule-process-item">
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
                 <span class="flex-grow-1">${escHtml(p.label)}</span>
+                ${drawBtn}
                 <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-mr-proc-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-x"></i></button>
             </div>`;
         }).join('');
+        wrap.querySelectorAll('.dim-mr-proc-doc').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                openProcessDocumentsModal(parseInt(btn.dataset.rpid), btn.dataset.label, 'phase');
+            });
+        });
         wrap.querySelectorAll('.dim-mr-proc-remove').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 dimMrProcesses.splice(parseInt(btn.dataset.idx), 1);
@@ -4353,7 +4362,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const r = (dimMrData.phase_rules || []).find(function (x) { return x.id === editId; });
             if (r) {
                 name = r.name || '';
-                dimMrProcesses = (r.processes || []).map(function (p) { return { manual_process_id: p.manual_process_id, label: p.label }; });
+                dimMrProcesses = (r.processes || []).map(function (p) { return { manual_process_id: p.manual_process_id, label: p.label, rule_process_id: p.id, has_drawing: !!p.has_drawing }; });
                 cond = r.condition || null;
             }
         }
@@ -4471,8 +4480,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ---- open: load documents, show list ----
-    async function openProcessDocumentsModal(ruleProcessId, label) {
+    let pdwProcKind = 'main'; // 'main' (point rule) | 'phase' (Start/Finish)
+    function pdwDocsBase() {
+        return pdwProcKind === 'phase'
+            ? '/phase-rule-processes/' + pdwRuleProcessId + '/documents'
+            : '/rule-processes/' + pdwRuleProcessId + '/documents';
+    }
+
+    async function openProcessDocumentsModal(ruleProcessId, label, kind) {
         pdwRuleProcessId = ruleProcessId;
+        pdwProcKind = kind === 'phase' ? 'phase' : 'main';
         pdwDocs = []; pdwSourceParams = []; pdwDoc = null; pdwPage = null;
         document.getElementById('pdwTitle').textContent = 'Process Documents — ' + (label || '');
         document.getElementById('pdw-doc-list').innerHTML = '<div class="text-secondary" style="font-size:12px">Loading…</div>';
@@ -4480,7 +4497,7 @@ document.addEventListener('DOMContentLoaded', function () {
         getPdwModal().show();
         pdwShowDocScreen();
         try {
-            const data = await apiFetch('/rule-processes/' + ruleProcessId + '/documents');
+            const data = await apiFetch(pdwDocsBase());
             pdwDocs = data.documents || [];
             pdwSourceParams = data.source_parameters || [];
             renderDocList();
@@ -4493,8 +4510,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return pdwDocs.some(function (d) { return (d.pages || []).some(function (p) { return p.image_path; }); });
     }
     function pdwUpdateProcessFlag() {
-        const rp = dimRuleProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
-        if (rp) { rp.has_drawing = pdwProcessHasImage(); renderRuleProcessList(); }
+        const hasImg = pdwProcessHasImage();
+        if (pdwProcKind === 'phase') {
+            const rp = dimMrProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
+            if (rp) { rp.has_drawing = hasImg; renderMrProcessList(); }
+        } else {
+            const rp = dimRuleProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
+            if (rp) { rp.has_drawing = hasImg; renderRuleProcessList(); }
+        }
     }
 
     // ---- document list ----
@@ -4563,7 +4586,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const idx = pdwDocs.findIndex(function (d) { return d.id == editId; });
                 if (idx !== -1) pdwDocs[idx] = Object.assign(pdwDocs[idx], saved);
             } else {
-                const saved = await apiFetch('/rule-processes/' + pdwRuleProcessId + '/documents', { method: 'POST', body: JSON.stringify(body) });
+                const saved = await apiFetch(pdwDocsBase(), { method: 'POST', body: JSON.stringify(body) });
                 pdwDocs.push(saved);
             }
             pdwHideDocForm();

@@ -359,6 +359,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     // --- Process Documents (per process in a point rule: documents -> pages -> elements) ---
     Route::get('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'index'])->name('rule-processes.documents.index');
     Route::post('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'storeDocument'])->name('rule-processes.documents.store');
+    // Start/Finish (master-rule phase) process documents
+    Route::get('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'indexPhase'])->name('phase-rule-processes.documents.index');
+    Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'storePhaseDocument'])->name('phase-rule-processes.documents.store');
     Route::patch('/process-documents/{processDocument}', [ProcessDocumentController::class, 'updateDocument'])->name('process-documents.update');
     Route::delete('/process-documents/{processDocument}', [ProcessDocumentController::class, 'destroyDocument'])->name('process-documents.destroy');
     // pages
