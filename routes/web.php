@@ -412,6 +412,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/measurements/{woMeasurement}', [WoMeasurementController::class, 'update'])->name('measurements.update');
     Route::delete('/measurements/{woMeasurement}', [WoMeasurementController::class, 'destroy'])->name('measurements.destroy');
     Route::post('/workorders/{workorder}/tdr-from-measurement', [WoMeasurementController::class, 'createTdrFromMeasurement'])->name('workorders.tdr-from-measurement');
+    Route::post('/workorders/{workorder}/revert-part-tdr', [WoMeasurementController::class, 'revertPartTdr'])->name('workorders.revert-part-tdr');
     Route::get('/workorders/{workorder}/component-by-ipl', [WoMeasurementController::class, 'componentByIpl'])->name('workorders.component-by-ipl');
     Route::get('/ec', [EcController::class, 'index'])
         ->middleware('can:ec.access')

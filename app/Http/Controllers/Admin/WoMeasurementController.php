@@ -518,6 +518,47 @@ class WoMeasurementController extends Controller
         ], 201);
     }
 
+    /**
+     * B1 — Revert the TDR(s) of a part so a new decision can be made.
+     * Allowed ONLY while no work has started (no TdrProcess has date_start).
+     * If work started, the caller must use scrap (B2) instead.
+     */
+    public function revertPartTdr(Request $request, Workorder $workorder)
+    {
+        $data = $request->validate([
+            'inspection_component_id' => 'required|exists:manual_inspection_components,id',
+        ]);
+
+        $componentIds = ManualInspectionComponentVariant::where('inspection_component_id', $data['inspection_component_id'])
+            ->pluck('component_id');
+
+        $tdrs = Tdr::where('workorder_id', $workorder->id)
+            ->where(function ($q) use ($componentIds) {
+                $q->whereIn('component_id', $componentIds)
+                  ->orWhereIn('order_component_id', $componentIds);
+            })
+            ->get();
+
+        if ($tdrs->isEmpty()) {
+            return response()->json(['error' => 'No TDR found for this part'], 404);
+        }
+
+        $tdrIds = $tdrs->pluck('id');
+
+        // Work started? any process with date_start
+        $started = TdrProcess::whereIn('tdrs_id', $tdrIds)->whereNotNull('date_start')->exists();
+        if ($started) {
+            return response()->json([
+                'error' => 'Work has already started on this TDR — it cannot be reverted. Use Scrap & Order New instead.',
+            ], 422);
+        }
+
+        TdrProcess::whereIn('tdrs_id', $tdrIds)->delete();
+        Tdr::whereIn('id', $tdrIds)->delete();
+
+        return response()->json(['ok' => true, 'deleted_tdrs' => $tdrIds->count()]);
+    }
+
     public function destroy(WoMeasurement $woMeasurement)
     {
         $woMeasurement->delete();

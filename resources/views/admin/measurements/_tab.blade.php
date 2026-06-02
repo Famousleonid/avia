@@ -164,9 +164,14 @@
                 <div id="ms-comp-title"></div>
                 <div id="ms-comp-sub"></div>
             </div>
-            <button id="ms-add-tdr-btn" class="btn btn-outline-danger btn-sm flex-shrink-0" disabled style="font-size:11px">
-                <i class="bi bi-plus-circle"></i> Add to TDR
-            </button>
+            <div class="d-flex gap-1 flex-shrink-0">
+                <button id="ms-revert-tdr-btn" class="btn btn-outline-warning btn-sm d-none" style="font-size:11px" title="Revert TDR and choose again (only if work not started)">
+                    <i class="bi bi-arrow-counterclockwise"></i> Change decision
+                </button>
+                <button id="ms-add-tdr-btn" class="btn btn-outline-danger btn-sm" disabled style="font-size:11px">
+                    <i class="bi bi-plus-circle"></i> Add to TDR
+                </button>
+            </div>
         </div>
         <div id="ms-tab-entry-empty" class="text-center text-secondary py-4" style="font-size:11px">
             <i class="bi bi-rulers" style="font-size:1.8rem;display:block;opacity:.2;margin-bottom:.4rem"></i>
@@ -656,15 +661,18 @@
 
     function updateTdrBtnState(part) {
         const btn = document.getElementById('ms-add-tdr-btn');
+        const revertBtn = document.getElementById('ms-revert-tdr-btn');
         if (!btn) return;
         if (icsWithTdr.has(part.id)) {
             btn.disabled = true;
             btn.classList.remove('btn-outline-danger');
             btn.classList.add('btn-outline-success');
+            if (revertBtn) revertBtn.classList.remove('d-none');   // part has TDR → allow change
             return;
         }
         btn.classList.remove('btn-outline-success');
         btn.classList.add('btn-outline-danger');
+        if (revertBtn) revertBtn.classList.add('d-none');
         const hasAnyFail = part.params.some(p =>
             paramMeasurements(p).some(m => m.result === 'FAIL')
         );
@@ -1216,6 +1224,37 @@
         });
         if (!firstFailParam || !allFailMeas.length) return;
         openTdrModal(firstFailParam, allFailMeas);
+    });
+
+    // B1 — change decision: revert TDR (only if work not started), then choose again
+    document.getElementById('ms-revert-tdr-btn')?.addEventListener('click', async function () {
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part) return;
+        if (!confirm('Revert the current TDR decision for "' + part.label + '" and choose again?\n(Allowed only if work has not started.)')) return;
+        this.disabled = true;
+        try {
+            await apiFetch('/workorders/' + WO_ID + '/revert-part-tdr', {
+                method: 'POST',
+                body: JSON.stringify({ inspection_component_id: part.id }),
+            });
+            icsWithTdr.delete(part.id);
+            updateTdrBtnState(part);
+            document.dispatchEvent(new CustomEvent('tdr-created-from-measurements')); // refresh TDR view
+            if (typeof showNotification === 'function') showNotification('TDR reverted — choose a new decision', 'success');
+            // re-open the decision modal
+            const allFailMeas = [];
+            let firstFailParam = null;
+            part.params.forEach(param => {
+                const fails = paramMeasurements(param).filter(m => m.result === 'FAIL');
+                if (fails.length && !firstFailParam) firstFailParam = param;
+                allFailMeas.push(...fails);
+            });
+            if (firstFailParam && allFailMeas.length) openTdrModal(firstFailParam, allFailMeas);
+        } catch (e) {
+            alert(e.message); // e.g. "Work already started — use Scrap instead"
+        } finally {
+            this.disabled = false;
+        }
     });
 
     document.getElementById('tab-measurements')?.addEventListener('shown.bs.tab', function(){
