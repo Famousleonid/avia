@@ -371,17 +371,18 @@ class WoMeasurementController extends Controller
             $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
 
             $tdr = Tdr::create([
-                'tdr_type'          => Tdr::TYPE_ORDER_NEW,
-                'workorder_id'      => $workorder->id,
-                'component_id'      => $component->id,
-                'serial_number'     => $sn,
-                'description'       => $desc,
-                'codes_id'          => $missingCode?->id,
-                'conditions_id'     => $missingCondition?->id,
-                'necessaries_id'    => $necessary->id,
-                'qty'               => $qty,
-                'use_tdr'           => false,
-                'use_process_forms' => false,
+                'tdr_type'           => Tdr::TYPE_ORDER_NEW,
+                'workorder_id'       => $workorder->id,
+                'component_id'       => $component->id,
+                'order_component_id' => $component->id,   // Order New = same part ordered new
+                'serial_number'      => $sn,
+                'description'        => $desc,
+                'codes_id'           => $missingCode?->id,
+                'conditions_id'      => $missingCondition?->id,
+                'necessaries_id'     => $necessary->id,
+                'qty'                => $qty,
+                'use_tdr'            => false,
+                'use_process_forms'  => false,
             ]);
 
             if (!$workorder->part_missing) {
@@ -409,20 +410,32 @@ class WoMeasurementController extends Controller
                 ?->codes_id;
         }
 
+        // condition_id by defect: condition with the same name as the finding code
+        // (Worn code -> Worn condition). Name match is case-insensitive in MySQL.
+        $conditionId = null;
+        if ($codesId) {
+            $code = Code::find($codesId);
+            if ($code) {
+                $conditionId = Condition::where('name', $code->name)->first()?->id;
+            }
+        }
+
         // ── Order New override (no rule, user chose Order New manually) ─
         if (!empty($data['order_new_override'])) {
             $necessary = Necessary::where('name', 'Order New')->firstOrFail();
             $tdr = Tdr::create([
-                'tdr_type'          => Tdr::TYPE_ORDER_NEW,
-                'workorder_id'      => $workorder->id,
-                'component_id'      => $component->id,
-                'serial_number'     => $sn,
-                'description'       => $desc,
-                'codes_id'          => $codesId,
-                'necessaries_id'    => $necessary->id,
-                'qty'               => $qty,
-                'use_tdr'           => true,
-                'use_process_forms' => false,
+                'tdr_type'           => Tdr::TYPE_ORDER_NEW,
+                'workorder_id'       => $workorder->id,
+                'component_id'       => $component->id,
+                'order_component_id' => $component->id,   // Order New = same part ordered new
+                'serial_number'      => $sn,
+                'description'        => $desc,
+                'codes_id'           => $codesId,
+                'conditions_id'      => $conditionId,
+                'necessaries_id'     => $necessary->id,
+                'qty'                => $qty,
+                'use_tdr'            => true,
+                'use_process_forms'  => false,
             ]);
             $tdr->update(['use_tdr' => true]);
             return response()->json([
@@ -438,16 +451,18 @@ class WoMeasurementController extends Controller
             if ($firstRule?->order_replacement) {
                 $necessary = Necessary::where('name', 'Order New')->firstOrFail();
                 $tdr = Tdr::create([
-                    'tdr_type'          => Tdr::TYPE_ORDER_NEW,
-                    'workorder_id'      => $workorder->id,
-                    'component_id'      => $component->id,
-                    'serial_number'     => $sn,
-                    'description'       => $desc,
-                    'codes_id'          => $codesId,
-                    'necessaries_id'    => $necessary->id,
-                    'qty'               => $qty,
-                    'use_tdr'           => true,
-                    'use_process_forms' => false,
+                    'tdr_type'           => Tdr::TYPE_ORDER_NEW,
+                    'workorder_id'       => $workorder->id,
+                    'component_id'       => $component->id,
+                    'order_component_id' => $component->id,   // Order New = same part ordered new
+                    'serial_number'      => $sn,
+                    'description'        => $desc,
+                    'codes_id'           => $codesId,
+                    'conditions_id'      => $conditionId,
+                    'necessaries_id'     => $necessary->id,
+                    'qty'                => $qty,
+                    'use_tdr'            => true,
+                    'use_process_forms'  => false,
                 ]);
                 $tdr->update(['use_tdr' => true]);
                 return response()->json([
@@ -467,6 +482,7 @@ class WoMeasurementController extends Controller
             'serial_number'     => $sn,
             'description'       => $desc,
             'codes_id'          => $codesId,
+            'conditions_id'     => $conditionId,
             'necessaries_id'    => $necessary->id,
             'qty'               => $qty,
             'use_tdr'           => true,

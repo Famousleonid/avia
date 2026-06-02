@@ -120,7 +120,7 @@
 
     {{-- Modal: Add to TDR --}}
     <div class="modal fade" id="msTdrModal" tabindex="-1">
-        <div class="modal-dialog modal-sm">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header py-2">
                     <h6 class="modal-title mb-0">Add to TDR</h6>
@@ -129,8 +129,8 @@
                 <div class="modal-body">
                     <div class="text-secondary mb-2" style="font-size:11px" id="msTdrParamLabel"></div>
                     <div class="mb-2 d-none" id="msTdrRuleWrap">
-                        <label class="form-label form-label-sm mb-1">Repair Rules</label>
-                        <div id="msTdrRuleList" class="border rounded p-2" style="font-size:12px;max-height:160px;overflow-y:auto"></div>
+                        <label class="form-label form-label-sm mb-1">Select decision</label>
+                        <div id="msTdrRuleList" class="border rounded p-2" style="font-size:12px;max-height:220px;overflow-y:auto"></div>
                         <div class="text-warning small mt-1 d-none" id="msTdrRuleNote"></div>
                     </div>
                     <div class="mb-2">
@@ -997,168 +997,80 @@
         const iplNums = ic?.ipl_nums || [];
         document.getElementById('msTdrPn').value = iplNums.length > 0 ? iplNums[0] : '';
 
-        // Collect unique matched rules from fail measurements
-        const matchedRuleIds = new Set(
-            failMeas.map(m => m.manual_parameter_repair_rule_id).filter(Boolean)
-        );
-        const allRules = param.repair_rules || [];
-        const matchedRules = allRules.filter(r => matchedRuleIds.has(r.id));
-        const hasNoRuleFail = failMeas.some(m => !m.manual_parameter_repair_rule_id &&
-            !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID));
-        const missingFails = failMeas.filter(m => MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID);
+        // Build decisions across ALL failed parameters of the part (one per failed param).
+        // Each decision = current fail measurement + its parameter + outcome (Order New / Repair).
+        const decisions = [];
+        part.params.forEach(dParam => {
+            const fails = paramMeasurements(dParam).filter(m => m.result === 'FAIL');
+            if (!fails.length) return;
+            const m = fails[fails.length - 1]; // current fail
+            const isMissing = MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID;
+            const codeName = m.codes_id
+                ? (dParam.codes?.find(c => c.id == m.codes_id)?.name || allCodes.find(c => c.id == m.codes_id)?.name || '')
+                : '';
+            const ptCodes = [...new Set(dParam.locations.map(l => l.pt.code))].join(', ');
+            if (isMissing) {
+                decisions.push({ measId: m.id, paramDesc: dParam.description, codeName, ptCodes, group: 'order_new', missing: true, ruleId: '', procCount: 0, noRule: false });
+                return;
+            }
+            const ruleId = m.manual_parameter_repair_rule_id;
+            const rule = ruleId ? (dParam.repair_rules || []).find(r => r.id === ruleId) : null;
+            decisions.push({
+                measId: m.id, paramDesc: dParam.description, codeName, ptCodes, missing: false,
+                ruleId: rule ? rule.id : '',
+                procCount: rule ? (rule.processes || []).length : 0,
+                group: rule ? (rule.order_replacement ? 'order_new' : 'repair') : 'repair',
+                noRule: !rule,
+            });
+        });
 
         const ruleWrap = document.getElementById('msTdrRuleWrap');
         const ruleList = document.getElementById('msTdrRuleList');
         ruleList.innerHTML = '';
 
-        const repairRules   = matchedRules.filter(r => !r.order_replacement);
-        const orderNewRules = matchedRules.filter(r => r.order_replacement);
-
-        // If ALL fails are Missing — no choice, always Order New, skip rule block
-        const nonMissingFails = failMeas.filter(m => !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID));
-        const onlyMissing = missingFails.length > 0 && nonMissingFails.length === 0;
+        const missingDecisions = decisions.filter(d => d.missing);
+        const nonMissing       = decisions.filter(d => !d.missing);
+        const onlyMissing      = missingDecisions.length > 0 && nonMissing.length === 0;
         if (onlyMissing) {
-            autoMissingMeasId = missingFails[0].id;
+            autoMissingMeasId = missingDecisions[0].measId;
             ruleWrap.classList.add('d-none');
         }
 
-        const totalChoices = repairRules.length + orderNewRules.length
-            + (hasNoRuleFail ? 1 : 0) + (onlyMissing ? 0 : missingFails.length);
-
-        if (!onlyMissing && totalChoices > 0) {
+        if (!onlyMissing && decisions.length > 0) {
             ruleWrap.classList.remove('d-none');
 
-            // Missing Part entries (always order_new, no rule)
-            missingFails.forEach(m => {
+            // One RADIO per decision (single choice), each on its own full-width row:
+            //   [ptCode]  param · defect            → outcome
+            decisions.forEach((d, i) => {
+                const outcome = d.group === 'order_new'
+                    ? 'Order New'
+                    : ('Repair' + (d.procCount ? ' · ' + d.procCount + ' proc.' : (d.noRule ? ' (no rule)' : '')));
+                const color = d.group === 'order_new' ? '#dc3545' : '#0d6efd';
                 const item = document.createElement('div');
-                item.className = 'form-check mb-1';
-                item.innerHTML = `<input class="form-check-input ms-tdr-rule-cb" type="checkbox"
-                    data-group="order_new" data-missing="1" data-meas-id="${m.id}"
-                    id="msTdrRuleMissing-${m.id}" checked>
-                    <label class="form-check-label" for="msTdrRuleMissing-${m.id}">
-                        <span class="badge bg-danger me-1" style="font-size:10px">Missing Part</span>
-                        <span class="text-secondary">Order New</span>
+                item.className = 'form-check d-flex align-items-center gap-2 py-1 px-1';
+                item.style.borderBottom = '1px solid var(--bs-border-color)';
+                item.innerHTML = `<input class="form-check-input ms-tdr-decision m-0" type="radio" name="msTdrDecision"
+                    data-group="${d.group}" data-rule-id="${d.missing ? '' : (d.ruleId || '')}" ${d.missing ? 'data-missing="1"' : ''}
+                    data-no-rule="${(!d.missing && d.noRule) ? '1' : ''}" data-meas-id="${d.measId}"
+                    id="msTdrDec-${d.measId}">
+                    <label class="form-check-label flex-grow-1 d-flex align-items-center gap-2" for="msTdrDec-${d.measId}" style="font-size:12px;cursor:pointer">
+                        ${d.ptCodes ? '<span class="badge bg-secondary" style="font-size:9px;min-width:34px">' + esc(d.ptCodes) + '</span>' : '<span style="min-width:34px"></span>'}
+                        <span class="fw-semibold flex-grow-1">${esc(d.paramDesc || '')}${d.codeName ? ' <span class="text-warning fw-normal">· ' + esc(d.codeName) + '</span>' : ''}${d.missing ? ' <span class="badge bg-danger" style="font-size:9px">Missing</span>' : ''}</span>
+                        <span class="pdw-outcome flex-shrink-0" style="font-weight:600">→ ${esc(outcome)}</span>
                     </label>`;
+                item.querySelector('.pdw-outcome').style.color = color;
                 ruleList.appendChild(item);
             });
 
-            // Order New rules
-            orderNewRules.forEach(r => {
-                const item = document.createElement('div');
-                item.className = 'form-check mb-1';
-                item.innerHTML = `<input class="form-check-input ms-tdr-rule-cb" type="checkbox"
-                    data-group="order_new" data-rule-id="${r.id}"
-                    id="msTdrRule-${r.id}" checked>
-                    <label class="form-check-label" for="msTdrRule-${r.id}">
-                        <span class="fw-semibold">${esc(r.name || 'Rule #' + r.id)}</span>
-                        <span class="text-secondary ms-1">Order New</span>
-                    </label>`;
-                ruleList.appendChild(item);
-            });
-
-            // Repair rules
-            repairRules.forEach(r => {
-                const procCount = (r.processes || []).length;
-                const item = document.createElement('div');
-                item.className = 'form-check mb-1';
-                item.innerHTML = `<input class="form-check-input ms-tdr-rule-cb" type="checkbox"
-                    data-group="repair" data-rule-id="${r.id}"
-                    id="msTdrRule-${r.id}" checked>
-                    <label class="form-check-label" for="msTdrRule-${r.id}">
-                        <span class="fw-semibold">${esc(r.name || 'Rule #' + r.id)}</span>
-                        <span class="text-secondary ms-1">Repair · ${procCount} proc.</span>
-                    </label>`;
-                ruleList.appendChild(item);
-            });
-
-            // No-rule FAIL
-            if (hasNoRuleFail) {
-                const item = document.createElement('div');
-                item.className = 'form-check mb-1';
-                item.innerHTML = `<input class="form-check-input ms-tdr-rule-cb" type="checkbox"
-                    data-group="repair" data-rule-id=""
-                    id="msTdrRuleNone" checked>
-                    <label class="form-check-label" for="msTdrRuleNone">
-                        <span class="text-secondary fst-italic">Basic repair (no rule)</span>
-                    </label>`;
-                ruleList.appendChild(item);
-            }
-
-            // Mutual exclusion: order_new ↔ repair
+            // Update SN visibility on selection change
             ruleList.addEventListener('change', function(e) {
-                const cb = e.target;
-                if (!cb.classList.contains('ms-tdr-rule-cb')) return;
-                const clickedGroup = cb.dataset.group;
-                const oppositeGroup = clickedGroup === 'order_new' ? 'repair' : 'order_new';
-                if (cb.checked) {
-                    ruleList.querySelectorAll(`.ms-tdr-rule-cb[data-group="${oppositeGroup}"]`)
-                        .forEach(el => { el.checked = false; el.disabled = true; });
-                    const note = document.getElementById('msTdrRuleNote');
-                    if (ruleList.querySelector(`.ms-tdr-rule-cb[data-group="${oppositeGroup}"]`)) {
-                        note.textContent = clickedGroup === 'order_new'
-                            ? 'Order New selected — Repair rules disabled'
-                            : 'Repair selected — Order New rules disabled';
-                        note.classList.remove('d-none');
-                    }
-                } else {
-                    // Re-enable opposite if nothing in clicked group is checked
-                    const anyChecked = [...ruleList.querySelectorAll(`.ms-tdr-rule-cb[data-group="${clickedGroup}"]`)]
-                        .some(el => el.checked);
-                    if (!anyChecked) {
-                        ruleList.querySelectorAll(`.ms-tdr-rule-cb[data-group="${oppositeGroup}"]`)
-                            .forEach(el => { el.disabled = false; });
-                        document.getElementById('msTdrRuleNote').classList.add('d-none');
-                    }
-                }
-                updateTdrSnVisibility();
+                if (e.target.classList.contains('ms-tdr-decision')) updateTdrSnVisibility();
             });
 
-            // Add override options if only one group present
-            // missingFails are always Order New — they don't trigger Repair override
-            const hasRepairItems   = repairRules.length > 0 || hasNoRuleFail;
-            const hasOrderNewItems = orderNewRules.length > 0;
-
-            if (hasOrderNewItems && !hasRepairItems) {
-                // Only Order New matched → offer Repair override
-                const sep = document.createElement('div');
-                sep.className = 'text-secondary mt-2 mb-1'; sep.style.fontSize='10px';
-                sep.textContent = '— or override —';
-                ruleList.appendChild(sep);
-                const item = document.createElement('div');
-                item.className = 'form-check mb-1';
-                item.innerHTML = `<input class="form-check-input ms-tdr-rule-cb" type="checkbox"
-                    data-group="repair" data-rule-id="" data-override="1"
-                    id="msTdrOverrideRepair">
-                    <label class="form-check-label text-secondary fst-italic" for="msTdrOverrideRepair">
-                        Repair (override — no rule)
-                    </label>`;
-                ruleList.appendChild(item);
-            } else if (hasRepairItems && !hasOrderNewItems) {
-                // Only Repair matched → offer Order New override
-                const sep = document.createElement('div');
-                sep.className = 'text-secondary mt-2 mb-1'; sep.style.fontSize='10px';
-                sep.textContent = '— or override —';
-                ruleList.appendChild(sep);
-                const item = document.createElement('div');
-                item.className = 'form-check mb-1';
-                item.innerHTML = `<input class="form-check-input ms-tdr-rule-cb" type="checkbox"
-                    data-group="order_new" data-rule-id="" data-override="1"
-                    id="msTdrOverrideOrderNew">
-                    <label class="form-check-label text-secondary fst-italic" for="msTdrOverrideOrderNew">
-                        Order New (override)
-                    </label>`;
-                ruleList.appendChild(item);
-            }
-
-            // Init: if both groups present → uncheck Order New, keep Repair checked, user must choose
-            const orderNewEls = [...ruleList.querySelectorAll('.ms-tdr-rule-cb[data-group="order_new"]')];
-            const repairEls   = [...ruleList.querySelectorAll('.ms-tdr-rule-cb[data-group="repair"]')];
-            if (orderNewEls.length && repairEls.length) {
-                orderNewEls.forEach(el => { el.checked = false; });
-                const note = document.getElementById('msTdrRuleNote');
-                note.textContent = 'Select: Repair rules OR Order New — not both';
-                note.classList.remove('d-none');
-            }
+            // Single choice (radio): nothing pre-selected — technician must pick one.
+            const note = document.getElementById('msTdrRuleNote');
+            note.textContent = 'Select one decision';
+            note.classList.remove('d-none');
         } else {
             ruleWrap.classList.add('d-none');
         }
@@ -1191,8 +1103,8 @@
             snRow.style.display = '';
             return;
         }
-        const hasRepair = [...document.querySelectorAll('#msTdrRuleList .ms-tdr-rule-cb:checked')]
-            .some(cb => cb.dataset.group === 'repair');
+        const sel = document.querySelector('#msTdrRuleList .ms-tdr-decision:checked');
+        const hasRepair = sel && sel.dataset.group === 'repair';
         snRow.style.display = hasRepair ? '' : 'none';
     }
 
@@ -1245,16 +1157,22 @@
         const sn  = document.getElementById('msTdrSn').value.trim();
         const qty = parseInt(document.getElementById('msTdrQty').value, 10) || 1;
 
-        // Collect checked rules
-        const checkedCbs = [...document.querySelectorAll('#msTdrRuleList .ms-tdr-rule-cb:checked')];
-        const isMissingSelected = checkedCbs.some(cb => cb.dataset.missing === '1');
+        // Single selected decision (radio). autoMissingMeasId covers the only-missing case.
+        const sel = document.querySelector('#msTdrRuleList .ms-tdr-decision:checked');
+        if (!autoMissingMeasId && !sel) {
+            err.textContent = 'Select a decision.'; err.classList.remove('d-none'); return;
+        }
+        const isMissing = sel?.dataset.missing === '1';
         const missingMeasId = autoMissingMeasId
-            ?? (isMissingSelected ? parseInt(checkedCbs.find(cb => cb.dataset.missing === '1').dataset.measId, 10) : null);
-        const ruleIds = checkedCbs
-            .filter(cb => !cb.dataset.missing && cb.dataset.ruleId)
-            .map(cb => parseInt(cb.dataset.ruleId, 10));
-        const hasNoRuleChecked   = checkedCbs.some(cb => !cb.dataset.missing && cb.dataset.ruleId === '' && cb.dataset.group === 'repair');
-        const hasOrderNewOverride = checkedCbs.some(cb => !cb.dataset.missing && cb.dataset.ruleId === '' && cb.dataset.group === 'order_new');
+            ?? (isMissing ? parseInt(sel.dataset.measId, 10) : null);
+        const ruleIds = (sel && !isMissing && sel.dataset.ruleId)
+            ? [parseInt(sel.dataset.ruleId, 10)] : [];
+        const hasNoRuleChecked    = !!(sel && !isMissing && sel.dataset.noRule === '1' && sel.dataset.group === 'repair');
+        const hasOrderNewOverride = !!(sel && !isMissing && !sel.dataset.ruleId && sel.dataset.noRule !== '1' && sel.dataset.group === 'order_new');
+
+        // Base measurement = the SELECTED decision (codes_id from the chosen defect).
+        const baseMeasId = sel ? parseInt(sel.dataset.measId, 10)
+            : (autoMissingMeasId ?? (activeTdrMeasurement ? activeTdrMeasurement.id : null));
 
         if (!pn) { err.textContent = 'IPL# is required.'; err.classList.remove('d-none'); return; }
         this.disabled = true;
@@ -1262,7 +1180,7 @@
             await apiFetch('/workorders/' + WO_ID + '/tdr-from-measurement', {
                 method: 'POST',
                 body: JSON.stringify({
-                    wo_measurement_id: activeTdrMeasurement.id,
+                    wo_measurement_id: baseMeasId,
                     missing_meas_id: missingMeasId,
                     pn,
                     sn: sn || null,
