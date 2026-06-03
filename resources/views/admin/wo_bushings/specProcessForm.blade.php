@@ -386,6 +386,7 @@
             height: 25px;
             justify-content: flex-end;
             padding-right: 4px;
+            transform: translateY(-3px);
             width: 75px;
         }
 
@@ -400,8 +401,23 @@
             overflow: hidden;
             padding: 0 4px 3px;
             text-align: center;
+            transform: translateY(-3px);
             white-space: nowrap;
             width: 120px;
+        }
+
+        .spec-group-label-box {
+            align-items: center;
+            border: 1px solid black;
+            display: inline-flex;
+            font-size: 12px;
+            font-weight: 700;
+            height: 20px;
+            justify-content: center;
+            line-height: 1;
+            margin-left: 4px;
+            min-width: 26px;
+            padding: 0 3px;
         }
 
         .spec-header-square {
@@ -410,7 +426,6 @@
             width: 40px;
         }
 
-        /* Применение font-size ко всей таблице */
         .container-fluid .row.g-0,
         .container-fluid .row.g-0 strong,
         .container-fluid .row.g-0 span,
@@ -438,7 +453,6 @@
             border-bottom: 1px solid black !important;
         }
 
-        /* Данные Part No. в bushing header: layout отдельно от размера шрифта. */
         .part-no-data {
             display: grid !important;
             grid-template-columns: minmax(0, 1fr) !important;
@@ -447,7 +461,6 @@
             align-items: start !important;
             width: 100% !important;
         }
-        /* Более специфичный селектор для переопределения общего правила .row.g-0 div */
         .part-no-data div {
             display: block !important;
             line-height: 1.2 !important;
@@ -457,9 +470,6 @@
             word-break: normal !important;
         }
 
-        /* Заголовок "Part No." использует table-font-size */
-        /* Заголовок уже получает table-font-size через общее правило .row.g-0 div */
-        /* Но для явности: убеждаемся, что заголовок не переопределяется */
         .row.g-0 > .col-2 > div strong {
             font-size: var(--table-font-size) !important;
         }
@@ -508,7 +518,6 @@
                 print-color-adjust: exact;
             }
 
-            /* Применение font-size ко всей таблице при печати */
             .container-fluid .row.g-0,
             .container-fluid .row.g-0 strong,
             .container-fluid .row.g-0 span,
@@ -531,7 +540,6 @@
                 font-size: var(--component-header-font-size) !important;
             }
 
-            /* Данные Part No. в bushing header: layout отдельно от размера шрифта. */
             .part-no-data {
                 display: grid !important;
                 grid-template-columns: minmax(0, 1fr) !important;
@@ -540,7 +548,6 @@
                 align-items: start !important;
                 width: 100% !important;
             }
-            /* Более специфичный селектор для переопределения общего правила .row.g-0 div при печати */
             .part-no-data div {
                 display: block !important;
                 line-height: 1.2 !important;
@@ -550,7 +557,6 @@
                 word-break: normal !important;
             }
 
-            /* Заголовок "Part No." использует table-font-size при печати */
             .row.g-0 > .col-2 > div strong {
                 font-size: var(--table-font-size) !important;
             }
@@ -752,7 +758,6 @@
 </head>
 
 <body>
-<!-- Кнопки для печати и настроек -->
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" onclick="window.print()">
         Print Form
@@ -764,12 +769,17 @@
 
 @php
     $componentsPerPage = 6;
-    // Создаем базовую структуру для отображения
-    $componentChunks = collect([1])->chunk($componentsPerPage);
+    // Print up to six batch groups per page.
+    $processGroups = array_values($processGroups ?? []);
+    $componentChunks = collect($processGroups)->chunk($componentsPerPage);
+    if ($componentChunks->isEmpty()) {
+        $componentChunks = collect([collect()]);
+    }
 @endphp
 
-@foreach($componentChunks as $chunk)
+@foreach($componentChunks as $processGroupChunk)
     @php
+        $processGroups = $processGroupChunk->values()->all();
         $pageNumber = ($spPageOffset ?? 0) + $loop->iteration;
         $pageTotal = $combinedSpecPageTotal ?? $componentChunks->count();
     @endphp
@@ -836,13 +846,10 @@
         </div>
 
         <div class="row g-0 spec-component-header-row">
-            <!-- Заголовок "Description" -->
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 28px"><strong>Description</strong> </div>
             </div>
-            <!-- Основная часть таблицы -->
             <div class="col-10">
-                <!-- Строка для имен компонентов -->
                 <div class="row g-0">
                     @if(isset($processGroups) && count($processGroups) > 0)
                         @foreach($processGroups as $groupIndex => $group)
@@ -851,20 +858,16 @@
                                 <span class="">Bushings </span>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px">
                                 <span class="">
-{{--                                    Component {{ $i + 1 }}--}}
                                 </span>
                             </div>
                         @endfor
                     @else
-                        <!-- Если нет данных о группах, показываем базовую структуру -->
                         @for($i = 0; $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-t-r' }} text-center" style="height: 30px">
                                 <span class="">
-{{--                                    Component {{ $i + 1 }}--}}
                                 </span>
                             </div>
                         @endfor
@@ -873,12 +876,10 @@
             </div>
         </div>
 
-        <!-- Строка для Part No. -->
         <div class="row g-0 spec-component-header-row">
             <div class="col-2 border-l-t ps-1">
                 <div style="min-height: 28px"><strong> Part No.</strong></div>
             </div>
-            <!-- Данные Part No. -->
             <div class="col-10">
                 <div class="row g-0 ">
                     @if(isset($processGroups) && count($processGroups) > 0)
@@ -886,7 +887,6 @@
                             <div class="col {{ ($groupIndex == count($processGroups) - 1 && count($processGroups) < 6) ?
                             'border-l-t-r' : 'border-l-t' }} text-center" style="min-height: 30px; padding: 2px;">
                                 @php
-                                    // Собираем уникальные part_number с количеством из всех компонентов группы
                                     $partNumbersWithQty = [];
                                     if (isset($group['components']) && is_array($group['components'])) {
                                         foreach ($group['components'] as $compItem) {
@@ -912,22 +912,18 @@
                                 @endif
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r'}} text-center" style="min-height: 30px;
                             padding: 2px;">
                                 <span class="">
-{{--                                    Part {{ $i + 1 }}--}}
                                 </span>
                             </div>
                         @endfor
                     @else
-                        <!-- Если нет данных о группах, показываем базовую структуру -->
                         @for($i = 0; $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-t-r'}} text-center" style="min-height: 30px;
                             padding: 2px;">
                                 <span class="">
-{{--                                    Part {{ $i + 1 }}--}}
                                 </span>
                             </div>
                         @endfor
@@ -936,12 +932,10 @@
             </div>
         </div>
 
-        <!-- Строка для Serial No. -->
         <div class="row g-0 spec-component-header-row">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 28px"><strong> Serial No</strong>.</div>
             </div>
-            <!-- Данные Serial No. -->
             <div class="col-10">
                 <div class="row g-0 ">
                     @if(isset($processGroups) && count($processGroups) > 0)
@@ -950,20 +944,16 @@
                                 <span class="">QTY: {{ $group['total_qty'] }}</span>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r'}} text-center" style="height: 30px">
                                 <span class="">
-{{--                                    Serial {{ $i + 1 }}--}}
                                 </span>
                             </div>
                         @endfor
                     @else
-                        <!-- Если нет данных о группах, показываем базовую структуру -->
                         @for($i = 0; $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-t-r'}} text-center" style="height: 30px">
                                 <span class="">
-{{--                                    Serial {{ $i + 1 }}--}}
                                 </span>
                             </div>
                         @endfor
@@ -985,9 +975,11 @@
                         @foreach($processGroups as $groupIndex => $group)
                             <div class="col  text-center " style="height: 24px">
                                 <strong>RO No.</strong>
+                                @if(!empty($group['batch_label'] ?? null))
+                                    <span class="spec-group-label-box">{{ $group['batch_label'] }}</span>
+                                @endif
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col  text-center " style="height: 24px">
                                 <strong>RO No.</strong>
@@ -1004,8 +996,6 @@
             </div>
         </div>
 
-        <!-- 15 строк второй таблицы -->
-        <!-- Строка 1: N.D.T. -->
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 30px"><strong></strong></div>
@@ -1025,14 +1015,12 @@
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('NDT', $group['processes']))
                                             <span class="">
-{{--                                                {{ $group['process_numbers']['NDT'] }}--}}
                                             </span>
                                         @endif
                                     </div>
                                 </div>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
                             position: relative;">
@@ -1061,7 +1049,6 @@
             </div>
         </div>
 
-        <!-- Строка 2: N.D.T. -->
         <div class="row g-0 ">
             <div class="col-2 border-l ps-1 spec-left-label-ndt">
                 <div style="height: 30px"><strong> N.D.T.</strong></div>
@@ -1080,7 +1067,6 @@
                                 </div>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
                             position: relative;">
@@ -1109,7 +1095,6 @@
             </div>
         </div>
 
-        <!-- Строка 3: N.D.T. -->
         <div class="row g-0 ">
             <div class="col-2 border-l ps-1">
                 <div style="height:30px"><strong></strong></div>
@@ -1128,7 +1113,6 @@
                                 </div>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height:30px;
                             position: relative;">
@@ -1157,7 +1141,6 @@
             </div>
         </div>
 
-        <!-- Строка 4: Machining -->
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 30px"><strong>Machining</strong></div>
@@ -1177,14 +1160,12 @@
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('Machining', $group['processes']))
                                             <span class="">
-{{--                                                {{ $group['process_numbers']['Machining'] }}--}}
                                             </span>
                                         @endif
                                     </div>
                                 </div>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
                             position: relative;">
@@ -1213,7 +1194,6 @@
             </div>
         </div>
 
-        <!-- Строка 4.5: Stress Relief -->
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 30px"><strong>Stress Relief</strong></div>
@@ -1233,14 +1213,12 @@
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('Bake (Stress relief)', $group['processes']))
                                             <span class="">
- {{--                                                {{ $group['process_numbers']['Bake (Stress relief)'] ?? '' }}--}}
                                             </span>
                                         @endif
                                     </div>
                                 </div>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
                             position: relative;">
@@ -1269,7 +1247,6 @@
             </div>
         </div>
 
-        <!-- Строка 5: Passivation -->
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 30px"><strong>Passivation</strong></div>
@@ -1289,14 +1266,12 @@
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('Passivation', $group['processes']))
                                             <span class="">
-{{--                                                {{ $group['process_numbers']['Passivation'] }}--}}
                                             </span>
                                         @endif
                                     </div>
                                 </div>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
                             position: relative;">
@@ -1325,7 +1300,6 @@
             </div>
         </div>
 
-        <!-- Строка 6: CAD -->
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 30px"><strong>CAD</strong></div>
@@ -1345,14 +1319,12 @@
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('CAD', $group['processes']))
                                             <span class="">
-{{--                                                {{ $group['process_numbers']['CAD'] }}--}}
                                             </span>
                                         @endif
                                     </div>
                                 </div>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
                             position: relative;">
@@ -1381,7 +1353,6 @@
             </div>
         </div>
 
-        <!-- Строка 7: Anodizing -->
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 30px"><strong>Anodizing</strong></div>
@@ -1401,14 +1372,12 @@
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('Anodizing', $group['processes']))
                                             <span class="">
-{{--                                                {{ $group['process_numbers']['Anodizing'] ?? '' }}--}}
                                             </span>
                                         @endif
                                     </div>
                                 </div>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
                             position: relative;">
@@ -1437,7 +1406,6 @@
             </div>
         </div>
 
-        <!-- Строка 8: Xylan -->
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
                 <div style="height: 30px"><strong>Xylan</strong></div>
@@ -1457,14 +1425,12 @@
                                     <div class="col-6 text-center" style="height: 30px;">
                                         @if(in_array('Xylan', $group['processes']))
                                             <span class="">
-{{--                                                {{ $group['process_numbers']['Xylan'] ?? '' }}--}}
                                             </span>
                                         @endif
                                     </div>
                                 </div>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
                             position: relative;">
@@ -1493,7 +1459,6 @@
             </div>
         </div>
 
-        <!-- Строки 9-15: Пустые строки -->
         @for($row = 1; $row <= 1; $row++)
             <div class="row g-0 ">
                 <div class="col-2 border-l-t ps-1">
@@ -1513,7 +1478,6 @@
                                     </div>
                                 </div>
                             @endforeach
-                            <!-- Дополняем до 6 столбцов пустыми -->
                             @for($i = count($processGroups); $i < 6; $i++)
                                 <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
                             position: relative;">
@@ -1560,7 +1524,6 @@
                                 </div>
                             </div>
                         @endforeach
-                        <!-- Дополняем до 6 столбцов пустыми -->
                         @for($i = count($processGroups); $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t-b' : 'border-all' }} text-center" style="height: 30px;
                             position: relative;">
@@ -1595,7 +1558,6 @@
                 .A.
                 STAMP</div>
             <div class="div4 border-t-r-b mt-3 ps-1" style="height: 24px; color: grey">Data</div>
-            {{--        <div class="div5">5</div>--}}
         </div>
 
     </div>
@@ -1626,7 +1588,6 @@
 @endforeach
 
 <!-- Print settings panel -->
-<!-- Модальное окно настроек печати -->
 <div class="print-settings-panel print-settings-modal no-print" id="printSettingsModal" hidden>
     <div class="print-settings-dialog">
         <div class="print-settings-content">
@@ -1691,7 +1652,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Table Setting - Основная группа -->
                     <div class="mb-4 legacy-print-setting-block">
                         <h5 class="mb-3"
                             title="Настройки таблицы Special Process Form."
@@ -1940,11 +1900,9 @@
 </div>
 
 <script>
-    // Ключ для сохранения настроек печати
     const PRINT_SETTINGS_KEY = 'woBushingsSpecProcessForm_print_settings';
     const TOOLTIP_LANG_KEY = 'woBushingsSpecProcessForm_tooltip_lang';
 
-    // Настройки по умолчанию
     const defaultSettings = {
         pageMargin: '2mm',
         bodyMarginLeft: '3px',
@@ -1961,7 +1919,6 @@
         footerPadding: '2px 2px'
     };
 
-    // Загрузка настроек из window.UserScopedStorage
     function loadPrintSettings() {
         const saved = window.UserScopedStorage.getItem(PRINT_SETTINGS_KEY);
         if (saved) {
@@ -2026,7 +1983,6 @@
         };
     }
 
-    // Сохранение настроек в window.UserScopedStorage
     window.savePrintSettings = function() {
         try {
             const getNumber = function(id, defaultValue) {
@@ -2047,12 +2003,10 @@
             window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
             applyPrintSettings(settings);
 
-            // Убираем фокус с активного элемента перед закрытием модального окна
             if (document.activeElement && document.activeElement.blur) {
                 document.activeElement.blur();
             }
 
-            // Закрываем модальное окно
             togglePrintSettingsPanel(false);
 
         } catch (e) {
@@ -2061,7 +2015,6 @@
         }
     };
 
-    // Применение CSS переменных
     function applyPrintSettings(settings) {
         settings = normalizePrintSettings(settings);
         const root = document.documentElement;
@@ -2110,7 +2063,6 @@
         });
     }
 
-    // Загрузка настроек в форму
     function loadSettingsToForm(settings) {
         settings = normalizePrintSettings(settings);
 
@@ -2130,7 +2082,6 @@
         }
     }
 
-    // Сброс настроек к значениям по умолчанию
     window.resetPrintSettings = function() {
         if (confirm('Reset all print settings to default values?')) {
             window.UserScopedStorage.removeItem(PRINT_SETTINGS_KEY);
@@ -2140,7 +2091,6 @@
         }
     };
 
-    // Функция переключения языка tooltips
     window.toggleTooltipLanguage = function() {
         const modal = document.getElementById('printSettingsModal');
         if (!modal) return;
@@ -2157,7 +2107,6 @@
         }
     };
 
-    // Функция обновления языка всех tooltips
     function updateTooltipsLanguage(container, lang) {
         const tooltipElements = container.querySelectorAll('[data-tooltip-ru], [data-tooltip-en]');
 
@@ -2174,7 +2123,6 @@
         });
     }
 
-    // Функция инициализации языка tooltips
     function initTooltipLanguage(modal) {
         const currentLang = window.UserScopedStorage.getItem(TOOLTIP_LANG_KEY) || 'ru';
         const langText = document.getElementById('langToggleText');
@@ -2187,7 +2135,6 @@
         }, 100);
     }
 
-    // Инициализация при загрузке страницы
     window.togglePrintSettingsPanel = function(open) {
         const panel = document.getElementById('printSettingsModal');
         if (!panel) return;
@@ -2223,7 +2170,6 @@
         applyPrintSettings(settings);
         loadSettingsToForm(settings);
 
-        // Загружаем настройки в форму при открытии модального окна
         const modal = document.getElementById('printSettingsModal');
         if (modal) {
             initTooltipLanguage(modal);

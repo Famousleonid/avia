@@ -14,6 +14,7 @@ use App\Models\TdrProcess;
 use App\Models\Vendor;
 use App\Models\Workorder;
 use App\Services\MachiningWorkorderQueueRelease;
+use App\Services\ManualDateRepairOrderSync;
 use App\Services\PaintIndexRowsBuilder;
 use App\Services\ProcessSequenceGuard;
 use App\Services\ProcessSequenceNotifier;
@@ -1719,7 +1720,10 @@ class TdrProcessController extends Controller
             return $this->updateTravelerProcessDateFields($request, $tdrProcess, $data, $isAjax);
         }
 
-        if (! $this->userCanBypassProcessSequence()
+        $allowsManualDateEditing = $this->allowsManualDateEditing($tdrProcess);
+
+        if (! $allowsManualDateEditing
+            && ! $this->userCanBypassProcessSequence()
             && ($errors = app(ProcessSequenceGuard::class)->validateTdrProcessDateUpdate($tdrProcess, $data))) {
             if ($isAjax) {
                 return response()->json(['success' => false, 'errors' => $errors], 422);
@@ -1728,36 +1732,32 @@ class TdrProcessController extends Controller
             return back()->withErrors($errors)->withInput();
         }
 
-        // текущий start из БД
-        $currentStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
+        if (! $allowsManualDateEditing) {
+            $currentStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
+            $effectiveStart = array_key_exists('date_start', $data)
+                ? ($data['date_start'] ?: null)
+                : $currentStart;
 
-        // effectiveStart: если date_start пришёл — он главный (даже пустой), иначе текущий из БД
-        $effectiveStart = array_key_exists('date_start', $data)
-            ? ($data['date_start'] ?: null)
-            : $currentStart;
-
-        // 2) Бизнес-правило: finish нельзя без start
-        if (!empty($data['date_finish']) && !$effectiveStart) {
-            $errors = [
-                'date_finish' => ['The start date must be filled in before setting the end date.']
-            ];
-
-            if ($isAjax) {
-                return response()->json(['success' => false, 'errors' => $errors], 422);
-            }
-            return back()->withErrors($errors)->withInput();
-        }
-
-        // 3) Бизнес-правило: finish не может быть раньше start
-        if (!empty($data['date_finish']) && $effectiveStart) {
-            if (\Carbon\Carbon::parse($data['date_finish'])->lt(\Carbon\Carbon::parse($effectiveStart))) {
+            if (! empty($data['date_finish']) && ! $effectiveStart) {
                 $errors = [
-                    'date_finish' => ['The end date cannot be earlier than the start date.']
+                    'date_finish' => ['The start date must be filled in before setting the end date.'],
                 ];
 
                 if ($isAjax) {
                     return response()->json(['success' => false, 'errors' => $errors], 422);
                 }
+
+                return back()->withErrors($errors)->withInput();
+            }
+
+            if (! empty($data['date_finish']) && $effectiveStart
+                && Carbon::parse($data['date_finish'])->lt(Carbon::parse($effectiveStart))) {
+                $errors = ['date_finish' => ['The end date cannot be earlier than the start date.']];
+
+                if ($isAjax) {
+                    return response()->json(['success' => false, 'errors' => $errors], 422);
+                }
+
                 return back()->withErrors($errors)->withInput();
             }
         }
@@ -1767,6 +1767,7 @@ class TdrProcessController extends Controller
         $oldStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
         $oldFinish = $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null;
         $authId = auth()->id();
+        $editorName = $this->dateEditorName();
         $nextProcessForNotification = app(ProcessSequenceGuard::class)->nextAfterTdrProcess($tdrProcess);
 
         // 4) Обновляем только те поля, которые реально пришли в запросе
@@ -1775,14 +1776,18 @@ class TdrProcessController extends Controller
             $tdrProcess->date_start = $nextStart;
             if ($oldStart !== $nextStart) {
                 $tdrProcess->date_start_user_id = $authId;
+                $tdrProcess->date_start_user = $editorName;
             }
 
             // если старт очистили — логично очистить и finish,
             // чтобы не осталось "конец без начала"
             if (empty($data['date_start'])) {
-                $tdrProcess->date_finish = null;
-                if ($oldFinish !== null) {
-                    $tdrProcess->date_finish_user_id = $authId;
+                if (! $allowsManualDateEditing) {
+                    $tdrProcess->date_finish = null;
+                    if ($oldFinish !== null) {
+                        $tdrProcess->date_finish_user_id = $authId;
+                        $tdrProcess->date_finish_user = $editorName;
+                    }
                 }
                 if ($fromMachiningIndex) {
                     $tdrProcess->working_steps_count = null;
@@ -1807,6 +1812,7 @@ class TdrProcessController extends Controller
             $tdrProcess->date_finish = $nextFinish;
             if ($oldFinish !== $nextFinish) {
                 $tdrProcess->date_finish_user_id = $authId;
+                $tdrProcess->date_finish_user = $editorName;
             }
         }
 
@@ -1815,6 +1821,8 @@ class TdrProcessController extends Controller
         }
 
         // фиксируем пользователя
+        app(ManualDateRepairOrderSync::class)->sync($tdrProcess, $allowsManualDateEditing);
+
         $tdrProcess->user_id = $authId;
 
         $tdrProcess->save();
@@ -1953,8 +1961,9 @@ class TdrProcessController extends Controller
                 'date_start'            => $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null,
                 'date_finish'           => $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null,
                 'date_promise'          => $tdrProcess->date_promise ? $tdrProcess->date_promise->format('Y-m-d') : null,
-                'date_start_user'       => $tdrProcess->dateStartUpdatedBy?->name,
-                'date_finish_user'      => $tdrProcess->dateFinishUpdatedBy?->name,
+                'repair_order'          => $tdrProcess->repair_order,
+                'date_start_user'       => $tdrProcess->date_start_user ?: $tdrProcess->dateStartUpdatedBy?->name,
+                'date_finish_user'      => $tdrProcess->date_finish_user ?: $tdrProcess->dateFinishUpdatedBy?->name,
                 'paint_queue_changed'   => $paintQueueDequeued,
             ], 200);
         }
@@ -2035,12 +2044,13 @@ class TdrProcessController extends Controller
         }
 
         $uid = auth()->id();
+        $editorName = $this->dateEditorName();
         $wasClosed = $processes->every(fn (TdrProcess $process): bool => ! empty($process->date_finish));
         $nextProcessForNotification = $tdr
             ? app(ProcessSequenceGuard::class)->nextAfterTravelerGroup($tdr, $travelerGroup)
             : null;
 
-        DB::transaction(function () use ($processes, $data, $uid): void {
+        DB::transaction(function () use ($processes, $data, $uid, $editorName): void {
             foreach ($processes as $process) {
                 $oldStart = $process->date_start ? $process->date_start->format('Y-m-d') : null;
                 $oldFinish = $process->date_finish ? $process->date_finish->format('Y-m-d') : null;
@@ -2050,12 +2060,14 @@ class TdrProcessController extends Controller
                     $process->date_start = $nextStart;
                     if ($oldStart !== $nextStart) {
                         $process->date_start_user_id = $uid;
+                        $process->date_start_user = $editorName;
                     }
 
                     if ($nextStart === null) {
                         $process->date_finish = null;
                         if ($oldFinish !== null) {
                             $process->date_finish_user_id = $uid;
+                            $process->date_finish_user = $editorName;
                         }
                     }
                 }
@@ -2065,6 +2077,7 @@ class TdrProcessController extends Controller
                     $process->date_finish = $nextFinish;
                     if ($oldFinish !== $nextFinish) {
                         $process->date_finish_user_id = $uid;
+                        $process->date_finish_user = $editorName;
                     }
                 }
 
@@ -2101,8 +2114,8 @@ class TdrProcessController extends Controller
                 'date_start'       => $leader?->date_start ? $leader->date_start->format('Y-m-d') : null,
                 'date_finish'      => $leader?->date_finish ? $leader->date_finish->format('Y-m-d') : null,
                 'date_promise'     => $leader?->date_promise ? $leader->date_promise->format('Y-m-d') : null,
-                'date_start_user'  => $leader?->dateStartUpdatedBy?->name,
-                'date_finish_user' => $leader?->dateFinishUpdatedBy?->name,
+                'date_start_user'  => $leader?->date_start_user ?: $leader?->dateStartUpdatedBy?->name,
+                'date_finish_user' => $leader?->date_finish_user ?: $leader?->dateFinishUpdatedBy?->name,
             ], 200);
         }
 
@@ -2172,6 +2185,7 @@ class TdrProcessController extends Controller
 
         return DB::transaction(function () use ($data, $tdr, $isAjax, $processes, $travelerGroup) {
             $uid = auth()->id();
+            $editorName = $this->dateEditorName();
             $wasClosed = $processes->every(fn (TdrProcess $process): bool => ! empty($process->date_finish));
             $nextProcessForNotification = app(ProcessSequenceGuard::class)->nextAfterTravelerGroup($tdr, $travelerGroup);
 
@@ -2193,11 +2207,13 @@ class TdrProcessController extends Controller
                     $p->date_start = $newStart;
                     if ($oldStart !== $newStart) {
                         $p->date_start_user_id = $uid;
+                        $p->date_start_user = $editorName;
                     }
                     if ($newStart === null) {
                         $p->date_finish = null;
                         if ($oldFinish !== null) {
                             $p->date_finish_user_id = $uid;
+                            $p->date_finish_user = $editorName;
                         }
                     }
                     $p->user_id = $uid;
@@ -2253,6 +2269,7 @@ class TdrProcessController extends Controller
                     $p->date_finish = $nextFinish;
                     if ($oldFinish !== $nextFinish) {
                         $p->date_finish_user_id = $uid;
+                        $p->date_finish_user = $editorName;
                     }
                     $p->user_id = $uid;
                     $p->save();
@@ -2306,8 +2323,8 @@ class TdrProcessController extends Controller
                     'date_start'       => $leader?->date_start ? $leader->date_start->format('Y-m-d') : null,
                     'date_finish'      => $leader?->date_finish ? $leader->date_finish->format('Y-m-d') : null,
                     'date_promise'     => $leader?->date_promise ? $leader->date_promise->format('Y-m-d') : null,
-                    'date_start_user'  => $leader?->dateStartUpdatedBy?->name,
-                    'date_finish_user' => $leader?->dateFinishUpdatedBy?->name,
+                    'date_start_user'  => $leader?->date_start_user ?: $leader?->dateStartUpdatedBy?->name,
+                    'date_finish_user' => $leader?->date_finish_user ?: $leader?->dateFinishUpdatedBy?->name,
                 ], 200);
             }
 
@@ -2486,5 +2503,17 @@ class TdrProcessController extends Controller
     private function userCanBypassProcessSequence(): bool
     {
         return auth()->check() && auth()->user()?->isAdmin();
+    }
+
+    private function allowsManualDateEditing(TdrProcess $tdrProcess): bool
+    {
+        $tdrProcess->loadMissing('processName');
+
+        return (bool) ($tdrProcess->processName?->allowsManualDateEditing() ?? false);
+    }
+
+    private function dateEditorName(): string
+    {
+        return auth()->user()?->name ?? 'system';
     }
 }

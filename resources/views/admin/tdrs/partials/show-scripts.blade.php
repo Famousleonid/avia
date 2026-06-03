@@ -369,9 +369,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else if (wrap.dataset.hasBushings === '1') {
                         bushingTabActions.innerHTML = '<button type="submit" form="bushings-form" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> {{ __("Create Bushing Data") }}</button><button type="button" class="btn btn-secondary btn-sm bushing-clear-btn"><i class="fas fa-eraser"></i> {{ __("Clear All") }}</button>';
                     }
-                    if (hasWoBushing && specFormUrl) {
-                        var headerBtn = document.getElementById('bushingSpFormHeaderBtn');
-                        if (headerBtn && !headerBtn.querySelector('a[href]')) {
+                    var headerBtn = document.getElementById('bushingSpFormHeaderBtn');
+                    if (headerBtn) {
+                        if (hasWoBushing && specFormUrl && !headerBtn.querySelector('a[href]')) {
                             var a = document.createElement('a');
                             a.href = specFormUrl;
                             a.target = '_blank';
@@ -379,6 +379,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             a.setAttribute('aria-label', '{{ __("Bushing Form") }}');
                             a.innerHTML = '<svg viewBox="0 0 190 270" width="60" height="80" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"><path class="paper" d="M10 10 H140 L180 50 V240 H10 Z"/><polygon class="fold" points="140,10 140,50 180,50"/><path class="line" d="M140 12 V50 H180"/><foreignObject x="20" y="60" width="140" height="140"><div xmlns="http://www.w3.org/1999/xhtml" style="font: 34px Arial,sans-serif;text-align:center;display:flex;align-items:center;justify-content:center;height:100%;width:100%;word-wrap:break-word;">Bushing Form</div></foreignObject></svg>';
                             headerBtn.appendChild(a);
+                        } else if (!specFormUrl) {
+                            headerBtn.innerHTML = '';
                         }
                     }
                 }
@@ -909,7 +911,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    /** Group Process Forms: модалка на вкладке Part Processes (#partProcessesGroupFormsModal). */
     function initPartProcessesGroupForms(modal) {
         if (!modal) return;
         var vendorSelects = modal.querySelectorAll('.vendor-select');
@@ -1887,6 +1888,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.tdrShowNotify(m, 'error');
             }
         }
+        function uncheckOtherBushingBatches(processKey, batchId) {
+            if (!processKey || !batchId || batchId === '0') return;
+            document.querySelectorAll(
+                '.bushing-batch-ungroup-checkbox[data-process-key="' + processKey + '"]:checked'
+            ).forEach(function(cb) {
+                if ((cb.getAttribute('data-batch-id') || '') !== batchId) {
+                    cb.checked = false;
+                }
+            });
+        }
+        bushingTabBody.addEventListener('change', function(e) {
+            var batchCheckbox = e.target.closest('.bushing-batch-ungroup-checkbox');
+            if (!batchCheckbox || !batchCheckbox.checked) return;
+            var processKey = batchCheckbox.getAttribute('data-process-key') || '';
+            var batchId = batchCheckbox.getAttribute('data-batch-id') || '';
+            uncheckOtherBushingBatches(processKey, batchId);
+        });
         bushingTabBody.addEventListener('click', function(e) {
             var addProcessesBtn = e.target.closest('.open-add-processes-modal');
             if (addProcessesBtn && addProcessesBtn.getAttribute('data-add-processes-url')) {
@@ -1912,16 +1930,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (processKey) {
                     var seen = {};
                     document.querySelectorAll(
-                        '.bushing-batch-group-checkbox[data-process-key="' + processKey + '"]:checked, .bushing-batch-ungroup-checkbox[data-process-key="' + processKey + '"]:checked'
+                        '.bushing-batch-ungroup-checkbox[data-process-key="' + processKey + '"]:checked'
                     ).forEach(function(cb) {
-                        var cid = cb.getAttribute('data-component-id');
-                        if (cid && !seen[cid]) {
-                            seen[cid] = true;
-                            queryParts.push('bushing_component_ids[]=' + encodeURIComponent(cid));
+                        var batchId = cb.getAttribute('data-batch-id') || '';
+                        if (batchId !== '' && batchId !== '0' && !seen[batchId]) {
+                            seen[batchId] = true;
+                            queryParts.push('bushing_batch_ids[]=' + encodeURIComponent(batchId));
                         }
                     });
                     if (queryParts.length === 0) {
-                        bushingToastWarn({!! json_encode(__('Select at least one bushing for this process using Group checkboxes in the table.')) !!});
+                        bushingToastWarn({!! json_encode(__('Select a batch (B1/B2) for this process before printing.')) !!});
                         return;
                     }
                 }
@@ -1957,6 +1975,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 if (!groupBoxes.length) return;
                 var allChecked = groupBoxes.every(function (cb) { return !!cb.checked; });
+                if (!allChecked && grpBatchId !== '' && grpBatchId !== '0') {
+                    uncheckOtherBushingBatches(grpProcessKey, grpBatchId);
+                }
                 groupBoxes.forEach(function (cb) { cb.checked = !allChecked; });
                 return;
             }
@@ -1991,8 +2012,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (selected.length === 0) {
                     bushingToastWarn(createBatchBtn
-                        ? {!! json_encode(__('Select rows using the small “batch” checkbox (not grouped yet).')) !!}
-                        : {!! json_encode(__('Select rows using the small checkbox next to “Grp” to ungroup.')) !!});
+                        ? {!! json_encode(__('Select rows using the small batch checkbox (not grouped yet).')) !!}
+                        : {!! json_encode(__('Select rows using the small checkbox next to B to ungroup.')) !!});
                     return;
                 }
 

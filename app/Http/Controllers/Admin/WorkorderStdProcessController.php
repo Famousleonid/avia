@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\WorkorderStdProcess;
+use App\Services\ManualDateRepairOrderSync;
 use App\Services\ProcessSequenceGuard;
 use App\Services\ProcessSequenceNotifier;
 use Carbon\Carbon;
@@ -43,7 +44,10 @@ class WorkorderStdProcessController extends Controller
             return back()->withErrors(['date' => 'No date fields'])->withInput();
         }
 
-        if (! $this->userCanBypassProcessSequence()
+        $allowsManualDateEditing = $this->allowsManualDateEditing($stdProcess);
+
+        if (! $allowsManualDateEditing
+            && ! $this->userCanBypassProcessSequence()
             && ($errors = app(ProcessSequenceGuard::class)->validateStdDateUpdate($stdProcess, $data))) {
             if ($isAjax) {
                 return response()->json(['success' => false, 'errors' => $errors], 422);
@@ -52,34 +56,37 @@ class WorkorderStdProcessController extends Controller
             return back()->withErrors($errors)->withInput();
         }
 
-        $currentStart = $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null;
-        $effectiveStart = array_key_exists('date_start', $data)
-            ? ($data['date_start'] ?: null)
-            : $currentStart;
+        if (! $allowsManualDateEditing) {
+            $currentStart = $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null;
+            $effectiveStart = array_key_exists('date_start', $data)
+                ? ($data['date_start'] ?: null)
+                : $currentStart;
 
-        if (! empty($data['date_finish']) && ! $effectiveStart) {
-            $errors = ['date_finish' => ['The start date must be filled in before setting the end date.']];
+            if (! empty($data['date_finish']) && ! $effectiveStart) {
+                $errors = ['date_finish' => ['The start date must be filled in before setting the end date.']];
 
-            if ($isAjax) {
-                return response()->json(['success' => false, 'errors' => $errors], 422);
+                if ($isAjax) {
+                    return response()->json(['success' => false, 'errors' => $errors], 422);
+                }
+
+                return back()->withErrors($errors)->withInput();
             }
 
-            return back()->withErrors($errors)->withInput();
-        }
+            if (! empty($data['date_finish']) && $effectiveStart && Carbon::parse($data['date_finish'])->lt(Carbon::parse($effectiveStart))) {
+                $errors = ['date_finish' => ['The end date cannot be earlier than the start date.']];
 
-        if (! empty($data['date_finish']) && $effectiveStart && Carbon::parse($data['date_finish'])->lt(Carbon::parse($effectiveStart))) {
-            $errors = ['date_finish' => ['The end date cannot be earlier than the start date.']];
+                if ($isAjax) {
+                    return response()->json(['success' => false, 'errors' => $errors], 422);
+                }
 
-            if ($isAjax) {
-                return response()->json(['success' => false, 'errors' => $errors], 422);
+                return back()->withErrors($errors)->withInput();
             }
-
-            return back()->withErrors($errors)->withInput();
         }
 
         $oldStart = $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null;
         $oldFinish = $stdProcess->date_finish ? $stdProcess->date_finish->format('Y-m-d') : null;
         $authId = auth()->id();
+        $editorName = $this->dateEditorName();
         $nextProcessForNotification = app(ProcessSequenceGuard::class)->nextAfterStdProcess($stdProcess);
 
         if (array_key_exists('date_start', $data)) {
@@ -87,12 +94,14 @@ class WorkorderStdProcessController extends Controller
             $stdProcess->date_start = $nextStart;
             if ($oldStart !== $nextStart) {
                 $stdProcess->date_start_user_id = $authId;
+                $stdProcess->date_start_user = $editorName;
             }
 
-            if ($nextStart === null) {
+            if ($nextStart === null && ! $allowsManualDateEditing) {
                 $stdProcess->date_finish = null;
                 if ($oldFinish !== null) {
                     $stdProcess->date_finish_user_id = $authId;
+                    $stdProcess->date_finish_user = $editorName;
                 }
             }
         }
@@ -102,12 +111,15 @@ class WorkorderStdProcessController extends Controller
             $stdProcess->date_finish = $nextFinish;
             if ($oldFinish !== $nextFinish) {
                 $stdProcess->date_finish_user_id = $authId;
+                $stdProcess->date_finish_user = $editorName;
             }
         }
 
         if (array_key_exists('date_promise', $data)) {
             $stdProcess->date_promise = $data['date_promise'] ?: null;
         }
+
+        app(ManualDateRepairOrderSync::class)->sync($stdProcess, $allowsManualDateEditing);
 
         $stdProcess->user_id = $authId;
         $stdProcess->save();
@@ -126,8 +138,9 @@ class WorkorderStdProcessController extends Controller
                 'date_start' => $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null,
                 'date_finish' => $stdProcess->date_finish ? $stdProcess->date_finish->format('Y-m-d') : null,
                 'date_promise' => $stdProcess->date_promise ? $stdProcess->date_promise->format('Y-m-d') : null,
-                'date_start_user' => $stdProcess->dateStartUpdatedBy?->name,
-                'date_finish_user' => $stdProcess->dateFinishUpdatedBy?->name,
+                'repair_order' => $stdProcess->repair_order,
+                'date_start_user' => $stdProcess->date_start_user ?: $stdProcess->dateStartUpdatedBy?->name,
+                'date_finish_user' => $stdProcess->date_finish_user ?: $stdProcess->dateFinishUpdatedBy?->name,
             ], 200);
         }
 
@@ -172,8 +185,10 @@ class WorkorderStdProcessController extends Controller
         ]);
 
         $stdProcess->ignore_row = (bool) $data['ignore_row'];
+        app(ManualDateRepairOrderSync::class)->sync($stdProcess, $this->allowsManualDateEditing($stdProcess));
         $stdProcess->user_id = auth()->id();
         $stdProcess->save();
+        $stdProcess->loadMissing(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name']);
 
         $rowName = $stdProcess->processName()->value('name') ?? 'STD Process';
         $updatedAt = now()->format('d ') . Str::lower(now()->format('M')) . now()->format(' Y');
@@ -186,11 +201,28 @@ class WorkorderStdProcessController extends Controller
             'ignore_row' => (bool) $stdProcess->ignore_row,
             'user' => auth()->user()?->name ?? 'system',
             'updated_at' => $updatedAt,
+            'repair_order' => $stdProcess->repair_order,
+            'date_start' => $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null,
+            'date_finish' => $stdProcess->date_finish ? $stdProcess->date_finish->format('Y-m-d') : null,
+            'date_start_user' => $stdProcess->date_start_user ?: $stdProcess->dateStartUpdatedBy?->name,
+            'date_finish_user' => $stdProcess->date_finish_user ?: $stdProcess->dateFinishUpdatedBy?->name,
         ]);
     }
 
     private function userCanBypassProcessSequence(): bool
     {
         return auth()->check() && auth()->user()?->isAdmin();
+    }
+
+    private function allowsManualDateEditing(WorkorderStdProcess $stdProcess): bool
+    {
+        $stdProcess->loadMissing('processName');
+
+        return (bool) ($stdProcess->processName?->allowsManualDateEditing() ?? false);
+    }
+
+    private function dateEditorName(): string
+    {
+        return auth()->user()?->name ?? 'system';
     }
 }

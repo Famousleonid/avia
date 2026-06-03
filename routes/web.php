@@ -526,6 +526,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/vendor-tracking', [VendorTrackingController::class, 'index'])->name('vendor-tracking.index');
     Route::get('/vendor-tracking/export', [VendorTrackingController::class, 'export'])->name('vendor-tracking.export');
     Route::patch('/vendor-tracking/row', [VendorTrackingController::class, 'updateRow'])->name('vendor-tracking.row.update');
+    Route::get('/vendor-tracking/quantum-ro-lines/recent', [VendorTrackingController::class, 'recentQuantumRoLines'])->name('vendor-tracking.quantum-lines.recent');
 
     Route::get('/quality-assurance', [QualityAssuranceController::class, 'index'])->name('quality.index');
     Route::get('/quality-assurance/workorder', [QualityAssuranceController::class, 'workorder'])->name('quality.workorder');

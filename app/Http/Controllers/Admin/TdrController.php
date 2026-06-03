@@ -24,6 +24,7 @@ use App\Models\Training;
 use App\Models\Transfer;
 use App\Models\Vendor;
 use App\Models\WoBushing;
+use App\Models\WoBushingBatch;
 use App\Models\WorkorderUnitInspection;
 use http\Client\Curl\User;
 use Illuminate\Support\Facades\Cache;
@@ -33,7 +34,6 @@ use App\Models\Unit;
 use App\Models\Workorder;
 use App\Services\LogCardTdrAccessService;
 use App\Services\ManualIplBranchRuleResolver;
-use App\Services\WoBushingRelationalSync;
 use App\Services\WorkorderStdListProcessesService;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Contracts\Foundation\Application;
@@ -2475,47 +2475,10 @@ class TdrController extends Controller
             return 0;
         }
 
-        $bushData = app(WoBushingRelationalSync::class)->resolveBushDataForViews($woBushing);
-        $groups = [];
-        $processOrder = [
-            'Machining' => 'machining',
-            'Bake (Stress relief)' => 'stress_relief',
-            'NDT' => 'ndt',
-            'Passivation' => 'passivation',
-            'CAD' => 'cad',
-            'Anodizing' => 'anodizing',
-            'Xylan' => 'xylan',
-        ];
-
-        foreach ($bushData as $bushItem) {
-            if (! isset($bushItem['bushing'], $bushItem['processes'])) {
-                continue;
-            }
-
-            if (! Component::whereKey((int) $bushItem['bushing'])->exists()) {
-                continue;
-            }
-
-            $activeProcesses = [];
-            $processes = $bushItem['processes'];
-            foreach ($processOrder as $processType => $processKey) {
-                if ($processKey === 'ndt') {
-                    $ndtValue = $processes['ndt'] ?? null;
-                    if (is_array($ndtValue) && $ndtValue !== []) {
-                        $activeProcesses[] = $processType;
-                    }
-                    continue;
-                }
-
-                if (isset($processes[$processKey]) && $processes[$processKey] !== null && $processes[$processKey] !== '') {
-                    $activeProcesses[] = $processType;
-                }
-            }
-
-            $groups[implode('|', $activeProcesses)] = true;
-        }
-
-        return count($groups);
+        return WoBushingBatch::query()
+            ->where('workorder_id', $woBushing->workorder_id)
+            ->whereHas('woBushingProcesses')
+            ->count();
     }
 
     private function countRmFormRows(Workorder $workorder): int

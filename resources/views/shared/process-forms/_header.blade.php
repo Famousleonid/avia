@@ -1,8 +1,3 @@
-{{--
-    Шапка формы процесса.
-    Переменные: $process_name, $current_wo, $selectedVendor
-    Опционально: $header_title (из config по умолчанию)
---}}
 <div class="header-page">
     <div class="row">
         <div class="col-3">
@@ -30,8 +25,7 @@
             <div class="row" style="height: 32px">
                 <div class="col-6 pt-2 text-end"><strong>COMPONENT NAME</strong> :</div>
                 <div class="col-6 pt-2 border-b component-name-cell"><strong>
-{{--                    @php($headerComponentName = $formHeaderComponentName ?? $current_wo->description ?? '')--}}
-                        @php($headerComponentName =  $current_wo->description ?? '')
+                    @php($headerComponentName = $current_wo->description ?? '')
                     <span class="component-name-value" @if(strlen($headerComponentName) > 30) data-long="1" @endif>{{ $headerComponentName }}</span>
                 </strong></div>
             </div>
@@ -55,7 +49,12 @@
             </div>
             <div class="row" style="height: 32px">
                 <div class="col-4 pt-2 text-end"><strong>RO No:</strong></div>
-                <div class="col-8 pt-2 border-b"><strong>{{ $formHeaderRepairOrder ?? '' }}</strong></div>
+                <div class="col-8 pt-2 border-b process-ro-line">
+                    @php($headerRepairOrder = trim((string) ($formHeaderRepairOrder ?? '')))
+                    @if($headerRepairOrder !== '')
+                        <strong class="process-ro-box">{{ $headerRepairOrder }}</strong>
+                    @endif
+                </div>
             </div>
             <div class="row" style="height: 32px">
                 <div class="col-4 pt-2 text-end"><strong>VENDOR:</strong></div>

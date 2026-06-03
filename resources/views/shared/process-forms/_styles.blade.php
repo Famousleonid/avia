@@ -1,4 +1,3 @@
-{{-- Общие стили для форм процессов --}}
 <style>
 body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
 .container-fluid {
@@ -76,6 +75,26 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
 .header-page { font-size: var(--process-header-data-font-size, 16px); }
 .header-page .component-name-value { font-size: var(--component-name-font-size, 16px) !important; }
 .header-page .component-name-value[data-long="1"] { line-height: 1.1; letter-spacing: -0.3px; }
+.machining-sheet-header-meta {
+    position: relative;
+    top: -8px;
+}
+.process-ro-line {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding-top: 0 !important;
+}
+.process-ro-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 22px;
+    padding: 0 6px;
+    border: 1px solid black;
+    line-height: 1;
+}
 .text-center { text-align: center; }
 .text-black { color: #000; }
 .fs-7 { font-size: 0.9rem; }
@@ -109,7 +128,6 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
 .data-page .data-row:not([data-stress="true"]) { font-size: var(--other-table-data-font-size, 13px); }
 .table-header:has(+ .data-page .data-row:not([data-stress="true"])) .row { font-size: var(--process-table-header-font-size, 12px); }
 .details-row { display: flex; justify-content: center; align-items: center; height: 36px; }
-/* ITEM No. — уменьшенный межстрочный интервал */
 .ndt-data-container .data-row-ndt > div:first-child,
 .data-page .data-row > div:first-child,
 .table-header .row > div:first-child { line-height: 1.1; }

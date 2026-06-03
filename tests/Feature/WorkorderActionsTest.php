@@ -247,6 +247,41 @@ class WorkorderActionsTest extends TestCase
             ->assertJsonPath('date_finish', '2026-05-10');
     }
 
+    public function test_std_ignore_toggle_returns_existing_dates_for_live_restore(): void
+    {
+        $manager = $this->createUserWithRole('Manager');
+        $workorder = $this->createWorkorder();
+        $processName = ProcessName::query()->firstOrCreate(
+            ['name' => 'STD Stress relief List'],
+            [
+                'process_sheet_name' => 'STD',
+                'form_number' => 'STRESS',
+                'show_in_process_picker' => false,
+            ]
+        );
+
+        $std = WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'stress',
+            'process_name_id' => $processName->id,
+            'date_start' => '2026-05-10',
+            'date_finish' => '2026-05-12',
+            'date_start_user' => 'Quantum',
+            'date_finish_user' => 'Quantum',
+            'ignore_row' => true,
+        ]);
+
+        $this->actingAs($manager)
+            ->patchJson(route('workorder_std_processes.updateIgnoreRow', $std), ['ignore_row' => false])
+            ->assertOk()
+            ->assertJsonPath('ignore_row', false)
+            ->assertJsonPath('date_start', '2026-05-10')
+            ->assertJsonPath('date_finish', '2026-05-12')
+            ->assertJsonPath('repair_order', 'AT')
+            ->assertJsonPath('date_start_user', 'Quantum')
+            ->assertJsonPath('date_finish_user', 'Quantum');
+    }
+
     public function test_is_admin_bypasses_std_process_sequence_guard(): void
     {
         $manager = $this->createUserWithRole('Manager');
@@ -292,5 +327,133 @@ class WorkorderActionsTest extends TestCase
             ->patchJson(route('workorder_std_processes.updateDate', $second), ['date_start' => '2026-05-11'])
             ->assertOk()
             ->assertJsonPath('date_start', '2026-05-11');
+    }
+
+    public function test_allowed_tdr_process_dates_can_be_edited_by_technician_and_write_text_user(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder();
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $firstProcessName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Manual Date Guard First'],
+            [
+                'process_sheet_name' => 'TEST',
+                'form_number' => '000',
+                'show_in_process_picker' => true,
+            ]
+        );
+        $machiningEcName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Machining (EC)'],
+            [
+                'process_sheet_name' => 'MACHINING',
+                'form_number' => '018',
+                'show_in_process_picker' => true,
+            ]
+        );
+
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstProcessName->id,
+            'sort_order' => 1,
+            'date_start' => '2026-05-10',
+            'date_finish' => '2026-05-12',
+        ]);
+        $editable = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $machiningEcName->id,
+            'sort_order' => 2,
+        ]);
+
+        $this->actingAs($technician)
+            ->patchJson(route('tdrprocesses.updateDate', $editable), [
+                'date_start' => '2026-05-09',
+                'date_finish' => '2026-05-08',
+            ])
+            ->assertOk()
+            ->assertJsonPath('date_start', '2026-05-09')
+            ->assertJsonPath('date_finish', '2026-05-08')
+            ->assertJsonPath('repair_order', 'AT')
+            ->assertJsonPath('date_start_user', $technician->name)
+            ->assertJsonPath('date_finish_user', $technician->name);
+
+        $editable->refresh();
+
+        $this->assertSame($technician->id, $editable->date_start_user_id);
+        $this->assertSame($technician->id, $editable->date_finish_user_id);
+        $this->assertSame($technician->name, $editable->date_start_user);
+        $this->assertSame($technician->name, $editable->date_finish_user);
+        $this->assertSame('AT', $editable->repair_order);
+
+        $this->actingAs($technician)
+            ->patchJson(route('tdrprocesses.updateDate', $editable), [
+                'date_start' => null,
+                'date_finish' => null,
+            ])
+            ->assertOk()
+            ->assertJsonPath('date_start', null)
+            ->assertJsonPath('date_finish', null)
+            ->assertJsonPath('repair_order', null);
+
+        $editable->refresh();
+
+        $this->assertNull($editable->date_start);
+        $this->assertNull($editable->date_finish);
+        $this->assertNull($editable->repair_order);
+    }
+
+    public function test_allowed_std_process_dates_can_be_edited_by_technician_and_write_text_user(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder();
+        WorkorderStdProcess::query()->where('workorder_id', $workorder->id)->delete();
+        $stressName = ProcessName::query()->firstOrCreate(
+            ['name' => 'STD Stress relief List'],
+            [
+                'process_sheet_name' => 'STD',
+                'form_number' => 'STRESS',
+                'show_in_process_picker' => false,
+            ]
+        );
+        $std = WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'stress',
+            'process_name_id' => $stressName->id,
+            'date_start' => null,
+            'date_finish' => null,
+        ]);
+
+        $this->actingAs($technician)
+            ->patchJson(route('workorder_std_processes.updateDate', $std), ['date_finish' => '2026-05-09'])
+            ->assertOk()
+            ->assertJsonPath('date_start', null)
+            ->assertJsonPath('date_finish', '2026-05-09')
+            ->assertJsonPath('repair_order', 'AT')
+            ->assertJsonPath('date_finish_user', $technician->name);
+
+        $std->refresh();
+
+        $this->assertNull($std->date_start);
+        $this->assertSame($technician->id, $std->date_finish_user_id);
+        $this->assertSame($technician->name, $std->date_finish_user);
+        $this->assertSame('AT', $std->repair_order);
+
+        $this->actingAs($technician)
+            ->patchJson(route('workorder_std_processes.updateDate', $std), [
+                'date_start' => null,
+                'date_finish' => null,
+            ])
+            ->assertOk()
+            ->assertJsonPath('date_start', null)
+            ->assertJsonPath('date_finish', null)
+            ->assertJsonPath('repair_order', null);
+
+        $std->refresh();
+
+        $this->assertNull($std->date_start);
+        $this->assertNull($std->date_finish);
+        $this->assertNull($std->repair_order);
     }
 }

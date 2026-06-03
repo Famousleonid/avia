@@ -4,10 +4,14 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use App\Models\Component;
+use App\Models\GeneralTask;
+use App\Models\Main;
 use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
+use App\Models\Task;
 use App\Models\UserUiSetting;
+use App\Models\WorkorderGeneralTaskStatus;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
 
@@ -205,6 +209,43 @@ class WorkordersIndexTest extends TestCase
         $response->assertJsonPath('total_count', 1);
         $response->assertSee((string) $matching->number);
         $response->assertDontSee((string) $other->number);
+    }
+
+    public function test_stage_cache_matches_all_tasks_in_complete_stage(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $completeStage = GeneralTask::query()->create([
+            'name' => 'Complete Test Stage ' . uniqid(),
+            'sort_order' => 900,
+        ]);
+        $completedTask = Task::query()->create([
+            'name' => 'Completed',
+            'general_task_id' => $completeStage->id,
+        ]);
+        Task::query()->create([
+            'name' => '1. WO invoiced to Customer',
+            'general_task_id' => $completeStage->id,
+        ]);
+        Task::query()->create([
+            'name' => '2. WO Paid by Customer',
+            'general_task_id' => $completeStage->id,
+        ]);
+        Main::query()->create([
+            'workorder_id' => $workorder->id,
+            'general_task_id' => $completeStage->id,
+            'task_id' => $completedTask->id,
+            'user_id' => $admin->id,
+            'date_finish' => '2026-03-12',
+            'ignore_row' => false,
+        ]);
+
+        $workorder->recalcGeneralTaskStatuses($completeStage->id);
+
+        $this->assertFalse((bool) WorkorderGeneralTaskStatus::query()
+            ->where('workorder_id', $workorder->id)
+            ->where('general_task_id', $completeStage->id)
+            ->value('is_done'));
     }
 
     public function test_ec_sort_works_with_active_filter(): void

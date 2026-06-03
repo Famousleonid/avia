@@ -7,6 +7,7 @@ use App\Models\ManualProcess;
 use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\WoBushing;
+use App\Models\WoBushingBatch;
 use App\Models\WoBushingLine;
 use App\Models\WoBushingProcess;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -122,6 +123,153 @@ class WoBushingSortingTest extends TestCase
         $response->assertSee('NDT-1', false);
         $response->assertSee('NDT-4', false);
         $response->assertDontSee('NDT-7', false);
+    }
+
+    public function test_bushing_process_form_uses_batches_and_b_labels_only(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+
+        $processName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Cad plate'],
+            [
+                'process_sheet_name' => 'CAD',
+                'form_number' => '014',
+                'show_in_process_picker' => true,
+            ]
+        );
+        $process = Process::query()->create([
+            'process_names_id' => $processName->id,
+            'process' => 'CAD plating',
+        ]);
+        ManualProcess::query()->create([
+            'manual_id' => $manualId,
+            'processes_id' => $process->id,
+        ]);
+
+        $batchedComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '8-230',
+            'part_number' => 'BATCH-PN',
+            'name' => 'Batched bushing',
+            'bush_ipl_num' => '8-230',
+            'is_bush' => true,
+        ]);
+        $looseComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '8-240',
+            'part_number' => 'LOOSE-PN',
+            'name' => 'Loose bushing',
+            'bush_ipl_num' => '8-240',
+            'is_bush' => true,
+        ]);
+        $secondBatchedComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '8-250',
+            'part_number' => 'BATCH2-PN',
+            'name' => 'Second batched bushing',
+            'bush_ipl_num' => '8-250',
+            'is_bush' => true,
+        ]);
+
+        $batchedLine = WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $workorder->id,
+            'component_id' => $batchedComponent->id,
+            'qty' => 2,
+            'qty_remaining' => 2,
+            'group_key' => '8-230',
+            'sort_order' => 1,
+        ]);
+        $looseLine = WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $workorder->id,
+            'component_id' => $looseComponent->id,
+            'qty' => 1,
+            'qty_remaining' => 1,
+            'group_key' => '8-240',
+            'sort_order' => 2,
+        ]);
+        $secondBatchedLine = WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $workorder->id,
+            'component_id' => $secondBatchedComponent->id,
+            'qty' => 1,
+            'qty_remaining' => 1,
+            'group_key' => '8-250',
+            'sort_order' => 3,
+        ]);
+        $batch = WoBushingBatch::query()->create([
+            'workorder_id' => $workorder->id,
+            'process_id' => $process->id,
+            'process_column_key' => 'cad',
+        ]);
+        $secondBatch = WoBushingBatch::query()->create([
+            'workorder_id' => $workorder->id,
+            'process_id' => $process->id,
+            'process_column_key' => 'cad',
+        ]);
+
+        WoBushingProcess::query()->create([
+            'wo_bushing_line_id' => $batchedLine->id,
+            'process_id' => $process->id,
+            'batch_id' => $batch->id,
+            'qty' => 2,
+        ]);
+        WoBushingProcess::query()->create([
+            'wo_bushing_line_id' => $secondBatchedLine->id,
+            'process_id' => $process->id,
+            'batch_id' => $secondBatch->id,
+            'qty' => 1,
+        ]);
+        WoBushingProcess::query()->create([
+            'wo_bushing_line_id' => $looseLine->id,
+            'process_id' => $process->id,
+            'qty' => 1,
+        ]);
+
+        $partial = $this->actingAs($admin)->get(route('wo_bushings.partial', $workorder->id));
+        $partial->assertOk();
+        $partial->assertSee('B1', false);
+        $partial->assertDontSee('Grp', false);
+        $partial->assertSee(route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $processName->id]), false);
+        $partial->assertDontSee('bushing_component_ids[]=', false);
+
+        $processFormWithoutSelection = $this->actingAs($admin)->get(route('wo_bushings.processesForm', [
+            'id' => $woBushing->id,
+            'processNameId' => $processName->id,
+        ]));
+        $processFormWithoutSelection->assertOk();
+        $processFormWithoutSelection->assertDontSee('BATCH-PN', false);
+        $processFormWithoutSelection->assertDontSee('LOOSE-PN', false);
+
+        $processForm = $this->actingAs($admin)->get(route('wo_bushings.processesForm', [
+            'id' => $woBushing->id,
+            'processNameId' => $processName->id,
+            'bushing_batch_ids' => [$batch->id],
+        ]));
+        $processForm->assertOk();
+        $processForm->assertSee('B1', false);
+        $processForm->assertSee('BATCH-PN', false);
+        $processForm->assertDontSee('LOOSE-PN', false);
+        $processForm->assertDontSee('BATCH2-PN', false);
+
+        $processFormWithTwoBatches = $this->actingAs($admin)->get(route('wo_bushings.processesForm', [
+            'id' => $woBushing->id,
+            'processNameId' => $processName->id,
+            'bushing_batch_ids' => [$batch->id, $secondBatch->id],
+        ]));
+        $processFormWithTwoBatches->assertOk();
+        $processFormWithTwoBatches->assertSee('BATCH-PN', false);
+        $processFormWithTwoBatches->assertDontSee('BATCH2-PN', false);
+
+        $form = $this->actingAs($admin)->get(route('wo_bushings.specProcessForm', $woBushing->id));
+        $form->assertOk();
+        $form->assertSee('B1', false);
+        $form->assertSee('BATCH-PN', false);
+        $form->assertDontSee('LOOSE-PN', false);
     }
 
     private function attachProcessToManual(int $manualId, string $processName, string $processText): Process

@@ -599,7 +599,7 @@ class WorkorderController extends Controller
 
     public function create()
     {
-        $customers = Customer::all();
+        $customers = Customer::query()->orderBy('name')->get();
         $units = Unit::with('manuals')->get();
         $instructions = Instruction::all();
         $manuals = Manual::query()

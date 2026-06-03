@@ -24,6 +24,27 @@ class WorkordersWriteTest extends TestCase
     /**
      * @group smoke
      */
+    public function test_create_workorder_customer_select_is_alphabetical(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+
+        $this->createCustomer(['name' => 'ZZZ Sort Customer ' . uniqid()]);
+        $this->createCustomer(['name' => 'AAA Sort Customer ' . uniqid()]);
+        $this->createCustomer(['name' => 'MMM Sort Customer ' . uniqid()]);
+
+        $response = $this->actingAs($admin)->get(route('workorders.create'));
+
+        $response->assertOk();
+        $response->assertSeeInOrder([
+            'AAA Sort Customer',
+            'MMM Sort Customer',
+            'ZZZ Sort Customer',
+        ]);
+    }
+
+    /**
+     * @group smoke
+     */
     public function test_admin_can_create_regular_workorder(): void
     {
         $admin = $this->createUserWithRole('Admin');
