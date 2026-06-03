@@ -17,6 +17,7 @@ class TdrProcess extends Model
         'process_names_id',
         'plus_process', // Дополнительные NDT process_names_id через запятую (например, "2,4")
         'processes',
+        'rule_process_ids', // ManualParameterRuleProcess ids that fed this group (for document generation)
         'description',
         'notes',
         'repair_order',
@@ -36,7 +37,8 @@ class TdrProcess extends Model
         'user_id',
     ];
     protected $casts = [
-        'processes'   => 'array',
+        'processes'        => 'array',
+        'rule_process_ids' => 'array',
         'date_start'  => 'date',   // <-- важно
         'date_finish' => 'date',   // <-- важно
         'date_promise' => 'date',

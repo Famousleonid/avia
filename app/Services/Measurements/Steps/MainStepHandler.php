@@ -14,9 +14,9 @@ class MainStepHandler implements StepHandler
 {
     public function resolve(PipelineContext $ctx, ?MasterRule $masterRule): void
     {
-        $byNameId = $this->collectByNameId($ctx);
+        [$byNameId, $byNameRpIds] = $this->collect($ctx);
         if (!empty($byNameId)) {
-            $ctx->addPhaseGroups('main', $byNameId);
+            $ctx->addPhaseGroups('main', $byNameId, $byNameRpIds);
         }
     }
 
@@ -28,33 +28,37 @@ class MainStepHandler implements StepHandler
      */
     public function previewNameIds(PipelineContext $ctx): array
     {
-        return array_keys($this->collectByNameId($ctx));
+        return array_keys($this->collect($ctx)[0]);
     }
 
     /**
-     * @return array<int,int[]>  [process_names_id => [process_id, ...]]
+     * @return array{0: array<int,int[]>, 1: array<int,int[]>}
+     *   [0] byNameId    [process_names_id => [process_id, ...]]
+     *   [1] byNameRpIds [process_names_id => [rule_process_id (ManualParameterRuleProcess id), ...]]
      */
-    private function collectByNameId(PipelineContext $ctx): array
+    private function collect(PipelineContext $ctx): array
     {
         if (empty($ctx->mainRuleIds)) {
-            return [];
+            return [[], []];
         }
 
         $rules = ManualParameterRepairRule::with('processes.manualProcess.process')
             ->whereIn('id', $ctx->mainRuleIds)
             ->get();
 
-        $byNameId = [];
+        $byNameId   = [];
+        $byNameRpIds = [];
         foreach ($rules as $rule) {
             foreach ($rule->processes as $rp) {
                 $process = $rp->manualProcess?->process;
                 if (!$process) {
                     continue;
                 }
-                $byNameId[$process->process_names_id][] = $process->id;
+                $byNameId[$process->process_names_id][]    = $process->id;
+                $byNameRpIds[$process->process_names_id][]  = $rp->id; // ManualParameterRuleProcess id
             }
         }
 
-        return $byNameId;
+        return [$byNameId, $byNameRpIds];
     }
 }

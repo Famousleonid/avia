@@ -364,6 +364,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'storePhaseDocument'])->name('phase-rule-processes.documents.store');
     Route::patch('/process-documents/{processDocument}', [ProcessDocumentController::class, 'updateDocument'])->name('process-documents.update');
     Route::delete('/process-documents/{processDocument}', [ProcessDocumentController::class, 'destroyDocument'])->name('process-documents.destroy');
+    // generate concrete PDF for a WO (2c.1)
+    Route::post('/workorders/{workorder}/process-documents/{processDocument}/generate', [ProcessDocumentController::class, 'generate'])->name('process-documents.generate');
     // pages
     Route::post('/process-documents/{processDocument}/pages', [ProcessDocumentController::class, 'storePage'])->name('process-documents.pages.store');
     Route::post('/process-document-pages/{processDocumentPage}/image', [ProcessDocumentController::class, 'uploadPageImage'])->name('process-document-pages.image');

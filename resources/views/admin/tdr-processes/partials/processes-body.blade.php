@@ -45,9 +45,36 @@
     $hasGroupProcessForms = collect($processGroups ?? [])->contains(function ($g) {
         return (int) ($g['count'] ?? 0) > 1;
     });
+
+    // 2c.1 — document templates linked to each TdrProcess (via rule_process_ids).
+    $allRpIds = [];
+    foreach ($tdrProcesses as $_tp) {
+        foreach ((array) ($_tp->rule_process_ids ?? []) as $_rid) {
+            $allRpIds[] = $_rid;
+        }
+    }
+    $docsByRp = [];
+    if (!empty($allRpIds)) {
+        $_docs = \App\Models\ProcessDocument::where('documentable_type', \App\Models\ManualParameterRuleProcess::class)
+            ->whereIn('documentable_id', array_values(array_unique($allRpIds)))
+            ->orderBy('sort_order')
+            ->get(['id', 'documentable_id', 'title', 'doc_type']);
+        foreach ($_docs as $_d) {
+            $docsByRp[$_d->documentable_id][] = $_d;
+        }
+    }
+    // Колонку Document показываем, только если хотя бы у одного процесса детали есть шаблон документа.
+    $showDocColumn = !empty($docsByRp);
 @endphp
 
 <style>
+    /* Document column (2c.1): ширину задаёт <colgroup>; nowrap обязателен — иначе
+       одиночное слово "Document" рвётся по буквам (глобально overflow-wrap:anywhere)
+       и раздувает высоту шапки. */
+    .process-doc-col,
+    .process-doc-cell {
+        white-space: nowrap;
+    }
     .tdr-process-inline-create-row > td {
         background: rgba(13, 202, 240, .07);
         border-top: 2px solid rgba(13, 202, 240, .45);
@@ -173,12 +200,13 @@
     <div class="table-wrapper me-3">
         <table class="display table table-sm table-hover align-middle bg-gradient dir-table sortable-table tdr-processes-table">
             <colgroup>
-                <col style="width: 12%">
-                <col style="width: 34%">
-                <col style="width: 25%">
-                <col style="width: 9%">
-                <col style="width: 8%">
-                <col style="width: 12%">
+                <col style="width: 11%">{{-- Process Name --}}
+                <col style="width: {{ $showDocColumn ? 37 : 42 }}%">{{-- Process (поглощает остаток) --}}
+                <col style="width: 17%">{{-- Description --}}
+                <col style="width: 9%">{{-- Traveler --}}
+                <col style="width: 8%">{{-- Action --}}
+                <col style="width: 13%">{{-- Form --}}
+                @if($showDocColumn)<col style="width: 5%">{{-- Document --}}@endif
             </colgroup>
             <thead>
             <tr>
@@ -190,6 +218,7 @@
                 </th>
                 <th class="text-primary text-center process-action-col">{{ __('Action') }}</th>
                 <th class="text-primary text-center process-form-col">{{ __('Form') }}</th>
+                @if($showDocColumn)<th class="text-primary text-center process-doc-col">{{ __('Document') }}</th>@endif
             </tr>
             </thead>
             <tbody id="sortable-tbody">
@@ -278,6 +307,7 @@
                                 <div class="d-flex gap-2 justify-content-center"></div>
                             </td>
                             @endif
+                            @include('admin.tdr-processes.partials.processes-body-document-cell')
                         </tr>
                     @elseif($isNdtWithPlus)
                         <tr data-id="{{ $tdrProcessRow->id }}" class="{{ trim($trClass) }}">
@@ -329,6 +359,7 @@
                                 </div>
                             </td>
                             @endif
+                            @include('admin.tdr-processes.partials.processes-body-document-cell')
                         </tr>
                     @else
                         @if(is_array($processData) && !empty($processData))
@@ -374,6 +405,7 @@
                                         </div>
                                     </td>
                                     @endif
+                                    @include('admin.tdr-processes.partials.processes-body-document-cell')
                                 </tr>
                             @endforeach
                         @else
@@ -415,6 +447,7 @@
                                     </div>
                                 </td>
                                 @endif
+                                @include('admin.tdr-processes.partials.processes-body-document-cell')
                             </tr>
                         @endif
                     @endif
@@ -448,6 +481,7 @@
                     </div>
                 </td>
                 <td></td>
+                @if($showDocColumn)<td></td>@endif
             </tr>
             <tr class="tdr-process-inline-add-row">
                 <td class="text-start">
@@ -458,7 +492,7 @@
                         {{ __('Add') }}
                     </button>
                 </td>
-                <td colspan="5"></td>
+                <td colspan="{{ $showDocColumn ? 6 : 5 }}"></td>
             </tr>
             </tbody>
         </table>

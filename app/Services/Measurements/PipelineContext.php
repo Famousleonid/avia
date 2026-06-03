@@ -38,14 +38,16 @@ class PipelineContext
      * Groups by process_names_id WITHIN the phase (dedupes process ids),
      * but keeps phases separate so Start/Finish stay in their own rows.
      *
-     * @param array<int,int[]> $byNameId  [process_names_id => [process_id, ...]]
+     * @param array<int,int[]> $byNameId      [process_names_id => [process_id, ...]]
+     * @param array<int,int[]> $byNameRpIds   [process_names_id => [rule_process_id, ...]] (optional)
      */
-    public function addPhaseGroups(string $phase, array $byNameId): void
+    public function addPhaseGroups(string $phase, array $byNameId, array $byNameRpIds = []): void
     {
         foreach ($byNameId as $nameId => $processIds) {
             $this->processGroups[] = [
                 'process_names_id' => $nameId,
                 'process_ids'      => array_values(array_unique($processIds)),
+                'rule_process_ids' => array_values(array_unique($byNameRpIds[$nameId] ?? [])),
                 'sort_order'       => $this->sortCursor++,
                 'phase'            => $phase,
             ];

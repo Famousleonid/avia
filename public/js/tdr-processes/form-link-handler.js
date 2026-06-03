@@ -81,6 +81,53 @@ class FormLinkHandler {
     }
 }
 
+/**
+ * GenDocHandler (2c.1) — генерация конкретного PDF документа процесса для WO.
+ * Делегированный обработчик на document (привязывается один раз), работает после AJAX-перерисовок.
+ */
+(function () {
+    if (window.__genDocHandlerBound) return;
+    window.__genDocHandlerBound = true;
+
+    document.addEventListener('click', async function (e) {
+        const btn = e.target.closest('.gen-doc-btn');
+        if (!btn) return;
+        e.preventDefault();
+
+        const docId = btn.getAttribute('data-doc-id');
+        const woId = btn.getAttribute('data-wo-id');
+        if (!docId || !woId) return;
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+            const res = await fetch(`/workorders/${woId}/process-documents/${docId}/generate`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({}),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.show_url) {
+                window.open(data.show_url, '_blank');
+            } else {
+                alert((data && data.message) ? data.message : 'Failed to generate document');
+            }
+        } catch (err) {
+            alert('Failed to generate document: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    });
+})();
+
 // Экспорт для использования в других модулях
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = FormLinkHandler;

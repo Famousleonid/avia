@@ -9,6 +9,8 @@ use App\Models\MasterRulePhaseRuleProcess;
 use App\Models\ProcessDocument;
 use App\Models\ProcessDocumentElement;
 use App\Models\ProcessDocumentPage;
+use App\Models\Workorder;
+use App\Services\Measurements\ProcessDocumentRenderer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 
@@ -43,6 +45,34 @@ class ProcessDocumentController extends Controller
     public function storePhaseDocument(Request $request, MasterRulePhaseRuleProcess $masterRulePhaseRuleProcess)
     {
         return $this->createDocument($request, $masterRulePhaseRuleProcess, 'manual_page');
+    }
+
+    // ── Generation (2c.1) — template + WO data → PDF in WO library ─
+
+    public function generate(Request $request, Workorder $workorder, ProcessDocument $processDocument)
+    {
+        $context = [
+            'repair_number' => $request->input('repair_number'),
+            'component_pn'  => $request->input('component_pn'),
+        ];
+
+        $pdf = app(ProcessDocumentRenderer::class)->render($processDocument, $workorder, $context);
+
+        $title    = $processDocument->title ?: ($processDocument->doc_type ?: 'document');
+        $safe     = preg_replace('/[^A-Za-z0-9_-]+/', '_', $title);
+        $filename = 'wo_' . ($workorder->number ?? $workorder->id) . '_' . $safe . '_' . now()->format('Ymd_Hi') . '.pdf';
+
+        $media = $workorder->addMediaFromString($pdf)
+            ->usingFileName($filename)
+            ->toMediaCollection('pdfs');
+
+        return response()->json([
+            'ok'           => true,
+            'media_id'     => $media->id,
+            'filename'     => $filename,
+            'show_url'     => route('workorders.pdf.show', ['workorderId' => $workorder->id, 'mediaId' => $media->id]),
+            'download_url' => route('workorders.pdf.download', ['workorderId' => $workorder->id, 'mediaId' => $media->id]),
+        ], 201);
     }
 
     // ── shared ────────────────────────────────────────────────────
