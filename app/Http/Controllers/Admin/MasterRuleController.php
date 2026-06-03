@@ -37,8 +37,10 @@ class MasterRuleController extends Controller
             'name'                    => 'nullable|string|max:100',
             'condition'               => 'nullable|array',
             'sort_order'              => 'nullable|integer',
-            'processes'               => 'nullable|array',
-            'processes.*'             => 'integer|exists:manual_processes,id',
+            'processes'                       => 'nullable|array',
+            'processes.*.manual_process_id'   => 'required|exists:manual_processes,id',
+            'processes.*.description'         => 'nullable|string|max:255',
+            'processes.*.sort_order'          => 'integer',
         ]);
 
         $phaseRule = MasterRulePhaseRule::create([
@@ -86,13 +88,19 @@ class MasterRuleController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    private function syncProcesses(MasterRulePhaseRule $phaseRule, array $processIds): void
+    private function syncProcesses(MasterRulePhaseRule $phaseRule, array $processes): void
     {
         $phaseRule->processes()->delete();
-        foreach (array_values($processIds) as $i => $mpId) {
+        foreach (array_values($processes) as $i => $p) {
+            // tolerate both [{manual_process_id, description}, ...] and legacy [id, ...]
+            $mpId = is_array($p) ? ($p['manual_process_id'] ?? null) : $p;
+            if (!$mpId) {
+                continue;
+            }
             MasterRulePhaseRuleProcess::create([
                 'phase_rule_id'     => $phaseRule->id,
                 'manual_process_id' => $mpId,
+                'description'       => is_array($p) ? (($p['description'] ?? null) ?: null) : null,
                 'sort_order'        => $i,
             ]);
         }
@@ -126,6 +134,7 @@ class MasterRuleController extends Controller
                 return [
                     'id'                => $rp->id,
                     'manual_process_id' => $rp->manual_process_id,
+                    'description'       => $rp->description,
                     'sort_order'        => $rp->sort_order,
                     'label'             => $label,
                     'has_drawing'       => $hasDrawing,

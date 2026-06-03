@@ -1474,7 +1474,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (idx !== -1) {
                     dimRuleProcesses.splice(idx, 1);
                 } else {
-                    dimRuleProcesses.push({ manual_process_id: id, label: btn.dataset.label });
+                    dimRuleProcesses.push({ manual_process_id: id, label: btn.dataset.label, description: '' });
                 }
                 renderRuleProcessList();
                 updateProcOptButtons();
@@ -3193,13 +3193,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 : '';
             return `<div class="dim-rule-process-item">
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
-                <span class="flex-grow-1">${escHtml(p.label)}</span>
+                <span style="flex:0 0 38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
+                <input type="text" class="form-control form-control-sm dim-rule-proc-note flex-grow-1 ms-1"
+                       data-idx="${i}" value="${escHtml(p.description || '')}"
+                       placeholder="notes (напр. fig. 6039)" style="font-size:11px;height:24px">
                 ${drawBtn}
                 <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)">
                     <i class="bi bi-x"></i>
                 </button>
             </div>`;
         }).join('');
+        wrap.querySelectorAll('.dim-rule-proc-note').forEach(function (inp) {
+            inp.addEventListener('input', function () {
+                dimRuleProcesses[parseInt(inp.dataset.idx)].description = inp.value;
+            });
+        });
         wrap.querySelectorAll('.dim-rule-proc-remove').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 dimRuleProcesses.splice(parseInt(btn.dataset.idx), 1);
@@ -3290,7 +3298,7 @@ document.addEventListener('DOMContentLoaded', function () {
         dimRuleProcesses = (rule.processes || []).slice().sort(function (a, b) {
             return (a.sort_order || 0) - (b.sort_order || 0);
         }).map(function (p) {
-            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), rule_process_id: p.id, has_drawing: !!p.has_drawing };
+            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing };
         });
         dimRuleTriggers = (rule.triggers || []).map(function (t) {
             return { trigger: t.trigger, codes_id: t.codes_id || null, code_name: t.code_name || null };
@@ -3362,7 +3370,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { trigger: t.trigger, codes_id: t.codes_id || null };
             }),
             processes:         dimRuleProcesses.map(function (p, i) {
-                return { manual_process_id: p.manual_process_id, sort_order: i };
+                return { manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, sort_order: i };
             }),
         };
 
@@ -4177,11 +4185,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 : '';
             return `<div class="dim-rule-process-item">
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
-                <span class="flex-grow-1">${escHtml(p.label)}</span>
+                <span style="flex:0 0 38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
+                <input type="text" class="form-control form-control-sm dim-mr-proc-note flex-grow-1 ms-1"
+                       data-idx="${i}" value="${escHtml(p.description || '')}"
+                       placeholder="notes (напр. fig. 6039)" style="font-size:11px;height:24px">
                 ${drawBtn}
                 <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-mr-proc-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-x"></i></button>
             </div>`;
         }).join('');
+        wrap.querySelectorAll('.dim-mr-proc-note').forEach(function (inp) {
+            inp.addEventListener('input', function () {
+                dimMrProcesses[parseInt(inp.dataset.idx)].description = inp.value;
+            });
+        });
         wrap.querySelectorAll('.dim-mr-proc-doc').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 openProcessDocumentsModal(parseInt(btn.dataset.rpid), btn.dataset.label, 'phase');
@@ -4206,7 +4222,7 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.onclick = function () {
                 const idx = dimMrProcesses.findIndex(function (p) { return p.manual_process_id === id; });
                 if (idx !== -1) dimMrProcesses.splice(idx, 1);
-                else dimMrProcesses.push({ manual_process_id: id, label: btn.dataset.label });
+                else dimMrProcesses.push({ manual_process_id: id, label: btn.dataset.label, description: '' });
                 renderMrProcessList();
                 updateMrProcOptButtons();
             };
@@ -4362,7 +4378,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const r = (dimMrData.phase_rules || []).find(function (x) { return x.id === editId; });
             if (r) {
                 name = r.name || '';
-                dimMrProcesses = (r.processes || []).map(function (p) { return { manual_process_id: p.manual_process_id, label: p.label, rule_process_id: p.id, has_drawing: !!p.has_drawing }; });
+                dimMrProcesses = (r.processes || []).map(function (p) { return { manual_process_id: p.manual_process_id, label: p.label, description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing }; });
                 cond = r.condition || null;
             }
         }
@@ -4401,7 +4417,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const phase  = document.getElementById('dimMrFormPhase').value;
         const editId = document.getElementById('dimMrFormEditId').value;
         const name   = document.getElementById('dimMrName').value.trim();
-        const procs  = dimMrProcesses.map(function (p) { return p.manual_process_id; });
+        const procs  = dimMrProcesses.map(function (p, i) { return { manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, sort_order: i }; });
 
         // build condition
         const condType = document.getElementById('dimMrCondType').value;

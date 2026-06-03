@@ -13,6 +13,7 @@ class MasterRulePhaseRuleProcess extends Model
     protected $fillable = [
         'phase_rule_id',
         'manual_process_id',
+        'description',
         'sort_order',
     ];
 

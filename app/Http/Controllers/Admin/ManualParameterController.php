@@ -163,6 +163,7 @@ class ManualParameterController extends Controller
             'notes'             => 'nullable|string',
             'processes'                     => 'nullable|array',
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
+            'processes.*.description'       => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
             'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
@@ -190,6 +191,7 @@ class ManualParameterController extends Controller
             'notes'             => 'nullable|string',
             'processes'                     => 'nullable|array',
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
+            'processes.*.description'       => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
             'triggers'                      => 'required|array|min:1',
             'triggers.*.trigger'            => 'required|in:below_orig,above_orig,below_wear,above_wear,finding,finding_measurement,finding_inspection,manual',
@@ -224,6 +226,7 @@ class ManualParameterController extends Controller
             ManualParameterRuleProcess::create([
                 'repair_rule_id'    => $rule->id,
                 'manual_process_id' => $p['manual_process_id'],
+                'description'       => $p['description'] ?? null,
                 'sort_order'        => $p['sort_order'] ?? $i,
             ]);
         }
@@ -261,6 +264,7 @@ class ManualParameterController extends Controller
             return [
                 'id'                => $rp->id,
                 'manual_process_id' => $rp->manual_process_id,
+                'description'       => $rp->description,
                 'sort_order'        => $rp->sort_order,
                 'label'             => $label,
                 'has_drawing'       => $hasDrawing,
