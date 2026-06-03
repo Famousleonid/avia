@@ -160,6 +160,7 @@ class ManualParameterController extends Controller
         $data = $request->validate([
             'name'              => 'nullable|string|max:100',
             'order_replacement' => 'boolean',
+            'action'            => 'nullable|in:repair,order_new,ec',
             'notes'             => 'nullable|string',
             'processes'                     => 'nullable|array',
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
@@ -170,10 +171,12 @@ class ManualParameterController extends Controller
             'triggers.*.codes_id'           => 'nullable|exists:codes,id',
         ]);
 
+        $action = $this->resolveAction($data);
         $rule = ManualParameterRepairRule::create([
             'manual_parameter_id' => $manualParameter->id,
             'name'                => $data['name'] ?? null,
-            'order_replacement'   => $data['order_replacement'] ?? false,
+            'action'              => $action,
+            'order_replacement'   => $action === 'order_new', // keep legacy bool in sync
             'notes'               => $data['notes'] ?? null,
         ]);
 
@@ -188,6 +191,7 @@ class ManualParameterController extends Controller
         $data = $request->validate([
             'name'              => 'nullable|string|max:100',
             'order_replacement' => 'boolean',
+            'action'            => 'nullable|in:repair,order_new,ec',
             'notes'             => 'nullable|string',
             'processes'                     => 'nullable|array',
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
@@ -198,9 +202,11 @@ class ManualParameterController extends Controller
             'triggers.*.codes_id'           => 'nullable|exists:codes,id',
         ]);
 
+        $action = $this->resolveAction($data);
         $manualParameterRepairRule->update([
             'name'              => $data['name'] ?? null,
-            'order_replacement' => $data['order_replacement'] ?? false,
+            'action'            => $action,
+            'order_replacement' => $action === 'order_new', // keep legacy bool in sync
             'notes'             => $data['notes'] ?? null,
         ]);
 
@@ -218,6 +224,15 @@ class ManualParameterController extends Controller
     }
 
     // ── Helpers ───────────────────────────────────────────────────
+
+    /** Rule outcome: prefer explicit `action`, fall back to the legacy order_replacement bool. */
+    private function resolveAction(array $data): string
+    {
+        if (!empty($data['action']) && in_array($data['action'], ['repair', 'order_new', 'ec'], true)) {
+            return $data['action'];
+        }
+        return !empty($data['order_replacement']) ? 'order_new' : 'repair';
+    }
 
     private function syncRuleProcesses(ManualParameterRepairRule $rule, array $processes): void
     {
@@ -249,6 +264,8 @@ class ManualParameterController extends Controller
     {
         $rule->load(['triggers.code', 'processes.manualProcess.process.process_name', 'processes.documents.pages']);
         $data = $rule->toArray();
+        // always expose a usable action (fallback from legacy bool if column not yet present)
+        $data['action'] = $rule->action ?? ($rule->order_replacement ? 'order_new' : 'repair');
         $data['triggers'] = $rule->triggers->map(fn($t) => [
             'id'        => $t->id,
             'trigger'   => $t->trigger,

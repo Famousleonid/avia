@@ -101,6 +101,7 @@ class WoMeasurementController extends Controller
                     'id'               => $r->id,
                     'name'             => $r->name,
                     'order_replacement'=> $r->order_replacement,
+                    'action'           => $r->action ?? ($r->order_replacement ? 'order_new' : 'repair'),
                     'triggers'         => $r->triggers->map(fn($t) => [
                         'trigger'  => $t->trigger,
                         'codes_id' => $t->codes_id,
@@ -173,11 +174,21 @@ class WoMeasurementController extends Controller
         $data['limits_source'] = $limits['source'];
         $dimensionalResult     = $this->computeResult($data['actual_value'] ?? null, $limits);
 
-        // Any finding code selected → always FAIL in the saved record,
-        // but pass the raw dimensional result to rule resolution so that
-        // a Damage finding on an in-limits dimension does NOT fall back
-        // to dimensional-FAIL rules (e.g. Rechrome).
-        $data['result'] = !empty($data['codes_id']) ? 'FAIL' : $dimensionalResult;
+        // Result of the saved record:
+        //  - any finding code selected            → FAIL
+        //  - dimensional point with a value        → PASS/FAIL by limits
+        //  - inspection-only point, finding=None   → PASS (inspected, no defect)
+        //  - dimensional point, no value yet       → null (incomplete)
+        $isInspectionOnly = $limits['min'] === null && $limits['max'] === null;
+        if (!empty($data['codes_id'])) {
+            $data['result'] = 'FAIL';
+        } elseif ($dimensionalResult !== null) {
+            $data['result'] = $dimensionalResult;
+        } elseif ($isInspectionOnly) {
+            $data['result'] = 'PASS';
+        } else {
+            $data['result'] = null;
+        }
 
         $data['user_id']       = auth()->id();
         $data['workorder_id']  = $workorder->id;
@@ -502,11 +513,14 @@ class WoMeasurementController extends Controller
         app(RepairPipeline::class)->run($ctx);
 
         foreach ($ctx->processGroups as $group) {
+            // Description = per-process notes from the rule (Main + Start/Finish),
+            // computed by the pipeline. Empty when the process has no note — no fallback.
             TdrProcess::create([
                 'tdrs_id'          => $tdr->id,
                 'process_names_id' => $group['process_names_id'],
                 'processes'        => $group['process_ids'],
                 'rule_process_ids' => $group['rule_process_ids'] ?? [],
+                'description'      => $group['description'] ?? '',
                 'sort_order'       => $group['sort_order'],
                 'in_traveler'      => false,
             ]);

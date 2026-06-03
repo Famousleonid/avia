@@ -10,7 +10,6 @@ class ManualDimensionRepairRuleProcess extends Model
     protected $fillable = [
         'repair_rule_id',
         'manual_process_id',
-        'description',
         'sort_order',
     ];
 

@@ -14,9 +14,9 @@ class MainStepHandler implements StepHandler
 {
     public function resolve(PipelineContext $ctx, ?MasterRule $masterRule): void
     {
-        [$byNameId, $byNameRpIds] = $this->collect($ctx);
+        [$byNameId, $byNameRpIds, $byNameDescriptions] = $this->collect($ctx);
         if (!empty($byNameId)) {
-            $ctx->addPhaseGroups('main', $byNameId, $byNameRpIds);
+            $ctx->addPhaseGroups('main', $byNameId, $byNameRpIds, $byNameDescriptions);
         }
     }
 
@@ -48,17 +48,19 @@ class MainStepHandler implements StepHandler
 
         $byNameId   = [];
         $byNameRpIds = [];
+        $byNameDescriptions = [];
         foreach ($rules as $rule) {
             foreach ($rule->processes as $rp) {
                 $process = $rp->manualProcess?->process;
                 if (!$process) {
                     continue;
                 }
-                $byNameId[$process->process_names_id][]    = $process->id;
-                $byNameRpIds[$process->process_names_id][]  = $rp->id; // ManualParameterRuleProcess id
+                $byNameId[$process->process_names_id][]           = $process->id;
+                $byNameRpIds[$process->process_names_id][]         = $rp->id; // ManualParameterRuleProcess id
+                $byNameDescriptions[$process->process_names_id][]  = $rp->description;
             }
         }
 
-        return [$byNameId, $byNameRpIds];
+        return [$byNameId, $byNameRpIds, $byNameDescriptions];
     }
 }

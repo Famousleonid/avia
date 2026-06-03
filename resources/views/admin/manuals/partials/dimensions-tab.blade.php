@@ -501,8 +501,12 @@
                                     <label class="form-check-label" for="dimRuleActionRepair" style="font-size:13px">Repair</label>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="dimRuleAction" id="dimRuleActionReplace" value="replace">
+                                    <input class="form-check-input" type="radio" name="dimRuleAction" id="dimRuleActionReplace" value="order_new">
                                     <label class="form-check-label" for="dimRuleActionReplace" style="font-size:13px">Order new</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="dimRuleAction" id="dimRuleActionEc" value="ec">
+                                    <label class="form-check-label" for="dimRuleActionEc" style="font-size:13px">EC</label>
                                 </div>
                             </div>
                         </div>
@@ -1746,7 +1750,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearSpecsPanel();
 
         // Phase 1: scale out current figure
-        imgContainer.style.transition = 'opacity 1s ease, transform 1s ease';
+        imgContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
         imgContainer.style.opacity    = '0';
         imgContainer.style.transform  = 'scale(0.02)';
         renderPoints([]);
@@ -1768,17 +1772,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 figureImg.style.maxHeight = canvasWrap.clientHeight + 'px';
                 zoomLabel.textContent = '100%';
 
-                imgContainer.style.transition = 'opacity 1s ease, transform 1s ease';
+                imgContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
                 requestAnimationFrame(function () {
                     imgContainer.style.opacity   = '1';
                     imgContainer.style.transform = 'scale(1)';
                     renderPoints(fig.points || []);
-                    setTimeout(function () { isNavigating = false; }, 1000);
+                    setTimeout(function () { isNavigating = false; }, 500);
                 });
             };
             figureImg.src = fig.image_path;
             figureImg.alt = fig.title;
-        }, 1000);
+        }, 500);
     }
 
     // ---- Drag to reposition ----
@@ -2863,7 +2867,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (rules.length > 0) {
                     html += `<div class="mt-1" style="border-top:1px solid rgba(0,0,0,.08);padding-top:4px">`;
                     rules.forEach(function (r) {
-                        const al     = r.order_replacement ? 'Order new' : 'Repair';
+                        const _ra    = r.action || (r.order_replacement ? 'order_new' : 'repair');
+                        const al     = _ra === 'ec' ? 'EC' : (_ra === 'order_new' ? 'Order new' : 'Repair');
                         const pc     = (r.processes || []).length;
                         const pcTxt  = pc > 0 ? ` · ${pc} proc.` : '';
                         const nm     = escHtml(r.name || '—');
@@ -3307,7 +3312,12 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimRuleId').value      = rule.id;
         document.getElementById('dimRuleParamId').value = param.id;
         document.getElementById('dimRuleName').value    = rule.name || '';
-        document.getElementById(rule.order_replacement ? 'dimRuleActionReplace' : 'dimRuleActionRepair').checked = true;
+        const ruleAction = rule.action || (rule.order_replacement ? 'order_new' : 'repair');
+        document.getElementById(
+            ruleAction === 'ec' ? 'dimRuleActionEc'
+            : ruleAction === 'order_new' ? 'dimRuleActionReplace'
+            : 'dimRuleActionRepair'
+        ).checked = true;
         document.getElementById('dimRuleNotes').value   = rule.notes || '';
         document.getElementById('dimRuleTriggerSel').value = '';
         document.getElementById('dimRuleTriggerCode').classList.add('d-none');
@@ -3365,7 +3375,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const body = {
             name:              document.getElementById('dimRuleName').value.trim() || null,
-            order_replacement: document.getElementById('dimRuleActionReplace').checked,
+            action:            (document.querySelector('input[name="dimRuleAction"]:checked')?.value || 'repair'),
             notes:             notes || null,
             triggers:          dimRuleTriggers.map(function (t) {
                 return { trigger: t.trigger, codes_id: t.codes_id || null };

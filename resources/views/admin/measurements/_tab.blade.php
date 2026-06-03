@@ -19,9 +19,9 @@
     .ms-sdot.partial { background:#ffc107; border-color:#ffca2c; } .ms-sdot.none { background:#6c757d; border-color:#868e96; }
     .ms-pdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .ms-part-prog { font-size: 9px; color: var(--bs-secondary-color); flex-shrink: 0; }
-    .ms-pdot.pass { background:#198754; } .ms-pdot.fail { background:#dc3545; } .ms-pdot.partial { background:#ffc107; } .ms-pdot.none { background:#6c757d; }
+    .ms-pdot.pass { background:#198754; } .ms-pdot.fail { background:#dc3545; } .ms-pdot.partial { background:#ffc107; } .ms-pdot.none { background:#ffc107; }
 
-    #ms-tab-viewer { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; }
+    #ms-tab-viewer { order: 3; flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; }
     #ms-tab-fig-label { padding: 3px 8px; font-size: 10px; color: var(--bs-secondary-color); border-bottom: 1px solid var(--bs-border-color); flex-shrink: 0; }
     #ms-tab-fig-nav { flex-shrink: 0; padding: 3px 6px; border-bottom: 1px solid var(--bs-border-color); display: none; gap: 4px; flex-wrap: wrap; align-items: center; }
     #ms-tab-fig-nav.visible { display: flex; }
@@ -40,7 +40,7 @@
     .ms-tab-marker.active { transform: translate(-50%,-50%) scale(1.35); box-shadow: 0 0 0 3px rgba(255,255,255,.6),0 2px 6px rgba(0,0,0,.5); z-index: 11; }
     .ms-tab-marker.dim { opacity: .45; }
     .ms-tab-marker.status-pass { background:#198754; } .ms-tab-marker.status-fail { background:#dc3545; }
-    .ms-tab-marker.status-partial { background:#ffc107; color:#000; } .ms-tab-marker.status-none { background:#6c757d; }
+    .ms-tab-marker.status-partial { background:#ffc107; color:#000; } .ms-tab-marker.status-none { background:#ffc107; color:#000; }
     .ms-tab-label { position: absolute; transform: translate(-50%,-50%); background: #fff; color: #222; border: 1.5px solid #0d6efd; border-radius: 3px; font-size: 10px; font-weight: 700; padding: 1px 5px; white-space: nowrap; cursor: pointer; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,.3); pointer-events: all; transition: box-shadow .12s; }
     .ms-tab-label:hover { box-shadow: 0 0 0 2px rgba(13,110,253,.35), 0 1px 4px rgba(0,0,0,.3); }
     .ms-tab-label.active { border-color: #dc3545; color: #dc3545; box-shadow: 0 0 0 2px rgba(220,53,69,.3), 0 1px 4px rgba(0,0,0,.3); }
@@ -51,7 +51,7 @@
     .ms-text-label { position: absolute; transform: translate(-50%,-50%); background: rgba(20,184,166,.1); border: 1.5px solid #14b8a6; border-radius: 8px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #0d9488; white-space: nowrap; z-index: 9; pointer-events: none; }
     .ms-dim-marker { position: absolute; transform: translate(-50%,-50%); width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #6c757d; background: rgba(108,117,125,.2); font-size: 7px; color: #6c757d; display: flex; align-items: center; justify-content: center; z-index: 8; pointer-events: none; }
 
-    #ms-tab-entry { width: 460px; min-width: 320px; border-left: 1px solid var(--bs-border-color); display: flex; flex-direction: column; overflow: hidden; }
+    #ms-tab-entry { order: 2; width: 460px; min-width: 320px; border-right: 1px solid var(--bs-border-color); display: flex; flex-direction: column; overflow: hidden; }
     #ms-comp-hdr { padding: 6px 10px; border-bottom: 1px solid var(--bs-border-color); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     #ms-comp-title { font-size: 13px; font-weight: 600; }
     #ms-comp-sub { font-size: 10px; color: var(--bs-secondary-color); }
@@ -361,6 +361,9 @@
         if(!cur) return 'none';
         if(cur.result==='PASS') return 'pass';
         if(cur.result==='FAIL') return 'fail';
+        // inspection-only point (no dimensional limits) that was measured with no defect → OK (green)
+        const lim = effectiveLimits(param);
+        if ((lim.min === null || lim.max === null) && !cur.codes_id) return 'pass';
         return 'partial';
     }
     function paramFailRuleLabel(param) {
@@ -380,7 +383,16 @@
         const lastFail = [...ms].reverse().find(m =>
             m.result === 'FAIL' && !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID)
         );
-        if (!lastFail) return '';
+        if (!lastFail) {
+            // inspection-only point that was inspected and is clean → show explicit "No defect"
+            // (otherwise the row looks blank and it's unclear it was checked)
+            const limX = effectiveLimits(param);
+            const isInspectionOnly = limX.min === null || limX.max === null;
+            if (ms.length > 0 && isInspectionOnly) {
+                return `<span class="ms-acc-rule-hint"><span class="ms-hint-ok">No defect</span></span>`;
+            }
+            return '';
+        }
 
         const lim = effectiveLimits(param);
         const hasDimLimits = lim.min !== null && lim.max !== null;
@@ -515,7 +527,7 @@
         }
     }
 
-    const STATUS_COLORS={pass:'#198754',fail:'#dc3545',partial:'#ffc107',none:'#6c757d'};
+    const STATUS_COLORS={pass:'#198754',fail:'#dc3545',partial:'#ffc107',none:'#ffc107'};
 
     function renderMarkers(part, activeParam, fig) {
         overlay.innerHTML='';

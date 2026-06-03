@@ -63,8 +63,10 @@ class MasterRuleController extends Controller
             'name'          => 'nullable|string|max:100',
             'condition'     => 'nullable|array',
             'sort_order'    => 'nullable|integer',
-            'processes'     => 'nullable|array',
-            'processes.*'   => 'integer|exists:manual_processes,id',
+            'processes'                       => 'nullable|array',
+            'processes.*.manual_process_id'   => 'required|exists:manual_processes,id',
+            'processes.*.description'         => 'nullable|string|max:255',
+            'processes.*.sort_order'          => 'integer',
         ]);
 
         $masterRulePhaseRule->update([

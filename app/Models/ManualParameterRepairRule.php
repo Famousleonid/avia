@@ -11,7 +11,8 @@ class ManualParameterRepairRule extends Model
     protected $fillable = [
         'manual_parameter_id',
         'name',
-        'order_replacement',
+        'order_replacement', // legacy (vestigial) — kept synced for safety
+        'action',            // 'repair' | 'order_new' | 'ec'  (orthogonal to triggers)
         'notes',
     ];
 
