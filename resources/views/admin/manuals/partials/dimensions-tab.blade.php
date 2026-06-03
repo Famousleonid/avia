@@ -1359,7 +1359,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 : p.inspection_component_id == null;
             return sameDesc && sameComp;
         });
-        if (!match) { document.getElementById('dimSpecId').value = ''; return; }
+        if (!match) {
+            document.getElementById('dimSpecId').value = '';
+            dimRsParamId = null; dimRsSteps = []; renderRepairSteps(); closeRepairStepForm();
+            return;
+        }
         // Pre-fill from existing parameter
         document.getElementById('dimSpecId').value          = match.id;
         document.getElementById('dimSpecRequired').checked  = !!match.is_required;
@@ -1375,6 +1379,9 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecModalTitle').textContent = 'Assign existing: ' + match.description;
         document.getElementById('dimSpecDeleteBtn').classList.add('d-none');
         document.getElementById('dimSpecDetachBtn').classList.add('d-none');
+        // existing parameter already has an id → load its repair steps so they can be added/edited
+        closeRepairStepForm();
+        loadRepairSteps(match.id);
     }
 
     document.getElementById('dimSpecDescription').addEventListener('input', autoFillParamFromExisting);
@@ -2970,6 +2977,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecDeleteBtn').classList.add('d-none');
         document.getElementById('dimSpecDetachBtn').classList.add('d-none');
         document.getElementById('dimSpecError').classList.add('d-none');
+        // new parameter has no id yet → clear any repair-step context from a previous param
+        dimRsParamId = null; dimRsSteps = []; renderRepairSteps(); closeRepairStepForm();
         specModal.show();
     }
 

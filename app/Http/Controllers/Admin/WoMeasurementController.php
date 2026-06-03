@@ -248,8 +248,18 @@ class WoMeasurementController extends Controller
                 $params = $pt->parameters->sortBy('sort_order')->values();
 
                 if ($pt->is_fits_clearance && $params->count() >= 2) {
-                    $pA = $params[0];
-                    $pB = $params[1];
+                    // Clearance is ALWAYS ID(bore) − OD(shaft). Param order in the manual
+                    // isn't guaranteed (a point may list OD first), so pick ID/OD explicitly
+                    // by description; fall back to sort_order only if they can't be identified.
+                    $idParam = $params->first(fn($p) => preg_match('/\bID\b/i', (string) ($p->description ?? '')) === 1);
+                    $odParam = $params->first(fn($p) => preg_match('/\bOD\b/i', (string) ($p->description ?? '')) === 1);
+                    if ($idParam && $odParam && $idParam->id !== $odParam->id) {
+                        $pA = $idParam;
+                        $pB = $odParam;
+                    } else {
+                        $pA = $params[0];
+                        $pB = $params[1];
+                    }
 
                     $measA = $measByParam[$pA->id] ?? null;
                     $measB = $measByParam[$pB->id] ?? null;
