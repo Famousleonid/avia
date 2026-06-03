@@ -1062,6 +1062,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!map[name]) map[name] = [];
             map[name].push(p);
         });
+        // "Machining (EC)" uses the SAME single list as "Machining" (one machining
+        // pool of the manual) — EC machining picks from the same instructions.
+        if (map['Machining']) {
+            map['Machining (EC)'] = map['Machining'];
+        }
         return map;
     })();
     let figures           = @json($dimensionFigures);
@@ -3012,6 +3017,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let dimRsSteps   = [];   // loaded steps for active parameter
     let dimRsParamId = null; // current parameter id
     let dimRsIplTimer = null;
+    let dimPendingStepSeq = 0; // temp negative ids for steps added before a new param is saved
 
     function fmtDim4(v) { return v != null ? parseFloat(v).toFixed(4) : '—'; }
 
@@ -3040,9 +3046,15 @@ document.addEventListener('DOMContentLoaded', function () {
         list.querySelectorAll('.dim-rs-del-btn').forEach(function (btn) {
             btn.addEventListener('click', async function () {
                 if (!confirm('Delete repair step?')) return;
+                const sid = btn.dataset.id;
+                if (parseInt(sid) < 0) { // pending (not yet saved) → remove locally only
+                    dimRsSteps = dimRsSteps.filter(function (s) { return String(s.id) !== String(sid); });
+                    renderRepairSteps();
+                    return;
+                }
                 try {
-                    await apiFetch('/repair-steps/' + btn.dataset.id, { method: 'DELETE' });
-                    dimRsSteps = dimRsSteps.filter(function (s) { return s.id != btn.dataset.id; });
+                    await apiFetch('/repair-steps/' + sid, { method: 'DELETE' });
+                    dimRsSteps = dimRsSteps.filter(function (s) { return s.id != sid; });
                     renderRepairSteps();
                 } catch (e) { alert(e.message); }
             });
@@ -3151,19 +3163,39 @@ document.addEventListener('DOMContentLoaded', function () {
         const dimMin = document.getElementById('dimRsDimMin').value;
         const dimMax = document.getElementById('dimRsDimMax').value;
         const compId = document.getElementById('dimRsComponentId').value || null;
+        const ipl    = document.getElementById('dimRsIpl').value.trim();
 
         if (!stepNo) { err.textContent = 'Step No. is required.'; err.classList.remove('d-none'); return; }
-        if (!dimRsParamId) { err.textContent = 'No parameter selected.'; err.classList.remove('d-none'); return; }
+
+        const body = {
+            step_no:      stepNo,
+            component_id: compId ? parseInt(compId) : null,
+            dim_min:      dimMin !== '' ? parseFloat(dimMin) : null,
+            dim_max:      dimMax !== '' ? parseFloat(dimMax) : null,
+        };
+
+        // New parameter not saved yet → hold the step locally (temp negative id);
+        // it is created via API after the parameter is saved (dimSpecSaveBtn).
+        if (!dimRsParamId) {
+            const local = Object.assign({}, body, {
+                component: compId ? { id: parseInt(compId), ipl_num: ipl } : null,
+            });
+            const eid = editId !== '' ? parseInt(editId) : null;
+            if (eid != null) {
+                const idx = dimRsSteps.findIndex(function (s) { return s.id === eid; });
+                if (idx !== -1) dimRsSteps[idx] = Object.assign(local, { id: eid });
+            } else {
+                dimPendingStepSeq -= 1;
+                dimRsSteps.push(Object.assign(local, { id: dimPendingStepSeq }));
+            }
+            renderRepairSteps();
+            closeRepairStepForm();
+            return;
+        }
 
         this.disabled = true;
         try {
             let saved;
-            const body = {
-                step_no:      stepNo,
-                component_id: compId ? parseInt(compId) : null,
-                dim_min:      dimMin !== '' ? parseFloat(dimMin) : null,
-                dim_max:      dimMax !== '' ? parseFloat(dimMax) : null,
-            };
             if (editId) {
                 saved = await apiFetch('/repair-steps/' + editId, { method: 'PATCH', body: JSON.stringify(body) });
                 const idx = dimRsSteps.findIndex(function (s) { return s.id == editId; });
@@ -3894,6 +3926,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 body.manual_parameter_id = id || undefined;
                 body.codes_ids = dimSpecCodes.map(function (c) { return c.id; });
                 saved = await apiFetch('/dimension-points/' + activePoint.id + '/parameters', { method: 'POST', body: JSON.stringify(body) });
+                // create repair steps that were added before the parameter existed (temp negative ids)
+                const pendingSteps = dimRsSteps.filter(function (s) { return typeof s.id === 'number' && s.id < 0; });
+                for (const s of pendingSteps) {
+                    await apiFetch('/parameters/' + saved.id + '/repair-steps', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            step_no:      s.step_no,
+                            component_id: s.component_id ?? (s.component ? s.component.id : null),
+                            dim_min:      s.dim_min,
+                            dim_max:      s.dim_max,
+                        }),
+                    });
+                }
                 const existing = parameters.find(function (p) { return p.id === saved.id; });
                 if (existing) {
                     Object.assign(existing, saved);

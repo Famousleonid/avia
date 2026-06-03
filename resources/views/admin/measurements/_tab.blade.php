@@ -997,6 +997,36 @@
     let activeTdrParam = null;
     let autoMissingMeasId = null;
 
+    // All repair rules of a param whose triggers match this failed measurement.
+    // Mirrors the backend resolveRepairRule but returns EVERY match, so the modal
+    // can offer Repair / Order New / EC side by side for the technician to choose.
+    function tdrMatchingRules(param, m) {
+        const rules = param.repair_rules || [];
+        if (!rules.length) return [];
+        const lim  = effectiveLimits(param);
+        const wear = lim.source === 'wear';
+        const hasLimits = lim.min != null && lim.max != null;
+        const av = m.actual_value;
+        const dimFail = hasLimits && av != null && !(av >= lim.min && av <= lim.max);
+        const codesId = m.codes_id || null;
+        const findingCtx = codesId
+            ? (param.codes?.find(c => c.codes_id == codesId)?.finding_context || 'inspection')
+            : null;
+        const failTriggers = wear ? ['below_wear', 'above_wear'] : ['below_orig', 'above_orig'];
+
+        return rules.filter(rule => {
+            const trigs = rule.triggers || [];
+            if (codesId) {
+                if (findingCtx === 'measurement') {
+                    if (trigs.some(t => t.trigger === 'finding_measurement' && (t.codes_id == codesId || t.codes_id == null))) return true;
+                } else if (trigs.some(t => (t.trigger === 'finding_inspection' || t.trigger === 'finding') && (t.codes_id == codesId || t.codes_id == null))) {
+                    return true;
+                }
+            }
+            return dimFail && trigs.some(t => failTriggers.includes(t.trigger));
+        });
+    }
+
     function openTdrModal(param, failMeas) {
         activeTdrParam = param;
         activeTdrMeasurement = failMeas[0];
@@ -1033,15 +1063,24 @@
                 decisions.push({ measId: m.id, paramDesc: dParam.description, codeName, ptCodes, group: 'order_new', missing: true, ruleId: '', procCount: 0, noRule: false });
                 return;
             }
-            const ruleId = m.manual_parameter_repair_rule_id;
-            const rule = ruleId ? (dParam.repair_rules || []).find(r => r.id === ruleId) : null;
-            decisions.push({
-                measId: m.id, paramDesc: dParam.description, codeName, ptCodes, missing: false,
-                ruleId: rule ? rule.id : '',
-                procCount: rule ? (rule.processes || []).length : 0,
-                group: rule ? (rule.order_replacement ? 'order_new' : 'repair') : 'repair',
-                noRule: !rule,
-            });
+            // Show EVERY matching rule as its own option (Repair / Order New / EC).
+            const matched = tdrMatchingRules(dParam, m);
+            if (!matched.length) {
+                decisions.push({
+                    measId: m.id, paramDesc: dParam.description, codeName, ptCodes, missing: false,
+                    ruleId: '', procCount: 0, group: 'repair', noRule: true,
+                });
+            } else {
+                matched.forEach(rule => {
+                    decisions.push({
+                        measId: m.id, paramDesc: dParam.description, codeName, ptCodes, missing: false,
+                        ruleId: rule.id,
+                        procCount: (rule.processes || []).length,
+                        group: rule.action || (rule.order_replacement ? 'order_new' : 'repair'),
+                        noRule: false,
+                    });
+                });
+            }
         });
 
         const ruleWrap = document.getElementById('msTdrRuleWrap');
@@ -1062,18 +1101,18 @@
             // One RADIO per decision (single choice), each on its own full-width row:
             //   [ptCode]  param · defect            → outcome
             decisions.forEach((d, i) => {
-                const outcome = d.group === 'order_new'
-                    ? 'Order New'
+                const outcome = d.group === 'order_new' ? 'Order New'
+                    : d.group === 'ec' ? ('EC' + (d.procCount ? ' · ' + d.procCount + ' proc.' : ''))
                     : ('Repair' + (d.procCount ? ' · ' + d.procCount + ' proc.' : (d.noRule ? ' (no rule)' : '')));
-                const color = d.group === 'order_new' ? '#dc3545' : '#0d6efd';
+                const color = d.group === 'order_new' ? '#dc3545' : d.group === 'ec' ? '#fd7e14' : '#0d6efd';
                 const item = document.createElement('div');
                 item.className = 'form-check d-flex align-items-center gap-2 py-1 px-1';
                 item.style.borderBottom = '1px solid var(--bs-border-color)';
                 item.innerHTML = `<input class="form-check-input ms-tdr-decision m-0" type="radio" name="msTdrDecision"
                     data-group="${d.group}" data-rule-id="${d.missing ? '' : (d.ruleId || '')}" ${d.missing ? 'data-missing="1"' : ''}
                     data-no-rule="${(!d.missing && d.noRule) ? '1' : ''}" data-meas-id="${d.measId}"
-                    id="msTdrDec-${d.measId}">
-                    <label class="form-check-label flex-grow-1 d-flex align-items-center gap-2" for="msTdrDec-${d.measId}" style="font-size:12px;cursor:pointer">
+                    id="msTdrDec-${i}">
+                    <label class="form-check-label flex-grow-1 d-flex align-items-center gap-2" for="msTdrDec-${i}" style="font-size:12px;cursor:pointer">
                         ${d.ptCodes ? '<span class="badge bg-secondary" style="font-size:9px;min-width:34px">' + esc(d.ptCodes) + '</span>' : '<span style="min-width:34px"></span>'}
                         <span class="fw-semibold flex-grow-1">${esc(d.paramDesc || '')}${d.codeName ? ' <span class="text-warning fw-normal">· ' + esc(d.codeName) + '</span>' : ''}${d.missing ? ' <span class="badge bg-danger" style="font-size:9px">Missing</span>' : ''}</span>
                         <span class="pdw-outcome flex-shrink-0" style="font-weight:600">→ ${esc(outcome)}</span>

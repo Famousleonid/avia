@@ -466,35 +466,43 @@ class WoMeasurementController extends Controller
             ], 201);
         }
 
-        // ── Order New (single rule, order_replacement=true) ──────────
-        if (!empty($ruleIds)) {
-            $firstRule = ManualParameterRepairRule::find($ruleIds[0]);
-            if ($firstRule?->order_replacement) {
-                $necessary = Necessary::where('name', 'Order New')->firstOrFail();
-                $tdr = Tdr::create([
-                    'tdr_type'           => Tdr::TYPE_ORDER_NEW,
-                    'workorder_id'       => $workorder->id,
-                    'component_id'       => $component->id,
-                    'order_component_id' => $component->id,   // Order New = same part ordered new
-                    'serial_number'      => $sn,
-                    'description'        => $desc,
-                    'codes_id'           => $codesId,
-                    'conditions_id'      => $conditionId,
-                    'necessaries_id'     => $necessary->id,
-                    'qty'                => $qty,
-                    'use_tdr'            => true,
-                    'use_process_forms'  => false,
-                ]);
-                $tdr->update(['use_tdr' => true]);
-                return response()->json([
-                    'tdr_id'   => $tdr->id,
-                    'tdr_type' => $tdr->tdr_type,
-                    'component'=> $component->part_number . ' — ' . $component->name,
-                ], 201);
-            }
+        // ── Chosen rule's action: repair | order_new | ec ────────────
+        $firstRule  = !empty($ruleIds) ? ManualParameterRepairRule::find($ruleIds[0]) : null;
+        $ruleAction = $firstRule
+            ? ($firstRule->action ?? ($firstRule->order_replacement ? 'order_new' : 'repair'))
+            : 'repair';
+
+        // ── Order New (action = order_new) ───────────────────────────
+        if ($ruleAction === 'order_new') {
+            $necessary = Necessary::where('name', 'Order New')->firstOrFail();
+            $tdr = Tdr::create([
+                'tdr_type'           => Tdr::TYPE_ORDER_NEW,
+                'workorder_id'       => $workorder->id,
+                'component_id'       => $component->id,
+                'order_component_id' => $component->id,   // Order New = same part ordered new
+                'serial_number'      => $sn,
+                'description'        => $desc,
+                'codes_id'           => $codesId,
+                'conditions_id'      => $conditionId,
+                'necessaries_id'     => $necessary->id,
+                'qty'                => $qty,
+                'use_tdr'            => true,
+                'use_process_forms'  => false,
+            ]);
+            $tdr->update(['use_tdr' => true]);
+            return response()->json([
+                'tdr_id'   => $tdr->id,
+                'tdr_type' => $tdr->tdr_type,
+                'component'=> $component->part_number . ' — ' . $component->name,
+            ], 201);
         }
 
-        // ── Repair: combine processes from all selected rules ────────
+        // ── Repair / EC: combine processes from selected rules ───────
+        // EC = repair under OEM concession. The part is machined at ALL its points
+        // (one machining covers the whole part), then submitted for concession:
+        // the EC plan keeps ONLY Start + machining processes + the EC process;
+        // everything else (plating, NDT, paint, Finish) is held until granted.
+        $isEc = ($ruleAction === 'ec');
         $necessary = Necessary::where('name', 'Repair')->firstOrFail();
         $tdr = Tdr::create([
             'tdr_type'          => Tdr::TYPE_COMPONENT_TDR,
@@ -515,14 +523,45 @@ class WoMeasurementController extends Controller
         // If the part has no MasterRule, only Main runs — same result as the previous flat merge.
         $parameter = ManualParameter::find($measurement->manual_parameter_id);
 
+        // EC machines the WHOLE part: aggregate the matched rules of EVERY failed
+        // point of this inspection component (+ the chosen EC rule). Regular repair
+        // uses only the selected rule(s).
+        $pipelineRuleIds = $ruleIds;
+        if ($isEc) {
+            $partParamIds = ManualParameter::where('inspection_component_id', $parameter?->inspection_component_id)
+                ->pluck('id');
+            $pipelineRuleIds = WoMeasurement::where('workorder_id', $workorder->id)
+                ->whereIn('manual_parameter_id', $partParamIds)
+                ->where('result', 'FAIL')
+                ->whereNotNull('manual_parameter_repair_rule_id')
+                ->pluck('manual_parameter_repair_rule_id')
+                ->merge($ruleIds)
+                ->unique()->values()->all();
+        }
+
         $ctx = new PipelineContext();
         $ctx->inspectionComponentId = $parameter?->inspection_component_id;
-        $ctx->mainRuleIds           = $ruleIds;
+        $ctx->mainRuleIds           = $pipelineRuleIds;
         $ctx->defectCodeIds         = array_values(array_filter([$codesId]));
+        $ctx->heldPendingEc         = $isEc; // EC → hold the Finish phase until granted
 
         app(RepairPipeline::class)->run($ctx);
 
+        // EC keeps only Start + machining-type Main processes (e.g. Machining, Machining (EC)).
+        $machiningNameIds = $isEc
+            ? \App\Models\ProcessName::where('name', 'like', '%Machining%')->pluck('id')->map(fn($id) => (int) $id)->all()
+            : [];
+
+        $maxSort = 0;
         foreach ($ctx->processGroups as $group) {
+            if ($isEc) {
+                $keep = ($group['phase'] ?? '') === 'start'
+                    || (($group['phase'] ?? '') === 'main'
+                        && in_array((int) $group['process_names_id'], $machiningNameIds, true));
+                if (!$keep) {
+                    continue; // drop plating/NDT/paint/etc. — held until concession granted
+                }
+            }
             // Description = per-process notes from the rule (Main + Start/Finish),
             // computed by the pipeline. Empty when the process has no note — no fallback.
             TdrProcess::create([
@@ -534,6 +573,23 @@ class WoMeasurementController extends Controller
                 'sort_order'       => $group['sort_order'],
                 'in_traveler'      => false,
             ]);
+            $maxSort = max($maxSort, (int) $group['sort_order']);
+        }
+
+        // EC: add the EC process (tracked on /ec) after the machining processes.
+        if ($isEc) {
+            $ecNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
+            if ($ecNameId) {
+                TdrProcess::create([
+                    'tdrs_id'          => $tdr->id,
+                    'process_names_id' => $ecNameId,
+                    'processes'        => [],
+                    'rule_process_ids' => [],
+                    'description'      => '',
+                    'sort_order'       => $maxSort + 1,
+                    'in_traveler'      => false,
+                ]);
+            }
         }
 
         return response()->json([
