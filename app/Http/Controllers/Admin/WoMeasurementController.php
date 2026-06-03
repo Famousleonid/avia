@@ -9,6 +9,8 @@ use App\Models\Condition;
 use App\Models\ManualInspectionComponentVariant;
 use App\Models\ManualParameter;
 use App\Models\ManualParameterRepairRule;
+use App\Models\MasterRule;
+use App\Models\MasterRulePhaseRule;
 use App\Models\Necessary;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
@@ -581,13 +583,15 @@ class WoMeasurementController extends Controller
             $ecNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
             if ($ecNameId) {
                 TdrProcess::create([
-                    'tdrs_id'          => $tdr->id,
-                    'process_names_id' => $ecNameId,
-                    'processes'        => [],
-                    'rule_process_ids' => [],
-                    'description'      => '',
-                    'sort_order'       => $maxSort + 1,
-                    'in_traveler'      => false,
+                    'tdrs_id'            => $tdr->id,
+                    'process_names_id'   => $ecNameId,
+                    'processes'          => [],
+                    'rule_process_ids'   => [],
+                    'description'        => '',
+                    'sort_order'         => $maxSort + 1,
+                    'in_traveler'        => false,
+                    'ec'                 => 1,     // EC-related (read by SP Form / TDR-print)
+                    'standalone_ec_only' => false, // always a companion to Machining (EC), never standalone
                 ]);
             }
         }
@@ -656,6 +660,64 @@ class WoMeasurementController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * EC gate (Path A) — a repaired point PASSes if its final measured value landed
+     * within the orig/wear tolerance OR within any oversize repair step. Anything
+     * outside both = FAIL → EC / Order New.
+     *
+     * @param \Illuminate\Support\Collection|\App\Models\ManualRepairStep[] $repairSteps
+     */
+    private function gatePass(?float $value, array $limits, $repairSteps): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+        // within the general tolerance (orig or wear, per the WO instruction)
+        if ($limits['min'] !== null && $limits['max'] !== null
+            && $value >= (float) $limits['min'] && $value <= (float) $limits['max']) {
+            return true;
+        }
+        // within any allowed oversize repair step
+        foreach ($repairSteps as $s) {
+            if ($s->dim_min !== null && $s->dim_max !== null
+                && $value >= (float) $s->dim_min && $value <= (float) $s->dim_max) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * EC gate (Path A) — Finish-phase process_names of the part's MasterRule.
+     * Used to identify the Finish processes (pipeline OR manual — keyed by
+     * process_names_id) that must be removed/held when a part goes to EC.
+     * Returns [] when the part has no MasterRule (no Finish phase defined).
+     *
+     * @return int[] process_names_id
+     */
+    private function finishProcessNameIds(?int $inspectionComponentId): array
+    {
+        if (!$inspectionComponentId) {
+            return [];
+        }
+        $masterRule = MasterRule::with('phaseRules.processes.manualProcess.process')
+            ->where('inspection_component_id', $inspectionComponentId)
+            ->first();
+        if (!$masterRule) {
+            return [];
+        }
+        $ids = [];
+        foreach ($masterRule->phaseRules->where('phase', MasterRulePhaseRule::PHASE_FINISH) as $rule) {
+            foreach ($rule->processes as $rp) {
+                $pnId = $rp->manualProcess?->process?->process_names_id;
+                if ($pnId) {
+                    $ids[] = (int) $pnId;
+                }
+            }
+        }
+        return array_values(array_unique($ids));
     }
 
     private function resolveRepairRule(ManualParameter $parameter, ?string $result, ?int $codesId, bool $useWear, ?string $findingContext = null): ?int
