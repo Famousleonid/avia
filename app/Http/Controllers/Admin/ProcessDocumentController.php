@@ -230,7 +230,7 @@ class ProcessDocumentController extends Controller
             'label_x_pct'         => 'nullable|numeric',
             'label_y_pct'         => 'nullable|numeric',
             'mask'                => 'nullable|in:diameter,linear',
-            'value_source'        => 'nullable|in:static,measurement',
+            'value_source'        => 'nullable|in:static,measurement,calc',
             'static_value'        => 'nullable|numeric',
             'source_parameter_id' => 'nullable|exists:manual_parameters,id',
             'placeholder'         => 'nullable|string|max:100',

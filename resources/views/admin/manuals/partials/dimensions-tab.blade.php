@@ -1002,6 +1002,7 @@
                             <select id="pdw-ef-source" class="form-select form-select-sm" style="width:auto;font-size:12px">
                                 <option value="static">Static value</option>
                                 <option value="measurement">From measurement (WO)</option>
+                                <option value="calc">Calc from mating (F&amp;C)</option>
                             </select>
                             <input id="pdw-ef-static" type="number" step="0.0001" class="form-control form-control-sm" style="width:120px;font-size:12px" placeholder="0.0000">
                             <select id="pdw-ef-param" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
@@ -4746,9 +4747,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 el.className = 'pdw-dim-label';
                 const prefix = e.mask === 'diameter' ? 'Ø' : '';
                 let valTxt;
-                if (e.value_source === 'measurement') {
+                if (e.value_source === 'measurement' || e.value_source === 'calc') {
                     const sp = (pdwSourceParams || []).find(function (p) { return p.id == e.source_parameter_id; });
-                    valTxt = '⟨' + (sp ? (sp.description || 'param') : 'measure') + '⟩';
+                    const pname = sp ? (sp.description || 'param') : (e.value_source === 'calc' ? 'mating' : 'measure');
+                    valTxt = (e.value_source === 'calc' ? '≈⟨' : '⟨') + pname + '⟩';
                     el.style.borderStyle = 'dashed';
                 } else {
                     valTxt = pdwFmt(e.static_value);
@@ -4915,9 +4917,9 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwPending = null;
     }
     document.getElementById('pdw-ef-source').addEventListener('change', function () {
-        const meas = this.value === 'measurement';
-        document.getElementById('pdw-ef-static').classList.toggle('d-none', meas);
-        document.getElementById('pdw-ef-param').classList.toggle('d-none', !meas);
+        const needsParam = this.value === 'measurement' || this.value === 'calc';
+        document.getElementById('pdw-ef-static').classList.toggle('d-none', needsParam);
+        document.getElementById('pdw-ef-param').classList.toggle('d-none', !needsParam);
     });
     document.getElementById('pdw-ef-lbltype').addEventListener('change', function () {
         const ph = this.value === 'placeholder';
@@ -4931,7 +4933,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (pdwPending.element_type === 'dimension') {
             const src = document.getElementById('pdw-ef-source').value;
             body.value_source = src;
-            if (src === 'measurement') {
+            if (src === 'measurement' || src === 'calc') {
                 body.source_parameter_id = parseInt(document.getElementById('pdw-ef-param').value) || null;
             } else {
                 const v = document.getElementById('pdw-ef-static').value;

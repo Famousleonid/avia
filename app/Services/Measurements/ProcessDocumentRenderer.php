@@ -2,6 +2,7 @@
 
 namespace App\Services\Measurements;
 
+use App\Models\ManualParameter;
 use App\Models\ProcessDocument;
 use App\Models\WoMeasurement;
 use App\Models\Workorder;
@@ -28,7 +29,11 @@ class ProcessDocumentRenderer
     {
         $document->loadMissing('pages.elements');
 
-        $pages = $document->pages->map(fn($p) => $this->renderPage($p, $workorder, $context))->all();
+        // "Own" parameter of this document (the drawing's point/parameter) — used by 'calc'
+        // to derive the mating dimension from the F&C pair's nominal clearance.
+        $docParam = $this->documentParameter($document);
+
+        $pages = $document->pages->map(fn($p) => $this->renderPage($p, $workorder, $context, $docParam))->all();
 
         $html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><style>'
             . '@page{margin:8mm;}'
@@ -46,7 +51,7 @@ class ProcessDocumentRenderer
         return Pdf::loadHTML($html)->setPaper('a4', 'portrait')->output();
     }
 
-    private function renderPage($page, Workorder $workorder, array $context): string
+    private function renderPage($page, Workorder $workorder, array $context, ?ManualParameter $docParam): string
     {
         $img = $this->imageDataUri($page->image_path);
         $imgTag = $img ? '<img src="' . $img . '" alt="">' : '<div style="height:200px"></div>';
@@ -58,7 +63,7 @@ class ProcessDocumentRenderer
                 continue;
             }
             $cls = $e->element_type === 'dimension' ? 'pdw-el pdw-dim' : 'pdw-el pdw-label';
-            $text = htmlspecialchars($this->resolveValue($e, $workorder, $context), ENT_QUOTES, 'UTF-8');
+            $text = htmlspecialchars($this->resolveValue($e, $workorder, $context, $docParam), ENT_QUOTES, 'UTF-8');
             $els .= '<div class="' . $cls . '" style="left:' . $xp . '%;top:' . $yp . '%">' . $text . '</div>';
         }
 
@@ -81,10 +86,15 @@ class ProcessDocumentRenderer
         return [(float) $e->x_pct, (float) $e->y_pct];
     }
 
-    private function resolveValue($e, Workorder $workorder, array $context): string
+    private function resolveValue($e, Workorder $workorder, array $context, ?ManualParameter $docParam = null): string
     {
         if ($e->element_type === 'dimension') {
             $prefix = $e->mask === 'diameter' ? 'Ø' : '';
+
+            // 2c.2 — derived dimension from the F&C mating measurement.
+            if ($e->value_source === 'calc') {
+                return $prefix . $this->calcMatingRange($e, $workorder, $docParam);
+            }
             if ($e->value_source === 'measurement') {
                 $v = $this->measurementValue($workorder->id, $e->source_parameter_id);
                 return $prefix . ($v !== null ? $this->fmt($v) : '—');
@@ -97,6 +107,48 @@ class ProcessDocumentRenderer
             return $this->resolvePlaceholder($e->placeholder, $workorder, $context);
         }
         return (string) ($e->text ?? '');
+    }
+
+    /**
+     * 2c.2 calc: target dimension range for THIS drawing's part, derived from the
+     * actual measurement of the mating parameter (source_parameter_id) and the
+     * nominal clearance of the F&C pair.
+     *
+     *   nominal clearance = mating − this  (sign auto-handles clearance vs interference)
+     *     c_min = mating.orig_min − this.orig_max
+     *     c_max = mating.orig_max − this.orig_min
+     *   target ∈ [measured − c_max, measured − c_min]
+     */
+    private function calcMatingRange($e, Workorder $workorder, ?ManualParameter $docParam): string
+    {
+        $measured = $this->measurementValue($workorder->id, $e->source_parameter_id);
+        if ($measured === null) {
+            return '—';
+        }
+
+        $mating = $e->source_parameter_id ? ManualParameter::find($e->source_parameter_id) : null;
+        if (!$docParam || !$mating
+            || $docParam->orig_dim_min === null || $docParam->orig_dim_max === null
+            || $mating->orig_dim_min === null || $mating->orig_dim_max === null) {
+            // not enough data to derive — fall back to the raw measurement
+            return $this->fmt($measured);
+        }
+
+        $cMin = (float) $mating->orig_dim_min - (float) $docParam->orig_dim_max;
+        $cMax = (float) $mating->orig_dim_max - (float) $docParam->orig_dim_min;
+
+        $lo = $measured - $cMax;
+        $hi = $measured - $cMin;
+
+        return $this->fmt($lo) . '–' . $this->fmt($hi);
+    }
+
+    /** The parameter a (Main) document belongs to, via documentable → rule → parameter. */
+    private function documentParameter(ProcessDocument $document): ?ManualParameter
+    {
+        $documentable = $document->documentable;            // ManualParameterRuleProcess | MasterRulePhaseRuleProcess
+        $rule = $documentable?->rule ?? null;               // only Main rule-processes expose ->rule->parameter
+        return $rule?->parameter;
     }
 
     /** Final actual_value of a parameter in this WO (fallback: latest any stage). */
