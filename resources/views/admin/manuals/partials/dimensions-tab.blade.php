@@ -1175,6 +1175,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return `<div class="dim-insp-comp-row" data-ic-id="${ic.id}" draggable="true">
                 <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
                 <button class="btn btn-link p-0 dim-ic-plan" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Repair Plan (Start/Finish)"><i class="bi bi-diagram-3"></i></button>
+                <button class="btn btn-link p-0 dim-ic-ec-doc" data-ic-id="${ic.id}" style="font-size:10px;color:${ic.has_ec_drawing ? 'var(--bs-warning)' : 'var(--bs-secondary-color)'}" title="EC dimensions sheet"><i class="bi bi-rulers"></i></button>
                 <span class="dim-insp-comp-name fw-semibold flex-grow-1" data-ic-id="${ic.id}" style="color:#5ee3ff;font-size:11px" title="Double-click to rename">${escHtml(ic.label)}</span>
                 <button class="btn btn-link p-0 dim-ic-expand" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Variants">
                     <i class="bi bi-${isOpen ? 'chevron-up' : 'chevron-down'}"></i>
@@ -1199,6 +1200,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 const id = parseInt(btn.dataset.icId);
                 const ic = inspComponents.find(function (x) { return x.id === id; });
                 openMasterRuleModal(id, ic ? ic.label : '');
+            });
+        });
+
+        // open EC dimensions sheet (part-level process document)
+        list.querySelectorAll('.dim-ic-ec-doc').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const id = parseInt(btn.dataset.icId);
+                const ic = inspComponents.find(function (x) { return x.id === id; });
+                openProcessDocumentsModal(id, 'EC — ' + (ic ? ic.label : ''), 'component');
             });
         });
 
@@ -4563,6 +4573,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ---- open: load documents, show list ----
     let pdwProcKind = 'main'; // 'main' (point rule) | 'phase' (Start/Finish)
     function pdwDocsBase() {
+        if (pdwProcKind === 'component') return '/inspection-components/' + pdwRuleProcessId + '/documents';
         return pdwProcKind === 'phase'
             ? '/phase-rule-processes/' + pdwRuleProcessId + '/documents'
             : '/rule-processes/' + pdwRuleProcessId + '/documents';
@@ -4570,7 +4581,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function openProcessDocumentsModal(ruleProcessId, label, kind) {
         pdwRuleProcessId = ruleProcessId;
-        pdwProcKind = kind === 'phase' ? 'phase' : 'main';
+        pdwProcKind = (kind === 'phase' || kind === 'component') ? kind : 'main';
         pdwDocs = []; pdwSourceParams = []; pdwDoc = null; pdwPage = null;
         document.getElementById('pdwTitle').textContent = 'Process Documents — ' + (label || '');
         document.getElementById('pdw-doc-list').innerHTML = '<div class="text-secondary" style="font-size:12px">Loading…</div>';
@@ -4592,6 +4603,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     function pdwUpdateProcessFlag() {
         const hasImg = pdwProcessHasImage();
+        if (pdwProcKind === 'component') {
+            const p = (typeof inspComponents !== 'undefined' && inspComponents) ? inspComponents.find(function (x) { return x.id === pdwRuleProcessId; }) : null;
+            if (p) { p.has_ec_drawing = hasImg; if (typeof renderInspComponents === 'function') renderInspComponents(); }
+            return;
+        }
         if (pdwProcKind === 'phase') {
             const rp = dimMrProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
             if (rp) { rp.has_drawing = hasImg; renderMrProcessList(); }

@@ -63,8 +63,18 @@
             $docsByRp[$_d->documentable_id][] = $_d;
         }
     }
-    // Колонку Document показываем, только если хотя бы у одного процесса детали есть шаблон документа.
-    $showDocColumn = !empty($docsByRp);
+    // EC dimensions sheet — part-level document(s) on the inspection component (shown on the EC row).
+    $ecDocs = [];
+    $_icId = \App\Models\ManualInspectionComponentVariant::where('component_id', $comp->id ?? 0)->value('inspection_component_id');
+    if ($_icId) {
+        $ecDocs = \App\Models\ProcessDocument::where('documentable_type', \App\Models\ManualInspectionComponent::class)
+            ->where('documentable_id', $_icId)
+            ->orderBy('sort_order')
+            ->get(['id', 'documentable_id', 'title', 'doc_type'])
+            ->all();
+    }
+    // Колонку Document показываем, если есть шаблон у процесса детали ИЛИ EC-лист детали.
+    $showDocColumn = !empty($docsByRp) || !empty($ecDocs);
 @endphp
 
 <style>

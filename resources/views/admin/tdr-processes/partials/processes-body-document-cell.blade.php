@@ -1,12 +1,20 @@
 {{-- Document column cell (2c.1): generate a concrete PDF from the process' document template(s). --}}
 {{-- Requires: $tdrProcessRow, $docsByRp (rule_process_id => [ProcessDocument]), $current_wo --}}
-{{-- Колонка скрыта целиком, если ни у одного процесса детали нет шаблонов — тогда <td> не выводим. --}}
-@if(!empty($docsByRp))
+{{-- EC row uses $ecDocs (part-level EC dimensions sheet). --}}
+{{-- Колонка скрыта целиком, если нет ни шаблонов процессов, ни EC-листа — тогда <td> не выводим. --}}
+@if(!empty($docsByRp) || !empty($ecDocs ?? []))
 @php
+    $_isEcRow = isset($ecProcessNameId) && (int) $tdrProcessRow->process_names_id === (int) $ecProcessNameId;
     $rowDocs = [];
-    foreach ((array) ($tdrProcessRow->rule_process_ids ?? []) as $rid) {
-        foreach ($docsByRp[$rid] ?? [] as $d) {
+    if ($_isEcRow) {
+        foreach (($ecDocs ?? []) as $d) {
             $rowDocs[$d->id] = $d;
+        }
+    } else {
+        foreach ((array) ($tdrProcessRow->rule_process_ids ?? []) as $rid) {
+            foreach ($docsByRp[$rid] ?? [] as $d) {
+                $rowDocs[$d->id] = $d;
+            }
         }
     }
     $rowDocs = array_values($rowDocs);
