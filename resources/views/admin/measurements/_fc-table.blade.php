@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>F&amp;C / Measurements — WO {{ $workorder->wo_number ?? $workorder->id }}</title>
+<title>F&amp;C / Measurements — WO W{{ $workorder->number ?? $workorder->id }}</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; }
 body { margin: 0; font-family: Arial, sans-serif; font-size: 12px; background: #fff; color: #000; }
@@ -89,9 +89,7 @@ tr.row-hidden { display: none; }
     </div>
     <div class="doc-title">Fits &amp; Clearances / Measurements</div>
     <div class="doc-meta">
-        WO: <strong>{{ $workorder->wo_number ?? $workorder->id }}</strong>
-        &nbsp;·&nbsp; Unit: <strong>{{ $workorder->unit?->serial_number ?? '—' }}</strong>
-        &nbsp;·&nbsp; {{ $useWear ? 'Repair — wear limits' : 'Initial — orig limits' }}
+        WO: <strong>W{{ $workorder->number ?? $workorder->id }}</strong>
         &nbsp;·&nbsp; {{ now()->format('d M Y H:i') }}
     </div>
 

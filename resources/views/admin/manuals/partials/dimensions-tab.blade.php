@@ -501,8 +501,12 @@
                                     <label class="form-check-label" for="dimRuleActionRepair" style="font-size:13px">Repair</label>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="dimRuleAction" id="dimRuleActionReplace" value="replace">
+                                    <input class="form-check-input" type="radio" name="dimRuleAction" id="dimRuleActionReplace" value="order_new">
                                     <label class="form-check-label" for="dimRuleActionReplace" style="font-size:13px">Order new</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="dimRuleAction" id="dimRuleActionEc" value="ec">
+                                    <label class="form-check-label" for="dimRuleActionEc" style="font-size:13px">EC</label>
                                 </div>
                             </div>
                         </div>
@@ -914,7 +918,7 @@
     </div>
 </div>
 
-{{-- Modal: Process Drawing editor (full-screen) --}}
+{{-- Modal: Process Documents editor (full-screen) — documents -> pages -> elements --}}
 <style>
     #pdw-canvas { flex:1 1 auto; overflow:hidden; position:relative; background:rgba(0,0,0,.05); cursor:grab; }
     #pdw-canvas.grabbing { cursor:grabbing; }
@@ -928,60 +932,110 @@
     .pdw-dim-label:hover { box-shadow:0 0 0 2px rgba(13,110,253,.35); }
     .pdw-text-label { position:absolute; transform:translate(-50%,-50%); background:rgba(20,184,166,.12); border:1.5px solid #14b8a6;
         border-radius:8px; padding:2px 8px; font-size:12px; font-weight:600; color:#0d9488; white-space:nowrap; cursor:pointer; z-index:10; pointer-events:all; }
+    .pdw-doc-row { display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--bs-border-color); border-radius:6px; margin-bottom:6px; cursor:pointer; }
+    .pdw-doc-row:hover { background:rgba(13,110,253,.05); border-color:#0d6efd; }
+    .pdw-doc-type { font-size:10px; padding:1px 6px; border-radius:3px; background:rgba(13,110,253,.12); color:#0d6efd; flex-shrink:0; text-transform:uppercase; }
+    .pdw-page-tab { font-size:11px; padding:2px 8px; border:1px solid var(--bs-border-color); border-radius:3px; cursor:pointer; background:transparent; }
+    .pdw-page-tab.active { background:rgba(13,110,253,.15); border-color:#0d6efd; color:#0d6efd; font-weight:600; }
 </style>
 <div class="modal fade" id="pdwModal" tabindex="-1">
     <div class="modal-dialog modal-fullscreen">
         <div class="modal-content">
             <div class="modal-header py-2">
-                <h6 class="modal-title mb-0" id="pdwTitle">Process Drawing</h6>
+                <h6 class="modal-title mb-0" id="pdwTitle">Process Documents</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body d-flex flex-column p-0" style="overflow:hidden">
-                <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom flex-wrap" style="flex-shrink:0">
-                    <button class="btn btn-outline-secondary btn-sm" id="pdwUploadBtn"><i class="bi bi-upload"></i> Image</button>
-                    <input type="file" id="pdwFileInput" accept="image/png,image/jpeg,image/webp,image/gif" class="d-none">
-                    <span class="border-start ps-2 ms-1"></span>
-                    <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="diameter" id="pdwAddDiaBtn" title="Add diameter Ø (1 click)"><i class="bi bi-circle"></i> Ø Diameter</button>
-                    <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="linear" id="pdwAddLinBtn" title="Add linear dimension (2 clicks)"><i class="bi bi-rulers"></i> Linear</button>
-                    <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="label" id="pdwAddLblBtn" title="Add text label (1 click)"><i class="bi bi-tag"></i> Label</button>
-                    <span class="text-secondary ms-auto" id="pdwHint" style="font-size:11px"></span>
-                    <button class="btn btn-outline-secondary btn-sm py-0 px-2" id="pdwZoomReset" title="Reset zoom">↺</button>
-                    <button class="btn btn-outline-danger btn-sm d-none" id="pdwDeleteBtn" title="Remove drawing from this process"><i class="bi bi-trash3"></i> Remove drawing</button>
+            <div class="modal-body p-0" style="overflow:hidden">
+
+                {{-- Screen A: document list --}}
+                <div id="pdw-doc-screen" class="p-3" style="overflow-y:auto;height:100%">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="fw-semibold">Documents</span>
+                        <button class="btn btn-outline-primary btn-sm ms-auto" id="pdwAddDocBtn"><i class="bi bi-plus-lg"></i> Add document</button>
+                    </div>
+                    {{-- inline add/edit document form --}}
+                    <div id="pdw-doc-form" class="d-none border rounded p-2 mb-3" style="background:rgba(0,0,0,.04)">
+                        <input type="hidden" id="pdwDocEditId">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-auto">
+                                <label class="form-label form-label-sm">Type</label>
+                                <select id="pdwDocType" class="form-select form-select-sm">
+                                    <option value="drawing">Drawing</option>
+                                    <option value="manual_page">Manual page</option>
+                                    <option value="test_report">Test report</option>
+                                </select>
+                            </div>
+                            <div class="col">
+                                <label class="form-label form-label-sm">Title</label>
+                                <input type="text" id="pdwDocTitle" class="form-control form-control-sm" placeholder="e.g. Rechrome sketch">
+                            </div>
+                            <div class="col-auto">
+                                <button class="btn btn-secondary btn-sm" id="pdwDocCancelBtn">Cancel</button>
+                                <button class="btn btn-primary btn-sm" id="pdwDocSaveBtn">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="pdw-doc-list"></div>
                 </div>
-                <div id="pdw-elem-form" class="d-none px-3 py-2 border-bottom d-flex gap-2 align-items-center flex-wrap" style="background:rgba(13,110,253,.06);flex-shrink:0">
-                    {{-- dimension fields --}}
-                    <div id="pdw-ef-dim" class="d-none d-flex gap-2 align-items-center flex-wrap">
-                        <span style="font-size:12px;font-weight:600">Value:</span>
-                        <select id="pdw-ef-source" class="form-select form-select-sm" style="width:auto;font-size:12px">
-                            <option value="static">Static value</option>
-                            <option value="measurement">From measurement (WO)</option>
-                        </select>
-                        <input id="pdw-ef-static" type="number" step="0.0001" class="form-control form-control-sm" style="width:120px;font-size:12px" placeholder="0.0000">
-                        <select id="pdw-ef-param" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
+
+                {{-- Screen B: page editor --}}
+                <div id="pdw-editor-screen" class="d-none flex-column" style="height:100%">
+                    <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom flex-wrap" style="flex-shrink:0">
+                        <button class="btn btn-outline-secondary btn-sm" id="pdwBackBtn"><i class="bi bi-arrow-left"></i> Documents</button>
+                        <span class="fw-semibold" id="pdwEditorTitle" style="font-size:13px"></span>
+                        <span class="border-start ps-2 ms-1"></span>
+                        {{-- page navigator --}}
+                        <span class="text-secondary" style="font-size:11px">Page:</span>
+                        <div id="pdw-page-tabs" class="d-flex gap-1 align-items-center"></div>
+                        <button class="btn btn-outline-secondary btn-sm py-0 px-2" id="pdwAddPageBtn" title="Add page"><i class="bi bi-plus-lg"></i> Page</button>
+                        <button class="btn btn-outline-danger btn-sm py-0 px-2 d-none" id="pdwDelPageBtn" title="Remove current page"><i class="bi bi-trash3"></i></button>
+                        <span class="border-start ps-2 ms-1"></span>
+                        {{-- tools --}}
+                        <button class="btn btn-outline-secondary btn-sm" id="pdwUploadBtn"><i class="bi bi-upload"></i> Image</button>
+                        <input type="file" id="pdwFileInput" accept="image/png,image/jpeg,image/webp,image/gif" class="d-none">
+                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="diameter" title="Add diameter Ø (1 click)"><i class="bi bi-circle"></i> Ø</button>
+                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="linear" title="Add linear dimension (2 clicks)"><i class="bi bi-rulers"></i> Linear</button>
+                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="label" title="Add label / placeholder (1 click)"><i class="bi bi-tag"></i> Label</button>
+                        <span class="text-secondary ms-auto" id="pdwHint" style="font-size:11px"></span>
+                        <button class="btn btn-outline-secondary btn-sm py-0 px-2" id="pdwZoomReset" title="Reset zoom">↺</button>
                     </div>
-                    {{-- label fields --}}
-                    <div id="pdw-ef-lbl" class="d-none d-flex gap-2 align-items-center flex-wrap">
-                        <span style="font-size:12px;font-weight:600">Label:</span>
-                        <select id="pdw-ef-lbltype" class="form-select form-select-sm" style="width:auto;font-size:12px">
-                            <option value="text">Free text</option>
-                            <option value="placeholder">Placeholder (WO data)</option>
-                        </select>
-                        <input id="pdw-ef-text" type="text" class="form-control form-control-sm" style="width:200px;font-size:12px" placeholder="text">
-                        <select id="pdw-ef-placeholder" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
+                    <div id="pdw-elem-form" class="d-none px-3 py-2 border-bottom d-flex gap-2 align-items-center flex-wrap" style="background:rgba(13,110,253,.06);flex-shrink:0">
+                        {{-- dimension fields --}}
+                        <div id="pdw-ef-dim" class="d-none d-flex gap-2 align-items-center flex-wrap">
+                            <span style="font-size:12px;font-weight:600">Value:</span>
+                            <select id="pdw-ef-source" class="form-select form-select-sm" style="width:auto;font-size:12px">
+                                <option value="static">Static value</option>
+                                <option value="measurement">From measurement (WO)</option>
+                                <option value="calc">Calc from mating (F&amp;C)</option>
+                            </select>
+                            <input id="pdw-ef-static" type="number" step="0.0001" class="form-control form-control-sm" style="width:120px;font-size:12px" placeholder="0.0000">
+                            <select id="pdw-ef-param" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
+                        </div>
+                        {{-- label fields --}}
+                        <div id="pdw-ef-lbl" class="d-none d-flex gap-2 align-items-center flex-wrap">
+                            <span style="font-size:12px;font-weight:600">Label:</span>
+                            <select id="pdw-ef-lbltype" class="form-select form-select-sm" style="width:auto;font-size:12px">
+                                <option value="text">Free text</option>
+                                <option value="placeholder">Placeholder (WO data)</option>
+                            </select>
+                            <input id="pdw-ef-text" type="text" class="form-control form-control-sm" style="width:200px;font-size:12px" placeholder="text">
+                            <select id="pdw-ef-placeholder" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
+                        </div>
+                        <button id="pdw-ef-save" class="btn btn-primary btn-sm ms-2" style="font-size:12px">Add</button>
+                        <button id="pdw-ef-cancel" class="btn btn-secondary btn-sm" style="font-size:12px">Cancel</button>
                     </div>
-                    <button id="pdw-ef-save" class="btn btn-primary btn-sm ms-2" style="font-size:12px">Add</button>
-                    <button id="pdw-ef-cancel" class="btn btn-secondary btn-sm" style="font-size:12px">Cancel</button>
+                    <div id="pdw-canvas">
+                        <div id="pdw-empty" class="d-flex align-items-center justify-content-center h-100 text-secondary" style="font-size:13px">
+                            <div class="text-center"><i class="bi bi-image" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.4rem"></i>Upload an image for this page</div>
+                        </div>
+                        <div id="pdw-img-container" class="d-none">
+                            <img id="pdw-img" src="" alt="">
+                            <svg id="pdw-svg"></svg>
+                            <div id="pdw-overlay"></div>
+                        </div>
+                    </div>
                 </div>
-                <div id="pdw-canvas">
-                    <div id="pdw-empty" class="d-flex align-items-center justify-content-center h-100 text-secondary" style="font-size:13px">
-                        <div class="text-center"><i class="bi bi-image" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.4rem"></i>Upload an image to start</div>
-                    </div>
-                    <div id="pdw-img-container" class="d-none">
-                        <img id="pdw-img" src="" alt="">
-                        <svg id="pdw-svg"></svg>
-                        <div id="pdw-overlay"></div>
-                    </div>
-                </div>
+
             </div>
         </div>
     </div>
@@ -1008,6 +1062,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!map[name]) map[name] = [];
             map[name].push(p);
         });
+        // "Machining (EC)" uses the SAME single list as "Machining" (one machining
+        // pool of the manual) — EC machining picks from the same instructions.
+        if (map['Machining']) {
+            map['Machining (EC)'] = map['Machining'];
+        }
         return map;
     })();
     let figures           = @json($dimensionFigures);
@@ -1305,7 +1364,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 : p.inspection_component_id == null;
             return sameDesc && sameComp;
         });
-        if (!match) { document.getElementById('dimSpecId').value = ''; return; }
+        if (!match) {
+            document.getElementById('dimSpecId').value = '';
+            dimRsParamId = null; dimRsSteps = []; renderRepairSteps(); closeRepairStepForm();
+            return;
+        }
         // Pre-fill from existing parameter
         document.getElementById('dimSpecId').value          = match.id;
         document.getElementById('dimSpecRequired').checked  = !!match.is_required;
@@ -1321,6 +1384,9 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecModalTitle').textContent = 'Assign existing: ' + match.description;
         document.getElementById('dimSpecDeleteBtn').classList.add('d-none');
         document.getElementById('dimSpecDetachBtn').classList.add('d-none');
+        // existing parameter already has an id → load its repair steps so they can be added/edited
+        closeRepairStepForm();
+        loadRepairSteps(match.id);
     }
 
     document.getElementById('dimSpecDescription').addEventListener('input', autoFillParamFromExisting);
@@ -1425,7 +1491,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (idx !== -1) {
                     dimRuleProcesses.splice(idx, 1);
                 } else {
-                    dimRuleProcesses.push({ manual_process_id: id, label: btn.dataset.label });
+                    dimRuleProcesses.push({ manual_process_id: id, label: btn.dataset.label, description: '' });
                 }
                 renderRuleProcessList();
                 updateProcOptButtons();
@@ -1696,7 +1762,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearSpecsPanel();
 
         // Phase 1: scale out current figure
-        imgContainer.style.transition = 'opacity 1s ease, transform 1s ease';
+        imgContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
         imgContainer.style.opacity    = '0';
         imgContainer.style.transform  = 'scale(0.02)';
         renderPoints([]);
@@ -1718,17 +1784,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 figureImg.style.maxHeight = canvasWrap.clientHeight + 'px';
                 zoomLabel.textContent = '100%';
 
-                imgContainer.style.transition = 'opacity 1s ease, transform 1s ease';
+                imgContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
                 requestAnimationFrame(function () {
                     imgContainer.style.opacity   = '1';
                     imgContainer.style.transform = 'scale(1)';
                     renderPoints(fig.points || []);
-                    setTimeout(function () { isNavigating = false; }, 1000);
+                    setTimeout(function () { isNavigating = false; }, 500);
                 });
             };
             figureImg.src = fig.image_path;
             figureImg.alt = fig.title;
-        }, 1000);
+        }, 500);
     }
 
     // ---- Drag to reposition ----
@@ -2813,7 +2879,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (rules.length > 0) {
                     html += `<div class="mt-1" style="border-top:1px solid rgba(0,0,0,.08);padding-top:4px">`;
                     rules.forEach(function (r) {
-                        const al     = r.order_replacement ? 'Order new' : 'Repair';
+                        const _ra    = r.action || (r.order_replacement ? 'order_new' : 'repair');
+                        const al     = _ra === 'ec' ? 'EC' : (_ra === 'order_new' ? 'Order new' : 'Repair');
                         const pc     = (r.processes || []).length;
                         const pcTxt  = pc > 0 ? ` · ${pc} proc.` : '';
                         const nm     = escHtml(r.name || '—');
@@ -2915,6 +2982,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecDeleteBtn').classList.add('d-none');
         document.getElementById('dimSpecDetachBtn').classList.add('d-none');
         document.getElementById('dimSpecError').classList.add('d-none');
+        // new parameter has no id yet → clear any repair-step context from a previous param
+        dimRsParamId = null; dimRsSteps = []; renderRepairSteps(); closeRepairStepForm();
         specModal.show();
     }
 
@@ -2948,6 +3017,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let dimRsSteps   = [];   // loaded steps for active parameter
     let dimRsParamId = null; // current parameter id
     let dimRsIplTimer = null;
+    let dimPendingStepSeq = 0; // temp negative ids for steps added before a new param is saved
 
     function fmtDim4(v) { return v != null ? parseFloat(v).toFixed(4) : '—'; }
 
@@ -2976,9 +3046,15 @@ document.addEventListener('DOMContentLoaded', function () {
         list.querySelectorAll('.dim-rs-del-btn').forEach(function (btn) {
             btn.addEventListener('click', async function () {
                 if (!confirm('Delete repair step?')) return;
+                const sid = btn.dataset.id;
+                if (parseInt(sid) < 0) { // pending (not yet saved) → remove locally only
+                    dimRsSteps = dimRsSteps.filter(function (s) { return String(s.id) !== String(sid); });
+                    renderRepairSteps();
+                    return;
+                }
                 try {
-                    await apiFetch('/repair-steps/' + btn.dataset.id, { method: 'DELETE' });
-                    dimRsSteps = dimRsSteps.filter(function (s) { return s.id != btn.dataset.id; });
+                    await apiFetch('/repair-steps/' + sid, { method: 'DELETE' });
+                    dimRsSteps = dimRsSteps.filter(function (s) { return s.id != sid; });
                     renderRepairSteps();
                 } catch (e) { alert(e.message); }
             });
@@ -3087,19 +3163,39 @@ document.addEventListener('DOMContentLoaded', function () {
         const dimMin = document.getElementById('dimRsDimMin').value;
         const dimMax = document.getElementById('dimRsDimMax').value;
         const compId = document.getElementById('dimRsComponentId').value || null;
+        const ipl    = document.getElementById('dimRsIpl').value.trim();
 
         if (!stepNo) { err.textContent = 'Step No. is required.'; err.classList.remove('d-none'); return; }
-        if (!dimRsParamId) { err.textContent = 'No parameter selected.'; err.classList.remove('d-none'); return; }
+
+        const body = {
+            step_no:      stepNo,
+            component_id: compId ? parseInt(compId) : null,
+            dim_min:      dimMin !== '' ? parseFloat(dimMin) : null,
+            dim_max:      dimMax !== '' ? parseFloat(dimMax) : null,
+        };
+
+        // New parameter not saved yet → hold the step locally (temp negative id);
+        // it is created via API after the parameter is saved (dimSpecSaveBtn).
+        if (!dimRsParamId) {
+            const local = Object.assign({}, body, {
+                component: compId ? { id: parseInt(compId), ipl_num: ipl } : null,
+            });
+            const eid = editId !== '' ? parseInt(editId) : null;
+            if (eid != null) {
+                const idx = dimRsSteps.findIndex(function (s) { return s.id === eid; });
+                if (idx !== -1) dimRsSteps[idx] = Object.assign(local, { id: eid });
+            } else {
+                dimPendingStepSeq -= 1;
+                dimRsSteps.push(Object.assign(local, { id: dimPendingStepSeq }));
+            }
+            renderRepairSteps();
+            closeRepairStepForm();
+            return;
+        }
 
         this.disabled = true;
         try {
             let saved;
-            const body = {
-                step_no:      stepNo,
-                component_id: compId ? parseInt(compId) : null,
-                dim_min:      dimMin !== '' ? parseFloat(dimMin) : null,
-                dim_max:      dimMax !== '' ? parseFloat(dimMax) : null,
-            };
             if (editId) {
                 saved = await apiFetch('/repair-steps/' + editId, { method: 'PATCH', body: JSON.stringify(body) });
                 const idx = dimRsSteps.findIndex(function (s) { return s.id == editId; });
@@ -3144,13 +3240,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 : '';
             return `<div class="dim-rule-process-item">
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
-                <span class="flex-grow-1">${escHtml(p.label)}</span>
+                <span style="flex:0 0 38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
+                <input type="text" class="form-control form-control-sm dim-rule-proc-note flex-grow-1 ms-1"
+                       data-idx="${i}" value="${escHtml(p.description || '')}"
+                       placeholder="notes (напр. fig. 6039)" style="font-size:11px;height:24px">
                 ${drawBtn}
                 <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)">
                     <i class="bi bi-x"></i>
                 </button>
             </div>`;
         }).join('');
+        wrap.querySelectorAll('.dim-rule-proc-note').forEach(function (inp) {
+            inp.addEventListener('input', function () {
+                dimRuleProcesses[parseInt(inp.dataset.idx)].description = inp.value;
+            });
+        });
         wrap.querySelectorAll('.dim-rule-proc-remove').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 dimRuleProcesses.splice(parseInt(btn.dataset.idx), 1);
@@ -3159,7 +3263,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         wrap.querySelectorAll('.dim-rule-proc-draw').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                openProcessDrawingModal(parseInt(btn.dataset.rpid), btn.dataset.label);
+                openProcessDocumentsModal(parseInt(btn.dataset.rpid), btn.dataset.label);
             });
         });
     }
@@ -3241,7 +3345,7 @@ document.addEventListener('DOMContentLoaded', function () {
         dimRuleProcesses = (rule.processes || []).slice().sort(function (a, b) {
             return (a.sort_order || 0) - (b.sort_order || 0);
         }).map(function (p) {
-            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), rule_process_id: p.id, has_drawing: !!p.has_drawing };
+            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing };
         });
         dimRuleTriggers = (rule.triggers || []).map(function (t) {
             return { trigger: t.trigger, codes_id: t.codes_id || null, code_name: t.code_name || null };
@@ -3249,7 +3353,12 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimRuleId').value      = rule.id;
         document.getElementById('dimRuleParamId').value = param.id;
         document.getElementById('dimRuleName').value    = rule.name || '';
-        document.getElementById(rule.order_replacement ? 'dimRuleActionReplace' : 'dimRuleActionRepair').checked = true;
+        const ruleAction = rule.action || (rule.order_replacement ? 'order_new' : 'repair');
+        document.getElementById(
+            ruleAction === 'ec' ? 'dimRuleActionEc'
+            : ruleAction === 'order_new' ? 'dimRuleActionReplace'
+            : 'dimRuleActionRepair'
+        ).checked = true;
         document.getElementById('dimRuleNotes').value   = rule.notes || '';
         document.getElementById('dimRuleTriggerSel').value = '';
         document.getElementById('dimRuleTriggerCode').classList.add('d-none');
@@ -3307,13 +3416,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const body = {
             name:              document.getElementById('dimRuleName').value.trim() || null,
-            order_replacement: document.getElementById('dimRuleActionReplace').checked,
+            action:            (document.querySelector('input[name="dimRuleAction"]:checked')?.value || 'repair'),
             notes:             notes || null,
             triggers:          dimRuleTriggers.map(function (t) {
                 return { trigger: t.trigger, codes_id: t.codes_id || null };
             }),
             processes:         dimRuleProcesses.map(function (p, i) {
-                return { manual_process_id: p.manual_process_id, sort_order: i };
+                return { manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, sort_order: i };
             }),
         };
 
@@ -3817,6 +3926,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 body.manual_parameter_id = id || undefined;
                 body.codes_ids = dimSpecCodes.map(function (c) { return c.id; });
                 saved = await apiFetch('/dimension-points/' + activePoint.id + '/parameters', { method: 'POST', body: JSON.stringify(body) });
+                // create repair steps that were added before the parameter existed (temp negative ids)
+                const pendingSteps = dimRsSteps.filter(function (s) { return typeof s.id === 'number' && s.id < 0; });
+                for (const s of pendingSteps) {
+                    await apiFetch('/parameters/' + saved.id + '/repair-steps', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            step_no:      s.step_no,
+                            component_id: s.component_id ?? (s.component ? s.component.id : null),
+                            dim_min:      s.dim_min,
+                            dim_max:      s.dim_max,
+                        }),
+                    });
+                }
                 const existing = parameters.find(function (p) { return p.id === saved.id; });
                 if (existing) {
                     Object.assign(existing, saved);
@@ -4123,12 +4245,29 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         wrap.innerHTML = dimMrProcesses.map(function (p, i) {
+            const drawBtn = p.rule_process_id
+                ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-mr-proc-doc" data-rpid="${p.rule_process_id}" data-label="${escHtml(p.label)}" title="${p.has_drawing ? 'Documents (has image)' : 'Add documents'}" style="font-size:11px;color:${p.has_drawing ? '#0d6efd' : 'var(--bs-secondary-color)'};opacity:${p.has_drawing ? '1' : '.5'}"><i class="bi bi-${p.has_drawing ? 'file-earmark-text-fill' : 'file-earmark-text'}"></i></button>`
+                : '';
             return `<div class="dim-rule-process-item">
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
-                <span class="flex-grow-1">${escHtml(p.label)}</span>
+                <span style="flex:0 0 38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
+                <input type="text" class="form-control form-control-sm dim-mr-proc-note flex-grow-1 ms-1"
+                       data-idx="${i}" value="${escHtml(p.description || '')}"
+                       placeholder="notes (напр. fig. 6039)" style="font-size:11px;height:24px">
+                ${drawBtn}
                 <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-mr-proc-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-x"></i></button>
             </div>`;
         }).join('');
+        wrap.querySelectorAll('.dim-mr-proc-note').forEach(function (inp) {
+            inp.addEventListener('input', function () {
+                dimMrProcesses[parseInt(inp.dataset.idx)].description = inp.value;
+            });
+        });
+        wrap.querySelectorAll('.dim-mr-proc-doc').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                openProcessDocumentsModal(parseInt(btn.dataset.rpid), btn.dataset.label, 'phase');
+            });
+        });
         wrap.querySelectorAll('.dim-mr-proc-remove').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 dimMrProcesses.splice(parseInt(btn.dataset.idx), 1);
@@ -4148,7 +4287,7 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.onclick = function () {
                 const idx = dimMrProcesses.findIndex(function (p) { return p.manual_process_id === id; });
                 if (idx !== -1) dimMrProcesses.splice(idx, 1);
-                else dimMrProcesses.push({ manual_process_id: id, label: btn.dataset.label });
+                else dimMrProcesses.push({ manual_process_id: id, label: btn.dataset.label, description: '' });
                 renderMrProcessList();
                 updateMrProcOptButtons();
             };
@@ -4304,7 +4443,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const r = (dimMrData.phase_rules || []).find(function (x) { return x.id === editId; });
             if (r) {
                 name = r.name || '';
-                dimMrProcesses = (r.processes || []).map(function (p) { return { manual_process_id: p.manual_process_id, label: p.label }; });
+                dimMrProcesses = (r.processes || []).map(function (p) { return { manual_process_id: p.manual_process_id, label: p.label, description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing }; });
                 cond = r.condition || null;
             }
         }
@@ -4343,7 +4482,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const phase  = document.getElementById('dimMrFormPhase').value;
         const editId = document.getElementById('dimMrFormEditId').value;
         const name   = document.getElementById('dimMrName').value.trim();
-        const procs  = dimMrProcesses.map(function (p) { return p.manual_process_id; });
+        const procs  = dimMrProcesses.map(function (p, i) { return { manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, sort_order: i }; });
 
         // build condition
         const condType = document.getElementById('dimMrCondType').value;
@@ -4381,9 +4520,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ==========================
-    // Process Drawing editor
+    // Process Documents editor (documents -> pages -> elements)
     // ==========================
-    let pdwModal = null, pdwDrawing = null;
+    let pdwModal = null;
+    let pdwRuleProcessId = null;
+    let pdwDocs = [];           // all documents of the process
+    let pdwSourceParams = [];   // measurement source params (F&C)
+    let pdwDoc = null;          // currently open document
+    let pdwPage = null;         // currently active page
     let pdwScale = 1, pdwTx = 0, pdwTy = 0;
     let pdwDragging = false, pdwDragSX = 0, pdwDragSY = 0, pdwDragTx = 0, pdwDragTy = 0;
     let pdwMode = null, pdwLinearStart = null;
@@ -4394,51 +4538,208 @@ document.addEventListener('DOMContentLoaded', function () {
     const pdwOverlay   = document.getElementById('pdw-overlay');
     const pdwSvg       = document.getElementById('pdw-svg');
     const pdwEmpty     = document.getElementById('pdw-empty');
+    const pdwDocScreen = document.getElementById('pdw-doc-screen');
+    const pdwEdScreen  = document.getElementById('pdw-editor-screen');
 
     function getPdwModal() {
         if (!pdwModal) pdwModal = new bootstrap.Modal(document.getElementById('pdwModal'));
         return pdwModal;
     }
 
-    let pdwRuleProcessId = null;
+    const PDW_TYPE_LABEL = { drawing: 'Drawing', manual_page: 'Manual page', test_report: 'Test report' };
 
-    async function openProcessDrawingModal(ruleProcessId, label) {
-        pdwRuleProcessId = ruleProcessId;
-        document.getElementById('pdwTitle').textContent = 'Process Drawing — ' + (label || '');
+    // ---- screen switching ----
+    function pdwShowDocScreen() {
         pdwSetMode(null);
-        pdwDrawing = null;
-        pdwEmpty.classList.remove('d-none');
-        pdwImgCont.classList.add('d-none');
-        document.getElementById('pdwDeleteBtn').classList.add('d-none');
-        getPdwModal().show();
-        try {
-            pdwDrawing = await apiFetch('/rule-processes/' + ruleProcessId + '/drawing');
-            if (pdwDrawing.image_path) pdwShowImage(pdwDrawing.image_path);
-            // show delete button only if a drawing actually exists
-            document.getElementById('pdwDeleteBtn').classList.toggle('d-none', !pdwDrawing.id);
-        } catch (e) { alert(e.message); }
+        pdwDocScreen.classList.remove('d-none');
+        pdwEdScreen.classList.add('d-none'); pdwEdScreen.classList.remove('d-flex');
+        renderDocList();
+    }
+    function pdwShowEditorScreen() {
+        pdwDocScreen.classList.add('d-none');
+        pdwEdScreen.classList.remove('d-none'); pdwEdScreen.classList.add('d-flex');
     }
 
-    document.getElementById('pdwDeleteBtn').addEventListener('click', async function () {
-        if (!pdwDrawing || !pdwDrawing.id) return;
-        if (!confirm('Remove the entire drawing from this process?')) return;
+    // ---- open: load documents, show list ----
+    let pdwProcKind = 'main'; // 'main' (point rule) | 'phase' (Start/Finish)
+    function pdwDocsBase() {
+        return pdwProcKind === 'phase'
+            ? '/phase-rule-processes/' + pdwRuleProcessId + '/documents'
+            : '/rule-processes/' + pdwRuleProcessId + '/documents';
+    }
+
+    async function openProcessDocumentsModal(ruleProcessId, label, kind) {
+        pdwRuleProcessId = ruleProcessId;
+        pdwProcKind = kind === 'phase' ? 'phase' : 'main';
+        pdwDocs = []; pdwSourceParams = []; pdwDoc = null; pdwPage = null;
+        document.getElementById('pdwTitle').textContent = 'Process Documents — ' + (label || '');
+        document.getElementById('pdw-doc-list').innerHTML = '<div class="text-secondary" style="font-size:12px">Loading…</div>';
+        pdwHideDocForm();
+        getPdwModal().show();
+        pdwShowDocScreen();
         try {
-            await apiFetch('/process-drawings/' + pdwDrawing.id, { method: 'DELETE' });
-            // mark process button as empty again
+            const data = await apiFetch(pdwDocsBase());
+            pdwDocs = data.documents || [];
+            pdwSourceParams = data.source_parameters || [];
+            renderDocList();
+        } catch (e) {
+            document.getElementById('pdw-doc-list').innerHTML = '<div class="text-danger" style="font-size:12px">' + escHtml(e.message) + '</div>';
+        }
+    }
+
+    function pdwProcessHasImage() {
+        return pdwDocs.some(function (d) { return (d.pages || []).some(function (p) { return p.image_path; }); });
+    }
+    function pdwUpdateProcessFlag() {
+        const hasImg = pdwProcessHasImage();
+        if (pdwProcKind === 'phase') {
+            const rp = dimMrProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
+            if (rp) { rp.has_drawing = hasImg; renderMrProcessList(); }
+        } else {
             const rp = dimRuleProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
-            if (rp) { rp.has_drawing = false; renderRuleProcessList(); }
-            getPdwModal().hide();
+            if (rp) { rp.has_drawing = hasImg; renderRuleProcessList(); }
+        }
+    }
+
+    // ---- document list ----
+    function renderDocList() {
+        const wrap = document.getElementById('pdw-doc-list');
+        if (!pdwDocs.length) {
+            wrap.innerHTML = '<div class="text-secondary" style="font-size:12px">No documents yet. Click “Add document”.</div>';
+            return;
+        }
+        wrap.innerHTML = pdwDocs.map(function (d) {
+            const pages = (d.pages || []).length;
+            const withImg = (d.pages || []).filter(function (p) { return p.image_path; }).length;
+            return `<div class="pdw-doc-row" data-doc-id="${d.id}">
+                <span class="pdw-doc-type">${escHtml(PDW_TYPE_LABEL[d.doc_type] || d.doc_type)}</span>
+                <span class="flex-grow-1 fw-semibold">${escHtml(d.title || '(untitled)')}</span>
+                <span class="text-secondary" style="font-size:11px">${pages} page${pages===1?'':'s'}${withImg<pages?(' · '+withImg+' with image'):''}</span>
+                <button class="btn btn-link btn-sm p-0 ms-1 pdw-doc-edit" data-id="${d.id}" title="Edit" style="color:var(--bs-secondary-color);font-size:12px"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-link btn-sm p-0 ms-1 pdw-doc-del" data-id="${d.id}" title="Remove document" style="color:#dc3545;font-size:12px"><i class="bi bi-trash3"></i></button>
+            </div>`;
+        }).join('');
+        wrap.querySelectorAll('.pdw-doc-row').forEach(function (row) {
+            row.addEventListener('click', function (ev) {
+                if (ev.target.closest('.pdw-doc-edit, .pdw-doc-del')) return;
+                const d = pdwDocs.find(function (x) { return x.id == row.dataset.docId; });
+                if (d) openDocEditor(d);
+            });
+        });
+        wrap.querySelectorAll('.pdw-doc-edit').forEach(function (b) {
+            b.addEventListener('click', function () { pdwShowDocForm(parseInt(b.dataset.id)); });
+        });
+        wrap.querySelectorAll('.pdw-doc-del').forEach(function (b) {
+            b.addEventListener('click', async function () {
+                if (!confirm('Remove this entire document?')) return;
+                try {
+                    await apiFetch('/process-documents/' + b.dataset.id, { method: 'DELETE' });
+                    pdwDocs = pdwDocs.filter(function (d) { return d.id != b.dataset.id; });
+                    renderDocList();
+                    pdwUpdateProcessFlag();
+                } catch (e) { alert(e.message); }
+            });
+        });
+    }
+
+    // ---- add / edit document form ----
+    function pdwShowDocForm(editId) {
+        document.getElementById('pdwDocEditId').value = editId || '';
+        if (editId) {
+            const d = pdwDocs.find(function (x) { return x.id === editId; });
+            document.getElementById('pdwDocType').value = d ? d.doc_type : 'drawing';
+            document.getElementById('pdwDocTitle').value = d ? (d.title || '') : '';
+        } else {
+            document.getElementById('pdwDocType').value = 'drawing';
+            document.getElementById('pdwDocTitle').value = '';
+        }
+        document.getElementById('pdw-doc-form').classList.remove('d-none');
+    }
+    function pdwHideDocForm() { document.getElementById('pdw-doc-form').classList.add('d-none'); }
+    document.getElementById('pdwAddDocBtn').addEventListener('click', function () { pdwShowDocForm(null); });
+    document.getElementById('pdwDocCancelBtn').addEventListener('click', pdwHideDocForm);
+    document.getElementById('pdwDocSaveBtn').addEventListener('click', async function () {
+        const editId = document.getElementById('pdwDocEditId').value;
+        const body = { doc_type: document.getElementById('pdwDocType').value, title: document.getElementById('pdwDocTitle').value.trim() || null };
+        try {
+            if (editId) {
+                const saved = await apiFetch('/process-documents/' + editId, { method: 'PATCH', body: JSON.stringify(body) });
+                const idx = pdwDocs.findIndex(function (d) { return d.id == editId; });
+                if (idx !== -1) pdwDocs[idx] = Object.assign(pdwDocs[idx], saved);
+            } else {
+                const saved = await apiFetch(pdwDocsBase(), { method: 'POST', body: JSON.stringify(body) });
+                pdwDocs.push(saved);
+            }
+            pdwHideDocForm();
+            renderDocList();
         } catch (e) { alert(e.message); }
     });
 
-    // Lazily create the drawing record on first real action (upload / add element)
-    async function pdwEnsureDrawing() {
-        if (pdwDrawing && pdwDrawing.id) return pdwDrawing.id;
-        const created = await apiFetch('/rule-processes/' + pdwRuleProcessId + '/drawing', { method: 'POST' });
-        pdwDrawing = Object.assign(created, { elements: created.elements || [] });
-        document.getElementById('pdwDeleteBtn').classList.remove('d-none');
-        return pdwDrawing.id;
+    // ---- open document editor (pages) ----
+    function openDocEditor(doc) {
+        pdwDoc = doc;
+        if (!doc.pages) doc.pages = [];
+        document.getElementById('pdwEditorTitle').textContent = (PDW_TYPE_LABEL[doc.doc_type] || doc.doc_type) + ' · ' + (doc.title || '(untitled)');
+        pdwShowEditorScreen();
+        renderPageTabs();
+        if (doc.pages.length) {
+            selectPage(doc.pages[0]);
+        } else {
+            pdwPage = null;
+            pdwEmpty.classList.remove('d-none');
+            pdwImgCont.classList.add('d-none');
+            pdwOverlay.innerHTML = ''; pdwSvg.innerHTML = '';
+            document.getElementById('pdwHint').textContent = 'Add a page to start (+ Page)';
+        }
     }
+
+    document.getElementById('pdwBackBtn').addEventListener('click', pdwShowDocScreen);
+
+    // ---- page navigator ----
+    function renderPageTabs() {
+        const wrap = document.getElementById('pdw-page-tabs');
+        wrap.innerHTML = (pdwDoc.pages || []).map(function (p, i) {
+            return `<button class="pdw-page-tab${pdwPage && pdwPage.id === p.id ? ' active' : ''}" data-page-id="${p.id}">${i + 1}</button>`;
+        }).join('');
+        wrap.querySelectorAll('.pdw-page-tab').forEach(function (b) {
+            b.addEventListener('click', function () {
+                const p = pdwDoc.pages.find(function (x) { return x.id == b.dataset.pageId; });
+                if (p) selectPage(p);
+            });
+        });
+        document.getElementById('pdwDelPageBtn').classList.toggle('d-none', (pdwDoc.pages || []).length <= 1);
+    }
+
+    function selectPage(page) {
+        pdwPage = page;
+        pdwSetMode(null);
+        pdwHideElemForm();
+        renderPageTabs();
+        if (page.image_path) pdwShowImage(page.image_path);
+        else { pdwEmpty.classList.remove('d-none'); pdwImgCont.classList.add('d-none'); pdwOverlay.innerHTML = ''; pdwSvg.innerHTML = ''; }
+    }
+
+    document.getElementById('pdwAddPageBtn').addEventListener('click', async function () {
+        if (!pdwDoc) return;
+        try {
+            const page = await apiFetch('/process-documents/' + pdwDoc.id + '/pages', { method: 'POST' });
+            pdwDoc.pages.push(page);
+            renderPageTabs();
+            selectPage(page);
+        } catch (e) { alert(e.message); }
+    });
+
+    document.getElementById('pdwDelPageBtn').addEventListener('click', async function () {
+        if (!pdwPage || (pdwDoc.pages || []).length <= 1) return;
+        if (!confirm('Remove this page?')) return;
+        try {
+            await apiFetch('/process-document-pages/' + pdwPage.id, { method: 'DELETE' });
+            pdwDoc.pages = pdwDoc.pages.filter(function (p) { return p.id !== pdwPage.id; });
+            renderPageTabs();
+            selectPage(pdwDoc.pages[0]);
+            pdwUpdateProcessFlag();
+        } catch (e) { alert(e.message); }
+    });
 
     function pdwShowImage(src) {
         pdwEmpty.classList.add('d-none');
@@ -4480,9 +4781,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function pdwDrawSvg() {
         const iw = pdwImg.naturalWidth, ih = pdwImg.naturalHeight;
         pdwSvg.innerHTML = '';
-        if (!iw || !ih || !pdwDrawing) return;
+        if (!iw || !ih || !pdwPage) return;
         const ns = 'http://www.w3.org/2000/svg';
-        (pdwDrawing.elements || []).forEach(function (e) {
+        (pdwPage.elements || []).forEach(function (e) {
             if (e.element_type === 'dimension' && e.mask === 'linear' && e.x2_pct != null) {
                 const ax = pdwTx + e.x_pct / 100 * iw * pdwScale, ay = pdwTy + e.y_pct / 100 * ih * pdwScale;
                 const bx = pdwTx + e.x2_pct / 100 * iw * pdwScale, by = pdwTy + e.y2_pct / 100 * ih * pdwScale;
@@ -4502,17 +4803,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function pdwRenderElements() {
         pdwOverlay.innerHTML = '';
-        if (!pdwDrawing) return;
-        (pdwDrawing.elements || []).forEach(function (e) {
+        if (!pdwPage) return;
+        (pdwPage.elements || []).forEach(function (e) {
             let el;
             if (e.element_type === 'dimension') {
                 el = document.createElement('div');
                 el.className = 'pdw-dim-label';
                 const prefix = e.mask === 'diameter' ? 'Ø' : '';
                 let valTxt;
-                if (e.value_source === 'measurement') {
-                    const sp = (pdwDrawing.source_parameters || []).find(function (p) { return p.id == e.source_parameter_id; });
-                    valTxt = '⟨' + (sp ? (sp.description || 'param') : 'measure') + '⟩';
+                if (e.value_source === 'measurement' || e.value_source === 'calc') {
+                    const sp = (pdwSourceParams || []).find(function (p) { return p.id == e.source_parameter_id; });
+                    const pname = sp ? (sp.description || 'param') : (e.value_source === 'calc' ? 'mating' : 'measure');
+                    valTxt = (e.value_source === 'calc' ? '≈⟨' : '⟨') + pname + '⟩';
                     el.style.borderStyle = 'dashed';
                 } else {
                     valTxt = pdwFmt(e.static_value);
@@ -4538,8 +4840,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 ev.stopPropagation();
                 if (!confirm('Delete this element?')) return;
                 try {
-                    await apiFetch('/process-drawing-elements/' + e.id, { method: 'DELETE' });
-                    pdwDrawing.elements = pdwDrawing.elements.filter(function (x) { return x.id !== e.id; });
+                    await apiFetch('/process-document-elements/' + e.id, { method: 'DELETE' });
+                    pdwPage.elements = pdwPage.elements.filter(function (x) { return x.id !== e.id; });
                     pdwRenderElements();
                 } catch (err) { alert(err.message); }
             });
@@ -4572,9 +4874,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     ? { label_x_pct: newX, label_y_pct: newY }
                     : { x_pct: newX, y_pct: newY };
                 try {
-                    const saved = await apiFetch('/process-drawing-elements/' + e.id, { method: 'PATCH', body: JSON.stringify(body) });
-                    const idx = pdwDrawing.elements.findIndex(function (x) { return x.id === e.id; });
-                    if (idx !== -1) pdwDrawing.elements[idx] = saved;
+                    const saved = await apiFetch('/process-document-elements/' + e.id, { method: 'PATCH', body: JSON.stringify(body) });
+                    const idx = pdwPage.elements.findIndex(function (x) { return x.id === e.id; });
+                    if (idx !== -1) pdwPage.elements[idx] = saved;
                     pdwRenderElements();
                 } catch (err) { alert(err.message); pdwRenderElements(); }
             }
@@ -4630,8 +4932,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let pdwPending = null; // {element_type, coords...} awaiting form fill
 
     pdwImgCont.addEventListener('click', function (ev) {
-        if (!pdwMode || !pdwDrawing && pdwMode) { if (!pdwMode) return; }
-        if (!pdwMode) return;
+        if (!pdwMode || !pdwPage) return;
         const r = pdwImg.getBoundingClientRect();
         const xp = ((ev.clientX - r.left) / r.width * 100).toFixed(2);
         const yp = ((ev.clientY - r.top) / r.height * 100).toFixed(2);
@@ -4658,7 +4959,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (type === 'dimension') {
             // populate source params
             const psel = document.getElementById('pdw-ef-param');
-            psel.innerHTML = (pdwDrawing.source_parameters || []).map(function (p) {
+            psel.innerHTML = (pdwSourceParams || []).map(function (p) {
                 return `<option value="${p.id}">${escHtml((p.part ? p.part + ' · ' : '') + (p.description || ''))}</option>`;
             }).join('');
             document.getElementById('pdw-ef-source').value = 'static';
@@ -4680,9 +4981,9 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwPending = null;
     }
     document.getElementById('pdw-ef-source').addEventListener('change', function () {
-        const meas = this.value === 'measurement';
-        document.getElementById('pdw-ef-static').classList.toggle('d-none', meas);
-        document.getElementById('pdw-ef-param').classList.toggle('d-none', !meas);
+        const needsParam = this.value === 'measurement' || this.value === 'calc';
+        document.getElementById('pdw-ef-static').classList.toggle('d-none', needsParam);
+        document.getElementById('pdw-ef-param').classList.toggle('d-none', !needsParam);
     });
     document.getElementById('pdw-ef-lbltype').addEventListener('change', function () {
         const ph = this.value === 'placeholder';
@@ -4696,7 +4997,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (pdwPending.element_type === 'dimension') {
             const src = document.getElementById('pdw-ef-source').value;
             body.value_source = src;
-            if (src === 'measurement') {
+            if (src === 'measurement' || src === 'calc') {
                 body.source_parameter_id = parseInt(document.getElementById('pdw-ef-param').value) || null;
             } else {
                 const v = document.getElementById('pdw-ef-static').value;
@@ -4712,34 +5013,30 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     async function pdwCreateElement(body) {
+        if (!pdwPage) return;
         try {
-            const did = await pdwEnsureDrawing();
-            const saved = await apiFetch('/process-drawings/' + did + '/elements', { method: 'POST', body: JSON.stringify(body) });
-            if (!pdwDrawing.elements) pdwDrawing.elements = [];
-            pdwDrawing.elements.push(saved);
+            const saved = await apiFetch('/process-document-pages/' + pdwPage.id + '/elements', { method: 'POST', body: JSON.stringify(body) });
+            if (!pdwPage.elements) pdwPage.elements = [];
+            pdwPage.elements.push(saved);
             pdwRenderElements();
         } catch (e) { alert(e.message); }
     }
 
-    // ---- image upload ----
+    // ---- image upload (to current page) ----
     document.getElementById('pdwUploadBtn').addEventListener('click', function () { document.getElementById('pdwFileInput').click(); });
     document.getElementById('pdwFileInput').addEventListener('change', async function () {
-        const file = this.files[0]; if (!file) return;
+        const file = this.files[0]; if (!file || !pdwPage) return;
         const fd = new FormData(); fd.append('image', file); fd.append('_token', CSRF);
         try {
-            const did = await pdwEnsureDrawing();
-            const res = await fetch('/process-drawings/' + did + '/upload-image', { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } });
+            const res = await fetch('/process-document-pages/' + pdwPage.id + '/image', { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } });
             const json = await res.json();
             if (!res.ok) throw new Error(json.message || 'Upload failed');
-            // detect dims, save path on drawing
             const img = new Image();
             img.onload = async function () {
-                await apiFetch('/process-drawings/' + pdwDrawing.id, { method: 'PATCH', body: JSON.stringify({ image_path: json.path, image_width: img.naturalWidth, image_height: img.naturalHeight }) });
-                pdwDrawing.image_path = json.path;
+                await apiFetch('/process-document-pages/' + pdwPage.id, { method: 'PATCH', body: JSON.stringify({ image_path: json.path, image_width: img.naturalWidth, image_height: img.naturalHeight }) });
+                pdwPage.image_path = json.path;
                 pdwShowImage(json.path);
-                // mark the process button as having a drawing
-                const rp = dimRuleProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
-                if (rp) { rp.has_drawing = true; renderRuleProcessList(); }
+                pdwUpdateProcessFlag();
             };
             img.src = json.path;
         } catch (e) { alert(e.message); }

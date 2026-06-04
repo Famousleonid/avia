@@ -9,6 +9,8 @@ use App\Models\Condition;
 use App\Models\ManualInspectionComponentVariant;
 use App\Models\ManualParameter;
 use App\Models\ManualParameterRepairRule;
+use App\Models\MasterRule;
+use App\Models\MasterRulePhaseRule;
 use App\Models\Necessary;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
@@ -101,6 +103,7 @@ class WoMeasurementController extends Controller
                     'id'               => $r->id,
                     'name'             => $r->name,
                     'order_replacement'=> $r->order_replacement,
+                    'action'           => $r->action ?? ($r->order_replacement ? 'order_new' : 'repair'),
                     'triggers'         => $r->triggers->map(fn($t) => [
                         'trigger'  => $t->trigger,
                         'codes_id' => $t->codes_id,
@@ -173,11 +176,21 @@ class WoMeasurementController extends Controller
         $data['limits_source'] = $limits['source'];
         $dimensionalResult     = $this->computeResult($data['actual_value'] ?? null, $limits);
 
-        // Any finding code selected → always FAIL in the saved record,
-        // but pass the raw dimensional result to rule resolution so that
-        // a Damage finding on an in-limits dimension does NOT fall back
-        // to dimensional-FAIL rules (e.g. Rechrome).
-        $data['result'] = !empty($data['codes_id']) ? 'FAIL' : $dimensionalResult;
+        // Result of the saved record:
+        //  - any finding code selected            → FAIL
+        //  - dimensional point with a value        → PASS/FAIL by limits
+        //  - inspection-only point, finding=None   → PASS (inspected, no defect)
+        //  - dimensional point, no value yet       → null (incomplete)
+        $isInspectionOnly = $limits['min'] === null && $limits['max'] === null;
+        if (!empty($data['codes_id'])) {
+            $data['result'] = 'FAIL';
+        } elseif ($dimensionalResult !== null) {
+            $data['result'] = $dimensionalResult;
+        } elseif ($isInspectionOnly) {
+            $data['result'] = 'PASS';
+        } else {
+            $data['result'] = null;
+        }
 
         $data['user_id']       = auth()->id();
         $data['workorder_id']  = $workorder->id;
@@ -237,8 +250,18 @@ class WoMeasurementController extends Controller
                 $params = $pt->parameters->sortBy('sort_order')->values();
 
                 if ($pt->is_fits_clearance && $params->count() >= 2) {
-                    $pA = $params[0];
-                    $pB = $params[1];
+                    // Clearance is ALWAYS ID(bore) − OD(shaft). Param order in the manual
+                    // isn't guaranteed (a point may list OD first), so pick ID/OD explicitly
+                    // by description; fall back to sort_order only if they can't be identified.
+                    $idParam = $params->first(fn($p) => preg_match('/\bID\b/i', (string) ($p->description ?? '')) === 1);
+                    $odParam = $params->first(fn($p) => preg_match('/\bOD\b/i', (string) ($p->description ?? '')) === 1);
+                    if ($idParam && $odParam && $idParam->id !== $odParam->id) {
+                        $pA = $idParam;
+                        $pB = $odParam;
+                    } else {
+                        $pA = $params[0];
+                        $pB = $params[1];
+                    }
 
                     $measA = $measByParam[$pA->id] ?? null;
                     $measB = $measByParam[$pB->id] ?? null;
@@ -371,17 +394,18 @@ class WoMeasurementController extends Controller
             $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
 
             $tdr = Tdr::create([
-                'tdr_type'          => Tdr::TYPE_ORDER_NEW,
-                'workorder_id'      => $workorder->id,
-                'component_id'      => $component->id,
-                'serial_number'     => $sn,
-                'description'       => $desc,
-                'codes_id'          => $missingCode?->id,
-                'conditions_id'     => $missingCondition?->id,
-                'necessaries_id'    => $necessary->id,
-                'qty'               => $qty,
-                'use_tdr'           => false,
-                'use_process_forms' => false,
+                'tdr_type'           => Tdr::TYPE_ORDER_NEW,
+                'workorder_id'       => $workorder->id,
+                'component_id'       => $component->id,
+                'order_component_id' => $component->id,   // Order New = same part ordered new
+                'serial_number'      => $sn,
+                'description'        => $desc,
+                'codes_id'           => $missingCode?->id,
+                'conditions_id'      => $missingCondition?->id,
+                'necessaries_id'     => $necessary->id,
+                'qty'                => $qty,
+                'use_tdr'            => false,
+                'use_process_forms'  => false,
             ]);
 
             if (!$workorder->part_missing) {
@@ -409,20 +433,32 @@ class WoMeasurementController extends Controller
                 ?->codes_id;
         }
 
+        // condition_id by defect: condition with the same name as the finding code
+        // (Worn code -> Worn condition). Name match is case-insensitive in MySQL.
+        $conditionId = null;
+        if ($codesId) {
+            $code = Code::find($codesId);
+            if ($code) {
+                $conditionId = Condition::where('name', $code->name)->first()?->id;
+            }
+        }
+
         // ── Order New override (no rule, user chose Order New manually) ─
         if (!empty($data['order_new_override'])) {
             $necessary = Necessary::where('name', 'Order New')->firstOrFail();
             $tdr = Tdr::create([
-                'tdr_type'          => Tdr::TYPE_ORDER_NEW,
-                'workorder_id'      => $workorder->id,
-                'component_id'      => $component->id,
-                'serial_number'     => $sn,
-                'description'       => $desc,
-                'codes_id'          => $codesId,
-                'necessaries_id'    => $necessary->id,
-                'qty'               => $qty,
-                'use_tdr'           => true,
-                'use_process_forms' => false,
+                'tdr_type'           => Tdr::TYPE_ORDER_NEW,
+                'workorder_id'       => $workorder->id,
+                'component_id'       => $component->id,
+                'order_component_id' => $component->id,   // Order New = same part ordered new
+                'serial_number'      => $sn,
+                'description'        => $desc,
+                'codes_id'           => $codesId,
+                'conditions_id'      => $conditionId,
+                'necessaries_id'     => $necessary->id,
+                'qty'                => $qty,
+                'use_tdr'            => true,
+                'use_process_forms'  => false,
             ]);
             $tdr->update(['use_tdr' => true]);
             return response()->json([
@@ -432,33 +468,43 @@ class WoMeasurementController extends Controller
             ], 201);
         }
 
-        // ── Order New (single rule, order_replacement=true) ──────────
-        if (!empty($ruleIds)) {
-            $firstRule = ManualParameterRepairRule::find($ruleIds[0]);
-            if ($firstRule?->order_replacement) {
-                $necessary = Necessary::where('name', 'Order New')->firstOrFail();
-                $tdr = Tdr::create([
-                    'tdr_type'          => Tdr::TYPE_ORDER_NEW,
-                    'workorder_id'      => $workorder->id,
-                    'component_id'      => $component->id,
-                    'serial_number'     => $sn,
-                    'description'       => $desc,
-                    'codes_id'          => $codesId,
-                    'necessaries_id'    => $necessary->id,
-                    'qty'               => $qty,
-                    'use_tdr'           => true,
-                    'use_process_forms' => false,
-                ]);
-                $tdr->update(['use_tdr' => true]);
-                return response()->json([
-                    'tdr_id'   => $tdr->id,
-                    'tdr_type' => $tdr->tdr_type,
-                    'component'=> $component->part_number . ' — ' . $component->name,
-                ], 201);
-            }
+        // ── Chosen rule's action: repair | order_new | ec ────────────
+        $firstRule  = !empty($ruleIds) ? ManualParameterRepairRule::find($ruleIds[0]) : null;
+        $ruleAction = $firstRule
+            ? ($firstRule->action ?? ($firstRule->order_replacement ? 'order_new' : 'repair'))
+            : 'repair';
+
+        // ── Order New (action = order_new) ───────────────────────────
+        if ($ruleAction === 'order_new') {
+            $necessary = Necessary::where('name', 'Order New')->firstOrFail();
+            $tdr = Tdr::create([
+                'tdr_type'           => Tdr::TYPE_ORDER_NEW,
+                'workorder_id'       => $workorder->id,
+                'component_id'       => $component->id,
+                'order_component_id' => $component->id,   // Order New = same part ordered new
+                'serial_number'      => $sn,
+                'description'        => $desc,
+                'codes_id'           => $codesId,
+                'conditions_id'      => $conditionId,
+                'necessaries_id'     => $necessary->id,
+                'qty'                => $qty,
+                'use_tdr'            => true,
+                'use_process_forms'  => false,
+            ]);
+            $tdr->update(['use_tdr' => true]);
+            return response()->json([
+                'tdr_id'   => $tdr->id,
+                'tdr_type' => $tdr->tdr_type,
+                'component'=> $component->part_number . ' — ' . $component->name,
+            ], 201);
         }
 
-        // ── Repair: combine processes from all selected rules ────────
+        // ── Repair / EC: combine processes from selected rules ───────
+        // EC = repair under OEM concession. The part is machined at ALL its points
+        // (one machining covers the whole part), then submitted for concession:
+        // the EC plan keeps ONLY Start + machining processes + the EC process;
+        // everything else (plating, NDT, paint, Finish) is held until granted.
+        $isEc = ($ruleAction === 'ec');
         $necessary = Necessary::where('name', 'Repair')->firstOrFail();
         $tdr = Tdr::create([
             'tdr_type'          => Tdr::TYPE_COMPONENT_TDR,
@@ -467,6 +513,7 @@ class WoMeasurementController extends Controller
             'serial_number'     => $sn,
             'description'       => $desc,
             'codes_id'          => $codesId,
+            'conditions_id'     => $conditionId,
             'necessaries_id'    => $necessary->id,
             'qty'               => $qty,
             'use_tdr'           => true,
@@ -478,21 +525,75 @@ class WoMeasurementController extends Controller
         // If the part has no MasterRule, only Main runs — same result as the previous flat merge.
         $parameter = ManualParameter::find($measurement->manual_parameter_id);
 
+        // EC machines the WHOLE part: aggregate the matched rules of EVERY failed
+        // point of this inspection component (+ the chosen EC rule). Regular repair
+        // uses only the selected rule(s).
+        $pipelineRuleIds = $ruleIds;
+        if ($isEc) {
+            $partParamIds = ManualParameter::where('inspection_component_id', $parameter?->inspection_component_id)
+                ->pluck('id');
+            $pipelineRuleIds = WoMeasurement::where('workorder_id', $workorder->id)
+                ->whereIn('manual_parameter_id', $partParamIds)
+                ->where('result', 'FAIL')
+                ->whereNotNull('manual_parameter_repair_rule_id')
+                ->pluck('manual_parameter_repair_rule_id')
+                ->merge($ruleIds)
+                ->unique()->values()->all();
+        }
+
         $ctx = new PipelineContext();
         $ctx->inspectionComponentId = $parameter?->inspection_component_id;
-        $ctx->mainRuleIds           = $ruleIds;
+        $ctx->mainRuleIds           = $pipelineRuleIds;
         $ctx->defectCodeIds         = array_values(array_filter([$codesId]));
+        $ctx->heldPendingEc         = $isEc; // EC → hold the Finish phase until granted
 
         app(RepairPipeline::class)->run($ctx);
 
+        // EC keeps only Start + machining-type Main processes (e.g. Machining, Machining (EC)).
+        $machiningNameIds = $isEc
+            ? \App\Models\ProcessName::where('name', 'like', '%Machining%')->pluck('id')->map(fn($id) => (int) $id)->all()
+            : [];
+
+        $maxSort = 0;
         foreach ($ctx->processGroups as $group) {
+            if ($isEc) {
+                $keep = ($group['phase'] ?? '') === 'start'
+                    || (($group['phase'] ?? '') === 'main'
+                        && in_array((int) $group['process_names_id'], $machiningNameIds, true));
+                if (!$keep) {
+                    continue; // drop plating/NDT/paint/etc. — held until concession granted
+                }
+            }
+            // Description = per-process notes from the rule (Main + Start/Finish),
+            // computed by the pipeline. Empty when the process has no note — no fallback.
             TdrProcess::create([
                 'tdrs_id'          => $tdr->id,
                 'process_names_id' => $group['process_names_id'],
                 'processes'        => $group['process_ids'],
+                'rule_process_ids' => $group['rule_process_ids'] ?? [],
+                'description'      => $group['description'] ?? '',
                 'sort_order'       => $group['sort_order'],
                 'in_traveler'      => false,
             ]);
+            $maxSort = max($maxSort, (int) $group['sort_order']);
+        }
+
+        // EC: add the EC process (tracked on /ec) after the machining processes.
+        if ($isEc) {
+            $ecNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
+            if ($ecNameId) {
+                TdrProcess::create([
+                    'tdrs_id'            => $tdr->id,
+                    'process_names_id'   => $ecNameId,
+                    'processes'          => [],
+                    'rule_process_ids'   => [],
+                    'description'        => '',
+                    'sort_order'         => $maxSort + 1,
+                    'in_traveler'        => false,
+                    'ec'                 => 1,     // EC-related (read by SP Form / TDR-print)
+                    'standalone_ec_only' => false, // always a companion to Machining (EC), never standalone
+                ]);
+            }
         }
 
         return response()->json([
@@ -500,6 +601,47 @@ class WoMeasurementController extends Controller
             'tdr_type'   => $tdr->tdr_type,
             'component'  => $component->part_number . ' — ' . $component->name,
         ], 201);
+    }
+
+    /**
+     * B1 — Revert the TDR(s) of a part so a new decision can be made.
+     * Allowed ONLY while no work has started (no TdrProcess has date_start).
+     * If work started, the caller must use scrap (B2) instead.
+     */
+    public function revertPartTdr(Request $request, Workorder $workorder)
+    {
+        $data = $request->validate([
+            'inspection_component_id' => 'required|exists:manual_inspection_components,id',
+        ]);
+
+        $componentIds = ManualInspectionComponentVariant::where('inspection_component_id', $data['inspection_component_id'])
+            ->pluck('component_id');
+
+        $tdrs = Tdr::where('workorder_id', $workorder->id)
+            ->where(function ($q) use ($componentIds) {
+                $q->whereIn('component_id', $componentIds)
+                  ->orWhereIn('order_component_id', $componentIds);
+            })
+            ->get();
+
+        if ($tdrs->isEmpty()) {
+            return response()->json(['error' => 'No TDR found for this part'], 404);
+        }
+
+        $tdrIds = $tdrs->pluck('id');
+
+        // Work started? any process with date_start
+        $started = TdrProcess::whereIn('tdrs_id', $tdrIds)->whereNotNull('date_start')->exists();
+        if ($started) {
+            return response()->json([
+                'error' => 'Work has already started on this TDR — it cannot be reverted. Use Scrap & Order New instead.',
+            ], 422);
+        }
+
+        TdrProcess::whereIn('tdrs_id', $tdrIds)->delete();
+        Tdr::whereIn('id', $tdrIds)->delete();
+
+        return response()->json(['ok' => true, 'deleted_tdrs' => $tdrIds->count()]);
     }
 
     public function destroy(WoMeasurement $woMeasurement)
@@ -518,6 +660,64 @@ class WoMeasurementController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * EC gate (Path A) — a repaired point PASSes if its final measured value landed
+     * within the orig/wear tolerance OR within any oversize repair step. Anything
+     * outside both = FAIL → EC / Order New.
+     *
+     * @param \Illuminate\Support\Collection|\App\Models\ManualRepairStep[] $repairSteps
+     */
+    private function gatePass(?float $value, array $limits, $repairSteps): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+        // within the general tolerance (orig or wear, per the WO instruction)
+        if ($limits['min'] !== null && $limits['max'] !== null
+            && $value >= (float) $limits['min'] && $value <= (float) $limits['max']) {
+            return true;
+        }
+        // within any allowed oversize repair step
+        foreach ($repairSteps as $s) {
+            if ($s->dim_min !== null && $s->dim_max !== null
+                && $value >= (float) $s->dim_min && $value <= (float) $s->dim_max) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * EC gate (Path A) — Finish-phase process_names of the part's MasterRule.
+     * Used to identify the Finish processes (pipeline OR manual — keyed by
+     * process_names_id) that must be removed/held when a part goes to EC.
+     * Returns [] when the part has no MasterRule (no Finish phase defined).
+     *
+     * @return int[] process_names_id
+     */
+    private function finishProcessNameIds(?int $inspectionComponentId): array
+    {
+        if (!$inspectionComponentId) {
+            return [];
+        }
+        $masterRule = MasterRule::with('phaseRules.processes.manualProcess.process')
+            ->where('inspection_component_id', $inspectionComponentId)
+            ->first();
+        if (!$masterRule) {
+            return [];
+        }
+        $ids = [];
+        foreach ($masterRule->phaseRules->where('phase', MasterRulePhaseRule::PHASE_FINISH) as $rule) {
+            foreach ($rule->processes as $rp) {
+                $pnId = $rp->manualProcess?->process?->process_names_id;
+                if ($pnId) {
+                    $ids[] = (int) $pnId;
+                }
+            }
+        }
+        return array_values(array_unique($ids));
     }
 
     private function resolveRepairRule(ManualParameter $parameter, ?string $result, ?int $codesId, bool $useWear, ?string $findingContext = null): ?int

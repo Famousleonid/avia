@@ -3,21 +3,23 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ProcessDocument extends Model
 {
     protected $fillable = [
-        'rule_process_id',
+        'documentable_type',
+        'documentable_id',
         'doc_type',
         'title',
         'sort_order',
     ];
 
-    public function ruleProcess(): BelongsTo
+    /** Owning process — ManualParameterRuleProcess (Main) or MasterRulePhaseRuleProcess (Start/Finish). */
+    public function documentable(): MorphTo
     {
-        return $this->belongsTo(ManualParameterRuleProcess::class, 'rule_process_id');
+        return $this->morphTo();
     }
 
     public function pages(): HasMany

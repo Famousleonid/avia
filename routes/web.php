@@ -362,8 +362,13 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     // --- Process Documents (per process in a point rule: documents -> pages -> elements) ---
     Route::get('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'index'])->name('rule-processes.documents.index');
     Route::post('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'storeDocument'])->name('rule-processes.documents.store');
+    // Start/Finish (master-rule phase) process documents
+    Route::get('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'indexPhase'])->name('phase-rule-processes.documents.index');
+    Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'storePhaseDocument'])->name('phase-rule-processes.documents.store');
     Route::patch('/process-documents/{processDocument}', [ProcessDocumentController::class, 'updateDocument'])->name('process-documents.update');
     Route::delete('/process-documents/{processDocument}', [ProcessDocumentController::class, 'destroyDocument'])->name('process-documents.destroy');
+    // generate concrete PDF for a WO (2c.1)
+    Route::post('/workorders/{workorder}/process-documents/{processDocument}/generate', [ProcessDocumentController::class, 'generate'])->name('process-documents.generate');
     // pages
     Route::post('/process-documents/{processDocument}/pages', [ProcessDocumentController::class, 'storePage'])->name('process-documents.pages.store');
     Route::post('/process-document-pages/{processDocumentPage}/image', [ProcessDocumentController::class, 'uploadPageImage'])->name('process-document-pages.image');
@@ -412,6 +417,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/measurements/{woMeasurement}', [WoMeasurementController::class, 'update'])->name('measurements.update');
     Route::delete('/measurements/{woMeasurement}', [WoMeasurementController::class, 'destroy'])->name('measurements.destroy');
     Route::post('/workorders/{workorder}/tdr-from-measurement', [WoMeasurementController::class, 'createTdrFromMeasurement'])->name('workorders.tdr-from-measurement');
+    Route::post('/workorders/{workorder}/revert-part-tdr', [WoMeasurementController::class, 'revertPartTdr'])->name('workorders.revert-part-tdr');
     Route::get('/workorders/{workorder}/component-by-ipl', [WoMeasurementController::class, 'componentByIpl'])->name('workorders.component-by-ipl');
     Route::get('/ec', [EcController::class, 'index'])
         ->middleware('can:ec.access')
