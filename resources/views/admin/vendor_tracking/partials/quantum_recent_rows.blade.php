@@ -27,6 +27,7 @@
             'applied' => 'text-bg-success',
             'error' => 'text-bg-danger',
             'unresolved' => 'text-bg-warning',
+            'dismissed' => 'text-bg-secondary',
             'WO not found' => 'text-bg-secondary',
             'WO not found: old' => 'text-bg-secondary',
             default => 'text-bg-secondary',
@@ -36,7 +37,7 @@
             ? ($line->applied_target_table . ' #' . $line->applied_target_id)
             : '--';
     @endphp
-    <tr data-quantum-line-id="{{ $line->id }}">
+    <tr data-quantum-line-id="{{ $line->id }}" data-quantum-wo="{{ trim((string) $line->wo_number) }}">
         <td>
             @if($seenAt)
                 <span class="d-block">{{ format_project_date($seenAt) ?? '--' }}</span>
@@ -45,7 +46,7 @@
                 --
             @endif
         </td>
-        <td><span class="badge {{ $statusClass }}">{{ $statusLabel }}</span></td>
+        <td class="js-quantum-status-cell"><span class="badge {{ $statusClass }}">{{ $statusLabel }}</span></td>
         <td>{{ $line->ro_number ?: '--' }}</td>
         <td>{{ $line->wo_number ?: '--' }}</td>
         <td>{{ $line->vendor_name ?: '--' }}</td>
@@ -55,6 +56,18 @@
         <td>{{ format_project_date($line->out_date) ?? '--' }}</td>
         <td>{{ format_project_date($line->returned_date) ?? '--' }}</td>
         <td>{{ $target }}</td>
-        <td class="quantum-buffer-message">{{ $line->apply_message ?: 'Not parsed yet.' }}</td>
+        <td class="quantum-buffer-message js-quantum-message-cell">{{ $line->apply_message ?: 'Not parsed yet.' }}</td>
+        <td class="quantum-buffer-action-col js-quantum-action-cell">
+            @if($statusLabel === 'dismissed')
+                <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm js-quantum-restore-row"
+                    data-restore-url="{{ route('vendor-tracking.quantum-lines.restore', ['quantumRoLine' => $line->id]) }}"
+                    title="Restore this row to pending"
+                >
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+            @endif
+        </td>
     </tr>
 @endforeach

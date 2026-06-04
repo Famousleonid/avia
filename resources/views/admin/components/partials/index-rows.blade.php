@@ -1,6 +1,8 @@
 @php
     $showManualColumn = $showManualColumn ?? true;
     $showEffCodeColumn = $showEffCodeColumn ?? false;
+    $showSelectionColumn = $showSelectionColumn ?? false;
+    $showKitChoiceGroupColumn = $showKitChoiceGroupColumn ?? false;
     $editButtonClass = $editButtonClass ?? 'open-edit-component-drawer';
     $deleteRedirect = $deleteRedirect ?? null;
     $componentFlags = [
@@ -50,7 +52,20 @@
         }
         $popoverHtml .= '</div>';
     @endphp
-    <tr data-manual-id="{{ $component->manual_id ?? '' }}" @if(! $showManualColumn) id="manual-part-row-{{ $component->id }}" @endif>
+    <tr data-manual-id="{{ $component->manual_id ?? '' }}"
+        data-component-id="{{ $component->id }}"
+        data-kit-choice-group="{{ $component->kit_prl_choice_group ?? '' }}"
+        @if(! $showManualColumn) id="manual-part-row-{{ $component->id }}" @endif>
+        @if($showSelectionColumn)
+            <td class="text-center manual-part-select-cell">
+                <input type="checkbox"
+                       class="form-check-input manual-part-select"
+                       aria-label="{{ __('Select part') }} {{ $component->ipl_num }}"
+                       data-component-id="{{ $component->id }}"
+                       data-ipl="{{ $component->ipl_num }}"
+                       @disabled($partMutationLocked)>
+            </td>
+        @endif
         <td class="text-center">{{ $component->ipl_num }}</td>
         <td class="text-center">{{ $component->part_number }}</td>
         <td class="text-center">{{ $component->name }}</td>
@@ -87,6 +102,17 @@
         <td class="text-center">{{ $unitsAssy !== '' ? $unitsAssy : '-' }}</td>
         @if($showEffCodeColumn)
             <td class="text-center">{{ filled($component->eff_code) ? $component->eff_code : '-' }}</td>
+        @endif
+        @if($showKitChoiceGroupColumn)
+            <td class="text-center manual-part-choice-cell" title="{{ filled($component->kit_prl_choice_group) ? __('Grouped') : '' }}">
+                @if(filled($component->kit_prl_choice_group))
+                    <span class="badge text-bg-warning" aria-label="{{ __('Grouped') }}">
+                        <i class="bi bi-check2"></i>
+                    </span>
+                @else
+                    -
+                @endif
+            </td>
         @endif
         <td class="text-center" style="width:120px;">
             @if($component->getMedia('components')->isNotEmpty())

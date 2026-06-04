@@ -149,6 +149,12 @@ class VendorTrackingTest extends TestCase
             ->assertSee('id="quantumBufferSplitter"', false)
             ->assertSee('quantum-buffer-splitter-lines', false)
             ->assertSee('quantumRoBufferSplitRatio', false)
+            ->assertSee('id="quantumRecentVisibleToggle"', false)
+            ->assertSee('id="quantumWorkorderSearch"', false)
+            ->assertSee('vendor-tracking/quantum-ro-lines/find-workorder')
+            ->assertSee("event.key !== 'Enter'", false)
+            ->assertSee('highlightQuantumUnparsedRow(quantumUnparsedRowByLineId(data.line_id))', false)
+            ->assertDontSee('id="aiAssistantToggle"', false)
             ->assertSee('window.UserUiSettings.set(settingsScope, quantumSplitRatioKey', false)
             ->assertSee('applied')
             ->assertSee('pending')
@@ -198,6 +204,43 @@ class VendorTrackingTest extends TestCase
         $response->assertOk()->assertJson(['success' => true]);
         $this->assertStringContainsString('R-INF-000-' . $suffix, (string) $response->json('html'));
         $this->assertStringNotContainsString('R-INF-200-' . $suffix, (string) $response->json('html'));
+    }
+
+    public function test_quantum_workorder_search_returns_position_in_general_recent_list(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $suffix = (string) random_int(100000, 999999);
+        $baseSeenAt = Carbon::parse('2037-01-01 00:00:00');
+        $targetWo = 'W987' . $suffix;
+        $targetLine = null;
+
+        for ($i = 0; $i < 201; $i++) {
+            $line = QuantumRoLine::query()->create([
+                'source_uid' => sprintf('recent-find-%s-%03d', $suffix, $i),
+                'ro_number' => sprintf('R-FIND-%03d-%s', $i, $suffix),
+                'wo_number' => $i === 0 ? $targetWo : sprintf('W300%s%03d', $suffix, $i),
+                'bom_ref' => 'CP',
+                'apply_status' => 'applied',
+                'source_hash' => hash('sha256', 'recent-find-' . $suffix . '-' . $i),
+                'last_seen_at' => $baseSeenAt->copy()->addMinutes($i),
+            ]);
+
+            if ($i === 0) {
+                $targetLine = $line;
+            }
+        }
+
+        $response = $this->actingAs($admin)->getJson(route('vendor-tracking.quantum-lines.find-workorder', [
+            'workorder' => preg_replace('/\D+/', '', $targetWo),
+        ]));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('found', true)
+            ->assertJsonPath('line_id', $targetLine->id)
+            ->assertJsonPath('page', 2)
+            ->assertJsonPath('matched_wo', $targetWo);
     }
 
     public function test_quantum_not_applicable_rows_do_not_show_in_unparsed_section(): void
@@ -260,6 +303,77 @@ class VendorTrackingTest extends TestCase
         $this->assertStringContainsString('R-OLD-WO-' . $suffix, $latestHtml);
         $this->assertStringContainsString('WO not found', $latestHtml);
         $this->assertStringContainsString('WO not found: old', $latestHtml);
+    }
+
+    public function test_quantum_unresolved_row_can_be_dismissed_from_needs_attention(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $suffix = (string) random_int(100000, 999999);
+        $sourceHash = hash('sha256', 'dismiss-' . $suffix);
+
+        $line = QuantumRoLine::query()->create([
+            'source_uid' => 'dismiss-target-' . $suffix,
+            'ro_number' => 'R-DISMISS-' . $suffix,
+            'wo_number' => 'W107777',
+            'bom_ref' => 'BAD',
+            'apply_status' => 'unresolved',
+            'apply_message' => 'No target process',
+            'source_hash' => $sourceHash,
+            'last_seen_at' => Carbon::parse('2026-06-01 09:00:00'),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('vendor-tracking.index'));
+        $response
+            ->assertOk()
+            ->assertSee('Dismiss visible')
+            ->assertSee('js-quantum-dismiss-row', false)
+            ->assertSee('R-DISMISS-' . $suffix);
+
+        $dismissResponse = $this->actingAs($admin)->patchJson(route('vendor-tracking.quantum-lines.dismiss', [
+            'quantumRoLine' => $line->id,
+        ]));
+
+        $dismissResponse
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('dismissed', 1)
+            ->assertJsonPath('dismissed_ids.0', $line->id);
+
+        $line->refresh();
+
+        $this->assertSame('dismissed', $line->apply_status);
+        $this->assertSame($sourceHash, $line->applied_source_hash);
+        $this->assertStringContainsString('Dismissed by user: No target process', (string) $line->apply_message);
+        $this->assertNotNull($line->applied_at);
+
+        $afterResponse = $this->actingAs($admin)->get(route('vendor-tracking.index'));
+        $afterHtml = (string) $afterResponse->getContent();
+        $unparsedStart = strpos($afterHtml, 'Unresolved / needs attention');
+        $latestStart = strpos($afterHtml, 'Latest received from Quantum');
+
+        $this->assertNotFalse($unparsedStart);
+        $this->assertNotFalse($latestStart);
+        $this->assertStringNotContainsString('R-DISMISS-' . $suffix, substr($afterHtml, $unparsedStart, $latestStart - $unparsedStart));
+        $this->assertStringContainsString('R-DISMISS-' . $suffix, substr($afterHtml, $latestStart));
+        $this->assertStringContainsString('dismissed', substr($afterHtml, $latestStart));
+        $this->assertStringContainsString('js-quantum-restore-row', substr($afterHtml, $latestStart));
+
+        $restoreResponse = $this->actingAs($admin)->patchJson(route('vendor-tracking.quantum-lines.restore', [
+            'quantumRoLine' => $line->id,
+        ]));
+
+        $restoreResponse
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('restored', 1)
+            ->assertJsonPath('restored_id', $line->id)
+            ->assertJsonPath('line.status', 'pending');
+
+        $line->refresh();
+
+        $this->assertSame('pending', $line->apply_status);
+        $this->assertNull($line->applied_source_hash);
+        $this->assertNull($line->applied_at);
     }
 
     private function createVendorTrackingTdrProcess($workorder, Vendor $vendor, string $repairOrder): TdrProcess

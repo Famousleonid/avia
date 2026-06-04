@@ -30,7 +30,7 @@ function buildQuantumRoQuery(array $params): array
     // Print real RO rows with Quantum part master data from RO_DETAIL.PNM_AUTO_KEY.
     //
     // Current parser routing hint:
-    // - PN = NDT or CAD means STD/list bucket
+    // - PN = NDT or CAD Plate means STD/list bucket
     // - PN = NDTB, CADB, Anodizing, Passivation means bushing batch bucket
     // - PN = real part number means detail/part matching candidate
     //
@@ -64,8 +64,10 @@ SELECT
     pm_rd.PN,
     pm_rd.DESCRIPTION AS \"DESC\",
     CASE
-        WHEN REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '') IN ('NDT', 'CAD')
-            THEN 'STD_LIST_' || REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '')
+        WHEN REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '') = 'NDT'
+            THEN 'STD_LIST_NDT'
+        WHEN REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '') IN ('CAD', 'CADPLATE')
+            THEN 'STD_LIST_CAD'
         WHEN REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '') IN ('NDTB', 'CADB', 'ANODIZING', 'ANODISING', 'PASSIVATION')
             THEN 'BUSHING_' || REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '')
         WHEN REGEXP_LIKE(pm_rd.PN, '[[:digit:]]') THEN 'DETAIL_PART'

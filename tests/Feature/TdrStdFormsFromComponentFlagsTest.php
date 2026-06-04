@@ -309,6 +309,66 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertStringNotContainsString('tdr-std-paper-paint-wrap d-inline-block d-none', $html);
     }
 
+    public function test_tdr_show_ndt_std_badge_counts_collapsed_base_and_suffix_variant_rows(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'NDT-BADGE-MERGE']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'instruction_id' => $this->createInstruction()->id,
+            'user_id' => $admin->id,
+        ]);
+
+        foreach ([
+            ['1-10', 'PN-10', 'SINGLE 10', '1 / 4'],
+            ['1-90', 'PN-90', 'SINGLE 90', '4'],
+            ['1-100', 'PN-100', 'SINGLE 100', '1 / 4'],
+            ['1-112', 'PN-112', 'PAIR 112', '4'],
+            ['1-112A', 'PN-112A', 'PAIR 112', '4'],
+            ['1-210', 'PN-210', 'SINGLE 210', '1'],
+            ['1-272', 'PN-272', 'PAIR 272', '4'],
+            ['1-272A', 'PN-272A', 'PAIR 272', '4'],
+        ] as [$ipl, $partNumber, $name, $process]) {
+            $component = Component::query()->create([
+                'manual_id' => $manual->id,
+                'ipl_num' => $ipl,
+                'part_number' => $partNumber,
+                'name' => $name,
+                'units_assy' => 1,
+                'ndt_list' => true,
+            ]);
+
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_NDT,
+            ], [
+                'process' => $process,
+                'qty' => 1,
+            ]);
+        }
+
+        $formResponse = $this->actingAs($admin)->get(route('tdrs.ndtStd', $workorder->id));
+        $formResponse->assertOk();
+        $formResponse->assertSee("1-112\n1-112A", false);
+        $formResponse->assertSee("1-272\n1-272A", false);
+
+        $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+        $showResponse->assertOk();
+        $html = $showResponse->getContent();
+        $ndtStart = strpos($html, 'tdr-std-paper-ndt-wrap');
+        $cadStart = strpos($html, 'tdr-std-paper-cad-wrap');
+
+        $this->assertNotFalse($ndtStart);
+        $this->assertNotFalse($cadStart);
+        $ndtSegment = substr($html, $ndtStart, $cadStart - $ndtStart);
+
+        $this->assertStringContainsString('NDT STD', $ndtSegment);
+        $this->assertStringContainsString('>6</span>', $ndtSegment);
+        $this->assertStringNotContainsString('>8</span>', $ndtSegment);
+    }
+
     public function test_ndt_std_form_opens_from_component_flag_snapshot(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -717,6 +777,54 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response->assertSee('2801-0304', false);
         $response->assertDontSee('2801-0301 / 2801-0304', false);
         $this->assertSame(1, substr_count($response->getContent(), 'UPPER TORQUE LINK'));
+        $response->assertSee('<strong>1</strong>', false);
+    }
+
+    public function test_ndt_std_form_collapses_base_and_letter_suffix_ipl_variants_into_one_row(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'NDT-MERGE-BASE']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'instruction_id' => 1,
+        ]);
+
+        $base = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '1-272',
+            'part_number' => '170-70162-003',
+            'name' => 'STAY, LOWER',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+        $suffix = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '1-272A',
+            'part_number' => '170-70162-005',
+            'name' => 'STAY, LOWER',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+
+        foreach ([$base, $suffix] as $component) {
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_NDT,
+            ], [
+                'process' => '1',
+                'qty' => 1,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('tdrs.ndtStd', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSee("1-272\n1-272A", false);
+        $response->assertSee("170-70162-003\n170-70162-005", false);
+        $this->assertSame(1, substr_count($response->getContent(), 'STAY, LOWER'));
         $response->assertSee('<strong>1</strong>', false);
     }
 
@@ -1288,6 +1396,71 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $this->assertDatabaseMissing('workorder_std_process_items', [
             'workorder_id' => $workorder->id,
             'component_id' => $second->id,
+            'std_type' => StdProcess::STD_NDT,
+        ]);
+    }
+
+    public function test_workorder_std_items_subtract_tdr_from_base_and_suffix_variants(): void
+    {
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
+        $repair = Necessary::query()->firstOrCreate(['name' => 'Repair']);
+
+        $base = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '1-272',
+            'part_number' => '170-70162-003',
+            'name' => 'STAY, LOWER',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+        $suffix = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '1-272A',
+            'part_number' => '170-70162-005',
+            'name' => 'STAY, LOWER',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+
+        foreach ([$base, $suffix] as $component) {
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_NDT,
+            ], [
+                'process' => '1',
+                'qty' => 1,
+            ]);
+        }
+
+        $initial = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+        $this->assertSame(['1-272', '1-272A'], array_values(array_column($initial, 'ipl_num')));
+
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $base->id,
+            'necessaries_id' => $repair->id,
+            'qty' => 1,
+            'serial_number' => 'NSN',
+            'assy_serial_number' => ' ',
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder->fresh(), StdProcess::STD_NDT);
+
+        $this->assertSame([], array_values(array_filter($rows, fn (array $row): bool => str_contains((string) ($row['ipl_num'] ?? ''), '1-272'))));
+        $this->assertDatabaseMissing('workorder_std_process_items', [
+            'workorder_id' => $workorder->id,
+            'component_id' => $base->id,
+            'std_type' => StdProcess::STD_NDT,
+        ]);
+        $this->assertDatabaseMissing('workorder_std_process_items', [
+            'workorder_id' => $workorder->id,
+            'component_id' => $suffix->id,
             'std_type' => StdProcess::STD_NDT,
         ]);
     }

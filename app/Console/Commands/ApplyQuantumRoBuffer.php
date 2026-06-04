@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\File;
 
 class ApplyQuantumRoBuffer extends Command
 {
-    protected $signature = 'quantum-ro:apply {--limit=200} {--dry-run}';
+    protected $signature = 'quantum-ro:apply {--limit=1000} {--dry-run}';
 
     protected $description = 'Apply staged Quantum RO rows from quantum_ro_lines to avia target tables.';
 

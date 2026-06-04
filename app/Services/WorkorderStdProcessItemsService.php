@@ -380,7 +380,7 @@ class WorkorderStdProcessItemsService
             /** @var Component $component */
             $component = $eligibleRow['component'];
             $ipl = trim((string) ($component->ipl_num ?? ''));
-            if (! preg_match('/^(\d+[A-Za-z]*-\d+)([A-Za-z]+)$/', $ipl, $matches)) {
+            if (! preg_match('/^(\d+[A-Za-z]*-\d+)(?:[A-Za-z]+)?$/', $ipl, $matches)) {
                 continue;
             }
 

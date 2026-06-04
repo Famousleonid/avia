@@ -66,26 +66,10 @@
         #nav-parts .table {
             width: 100%;
         }
-        #manualPartsTable th:nth-child(1),
-        #manualPartsTable td:nth-child(1) { width: 9%; }
-        #manualPartsTable th:nth-child(2),
-        #manualPartsTable td:nth-child(2) { width: 13%; }
-        #manualPartsTable th:nth-child(3),
-        #manualPartsTable td:nth-child(3) { width: 26%; }
-        #manualPartsTable th:nth-child(4),
-        #manualPartsTable td:nth-child(4) { width: 14%; }
-        #manualPartsTable th:nth-child(5),
-        #manualPartsTable td:nth-child(5) { width: 7%; }
-        #manualPartsTable th:nth-child(6),
-        #manualPartsTable td:nth-child(6) { width: 7%; }
-        #manualPartsTable th:nth-child(7),
-        #manualPartsTable td:nth-child(7) { width: 5%; }
-        #manualPartsTable th:nth-child(16),
-        #manualPartsTable td:nth-child(16) { width: 7%; }
 
         #manualPartsTable {
-            min-width: 1420px;
-            width: max(100%, 1420px);
+            min-width: 1530px;
+            width: max(100%, 1530px);
         }
 
         #nav-parts .table th,
@@ -280,6 +264,31 @@
             cursor: pointer;
         }
 
+        #manualPartsTable col.manual-part-select-col,
+        #manualPartsTable .manual-part-select-head,
+        #manualPartsTable .manual-part-select-cell {
+            width: 36px !important;
+            min-width: 36px !important;
+            max-width: 36px !important;
+            padding-left: 4px;
+            padding-right: 4px;
+        }
+
+        #manualPartsTable col.manual-part-choice-col,
+        #manualPartsTable .manual-part-choice-cell,
+        #manualPartsTable .manual-part-choice-head {
+            width: 64px !important;
+            min-width: 64px !important;
+            max-width: 64px !important;
+        }
+
+        #manualPartsTable .manual-part-choice-cell {
+            font-size: .78rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         #manualPartsTable col.manual-part-flag-col {
             width: 46px !important;
             min-width: 46px !important;
@@ -287,13 +296,6 @@
         }
 
         #manualPartsTable col.manual-part-action-col {
-            width: 86px !important;
-            min-width: 86px !important;
-            max-width: 86px !important;
-        }
-
-        #manualPartsTable th:nth-child(16),
-        #manualPartsTable td:nth-child(16) {
             width: 86px !important;
             min-width: 86px !important;
             max-width: 86px !important;
@@ -902,6 +904,28 @@
                                 @if($manualPartsLocked && ! $userCanManageLockedManualParts) title="{{ __('Manual parts are locked') }}" @endif>
                             <i class="bi bi-upload"></i> {{__('Upload CSV')}}
                         </button>
+                        <div class="btn-group btn-group-sm d-none"
+                             data-tab-target="#nav-parts"
+                             role="group"
+                             aria-label="{{ __('KIT grouping') }}">
+                            <button type="button"
+                                    class="btn btn-outline-warning"
+                                    id="manual-kit-choice-group-apply"
+                                    data-url="{{ route('manuals.components.kit-prl-choice-group', ['manual' => $cmm]) }}"
+                                    title="{{ __('Group selected KIT variants') }}"
+                                    @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)>
+                                <i class="bi bi-check2-square"></i>
+                                {{ __('Group') }}
+                            </button>
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    id="manual-kit-choice-group-clear"
+                                    data-url="{{ route('manuals.components.kit-prl-choice-group', ['manual' => $cmm]) }}"
+                                    title="{{ __('Ungroup selected KIT variants') }}"
+                                    @disabled($manualPartsLocked && ! $userCanManageLockedManualParts)>
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>
                         <form action="{{ $manualPartsLocked ? route('manuals.part-lock.unlock', ['manual' => $cmm]) : route('manuals.part-lock.lock', ['manual' => $cmm]) }}"
                               method="POST"
                               class="d-none m-0"
@@ -971,12 +995,14 @@
                     <div class="parts-table-container m-2">
                         <table class="table table-sm table-hover table-bordered dir-table align-middle" id="manualPartsTable">
                             <colgroup>
-                                <col style="width: 9%;">
-                                <col style="width: 13%;">
-                                <col style="width: 26%;">
-                                <col style="width: 14%;">
-                                <col style="width: 7%;">
-                                <col style="width: 7%;">
+                                <col class="manual-part-select-col">
+                                <col style="width: 8%;">
+                                <col style="width: 12%;">
+                                <col style="width: 22%;">
+                                <col style="width: 12%;">
+                                <col style="width: 6%;">
+                                <col style="width: 6%;">
+                                <col class="manual-part-choice-col">
                                 <col style="width: 5%;">
                                 <col class="manual-part-flag-col" style="width: 46px;">
                                 <col class="manual-part-flag-col" style="width: 46px;">
@@ -990,12 +1016,16 @@
                             </colgroup>
                             <thead class="bg-gradient">
                             <tr>
-                                <th class="text-center bg-gradient align-content-center sortable">IPL Number <i class="bi bi-chevron-expand ms-1"></i></th>
+                                <th class="text-center bg-gradient align-content-center manual-part-select-head">
+                                    <input type="checkbox" class="form-check-input" id="manual-parts-select-all" aria-label="{{ __('Select all visible parts') }}">
+                                </th>
+                                <th class="text-center bg-gradient align-content-center sortable" data-sort-type="ipl">IPL Number <i class="bi bi-chevron-expand ms-1"></i></th>
                                 <th class="text-center bg-gradient align-content-center sortable">Part Number <i class="bi bi-chevron-expand ms-1"></i></th>
                                 <th class="text-center bg-gradient align-content-center sortable">Name <i class="bi bi-chevron-expand ms-1"></i></th>
                                 <th class="text-center bg-gradient align-content-center">Assy</th>
                                 <th class="text-center bg-gradient align-content-center">Units per assy</th>
                                 <th class="text-center bg-gradient align-content-center">EFF Code</th>
+                                <th class="text-center bg-gradient align-content-center manual-part-choice-head">Group</th>
                                 <th class="text-center bg-gradient align-content-center">Image</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Log Card">LC</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Bushing">Bush</th>
@@ -1013,12 +1043,14 @@
                                     'components' => $parts,
                                     'showManualColumn' => false,
                                     'showEffCodeColumn' => true,
+                                    'showSelectionColumn' => true,
+                                    'showKitChoiceGroupColumn' => true,
                                     'editButtonClass' => 'open-manual-edit-component-drawer',
                                     'deleteRedirect' => $manualUrlParts,
                                 ])
                                 @if($parts->isEmpty())
                                     <tr class="components-empty-row">
-                                        <td colspan="16" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
+                                        <td colspan="18" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
@@ -2029,7 +2061,7 @@
                 const tbody = table.querySelector('tbody');
                 const sortableHeaders = Array.from(table.querySelectorAll('th.sortable'));
                 const partsSearchStorageKey = 'partsSearch:' + manualId;
-                let sortCol = 0;
+                let sortCol = 1;
                 let sortDir = 'asc';
                 let searchFrame = null;
 
@@ -2080,10 +2112,11 @@
                 function partRowSearchText(row) {
                     if (!row.dataset.searchText) {
                         row.dataset.searchText = [
-                            partRowCellText(row, 0),
                             partRowCellText(row, 1),
                             partRowCellText(row, 2),
                             partRowCellText(row, 3),
+                            partRowCellText(row, 4),
+                            partRowCellText(row, 7),
                         ].join(' ').toLowerCase();
                     }
 
@@ -2116,9 +2149,9 @@
                     sortableHeaders.forEach(function (th) {
                         th.classList.remove('sorted-asc', 'sorted-desc');
                     });
-                    const active = sortableHeaders.find(function (th) {
-                        return th.cellIndex === sortCol;
-                    });
+                        const active = sortableHeaders.find(function (th) {
+                            return th.cellIndex === sortCol;
+                        });
                     if (active) active.classList.add(sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
                 }
 
@@ -2135,7 +2168,10 @@
                         .sort(function (a, b) {
                             const av = partRowCellText(a, columnIndex).toLowerCase();
                             const bv = partRowCellText(b, columnIndex).toLowerCase();
-                            const result = columnIndex === 0
+                            const header = sortableHeaders.find(function (th) {
+                                return th.cellIndex === columnIndex;
+                            });
+                            const result = header?.dataset.sortType === 'ipl'
                                 ? compareIplValues(av, bv)
                                 : av.localeCompare(bv, undefined, { numeric: true });
 
@@ -2164,6 +2200,132 @@
                 updateSortHeaders();
                 applyPartsSearch();
             }
+
+            (function initManualKitChoiceGrouping() {
+                const table = document.getElementById('manualPartsTable');
+                const selectAll = document.getElementById('manual-parts-select-all');
+                const applyBtn = document.getElementById('manual-kit-choice-group-apply');
+                const clearBtn = document.getElementById('manual-kit-choice-group-clear');
+                if (!table || !applyBtn || !clearBtn) return;
+                const groupedLabel = @json(__('Grouped'));
+
+                function visibleSelectableBoxes() {
+                    return Array.from(table.querySelectorAll('.manual-part-select:not(:disabled)'))
+                        .filter(function (box) {
+                            return !box.closest('tr')?.hidden;
+                        });
+                }
+
+                function selectedBoxes() {
+                    return visibleSelectableBoxes().filter(function (box) {
+                        return box.checked;
+                    });
+                }
+
+                function updateSelectAllState() {
+                    if (!selectAll) return;
+                    const boxes = visibleSelectableBoxes();
+                    const selected = boxes.filter(function (box) { return box.checked; });
+                    selectAll.checked = boxes.length > 0 && selected.length === boxes.length;
+                    selectAll.indeterminate = selected.length > 0 && selected.length < boxes.length;
+                }
+
+                function updateRows(group) {
+                    selectedBoxes().forEach(function (box) {
+                        const row = box.closest('tr');
+                        if (!row) return;
+                        row.dataset.kitChoiceGroup = group || '';
+                        delete row.dataset.searchText;
+                        const cell = row.querySelector('.manual-part-choice-cell');
+                        if (cell) {
+                            cell.innerHTML = group
+                                ? '<span class="badge text-bg-warning" aria-label="' + groupedLabel + '"><i class="bi bi-check2"></i></span>'
+                                : '-';
+                            cell.title = group ? groupedLabel : '';
+                        }
+                    });
+                    updateSelectAllState();
+                }
+
+                async function submitGroup(action) {
+                    const boxes = selectedBoxes();
+                    if (boxes.length === 0) {
+                        showNotification('{{ __('Select parts first.') }}', 'warning');
+                        return;
+                    }
+                    if (action === 'group' && boxes.length < 2) {
+                        showNotification('{{ __('Select at least two parts to group.') }}', 'warning');
+                        return;
+                    }
+
+                    applyBtn.disabled = true;
+                    clearBtn.disabled = true;
+                    try {
+                        const response = await fetch(applyBtn.dataset.url, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                component_ids: boxes.map(function (box) { return Number(box.dataset.componentId); }),
+                                action: action,
+                            }),
+                        });
+                        const data = await response.json().catch(function () { return {}; });
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || '{{ __('Failed to update KIT group.') }}');
+                        }
+                        updateRows(data.kit_prl_choice_group || '');
+                        showNotification('{{ __('KIT group updated.') }}', 'success');
+                    } catch (error) {
+                        showNotification(error.message || '{{ __('Failed to update KIT group.') }}', 'error');
+                    } finally {
+                        applyBtn.disabled = false;
+                        clearBtn.disabled = false;
+                    }
+                }
+
+                selectAll?.addEventListener('change', function () {
+                    visibleSelectableBoxes().forEach(function (box) {
+                        box.checked = selectAll.checked;
+                    });
+                    updateSelectAllState();
+                });
+                table.addEventListener('change', function (event) {
+                    if (event.target.closest('.manual-part-select')) {
+                        updateSelectAllState();
+                    }
+                });
+                applyBtn.addEventListener('click', function () {
+                    submitGroup('group');
+                });
+                clearBtn.addEventListener('click', async function () {
+                    const boxes = selectedBoxes();
+                    if (boxes.length === 0) {
+                        showNotification('{{ __('Select parts first.') }}', 'warning');
+                        return;
+                    }
+                    if (typeof window.confirmDialog === 'function') {
+                        const confirmed = await window.confirmDialog({
+                            title: '{{ __('Clear KIT group?') }}',
+                            message: '{{ __('Selected parts will be removed from their KIT group.') }}',
+                            okText: '{{ __('Clear') }}',
+                            cancelText: '{{ __('Cancel') }}',
+                            danger: true,
+                        });
+                        if (!confirmed) return;
+                    }
+                    submitGroup('clear');
+                });
+                document.getElementById('parts-search')?.addEventListener('input', function () {
+                    requestAnimationFrame(updateSelectAllState);
+                });
+                updateSelectAllState();
+            })();
 
             // ÐŸÐµÑ€ÐµÐºÐ»ÑŽÑ‡ÐµÐ½Ð¸Ðµ ÐºÐ½Ð¾Ð¿Ð¾Ðº "Add ..." Ð² Ð½Ð°Ð²Ð¸Ð³Ð°Ñ†Ð¸Ð¸ Ð²ÐºÐ»Ð°Ð´Ð¾Ðº
             document.querySelectorAll('#nav-parts [data-bs-toggle="popover"]').forEach(function (el) {

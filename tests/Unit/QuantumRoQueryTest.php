@@ -48,4 +48,14 @@ class QuantumRoQueryTest extends TestCase
         $this->assertArrayNotHasKey(':ref_watch_days', $query['binds']);
         $this->assertSame('R8908', $query['binds'][':ro_number']);
     }
+
+    public function test_cad_plate_part_number_is_classified_as_cad_std_list(): void
+    {
+        $query = buildQuantumRoQuery([
+            'wob_change_column' => '',
+        ]);
+
+        $this->assertStringContainsString("IN ('CAD', 'CADPLATE')", $query['sql']);
+        $this->assertStringContainsString("THEN 'STD_LIST_CAD'", $query['sql']);
+    }
 }

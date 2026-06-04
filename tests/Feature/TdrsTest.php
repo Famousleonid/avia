@@ -932,6 +932,11 @@ class TdrsTest extends TestCase
         $kitResponse->assertSee('50B');
         $kitResponse->assertSee('KIT-PN-50A');
         $kitResponse->assertSee('KIT-PN-50B');
+        $this->assertMatchesRegularExpression(
+            '/50A<br \/>\\s*50B.*?KIT-PN-50A<br \/>\\s*KIT-PN-50B.*?<div class="col-1 prl-col-qty[^"]*"[^>]*>\\s*<h6>2<\\/h6>/s',
+            $kitResponse->getContent()
+        );
+        $kitResponse->assertDontSee('<h6>3</h6>', false);
         $kitResponse->assertSee('KIT-PN-60');
         $kitResponse->assertDontSee('KIT-BUSH-PN-80');
         $kitResponse->assertDontSee('EXTRA PARTS');
@@ -959,6 +964,141 @@ class TdrsTest extends TestCase
             'Bush PRL',
         ], false);
         $showResponse->assertSee('>2</span>', false);
+    }
+
+    public function test_kit_form_groups_db_choice_items_without_summing_qty(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'KIT-CHOICE-' . uniqid()]);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+
+        foreach ([
+            ['1-320', '170-70165-901'],
+            ['1-321', '6620A0001-01RS01'],
+            ['1-321A', '6620A0001-01RS02'],
+        ] as [$ipl, $partNumber]) {
+            Component::query()->create([
+                'manual_id' => $manual->id,
+                'part_number' => $partNumber,
+                'name' => 'BEARING, SPHERICAL',
+                'ipl_num' => $ipl,
+                'units_assy' => 1,
+                'kit' => true,
+                'kit_prl_choice_group' => 'bearing_spherical_320_321',
+            ]);
+        }
+
+        $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
+
+        $kitResponse->assertOk();
+        $kitResponse->assertSee('320<br />' . "\n" . '321<br />' . "\n" . '321A', false);
+        $kitResponse->assertSee('170-70165-901<br />' . "\n" . '6620A0001-01RS01<br />' . "\n" . '6620A0001-01RS02', false);
+        $this->assertSame(1, substr_count($kitResponse->getContent(), 'BEARING, SPHERICAL'));
+        $kitResponse->assertDontSee('<h6>3</h6>', false);
+
+        $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+
+        $showResponse->assertOk();
+        $showResponse->assertSee(route('tdrs.kitForm', ['id' => $workorder->id]), false);
+        $showResponse->assertSee('>1</span>', false);
+    }
+
+    public function test_kit_form_auto_ipl_variant_groups_without_summing_qty(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'KIT-AUTO-' . uniqid()]);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+
+        foreach ([
+            ['1-130', 'MS15001-1'],
+            ['1-130A', 'AS15001-1P'],
+        ] as [$ipl, $partNumber]) {
+            Component::query()->create([
+                'manual_id' => $manual->id,
+                'part_number' => $partNumber,
+                'name' => 'FITTING, LUBRICATION',
+                'ipl_num' => $ipl,
+                'units_assy' => 3,
+                'kit' => true,
+            ]);
+        }
+
+        $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
+
+        $kitResponse->assertOk();
+        $kitResponse->assertSee('130<br />' . "\n" . '130A', false);
+        $kitResponse->assertSee('MS15001-1<br />' . "\n" . 'AS15001-1P', false);
+        $this->assertMatchesRegularExpression(
+            '/130<br \/>\\s*130A.*?MS15001-1<br \/>\\s*AS15001-1P.*?<div class="col-1 prl-col-qty[^"]*"[^>]*>\\s*<h6>3<\\/h6>/s',
+            $kitResponse->getContent()
+        );
+        $kitResponse->assertDontSee('<h6>6</h6>', false);
+    }
+
+    public function test_manual_parts_can_assign_kit_choice_group_in_bulk(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+
+        $parts = collect([
+            ['1-320', '170-70165-901'],
+            ['1-321', '6620A0001-01RS01'],
+            ['1-321A', '6620A0001-01RS02'],
+        ])->map(fn (array $row): Component => Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => $row[0],
+            'part_number' => $row[1],
+            'name' => 'BEARING, SPHERICAL',
+            'units_assy' => 1,
+            'kit' => true,
+        ]));
+
+        $response = $this->actingAs($admin)->patchJson(route('manuals.components.kit-prl-choice-group', ['manual' => $manual]), [
+            'component_ids' => $parts->pluck('id')->all(),
+            'action' => 'group',
+        ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'updated_count' => 3,
+        ]);
+        $generatedGroup = $response->json('kit_prl_choice_group');
+        $this->assertIsString($generatedGroup);
+        $this->assertMatchesRegularExpression('/^bearing_spherical_[a-z]+_\d{4}$/', $generatedGroup);
+        foreach ($parts as $part) {
+            $this->assertDatabaseHas('components', [
+                'id' => $part->id,
+                'kit_prl_choice_group' => $generatedGroup,
+            ]);
+        }
+
+        $manualResponse = $this->actingAs($admin)->get(route('manuals.show', ['manual' => $manual, 'tab' => 'parts']));
+
+        $manualResponse->assertOk();
+        $manualResponse->assertDontSee('manual-kit-choice-group-input', false);
+        $manualResponse->assertSee('manual-kit-choice-group-apply', false);
+        $manualResponse->assertSee('bi-check2', false);
+        $manualResponse->assertDontSee('>Grouped<', false);
+
+        $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
+
+        $kitResponse->assertOk();
+        $kitResponse->assertSee('320<br />' . "\n" . '321<br />' . "\n" . '321A', false);
+        $this->assertSame(1, substr_count($kitResponse->getContent(), 'BEARING, SPHERICAL'));
     }
 
     private function htmlBetween(string $html, string $startNeedle, string $endNeedle): string

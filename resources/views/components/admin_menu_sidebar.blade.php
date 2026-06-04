@@ -97,7 +97,6 @@
         </a>
     </li>
 
-
     <li class="nav-item">
         <a class="nav-link press-spinner" href="{{route('trainings.index')}}">
             <i class="bi bi-list-check me-2"></i> <span>Training</span>
@@ -119,6 +118,13 @@
             <i class="bi bi-person-arms-up me-2"></i> <span>Technician</span>
         </a>
     </li>
+    @hasanyrole('Admin|Manager')
+    <li class="nav-item">
+        <a class="nav-link press-spinner {{ request()->routeIs('shipping-log-book.*') ? 'active' : '' }}" href="{{ route('shipping-log-book.index') }}">
+            <i class="bi bi-journal-text me-2"></i> <span>Shipping Log Book</span>
+        </a>
+    </li>
+    @endhasanyrole
     <li class="nav-item press-spinner">
         <a href="{{route('materials.index')}}" class="nav-link">
             <i class="bi bi-body-text me-2"></i> <span>Materials</span>

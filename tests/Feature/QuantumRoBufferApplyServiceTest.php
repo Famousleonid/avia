@@ -84,6 +84,45 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame('Quantum', $target->date_finish_user);
     }
 
+    public function test_cad_plate_pn_writes_to_cad_std_process_without_ref(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum CAD Plate Vendor']);
+        $stdProcessName = ProcessName::query()->create([
+            'name' => 'STD CAD List',
+            'process_sheet_name' => 'STD',
+            'form_number' => 'STD',
+        ]);
+        $target = WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'cad',
+            'process_name_id' => $stdProcessName->id,
+        ]);
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => 'CAD Plate',
+            'class' => 'STD_LIST_CAD',
+            'bom_ref' => null,
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['scanned']);
+        $this->assertSame(1, $stats['applied']);
+        $this->assertSame(0, $stats['unresolved']);
+
+        $line->refresh();
+        $target->refresh();
+
+        $this->assertSame('applied', $line->apply_status);
+        $this->assertSame('workorder_std_processes', $line->applied_target_table);
+        $this->assertSame($target->id, $line->applied_target_id);
+        $this->assertSame($line->ro_number, $target->repair_order);
+        $this->assertSame($vendor->id, $target->vendor_id);
+    }
+
     public function test_detail_part_pn_uses_ref_code_and_component_match_to_tdr_process(): void
     {
         $workorder = $this->createWorkorder();
@@ -137,6 +176,74 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame($vendor->id, $target->vendor_id);
         $this->assertSame('Quantum', $target->date_start_user);
         $this->assertSame('Quantum', $target->date_finish_user);
+    }
+
+    public function test_detail_part_ref_code_is_case_insensitive_and_open_duplicate_target_is_selected(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Shot Peen Vendor']);
+        $processName = ProcessName::query()->create([
+            'name' => 'Shot peening',
+            'code' => 'shp',
+            'process_sheet_name' => 'SHOT PEEN',
+            'form_number' => 'SHP',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => '170-70930-001',
+            'name' => 'Quantum Shot Peen Component',
+            'ipl_num' => '1-2',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'Q-SHP-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $oldTarget = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'date_start' => '2026-04-30',
+            'date_finish' => '2026-05-08',
+        ]);
+        $openTarget = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'date_start' => '2026-05-26',
+        ]);
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => '170-70930-001',
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'sHp',
+            'out_date' => '2026-05-27',
+            'returned_date' => '2026-06-02',
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['applied']);
+        $this->assertSame(0, $stats['unresolved']);
+
+        $line->refresh();
+        $oldTarget->refresh();
+        $openTarget->refresh();
+
+        $this->assertSame('applied', $line->apply_status);
+        $this->assertSame($openTarget->id, $line->applied_target_id);
+        $this->assertNull($oldTarget->repair_order);
+        $this->assertSame('2026-04-30', $oldTarget->date_start?->format('Y-m-d'));
+        $this->assertSame('2026-05-08', $oldTarget->date_finish?->format('Y-m-d'));
+        $this->assertSame($line->ro_number, $openTarget->repair_order);
+        $this->assertSame($vendor->id, $openTarget->vendor_id);
+        $this->assertSame('2026-05-27', $openTarget->date_start?->format('Y-m-d'));
+        $this->assertSame('2026-06-02', $openTarget->date_finish?->format('Y-m-d'));
     }
 
     public function test_bushing_pn_writes_to_batch_selected_by_ref(): void
@@ -266,6 +373,37 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame('WO not found: old', $line->apply_status);
         $this->assertStringContainsString('WO not found: old', (string) $line->apply_message);
         $this->assertSame($line->source_hash, $line->applied_source_hash);
+    }
+
+    public function test_dismissed_line_is_processed_again_when_quantum_hash_changes(): void
+    {
+        $oldHash = hash('sha256', 'dismissed-old');
+        $newHash = hash('sha256', 'dismissed-new');
+
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => 'W99999888',
+            'vendor_name' => 'Any Quantum Vendor',
+            'pn' => 'NDT',
+            'class' => 'STD_LIST_NDT',
+            'bom_ref' => null,
+            'apply_status' => 'dismissed',
+            'apply_message' => 'Dismissed by user: old Quantum row, no action needed',
+            'source_hash' => $newHash,
+            'applied_source_hash' => $oldHash,
+            'applied_at' => now()->subDay(),
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['scanned']);
+        $this->assertSame(1, $stats['not_applicable']);
+
+        $line->refresh();
+
+        $this->assertSame('N/A', $line->apply_status);
+        $this->assertStringContainsString('Workorder not found', (string) $line->apply_message);
+        $this->assertSame($newHash, $line->applied_source_hash);
     }
 
     private function createQuantumLine(array $attributes = []): QuantumRoLine
