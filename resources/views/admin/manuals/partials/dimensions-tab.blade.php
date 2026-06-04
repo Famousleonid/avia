@@ -932,6 +932,8 @@
     .pdw-dim-label:hover { box-shadow:0 0 0 2px rgba(13,110,253,.35); }
     .pdw-text-label { position:absolute; transform:translate(-50%,-50%); background:rgba(20,184,166,.12); border:1.5px solid #14b8a6;
         border-radius:8px; padding:2px 8px; font-size:12px; font-weight:600; color:#0d9488; white-space:nowrap; cursor:pointer; z-index:10; pointer-events:all; }
+    .pdw-anchor-dot { position:absolute; width:9px; height:9px; transform:translate(-50%,-50%); background:#14b8a6; border:1.5px solid #fff;
+        border-radius:50%; box-shadow:0 0 0 1px #14b8a6; cursor:pointer; z-index:11; pointer-events:all; }
     .pdw-doc-row { display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--bs-border-color); border-radius:6px; margin-bottom:6px; cursor:pointer; }
     .pdw-doc-row:hover { background:rgba(13,110,253,.05); border-color:#0d6efd; }
     .pdw-doc-type { font-size:10px; padding:1px 6px; border-radius:3px; background:rgba(13,110,253,.12); color:#0d6efd; flex-shrink:0; text-transform:uppercase; }
@@ -4839,6 +4841,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 ln.setAttribute('stroke', '#0d6efd'); ln.setAttribute('stroke-width', (1.5 / (pdwScale || 1)).toFixed(2));
                 ln.setAttribute('marker-start', 'url(#pdw-arrow)'); ln.setAttribute('marker-end', 'url(#pdw-arrow)');
                 pdwSvg.appendChild(ln);
+            } else if (e.element_type === 'label' && e.label_x_pct != null) {
+                // leader from anchor (x/y) to the text box (label_x/label_y)
+                const ax = e.x_pct / 100 * iw, ay = e.y_pct / 100 * ih;
+                const bx = e.label_x_pct / 100 * iw, by = e.label_y_pct / 100 * ih;
+                const ln = document.createElementNS(ns, 'line');
+                ln.setAttribute('x1', ax); ln.setAttribute('y1', ay); ln.setAttribute('x2', bx); ln.setAttribute('y2', by);
+                ln.setAttribute('stroke', '#14b8a6'); ln.setAttribute('stroke-width', (1 / (pdwScale || 1)).toFixed(2));
+                pdwSvg.appendChild(ln);
             }
         });
         const defs = document.createElementNS(ns, 'defs');
@@ -4852,9 +4862,8 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwOverlay.innerHTML = '';
         if (!pdwPage) return;
         (pdwPage.elements || []).forEach(function (e) {
-            let el;
             if (e.element_type === 'dimension') {
-                el = document.createElement('div');
+                const el = document.createElement('div');
                 el.className = 'pdw-dim-label';
                 const prefix = e.mask === 'diameter' ? 'Ø' : '';
                 let valTxt;
@@ -4873,36 +4882,51 @@ document.addEventListener('DOMContentLoaded', function () {
                     else { xp = e.x_pct; yp = e.y_pct; }
                 }
                 el.dataset.xp = xp; el.dataset.yp = yp;
+                pdwFinishElement(el, e, 'label');
             } else {
-                el = document.createElement('div');
-                el.className = 'pdw-text-label';
-                if (e.placeholder) { el.textContent = e.placeholder; el.style.borderStyle = 'dashed'; }
+                // label: anchor dot (x/y) + text box on a leader (label_x/label_y)
+                const hasLeader = e.label_x_pct != null;
+                const box = document.createElement('div');
+                box.className = 'pdw-text-label';
+                if (e.placeholder) { box.textContent = e.placeholder; box.style.borderStyle = 'dashed'; }
                 else if (e.source_parameter_id) {
                     const sp = (pdwSourceParams || []).find(function (p) { return p.id == e.source_parameter_id; });
-                    el.textContent = sp ? pdwParamLabel(sp) : '⟨param⟩';
-                    el.style.borderStyle = 'dashed';
+                    box.textContent = sp ? pdwParamLabel(sp) : '⟨param⟩';
+                    box.style.borderStyle = 'dashed';
                 }
-                else el.textContent = e.text || '';
-                el.dataset.xp = e.x_pct; el.dataset.yp = e.y_pct;
+                else box.textContent = e.text || '';
+                box.dataset.xp = hasLeader ? e.label_x_pct : e.x_pct;
+                box.dataset.yp = hasLeader ? e.label_y_pct : e.y_pct;
+                pdwFinishElement(box, e, hasLeader ? 'label' : 'anchor');
+                if (hasLeader) {
+                    const dot = document.createElement('div');
+                    dot.className = 'pdw-anchor-dot';
+                    dot.dataset.xp = e.x_pct; dot.dataset.yp = e.y_pct;
+                    dot.title = 'Anchor — drag to move';
+                    pdwFinishElement(dot, e, 'anchor');
+                }
             }
-            el.dataset.elId = e.id;
-            el.title = 'Drag to move · double-click to delete';
-            pdwAddElementDrag(el, e);
-            el.addEventListener('dblclick', async function (ev) {
-                ev.stopPropagation();
-                if (!confirm('Delete this element?')) return;
-                try {
-                    await apiFetch('/process-document-elements/' + e.id, { method: 'DELETE' });
-                    pdwPage.elements = pdwPage.elements.filter(function (x) { return x.id !== e.id; });
-                    pdwRenderElements();
-                } catch (err) { alert(err.message); }
-            });
-            pdwOverlay.appendChild(el);
         });
         pdwPositionElements();
     }
 
-    function pdwAddElementDrag(el, e) {
+    function pdwFinishElement(el, e, coord) {
+        el.dataset.elId = e.id;
+        if (!el.title) el.title = 'Drag to move · double-click to delete';
+        pdwAddElementDrag(el, e, coord);
+        el.addEventListener('dblclick', async function (ev) {
+            ev.stopPropagation();
+            if (!confirm('Delete this element?')) return;
+            try {
+                await apiFetch('/process-document-elements/' + e.id, { method: 'DELETE' });
+                pdwPage.elements = pdwPage.elements.filter(function (x) { return x.id !== e.id; });
+                pdwRenderElements();
+            } catch (err) { alert(err.message); }
+        });
+        pdwOverlay.appendChild(el);
+    }
+
+    function pdwAddElementDrag(el, e, coord) {
         el.addEventListener('mousedown', function (ev) {
             if (ev.button !== 0 || pdwMode) return;
             ev.stopPropagation();
@@ -4925,8 +4949,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 const dyp = (ev2.clientY - sy) / (ih * pdwScale) * 100;
                 const newX = Math.min(Math.max(parseFloat(el.dataset.xp) + dxp, 0), 100);
                 const newY = Math.min(Math.max(parseFloat(el.dataset.yp) + dyp, 0), 100);
-                // store on label_x/y for dimensions, x/y for labels
-                const body = (e.element_type === 'dimension')
+                // coord 'label' → the text box (label_x/label_y); 'anchor' → the point (x/y)
+                const body = (coord === 'label')
                     ? { label_x_pct: newX, label_y_pct: newY }
                     : { x_pct: newX, y_pct: newY };
                 try {
@@ -5076,6 +5100,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (lt === 'placeholder') body.placeholder = document.getElementById('pdw-ef-placeholder').value;
             else if (lt === 'parameter') body.source_parameter_id = parseInt(document.getElementById('pdw-ef-lblparam').value) || null;
             else body.text = document.getElementById('pdw-ef-text').value;
+            // click = anchor (x/y); place the text box on a short leader (label_x/label_y)
+            body.label_x_pct = Math.min(parseFloat(body.x_pct) + 8, 100);
+            body.label_y_pct = Math.max(parseFloat(body.y_pct) - 6, 0);
         }
         await pdwCreateElement(body);
         pdwHideElemForm();

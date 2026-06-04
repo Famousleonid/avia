@@ -50,6 +50,8 @@ class ProcessDocumentRenderer
             . '.pdw-page{position:relative;page-break-after:always;}'
             . '.pdw-page:last-child{page-break-after:auto;}'
             . '.pdw-page img{width:100%;display:block;}'
+            . '.pdw-svg{position:absolute;top:0;left:0;width:100%;height:100%;}'
+            . '.pdw-dot{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;background:#0d9488;border-radius:50%;}'
             . '.pdw-el{position:absolute;transform:translate(-50%,-50%);font-size:9pt;font-weight:700;white-space:nowrap;}'
             . '.pdw-dim{color:#0d6efd;background:#fff;border:1px solid #0d6efd;border-radius:2px;padding:0 3px;}'
             . '.pdw-label{color:#0d9488;}'
@@ -65,8 +67,22 @@ class ProcessDocumentRenderer
         $img = $this->imageDataUri($page->image_path);
         $imgTag = $img ? '<img src="' . $img . '" alt="">' : '<div style="height:200px"></div>';
 
-        $els = '';
+        $els   = '';
+        $lines = '';
         foreach ($page->elements as $e) {
+            // leader (label) / dimension lines → SVG overlay; anchor dot for labels
+            if ($e->element_type === 'label' && $e->label_x_pct !== null && $e->x_pct !== null) {
+                $lines .= '<line x1="' . (float) $e->x_pct . '" y1="' . (float) $e->y_pct
+                    . '" x2="' . (float) $e->label_x_pct . '" y2="' . (float) $e->label_y_pct
+                    . '" stroke="#0d9488" stroke-width="0.25" />';
+                $els .= '<div class="pdw-dot" style="left:' . (float) $e->x_pct . '%;top:' . (float) $e->y_pct . '%"></div>';
+            }
+            if ($e->element_type === 'dimension' && $e->mask === 'linear' && $e->x2_pct !== null) {
+                $lines .= '<line x1="' . (float) $e->x_pct . '" y1="' . (float) $e->y_pct
+                    . '" x2="' . (float) $e->x2_pct . '" y2="' . (float) $e->y2_pct
+                    . '" stroke="#0d6efd" stroke-width="0.3" />';
+            }
+
             [$xp, $yp] = $this->elementPosition($e);
             if ($xp === null) {
                 continue;
@@ -76,7 +92,11 @@ class ProcessDocumentRenderer
             $els .= '<div class="' . $cls . '" style="left:' . $xp . '%;top:' . $yp . '%">' . $text . '</div>';
         }
 
-        return '<div class="pdw-page">' . $imgTag . $els . '</div>';
+        $svg = $lines !== ''
+            ? '<svg class="pdw-svg" viewBox="0 0 100 100" preserveAspectRatio="none">' . $lines . '</svg>'
+            : '';
+
+        return '<div class="pdw-page">' . $imgTag . $svg . $els . '</div>';
     }
 
     private function elementPosition($e): array
@@ -88,6 +108,9 @@ class ProcessDocumentRenderer
             if ($e->mask === 'linear' && $e->x2_pct !== null) {
                 return [((float) $e->x_pct + (float) $e->x2_pct) / 2, ((float) $e->y_pct + (float) $e->y2_pct) / 2];
             }
+        } elseif ($e->label_x_pct !== null) {
+            // label: the text box sits at label_x/label_y (on a leader from the anchor)
+            return [(float) $e->label_x_pct, (float) $e->label_y_pct];
         }
         if ($e->x_pct === null) {
             return [null, null];
