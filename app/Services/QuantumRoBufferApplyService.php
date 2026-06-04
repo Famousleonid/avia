@@ -33,7 +33,7 @@ class QuantumRoBufferApplyService
 
     private array $columnExistsCache = [];
 
-    public function apply(int $limit = 200, bool $dryRun = false): array
+    public function apply(int $limit = 1000, bool $dryRun = false): array
     {
         $stats = [
             'scanned' => 0,
@@ -170,11 +170,11 @@ class QuantumRoBufferApplyService
             ];
         }
 
-        if ($normalizedPn === 'CAD') {
+        if ($normalizedPn === 'CAD' || $normalizedPn === 'CADPLATE') {
             return [
                 'type' => self::TARGET_STD,
                 'std_type' => StdProcess::STD_CAD,
-                'label' => 'CAD',
+                'label' => 'CAD Plate',
             ];
         }
 
@@ -380,7 +380,6 @@ class QuantumRoBufferApplyService
                 "REPLACE(UPPER(TRIM(components.part_number)), ' ', '') = ?",
                 [$this->normalizePartNumber($line->pn)]
             )
-            ->limit(2)
             ->get();
 
         if ($tdrMatches->count() === 1) {
@@ -388,6 +387,12 @@ class QuantumRoBufferApplyService
         }
 
         if ($tdrMatches->count() > 1) {
+            $resolvedMatch = $this->resolveMultipleTdrTarget($tdrMatches, $line);
+
+            if ($resolvedMatch) {
+                return ['status' => 'ok', 'model' => $resolvedMatch];
+            }
+
             return [
                 'status' => 'unresolved',
                 'message' => "Multiple TDR process targets for WO {$line->wo_number}, REF {$line->bom_ref}",
@@ -398,6 +403,54 @@ class QuantumRoBufferApplyService
             'status' => 'unresolved',
             'message' => "No TDR process target for WO {$line->wo_number}, REF {$line->bom_ref}, PN {$line->pn}, process {$processName->name}",
         ];
+    }
+
+    private function resolveMultipleTdrTarget(Collection $matches, QuantumRoLine $line): ?TdrProcess
+    {
+        $lineRo = trim((string) $line->ro_number);
+        if ($lineRo !== '') {
+            $sameRo = $matches
+                ->filter(fn (TdrProcess $match): bool => trim((string) $match->repair_order) === $lineRo)
+                ->values();
+
+            if ($sameRo->count() === 1) {
+                return $sameRo->first();
+            }
+        }
+
+        $outDate = $line->out_date ? Carbon::parse($line->out_date)->startOfDay() : null;
+        $returnedDate = $line->returned_date ? Carbon::parse($line->returned_date)->startOfDay() : null;
+
+        $dateWindowMatches = $matches
+            ->filter(function (TdrProcess $match) use ($outDate, $returnedDate): bool {
+                $startDate = $match->date_start ? Carbon::parse($match->date_start)->startOfDay() : null;
+                $finishDate = $match->date_finish ? Carbon::parse($match->date_finish)->startOfDay() : null;
+
+                if ($outDate && $finishDate && $finishDate->lt($outDate)) {
+                    return false;
+                }
+
+                if ($returnedDate && $startDate && $startDate->gt($returnedDate)) {
+                    return false;
+                }
+
+                return true;
+            })
+            ->values();
+
+        if ($dateWindowMatches->count() === 1) {
+            return $dateWindowMatches->first();
+        }
+
+        $openMatches = $dateWindowMatches
+            ->filter(fn (TdrProcess $match): bool => empty($match->date_finish))
+            ->values();
+
+        if ($openMatches->count() === 1) {
+            return $openMatches->first();
+        }
+
+        return null;
     }
 
     private function fillTarget(Model $model, QuantumRoLine $line, Vendor $vendor): void

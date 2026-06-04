@@ -445,7 +445,8 @@
     ]);
 </script>
 
-@if(!in_array(\Illuminate\Support\Facades\Route::currentRouteName(), ['paint.index', 'machining.index'], true))
+@php($hideAiWidget = request()->routeIs('paint.index', 'machining.index', 'vendor-tracking.*'))
+@if(! $hideAiWidget)
     @include('admin.ai_widget')
 @endif
 

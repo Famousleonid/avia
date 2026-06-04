@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\ProcessController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RmReportController;
 use App\Http\Controllers\Admin\ServiceBulletinLogController;
+use App\Http\Controllers\Admin\ShippingLogBookController;
 use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\TdrController;
 use App\Http\Controllers\Admin\TdrPrintFormController;
@@ -211,6 +212,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/workorders/{workorder}/media/upload', [MediaController::class, 'upload_workorder_media'])->name('workorders.media.upload');
     // Route::patch('/workorders/{workorder}/media/reorder', [MediaController::class, 'reorder_workorder_media'])->name('workorders.media.reorder');
     Route::get('/workorders/download/{id}/group/{group}', [WorkorderController::class, 'downloadGroup'])->name('workorders.downloadGroup');
+    Route::get('/shipping-log-book', [ShippingLogBookController::class, 'index'])->name('shipping-log-book.index');
+    Route::patch('/shipping-log-book/{workorder}', [ShippingLogBookController::class, 'update'])->name('shipping-log-book.update');
 
     Route::post('/users/avatar/{id}', [MediaController::class, 'store_avatar'])->name('avatar.media.store');
     Route::get('workorders-logs', [\App\Http\Controllers\Admin\WorkorderController::class, 'logs'])->name('workorders.logs');
@@ -447,6 +450,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     // Components editing from inspection
     Route::get('/components/{component}/json', [ComponentController::class, 'showJson'])->name('components.showJson');
     Route::patch('/components/{component}/flags', [ComponentController::class, 'updateFlags'])->name('components.updateFlags');
+    Route::patch('/manuals/{manual}/components/kit-prl-choice-group', [ComponentController::class, 'updateKitPrlChoiceGroup'])->name('manuals.components.kit-prl-choice-group');
     Route::post('/components/{component}/update-from-inspection', [ComponentController::class, 'updateFromInspection'])->name('components.updateFromInspection');
 
     Route::patch('/components/{component}/single', [ComponentController::class, 'updateSingle'])->name('components.updateSingle');
@@ -533,6 +537,10 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/vendor-tracking/export', [VendorTrackingController::class, 'export'])->name('vendor-tracking.export');
     Route::patch('/vendor-tracking/row', [VendorTrackingController::class, 'updateRow'])->name('vendor-tracking.row.update');
     Route::get('/vendor-tracking/quantum-ro-lines/recent', [VendorTrackingController::class, 'recentQuantumRoLines'])->name('vendor-tracking.quantum-lines.recent');
+    Route::get('/vendor-tracking/quantum-ro-lines/find-workorder', [VendorTrackingController::class, 'findQuantumRoLineByWorkorder'])->name('vendor-tracking.quantum-lines.find-workorder');
+    Route::patch('/vendor-tracking/quantum-ro-lines/dismiss-visible', [VendorTrackingController::class, 'dismissVisibleQuantumRoLines'])->name('vendor-tracking.quantum-lines.dismiss-visible');
+    Route::patch('/vendor-tracking/quantum-ro-lines/{quantumRoLine}/restore', [VendorTrackingController::class, 'restoreQuantumRoLine'])->name('vendor-tracking.quantum-lines.restore');
+    Route::patch('/vendor-tracking/quantum-ro-lines/{quantumRoLine}/dismiss', [VendorTrackingController::class, 'dismissQuantumRoLine'])->name('vendor-tracking.quantum-lines.dismiss');
 
     Route::get('/quality-assurance', [QualityAssuranceController::class, 'index'])->name('quality.index');
     Route::get('/quality-assurance/workorder', [QualityAssuranceController::class, 'workorder'])->name('quality.workorder');

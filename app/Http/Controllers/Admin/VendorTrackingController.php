@@ -52,6 +52,7 @@ class VendorTrackingController extends Controller
     ];
 
     private const QUANTUM_RECENT_PAGE_SIZE = 200;
+    private const QUANTUM_STATUS_DISMISSED = 'dismissed';
 
     public function index(Request $request)
     {
@@ -197,6 +198,125 @@ class VendorTrackingController extends Controller
             'has_more' => $hasMore,
             'next_page' => $hasMore ? $page + 1 : null,
             'total' => $total,
+        ]);
+    }
+
+    public function findQuantumRoLineByWorkorder(Request $request): JsonResponse
+    {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $data = $request->validate([
+            'workorder' => ['required', 'string', 'max:50'],
+        ]);
+
+        if (! $this->quantumRoLinesTableReady()) {
+            return response()->json([
+                'success' => true,
+                'found' => false,
+                'message' => 'Quantum list is empty.',
+            ]);
+        }
+
+        $search = trim((string) $data['workorder']);
+        $digits = preg_replace('/\D+/', '', $search);
+        $term = $digits !== '' ? $digits : $search;
+        $like = '%' . $this->escapeLike($term) . '%';
+
+        $line = $this->quantumRecentRowsQuery()
+            ->where('wo_number', 'like', $like)
+            ->first();
+
+        if (! $line) {
+            return response()->json([
+                'success' => true,
+                'found' => false,
+                'message' => 'WO not found in Quantum list.',
+            ]);
+        }
+
+        $position = 0;
+        foreach ($this->quantumRecentRowsQuery()->select('id')->cursor() as $orderedLine) {
+            if ((int) $orderedLine->id === (int) $line->id) {
+                break;
+            }
+
+            $position++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'found' => true,
+            'line_id' => (int) $line->id,
+            'page' => intdiv($position, self::QUANTUM_RECENT_PAGE_SIZE) + 1,
+            'position' => $position,
+            'matched_wo' => $line->wo_number,
+            'total' => $this->quantumRecentTotal(),
+        ]);
+    }
+
+    public function dismissQuantumRoLine(QuantumRoLine $quantumRoLine): JsonResponse
+    {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $dismissedLine = $this->dismissQuantumLine($quantumRoLine);
+
+        return response()->json([
+            'success' => true,
+            'dismissed' => $dismissedLine !== null ? 1 : 0,
+            'dismissed_ids' => $dismissedLine !== null ? [$dismissedLine['id']] : [],
+            'lines' => $dismissedLine !== null ? [$dismissedLine] : [],
+            'unparsed_total' => $this->quantumUnparsedTotal(),
+            'status_counts' => $this->quantumStatusCounts(),
+        ]);
+    }
+
+    public function dismissVisibleQuantumRoLines(Request $request): JsonResponse
+    {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $data = $request->validate([
+            'line_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'line_ids.*' => ['integer', 'min:1'],
+        ]);
+
+        $ids = collect($data['line_ids'])
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $dismissedLines = QuantumRoLine::query()
+            ->whereIn('id', $ids)
+            ->orderByDesc('source_last_modified')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (QuantumRoLine $line): ?array => $this->dismissQuantumLine($line))
+            ->filter()
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'dismissed' => $dismissedLines->count(),
+            'dismissed_ids' => $dismissedLines->pluck('id')->values(),
+            'lines' => $dismissedLines,
+            'unparsed_total' => $this->quantumUnparsedTotal(),
+            'status_counts' => $this->quantumStatusCounts(),
+        ]);
+    }
+
+    public function restoreQuantumRoLine(QuantumRoLine $quantumRoLine): JsonResponse
+    {
+        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+
+        $restoredLine = $this->restoreQuantumLine($quantumRoLine);
+
+        return response()->json([
+            'success' => true,
+            'restored' => $restoredLine !== null ? 1 : 0,
+            'restored_id' => $restoredLine['id'] ?? null,
+            'line' => $restoredLine,
+            'unparsed_total' => $this->quantumUnparsedTotal(),
+            'status_counts' => $this->quantumStatusCounts(),
         ]);
     }
 
@@ -706,6 +826,7 @@ class VendorTrackingController extends Controller
             'wo_not_found_old' => 0,
             'applied' => 0,
             'not_applicable' => 0,
+            'dismissed' => 0,
             'error' => 0,
             'other' => 0,
         ];
@@ -741,9 +862,71 @@ class VendorTrackingController extends Controller
             'unresolved' => 'unresolved',
             'applied' => 'applied',
             'N/A' => 'not_applicable',
+            self::QUANTUM_STATUS_DISMISSED => 'dismissed',
             'error' => 'error',
             default => 'other',
         };
+    }
+
+    private function dismissQuantumLine(QuantumRoLine $line): ?array
+    {
+        if (trim((string) $line->apply_status) !== 'unresolved') {
+            return null;
+        }
+
+        $message = $this->dismissedQuantumMessage($line);
+
+        $line->forceFill([
+            'apply_status' => self::QUANTUM_STATUS_DISMISSED,
+            'apply_message' => $message,
+            'applied_target_table' => null,
+            'applied_target_id' => null,
+            'applied_source_hash' => $line->source_hash,
+            'applied_at' => now(),
+        ])->save();
+
+        return [
+            'id' => (int) $line->id,
+            'status' => self::QUANTUM_STATUS_DISMISSED,
+            'message' => $message,
+            'restore_url' => route('vendor-tracking.quantum-lines.restore', ['quantumRoLine' => $line->id]),
+        ];
+    }
+
+    private function dismissedQuantumMessage(QuantumRoLine $line): string
+    {
+        $currentMessage = trim((string) $line->apply_message);
+
+        if ($currentMessage === '' || str_starts_with($currentMessage, 'Dismissed by user')) {
+            return 'Dismissed by user: old Quantum row, no action needed';
+        }
+
+        return mb_substr('Dismissed by user: ' . $currentMessage, 0, 5000);
+    }
+
+    private function restoreQuantumLine(QuantumRoLine $line): ?array
+    {
+        if (trim((string) $line->apply_status) !== self::QUANTUM_STATUS_DISMISSED) {
+            return null;
+        }
+
+        $message = 'Restored by user: waiting for quantum-ro:apply';
+
+        $line->forceFill([
+            'apply_status' => 'pending',
+            'apply_message' => $message,
+            'applied_target_table' => null,
+            'applied_target_id' => null,
+            'applied_source_hash' => null,
+            'applied_at' => null,
+        ])->save();
+
+        return [
+            'id' => (int) $line->id,
+            'status' => 'pending',
+            'message' => $message,
+            'restore_url' => null,
+        ];
     }
 
     private function isOldQuantumWorkorderNotFound(QuantumRoLine $line, string $status): bool
@@ -779,6 +962,11 @@ class VendorTrackingController extends Controller
             ->orderByDesc('updated_at')
             ->orderByDesc('first_seen_at')
             ->orderByDesc('id');
+    }
+
+    private function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 
     private function normalizeTdrTravelerGroup(Collection $group): object

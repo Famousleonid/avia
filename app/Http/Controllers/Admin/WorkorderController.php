@@ -85,6 +85,10 @@ class WorkorderController extends Controller
             'approve_at'     => 'Approve date',
             'approve_name'   => 'Approved by',
             'description'    => 'Description',
+            'shipping_shipment_at'        => 'Shipment',
+            'shipping_freight_forwarder'  => 'Freight Forwarder',
+            'shipping_awb_no'             => 'AWB No.',
+            'shipping_notes'              => 'Shipping notes',
         ];
 
         return view('admin.log.index', compact(
@@ -123,6 +127,10 @@ class WorkorderController extends Controller
             'approve_name'   => 'Approved by',
             'description'    => 'Description',
             'serial_number'  => 'Serial number',
+            'shipping_shipment_at'        => 'Shipment',
+            'shipping_freight_forwarder'  => 'Freight Forwarder',
+            'shipping_awb_no'             => 'AWB No.',
+            'shipping_notes'              => 'Shipping notes',
 
             // кастомные поля для task deleted
             'task'           => 'Task',
@@ -134,6 +142,10 @@ class WorkorderController extends Controller
 
         $formatValue = function ($field, $value) use ($unitsMap, $customersMap, $instructionsMap, $usersMap) {
             if ($value === null) return null;
+
+            if ($field === 'shipping_shipment_at') {
+                return format_project_date($value) ?? $value;
+            }
 
             return match ($field) {
                 'unit_id'        => $unitsMap[$value]        ?? $value,

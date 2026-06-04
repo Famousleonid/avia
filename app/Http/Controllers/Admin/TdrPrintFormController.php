@@ -26,6 +26,7 @@ use App\Models\WorkorderUnitInspection;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\WorkorderStdProcessItemsService;
 use App\Services\WorkorderStdListProcessesService;
+use App\Support\KitPrlGrouping;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -284,14 +285,15 @@ class TdrPrintFormController extends Controller
                 ->get(),
             $workorder
         );
+
         return $this->buildKitPrlRowsForComponents($kitComponents, 'KIT');
     }
 
     private function buildKitPrlRowsForComponents($components, string $code)
     {
         return $components
-            ->groupBy(fn (Component $component): string => $this->numericIplGroupKey((string) ($component->ipl_num ?? ''), (int) $component->id))
-            ->map(function ($group, string $groupKey) use ($code) {
+            ->groupBy(fn (Component $component): string => KitPrlGrouping::groupKeyForComponent($component))
+            ->map(function ($group) use ($code) {
                 /** @var \Illuminate\Support\Collection<int, Component> $group */
                 $sorted = $group->sort(function (Component $left, Component $right): int {
                     $iplCompare = StdProcess::compareIplValues(
@@ -305,12 +307,11 @@ class TdrPrintFormController extends Controller
                     return strnatcasecmp((string) ($left->part_number ?? ''), (string) ($right->part_number ?? ''));
                 })->values();
                 $representative = $sorted->first();
-                $qty = $sorted->sum(fn (Component $component): int => max(1, (int) ($component->units_assy ?? 1)));
+                // KIT grouped rows are alternatives for the technician, so do not add variant quantities together.
+                $qty = $sorted->max(fn (Component $component): int => max(1, (int) ($component->units_assy ?? 1)));
 
                 $row = $this->makePrlArrayRow($representative, max(1, (int) $qty));
-                $row['sort_ipl_num'] = str_starts_with($groupKey, 'component-')
-                    ? (string) ($representative->ipl_num ?? '')
-                    : $groupKey;
+                $row['sort_ipl_num'] = (string) ($representative->ipl_num ?? '');
                 $row['component']['ipl_num'] = $sorted
                     ->pluck('ipl_num')
                     ->filter()
@@ -359,20 +360,6 @@ class TdrPrintFormController extends Controller
             'po_num' => '',
             'notes' => '',
         ];
-    }
-
-    private function numericIplGroupKey(string $ipl, ?int $componentId = null): string
-    {
-        $normalized = strtoupper(trim($ipl));
-        $withoutSuffix = preg_replace('/([0-9])[^0-9-]*$/', '$1', $normalized) ?? $normalized;
-        $digitsOnly = preg_replace('/[^0-9]+/', '-', $withoutSuffix) ?? $withoutSuffix;
-        $digitsOnly = trim($digitsOnly, '-');
-
-        if ($digitsOnly !== '') {
-            return $digitsOnly;
-        }
-
-        return $normalized !== '' ? $normalized : 'component-' . (string) ($componentId ?? 0);
     }
 
     public function ndtStd(Request $request, $workorder_id)
@@ -785,8 +772,8 @@ class TdrPrintFormController extends Controller
     }
 
     /**
-     * Collapse rows like 8-240A / 8-240B into one display row when the base IPL,
-     * manual, description and process match. Qty is summed so totals stay correct.
+     * Collapse rows like 8-240A / 8-240B or 1-272 / 1-272A into one display row
+     * when the base IPL, manual and process match.
      *
      * @param  array<int, \stdClass>  $components
      * @return array<int, \stdClass>
@@ -834,7 +821,7 @@ class TdrPrintFormController extends Controller
     {
         $ipl = trim((string) ($component->ipl_num ?? ''));
 
-        if (! preg_match('/^(\d+[A-Za-z]*-\d+)([A-Za-z]+)$/', $ipl, $matches)) {
+        if (! preg_match('/^(\d+[A-Za-z]*-\d+)(?:[A-Za-z]+)?$/', $ipl, $matches)) {
             return null;
         }
 

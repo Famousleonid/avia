@@ -35,6 +35,7 @@ use App\Models\Workorder;
 use App\Services\LogCardTdrAccessService;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\WorkorderStdListProcessesService;
+use App\Support\KitPrlGrouping;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
@@ -2420,7 +2421,7 @@ class TdrController extends Controller
     {
         $ipl = trim((string) ($row['ipl_num'] ?? ''));
 
-        if (! preg_match('/^(\d+[A-Za-z]*-\d+)([A-Za-z]+)$/', $ipl, $matches)) {
+        if (! preg_match('/^(\d+[A-Za-z]*-\d+)(?:[A-Za-z]+)?$/', $ipl, $matches)) {
             return null;
         }
 
@@ -2434,22 +2435,8 @@ class TdrController extends Controller
     private function countKitPrlGroups($components): int
     {
         return collect($components)
-            ->groupBy(fn ($component): string => $this->kitNumericIplGroupKey((string) ($component->ipl_num ?? ''), (int) ($component->id ?? 0)))
+            ->groupBy(fn ($component): string => KitPrlGrouping::groupKeyForComponent($component))
             ->count();
-    }
-
-    private function kitNumericIplGroupKey(string $ipl, ?int $componentId = null): string
-    {
-        $normalized = strtoupper(trim($ipl));
-        $withoutSuffix = preg_replace('/([0-9])[^0-9-]*$/', '$1', $normalized) ?? $normalized;
-        $digitsOnly = preg_replace('/[^0-9]+/', '-', $withoutSuffix) ?? $withoutSuffix;
-        $digitsOnly = trim($digitsOnly, '-');
-
-        if ($digitsOnly !== '') {
-            return $digitsOnly;
-        }
-
-        return $normalized !== '' ? $normalized : 'component-' . (string) ($componentId ?? 0);
     }
 
     private function countSpecProcessFormColumns(Workorder $workorder): int

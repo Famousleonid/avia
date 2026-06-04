@@ -52,6 +52,42 @@ class ComponentController extends Controller
         ];
     }
 
+    private function normalizeKitPrlChoiceGroup(?string $group): ?string
+    {
+        $normalized = preg_replace('/\s+/', '_', trim((string) $group));
+        $normalized = preg_replace('/[^A-Za-z0-9_-]+/', '', (string) $normalized);
+
+        return $normalized !== '' ? mb_substr($normalized, 0, 100) : null;
+    }
+
+    private function generateKitPrlChoiceGroup(Manual $manual, int $firstComponentId): string
+    {
+        $firstComponent = Component::query()
+            ->where('manual_id', $manual->id)
+            ->where('id', $firstComponentId)
+            ->first(['name']);
+        $base = $this->normalizeKitPrlChoiceGroup((string) ($firstComponent->name ?? 'KIT group')) ?? 'kit_group';
+        $base = strtolower($base);
+        $words = ['alpha', 'bravo', 'cedar', 'delta', 'ember', 'falcon', 'harbor', 'matrix'];
+
+        for ($attempt = 0; $attempt < 20; $attempt++) {
+            $suffix = $words[array_rand($words)] . '_' . random_int(1000, 9999);
+            $baseLimit = max(1, 99 - strlen($suffix));
+            $candidate = substr($base, 0, $baseLimit) . '_' . $suffix;
+
+            $exists = Component::query()
+                ->where('manual_id', $manual->id)
+                ->where('kit_prl_choice_group', $candidate)
+                ->exists();
+
+            if (! $exists) {
+                return $candidate;
+            }
+        }
+
+        return substr($base, 0, 90) . '_' . bin2hex(random_bytes(4));
+    }
+
     private function partAccessGuard(): ManualPartAccessGuard
     {
         return app(ManualPartAccessGuard::class);
@@ -132,6 +168,7 @@ class ComponentController extends Controller
                 $query->where('ipl_num', 'like', '%'.$search.'%')
                     ->orWhere('part_number', 'like', '%'.$search.'%')
                     ->orWhere('name', 'like', '%'.$search.'%')
+                    ->orWhere('kit_prl_choice_group', 'like', '%'.$search.'%')
                     ->orWhereHas('assemblies', function ($query) use ($search) {
                         $query->where('assy_ipl_num', 'like', '%'.$search.'%')
                             ->orWhere('assy_part_number', 'like', '%'.$search.'%')
@@ -213,6 +250,7 @@ class ComponentController extends Controller
             'ipl_num' =>'string|max:10',
             'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
             'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            'kit_prl_choice_group' => 'nullable|string|max:100',
             'units_assy' => 'nullable|string|max:100',
             'eff_code' => 'nullable|string|max:100',
             'assemblies' => 'nullable|array',
@@ -245,6 +283,7 @@ class ComponentController extends Controller
 
         $validated = $this->fillComponentFlagsFromRequest($validated, $request);
         $validated['bush_ipl_num'] = $request->bush_ipl_num;
+        $validated['kit_prl_choice_group'] = $this->normalizeKitPrlChoiceGroup($request->input('kit_prl_choice_group'));
 
         $component = Component::create($validated);
 
@@ -487,6 +526,7 @@ class ComponentController extends Controller
             'ipl_num' =>'required|string|max:10',
             'assy_ipl_num' => 'nullable|string|max:50|regex:/^\d+-\d+[A-Za-z]?$/',
             'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            'kit_prl_choice_group' => 'nullable|string|max:100',
             'units_assy' => 'nullable|string|max:100',
             'eff_code' => 'nullable|string|max:100',
             'img' => 'nullable|file|image|max:5120',
@@ -521,6 +561,9 @@ class ComponentController extends Controller
         $validated['assy_ipl_num'] = $request->input('assy_ipl_num', $firstAssembly['assy_ipl_num'] ?? null);
         $validated = $this->fillComponentFlagsFromRequest($validated, $request);
         $validated['bush_ipl_num'] = $request->bush_ipl_num;
+        if ($request->has('kit_prl_choice_group')) {
+            $validated['kit_prl_choice_group'] = $this->normalizeKitPrlChoiceGroup($request->input('kit_prl_choice_group'));
+        }
         unset($validated['img'], $validated['assy_img'], $validated['assemblies']);
         $component->update($validated);
 
@@ -629,6 +672,76 @@ class ComponentController extends Controller
      * Принимает те же поля, что и create: ipl_num, assy_ipl_num, part_number, assy_part_number,
      * name, units_assy, eff_code, log_card, is_bush, bush_ipl_num, optional img, assy_img.
      */
+    public function updateKitPrlChoiceGroup(Request $request, Manual $manual)
+    {
+        $manual->load('partLock.lockedBy');
+        if ($deny = $this->denyIfManualPartsLocked($request, $manual)) {
+            return $deny;
+        }
+
+        $validated = $request->validate([
+            'component_ids' => 'required|array|min:1',
+            'component_ids.*' => 'integer',
+            'action' => 'nullable|in:group,clear',
+            'kit_prl_choice_group' => 'nullable|string|max:100',
+        ]);
+
+        $componentIds = collect($validated['component_ids'])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($componentIds->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('No parts selected.'),
+            ], 422);
+        }
+
+        $matchingCount = Component::query()
+            ->where('manual_id', $manual->id)
+            ->whereIn('id', $componentIds)
+            ->count();
+
+        if ($matchingCount !== $componentIds->count()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('Selected parts do not belong to this manual.'),
+            ], 422);
+        }
+
+        $requestedGroup = $request->has('kit_prl_choice_group')
+            ? $this->normalizeKitPrlChoiceGroup($request->input('kit_prl_choice_group'))
+            : null;
+        $action = $validated['action'] ?? null;
+        $group = $requestedGroup;
+
+        if ($action === 'clear' || ($request->has('kit_prl_choice_group') && $requestedGroup === null && $action !== 'group')) {
+            $group = null;
+        } elseif ($group === null) {
+            if ($componentIds->count() < 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => __('Select at least two parts to group.'),
+                ], 422);
+            }
+
+            $group = $this->generateKitPrlChoiceGroup($manual, (int) $componentIds->first());
+        }
+
+        Component::query()
+            ->where('manual_id', $manual->id)
+            ->whereIn('id', $componentIds)
+            ->update(['kit_prl_choice_group' => $group]);
+
+        return response()->json([
+            'success' => true,
+            'kit_prl_choice_group' => $group,
+            'updated_count' => $componentIds->count(),
+        ]);
+    }
+
     public function updateSingle(Request $request, $id)
     {
         $component = Component::findOrFail($id);
@@ -644,6 +757,7 @@ class ComponentController extends Controller
             'name'             => 'required|string|max:250',
             'units_assy'       => 'nullable|string|max:100',
             'eff_code'         => 'nullable|string|max:100',
+            'kit_prl_choice_group' => 'nullable|string|max:100',
             'bush_ipl_num'     => 'nullable|string|max:50',
             'img'              => 'nullable|file|image|max:5120',
             'assy_img'         => 'nullable|file|image|max:5120',
@@ -652,6 +766,9 @@ class ComponentController extends Controller
         $validated['assy_ipl_num'] = $request->input('assy_ipl_num');
         $validated = $this->fillComponentFlagsFromRequest($validated, $request);
         $validated['bush_ipl_num'] = $request->input('bush_ipl_num');
+        if ($request->has('kit_prl_choice_group')) {
+            $validated['kit_prl_choice_group'] = $this->normalizeKitPrlChoiceGroup($request->input('kit_prl_choice_group'));
+        }
 
         unset($validated['img'], $validated['assy_img']);
         $component->update($validated);
@@ -709,6 +826,7 @@ class ComponentController extends Controller
                 'log_card'         => (bool) $component->log_card,
                 'is_bush'          => (bool) $component->is_bush,
                 'kit'              => (bool) $component->kit,
+                'kit_prl_choice_group' => $component->kit_prl_choice_group,
                 'kit_e'            => (bool) $component->kit_e,
                 'ndt_list'         => (bool) $component->ndt_list,
                 'cad_list'         => (bool) $component->cad_list,
@@ -1158,8 +1276,9 @@ class ComponentController extends Controller
                         'units_assy' => isset($rowData['units_assy']) ? trim($rowData['units_assy']) : null,
                         'log_card' => isset($rowData['log_card']) ? (int)($rowData['log_card'] == '1' || $rowData['log_card'] == 'true') : 0,
                         'is_bush' => isset($rowData['is_bush']) ? (int)($rowData['is_bush'] == '1' || $rowData['is_bush'] == 'true') : 0,
-                        'kit' => isset($rowData['kit']) ? (int)($rowData['kit'] == '1' || $rowData['kit'] == 'true') : 0,
-                        'kit_e' => isset($rowData['kit_e']) ? (int)($rowData['kit_e'] == '1' || $rowData['kit_e'] == 'true') : 0,
+            'kit' => isset($rowData['kit']) ? (int)($rowData['kit'] == '1' || $rowData['kit'] == 'true') : 0,
+            'kit_prl_choice_group' => isset($rowData['kit_prl_choice_group']) ? $this->normalizeKitPrlChoiceGroup($rowData['kit_prl_choice_group']) : null,
+            'kit_e' => isset($rowData['kit_e']) ? (int)($rowData['kit_e'] == '1' || $rowData['kit_e'] == 'true') : 0,
                         'ndt_list' => isset($rowData['ndt_list']) ? (int)($rowData['ndt_list'] == '1' || $rowData['ndt_list'] == 'true') : 0,
                         'cad_list' => isset($rowData['cad_list']) ? (int)($rowData['cad_list'] == '1' || $rowData['cad_list'] == 'true') : 0,
                         'stress_relief_list' => isset($rowData['stress_relief_list']) ? (int)($rowData['stress_relief_list'] == '1' || $rowData['stress_relief_list'] == 'true') : 0,
@@ -1231,7 +1350,7 @@ class ComponentController extends Controller
                             // Фильтруем пустые значения, чтобы не перезаписывать существующие данные
                             $updateData = array_intersect_key($componentData, array_flip([
                                 'part_number', 'name', 'assy_part_number', 'assy_ipl_num',
-                                'units_assy', 'log_card', 'is_bush', 'kit', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list', 'bush_ipl_num'
+                                'units_assy', 'log_card', 'is_bush', 'kit', 'kit_prl_choice_group', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list', 'bush_ipl_num'
                             ]));
 
                             // Убираем пустые строки и null значения, но оставляем 0 для boolean полей
@@ -1361,6 +1480,7 @@ class ComponentController extends Controller
                 'log_card',
                 'is_bush',
                 'kit',
+                'kit_prl_choice_group',
                 'kit_e',
                 'ndt_list',
                 'cad_list',
@@ -1380,6 +1500,7 @@ class ComponentController extends Controller
                 '1',
                 '0',
                 '0',
+                '',
                 '1',
                 '0',
                 '0',
@@ -1398,6 +1519,7 @@ class ComponentController extends Controller
                 '0',
                 '1',
                 '1',
+                'example_choice_group',
                 '0',
                 '1',
                 '0',
