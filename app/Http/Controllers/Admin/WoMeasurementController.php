@@ -690,6 +690,7 @@ class WoMeasurementController extends Controller
             'inspection_component_id' => 'required|integer',
             'outcome'                 => 'required|in:finish,ec,order_new',
             'ndt_pass'                => 'boolean',
+            'ec_typical'              => 'boolean', // typical/pre-approved EC → don't hold post+finish
         ]);
 
         $componentIds = ManualInspectionComponentVariant::where('inspection_component_id', $data['inspection_component_id'])
@@ -734,12 +735,17 @@ class WoMeasurementController extends Controller
                 }
             }
 
-            // Hold everything after the NDT gate: remove not-yet-started post+finish processes…
-            TdrProcess::where('tdrs_id', $tdr->id)
-                ->whereIn('process_names_id', $this->heldOnEcProcessNameIds())
-                ->whereNull('date_start')
-                ->delete();
-            // …and add the EC process (companion to Machining (EC); read by SP Form / TDR-print).
+            // Typical/pre-approved EC: processes are known and the concession is
+            // routinely granted → keep working (post+finish proceed). Otherwise
+            // hold everything after the NDT gate until the concession is granted.
+            $typical = (bool) ($data['ec_typical'] ?? false);
+            if (!$typical) {
+                TdrProcess::where('tdrs_id', $tdr->id)
+                    ->whereIn('process_names_id', $this->heldOnEcProcessNameIds())
+                    ->whereNull('date_start')
+                    ->delete();
+            }
+            // Add the EC process (companion to Machining (EC); read by SP Form / TDR-print).
             $ecNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
             if ($ecNameId && !TdrProcess::where('tdrs_id', $tdr->id)->where('process_names_id', $ecNameId)->exists()) {
                 $maxSort = TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0;
@@ -748,14 +754,14 @@ class WoMeasurementController extends Controller
                     'process_names_id'   => $ecNameId,
                     'processes'          => [],
                     'rule_process_ids'   => [],
-                    'description'        => '',
+                    'description'        => $typical ? 'Typical EC' : '',
                     'sort_order'         => $maxSort + 1,
                     'in_traveler'        => false,
                     'ec'                 => 1,
                     'standalone_ec_only' => false,
                 ]);
             }
-            return response()->json(['ok' => true, 'outcome' => 'ec', 'tdr_id' => $tdr->id]);
+            return response()->json(['ok' => true, 'outcome' => 'ec', 'tdr_id' => $tdr->id, 'typical' => $typical]);
         }
 
         // order_new — part condemned at the gate (NDT crack / unsalvageable).

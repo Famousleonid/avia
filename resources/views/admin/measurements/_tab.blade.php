@@ -172,6 +172,12 @@
                         <input class="form-check-input" type="checkbox" id="msGateNdt">
                         <label class="form-check-label" for="msGateNdt" style="cursor:pointer;font-weight:600">NDT Pass</label>
                     </div>
+                    <div class="form-check d-none" id="msGateEcTypicalWrap">
+                        <input class="form-check-input" type="checkbox" id="msGateEcTypical">
+                        <label class="form-check-label" for="msGateEcTypical" style="cursor:pointer">
+                            Typical EC (pre-approved) — keep working (plating / finish proceed)
+                        </label>
+                    </div>
                     <div class="text-danger small mt-1 d-none" id="msGateErr"></div>
                 </div>
                 <div class="modal-footer py-2 d-flex justify-content-between">
@@ -1012,6 +1018,10 @@
             opts = [{ k: 'ec', label: 'EC', cls: 'btn-warning' }, { k: 'order_new', label: 'Order New', cls: 'btn-outline-danger' }];
             hint.textContent = 'Some dimensions FAIL';
         }
+        // "Typical EC" only matters when EC is on the table.
+        const ecOnTable = opts.some(o => o.k === 'ec');
+        document.getElementById('msGateEcTypicalWrap').classList.toggle('d-none', !ecOnTable);
+        if (!ecOnTable) document.getElementById('msGateEcTypical').checked = false;
         wrap.innerHTML = opts.map(function (o) {
             return `<button type="button" class="btn btn-sm ${o.cls} ms-gate-btn" data-outcome="${o.k}" style="font-size:12px">${o.label}</button>`;
         }).join('');
@@ -1024,16 +1034,18 @@
 
     async function applyGateOutcome(outcome) {
         const ndt = document.getElementById('msGateNdt').checked;
+        const ecTypical = document.getElementById('msGateEcTypical').checked;
         const err = document.getElementById('msGateErr');
         err.classList.add('d-none');
         try {
             const res = await apiFetch('/workorders/' + WO_ID + '/gate/apply', {
                 method: 'POST',
-                body: JSON.stringify({ inspection_component_id: gateState.partId, outcome: outcome, ndt_pass: ndt }),
+                body: JSON.stringify({ inspection_component_id: gateState.partId, outcome: outcome, ndt_pass: ndt, ec_typical: ecTypical }),
             });
             if (res && res.ok === false) throw new Error(res.message || 'Not applied');
             if (typeof showNotification === 'function') {
-                const msg = outcome === 'ec' ? 'EC: post-NDT processes held, EC added'
+                const msg = outcome === 'ec'
+                            ? (ecTypical ? 'EC (typical): Machining (EC) set, work continues' : 'EC: post-NDT held, Machining (EC) set')
                           : outcome === 'finish' ? 'Finish: plan proceeds'
                           : 'Order New';
                 showNotification(msg, 'success');
