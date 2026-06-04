@@ -77,7 +77,7 @@ class ProcessDocumentRenderer
                     . '" stroke="#0d9488" stroke-width="0.25" />';
                 $els .= '<div class="pdw-dot" style="left:' . (float) $e->x_pct . '%;top:' . (float) $e->y_pct . '%"></div>';
             }
-            if ($e->element_type === 'dimension' && $e->mask === 'linear' && $e->x2_pct !== null) {
+            if ($e->element_type === 'dimension' && $e->x2_pct !== null) {
                 $lines .= '<line x1="' . (float) $e->x_pct . '" y1="' . (float) $e->y_pct
                     . '" x2="' . (float) $e->x2_pct . '" y2="' . (float) $e->y2_pct
                     . '" stroke="#0d6efd" stroke-width="0.3" />';
@@ -121,7 +121,7 @@ class ProcessDocumentRenderer
     private function resolveValue($e, Workorder $workorder, array $context, ?ManualParameter $docParam = null): string
     {
         if ($e->element_type === 'dimension') {
-            $prefix = $e->mask === 'diameter' ? 'Ø' : '';
+            $prefix = $e->mask === 'diameter' ? 'Ø' : ($e->mask === 'radius' ? 'R' : '');
 
             // 2c.2 — derived dimension from the F&C mating measurement.
             if ($e->value_source === 'calc') {

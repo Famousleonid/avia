@@ -1000,9 +1000,10 @@
                         {{-- tools --}}
                         <button class="btn btn-outline-secondary btn-sm" id="pdwUploadBtn"><i class="bi bi-upload"></i> Image</button>
                         <input type="file" id="pdwFileInput" accept="image/png,image/jpeg,image/webp,image/gif" class="d-none">
-                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="diameter" title="Add diameter Ø (1 click)"><i class="bi bi-circle"></i> Ø</button>
-                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="linear" title="Add linear dimension (2 clicks)"><i class="bi bi-rulers"></i> Linear</button>
-                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="label" title="Add label / placeholder (1 click)"><i class="bi bi-tag"></i> Label</button>
+                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="diameter" title="Diameter Ø (start → end → value)"><i class="bi bi-circle"></i> Ø</button>
+                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="radius" title="Radius R (start → end → value)"><i class="bi bi-record-circle"></i> R</button>
+                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="linear" title="Linear (start → end → value)"><i class="bi bi-rulers"></i> Linear</button>
+                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="label" title="Label (anchor + leader)"><i class="bi bi-tag"></i> Label</button>
                         <span class="text-secondary ms-auto" id="pdwHint" style="font-size:11px"></span>
                         <button class="btn btn-outline-secondary btn-sm py-0 px-2" id="pdwZoomReset" title="Reset zoom">↺</button>
                     </div>
@@ -4549,7 +4550,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let pdwPage = null;         // currently active page
     let pdwScale = 1, pdwTx = 0, pdwTy = 0;
     let pdwDragging = false, pdwDragSX = 0, pdwDragSY = 0, pdwDragTx = 0, pdwDragTy = 0;
-    let pdwMode = null, pdwLinearStart = null;
+    let pdwMode = null, pdwDimStage = null;
 
     const pdwCanvas    = document.getElementById('pdw-canvas');
     const pdwImgCont   = document.getElementById('pdw-img-container');
@@ -4832,7 +4833,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!iw || !ih || !pdwPage) return;
         const ns = 'http://www.w3.org/2000/svg';
         (pdwPage.elements || []).forEach(function (e) {
-            if (e.element_type === 'dimension' && e.mask === 'linear' && e.x2_pct != null) {
+            if (e.element_type === 'dimension' && e.x2_pct != null) {
                 // Natural image px (the SVG is inside the transformed container).
                 const ax = e.x_pct / 100 * iw, ay = e.y_pct / 100 * ih;
                 const bx = e.x2_pct / 100 * iw, by = e.y2_pct / 100 * ih;
@@ -4865,7 +4866,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (e.element_type === 'dimension') {
                 const el = document.createElement('div');
                 el.className = 'pdw-dim-label';
-                const prefix = e.mask === 'diameter' ? 'Ø' : '';
+                const prefix = pdwMaskPrefix(e.mask);
                 let valTxt;
                 if (e.value_source === 'measurement' || e.value_source === 'calc') {
                     const sp = (pdwSourceParams || []).find(function (p) { return p.id == e.source_parameter_id; });
@@ -4990,11 +4991,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ---- add modes ----
     function pdwSetMode(mode) {
-        pdwMode = mode; pdwLinearStart = null;
+        pdwMode = mode; pdwDimStage = null;
         document.querySelectorAll('.pdw-mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === mode); });
         pdwCanvas.classList.toggle('add-mode', !!mode);
-        document.getElementById('pdwHint').textContent = mode === 'linear' ? 'Click start point, then end point'
-            : mode === 'diameter' ? 'Click the diameter location'
+        const dim = (mode === 'linear' || mode === 'diameter' || mode === 'radius');
+        document.getElementById('pdwHint').textContent = dim ? 'Click arrow start'
             : mode === 'label' ? 'Click where to place the label' : '';
     }
     document.querySelectorAll('.pdw-mode-btn').forEach(function (b) {
@@ -5017,12 +5018,25 @@ document.addEventListener('DOMContentLoaded', function () {
         const xp = ((ev.clientX - r.left) / r.width * 100).toFixed(2);
         const yp = ((ev.clientY - r.top) / r.height * 100).toFixed(2);
 
-        if (pdwMode === 'linear') {
-            if (!pdwLinearStart) { pdwLinearStart = { x: xp, y: yp }; document.getElementById('pdwHint').textContent = 'Click end point'; return; }
-            pdwPending = { element_type: 'dimension', mask: 'linear', x_pct: pdwLinearStart.x, y_pct: pdwLinearStart.y, x2_pct: xp, y2_pct: yp };
-            pdwLinearStart = null; pdwShowElemForm('dimension');
-        } else if (pdwMode === 'diameter') {
-            pdwPending = { element_type: 'dimension', mask: 'diameter', x_pct: xp, y_pct: yp };
+        if (pdwMode === 'linear' || pdwMode === 'diameter' || pdwMode === 'radius') {
+            // 3 clicks: arrow start → arrow end → value position
+            if (!pdwDimStage) {
+                pdwDimStage = { mask: pdwMode, x_pct: xp, y_pct: yp };
+                document.getElementById('pdwHint').textContent = 'Click arrow end';
+                return;
+            }
+            if (pdwDimStage.x2_pct == null) {
+                pdwDimStage.x2_pct = xp; pdwDimStage.y2_pct = yp;
+                document.getElementById('pdwHint').textContent = 'Click where the value goes';
+                return;
+            }
+            pdwPending = {
+                element_type: 'dimension', mask: pdwDimStage.mask,
+                x_pct: pdwDimStage.x_pct, y_pct: pdwDimStage.y_pct,
+                x2_pct: pdwDimStage.x2_pct, y2_pct: pdwDimStage.y2_pct,
+                label_x_pct: xp, label_y_pct: yp,
+            };
+            pdwDimStage = null;
             pdwShowElemForm('dimension');
         } else if (pdwMode === 'label') {
             pdwPending = { element_type: 'label', x_pct: xp, y_pct: yp };
@@ -5030,6 +5044,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         pdwSetMode(null);
     });
+
+    function pdwMaskPrefix(mask) { return mask === 'diameter' ? 'Ø' : mask === 'radius' ? 'R' : ''; }
 
     // Parameter option label: "AA3 · ID 11-10" (point code(s) · dimension).
     function pdwParamLabel(p) {
