@@ -1185,7 +1185,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return `<div class="dim-insp-comp-row" data-ic-id="${ic.id}" draggable="true">
                 <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
                 <button class="btn btn-link p-0 dim-ic-plan" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Repair Plan (Start/Finish)"><i class="bi bi-diagram-3"></i></button>
-                <button class="btn btn-link p-0 dim-ic-ec-doc" data-ic-id="${ic.id}" style="font-size:10px;color:${ic.has_ec_drawing ? 'var(--bs-warning)' : 'var(--bs-secondary-color)'}" title="Dimensions sheet (repair & EC)"><i class="bi bi-rulers"></i></button>
+                <button class="btn btn-link p-0 dim-ic-ec-doc" data-ic-id="${ic.id}" style="font-size:10px;color:${ic.has_ec_drawing ? 'var(--bs-warning)' : 'var(--bs-secondary-color)'}" title="Part documents (drawings for WO / EC)"><i class="bi bi-rulers"></i></button>
                 <span class="dim-insp-comp-name fw-semibold flex-grow-1" data-ic-id="${ic.id}" style="color:#5ee3ff;font-size:11px" title="Double-click to rename">${escHtml(ic.label)}</span>
                 <button class="btn btn-link p-0 dim-ic-expand" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Variants">
                     <i class="bi bi-${isOpen ? 'chevron-up' : 'chevron-down'}"></i>
@@ -1218,7 +1218,7 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.addEventListener('click', function () {
                 const id = parseInt(btn.dataset.icId);
                 const ic = inspComponents.find(function (x) { return x.id === id; });
-                openProcessDocumentsModal(id, 'Dimensions — ' + (ic ? ic.label : ''), 'component');
+                openProcessDocumentsModal(id, (ic ? ic.label : ''), 'component');
             });
         });
 
