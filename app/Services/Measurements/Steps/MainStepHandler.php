@@ -14,9 +14,9 @@ class MainStepHandler implements StepHandler
 {
     public function resolve(PipelineContext $ctx, ?MasterRule $masterRule): void
     {
-        [$byNameId, $byNameRpIds, $byNameDescriptions] = $this->collect($ctx);
-        if (!empty($byNameId)) {
-            $ctx->addPhaseGroups('main', $byNameId, $byNameRpIds, $byNameDescriptions);
+        $entries = $this->collectEntries($ctx);
+        if (!empty($entries)) {
+            $ctx->addPointGroups('main', $entries);
         }
     }
 
@@ -28,39 +28,46 @@ class MainStepHandler implements StepHandler
      */
     public function previewNameIds(PipelineContext $ctx): array
     {
-        return array_keys($this->collect($ctx)[0]);
+        return array_values(array_unique(array_map(
+            fn ($e) => (int) $e['process_names_id'],
+            $this->collectEntries($ctx)
+        )));
     }
 
     /**
-     * @return array{0: array<int,int[]>, 1: array<int,int[]>}
-     *   [0] byNameId    [process_names_id => [process_id, ...]]
-     *   [1] byNameRpIds [process_names_id => [rule_process_id (ManualParameterRuleProcess id), ...]]
+     * Flat list of Main process entries, each carrying its point identity
+     * (the repair rule id). PipelineContext decides per-point vs per-part
+     * grouping by ProcessName.scope.
+     *
+     * @return array<int,array{process_names_id:int,process_id:int,rule_process_id:int,description:?string,point_key:int}>
      */
-    private function collect(PipelineContext $ctx): array
+    private function collectEntries(PipelineContext $ctx): array
     {
         if (empty($ctx->mainRuleIds)) {
-            return [[], []];
+            return [];
         }
 
         $rules = ManualParameterRepairRule::with('processes.manualProcess.process')
             ->whereIn('id', $ctx->mainRuleIds)
             ->get();
 
-        $byNameId   = [];
-        $byNameRpIds = [];
-        $byNameDescriptions = [];
+        $entries = [];
         foreach ($rules as $rule) {
             foreach ($rule->processes as $rp) {
                 $process = $rp->manualProcess?->process;
                 if (!$process) {
                     continue;
                 }
-                $byNameId[$process->process_names_id][]           = $process->id;
-                $byNameRpIds[$process->process_names_id][]         = $rp->id; // ManualParameterRuleProcess id
-                $byNameDescriptions[$process->process_names_id][]  = $rp->description;
+                $entries[] = [
+                    'process_names_id' => (int) $process->process_names_id,
+                    'process_id'       => (int) $process->id,
+                    'rule_process_id'  => (int) $rp->id, // ManualParameterRuleProcess id
+                    'description'      => $rp->description,
+                    'point_key'        => (int) $rule->id, // per-point identity
+                ];
             }
         }
 
-        return [$byNameId, $byNameRpIds, $byNameDescriptions];
+        return $entries;
     }
 }

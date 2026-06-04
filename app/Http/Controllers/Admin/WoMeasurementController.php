@@ -555,7 +555,7 @@ class WoMeasurementController extends Controller
             : [];
 
         $maxSort = 0;
-        foreach ($ctx->processGroups as $group) {
+        foreach ($ctx->orderedGroups() as $group) {
             if ($isEc) {
                 $keep = ($group['phase'] ?? '') === 'start'
                     || (($group['phase'] ?? '') === 'main'
