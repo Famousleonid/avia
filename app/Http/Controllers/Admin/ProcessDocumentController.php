@@ -268,19 +268,24 @@ class ProcessDocumentController extends Controller
 
     private function sourceParameters(ManualParameterRuleProcess $rp): array
     {
-        $ruleParam = $rp->rule?->parameter;
-        if (!$ruleParam) {
+        return $this->manualParamOptions($rp->rule?->parameter?->manual_id);
+    }
+
+    /**
+     * All parameters of a manual — selectable as measurement/calc sources or label
+     * references, so a drawing can point at ANY point, incl. another part (mating
+     * dimension for calc). Labelled "Part · Point · Dimension" (e.g. Main Fitting · AA3 · ID 11-10).
+     */
+    private function manualParamOptions(?int $manualId): array
+    {
+        if (!$manualId) {
             return [];
         }
 
-        $pointIds = $ruleParam->points()->pluck('manual_dimension_points.id');
-        if ($pointIds->isEmpty()) {
-            return [];
-        }
-
-        return ManualParameter::whereHas('points', fn($q) =>
-                $q->whereIn('manual_dimension_points.id', $pointIds))
-            ->with(['inspectionComponent', 'points:id,code'])
+        return ManualParameter::where('manual_id', $manualId)
+            ->with(['inspectionComponent:id,label', 'points:id,code'])
+            ->orderBy('inspection_component_id')
+            ->orderBy('sort_order')
             ->get()
             ->map(fn($p) => [
                 'id'          => $p->id,
@@ -309,21 +314,11 @@ class ProcessDocumentController extends Controller
         return null;
     }
 
-    /** All parameters of a part — selectable as measurement sources on its EC sheet. */
+    /** All parameters of the manual — selectable as sources/references on the EC sheet
+     *  (incl. other parts, e.g. a mating dimension for calc). */
     private function sourceParametersForComponent(ManualInspectionComponent $ic): array
     {
-        return ManualParameter::where('inspection_component_id', $ic->id)
-            ->with('points:id,code')
-            ->orderBy('sort_order')
-            ->get()
-            ->map(fn($p) => [
-                'id'          => $p->id,
-                'description' => $p->description,
-                'points'      => $p->points->pluck('code')->filter()->implode(', '),
-                'part'        => $ic->label,
-            ])
-            ->values()
-            ->all();
+        return $this->manualParamOptions($ic->manual_id);
     }
 
     private function docPayload(ProcessDocument $d): array

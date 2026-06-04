@@ -5047,10 +5047,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function pdwMaskPrefix(mask) { return mask === 'diameter' ? 'Ø' : mask === 'radius' ? 'R' : ''; }
 
-    // Parameter option label: "AA3 · ID 11-10" (point code(s) · dimension).
+    // Parameter option label: "Main Fitting · AA3 · ID 11-10" (part · point · dimension).
     function pdwParamLabel(p) {
-        const head = p.points ? p.points : (p.part || '');
-        return (head ? head + ' · ' : '') + (p.description || ('#' + p.id));
+        const parts = [];
+        if (p.part) parts.push(p.part);
+        if (p.points) parts.push(p.points);
+        parts.push(p.description || ('#' + p.id));
+        return parts.join(' · ');
     }
     function pdwParamOptions(selectedId) {
         return (pdwSourceParams || []).map(function (p) {
