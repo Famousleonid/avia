@@ -65,8 +65,7 @@
     }
     // EC dimensions sheet — part-level document on the inspection component, rendered
     // PER PLACE on each Machining (EC) row (parameter_id = the row's repaired point).
-    $ecDoc = null;
-    $ecPageParams = [];   // parameter_ids that have at least one page (a place with a drawing)
+    $ecPlaceDoc = [];     // place parameter_id => document_id that has a page for it
     $machiningEcNameId = \App\Models\ProcessName::where('name', 'Machining (EC)')->value('id')
         ?? \App\Models\ProcessName::where('name', 'Machining(EC)')->value('id');
     // The part dimensions sheet serves BOTH repair (Machining) and EC (Machining (EC)).
@@ -76,16 +75,25 @@
     ]));
     $_icId = \App\Models\ManualInspectionComponentVariant::where('component_id', $comp->id ?? 0)->value('inspection_component_id');
     if ($_icId) {
-        $ecDoc = \App\Models\ProcessDocument::where('documentable_type', \App\Models\ManualInspectionComponent::class)
+        // ALL documents of the part (it's the part's document hub); map each place to the doc that draws it.
+        $_partDocIds = \App\Models\ProcessDocument::where('documentable_type', \App\Models\ManualInspectionComponent::class)
             ->where('documentable_id', $_icId)
             ->orderBy('sort_order')
-            ->first(['id', 'documentable_id', 'title', 'doc_type']);
-        if ($ecDoc) {
-            $ecPageParams = \App\Models\ProcessDocumentPage::where('document_id', $ecDoc->id)
+            ->pluck('id');
+        if ($_partDocIds->isNotEmpty()) {
+            $_pages = \App\Models\ProcessDocumentPage::whereIn('document_id', $_partDocIds)
                 ->whereNotNull('parameter_id')
-                ->pluck('parameter_id')->map(fn ($i) => (int) $i)->unique()->values()->all();
+                ->orderBy('document_id')
+                ->get(['document_id', 'parameter_id']);
+            foreach ($_pages as $_pg) {
+                $pid = (int) $_pg->parameter_id;
+                if (!isset($ecPlaceDoc[$pid])) {
+                    $ecPlaceDoc[$pid] = (int) $_pg->document_id;
+                }
+            }
         }
     }
+    $ecPageParams = array_keys($ecPlaceDoc);
     // rule_process_id => manual_parameter_id (the "place" a Machining (EC) row repairs).
     $rpToParam = [];
     if (!empty($allRpIds)) {

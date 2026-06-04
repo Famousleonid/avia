@@ -16,8 +16,8 @@
 
     // Unified generate targets: ['id'=>docId, 'param'=>?int place, 'label'=>str, 'dim'=>bool]
     $items = [];
-    if ($_isMachiningRow && !empty($ecDoc) && $_placeParam && in_array($_placeParam, $ecPageParams ?? [], true)) {
-        $items['ec'] = ['id' => $ecDoc->id, 'param' => $_placeParam, 'label' => ($ecDoc->title ?: 'Dimensions'), 'dim' => true];
+    if ($_isMachiningRow && $_placeParam && !empty($ecPlaceDoc[$_placeParam] ?? null)) {
+        $items['ec'] = ['id' => (int) $ecPlaceDoc[$_placeParam], 'param' => $_placeParam, 'label' => 'Dimensions', 'dim' => true];
     }
     foreach ((array) ($tdrProcessRow->rule_process_ids ?? []) as $rid) {
         foreach ($docsByRp[$rid] ?? [] as $d) {
