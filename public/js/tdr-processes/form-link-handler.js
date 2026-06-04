@@ -96,6 +96,7 @@ class FormLinkHandler {
 
         const docId = btn.getAttribute('data-doc-id');
         const woId = btn.getAttribute('data-wo-id');
+        const parameterId = btn.getAttribute('data-parameter-id'); // EC: render one place only
         if (!docId || !woId) return;
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -111,7 +112,7 @@ class FormLinkHandler {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({}),
+                body: JSON.stringify(parameterId ? { parameter_id: parameterId } : {}),
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.show_url) {

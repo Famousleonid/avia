@@ -989,6 +989,11 @@
                         <div id="pdw-page-tabs" class="d-flex gap-1 align-items-center"></div>
                         <button class="btn btn-outline-secondary btn-sm py-0 px-2" id="pdwAddPageBtn" title="Add page"><i class="bi bi-plus-lg"></i> Page</button>
                         <button class="btn btn-outline-danger btn-sm py-0 px-2 d-none" id="pdwDelPageBtn" title="Remove current page"><i class="bi bi-trash3"></i></button>
+                        {{-- EC: which place (parameter) this page documents (1-2 pages per place) --}}
+                        <span id="pdwPagePlaceWrap" class="d-none align-items-center gap-1">
+                            <span class="text-secondary" style="font-size:11px">Place:</span>
+                            <select id="pdwPagePlace" class="form-select form-select-sm py-0" style="width:auto;font-size:11px" title="Place (point/parameter) this page documents"></select>
+                        </span>
                         <span class="border-start ps-2 ms-1"></span>
                         {{-- tools --}}
                         <button class="btn btn-outline-secondary btn-sm" id="pdwUploadBtn"><i class="bi bi-upload"></i> Image</button>
@@ -4731,9 +4736,33 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwSetMode(null);
         pdwHideElemForm();
         renderPageTabs();
+        renderPagePlace();
         if (page.image_path) pdwShowImage(page.image_path);
         else { pdwEmpty.classList.remove('d-none'); pdwImgCont.classList.add('d-none'); pdwOverlay.innerHTML = ''; pdwSvg.innerHTML = ''; }
     }
+
+    // EC (component docs): per-page "place" = which parameter/point this page documents.
+    function renderPagePlace() {
+        const wrap = document.getElementById('pdwPagePlaceWrap');
+        const sel  = document.getElementById('pdwPagePlace');
+        if (pdwProcKind !== 'component' || !pdwPage) { wrap.classList.add('d-none'); wrap.classList.remove('d-flex'); return; }
+        wrap.classList.remove('d-none'); wrap.classList.add('d-flex');
+        sel.innerHTML = '<option value="">— place —</option>' + (pdwSourceParams || []).map(function (p) {
+            const lbl = (p.part ? p.part + ' · ' : '') + (p.description || ('#' + p.id));
+            return `<option value="${p.id}"${String(pdwPage.parameter_id) === String(p.id) ? ' selected' : ''}>${escHtml(lbl)}</option>`;
+        }).join('');
+    }
+
+    document.getElementById('pdwPagePlace').addEventListener('change', async function () {
+        if (!pdwPage) return;
+        const val = this.value ? parseInt(this.value) : null;
+        try {
+            const saved = await apiFetch('/process-document-pages/' + pdwPage.id, { method: 'PATCH', body: JSON.stringify({ parameter_id: val }) });
+            pdwPage.parameter_id = saved.parameter_id;
+            const idx = (pdwDoc.pages || []).findIndex(function (p) { return p.id === pdwPage.id; });
+            if (idx !== -1) pdwDoc.pages[idx].parameter_id = saved.parameter_id;
+        } catch (e) { alert(e.message); }
+    });
 
     document.getElementById('pdwAddPageBtn').addEventListener('click', async function () {
         if (!pdwDoc) return;

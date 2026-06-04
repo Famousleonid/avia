@@ -63,18 +63,37 @@
             $docsByRp[$_d->documentable_id][] = $_d;
         }
     }
-    // EC dimensions sheet — part-level document(s) on the inspection component (shown on the EC row).
-    $ecDocs = [];
+    // EC dimensions sheet — part-level document on the inspection component, rendered
+    // PER PLACE on each Machining (EC) row (parameter_id = the row's repaired point).
+    $ecDoc = null;
+    $ecPageParams = [];   // parameter_ids that have at least one page (a place with a drawing)
+    $machiningEcNameId = \App\Models\ProcessName::where('name', 'Machining (EC)')->value('id')
+        ?? \App\Models\ProcessName::where('name', 'Machining(EC)')->value('id');
     $_icId = \App\Models\ManualInspectionComponentVariant::where('component_id', $comp->id ?? 0)->value('inspection_component_id');
     if ($_icId) {
-        $ecDocs = \App\Models\ProcessDocument::where('documentable_type', \App\Models\ManualInspectionComponent::class)
+        $ecDoc = \App\Models\ProcessDocument::where('documentable_type', \App\Models\ManualInspectionComponent::class)
             ->where('documentable_id', $_icId)
             ->orderBy('sort_order')
-            ->get(['id', 'documentable_id', 'title', 'doc_type'])
-            ->all();
+            ->first(['id', 'documentable_id', 'title', 'doc_type']);
+        if ($ecDoc) {
+            $ecPageParams = \App\Models\ProcessDocumentPage::where('document_id', $ecDoc->id)
+                ->whereNotNull('parameter_id')
+                ->pluck('parameter_id')->map(fn ($i) => (int) $i)->unique()->values()->all();
+        }
     }
-    // Колонку Document показываем, если есть шаблон у процесса детали ИЛИ EC-лист детали.
-    $showDocColumn = !empty($docsByRp) || !empty($ecDocs);
+    // rule_process_id => manual_parameter_id (the "place" a Machining (EC) row repairs).
+    $rpToParam = [];
+    if (!empty($allRpIds)) {
+        $_rps = \App\Models\ManualParameterRuleProcess::whereIn('id', array_values(array_unique($allRpIds)))
+            ->get(['id', 'repair_rule_id']);
+        $_ruleToParam = \App\Models\ManualParameterRepairRule::whereIn('id', $_rps->pluck('repair_rule_id')->unique())
+            ->pluck('manual_parameter_id', 'id');
+        foreach ($_rps as $_rp) {
+            $rpToParam[$_rp->id] = (int) ($_ruleToParam[$_rp->repair_rule_id] ?? 0);
+        }
+    }
+    // Колонку Document показываем, если есть шаблон процесса ИЛИ EC-страницы с местами.
+    $showDocColumn = !empty($docsByRp) || !empty($ecPageParams);
 @endphp
 
 <style>
