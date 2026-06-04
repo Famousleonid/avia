@@ -4814,10 +4814,12 @@ document.addEventListener('DOMContentLoaded', function () {
     function pdwPositionElements() {
         const iw = pdwImg.naturalWidth, ih = pdwImg.naturalHeight;
         if (!iw || !ih) return;
+        // Overlay/SVG live INSIDE #pdw-img-container, which carries the pan/zoom
+        // transform — so element coords are in NATURAL image px (no pdwTx/pdwScale).
         pdwOverlay.querySelectorAll('[data-xp]').forEach(function (el) {
             const xp = parseFloat(el.dataset.xp), yp = parseFloat(el.dataset.yp);
-            el.style.left = (pdwTx + xp / 100 * iw * pdwScale) + 'px';
-            el.style.top  = (pdwTy + yp / 100 * ih * pdwScale) + 'px';
+            el.style.left = (xp / 100 * iw) + 'px';
+            el.style.top  = (yp / 100 * ih) + 'px';
         });
         pdwDrawSvg();
     }
@@ -4829,11 +4831,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const ns = 'http://www.w3.org/2000/svg';
         (pdwPage.elements || []).forEach(function (e) {
             if (e.element_type === 'dimension' && e.mask === 'linear' && e.x2_pct != null) {
-                const ax = pdwTx + e.x_pct / 100 * iw * pdwScale, ay = pdwTy + e.y_pct / 100 * ih * pdwScale;
-                const bx = pdwTx + e.x2_pct / 100 * iw * pdwScale, by = pdwTy + e.y2_pct / 100 * ih * pdwScale;
+                // Natural image px (the SVG is inside the transformed container).
+                const ax = e.x_pct / 100 * iw, ay = e.y_pct / 100 * ih;
+                const bx = e.x2_pct / 100 * iw, by = e.y2_pct / 100 * ih;
                 const ln = document.createElementNS(ns, 'line');
                 ln.setAttribute('x1', ax); ln.setAttribute('y1', ay); ln.setAttribute('x2', bx); ln.setAttribute('y2', by);
-                ln.setAttribute('stroke', '#0d6efd'); ln.setAttribute('stroke-width', '1.5');
+                ln.setAttribute('stroke', '#0d6efd'); ln.setAttribute('stroke-width', (1.5 / (pdwScale || 1)).toFixed(2));
                 ln.setAttribute('marker-start', 'url(#pdw-arrow)'); ln.setAttribute('marker-end', 'url(#pdw-arrow)');
                 pdwSvg.appendChild(ln);
             }
@@ -4907,7 +4910,11 @@ document.addEventListener('DOMContentLoaded', function () {
             function mv(ev2) {
                 const dx = ev2.clientX - sx, dy = ev2.clientY - sy;
                 if (!moved && Math.hypot(dx, dy) > 4) moved = true;
-                if (moved) el.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
+                // element is inside the scaled container → convert screen delta to container px
+                if (moved) {
+                    const s = pdwScale || 1;
+                    el.style.transform = 'translate(calc(-50% + ' + (dx / s) + 'px), calc(-50% + ' + (dy / s) + 'px))';
+                }
             }
             async function up(ev2) {
                 document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
