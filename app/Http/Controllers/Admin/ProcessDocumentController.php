@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ManualInspectionComponent;
 use App\Models\ManualParameter;
 use App\Models\ManualParameterRuleProcess;
 use App\Models\MasterRulePhaseRuleProcess;
@@ -45,6 +46,23 @@ class ProcessDocumentController extends Controller
     public function storePhaseDocument(Request $request, MasterRulePhaseRuleProcess $masterRulePhaseRuleProcess)
     {
         return $this->createDocument($request, $masterRulePhaseRuleProcess, 'manual_page');
+    }
+
+    // ── Documents (part level = inspection component) ─────────────
+    // The EC dimensions sheet: one part drawing, measurement elements bound to
+    // any of the part's parameters. Source params = ALL the part's parameters.
+
+    public function indexComponent(ManualInspectionComponent $manualInspectionComponent)
+    {
+        return $this->listDocuments(
+            $manualInspectionComponent,
+            $this->sourceParametersForComponent($manualInspectionComponent)
+        );
+    }
+
+    public function storeComponentDocument(Request $request, ManualInspectionComponent $manualInspectionComponent)
+    {
+        return $this->createDocument($request, $manualInspectionComponent, 'ec');
     }
 
     // ── Generation (2c.1) — template + WO data → PDF in WO library ─
@@ -259,6 +277,21 @@ class ProcessDocumentController extends Controller
                 'id'          => $p->id,
                 'description' => $p->description,
                 'part'        => $p->inspectionComponent?->label,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** All parameters of a part — selectable as measurement sources on its EC sheet. */
+    private function sourceParametersForComponent(ManualInspectionComponent $ic): array
+    {
+        return ManualParameter::where('inspection_component_id', $ic->id)
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn($p) => [
+                'id'          => $p->id,
+                'description' => $p->description,
+                'part'        => $ic->label,
             ])
             ->values()
             ->all();
