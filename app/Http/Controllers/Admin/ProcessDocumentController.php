@@ -280,11 +280,12 @@ class ProcessDocumentController extends Controller
 
         return ManualParameter::whereHas('points', fn($q) =>
                 $q->whereIn('manual_dimension_points.id', $pointIds))
-            ->with('inspectionComponent')
+            ->with(['inspectionComponent', 'points:id,code'])
             ->get()
             ->map(fn($p) => [
                 'id'          => $p->id,
                 'description' => $p->description,
+                'points'      => $p->points->pluck('code')->filter()->implode(', '),
                 'part'        => $p->inspectionComponent?->label,
             ])
             ->values()
@@ -312,11 +313,13 @@ class ProcessDocumentController extends Controller
     private function sourceParametersForComponent(ManualInspectionComponent $ic): array
     {
         return ManualParameter::where('inspection_component_id', $ic->id)
+            ->with('points:id,code')
             ->orderBy('sort_order')
             ->get()
             ->map(fn($p) => [
                 'id'          => $p->id,
                 'description' => $p->description,
+                'points'      => $p->points->pluck('code')->filter()->implode(', '),
                 'part'        => $ic->label,
             ])
             ->values()

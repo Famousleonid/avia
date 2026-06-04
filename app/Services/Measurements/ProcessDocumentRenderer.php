@@ -115,6 +115,10 @@ class ProcessDocumentRenderer
         if (!empty($e->placeholder)) {
             return $this->resolvePlaceholder($e->placeholder, $workorder, $context);
         }
+        // label bound to a parameter → its identifier "code · description" (e.g. AA3 · ID 11-10)
+        if (!empty($e->source_parameter_id)) {
+            return $this->parameterLabel((int) $e->source_parameter_id);
+        }
         return (string) ($e->text ?? '');
     }
 
@@ -177,6 +181,19 @@ class ProcessDocumentRenderer
                 ->latest('id')->first();
 
         return $m?->actual_value !== null ? (float) $m->actual_value : null;
+    }
+
+    /** Identifier of a parameter for a bound label: "code · description" (e.g. AA3 · ID 11-10). */
+    private function parameterLabel(int $parameterId): string
+    {
+        $p = ManualParameter::with('points:id,code')->find($parameterId);
+        if (!$p) {
+            return '';
+        }
+        $codes = $p->points->pluck('code')->filter()->implode(', ');
+        $desc  = (string) ($p->description ?? '');
+
+        return $codes !== '' ? trim($codes . ' · ' . $desc) : $desc;
     }
 
     private function resolvePlaceholder(string $ph, Workorder $workorder, array $context): string

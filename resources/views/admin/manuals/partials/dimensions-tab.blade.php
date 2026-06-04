@@ -1022,9 +1022,11 @@
                             <select id="pdw-ef-lbltype" class="form-select form-select-sm" style="width:auto;font-size:12px">
                                 <option value="text">Free text</option>
                                 <option value="placeholder">Placeholder (WO data)</option>
+                                <option value="parameter">Parameter (point · dim)</option>
                             </select>
                             <input id="pdw-ef-text" type="text" class="form-control form-control-sm" style="width:200px;font-size:12px" placeholder="text">
                             <select id="pdw-ef-placeholder" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
+                            <select id="pdw-ef-lblparam" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
                         </div>
                         <button id="pdw-ef-save" class="btn btn-primary btn-sm ms-2" style="font-size:12px">Add</button>
                         <button id="pdw-ef-cancel" class="btn btn-secondary btn-sm" style="font-size:12px">Cancel</button>
@@ -4747,10 +4749,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const sel  = document.getElementById('pdwPagePlace');
         if (pdwProcKind !== 'component' || !pdwPage) { wrap.classList.add('d-none'); wrap.classList.remove('d-flex'); return; }
         wrap.classList.remove('d-none'); wrap.classList.add('d-flex');
-        sel.innerHTML = '<option value="">— place —</option>' + (pdwSourceParams || []).map(function (p) {
-            const lbl = (p.part ? p.part + ' · ' : '') + (p.description || ('#' + p.id));
-            return `<option value="${p.id}"${String(pdwPage.parameter_id) === String(p.id) ? ' selected' : ''}>${escHtml(lbl)}</option>`;
-        }).join('');
+        sel.innerHTML = '<option value="">— place —</option>' + pdwParamOptions(pdwPage.parameter_id);
     }
 
     document.getElementById('pdwPagePlace').addEventListener('change', async function () {
@@ -4875,6 +4874,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 el = document.createElement('div');
                 el.className = 'pdw-text-label';
                 if (e.placeholder) { el.textContent = e.placeholder; el.style.borderStyle = 'dashed'; }
+                else if (e.source_parameter_id) {
+                    const sp = (pdwSourceParams || []).find(function (p) { return p.id == e.source_parameter_id; });
+                    el.textContent = sp ? pdwParamLabel(sp) : '⟨param⟩';
+                    el.style.borderStyle = 'dashed';
+                }
                 else el.textContent = e.text || '';
                 el.dataset.xp = e.x_pct; el.dataset.yp = e.y_pct;
             }
@@ -4996,6 +5000,17 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwSetMode(null);
     });
 
+    // Parameter option label: "AA3 · ID 11-10" (point code(s) · dimension).
+    function pdwParamLabel(p) {
+        const head = p.points ? p.points : (p.part || '');
+        return (head ? head + ' · ' : '') + (p.description || ('#' + p.id));
+    }
+    function pdwParamOptions(selectedId) {
+        return (pdwSourceParams || []).map(function (p) {
+            return `<option value="${p.id}"${String(selectedId) === String(p.id) ? ' selected' : ''}>${escHtml(pdwParamLabel(p))}</option>`;
+        }).join('');
+    }
+
     // ---- element settings form ----
     function pdwShowElemForm(type) {
         const form = document.getElementById('pdw-elem-form');
@@ -5004,9 +5019,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (type === 'dimension') {
             // populate source params
             const psel = document.getElementById('pdw-ef-param');
-            psel.innerHTML = (pdwSourceParams || []).map(function (p) {
-                return `<option value="${p.id}">${escHtml((p.part ? p.part + ' · ' : '') + (p.description || ''))}</option>`;
-            }).join('');
+            psel.innerHTML = pdwParamOptions();
             document.getElementById('pdw-ef-source').value = 'static';
             document.getElementById('pdw-ef-static').value = '';
             document.getElementById('pdw-ef-static').classList.remove('d-none');
@@ -5014,10 +5027,12 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             const plsel = document.getElementById('pdw-ef-placeholder');
             plsel.innerHTML = PDW_PLACEHOLDERS.map(function (p) { return `<option value="${p.value}">${escHtml(p.label)}</option>`; }).join('');
+            document.getElementById('pdw-ef-lblparam').innerHTML = pdwParamOptions();
             document.getElementById('pdw-ef-lbltype').value = 'text';
             document.getElementById('pdw-ef-text').value = '';
             document.getElementById('pdw-ef-text').classList.remove('d-none');
             plsel.classList.add('d-none');
+            document.getElementById('pdw-ef-lblparam').classList.add('d-none');
         }
         form.classList.remove('d-none');
     }
@@ -5031,9 +5046,10 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('pdw-ef-param').classList.toggle('d-none', !needsParam);
     });
     document.getElementById('pdw-ef-lbltype').addEventListener('change', function () {
-        const ph = this.value === 'placeholder';
-        document.getElementById('pdw-ef-text').classList.toggle('d-none', ph);
-        document.getElementById('pdw-ef-placeholder').classList.toggle('d-none', !ph);
+        const v = this.value;
+        document.getElementById('pdw-ef-text').classList.toggle('d-none', v !== 'text');
+        document.getElementById('pdw-ef-placeholder').classList.toggle('d-none', v !== 'placeholder');
+        document.getElementById('pdw-ef-lblparam').classList.toggle('d-none', v !== 'parameter');
     });
     document.getElementById('pdw-ef-cancel').addEventListener('click', pdwHideElemForm);
     document.getElementById('pdw-ef-save').addEventListener('click', async function () {
@@ -5051,6 +5067,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             const lt = document.getElementById('pdw-ef-lbltype').value;
             if (lt === 'placeholder') body.placeholder = document.getElementById('pdw-ef-placeholder').value;
+            else if (lt === 'parameter') body.source_parameter_id = parseInt(document.getElementById('pdw-ef-lblparam').value) || null;
             else body.text = document.getElementById('pdw-ef-text').value;
         }
         await pdwCreateElement(body);
