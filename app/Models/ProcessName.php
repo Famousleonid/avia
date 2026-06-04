@@ -28,6 +28,7 @@ class ProcessName extends Model
 
     protected $fillable = [
         'name','code','process_sheet_name','form_number','std_days', 'notify_user_id','print_form','show_in_process_picker','sequence_exempt',
+        'stage','scope', // EC gate / plan structure: start|prep|ndt|post|finish ; point|part
     ];
     public $timestamps = false;
 

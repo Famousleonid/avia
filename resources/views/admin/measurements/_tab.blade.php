@@ -157,6 +157,31 @@
         </div>
     </div>
 
+    {{-- Modal: Main results gate (Path A — after machining/final measurements) --}}
+    <div class="modal fade" id="msGateModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0">Main results — confirm outcome</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="font-size:12px">
+                    <div class="text-secondary mb-2" id="msGatePartLabel"></div>
+                    <div id="msGatePoints" class="border rounded p-2 mb-2" style="max-height:240px;overflow-y:auto"></div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="msGateNdt">
+                        <label class="form-check-label" for="msGateNdt" style="cursor:pointer;font-weight:600">NDT Pass</label>
+                    </div>
+                    <div class="text-danger small mt-1 d-none" id="msGateErr"></div>
+                </div>
+                <div class="modal-footer py-2 d-flex justify-content-between">
+                    <span class="text-secondary" style="font-size:11px" id="msGateHint"></span>
+                    <div id="msGateButtons" class="d-flex gap-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Component panel --}}
     <div id="ms-tab-entry">
         <div id="ms-comp-hdr" style="display:none">
@@ -926,6 +951,7 @@
             try {
                 const saved=await apiFetch('/workorders/'+WO_ID+'/measurements',{method:'POST',body:JSON.stringify(body)});
                 measurements.push(saved); refreshActive();
+                if (stage === 'final') maybeOpenGate(param);
             } catch(e){ err.textContent=e.message; err.classList.remove('d-none'); btn.disabled=false; }
         });
         return d;
@@ -934,6 +960,90 @@
     function effectiveLimits(param) {
         if(USE_WEAR&&param.wear_dim_min!=null) return {source:'wear',min:param.wear_dim_min,max:param.wear_dim_max};
         return {source:'orig',min:param.orig_dim_min,max:param.orig_dim_max};
+    }
+
+    // ── EC gate (Path A) — after Main / final measurements ────────────────
+    let gateModal = null, gateState = null;
+
+    async function maybeOpenGate(param) {
+        const partId = param.inspection_component_id;
+        if (!partId || !icsWithTdr.has(partId)) return; // gate only when the part has a (repair) TDR
+        try {
+            const res = await apiFetch('/workorders/' + WO_ID + '/gate/evaluate', {
+                method: 'POST', body: JSON.stringify({ inspection_component_id: partId }),
+            });
+            if (res.ready) openGateModal(partId, res);
+        } catch (e) { console.error('gate evaluate', e); }
+    }
+
+    function openGateModal(partId, res) {
+        gateState = { partId: partId, allPass: res.all_pass };
+        const part = partsTree.find(p => p.id === partId);
+        document.getElementById('msGatePartLabel').textContent =
+            (part ? part.label + ' — ' : '') + 'final results (' + res.points.length + ' point' + (res.points.length === 1 ? '' : 's') + ')';
+        document.getElementById('msGatePoints').innerHTML = res.points.map(function (p) {
+            const cls = p.pass ? 'text-success' : 'text-danger';
+            return `<div class="d-flex align-items-center gap-2 py-1 border-bottom">
+                ${p.pt_codes ? '<span class="badge bg-secondary" style="font-size:9px;min-width:34px">' + esc(p.pt_codes) + '</span>' : '<span style="min-width:34px"></span>'}
+                <span class="flex-grow-1">${esc(p.description || '')}</span>
+                <span class="font-monospace">${p.final_value != null ? fmtDim(p.final_value) : '—'}</span>
+                <span class="fw-semibold ${cls}" style="min-width:38px;text-align:right">${p.pass ? 'PASS' : 'FAIL'}</span>
+            </div>`;
+        }).join('');
+        document.getElementById('msGateNdt').checked = false;
+        document.getElementById('msGateErr').classList.add('d-none');
+        renderGateButtons();
+        if (!gateModal) gateModal = new bootstrap.Modal(document.getElementById('msGateModal'));
+        gateModal.show();
+    }
+
+    function renderGateButtons() {
+        const ndt  = document.getElementById('msGateNdt').checked;
+        const wrap = document.getElementById('msGateButtons');
+        const hint = document.getElementById('msGateHint');
+        let opts;
+        if (!ndt) {
+            opts = [{ k: 'order_new', label: 'Order New', cls: 'btn-danger' }];
+            hint.textContent = 'NDT not passed → Order New';
+        } else if (gateState.allPass) {
+            opts = [{ k: 'finish', label: 'Finish', cls: 'btn-success' }, { k: 'order_new', label: 'Order New', cls: 'btn-outline-danger' }];
+            hint.textContent = 'All dimensions PASS';
+        } else {
+            opts = [{ k: 'ec', label: 'EC', cls: 'btn-warning' }, { k: 'order_new', label: 'Order New', cls: 'btn-outline-danger' }];
+            hint.textContent = 'Some dimensions FAIL';
+        }
+        wrap.innerHTML = opts.map(function (o) {
+            return `<button type="button" class="btn btn-sm ${o.cls} ms-gate-btn" data-outcome="${o.k}" style="font-size:12px">${o.label}</button>`;
+        }).join('');
+        wrap.querySelectorAll('.ms-gate-btn').forEach(function (b) {
+            b.addEventListener('click', function () { applyGateOutcome(b.dataset.outcome); });
+        });
+    }
+
+    document.getElementById('msGateNdt').addEventListener('change', renderGateButtons);
+
+    async function applyGateOutcome(outcome) {
+        const ndt = document.getElementById('msGateNdt').checked;
+        const err = document.getElementById('msGateErr');
+        err.classList.add('d-none');
+        try {
+            const res = await apiFetch('/workorders/' + WO_ID + '/gate/apply', {
+                method: 'POST',
+                body: JSON.stringify({ inspection_component_id: gateState.partId, outcome: outcome, ndt_pass: ndt }),
+            });
+            if (res && res.ok === false) throw new Error(res.message || 'Not applied');
+            if (typeof showNotification === 'function') {
+                const msg = outcome === 'ec' ? 'EC: post-NDT processes held, EC added'
+                          : outcome === 'finish' ? 'Finish: plan proceeds'
+                          : 'Order New';
+                showNotification(msg, 'success');
+            }
+            if (gateModal) gateModal.hide();
+            refreshActive();
+        } catch (e) {
+            err.textContent = e.message;
+            err.classList.remove('d-none');
+        }
     }
 
     function refreshActive() {

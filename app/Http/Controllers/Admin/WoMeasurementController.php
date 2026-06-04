@@ -604,6 +604,125 @@ class WoMeasurementController extends Controller
     }
 
     /**
+     * EC gate (Path A) — evaluate the post-Main results of a part.
+     * A repaired point = a parameter that FAILed at the initial measurement.
+     * The gate is READY once every repaired point has a final (post-repair) measurement;
+     * each is PASS if it landed in tolerance or an oversize repair step (gatePass).
+     */
+    public function gateEvaluate(Request $request, Workorder $workorder)
+    {
+        $data = $request->validate([
+            'inspection_component_id' => 'required|integer',
+        ]);
+
+        $useWear = $workorder->usesWearLimits();
+        $params  = ManualParameter::where('inspection_component_id', $data['inspection_component_id'])
+            ->with(['repairSteps', 'points'])
+            ->get();
+
+        $measByParam = WoMeasurement::where('workorder_id', $workorder->id)
+            ->whereIn('manual_parameter_id', $params->pluck('id'))
+            ->orderBy('id')
+            ->get()
+            ->groupBy('manual_parameter_id');
+
+        $points  = [];
+        $allPass = true;
+        $ready   = true;
+
+        foreach ($params as $param) {
+            $ms = $measByParam[$param->id] ?? collect();
+            // repaired point = failed at initial inspection
+            $hadFail = $ms->contains(fn($m) => $m->stage === 'initial' && $m->result === 'FAIL');
+            if (!$hadFail) {
+                continue;
+            }
+            $final = $ms->where('stage', 'final')->last();
+            if (!$final) {
+                $ready = false; // a repaired point still has no final measurement
+                continue;
+            }
+            $value  = $final->actual_value !== null ? (float) $final->actual_value : null;
+            $limits = $param->effectiveLimits($useWear);
+            $pass   = $this->gatePass($value, $limits, $param->repairSteps);
+            if (!$pass) {
+                $allPass = false;
+            }
+            $points[] = [
+                'param_id'    => $param->id,
+                'description' => $param->description,
+                'pt_codes'    => $param->points->pluck('code')->filter()->unique()->values()->implode(', '),
+                'final_value' => $value,
+                'pass'        => $pass,
+            ];
+        }
+
+        return response()->json([
+            'ready'    => $ready && count($points) > 0,
+            'all_pass' => $allPass,
+            'points'   => $points,
+        ]);
+    }
+
+    /**
+     * EC gate (Path A) — apply the technician's confirmed outcome.
+     *   finish    → nothing (the plan, incl. post-NDT, proceeds as is)
+     *   ec        → hold everything after NDT (stage post+finish removed) + add EC process
+     *   order_new → (TODO) condemn → Order New
+     */
+    public function gateApply(Request $request, Workorder $workorder)
+    {
+        $data = $request->validate([
+            'inspection_component_id' => 'required|integer',
+            'outcome'                 => 'required|in:finish,ec,order_new',
+            'ndt_pass'                => 'boolean',
+        ]);
+
+        $componentIds = ManualInspectionComponentVariant::where('inspection_component_id', $data['inspection_component_id'])
+            ->pluck('component_id');
+        $tdr = Tdr::where('workorder_id', $workorder->id)
+            ->whereIn('component_id', $componentIds)
+            ->where('tdr_type', Tdr::TYPE_COMPONENT_TDR)
+            ->latest('id')
+            ->first();
+        if (!$tdr) {
+            return response()->json(['error' => 'No repair TDR found for this part'], 404);
+        }
+
+        if ($data['outcome'] === 'finish') {
+            return response()->json(['ok' => true, 'outcome' => 'finish']);
+        }
+
+        if ($data['outcome'] === 'ec') {
+            // Hold everything after the NDT gate: remove not-yet-started post+finish processes…
+            TdrProcess::where('tdrs_id', $tdr->id)
+                ->whereIn('process_names_id', $this->heldOnEcProcessNameIds())
+                ->whereNull('date_start')
+                ->delete();
+            // …and add the EC process (companion to Machining (EC); read by SP Form / TDR-print).
+            $ecNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
+            if ($ecNameId && !TdrProcess::where('tdrs_id', $tdr->id)->where('process_names_id', $ecNameId)->exists()) {
+                $maxSort = TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0;
+                TdrProcess::create([
+                    'tdrs_id'            => $tdr->id,
+                    'process_names_id'   => $ecNameId,
+                    'processes'          => [],
+                    'rule_process_ids'   => [],
+                    'description'        => '',
+                    'sort_order'         => $maxSort + 1,
+                    'in_traveler'        => false,
+                    'ec'                 => 1,
+                    'standalone_ec_only' => false,
+                ]);
+            }
+            return response()->json(['ok' => true, 'outcome' => 'ec', 'tdr_id' => $tdr->id]);
+        }
+
+        // order_new — condemn → Order New (TODO)
+        return response()->json(['ok' => false, 'outcome' => 'order_new', 'message' => 'Order New from the gate is not implemented yet.'], 501);
+    }
+
+    /**
      * B1 — Revert the TDR(s) of a part so a new decision can be made.
      * Allowed ONLY while no work has started (no TdrProcess has date_start).
      * If work started, the caller must use scrap (B2) instead.
@@ -687,6 +806,18 @@ class WoMeasurementController extends Controller
             }
         }
         return false;
+    }
+
+    /**
+     * EC gate (Path A) — process_names held when a part goes to EC:
+     * everything AFTER the NDT gate, i.e. stage `post` + `finish`.
+     *
+     * @return int[] process_names_id
+     */
+    private function heldOnEcProcessNameIds(): array
+    {
+        return \App\Models\ProcessName::whereIn('stage', ['post', 'finish'])
+            ->pluck('id')->map(fn($id) => (int) $id)->all();
     }
 
     /**
