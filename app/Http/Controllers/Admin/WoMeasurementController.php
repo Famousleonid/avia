@@ -758,8 +758,39 @@ class WoMeasurementController extends Controller
             return response()->json(['ok' => true, 'outcome' => 'ec', 'tdr_id' => $tdr->id]);
         }
 
-        // order_new — condemn → Order New (TODO)
-        return response()->json(['ok' => false, 'outcome' => 'order_new', 'message' => 'Order New from the gate is not implemented yet.'], 501);
+        // order_new — part condemned at the gate (NDT crack / unsalvageable).
+        // Drop the not-yet-started post+finish work (moot on a scrapped part) and
+        // raise an Order New TDR for the same part. Repair TDR stays as history.
+        TdrProcess::where('tdrs_id', $tdr->id)
+            ->whereIn('process_names_id', $this->heldOnEcProcessNameIds())
+            ->whereNull('date_start')
+            ->delete();
+
+        $existing = Tdr::where('workorder_id', $workorder->id)
+            ->where('order_component_id', $tdr->component_id)
+            ->where('tdr_type', Tdr::TYPE_ORDER_NEW)
+            ->first();
+        if ($existing) {
+            return response()->json(['ok' => true, 'outcome' => 'order_new', 'tdr_id' => $existing->id, 'already' => true]);
+        }
+
+        $necessary = Necessary::where('name', 'Order New')->firstOrFail();
+        $new = Tdr::create([
+            'tdr_type'           => Tdr::TYPE_ORDER_NEW,
+            'workorder_id'       => $workorder->id,
+            'component_id'       => $tdr->component_id,
+            'order_component_id' => $tdr->component_id,
+            'serial_number'      => $tdr->serial_number,
+            'description'        => $tdr->description,
+            'codes_id'           => $tdr->codes_id,
+            'conditions_id'      => $tdr->conditions_id,
+            'necessaries_id'     => $necessary->id,
+            'qty'                => $tdr->qty,
+            'use_tdr'            => true,
+            'use_process_forms'  => false,
+        ]);
+
+        return response()->json(['ok' => true, 'outcome' => 'order_new', 'tdr_id' => $new->id]);
     }
 
     /**
