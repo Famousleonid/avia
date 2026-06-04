@@ -73,12 +73,15 @@ class ProcessDocumentController extends Controller
             'repair_number' => $request->input('repair_number'),
             'component_pn'  => $request->input('component_pn'),
         ];
+        // EC: render only the pages of one place (parameter) → a separate PDF per place.
+        $onlyParam = $request->input('parameter_id') ? (int) $request->input('parameter_id') : null;
 
-        $pdf = app(ProcessDocumentRenderer::class)->render($processDocument, $workorder, $context);
+        $pdf = app(ProcessDocumentRenderer::class)->render($processDocument, $workorder, $context, $onlyParam);
 
         $title    = $processDocument->title ?: ($processDocument->doc_type ?: 'document');
+        $placeTag = $onlyParam ? ('_p' . $onlyParam) : '';
         $safe     = preg_replace('/[^A-Za-z0-9_-]+/', '_', $title);
-        $filename = 'wo_' . ($workorder->number ?? $workorder->id) . '_' . $safe . '_' . now()->format('Ymd_Hi') . '.pdf';
+        $filename = 'wo_' . ($workorder->number ?? $workorder->id) . '_' . $safe . $placeTag . '_' . now()->format('Ymd_Hi') . '.pdf';
 
         $media = $workorder->addMediaFromString($pdf)
             ->usingFileName($filename)
@@ -169,7 +172,7 @@ class ProcessDocumentController extends Controller
             'image' => 'required|file|image|mimes:png,jpg,jpeg,webp,gif|max:10240',
         ]);
 
-        $manual = $processDocumentPage->document?->ruleProcess?->rule?->parameter?->manual;
+        $manual = $this->resolveManual($processDocumentPage->document);
         if (!$manual) {
             return response()->json(['message' => 'Manual not found for this page'], 422);
         }
@@ -194,7 +197,13 @@ class ProcessDocumentController extends Controller
             'image_height' => 'nullable|integer',
             'page_no'      => 'nullable|integer',
             'sort_order'   => 'nullable|integer',
+            'parameter_id' => 'nullable|integer', // EC: the place this page documents
         ]);
+
+        // allow clearing parameter_id explicitly
+        if ($request->exists('parameter_id')) {
+            $data['parameter_id'] = $request->input('parameter_id') ?: null;
+        }
 
         $processDocumentPage->update($data);
 
@@ -282,6 +291,23 @@ class ProcessDocumentController extends Controller
             ->all();
     }
 
+    /** Resolve the owning Manual of a document across all documentable types (for media storage). */
+    private function resolveManual(?ProcessDocument $doc)
+    {
+        $d = $doc?->documentable;
+        if ($d instanceof ManualInspectionComponent) {
+            return $d->manual;
+        }
+        if ($d instanceof ManualParameterRuleProcess) {
+            return $d->rule?->parameter?->manual ?? $d->rule?->parameter?->inspectionComponent?->manual;
+        }
+        if ($d instanceof MasterRulePhaseRuleProcess) {
+            return $d->phaseRule?->masterRule?->manual;
+        }
+
+        return null;
+    }
+
     /** All parameters of a part — selectable as measurement sources on its EC sheet. */
     private function sourceParametersForComponent(ManualInspectionComponent $ic): array
     {
@@ -312,6 +338,7 @@ class ProcessDocumentController extends Controller
     {
         return [
             'id'           => $p->id,
+            'parameter_id' => $p->parameter_id,
             'page_no'      => $p->page_no,
             'image_path'   => $p->image_path,
             'image_width'  => $p->image_width,

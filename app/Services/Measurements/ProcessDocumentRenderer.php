@@ -22,18 +22,27 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class ProcessDocumentRenderer
 {
     /**
-     * @param array $context  optional ['repair_number' => string, 'component_pn' => string]
+     * @param array    $context          optional ['repair_number' => string, 'component_pn' => string]
+     * @param int|null $onlyParameterId  EC: render only the pages of this place (parameter) — one PDF per place
      * @return string PDF binary
      */
-    public function render(ProcessDocument $document, Workorder $workorder, array $context = []): string
+    public function render(ProcessDocument $document, Workorder $workorder, array $context = [], ?int $onlyParameterId = null): string
     {
         $document->loadMissing('pages.elements');
 
-        // "Own" parameter of this document (the drawing's point/parameter) — used by 'calc'
-        // to derive the mating dimension from the F&C pair's nominal clearance.
-        $docParam = $this->documentParameter($document);
+        $pages = $document->pages;
+        if ($onlyParameterId !== null) {
+            $pages = $pages->where('parameter_id', $onlyParameterId)->values();
+        }
 
-        $pages = $document->pages->map(fn($p) => $this->renderPage($p, $workorder, $context, $docParam))->all();
+        // "Own" parameter of this document (the drawing's point/parameter) — used by 'calc'
+        // to derive the mating dimension from the F&C pair's nominal clearance. For a
+        // per-place EC render it's the place itself; otherwise via documentable→rule.
+        $docParam = $onlyParameterId
+            ? ManualParameter::find($onlyParameterId)
+            : $this->documentParameter($document);
+
+        $pages = $pages->map(fn($p) => $this->renderPage($p, $workorder, $context, $docParam))->all();
 
         $html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><style>'
             . '@page{margin:8mm;}'

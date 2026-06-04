@@ -10,6 +10,7 @@ class ProcessDocumentPage extends Model
 {
     protected $fillable = [
         'document_id',
+        'parameter_id', // EC: the "place" (ManualParameter) this page documents; null = generic
         'page_no',
         'image_path',
         'image_width',
