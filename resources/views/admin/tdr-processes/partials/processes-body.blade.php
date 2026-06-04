@@ -69,6 +69,11 @@
     $ecPageParams = [];   // parameter_ids that have at least one page (a place with a drawing)
     $machiningEcNameId = \App\Models\ProcessName::where('name', 'Machining (EC)')->value('id')
         ?? \App\Models\ProcessName::where('name', 'Machining(EC)')->value('id');
+    // The part dimensions sheet serves BOTH repair (Machining) and EC (Machining (EC)).
+    $machiningNameIds = array_values(array_filter([
+        $machiningEcNameId,
+        \App\Models\ProcessName::where('name', 'Machining')->value('id'),
+    ]));
     $_icId = \App\Models\ManualInspectionComponentVariant::where('component_id', $comp->id ?? 0)->value('inspection_component_id');
     if ($_icId) {
         $ecDoc = \App\Models\ProcessDocument::where('documentable_type', \App\Models\ManualInspectionComponent::class)
