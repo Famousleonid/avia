@@ -615,8 +615,21 @@ class WoMeasurementController extends Controller
             'inspection_component_id' => 'required|integer',
         ]);
 
+        return response()->json($this->evaluateGate($workorder, (int) $data['inspection_component_id']));
+    }
+
+    /**
+     * Evaluate the EC gate for a part: per repaired point, compare the final
+     * measurement against orig/wear tolerance or any repair-step range.
+     *
+     * @return array{ready:bool, all_pass:bool, points:array<int,array{
+     *     param_id:int, rule_id:?int, description:?string, pt_codes:string,
+     *     final_value:?float, pass:bool}>}
+     */
+    private function evaluateGate(Workorder $workorder, int $icId): array
+    {
         $useWear = $workorder->usesWearLimits();
-        $params  = ManualParameter::where('inspection_component_id', $data['inspection_component_id'])
+        $params  = ManualParameter::where('inspection_component_id', $icId)
             ->with(['repairSteps', 'points'])
             ->get();
 
@@ -633,8 +646,8 @@ class WoMeasurementController extends Controller
         foreach ($params as $param) {
             $ms = $measByParam[$param->id] ?? collect();
             // repaired point = failed at initial inspection
-            $hadFail = $ms->contains(fn($m) => $m->stage === 'initial' && $m->result === 'FAIL');
-            if (!$hadFail) {
+            $initialFail = $ms->first(fn($m) => $m->stage === 'initial' && $m->result === 'FAIL');
+            if (!$initialFail) {
                 continue;
             }
             $final = $ms->where('stage', 'final')->last();
@@ -650,6 +663,7 @@ class WoMeasurementController extends Controller
             }
             $points[] = [
                 'param_id'    => $param->id,
+                'rule_id'     => $final->manual_parameter_repair_rule_id ?? $initialFail->manual_parameter_repair_rule_id,
                 'description' => $param->description,
                 'pt_codes'    => $param->points->pluck('code')->filter()->unique()->values()->implode(', '),
                 'final_value' => $value,
@@ -657,11 +671,11 @@ class WoMeasurementController extends Controller
             ];
         }
 
-        return response()->json([
+        return [
             'ready'    => $ready && count($points) > 0,
             'all_pass' => $allPass,
             'points'   => $points,
-        ]);
+        ];
     }
 
     /**
@@ -694,6 +708,32 @@ class WoMeasurementController extends Controller
         }
 
         if ($data['outcome'] === 'ec') {
+            // Relabel the Machining row(s) of each FAILED point → Machining (EC),
+            // so the concession is tied to the exact place that's out of limit.
+            $eval = $this->evaluateGate($workorder, (int) $data['inspection_component_id']);
+            $failedRuleIds = array_values(array_filter(array_map(
+                fn ($p) => $p['rule_id'],
+                array_filter($eval['points'], fn ($p) => !$p['pass'])
+            )));
+            if (!empty($failedRuleIds)) {
+                $failedRpIds = \App\Models\ManualParameterRuleProcess::whereIn('repair_rule_id', $failedRuleIds)
+                    ->pluck('id')->map(fn ($i) => (int) $i)->all();
+                $machiningId   = \App\Models\ProcessName::where('name', 'Machining')->value('id');
+                $machiningEcId = \App\Models\ProcessName::where('name', 'Machining (EC)')->value('id')
+                    ?? \App\Models\ProcessName::where('name', 'Machining(EC)')->value('id');
+                if ($machiningId && $machiningEcId) {
+                    $rows = TdrProcess::where('tdrs_id', $tdr->id)
+                        ->where('process_names_id', $machiningId)
+                        ->get();
+                    foreach ($rows as $row) {
+                        $rp = array_map('intval', $row->rule_process_ids ?? []);
+                        if (array_intersect($rp, $failedRpIds)) {
+                            $row->update(['process_names_id' => $machiningEcId]);
+                        }
+                    }
+                }
+            }
+
             // Hold everything after the NDT gate: remove not-yet-started post+finish processes…
             TdrProcess::where('tdrs_id', $tdr->id)
                 ->whereIn('process_names_id', $this->heldOnEcProcessNameIds())
