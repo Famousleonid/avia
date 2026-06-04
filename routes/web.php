@@ -363,6 +363,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'indexPhase'])->name('phase-rule-processes.documents.index');
     Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'storePhaseDocument'])->name('phase-rule-processes.documents.store');
     // Part-level (inspection component) documents — EC dimensions sheet
+    Route::get('/inspection-components/{manualInspectionComponent}/document-tree', [ProcessDocumentController::class, 'documentTree'])->name('inspection-components.document-tree');
     Route::get('/inspection-components/{manualInspectionComponent}/documents', [ProcessDocumentController::class, 'indexComponent'])->name('inspection-components.documents.index');
     Route::post('/inspection-components/{manualInspectionComponent}/documents', [ProcessDocumentController::class, 'storeComponentDocument'])->name('inspection-components.documents.store');
     Route::patch('/process-documents/{processDocument}', [ProcessDocumentController::class, 'updateDocument'])->name('process-documents.update');

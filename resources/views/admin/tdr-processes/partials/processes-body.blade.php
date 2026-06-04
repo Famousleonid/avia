@@ -63,50 +63,10 @@
             $docsByRp[$_d->documentable_id][] = $_d;
         }
     }
-    // EC dimensions sheet — part-level document on the inspection component, rendered
-    // PER PLACE on each Machining (EC) row (parameter_id = the row's repaired point).
-    $ecPlaceDoc = [];     // place parameter_id => document_id that has a page for it
-    $machiningEcNameId = \App\Models\ProcessName::where('name', 'Machining (EC)')->value('id')
-        ?? \App\Models\ProcessName::where('name', 'Machining(EC)')->value('id');
-    // The part dimensions sheet serves BOTH repair (Machining) and EC (Machining (EC)).
-    $machiningNameIds = array_values(array_filter([
-        $machiningEcNameId,
-        \App\Models\ProcessName::where('name', 'Machining')->value('id'),
-    ]));
-    $_icId = \App\Models\ManualInspectionComponentVariant::where('component_id', $comp->id ?? 0)->value('inspection_component_id');
-    if ($_icId) {
-        // ALL documents of the part (it's the part's document hub); map each place to the doc that draws it.
-        $_partDocIds = \App\Models\ProcessDocument::where('documentable_type', \App\Models\ManualInspectionComponent::class)
-            ->where('documentable_id', $_icId)
-            ->orderBy('sort_order')
-            ->pluck('id');
-        if ($_partDocIds->isNotEmpty()) {
-            $_pages = \App\Models\ProcessDocumentPage::whereIn('document_id', $_partDocIds)
-                ->whereNotNull('parameter_id')
-                ->orderBy('document_id')
-                ->get(['document_id', 'parameter_id']);
-            foreach ($_pages as $_pg) {
-                $pid = (int) $_pg->parameter_id;
-                if (!isset($ecPlaceDoc[$pid])) {
-                    $ecPlaceDoc[$pid] = (int) $_pg->document_id;
-                }
-            }
-        }
-    }
-    $ecPageParams = array_keys($ecPlaceDoc);
-    // rule_process_id => manual_parameter_id (the "place" a Machining (EC) row repairs).
-    $rpToParam = [];
-    if (!empty($allRpIds)) {
-        $_rps = \App\Models\ManualParameterRuleProcess::whereIn('id', array_values(array_unique($allRpIds)))
-            ->get(['id', 'repair_rule_id']);
-        $_ruleToParam = \App\Models\ManualParameterRepairRule::whereIn('id', $_rps->pluck('repair_rule_id')->unique())
-            ->pluck('manual_parameter_id', 'id');
-        foreach ($_rps as $_rp) {
-            $rpToParam[$_rp->id] = (int) ($_ruleToParam[$_rp->repair_rule_id] ?? 0);
-        }
-    }
-    // Колонку Document показываем, если есть шаблон процесса ИЛИ EC-страницы с местами.
-    $showDocColumn = !empty($docsByRp) || !empty($ecPageParams);
+    // Документы привязаны к процессу (rule-process) → показываются на строке через
+    // $docsByRp. Машининг, переменованный в Machining (EC), сохраняет rule_process_ids,
+    // поэтому тот же чертёж виден и в ремонте, и в EC.
+    $showDocColumn = !empty($docsByRp);
 @endphp
 
 <style>

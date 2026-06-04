@@ -949,10 +949,20 @@
             </div>
             <div class="modal-body p-0" style="overflow:hidden">
 
+                {{-- Screen T: Part → Point → Rule → Process tree (document hub) --}}
+                <div id="pdw-tree-screen" class="p-3 d-none" style="overflow-y:auto;height:100%">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="fw-semibold">Part documents — Point → Rule → Process</span>
+                        <span class="text-secondary ms-2" style="font-size:11px">click a process to manage its drawing(s)</span>
+                    </div>
+                    <div id="pdw-tree"></div>
+                </div>
+
                 {{-- Screen A: document list --}}
-                <div id="pdw-doc-screen" class="p-3" style="overflow-y:auto;height:100%">
+                <div id="pdw-doc-screen" class="p-3 d-none" style="overflow-y:auto;height:100%">
                     <div class="d-flex align-items-center mb-3">
-                        <span class="fw-semibold">Documents</span>
+                        <button class="btn btn-outline-secondary btn-sm me-2 d-none" id="pdwTreeBackBtn"><i class="bi bi-arrow-left"></i> Tree</button>
+                        <span class="fw-semibold" id="pdwDocScreenTitle">Documents</span>
                         <button class="btn btn-outline-primary btn-sm ms-auto" id="pdwAddDocBtn"><i class="bi bi-plus-lg"></i> Add document</button>
                     </div>
                     {{-- inline add/edit document form --}}
@@ -1218,7 +1228,7 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.addEventListener('click', function () {
                 const id = parseInt(btn.dataset.icId);
                 const ic = inspComponents.find(function (x) { return x.id === id; });
-                openProcessDocumentsModal(id, (ic ? ic.label : ''), 'component');
+                openDocumentTree(id, ic ? ic.label : '');
             });
         });
 
@@ -4568,17 +4578,84 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const PDW_TYPE_LABEL = { drawing: 'Drawing', manual_page: 'Manual page', test_report: 'Test report' };
 
+    const pdwTreeScreen = document.getElementById('pdw-tree-screen');
+    let pdwTree = [], pdwTreeIcId = null, pdwTreeLabel = '', pdwFromTree = false;
+
     // ---- screen switching ----
+    function pdwShowTreeScreen() {
+        pdwSetMode(null);
+        pdwTreeScreen.classList.remove('d-none');
+        pdwDocScreen.classList.add('d-none');
+        pdwEdScreen.classList.add('d-none'); pdwEdScreen.classList.remove('d-flex');
+    }
     function pdwShowDocScreen() {
         pdwSetMode(null);
+        pdwTreeScreen.classList.add('d-none');
         pdwDocScreen.classList.remove('d-none');
         pdwEdScreen.classList.add('d-none'); pdwEdScreen.classList.remove('d-flex');
+        document.getElementById('pdwTreeBackBtn').classList.toggle('d-none', !pdwFromTree);
         renderDocList();
     }
     function pdwShowEditorScreen() {
+        pdwTreeScreen.classList.add('d-none');
         pdwDocScreen.classList.add('d-none');
         pdwEdScreen.classList.remove('d-none'); pdwEdScreen.classList.add('d-flex');
     }
+
+    // ---- Part document hub: Part → Point → Rule → Process tree ----
+    async function openDocumentTree(icId, label) {
+        pdwTreeIcId = icId; pdwTreeLabel = label || ''; pdwFromTree = true;
+        document.getElementById('pdwTitle').textContent = 'Part Documents — ' + pdwTreeLabel;
+        document.getElementById('pdw-tree').innerHTML = '<div class="text-secondary" style="font-size:12px">Loading…</div>';
+        getPdwModal().show();
+        pdwShowTreeScreen();
+        try {
+            const data = await apiFetch('/inspection-components/' + icId + '/document-tree');
+            pdwTree = data.tree || [];
+            renderDocTree();
+        } catch (e) {
+            document.getElementById('pdw-tree').innerHTML = '<div class="text-danger" style="font-size:12px">' + escHtml(e.message) + '</div>';
+        }
+    }
+
+    function renderDocTree() {
+        const wrap = document.getElementById('pdw-tree');
+        if (!pdwTree.length) { wrap.innerHTML = '<div class="text-secondary" style="font-size:12px">No points / rules for this part yet.</div>'; return; }
+        wrap.innerHTML = pdwTree.map(function (pt) {
+            const rules = (pt.rules || []).map(function (r) {
+                const procs = (r.processes || []).map(function (pr) {
+                    const dot = pr.has_document
+                        ? '<i class="bi bi-file-earmark-check-fill" style="color:var(--bs-warning)"></i>'
+                        : '<i class="bi bi-file-earmark" style="color:var(--bs-secondary-color)"></i>';
+                    return `<div class="pdw-tree-proc d-flex align-items-center gap-2" data-rp="${pr.rule_process_id}" data-label="${escHtml(pr.label)}"
+                                 style="padding:3px 8px;cursor:pointer;border-radius:4px;font-size:12px">
+                        ${dot}<span class="flex-grow-1">${escHtml(pr.label)}</span>
+                        <span class="text-secondary" style="font-size:10px">${pr.has_document ? 'edit' : 'add'} ›</span>
+                    </div>`;
+                }).join('') || '<div style="font-size:11px;color:var(--bs-secondary-color);padding-left:8px">no processes</div>';
+                return `<div style="margin-left:16px;margin-top:3px">
+                    <div style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-wrench"></i> ${escHtml(r.label)}
+                        <span class="badge bg-secondary" style="font-size:9px;text-transform:uppercase">${escHtml(r.action)}</span></div>
+                    ${procs}
+                </div>`;
+            }).join('') || '<div style="margin-left:16px;font-size:11px;color:var(--bs-secondary-color)">no repair rules</div>';
+            return `<div style="margin-bottom:10px">
+                <div class="fw-semibold" style="font-size:12px;color:#5ee3ff"><i class="bi bi-geo-alt-fill"></i> ${escHtml(pt.label)}</div>
+                ${rules}
+            </div>`;
+        }).join('');
+        wrap.querySelectorAll('.pdw-tree-proc').forEach(function (row) {
+            row.addEventListener('mouseenter', function () { row.style.background = 'rgba(13,110,253,.10)'; });
+            row.addEventListener('mouseleave', function () { row.style.background = ''; });
+            row.addEventListener('click', function () {
+                openProcessDocumentsModal(parseInt(row.dataset.rp), row.dataset.label, 'main', true);
+            });
+        });
+    }
+
+    document.getElementById('pdwTreeBackBtn').addEventListener('click', function () {
+        openDocumentTree(pdwTreeIcId, pdwTreeLabel); // refetch → refreshes has-document marks
+    });
 
     // ---- open: load documents, show list ----
     let pdwProcKind = 'main'; // 'main' (point rule) | 'phase' (Start/Finish)
@@ -4589,11 +4666,13 @@ document.addEventListener('DOMContentLoaded', function () {
             : '/rule-processes/' + pdwRuleProcessId + '/documents';
     }
 
-    async function openProcessDocumentsModal(ruleProcessId, label, kind) {
+    async function openProcessDocumentsModal(ruleProcessId, label, kind, fromTree) {
         pdwRuleProcessId = ruleProcessId;
         pdwProcKind = (kind === 'phase' || kind === 'component') ? kind : 'main';
+        pdwFromTree = !!fromTree;
         pdwDocs = []; pdwSourceParams = []; pdwDoc = null; pdwPage = null;
-        document.getElementById('pdwTitle').textContent = 'Process Documents — ' + (label || '');
+        document.getElementById('pdwDocScreenTitle').textContent = label || 'Documents';
+        if (!fromTree) document.getElementById('pdwTitle').textContent = 'Process Documents — ' + (label || '');
         document.getElementById('pdw-doc-list').innerHTML = '<div class="text-secondary" style="font-size:12px">Loading…</div>';
         pdwHideDocForm();
         getPdwModal().show();

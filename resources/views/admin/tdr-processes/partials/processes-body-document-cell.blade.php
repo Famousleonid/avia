@@ -1,43 +1,27 @@
 {{-- Document column cell: generate a concrete PDF from the process' document template(s). --}}
 {{-- Requires: $tdrProcessRow, $docsByRp (rule_process_id => [ProcessDocument]), $current_wo --}}
-{{-- The part dimensions sheet ($ecDoc) is ONE drawing shared by repair (Machining) and --}}
-{{-- EC (Machining (EC)) — rendered filtered to THIS row's place → per-place PDF. --}}
-{{-- Колонка скрыта целиком, если нет ни шаблонов процессов, ни страниц-мест. --}}
-@if(!empty($docsByRp) || !empty($ecPageParams ?? []))
+{{-- Документы привязаны к процессу (rule-process); Machining (EC) сохраняет связь → тот же чертёж. --}}
+@if(!empty($docsByRp))
 @php
-    // Machining-type row (repair OR EC) → the part dimensions sheet for this row's place.
-    $_isMachiningRow = isset($machiningNameIds) && in_array((int) $tdrProcessRow->process_names_id, $machiningNameIds, true);
-    $_placeParam = null;
-    if ($_isMachiningRow) {
-        foreach ((array) ($tdrProcessRow->rule_process_ids ?? []) as $rid) {
-            if (!empty($rpToParam[$rid] ?? null)) { $_placeParam = (int) $rpToParam[$rid]; break; }
-        }
-    }
-
-    // Unified generate targets: ['id'=>docId, 'param'=>?int place, 'label'=>str, 'dim'=>bool]
-    $items = [];
-    if ($_isMachiningRow && $_placeParam && !empty($ecPlaceDoc[$_placeParam] ?? null)) {
-        $items['ec'] = ['id' => (int) $ecPlaceDoc[$_placeParam], 'param' => $_placeParam, 'label' => 'Dimensions', 'dim' => true];
-    }
+    $rowDocs = [];
     foreach ((array) ($tdrProcessRow->rule_process_ids ?? []) as $rid) {
         foreach ($docsByRp[$rid] ?? [] as $d) {
-            $items['d' . $d->id] = ['id' => $d->id, 'param' => null, 'label' => ($d->title ?: $d->doc_type ?: ('Doc #' . $d->id)), 'dim' => false];
+            $rowDocs[$d->id] = $d;
         }
     }
-    $items = array_values($items);
+    $rowDocs = array_values($rowDocs);
 @endphp
 <td class="text-center align-middle process-doc-cell">
-    @if(empty($items) || !isset($current_wo))
+    @if(empty($rowDocs) || !isset($current_wo))
         <span class="text-muted small">—</span>
-    @elseif(count($items) === 1)
-        @php $it = $items[0]; @endphp
+    @elseif(count($rowDocs) === 1)
+        @php $d = $rowDocs[0]; @endphp
         <button type="button"
-                class="btn btn-sm {{ $it['dim'] ? 'btn-outline-warning' : 'btn-outline-success' }} gen-doc-btn" style="width: 60px"
-                data-doc-id="{{ $it['id'] }}"
-                @if($it['param'])data-parameter-id="{{ $it['param'] }}"@endif
+                class="btn btn-sm btn-outline-success gen-doc-btn" style="width: 60px"
+                data-doc-id="{{ $d->id }}"
                 data-wo-id="{{ $current_wo->id }}"
-                title="{{ __('Generate') }}: {{ $it['label'] }}">
-            <i class="bi {{ $it['dim'] ? 'bi-rulers' : 'bi-file-earmark-pdf' }}"></i>
+                title="{{ __('Generate document') }}: {{ $d->title ?: $d->doc_type }}">
+            <i class="bi bi-file-earmark-pdf"></i>
         </button>
     @else
         <div class="dropdown d-inline-block">
@@ -45,13 +29,11 @@
                 <i class="bi bi-file-earmark-pdf"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-                @foreach($items as $it)
+                @foreach($rowDocs as $d)
                     <li>
                         <button type="button" class="dropdown-item gen-doc-btn"
-                                data-doc-id="{{ $it['id'] }}"
-                                @if($it['param'])data-parameter-id="{{ $it['param'] }}"@endif
-                                data-wo-id="{{ $current_wo->id }}">
-                            <i class="bi {{ $it['dim'] ? 'bi-rulers' : 'bi-file-earmark-pdf' }} me-1"></i>{{ $it['label'] }}
+                                data-doc-id="{{ $d->id }}" data-wo-id="{{ $current_wo->id }}">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>{{ $d->title ?: $d->doc_type ?: ('Doc #'.$d->id) }}
                         </button>
                     </li>
                 @endforeach

@@ -65,6 +65,53 @@ class ProcessDocumentController extends Controller
         return $this->createDocument($request, $manualInspectionComponent, 'ec');
     }
 
+    /**
+     * Document hub for a part: the Part → Point → Rule → Process tree, with a flag
+     * for which rule-processes already have a document. Documents attach to the
+     * process (rule-process), so they serve both repair and EC.
+     */
+    public function documentTree(ManualInspectionComponent $manualInspectionComponent)
+    {
+        $params = ManualParameter::where('inspection_component_id', $manualInspectionComponent->id)
+            ->with([
+                'points:id,code',
+                'repairRules.processes.manualProcess.process.process_name',
+            ])
+            ->orderBy('sort_order')
+            ->get();
+
+        $rpIds = $params->flatMap(fn($p) => $p->repairRules->flatMap(fn($r) => $r->processes->pluck('id')))
+            ->unique()->values();
+        $withDocs = ProcessDocument::where('documentable_type', ManualParameterRuleProcess::class)
+            ->whereIn('documentable_id', $rpIds)
+            ->pluck('documentable_id')->map(fn($i) => (int) $i)->unique()->flip();
+
+        $tree = $params->map(function ($p) use ($withDocs) {
+            $pts = $p->points->pluck('code')->filter()->implode(', ');
+
+            return [
+                'param_id' => $p->id,
+                'label'    => trim(($pts ? $pts . ' · ' : '') . ($p->description ?? '')) ?: ('#' . $p->id),
+                'rules'    => $p->repairRules->map(fn($r) => [
+                    'rule_id' => $r->id,
+                    'label'   => $r->name ?: ('Rule #' . $r->id),
+                    'action'  => $r->action ?? 'repair',
+                    'processes' => $r->processes->map(function ($rp) use ($withDocs) {
+                        $pname = $rp->manualProcess?->process?->process_name?->name ?? 'Process';
+
+                        return [
+                            'rule_process_id' => $rp->id,
+                            'label'           => $pname . ($rp->description ? ' — ' . $rp->description : ''),
+                            'has_document'    => $withDocs->has((int) $rp->id),
+                        ];
+                    })->values(),
+                ])->values(),
+            ];
+        })->values();
+
+        return response()->json(['tree' => $tree]);
+    }
+
     // ── Generation (2c.1) — template + WO data → PDF in WO library ─
 
     public function generate(Request $request, Workorder $workorder, ProcessDocument $processDocument)
