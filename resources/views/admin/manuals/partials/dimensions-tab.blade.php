@@ -4586,6 +4586,10 @@ document.addEventListener('DOMContentLoaded', function () {
             host.style.flexDirection = 'column';
             mount.appendChild(host);
         }
+        // The repair-rule modal is opened from the Part Documents tab too; move it to
+        // <body> so it isn't trapped inside the (hidden) Dimensions pane when shown.
+        const rm = document.getElementById('dimRepairRuleModal');
+        if (rm && rm.parentElement !== document.body) document.body.appendChild(rm);
     })();
     function pdwActivate() {
         const navBtn = document.getElementById('nav-partdocs-tab');
