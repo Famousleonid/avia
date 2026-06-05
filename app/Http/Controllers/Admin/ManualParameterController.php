@@ -163,6 +163,7 @@ class ManualParameterController extends Controller
             'action'            => 'nullable|in:repair,order_new,ec',
             'notes'             => 'nullable|string',
             'processes'                     => 'nullable|array',
+            'processes.*.id'                => 'nullable|integer',
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
             'processes.*.description'       => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
@@ -194,6 +195,7 @@ class ManualParameterController extends Controller
             'action'            => 'nullable|in:repair,order_new,ec',
             'notes'             => 'nullable|string',
             'processes'                     => 'nullable|array',
+            'processes.*.id'                => 'nullable|integer',
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
             'processes.*.description'       => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
@@ -236,15 +238,24 @@ class ManualParameterController extends Controller
 
     private function syncRuleProcesses(ManualParameterRepairRule $rule, array $processes): void
     {
-        $rule->processes()->delete();
+        // Upsert (NOT delete-all+recreate): keep existing rule-process ids so their
+        // attached documents survive a rule edit (adding a description, reordering…).
+        $keepIds = [];
         foreach ($processes as $i => $p) {
-            ManualParameterRuleProcess::create([
-                'repair_rule_id'    => $rule->id,
+            $attrs = [
                 'manual_process_id' => $p['manual_process_id'],
                 'description'       => $p['description'] ?? null,
                 'sort_order'        => $p['sort_order'] ?? $i,
-            ]);
+            ];
+            $existing = !empty($p['id']) ? $rule->processes()->whereKey($p['id'])->first() : null;
+            if ($existing) {
+                $existing->update($attrs);
+                $keepIds[] = $existing->id;
+            } else {
+                $keepIds[] = $rule->processes()->create($attrs)->id;
+            }
         }
+        $rule->processes()->whereNotIn('id', $keepIds ?: [0])->delete();
     }
 
     private function syncRuleTriggers(ManualParameterRepairRule $rule, array $triggers): void

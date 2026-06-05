@@ -3452,7 +3452,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { trigger: t.trigger, codes_id: t.codes_id || null };
             }),
             processes:         dimRuleProcesses.map(function (p, i) {
-                return { manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, sort_order: i };
+                return { id: p.rule_process_id || null, manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, sort_order: i };
             }),
         };
 
