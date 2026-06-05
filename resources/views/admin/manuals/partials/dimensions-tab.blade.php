@@ -4586,10 +4586,12 @@ document.addEventListener('DOMContentLoaded', function () {
             host.style.flexDirection = 'column';
             mount.appendChild(host);
         }
-        // The repair-rule modal is opened from the Part Documents tab too; move it to
-        // <body> so it isn't trapped inside the (hidden) Dimensions pane when shown.
-        const rm = document.getElementById('dimRepairRuleModal');
-        if (rm && rm.parentElement !== document.body) document.body.appendChild(rm);
+        // Rule modals are opened from the Part Documents tab too; move them to <body>
+        // so they aren't trapped inside the (hidden) Dimensions pane when shown.
+        ['dimRepairRuleModal', 'dimMasterRuleModal'].forEach(function (id) {
+            const m = document.getElementById(id);
+            if (m && m.parentElement !== document.body) document.body.appendChild(m);
+        });
     })();
     function pdwActivate() {
         const navBtn = document.getElementById('nav-partdocs-tab');
@@ -4695,7 +4697,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function pdwPhaseSection(title, rules) {
         if (!rules || !rules.length) return '';
         return `<div style="margin-bottom:10px">
-            <div class="fw-semibold" style="font-size:12px;color:#ffc107"><i class="bi bi-flag-fill"></i> ${title}</div>
+            <div class="fw-semibold" style="font-size:12px;color:#ffc107"><i class="bi bi-flag-fill"></i> ${title}
+                <button class="pdw-tree-edit-phase btn btn-link btn-sm p-0 ms-1" title="Edit Start/Finish plan" style="font-size:11px;color:var(--bs-info)"><i class="bi bi-pencil"></i></button></div>
             ${rules.map(function (r) { return pdwRuleHtml(r, false, null); }).join('')}
         </div>`;
     }
@@ -4746,6 +4749,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 else alert('Parameter data not loaded — open it from the Dimensions panel.');
             });
         });
+        // edit Start/Finish plan (MasterRule) from the hub
+        wrap.querySelectorAll('.pdw-tree-edit-phase').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                if (pdwTreeIcId) { pdwTreeEditingRule = true; openMasterRuleModal(pdwTreeIcId, pdwTreeLabel); }
+            });
+        });
     }
 
     // After a rule is saved/deleted from the tree, refresh the tree (new processes, etc.).
@@ -4759,6 +4769,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     document.getElementById('dimRepairRuleModal').addEventListener('hidden.bs.modal', function () {
         pdwTreeEditingRule = false; // reset on cancel (save already consumed it)
+    });
+    // MasterRule (Start/Finish) modal stays open for multi-edit → refresh the tree on close.
+    document.getElementById('dimMasterRuleModal').addEventListener('hidden.bs.modal', function () {
+        pdwTreeRefreshAfterRule();
     });
 
     document.getElementById('pdwTreeBackBtn').addEventListener('click', function () {
