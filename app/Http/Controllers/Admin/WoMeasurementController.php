@@ -571,6 +571,7 @@ class WoMeasurementController extends Controller
                 'process_names_id' => $group['process_names_id'],
                 'processes'        => $group['process_ids'],
                 'rule_process_ids' => $group['rule_process_ids'] ?? [],
+                'phase_rule_process_ids' => $group['phase_rule_process_ids'] ?? [],
                 'description'      => $group['description'] ?? '',
                 'sort_order'       => $group['sort_order'],
                 'in_traveler'      => false,

@@ -1,12 +1,18 @@
 {{-- Document column cell: generate a concrete PDF from the process' document template(s). --}}
 {{-- Requires: $tdrProcessRow, $docsByRp (rule_process_id => [ProcessDocument]), $current_wo --}}
 {{-- Документы привязаны к процессу (rule-process); Machining (EC) сохраняет связь → тот же чертёж. --}}
-@if(!empty($docsByRp))
+@if(!empty($docsByRp) || !empty($phaseDocsByRp ?? []))
 @php
     $rowDocs = [];
     foreach ((array) ($tdrProcessRow->rule_process_ids ?? []) as $rid) {
         foreach ($docsByRp[$rid] ?? [] as $d) {
             $rowDocs[$d->id] = $d;
+        }
+    }
+    // Start/Finish process documents (separate id space).
+    foreach ((array) ($tdrProcessRow->phase_rule_process_ids ?? []) as $rid) {
+        foreach (($phaseDocsByRp[$rid] ?? []) as $d) {
+            $rowDocs['p' . $d->id] = $d;
         }
     }
     $rowDocs = array_values($rowDocs);

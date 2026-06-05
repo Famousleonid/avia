@@ -18,6 +18,7 @@ class TdrProcess extends Model
         'plus_process', // Дополнительные NDT process_names_id через запятую (например, "2,4")
         'processes',
         'rule_process_ids', // ManualParameterRuleProcess ids that fed this group (for document generation)
+        'phase_rule_process_ids', // MasterRulePhaseRuleProcess ids (Start/Finish) — kept separate from Main
         'description',
         'notes',
         'repair_order',
@@ -44,6 +45,7 @@ class TdrProcess extends Model
     protected $casts = [
         'processes'        => 'array',
         'rule_process_ids' => 'array',
+        'phase_rule_process_ids' => 'array',
         'date_start'  => 'date',   // <-- важно
         'date_finish' => 'date',   // <-- важно
         'date_promise' => 'date',

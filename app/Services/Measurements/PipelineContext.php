@@ -176,15 +176,20 @@ class PipelineContext
                 $g['descriptions'],
                 fn ($d) => $d !== null && $d !== ''
             )));
+            // Phase (Start/Finish) rp ids are MasterRulePhaseRuleProcess ids — keep them
+            // SEPARATE from Main (ManualParameterRuleProcess) ids; the id spaces collide.
+            $rpIds   = array_values(array_unique($g['rule_process_ids']));
+            $isPhase = in_array($g['phase'], ['start', 'finish'], true);
             $out[] = [
-                'process_names_id' => $g['process_names_id'],
-                'process_ids'      => array_values(array_unique($g['process_ids'])),
-                'rule_process_ids' => array_values(array_unique($g['rule_process_ids'])),
-                'description'      => implode('; ', $notes),
-                'sort_order'       => $sort++,
-                'phase'            => $g['phase'],
-                'stage'            => $g['stage'],
-                'scope'            => $g['scope'],
+                'process_names_id'        => $g['process_names_id'],
+                'process_ids'             => array_values(array_unique($g['process_ids'])),
+                'rule_process_ids'        => $isPhase ? [] : $rpIds,
+                'phase_rule_process_ids'  => $isPhase ? $rpIds : [],
+                'description'             => implode('; ', $notes),
+                'sort_order'              => $sort++,
+                'phase'                   => $g['phase'],
+                'stage'                   => $g['stage'],
+                'scope'                   => $g['scope'],
             ];
         }
 

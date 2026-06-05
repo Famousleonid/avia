@@ -68,10 +68,28 @@
             $docsByRp[$_d->documentable_id][] = $_d;
         }
     }
-    // Документы привязаны к процессу (rule-process) → показываются на строке через
-    // $docsByRp. Машининг, переменованный в Machining (EC), сохраняет rule_process_ids,
-    // поэтому тот же чертёж виден и в ремонте, и в EC.
-    $showDocColumn = !empty($docsByRp);
+    // Документы Start/Finish процессов привязаны к MasterRulePhaseRuleProcess —
+    // отдельное пространство id, грузим в свою карту по phase_rule_process_ids.
+    $allPhaseRpIds = [];
+    foreach ($tdrProcesses as $_tp) {
+        foreach ((array) ($_tp->phase_rule_process_ids ?? []) as $_rid) {
+            $allPhaseRpIds[] = $_rid;
+        }
+    }
+    $phaseDocsByRp = [];
+    if (!empty($allPhaseRpIds)) {
+        $_pdocs = \App\Models\ProcessDocument::where('documentable_type', \App\Models\MasterRulePhaseRuleProcess::class)
+            ->whereIn('documentable_id', array_values(array_unique($allPhaseRpIds)))
+            ->orderBy('sort_order')
+            ->get(['id', 'documentable_id', 'title', 'doc_type']);
+        foreach ($_pdocs as $_d) {
+            $phaseDocsByRp[$_d->documentable_id][] = $_d;
+        }
+    }
+    // Документы привязаны к процессу → показываются на строке через $docsByRp /
+    // $phaseDocsByRp. Машининг, переименованный в Machining (EC), сохраняет
+    // rule_process_ids, поэтому тот же чертёж виден и в ремонте, и в EC.
+    $showDocColumn = !empty($docsByRp) || !empty($phaseDocsByRp);
 @endphp
 
 <style>
