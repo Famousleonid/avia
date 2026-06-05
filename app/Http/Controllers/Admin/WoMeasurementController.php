@@ -709,13 +709,12 @@ class WoMeasurementController extends Controller
         }
 
         if ($data['outcome'] === 'ec') {
+            $icId = (int) $data['inspection_component_id'];
             // Relabel the Machining row(s) of each FAILED point → Machining (EC),
             // so the concession is tied to the exact place that's out of limit.
-            $eval = $this->evaluateGate($workorder, (int) $data['inspection_component_id']);
-            $failedRuleIds = array_values(array_filter(array_map(
-                fn ($p) => $p['rule_id'],
-                array_filter($eval['points'], fn ($p) => !$p['pass'])
-            )));
+            $eval   = $this->evaluateGate($workorder, $icId);
+            $failed = array_values(array_filter($eval['points'], fn ($p) => !$p['pass']));
+            $failedRuleIds = array_values(array_filter(array_map(fn ($p) => $p['rule_id'], $failed)));
             if (!empty($failedRuleIds)) {
                 $failedRpIds = \App\Models\ManualParameterRuleProcess::whereIn('repair_rule_id', $failedRuleIds)
                     ->pluck('id')->map(fn ($i) => (int) $i)->all();
@@ -735,15 +734,29 @@ class WoMeasurementController extends Controller
                 }
             }
 
+            // Reason note (auto from the failed checks) for the EC process.
+            $reasons = array_filter(array_map(function ($p) {
+                $code = trim((string) ($p['pt_codes'] ?? ''));
+                $desc = trim((string) ($p['description'] ?? ''));
+                $val  = $p['final_value'] !== null ? $this->fmtDim((float) $p['final_value']) : '';
+
+                return trim(($code ? $code . ' ' : '') . $desc . ($val !== '' ? ' = ' . $val : ''));
+            }, $failed));
+            $reasonNote = $reasons ? ('Out of limit: ' . implode('; ', $reasons)) : 'EC';
+
             // Typical/pre-approved EC: processes are known and the concession is
-            // routinely granted → keep working (post+finish proceed). Otherwise
-            // hold everything after the NDT gate until the concession is granted.
+            // routinely granted → keep working. Otherwise freeze everything AFTER the
+            // gate anchor (is_gate process); fallback to stage post+finish when none set.
             $typical = (bool) ($data['ec_typical'] ?? false);
             if (!$typical) {
-                TdrProcess::where('tdrs_id', $tdr->id)
-                    ->whereIn('process_names_id', $this->heldOnEcProcessNameIds())
-                    ->whereNull('date_start')
-                    ->delete();
+                $gateSort = $this->gateAnchorSort($icId, $tdr->id);
+                $q = TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start');
+                if ($gateSort !== null) {
+                    $q->where('sort_order', '>', $gateSort);
+                } else {
+                    $q->whereIn('process_names_id', $this->heldOnEcProcessNameIds());
+                }
+                $q->delete();
             }
             // Add the EC process (companion to Machining (EC); read by SP Form / TDR-print).
             $ecNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
@@ -754,7 +767,7 @@ class WoMeasurementController extends Controller
                     'process_names_id'   => $ecNameId,
                     'processes'          => [],
                     'rule_process_ids'   => [],
-                    'description'        => $typical ? 'Typical EC' : '',
+                    'description'        => $typical ? ('Typical EC — ' . $reasonNote) : $reasonNote,
                     'sort_order'         => $maxSort + 1,
                     'in_traveler'        => false,
                     'ec'                 => 1,
@@ -895,6 +908,32 @@ class WoMeasurementController extends Controller
     {
         return \App\Models\ProcessName::whereIn('stage', ['post', 'finish'])
             ->pluck('id')->map(fn($id) => (int) $id)->all();
+    }
+
+    /**
+     * sort_order of the gate-anchor process (is_gate on a repair rule) in this TDR —
+     * everything after it is frozen on EC. Null when no anchor is set (→ fallback to stage).
+     */
+    private function gateAnchorSort(int $icId, int $tdrId): ?int
+    {
+        $partParamIds = ManualParameter::where('inspection_component_id', $icId)->pluck('id');
+        $partRuleIds  = \App\Models\ManualParameterRepairRule::whereIn('manual_parameter_id', $partParamIds)->pluck('id');
+        $gateRp = \App\Models\ManualParameterRuleProcess::whereIn('repair_rule_id', $partRuleIds)
+            ->where('is_gate', true)
+            ->with('manualProcess.process')
+            ->first();
+        $gateNameId = $gateRp?->manualProcess?->process?->process_names_id;
+        if (!$gateNameId) {
+            return null;
+        }
+        $sort = TdrProcess::where('tdrs_id', $tdrId)->where('process_names_id', $gateNameId)->min('sort_order');
+
+        return $sort === null ? null : (int) $sort;
+    }
+
+    private function fmtDim(float $v): string
+    {
+        return rtrim(rtrim(number_format($v, 4, '.', ''), '0'), '.');
     }
 
     /**
