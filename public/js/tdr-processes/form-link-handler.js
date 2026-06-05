@@ -93,27 +93,23 @@ class FormLinkHandler {
     // Falls back to opening the PDF if the print frame can't be reached.
     function printPdf(url) {
         const ifr = document.createElement('iframe');
-        ifr.style.position = 'fixed';
-        ifr.style.right = '0';
-        ifr.style.bottom = '0';
-        ifr.style.width = '0';
-        ifr.style.height = '0';
-        ifr.style.border = '0';
+        ifr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
         let printed = false;
         ifr.onload = function () {
+            // Ignore the initial about:blank load — only print once the PDF is in.
+            try { if (ifr.contentWindow.location.href === 'about:blank') return; } catch (e) { /* cross-origin: proceed */ }
             try {
                 ifr.contentWindow.focus();
                 ifr.contentWindow.print();
                 printed = true;
-                // keep the frame around long enough for the dialog, then drop it
-                setTimeout(function () { ifr.remove(); }, 60000);
+                setTimeout(function () { ifr.remove(); }, 60000); // keep around for the dialog
             } catch (err) {
                 ifr.remove();
                 window.open(url, '_blank');
             }
         };
+        ifr.src = url;                    // set src BEFORE append → only the PDF triggers onload
         document.body.appendChild(ifr);
-        ifr.src = url;
         // safety net: if onload never fires (blocked), open the viewer
         setTimeout(function () { if (!printed && ifr.isConnected) { ifr.remove(); window.open(url, '_blank'); } }, 8000);
     }
