@@ -56,7 +56,7 @@
         <td>{{ format_project_date($line->out_date) ?? '--' }}</td>
         <td>{{ format_project_date($line->returned_date) ?? '--' }}</td>
         <td>{{ $target }}</td>
-        <td class="quantum-buffer-message js-quantum-message-cell">{{ $line->apply_message ?: 'Not parsed yet.' }}</td>
+        <td class="quantum-buffer-message js-quantum-message-cell">@include('admin.vendor_tracking.partials.quantum_message', ['line' => $line])</td>
         <td class="quantum-buffer-action-col js-quantum-action-cell">
             @if($statusLabel === 'dismissed')
                 <button

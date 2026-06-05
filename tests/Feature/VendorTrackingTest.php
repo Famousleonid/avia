@@ -107,7 +107,7 @@ class VendorTrackingTest extends TestCase
             'wo_number' => 'W107616',
             'bom_ref' => 'BAD',
             'apply_status' => 'unresolved',
-            'apply_message' => 'No target process',
+            'apply_message' => 'No STD process target for WO W107616, PN NDT',
             'qty_repair' => '1.0000',
             'qty_reserved' => '1.0000',
             'qty_repaired' => '0.0000',
@@ -161,6 +161,8 @@ class VendorTrackingTest extends TestCase
             ->assertSee('unresolved')
             ->assertSee('<td class="text-nowrap">', false)
             ->assertSee('qty - 1 / 1 / 0', false)
+            ->assertSee('<span class="quantum-message-info">No STD process target</span>', false)
+            ->assertSee('<span class="quantum-message-wo">W107616</span>', false)
             ->assertDontSee('To Repair:')
             ->assertDontSee('Reserved:')
             ->assertDontSee('Repaired:')

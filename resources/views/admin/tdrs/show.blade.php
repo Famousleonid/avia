@@ -328,7 +328,7 @@
         }
 
         /* Edit Part Process and related modals (iframe) - ensure on top */
-        #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal, #partProcessesGroupFormsModal {
+        #editTdrProcessModal, #editExtraProcessModal, #addExtraProcessModal, #addExtraPartModal, #editBushingModal, #addProcessesModal, #addPartModal, #changeSnModal {
             z-index: 1080 !important;
         }
 
@@ -336,28 +336,8 @@
             z-index: 1090 !important;
         }
 
-        #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop, #partProcessesGroupFormsModal ~ .modal-backdrop {
+        #editTdrProcessModal ~ .modal-backdrop, #editExtraProcessModal ~ .modal-backdrop, #addExtraProcessModal ~ .modal-backdrop, #addExtraPartModal ~ .modal-backdrop, #editBushingModal ~ .modal-backdrop, #addProcessesModal ~ .modal-backdrop, #addPartModal ~ .modal-backdrop, #changeSnModal ~ .modal-backdrop {
             z-index: 1075 !important;
-        }
-
-        #partProcessesGroupFormsModal .modal-dialog {
-            max-height: 80vh;
-            margin: 1.75rem auto;
-        }
-
-        #partProcessesGroupFormsModal .modal-content {
-            max-height: 80vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #partProcessesGroupFormsModal .modal-header {
-            flex-shrink: 0;
-        }
-
-        #partProcessesGroupFormsModal .modal-body {
-            overflow-y: auto;
-            min-height: 0;
         }
 
         /* Part / Extra processes (AJAX block) — заметнее подсветка строки при наведении */
@@ -770,14 +750,6 @@
                     </div>
                     <div id="partProcessesShortcutActions" class="d-none d-flex gap-2 align-items-center ms-auto"
                          style="margin-right: 50px;">
-                        @if(count($processParts))
-                            <button type="button"
-                                    class="btn btn-outline-primary btn-sm"
-                                    id="tab-all-parts-processes"
-                                    data-process-shortcut-target="#content-all-parts-processes">
-                                {{ __('All Parts Processes') }}
-                            </button>
-                        @endif
                         <button type="button"
                                 class="btn btn-outline-primary btn-sm"
                                 id="tab-extra-parts-processes"
@@ -786,15 +758,6 @@
                             {{ __('Fix fuckup') }}{{ ($hasExtraProcessRecords ?? false) ? ' *' : '' }}
                         </button>
                     </div>
-                    @if(count($processParts))
-                        <div id="allPartsGroupFormsTabActions" class="d-none d-flex gap-2 align-items-center">
-                            <button type="button" class="btn btn-outline-primary btn-sm d-none"
-                                    id="allPartsGroupFormsBtn"
-                                    data-bs-toggle="modal" data-bs-target="#groupFormsModal">
-                                <i class="fas fa-print"></i> {{ __('Group Process Forms') }}
-                            </button>
-                        </div>
-                    @endif
                     @if($showLogCardTab ?? false)
                         <div id="logCardTabActions" class="d-none d-flex gap-2 align-items-center flex-wrap"
                              style="margin-right: 100px;">
@@ -876,13 +839,6 @@
                                         SN: <span id="compProcessesSn">-</span>
                                     </small>
                                 </div>
-                                <div class="d-flex gap-2 ms-md-auto flex-wrap align-items-center">
-                                    <button type="button" class="btn btn-outline-primary btn-sm d-none"
-                                            id="compProcessesGroupFormsBtn"
-                                            data-bs-toggle="modal" data-bs-target="#partProcessesGroupFormsModal">
-                                        <i class="fas fa-print"></i> {{ __('Group Process Forms') }}
-                                    </button>
-                                </div>
                             </div>
                             <div class="card-body p-2" id="componentProcessesTabBody">
                                 <div
@@ -900,14 +856,6 @@
                         </div>
                     </div>
 
-                    <div class="tab-pane fade" id="content-all-parts-processes" role="tabpanel">
-                        <div class="card bg-gradient h-100">
-                            <div class="card-body p-1 overflow-auto" id="allPartsProcessesTabBody"
-                                 style="height: calc(100vh - 280px); min-height: 600px;">
-                                <div class="text-center py-5 text-muted">{{ __('Loading...') }}</div>
-                            </div>
-                        </div>
-                    </div>
                     <div class="tab-pane fade" id="content-extra-parts-processes" role="tabpanel">
                         <div class="card bg-gradient h-100">
                             <div class="card-body p-2 overflow-auto" id="extraPartsProcessesTabBody"

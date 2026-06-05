@@ -964,8 +964,23 @@
         }
 
         .quantum-buffer-message {
+            color: #64748b;
             max-width: 340px;
             white-space: normal;
+        }
+
+        .quantum-buffer-message .quantum-message-muted {
+            color: #64748b;
+        }
+
+        .quantum-buffer-message .quantum-message-info {
+            color: #0dcaf0;
+            font-weight: 400;
+        }
+
+        .quantum-buffer-message .quantum-message-wo {
+            color: #ffffff;
+            font-weight: 400;
         }
 
         .vendor-tracking-page .table-responsive {
@@ -1338,6 +1353,11 @@
         html[data-bs-theme="dark"] .quantum-buffer-table th {
             background: #1f2329;
             color: #adb5bd;
+        }
+
+        html[data-bs-theme="dark"] .quantum-buffer-message,
+        html[data-bs-theme="dark"] .quantum-buffer-message .quantum-message-muted {
+            color: #94a3b8;
         }
 
         html[data-bs-theme="dark"] .quantum-buffer-splitter {
@@ -1900,7 +1920,7 @@
                                                     {{ $line->apply_status ?: 'pending' }}
                                                 </span>
                                             </td>
-                                            <td class="quantum-buffer-message">{{ $line->apply_message ?: 'Not parsed yet.' }}</td>
+                                            <td class="quantum-buffer-message">@include('admin.vendor_tracking.partials.quantum_message', ['line' => $line])</td>
                                             <td>{{ $line->ro_number ?: '--' }}</td>
                                             <td>{{ $line->wo_number ?: '--' }}</td>
                                             <td>{{ $line->vendor_name ?: '--' }}</td>
@@ -2916,6 +2936,69 @@
                 quantumWorkorderSearchStatus.textContent = message || '';
             };
 
+            const escapeQuantumMessageHtml = function (value) {
+                return String(value ?? '').replace(/[&<>"']/g, function (char) {
+                    return {
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#039;',
+                    }[char];
+                });
+            };
+
+            const renderQuantumMessageHtml = function (message) {
+                const text = String(message || 'Not parsed yet.');
+                const importantPhrases = [
+                    'WO not found: old',
+                    'Workorder not found',
+                    'WO not found',
+                    'Unsupported Quantum PN',
+                    'Missing REF',
+                    'No STD process target',
+                    'Multiple STD process targets',
+                    'Vendor not found',
+                    'Bushing REF must be batch',
+                    'No bushing batches',
+                    'Bushing batch not found',
+                    'No process_names.code matched REF',
+                    'Multiple process_names.code matched REF',
+                    'No TDR process target',
+                    'Multiple TDR process targets',
+                    'No target process',
+                    'Applied',
+                    'Already current',
+                    'Dismissed by user',
+                    'Restored by user',
+                ];
+                const escapeRegExp = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const phrasePattern = importantPhrases.map(escapeRegExp).join('|');
+                const woPattern = '\\bW\\d{5,}\\b';
+                const combinedPattern = new RegExp('(' + phrasePattern + '|' + woPattern + ')', 'gi');
+                const woOnlyPattern = new RegExp('^(?:' + woPattern + ')$', 'i');
+                let html = '';
+                let lastIndex = 0;
+
+                text.replace(combinedPattern, function (match, _captured, offset) {
+                    if (offset > lastIndex) {
+                        html += '<span class="quantum-message-muted">' + escapeQuantumMessageHtml(text.slice(lastIndex, offset)) + '</span>';
+                    }
+
+                    const className = woOnlyPattern.test(match) ? 'quantum-message-wo' : 'quantum-message-info';
+                    html += '<span class="' + className + '">' + escapeQuantumMessageHtml(match) + '</span>';
+                    lastIndex = offset + match.length;
+
+                    return match;
+                });
+
+                if (lastIndex < text.length) {
+                    html += '<span class="quantum-message-muted">' + escapeQuantumMessageHtml(text.slice(lastIndex)) + '</span>';
+                }
+
+                return html || '<span class="quantum-message-muted">Not parsed yet.</span>';
+            };
+
             const quantumRowByLineId = function (lineId) {
                 if (!quantumRecentBody || !lineId) {
                     return null;
@@ -3033,7 +3116,7 @@
                         }
 
                         if (messageCell && line.message) {
-                            messageCell.textContent = line.message;
+                            messageCell.innerHTML = renderQuantumMessageHtml(line.message);
                         }
 
                         const actionCell = recentRow.querySelector('.js-quantum-action-cell');
@@ -3116,7 +3199,7 @@
                     }
 
                     if (messageCell && line.message) {
-                        messageCell.textContent = line.message;
+                        messageCell.innerHTML = renderQuantumMessageHtml(line.message);
                     }
 
                     if (actionCell) {

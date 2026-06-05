@@ -807,7 +807,7 @@ class WoBushingController extends Controller
         $current_wo = Workorder::findOrFail($woBushing->workorder_id);
         $processName = ProcessName::findOrFail($processNameId);
 
-        if (empty($processName->process_sheet_name)) {
+        if (!ProcessName::canPrintProcessForm($processName)) {
             return redirect()->back()->with('error', __('There is no form for this process.'));
         }
 
@@ -930,7 +930,7 @@ class WoBushingController extends Controller
                 'NDT-4',
                 'Eddy Current Test',
                 'BNI'
-            ])->pluck('id', 'name');
+            ])->where('print_form', true)->pluck('id', 'name');
 
             $ndt_ids = [
                 'ndt1_name_id' => $processNames['NDT-1'] ?? null,
@@ -956,14 +956,14 @@ class WoBushingController extends Controller
 
             $tableData = [];
             $componentNdtMap = [];
-            
+
             if ($bushData && is_array($bushData)) {
                 foreach ($bushData as $bushItem) {
                     if (isset($bushItem['bushing']) && isset($bushItem['processes']['ndt']) && !empty($bushItem['processes']['ndt'])) {
                         $component = Component::find($bushItem['bushing']);
                         if ($component) {
                             $componentId = $component->id;
-                            
+
                             if (!isset($componentNdtMap[$componentId])) {
                                 $componentNdtMap[$componentId] = [
                                     'component' => $component,
@@ -972,11 +972,11 @@ class WoBushingController extends Controller
                                     'processes' => []
                                 ];
                             }
-                            
-                            $ndtProcessIds = is_array($bushItem['processes']['ndt']) 
-                                ? $bushItem['processes']['ndt'] 
+
+                            $ndtProcessIds = is_array($bushItem['processes']['ndt'])
+                                ? $bushItem['processes']['ndt']
                                 : [$bushItem['processes']['ndt']];
-                            
+
                             foreach ($ndtProcessIds as $ndtProcessId) {
                                 $process = Process::find($ndtProcessId);
                                 if ($process) {
@@ -994,21 +994,21 @@ class WoBushingController extends Controller
                     }
                 }
             }
-            
+
             foreach ($componentNdtMap as $componentData) {
                 if (empty($componentData['ndt_numbers'])) {
                     continue;
                 }
-                
+
                 $ndtNumbers = $componentData['ndt_numbers'];
                 usort($ndtNumbers, function($a, $b) {
                     return (int)$a <=> (int)$b;
                 });
-                
+
                 $combinedNdtNumber = implode(' / ', $ndtNumbers);
-                
+
                 $firstProcess = !empty($componentData['processes']) ? $componentData['processes'][0] : null;
-                
+
                 $tableData[] = [
                     'component' => $componentData['component'],
                     'wo_bushing' => $woBushing,
@@ -1098,7 +1098,7 @@ class WoBushingController extends Controller
     {
         $woBushing = WoBushing::findOrFail($id);
         $current_wo = Workorder::findOrFail($woBushing->workorder_id);
-        
+
         $manual_id = $current_wo->unit->manual_id;
         $components = Component::where('manual_id', $manual_id)->get();
         $manuals = \App\Models\Manual::where('id', $manual_id)->get();

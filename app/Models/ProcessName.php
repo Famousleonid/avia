@@ -72,11 +72,17 @@ class ProcessName extends Model
     }
 
     /**
-     * Нет печатной / групповой формы (EC — служебная строка маршрута, не отправляется на цех).
+     * No printable process form for this process name.
      */
     public static function hasNoProcessForm(?self $processName): bool
     {
-        return $processName !== null && $processName->name === 'EC';
+        return $processName === null || ! (bool) $processName->print_form;
+    }
+
+    public static function canPrintProcessForm(?self $processName): bool
+    {
+        return ! self::hasNoProcessForm($processName)
+            && trim((string) ($processName->process_sheet_name ?? '')) !== '';
     }
 
     public static function isMachiningMachiningEcMergeMember(?self $processName): bool

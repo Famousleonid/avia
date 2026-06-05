@@ -272,7 +272,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/woProcessForm/{id}', [TdrPrintFormController::class, 'wo_Process_Form'])->name('tdrs.woProcessForm');
         Route::get('tdrs/woBoxTitle/{id}', [TdrPrintFormController::class, 'wo_BoxTitle'])->name('tdrs.wo_BoxTitle');
 
-    Route::get('tdrs/processes-partial/{workorder_id}', [TdrController::class, 'processesPartial'])->name('tdrs.processesPartial');
         Route::get('tdrs/log-card-partial/{workorder_id}', [LogCardController::class, 'partial'])->name('log_card.partial');
         Route::get('tdrs/transfers-partial/{workorder}', [TransferController::class, 'partial'])->name('transfers.partial');
 
@@ -568,6 +567,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     Route::get('tdr-processes/processesForm/{id}', [TdrProcessController::class, 'processesForm'])->name('tdr-processes.processesForm');
     Route::get('tdr-processes/travelForm/{id}', [TdrProcessController::class, 'travelForm'])->name('tdr-processes.travelForm');
+    Route::get('tdr-processes/travelerGroupStandardForm/{tdrId}', [TdrProcessController::class, 'travelerGroupStandardForm'])->name('tdr-processes.travelerGroupStandardForm');
 
     Route::get('/tdr/{tdrId}/create-processes', [TdrProcessController::class, 'createProcesses'])->name('tdr-processes.createProcesses');
     Route::get('/tdr/{tdrId}/processes', [TdrProcessController::class, 'processes'])->name('tdr-processes.processes');

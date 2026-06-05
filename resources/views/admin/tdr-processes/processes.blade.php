@@ -524,6 +524,7 @@
                                             || $tdrProcesses->count() === 1
                                             || ! $hasMachiningOrRil
                                         );
+                                        $canPrintForm = \App\Models\ProcessName::canPrintProcessForm($processes->processName);
 
                                         // Проверяем, является ли это NDT процесс с дополнительными процессами
                                         $isNdtWithPlus = false;
@@ -685,21 +686,25 @@
                                                 </form>
                                             </td>
                                             <td class="text-center">
-                                                <div class="d-flex gap-2 justify-content-center">
-                                                    <select class="form-select form-select-sm vendor-select"
-                                                            style="width: 85px"
-                                                            data-tdr-process-id="{{ $processes->id }}">
-                                                        <option value="">Select Vendor</option>
-                                                        @foreach($vendors as $vendor)
-                                                            <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id]) }}"
-                                                       class="btn btn-sm btn-outline-primary form-link"
-                                                       style="width: 60px"
-                                                       data-tdr-process-id="{{ $processes->id }}"
-                                                       target="_blank">{{__('Form')}}</a>
-                                                </div>
+                                                @if($canPrintForm)
+                                                    <div class="d-flex gap-2 justify-content-center">
+                                                        <select class="form-select form-select-sm vendor-select"
+                                                                style="width: 85px"
+                                                                data-tdr-process-id="{{ $processes->id }}">
+                                                            <option value="">Select Vendor</option>
+                                                            @foreach($vendors as $vendor)
+                                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <a href="{{ route('tdr-processes.show', ['tdr_process' => $processes->id]) }}"
+                                                           class="btn btn-sm btn-outline-primary form-link"
+                                                           style="width: 60px"
+                                                           data-tdr-process-id="{{ $processes->id }}"
+                                                           target="_blank">{{__('Form')}}</a>
+                                                    </div>
+                                                @else
+                                                    <div class="d-flex gap-2 justify-content-center"></div>
+                                                @endif
                                             </td>
                                         </tr>
                                     @else
@@ -749,23 +754,27 @@
                                                         </form>
                                                     </td>
                                                     <td class="text-center">
-                                                        <div class="d-flex gap-2 justify-content-center">
-                                                            <select class="form-select form-select-sm vendor-select"
-                                                                    style="width: 85px"
-                                                                    data-tdr-process-id="{{ $processes->id }}"
-                                                                    data-process="{{ $process }}">
-                                                                <option value="">Select Vendor</option>
-                                                                @foreach($vendors as $vendor)
-                                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                            <a href="{{ route('tdr-processes.show', ['tdr_process' =>
-                                                            $processes->id, 'process_id' => $process]) }}" class="btn btn-sm btn-outline-primary form-link"
-                                                               style="width: 60px"
-                                                               data-tdr-process-id="{{ $processes->id }}"
-                                                               data-process="{{ $process }}"
-                                                               target="_blank">{{__('Form')}}</a>
-                                                        </div>
+                                                        @if($canPrintForm)
+                                                            <div class="d-flex gap-2 justify-content-center">
+                                                                <select class="form-select form-select-sm vendor-select"
+                                                                        style="width: 85px"
+                                                                        data-tdr-process-id="{{ $processes->id }}"
+                                                                        data-process="{{ $process }}">
+                                                                    <option value="">Select Vendor</option>
+                                                                    @foreach($vendors as $vendor)
+                                                                        <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                                <a href="{{ route('tdr-processes.show', ['tdr_process' =>
+                                                                $processes->id, 'process_id' => $process]) }}" class="btn btn-sm btn-outline-primary form-link"
+                                                                   style="width: 60px"
+                                                                   data-tdr-process-id="{{ $processes->id }}"
+                                                                   data-process="{{ $process }}"
+                                                                   target="_blank">{{__('Form')}}</a>
+                                                            </div>
+                                                        @else
+                                                            <div class="d-flex gap-2 justify-content-center"></div>
+                                                        @endif
                                                     </td>
                                                 </tr>
                                             @endforeach

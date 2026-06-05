@@ -328,7 +328,7 @@
                             @php
                                 $batchLabels = $batchLabelsByProcess[$hc['key']] ?? [];
                                 $formHref = null;
-                                if ($hc['pn'] && $hc['has'] && !empty($batchLabels)) {
+                                if ($hc['pn'] && \App\Models\ProcessName::canPrintProcessForm($hc['pn']) && $hc['has'] && !empty($batchLabels)) {
                                     $formHref = route('wo_bushings.processesForm', ['id' => $woBushing->id, 'processNameId' => $hc['pn']->id]);
                                 }
                             @endphp

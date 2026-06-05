@@ -88,7 +88,6 @@
     };
 </script>
 @include('admin.tdrs.partials.component-inspection-scripts')
-@include('admin.tdrs.partials.all-parts-group-forms-modal-script')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var tdrShowTabListEl = document.getElementById('tdrShowTabList');
@@ -144,9 +143,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var itemPn = document.getElementById('compProcessesPn');
     var itemSn = document.getElementById('compProcessesSn');
     var addProcessBtn = document.getElementById('compProcessesAddProcessBtn');
-    var compProcessesGroupFormsBtn = document.getElementById('compProcessesGroupFormsBtn');
-    var allPartsProcessesUrl = '{{ route("tdrs.processesPartial", ["workorder_id" => $current_wo->id]) }}';
-    var allPartsBody = document.getElementById('allPartsProcessesTabBody');
     {{-- TODO(tdr-refactor): Replace this hardcoded compatibility URL with route() after route-cache drift is no longer a deploy risk. --}}
     var extraPartsProcessesUrl = @json(url('/extra_processes/partial/'.$current_wo->id));
     var extraPartsBody = document.getElementById('extraPartsProcessesTabBody');
@@ -161,7 +157,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var tabExtraPartsProcessesBtn = document.getElementById('tab-extra-parts-processes');
     var extraGroupFormsHeaderBtn = document.getElementById('extraGroupFormsHeaderBtn');
     var extraPartsTabActions = document.getElementById('extraPartsTabActions');
-    var allPartsGroupFormsTabActions = document.getElementById('allPartsGroupFormsTabActions');
     var logCardTabBody = document.getElementById('logCardTabBody');
     var logCardPartialUrl = '{{ route("log_card.partial", ["workorder_id" => $current_wo->id]) }}';
     var transfersTabBody = document.getElementById('transfersTabBody');
@@ -260,35 +255,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 bodyEl.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }}' +
                     (err && err.message ? ' (' + err.message + ')' : '') +
                     '<br><a class="alert-link" target="_blank" href="' + fetchUrl.replace('&fragment=1', '') + '">{{ __("Open in new tab") }}</a></div>';
-            });
-    }
-
-    function syncAllPartsGroupFormsBtnVisibility() {
-        var btn = document.getElementById('allPartsGroupFormsBtn');
-        if (!btn) return;
-        if (!allPartsBody) {
-            btn.classList.add('d-none');
-            return;
-        }
-        var hasModal = !!allPartsBody.querySelector('#groupFormsModal');
-        if (hasModal) btn.classList.remove('d-none');
-        else btn.classList.add('d-none');
-    }
-
-    function loadAllPartsProcesses() {
-        if (!allPartsBody) return;
-        allPartsBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
-        syncAllPartsGroupFormsBtnVisibility();
-        fetch(allPartsProcessesUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, spinner: false })
-            .then(function(r) { return r.text(); })
-            .then(function(html) {
-                allPartsBody.innerHTML = html;
-                initAllPartsGroupForms(allPartsBody);
-                syncAllPartsGroupFormsBtnVisibility();
-            })
-            .catch(function() {
-                allPartsBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }}</div>';
-                syncAllPartsGroupFormsBtnVisibility();
             });
     }
 
@@ -444,17 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (bushingTabActions) bushingTabActions.classList.add('d-none');
         if (transfersTabActions) transfersTabActions.classList.add('d-none');
 
-        if (targetSelector.indexOf('content-all-parts-processes') !== -1) {
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.remove('d-none');
-            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
-            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
-            syncAllPartsGroupFormsBtnVisibility();
-            if (allPartsBody && !allPartsBody.dataset.loaded) {
-                allPartsBody.dataset.loaded = '1';
-                loadAllPartsProcesses();
-            }
-        } else if (targetSelector.indexOf('content-extra-parts-processes') !== -1) {
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
+        if (targetSelector.indexOf('content-extra-parts-processes') !== -1) {
             if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
             if (extraPartsBody && !extraPartsBody.dataset.loaded) {
                 extraPartsBody.dataset.loaded = '1';
@@ -905,69 +861,6 @@ document.addEventListener('DOMContentLoaded', function() {
             modal.addEventListener('shown.bs.modal', function setZ() { modal.style.zIndex = '1080'; var b = document.querySelectorAll('.modal-backdrop'); if (b.length) b[b.length-1].style.zIndex = '1075'; }, { once: true });
         }
     }
-    function initAllPartsGroupForms(container) {
-        if (typeof window.initAllPartsGroupFormModalRows === 'function') {
-            window.initAllPartsGroupFormModalRows(container);
-        }
-    }
-
-    function initPartProcessesGroupForms(modal) {
-        if (!modal) return;
-        var vendorSelects = modal.querySelectorAll('.vendor-select');
-        var groupFormButtons = modal.querySelectorAll('.group-form-button');
-        var processCheckboxes = modal.querySelectorAll('.process-checkbox');
-        function updateLinkUrl(processNameId) {
-            var link = modal.querySelector('.group-form-button[data-process-name-id="' + processNameId + '"]');
-            if (!link || !link.getAttribute('href')) return;
-            var url = new URL(link.getAttribute('href'), window.location.origin);
-            var existingTdrId = url.searchParams.get('tdrId');
-            if (existingTdrId) {
-                url.searchParams.set('tdrId', existingTdrId);
-            }
-            var vendorSelect = modal.querySelector('.vendor-select[data-process-name-id="' + processNameId + '"]');
-            if (vendorSelect && vendorSelect.value) {
-                url.searchParams.set('vendor_id', vendorSelect.value);
-            } else {
-                url.searchParams.delete('vendor_id');
-            }
-            var checkedBoxes = modal.querySelectorAll('.process-checkbox[data-process-name-id="' + processNameId + '"]:checked');
-            if (checkedBoxes.length > 0) {
-                url.searchParams.set('process_ids', Array.from(checkedBoxes).map(function(cb) { return cb.value; }).join(','));
-            } else {
-                url.searchParams.set('process_ids', '');
-            }
-            link.setAttribute('href', url.toString());
-        }
-        function updateQuantityBadge(processNameId) {
-            var checkedBoxes = modal.querySelectorAll('.process-checkbox[data-process-name-id="' + processNameId + '"]:checked:not([disabled])');
-            var badge = modal.querySelector('.process-qty-badge[data-process-name-id="' + processNameId + '"]');
-            if (badge && checkedBoxes.length > 0) {
-                var totalQty = 0;
-                checkedBoxes.forEach(function(cb) { totalQty += parseInt(cb.getAttribute('data-qty'), 10) || 0; });
-                badge.textContent = totalQty + ' pcs';
-            }
-        }
-        vendorSelects.forEach(function(s) {
-            s.addEventListener('change', function() { updateLinkUrl(s.getAttribute('data-process-name-id')); });
-        });
-        processCheckboxes.forEach(function(c) {
-            c.addEventListener('change', function() {
-                updateLinkUrl(c.getAttribute('data-process-name-id'));
-                updateQuantityBadge(c.getAttribute('data-process-name-id'));
-            });
-        });
-        groupFormButtons.forEach(function(b) {
-            b.addEventListener('click', function() { updateLinkUrl(b.getAttribute('data-process-name-id')); });
-        });
-        groupFormButtons.forEach(function(b) {
-            var pid = b.getAttribute('data-process-name-id');
-            if (pid) {
-                updateLinkUrl(pid);
-                updateQuantityBadge(pid);
-            }
-        });
-    }
-
     function initTravelerGroupHandlers(container) {
         var target = container || body;
         if (!target) return;
@@ -1049,7 +942,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         .then(function(res) {
                             if (res.ok && res.data.success) {
                                 loadProcessesAndBind(tdrId, target);
-                                if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
                             } else {
                                 var ungroupMsg = (res.data && res.data.message) ? res.data.message : '{{ __("Request failed.") }}';
                                 window.tdrShowNotify(ungroupMsg, 'warning');
@@ -1092,7 +984,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function(res) {
                         if (res.ok && res.data.success) {
                             loadProcessesAndBind(tdrId, target);
-                            if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
                         } else if (res.data && res.data.requires_confirmation) {
                             return window.tdrShowConfirm(
                                 res.data.message || '{{ __("Selected values will be cleared before grouping. Continue?") }}',
@@ -1105,7 +996,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                     .then(function(confirmRes) {
                                         if (confirmRes.ok && confirmRes.data.success) {
                                             loadProcessesAndBind(tdrId, target);
-                                            if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
                                         } else {
                                             var confirmMsg = (confirmRes.data && confirmRes.data.message) ? confirmRes.data.message : '{{ __("Request failed.") }}';
                                             window.tdrShowNotify(confirmMsg, 'warning');
@@ -1136,7 +1026,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function(res) {
                         if (res.ok && res.data.success) {
                             loadProcessesAndBind(tdrId, target);
-                            if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
                         } else {
                             var msg2 = (res.data && res.data.message) ? res.data.message : '{{ __("Request failed.") }}';
                             window.tdrShowNotify(msg2, 'warning');
@@ -1182,7 +1071,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (itemPn) itemPn.textContent = '-';
             if (itemSn) itemSn.textContent = '-';
             if (addProcessBtn) { addProcessBtn.dataset.tdrId = tdrId; addProcessBtn.disabled = true; }
-            if (compProcessesGroupFormsBtn) compProcessesGroupFormsBtn.classList.add('d-none');
         }
         var url = processesBodyUrl.replace('__ID__', tdrId);
         url += (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
@@ -1243,18 +1131,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     bindProcessHandlers(wrapper, target);
                     if (typeof FormLinkHandler !== 'undefined') FormLinkHandler.init(target);
                     initTravelerGroupHandlers(target);
-                    if (isTabTarget && compProcessesGroupFormsBtn) {
-                        var processesWrapperForGroup = target.querySelector('.processes-modal-body');
-                        var allowGroupForms = processesWrapperForGroup
-                            && processesWrapperForGroup.getAttribute('data-group-process-forms') === '1';
-                        var partGroupModal = target.querySelector('#partProcessesGroupFormsModal');
-                        if (allowGroupForms && partGroupModal) {
-                            compProcessesGroupFormsBtn.classList.remove('d-none');
-                            initPartProcessesGroupForms(partGroupModal);
-                        } else {
-                            compProcessesGroupFormsBtn.classList.add('d-none');
-                        }
-                    }
                     if (isTabTarget && addProcessBtn) {
                         addProcessBtn.disabled = false;
                         addProcessBtn.onclick = function() {
@@ -1275,7 +1151,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Part Processes fetch failed:', error);
                 target.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load processes.") }}<div class="small mt-1">' + (error && error.message ? error.message : '') + '</div></div>';
                 if (isTabTarget && addProcessBtn) addProcessBtn.disabled = false;
-                if (isTabTarget && compProcessesGroupFormsBtn) compProcessesGroupFormsBtn.classList.add('d-none');
             });
     }
 
@@ -1642,7 +1517,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     window.tdrShowNotify(result.data.message || '{{ __("Process added successfully.") }}', 'success', 2000);
                     loadProcessesAndBind(wrapper.dataset.tdrId, container);
-                    if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
                 })
                 .catch(function(error) {
                     window.tdrShowNotify(error.message || '{{ __("Save failed.") }}', 'error');
@@ -1802,7 +1676,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         .then(function(res) {
                             if (res.ok && res.data.success !== false) {
                                 loadProcessesAndBind(tdrId, target);
-                                if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
                             } else {
                                 var dm = (res.data && res.data.message) ? res.data.message : '{{ __("Delete failed.") }}';
                                 window.tdrShowNotify(dm, 'warning');
@@ -1830,22 +1703,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (tabBtn) {
                 var tab = new bootstrap.Tab(tabBtn);
                 tab.show();
-            }
-        });
-    }
-    if (allPartsBody) {
-        allPartsBody.addEventListener('click', function(e) {
-            var btn = e.target.closest('.open-part-processes-tab');
-            if (!btn || !btn.dataset.tdrId) return;
-            if (tabLi) tabLi.classList.remove('d-none');
-            syncPartProcessesShortcutActions();
-            var shouldOpenInlineAdd = btn.dataset.openInlineProcessAdd === '1';
-            var loading = loadProcessesAndBind(btn.dataset.tdrId);
-            if (tabBtn) { var tab = new bootstrap.Tab(tabBtn); tab.show(); }
-            if (shouldOpenInlineAdd && loading && typeof loading.then === 'function') {
-                loading.then(function() {
-                    body?.querySelector('[data-inline-process-add]')?.click();
-                });
             }
         });
     }
@@ -2553,12 +2410,12 @@ document.addEventListener('DOMContentLoaded', function() {
         var target = (e.target.getAttribute && e.target.getAttribute('data-bs-target')) || (e.target.getAttribute && e.target.getAttribute('href'));
         var targetName = target ? String(target) : '';
         showOnlyTdrTabPane(targetName);
-        if (targetName.indexOf('content-all-parts-processes') === -1 && targetName.indexOf('content-extra-parts-processes') === -1) {
+        if (targetName.indexOf('content-extra-parts-processes') === -1) {
             syncProcessShortcutButtonState('');
         }
         if (target && targetName.indexOf('content-part-processes') !== -1) {
             syncPartProcessesShortcutActions();
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
+            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
@@ -2566,24 +2423,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (rmReportsTabBody) rmReportsTabBody.dataset.loaded = '';
             return;
         }
-        if (target && targetName.indexOf('content-all-parts-processes') !== -1) {
-            syncProcessShortcutButtonState('#content-all-parts-processes');
-            if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.remove('d-none');
-            if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
-            if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
-            if (logCardTabActions) logCardTabActions.classList.add('d-none');
-            if (bushingTabActions) bushingTabActions.classList.add('d-none');
-            if (transfersTabActions) transfersTabActions.classList.add('d-none');
-            syncAllPartsGroupFormsBtnVisibility();
-            if (allPartsBody && !allPartsBody.dataset.loaded) {
-                allPartsBody.dataset.loaded = '1';
-                loadAllPartsProcesses();
-            }
-        } else if (target && targetName.indexOf('content-extra-parts-processes') !== -1) {
+        if (target && targetName.indexOf('content-extra-parts-processes') !== -1) {
             syncProcessShortcutButtonState('#content-extra-parts-processes');
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.remove('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
@@ -2597,7 +2439,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } else if (target && String(target).indexOf('content-log-card') !== -1) {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (bushingTabActions) bushingTabActions.classList.add('d-none');
@@ -2609,7 +2450,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } else if (target && String(target).indexOf('content-bushing') !== -1) {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
@@ -2621,7 +2461,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } else if (target && String(target).indexOf('content-rm-reports') !== -1) {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
@@ -2633,7 +2472,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } else if (target && String(target).indexOf('content-transfers') !== -1) {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
@@ -2645,7 +2483,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } else if (target && String(target).indexOf('content-extra-processes') !== -1) {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
@@ -2653,7 +2490,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (transfersTabActions) transfersTabActions.classList.add('d-none');
         } else {
             if (partProcessesShortcutActions) partProcessesShortcutActions.classList.add('d-none');
-            if (allPartsGroupFormsTabActions) allPartsGroupFormsTabActions.classList.add('d-none');
             if (extraGroupFormsHeaderBtn) extraGroupFormsHeaderBtn.classList.add('d-none');
             if (extraPartsTabActions) extraPartsTabActions.classList.add('d-none');
             if (logCardTabActions) logCardTabActions.classList.add('d-none');
@@ -2838,7 +2674,6 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('message', function(e) {
         if (e.data && e.data.type === 'createProcessSuccess' && e.data.tdrId) {
             loadProcessesAndBind(e.data.tdrId, activeProcessesContainer || body);
-            if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
             window.tdrShowNotify(e.data.message || '{{ __("Process added successfully.") }}', 'success', 2500);
         } else if (e.data && e.data.type === 'createProcessCancel') {
             return;
@@ -2848,7 +2683,6 @@ document.addEventListener('DOMContentLoaded', function() {
             var ifr = document.getElementById('editTdrProcessIframe');
             if (ifr) ifr.src = 'about:blank';
             loadProcessesAndBind(e.data.tdrId, activeProcessesContainer || body);
-            if (allPartsBody && allPartsBody.dataset.loaded) loadAllPartsProcesses();
             window.tdrShowNotify(e.data.message || '{{ __("Process updated successfully.") }}', 'success', 2500);
         } else if (e.data && e.data.type === 'editProcessCancel') {
             var m = bootstrap.Modal.getInstance(document.getElementById('editTdrProcessModal'));

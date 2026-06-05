@@ -137,9 +137,11 @@ class WoBushingSortingTest extends TestCase
             [
                 'process_sheet_name' => 'CAD',
                 'form_number' => '014',
+                'print_form' => true,
                 'show_in_process_picker' => true,
             ]
         );
+        $processName->forceFill(['print_form' => true])->save();
         $process = Process::query()->create([
             'process_names_id' => $processName->id,
             'process' => 'CAD plating',
@@ -279,9 +281,11 @@ class WoBushingSortingTest extends TestCase
             [
                 'process_sheet_name' => 'NDT',
                 'form_number' => 'NDT',
+                'print_form' => true,
                 'show_in_process_picker' => true,
             ]
         );
+        $name->forceFill(['print_form' => true])->save();
 
         $process = Process::query()->create([
             'process_names_id' => $name->id,

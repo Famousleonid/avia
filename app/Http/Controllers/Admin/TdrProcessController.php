@@ -536,6 +536,206 @@ class TdrProcessController extends Controller
         ));
     }
 
+    public function travelerGroupStandardForm(Request $request, $tdrId)
+    {
+        $current_tdr = Tdr::with(['component', 'workorder.unit'])->findOrFail($tdrId);
+        $current_wo = $current_tdr->workorder;
+
+        if (!$current_wo) {
+            abort(404);
+        }
+
+        $travelerGroup = (int) $request->query('traveler_group', 0);
+        if ($travelerGroup < 1) {
+            abort(400, 'Traveler group is required');
+        }
+
+        $manual_id = $this->getManualIdForTdr($current_tdr->id);
+        if (!$manual_id) {
+            abort(404, 'Manual not found for component or workorder');
+        }
+
+        $selectedVendor = $request->filled('vendor_id')
+            ? Vendor::find((int) $request->query('vendor_id'))
+            : null;
+
+        $travelerProcesses = TdrProcess::with(['tdr.component', 'processName'])
+            ->where('tdrs_id', $current_tdr->id)
+            ->where('ignore_row', false)
+            ->where('in_traveler', true)
+            ->where('traveler_group', $travelerGroup)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        $groups = [];
+        foreach ($travelerProcesses as $tdrProcess) {
+            $processName = $tdrProcess->processName;
+            if (!ProcessName::canPrintProcessForm($processName)) {
+                continue;
+            }
+
+            $catalogProcessIds = TdrProcess::normalizeStoredProcessIds($tdrProcess->processes);
+            if (count($catalogProcessIds) === 0) {
+                continue;
+            }
+
+            $groupKey = $this->travelerStandardFormGroupKey($processName);
+            if (!isset($groups[$groupKey])) {
+                $displayProcessName = $this->travelerStandardFormDisplayProcessName($processName);
+                $groups[$groupKey] = [
+                    'process_name' => $displayProcessName,
+                    'source_process_name_id' => (int) $processName->id,
+                    'is_machining_merge' => ProcessName::isMachiningMachiningEcMergeMember($processName),
+                    'tdr_processes' => collect(),
+                ];
+            }
+
+            $groups[$groupKey]['tdr_processes']->push($tdrProcess);
+        }
+
+        if (count($groups) === 0) {
+            abort(400, 'No valid processes found for this Traveler group');
+        }
+
+        $components = Component::where('manual_id', $manual_id)->get();
+        $manuals = Manual::where('id', $manual_id)->get();
+        $manualProcesses = ManualProcess::where('manual_id', $manual_id)->pluck('processes_id');
+        $formsData = [];
+
+        foreach ($groups as $group) {
+            $processName = $group['process_name'];
+            $groupTdrProcesses = $group['tdr_processes']->values();
+            $assignedCatalogProcessIds = $groupTdrProcesses
+                ->flatMap(fn (TdrProcess $tp) => TdrProcess::normalizeStoredProcessIds($tp->processes))
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->filter()
+                ->values()
+                ->all();
+
+            if (count($assignedCatalogProcessIds) === 0) {
+                continue;
+            }
+
+            $baseData = [
+                'module' => 'tdr-processes',
+                'current_wo' => $current_wo,
+                'components' => $components,
+                'tdrs' => [$current_tdr->id],
+                'manuals' => $manuals,
+                'manual_id' => $manual_id,
+                'process_name' => $processName,
+                'selectedVendor' => $selectedVendor,
+                'current_tdr' => $current_tdr,
+                'component' => $current_tdr->component ?? (object) [
+                    'name' => 'N/A',
+                    'part_number' => 'N/A',
+                    'ipl_num' => 'N/A',
+                ],
+                'machining_header_manual_libs' => $this->machiningHeaderManualLibsForWorkorder($processName, (int) $current_wo->id),
+            ];
+
+            if ($processName->process_sheet_name === 'NDT') {
+                $processNames = ProcessName::whereIn('name', [
+                    'NDT-1', 'NDT-2', 'NDT-3', 'NDT-4', 'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8',
+                    'Eddy Current Test', 'BNI'
+                ])->where('print_form', true)->pluck('id', 'name');
+
+                $ndt_ids = [
+                    'ndt1_name_id' => $processNames['NDT-1'] ?? null,
+                    'ndt2_name_id' => $processNames['NDT-2'] ?? null,
+                    'ndt3_name_id' => $processNames['NDT-3'] ?? null,
+                    'ndt4_name_id' => $processNames['NDT-4'] ?? null,
+                    'ndt5_name_id' => $processNames['BNI'] ?? $processNames['NDT-5'] ?? null,
+                    'ndt6_name_id' => $processNames['Eddy Current Test'] ?? $processNames['NDT-6'] ?? null,
+                    'ndt7_name_id' => $processNames['NDT-7'] ?? null,
+                    'ndt8_name_id' => $processNames['NDT-8'] ?? null,
+                ];
+                $ndt_ids_filtered = array_filter($ndt_ids);
+
+                $ndt_processes = Process::whereIn('id', $manualProcesses)
+                    ->whereIn('id', $assignedCatalogProcessIds)
+                    ->whereIn('process_names_id', $ndt_ids_filtered)
+                    ->get();
+
+                $formsData[] = array_merge($baseData, [
+                    'ndt_processes' => $ndt_processes,
+                    'ndt_components' => $groupTdrProcesses,
+                    'current_ndt_id' => $processName->id,
+                ], $ndt_ids);
+
+                continue;
+            }
+
+            $processComponentsQuery = Process::whereIn('id', $manualProcesses)
+                ->whereIn('id', $assignedCatalogProcessIds);
+
+            if ($group['is_machining_merge']) {
+                $machiningMergeNameIds = ProcessName::machiningMachiningEcMergeProcessNameIds();
+                $processComponentsQuery->whereIn('process_names_id', $machiningMergeNameIds);
+            } else {
+                $processComponentsQuery->where('process_names_id', $group['source_process_name_id']);
+            }
+
+            $process_tdr_components = collect();
+            foreach ($groupTdrProcesses as $tdrProcess) {
+                $filteredJson = array_values(array_filter(
+                    TdrProcess::normalizeStoredProcessIds($tdrProcess->processes),
+                    static fn ($pid) => in_array((int) $pid, $assignedCatalogProcessIds, true)
+                ));
+
+                if (count($filteredJson) === 0) {
+                    continue;
+                }
+
+                $clone = clone $tdrProcess;
+                $clone->setAttribute('processes', $filteredJson);
+                $process_tdr_components->push($clone);
+            }
+
+            $formsData[] = array_merge($baseData, [
+                'process_components' => $processComponentsQuery->get(),
+                'process_tdr_components' => $process_tdr_components,
+            ]);
+        }
+
+        if (count($formsData) === 0) {
+            abort(400, 'No valid processes found');
+        }
+
+        if (count($formsData) === 1) {
+            return view('admin.tdr-processes.processesForm', $formsData[0]);
+        }
+
+        return view('admin.tdr-processes.packageForms', [
+            'formsData' => $formsData,
+            'current_tdr' => $current_tdr,
+        ]);
+    }
+
+    private function travelerStandardFormGroupKey(ProcessName $processName): string
+    {
+        if ($processName->process_sheet_name === 'NDT') {
+            return 'SHEET:NDT';
+        }
+
+        if (ProcessName::isMachiningMachiningEcMergeMember($processName)) {
+            return ProcessName::GROUP_KEY_MERGE_MACHINING_MEC;
+        }
+
+        return 'PROCESS_NAME:' . (int) $processName->id;
+    }
+
+    private function travelerStandardFormDisplayProcessName(ProcessName $processName): ProcessName
+    {
+        if (ProcessName::isMachiningMachiningEcMergeMember($processName)) {
+            return ProcessName::machiningMachiningEcRepresentative() ?? $processName;
+        }
+
+        return $processName;
+    }
+
     public function processesForm(Request $request, $id)
     {
         // Загрузка Workorder с необходимыми отношениями
@@ -551,11 +751,7 @@ class TdrProcessController extends Controller
         $processes_name_id = $request->input('process_name_id');
         $process_name = ProcessName::findOrFail($processes_name_id);
 
-        if (ProcessName::hasNoProcessForm($process_name)) {
-            return redirect()->back()->with('error', __('There is no process form for EC.'));
-        }
-
-        if (empty($process_name->process_sheet_name)) {
+        if (!ProcessName::canPrintProcessForm($process_name)) {
             return redirect()->back()->with('error', __('There is no form for this process.'));
         }
 
@@ -578,7 +774,7 @@ class TdrProcessController extends Controller
                 'NDT-1', 'NDT-2', 'NDT-3', 'NDT-4', 'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8',
                 'Eddy Current Test',
                 'BNI'
-            ])->pluck('id', 'name');
+            ])->where('print_form', true)->pluck('id', 'name');
 
             // Извлекаем ID по именам (Eddy Current = #6, BNI = #5)
             $ndt_ids = [
@@ -680,8 +876,8 @@ class TdrProcessController extends Controller
 
         // Получаем связанные данные через отношения
         $process_name = $current_tdrs_process->processName;
-        if (ProcessName::hasNoProcessForm($process_name)) {
-            abort(404, __('There is no process form for EC.'));
+        if (!ProcessName::canPrintProcessForm($process_name)) {
+            abort(404, __('There is no process form for this process.'));
         }
         $current_tdr = $current_tdrs_process->tdr;
         $current_wo = $current_tdr->workorder;
@@ -715,7 +911,7 @@ class TdrProcessController extends Controller
             $processNames = ProcessName::whereIn('name', [
                 'NDT-1', 'NDT-2', 'NDT-3', 'NDT-4', 'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8',
                 'Eddy Current Test', 'BNI'
-            ])->pluck('id', 'name');
+            ])->where('print_form', true)->pluck('id', 'name');
 
             $ndt_ids = [
                 'ndt1_name_id' => $processNames['NDT-1'] ?? null,
@@ -850,7 +1046,7 @@ class TdrProcessController extends Controller
                 }
 
                 $processName = $tdrProcess->processName;
-                if (ProcessName::hasNoProcessForm($processName)) {
+                if (!ProcessName::canPrintProcessForm($processName)) {
                     continue;
                 }
 
@@ -2387,7 +2583,7 @@ class TdrProcessController extends Controller
             }
 
             $process_name = $tdrProcess->processName;
-            if (ProcessName::hasNoProcessForm($process_name)) {
+            if (!ProcessName::canPrintProcessForm($process_name)) {
                 continue;
             }
             $selectedVendor = $vendorId ? Vendor::find($vendorId) : null;
@@ -2411,7 +2607,7 @@ class TdrProcessController extends Controller
                 $processNames = ProcessName::whereIn('name', [
                     'NDT-1', 'NDT-2', 'NDT-3', 'NDT-4', 'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8',
                     'Eddy Current Test', 'BNI'
-                ])->pluck('id', 'name');
+                ])->where('print_form', true)->pluck('id', 'name');
 
                 $ndt_ids = [
                     'ndt1_name_id' => $processNames['NDT-1'] ?? null,

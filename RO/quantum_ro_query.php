@@ -31,7 +31,7 @@ function buildQuantumRoQuery(array $params): array
     //
     // Current parser routing hint:
     // - PN = NDT or CAD Plate means STD/list bucket
-    // - PN = NDTB, CADB, Anodizing, Passivation means bushing batch bucket
+    // - PN = NDTB, CADB, CAD Plate B, Anodizing, Passivation means bushing batch bucket
     // - PN = real part number means detail/part matching candidate
     //
     // PN/DESC/CLASS are returned as separate columns for easier XLS filtering.
@@ -68,7 +68,7 @@ SELECT
             THEN 'STD_LIST_NDT'
         WHEN REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '') IN ('CAD', 'CADPLATE')
             THEN 'STD_LIST_CAD'
-        WHEN REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '') IN ('NDTB', 'CADB', 'ANODIZING', 'ANODISING', 'PASSIVATION')
+        WHEN REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '') IN ('NDTB', 'CADB', 'CADPLATEB', 'ANODIZING', 'ANODISING', 'PASSIVATION')
             THEN 'BUSHING_' || REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '')
         WHEN REGEXP_LIKE(pm_rd.PN, '[[:digit:]]') THEN 'DETAIL_PART'
         WHEN pm_rd.PN IS NOT NULL THEN 'UNSUPPORTED_PN'

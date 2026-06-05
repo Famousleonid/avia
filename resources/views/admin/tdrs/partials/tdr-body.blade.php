@@ -19,6 +19,10 @@
         text-overflow: ellipsis;
     }
 
+    #tdr_process_Table col.tdr-action-col {
+        width: 144px;
+    }
+
     #tdr_process_Table th:not(:last-child),
     #tdr_process_Table td:not(:last-child) {
         white-space: nowrap;
@@ -112,7 +116,7 @@
     }
 
     .tdr-show-right-table-wrapper {
-        max-height: 60vh;
+        max-height: calc(96dvh - 150px);
         min-width: 0;
         width: 100%;
         overflow-y: auto;
@@ -186,26 +190,55 @@
     }
 
     #tdr_process_Table .tdr-action-cell {
-        padding-left: 3px;
-        padding-right: 3px;
+        min-width: 144px;
+        overflow: visible;
+        padding: 4px 8px;
+        text-overflow: clip;
+    }
+
+    #tdr_process_Table .tdr-action-cell > .d-flex {
+        align-items: center;
+        gap: 6px;
     }
 
     #tdr_process_Table .tdr-action-cell .btn {
-        --bs-btn-padding-x: .28rem;
-        --bs-btn-padding-y: .16rem;
-        font-size: .78rem;
+        --bs-btn-padding-x: 0;
+        --bs-btn-padding-y: 0;
+        align-items: center;
+        display: inline-flex;
+        font-size: 17px;
+        height: 34px;
+        justify-content: center;
         line-height: 1;
+        width: 34px;
     }
 
-    #tdr_process_Table .tdr-action-cell .tdr-process-icon {
+    #tdr_process_Table .tdr-action-cell form {
+        align-items: center;
+        display: inline-flex;
+        margin: 0;
+    }
+
+    #tdr_process_Table .tdr-action-cell .btn > .bi {
+        align-items: center;
+        display: inline-flex;
+        font-size: 17px;
+        height: 17px;
+        justify-content: center;
+        width: 17px;
+    }
+
+    #tdr_process_Table .tdr-action-cell .open-part-processes-tab .tdr-process-icon {
         display: block;
-        height: 22px;
-        width: 22px;
+        height: 42px;
+        max-height: none;
+        max-width: none;
+        width: 42px;
         object-fit: contain;
     }
 
     #tdr_process_Table .tdr-action-cell .btn.me-2 {
-        margin-right: .2rem !important;
+        margin-right: 0 !important;
     }
 
     #tdr_process_Table .tdr-part-name-cell {
@@ -573,7 +606,7 @@
                     <col style="width: 14%;">
                     <col style="width: 28%;">
                     <col style="width: 5.5ch;">
-                    <col style="width: 96px;">
+                    <col class="tdr-action-col">
                 </colgroup>
                 <thead class="bg-gradient">
                 <tr>
@@ -631,11 +664,10 @@
                                              alt=""
                                              class="tdr-process-icon">
                                     </button>
-                                    <button type="button" class="btn btn-outline-primary btn-sm me-2" title="{{ __('Part
-                                    Inspection Edit') }}"
+                                    <button type="button" class="btn btn-outline-primary btn-sm me-2" title="{{ __('Edit') }}"
                                             data-bs-toggle="modal" data-bs-target="#editTdrModal"
                                             data-tdr-id="{{ $tdr->id }}">
-                                        <i class="bi bi-pencil-square"></i>
+                                        <i class="bi bi-pencil"></i>
                                     </button>
                                     <form action="{{ route('tdrs.destroy', ['tdr' => $tdr->id]) }}" method="POST">
                                         @csrf

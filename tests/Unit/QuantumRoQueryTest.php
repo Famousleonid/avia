@@ -58,4 +58,14 @@ class QuantumRoQueryTest extends TestCase
         $this->assertStringContainsString("IN ('CAD', 'CADPLATE')", $query['sql']);
         $this->assertStringContainsString("THEN 'STD_LIST_CAD'", $query['sql']);
     }
+
+    public function test_cad_plate_b_part_number_is_classified_as_bushing_candidate(): void
+    {
+        $query = buildQuantumRoQuery([
+            'wob_change_column' => '',
+        ]);
+
+        $this->assertStringContainsString("'CADPLATEB'", $query['sql']);
+        $this->assertStringContainsString("THEN 'BUSHING_'", $query['sql']);
+    }
 }

@@ -461,7 +461,7 @@ class ExtraProcessController extends Controller
                 // Старая структура: ассоциативный массив
                 foreach ($extra_component->processes as $processNameId => $processId) {
                     $processName = ProcessName::find($processNameId);
-                    if ($processName) {
+                    if (ProcessName::canPrintProcessForm($processName)) {
                         // Определяем ключ группы: для NDT процессов используем 'NDT_GROUP', иначе processNameId
                         $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processNameId;
 
@@ -469,7 +469,7 @@ class ExtraProcessController extends Controller
                             // Для NDT группы создаем виртуальный ProcessName или используем первый найденный NDT процесс
                             if ($groupKey == 'NDT_GROUP') {
                                 // Находим первый ProcessName с process_sheet_name == 'NDT' для использования в группе
-                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
+                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->where('print_form', true)->first();
                                 if ($ndtProcessName) {
                                     $processGroups[$groupKey] = [
                                         'process_name' => $ndtProcessName,
@@ -509,7 +509,7 @@ class ExtraProcessController extends Controller
                 // Новая структура: массив объектов
                 foreach ($extra_component->processes as $processItem) {
                     $processName = ProcessName::find($processItem['process_name_id']);
-                    if ($processName) {
+                    if (ProcessName::canPrintProcessForm($processName)) {
                         $processNameId = $processItem['process_name_id'];
                         // Определяем ключ группы: для NDT процессов используем 'NDT_GROUP', иначе processNameId
                         $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processNameId;
@@ -518,7 +518,7 @@ class ExtraProcessController extends Controller
                             // Для NDT группы создаем виртуальный ProcessName или используем первый найденный NDT процесс
                             if ($groupKey == 'NDT_GROUP') {
                                 // Находим первый ProcessName с process_sheet_name == 'NDT' для использования в группе
-                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
+                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->where('print_form', true)->first();
                                 if ($ndtProcessName) {
                                     $processGroups[$groupKey] = [
                                         'process_name' => $ndtProcessName,
@@ -595,11 +595,11 @@ class ExtraProcessController extends Controller
             if (is_array($extra_component->processes) && array_keys($extra_component->processes) !== range(0, count($extra_component->processes) - 1)) {
                 foreach ($extra_component->processes as $processNameId => $processId) {
                     $processName = ProcessName::find($processNameId);
-                    if ($processName) {
+                    if (ProcessName::canPrintProcessForm($processName)) {
                         $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processNameId;
                         if (!isset($processGroups[$groupKey])) {
                             if ($groupKey == 'NDT_GROUP') {
-                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
+                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->where('print_form', true)->first();
                                 $processGroups[$groupKey] = ['process_name' => $ndtProcessName ?? $processName, 'components_qty' => [], 'components' => []];
                             } else {
                                 $processGroups[$groupKey] = ['process_name' => $processName, 'components_qty' => [], 'components' => []];
@@ -619,11 +619,11 @@ class ExtraProcessController extends Controller
             } else {
                 foreach ($extra_component->processes as $processItem) {
                     $processName = ProcessName::find($processItem['process_name_id']);
-                    if ($processName) {
+                    if (ProcessName::canPrintProcessForm($processName)) {
                         $groupKey = ($processName->process_sheet_name == 'NDT') ? 'NDT_GROUP' : $processItem['process_name_id'];
                         if (!isset($processGroups[$groupKey])) {
                             if ($groupKey == 'NDT_GROUP') {
-                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first();
+                                $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->where('print_form', true)->first();
                                 $processGroups[$groupKey] = ['process_name' => $ndtProcessName ?? $processName, 'components_qty' => [], 'components' => []];
                             } else {
                                 $processGroups[$groupKey] = ['process_name' => $processName, 'components_qty' => [], 'components' => []];
@@ -668,7 +668,7 @@ class ExtraProcessController extends Controller
         $current_wo = Workorder::findOrFail($id);
         $processName = ProcessName::findOrFail($processNameId);
 
-        if (empty($processName->process_sheet_name)) {
+        if (!ProcessName::canPrintProcessForm($processName)) {
             return redirect()->back()->with('error', __('There is no form for this process.'));
         }
 
@@ -685,6 +685,7 @@ class ExtraProcessController extends Controller
         $ndtProcessNameIds = [];
         if ($isNdtGroup) {
             $ndtProcessNameIds = ProcessName::where('process_sheet_name', 'NDT')
+                ->where('print_form', true)
                 ->pluck('id')
                 ->toArray();
         }
@@ -707,7 +708,7 @@ class ExtraProcessController extends Controller
                             $processId = $extra_process->processes[$ndtProcessNameId];
                             $process = Process::find($processId);
                             $ndtProcessName = ProcessName::find($ndtProcessNameId);
-                            if ($process && $ndtProcessName) {
+                            if ($process && ProcessName::canPrintProcessForm($ndtProcessName)) {
                                 // Получаем manual для компонента
                                 $componentManual = $extra_process->component->manual ?? null;
                                 $groupedComponents[] = [
@@ -746,7 +747,7 @@ class ExtraProcessController extends Controller
                         if (in_array($processItem['process_name_id'], $ndtProcessNameIds)) {
                             $process = Process::find($processItem['process_id']);
                             $ndtProcessName = ProcessName::find($processItem['process_name_id']);
-                            if ($process && $ndtProcessName) {
+                            if ($process && ProcessName::canPrintProcessForm($ndtProcessName)) {
                                 // Получаем manual для компонента
                                 $componentManual = $extra_process->component->manual ?? null;
                                 $groupedComponents[] = [
@@ -844,7 +845,7 @@ class ExtraProcessController extends Controller
                 'NDT-4',
                 'Eddy Current Test',
                 'BNI'
-            ])->pluck('id', 'name');
+            ])->where('print_form', true)->pluck('id', 'name');
 
             // Извлекаем ID по именам
             $ndt_ids = [
@@ -1334,7 +1335,7 @@ class ExtraProcessController extends Controller
         $component = Component::findOrFail($extra_process->component_id);
         $processName = ProcessName::findOrFail($processNameId);
 
-        if (empty($processName->process_sheet_name)) {
+        if (!ProcessName::canPrintProcessForm($processName)) {
             return redirect()->back()->with('error', __('There is no form for this process.'));
         }
 
@@ -1374,7 +1375,7 @@ class ExtraProcessController extends Controller
                 'NDT-4',
                 'Eddy Current Test',
                 'BNI'
-            ])->pluck('id', 'name');
+            ])->where('print_form', true)->pluck('id', 'name');
 
             // Извлекаем ID по именам
             $ndt_ids = [
@@ -1403,6 +1404,7 @@ class ExtraProcessController extends Controller
 
             // Получаем все NDT process_name_ids для группировки
             $ndtProcessNameIds = ProcessName::where('process_sheet_name', 'NDT')
+                ->where('print_form', true)
                 ->pluck('id')
                 ->toArray();
 
@@ -1416,7 +1418,7 @@ class ExtraProcessController extends Controller
                             $processId = $extra_process->processes[$ndtProcessNameId];
                             $process = Process::find($processId);
                             $ndtProcessName = ProcessName::find($ndtProcessNameId);
-                            if ($process && $ndtProcessName) {
+                            if ($process && ProcessName::canPrintProcessForm($ndtProcessName)) {
                                 $ndtProcessesData[] = [
                                     'process_name' => $ndtProcessName,
                                     'process' => $process,
@@ -1435,7 +1437,7 @@ class ExtraProcessController extends Controller
                         if ($processNameId && in_array($processNameId, $ndtProcessNameIds)) {
                             $process = Process::find($processItem['process_id']);
                             $ndtProcessName = ProcessName::find($processNameId);
-                            if ($process && $ndtProcessName) {
+                            if ($process && ProcessName::canPrintProcessForm($ndtProcessName)) {
                                 $ndtProcessesData[] = [
                                     'process_name' => $ndtProcessName,
                                     'process' => $process,
@@ -1461,7 +1463,7 @@ class ExtraProcessController extends Controller
                                     if ($plusProcessId) {
                                         $process = Process::find($plusProcessId);
                                         $ndtProcessName = ProcessName::find($plusProcessNameId);
-                                        if ($process && $ndtProcessName) {
+                                        if ($process && ProcessName::canPrintProcessForm($ndtProcessName)) {
                                             // Проверяем, не добавлен ли уже этот процесс
                                             $alreadyAdded = false;
                                             foreach ($ndtProcessesData as $existing) {
@@ -1631,7 +1633,7 @@ class ExtraProcessController extends Controller
             if (!empty($processNameIds)) {
                 $processName = ProcessName::find($processNameIds[0]);
                 if ($processName) {
-                    if (empty($processName->process_sheet_name)) {
+                    if (!ProcessName::canPrintProcessForm($processName)) {
                         return redirect()->route('extra_processes.showAll', $extra_process->workorder_id)
                             ->with('error', __('There is no form for this process.'));
                     }

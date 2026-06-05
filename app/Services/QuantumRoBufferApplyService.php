@@ -181,6 +181,7 @@ class QuantumRoBufferApplyService
         $bushingMap = [
             'NDTB' => ['key' => 'ndt', 'label' => 'NDTB'],
             'CADB' => ['key' => 'cad', 'label' => 'CADB'],
+            'CADPLATEB' => ['key' => 'cad', 'label' => 'CAD Plate B'],
             'ANODIZING' => ['key' => 'anodizing', 'label' => 'Anodizing'],
             'ANODISING' => ['key' => 'anodizing', 'label' => 'Anodizing'],
             'PASSIVATION' => ['key' => 'passivation', 'label' => 'Passivation'],
@@ -380,6 +381,8 @@ class QuantumRoBufferApplyService
                 "REPLACE(UPPER(TRIM(components.part_number)), ' ', '') = ?",
                 [$this->normalizePartNumber($line->pn)]
             )
+            ->orderBy('tdr_processes.sort_order')
+            ->orderBy('tdr_processes.id')
             ->get();
 
         if ($tdrMatches->count() === 1) {
@@ -416,6 +419,10 @@ class QuantumRoBufferApplyService
             if ($sameRo->count() === 1) {
                 return $sameRo->first();
             }
+
+            if ($line->returned_date) {
+                return null;
+            }
         }
 
         $outDate = $line->out_date ? Carbon::parse($line->out_date)->startOfDay() : null;
@@ -437,6 +444,13 @@ class QuantumRoBufferApplyService
                 return true;
             })
             ->values();
+
+        if ($lineRo !== '') {
+            return $dateWindowMatches
+                ->filter(fn (TdrProcess $match): bool => trim((string) $match->repair_order) === '')
+                ->values()
+                ->first();
+        }
 
         if ($dateWindowMatches->count() === 1) {
             return $dateWindowMatches->first();

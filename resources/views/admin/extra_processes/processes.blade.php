@@ -199,23 +199,27 @@
                                                     </form>
                                                 </td>
                                                 <td class="text-center">
-                                                    <div class="d-flex gap-2">
-                                                        <select class="form-select form-select-sm vendor-select"
-                                                                style="width: 120px"
-                                                                data-extra-process-id="{{ $extra_process->id }}"
-                                                                data-process-name-id="{{ $processNameId }}">
-                                                            <option value="">Vendor</option>
-                                                            @foreach($vendors as $vendor)
-                                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processNameId]) }}"
-                                                           class="btn btn-sm btn-outline-primary form-link"
-                                                           style="width: 60px"
-                                                           data-extra-process-id="{{ $extra_process->id }}"
-                                                           data-process-name-id="{{ $processNameId }}"
-                                                           target="_blank">{{__('Form')}}</a>
-                                                    </div>
+                                                    @if(\App\Models\ProcessName::canPrintProcessForm($processName))
+                                                        <div class="d-flex gap-2">
+                                                            <select class="form-select form-select-sm vendor-select"
+                                                                    style="width: 120px"
+                                                                    data-extra-process-id="{{ $extra_process->id }}"
+                                                                    data-process-name-id="{{ $processNameId }}">
+                                                                <option value="">Vendor</option>
+                                                                @foreach($vendors as $vendor)
+                                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                            <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processNameId]) }}"
+                                                               class="btn btn-sm btn-outline-primary form-link"
+                                                               style="width: 60px"
+                                                               data-extra-process-id="{{ $extra_process->id }}"
+                                                               data-process-name-id="{{ $processNameId }}"
+                                                               target="_blank">{{__('Form')}}</a>
+                                                        </div>
+                                                    @else
+                                                        <div class="d-flex gap-2"></div>
+                                                    @endif
                                                 </td>
                                             </tr>
                                         @endif
@@ -307,23 +311,27 @@
                                                     </form>
                                                 </td>
                                                 <td class="text-center">
-                                                    <div class="d-flex gap-2 justify-content-center">
-                                                        <select class="form-select form-select-sm vendor-select"
-                                                                style="width: 95px"
-                                                                data-extra-process-id="{{ $extra_process->id }}"
-                                                                data-process-name-id="{{ $processItem['process_name_id'] }}">
-                                                            <option value="">Vendor</option>
-                                                            @foreach($vendors as $vendor)
-                                                                <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processItem['process_name_id']]) }}"
-                                                           class="btn btn-sm btn-outline-primary form-link"
-                                                           style="width: 60px"
-                                                           data-extra-process-id="{{ $extra_process->id }}"
-                                                           data-process-name-id="{{ $processItem['process_name_id'] }}"
-                                                           target="_blank">{{__('Form')}}</a>
-                                                    </div>
+                                                    @if(\App\Models\ProcessName::canPrintProcessForm($processName))
+                                                        <div class="d-flex gap-2 justify-content-center">
+                                                            <select class="form-select form-select-sm vendor-select"
+                                                                    style="width: 95px"
+                                                                    data-extra-process-id="{{ $extra_process->id }}"
+                                                                    data-process-name-id="{{ $processItem['process_name_id'] }}">
+                                                                <option value="">Vendor</option>
+                                                                @foreach($vendors as $vendor)
+                                                                    <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                            <a href="{{ route('extra_processes.show_form', ['id' => $extra_process->id, 'processNameId' => $processItem['process_name_id']]) }}"
+                                                               class="btn btn-sm btn-outline-primary form-link"
+                                                               style="width: 60px"
+                                                               data-extra-process-id="{{ $extra_process->id }}"
+                                                               data-process-name-id="{{ $processItem['process_name_id'] }}"
+                                                               target="_blank">{{__('Form')}}</a>
+                                                        </div>
+                                                    @else
+                                                        <div class="d-flex gap-2 justify-content-center"></div>
+                                                    @endif
                                                 </td>
                                             </tr>
                                         @endif

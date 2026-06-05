@@ -178,7 +178,7 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame('Quantum', $target->date_finish_user);
     }
 
-    public function test_detail_part_ref_code_is_case_insensitive_and_open_duplicate_target_is_selected(): void
+    public function test_detail_part_ref_code_is_case_insensitive_and_next_empty_duplicate_target_is_selected_then_return_updates_same_ro(): void
     {
         $workorder = $this->createWorkorder();
         $vendor = Vendor::query()->create(['name' => 'Quantum Shot Peen Vendor']);
@@ -215,15 +215,16 @@ class QuantumRoBufferApplyServiceTest extends TestCase
             'process_names_id' => $processName->id,
             'date_start' => '2026-05-26',
         ]);
+        $roNumber = 'R'.random_int(1000, 8999);
         $line = $this->createQuantumLine([
-            'ro_number' => 'R'.random_int(1000, 8999),
+            'ro_number' => $roNumber,
             'wo_number' => 'W'.$workorder->number,
             'vendor_name' => $vendor->name,
             'pn' => '170-70930-001',
             'class' => 'DETAIL_PART',
             'bom_ref' => 'sHp',
             'out_date' => '2026-05-27',
-            'returned_date' => '2026-06-02',
+            'returned_date' => null,
         ]);
 
         $stats = app(QuantumRoBufferApplyService::class)->apply(1);
@@ -243,7 +244,106 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame($line->ro_number, $openTarget->repair_order);
         $this->assertSame($vendor->id, $openTarget->vendor_id);
         $this->assertSame('2026-05-27', $openTarget->date_start?->format('Y-m-d'));
+        $this->assertNull($openTarget->date_finish);
+
+        $returnLine = $this->createQuantumLine([
+            'ro_number' => $roNumber,
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => '170-70930-001',
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'sHp',
+            'out_date' => '2026-05-27',
+            'returned_date' => '2026-06-02',
+        ]);
+
+        $returnStats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $returnStats['applied']);
+
+        $returnLine->refresh();
+        $openTarget->refresh();
+
+        $this->assertSame('applied', $returnLine->apply_status);
+        $this->assertSame($openTarget->id, $returnLine->applied_target_id);
         $this->assertSame('2026-06-02', $openTarget->date_finish?->format('Y-m-d'));
+    }
+
+    public function test_detail_part_duplicate_targets_are_consumed_by_sort_order_when_repair_order_is_empty(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Cad Queue Vendor']);
+        $processName = ProcessName::query()->create([
+            'name' => 'Cad plate queue',
+            'code' => 'CP',
+            'process_sheet_name' => 'CADMIUM PLATING',
+            'form_number' => '014',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => '170-70171-001',
+            'name' => 'Quantum Queue Component',
+            'ipl_num' => '1-3',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'Q-QUEUE-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $secondInOrder = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'sort_order' => 20,
+        ]);
+        $firstInOrder = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'sort_order' => 10,
+        ]);
+        $firstRo = 'R'.random_int(1000, 8999);
+        $secondRo = 'R'.random_int(9000, 9999);
+
+        $firstLine = $this->createQuantumLine([
+            'ro_number' => $firstRo,
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => '170-70171-001',
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'CP',
+            'out_date' => '2026-06-01',
+            'returned_date' => null,
+        ]);
+        $secondLine = $this->createQuantumLine([
+            'ro_number' => $secondRo,
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => '170-70171-001',
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'CP',
+            'out_date' => '2026-06-02',
+            'returned_date' => null,
+        ]);
+
+        $firstStats = app(QuantumRoBufferApplyService::class)->apply(1);
+        $secondStats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $firstStats['applied']);
+        $this->assertSame(1, $secondStats['applied']);
+
+        $firstLine->refresh();
+        $secondLine->refresh();
+        $firstInOrder->refresh();
+        $secondInOrder->refresh();
+
+        $this->assertSame($firstInOrder->id, $firstLine->applied_target_id);
+        $this->assertSame($secondInOrder->id, $secondLine->applied_target_id);
+        $this->assertSame($firstRo, $firstInOrder->repair_order);
+        $this->assertSame($secondRo, $secondInOrder->repair_order);
     }
 
     public function test_bushing_pn_writes_to_batch_selected_by_ref(): void
@@ -294,6 +394,43 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame($vendor->id, $secondBatch->vendor_id);
         $this->assertSame('2026-06-01', $secondBatch->date_start?->format('Y-m-d'));
         $this->assertSame('2026-06-03', $secondBatch->date_finish?->format('Y-m-d'));
+    }
+
+    public function test_cad_plate_b_pn_writes_to_cad_bushing_batch(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum CAD Bushing Vendor']);
+        $firstBatch = WoBushingBatch::query()->create([
+            'workorder_id' => $workorder->id,
+            'process_column_key' => 'cad',
+        ]);
+        $secondBatch = WoBushingBatch::query()->create([
+            'workorder_id' => $workorder->id,
+            'process_column_key' => 'cad',
+        ]);
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => 'CAD Plate B',
+            'class' => 'BUSHING_CADPLATEB',
+            'bom_ref' => 'B2',
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['applied']);
+
+        $line->refresh();
+        $firstBatch->refresh();
+        $secondBatch->refresh();
+
+        $this->assertSame('applied', $line->apply_status);
+        $this->assertSame('wo_bushing_batches', $line->applied_target_table);
+        $this->assertSame($secondBatch->id, $line->applied_target_id);
+        $this->assertNull($firstBatch->repair_order);
+        $this->assertSame($line->ro_number, $secondBatch->repair_order);
+        $this->assertSame($vendor->id, $secondBatch->vendor_id);
     }
 
     public function test_bushing_missing_batch_stays_unresolved(): void

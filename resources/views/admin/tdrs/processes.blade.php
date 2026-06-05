@@ -241,7 +241,7 @@
                                                     // Получаем имя процесса из связанной модели ProcessName (с проверкой на null)
                                                     $processName = $processes->processName ? $processes->processName->name : 'N/A';
                                                 @endphp
-                                                
+
                                                 @if(!$processes->processName)
                                                     @continue
                                                 @endif
@@ -359,7 +359,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @include('admin.tdrs.partials.all-parts-group-forms-modal-body', ['processGroups' => $processGroups, 'vendors' => $vendors, 'current_wo' => $current_wo])
+                                    @include('admin.tdrs.partials.process-group-forms-modal-body', ['processGroups' => $processGroups, 'vendors' => $vendors, 'current_wo' => $current_wo])
                                 </tbody>
                             </table>
                         </div>
@@ -369,12 +369,12 @@
         </div>
     @endif
 
-    @include('admin.tdrs.partials.all-parts-group-forms-modal-script')
+    @include('admin.tdrs.partials.process-group-forms-modal-script')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var modal = document.getElementById('groupFormsModal');
-            if (modal && typeof window.initAllPartsGroupFormModalRows === 'function') {
-                window.initAllPartsGroupFormModalRows(modal);
+            if (modal && typeof window.initProcessGroupFormModalRows === 'function') {
+                window.initProcessGroupFormModalRows(modal);
             }
         });
     </script>

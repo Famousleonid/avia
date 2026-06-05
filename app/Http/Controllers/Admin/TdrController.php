@@ -1016,16 +1016,12 @@ class TdrController extends Controller
 
 
     /**
-     * Строки модалки Group Process Forms для вкладки All Parts Processes.
-     * Не-NDT: детали с одним и тем же типом групповой формы (process_names / merge Machining), ≥2 деталей;
-     * полный маршрут может отличаться (как у разных NDT и Paint), общий шаг — например Silver plate.
-     * NDT: одна строка, все детали с любым NDT (в модалке — только чекбоксы по деталям).
-     * totalQty в результате — сумма position_count по строкам (позиции TDR), не сумма qty деталей.
+     * Build grouped process form rows for the standalone TDR process list.
      *
      * @param  \Illuminate\Support\Collection  $tdrProcesses
      * @return array{processGroups: list<array<string, mixed>>, totalQty: int}
      */
-    private function buildAllPartsProcessGroupModalRows($tdrs, $tdrProcesses): array
+    private function buildProcessGroupModalRows($tdrs, $tdrProcesses): array
     {
         $rows = [];
         $totalQty = 0;
@@ -1042,7 +1038,7 @@ class TdrController extends Controller
                 if (!$tdrProcess->processName) {
                     continue;
                 }
-                if (ProcessName::hasNoProcessForm($tdrProcess->processName)) {
+                if (!ProcessName::canPrintProcessForm($tdrProcess->processName)) {
                     continue;
                 }
                 $modalGroupKey = ProcessName::groupFormsGroupKey($tdrProcess->processName, true);
@@ -1129,8 +1125,7 @@ class TdrController extends Controller
                 continue;
             }
             $hasNdt = $tdrProcesses->where('tdrs_id', $tdr->id)->contains(function ($tp) {
-                return $tp->processName
-                    && !ProcessName::hasNoProcessForm($tp->processName)
+                return ProcessName::canPrintProcessForm($tp->processName)
                     && ($tp->processName->process_sheet_name ?? '') === 'NDT';
             });
             if ($hasNdt) {
@@ -1139,7 +1134,7 @@ class TdrController extends Controller
         }
 
         if (count($ndtTdrIds) >= 2) {
-            $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->first()
+            $ndtProcessName = ProcessName::where('process_sheet_name', 'NDT')->where('print_form', true)->first()
                 ?? ProcessName::where('name', 'like', 'NDT-%')->orderBy('id')->first();
             if ($ndtProcessName) {
                 $ndtComponents = [];
@@ -1152,7 +1147,7 @@ class TdrController extends Controller
                     $hasNdtLine = false;
                     $sorted = $tdrProcesses->where('tdrs_id', $tdr->id)->sortBy('sort_order');
                     foreach ($sorted as $tp) {
-                        if (!$tp->processName || ProcessName::hasNoProcessForm($tp->processName)) {
+                        if (!ProcessName::canPrintProcessForm($tp->processName)) {
                             continue;
                         }
                         if (($tp->processName->process_sheet_name ?? '') !== 'NDT') {
@@ -1222,57 +1217,6 @@ class TdrController extends Controller
         return ['processGroups' => $rows, 'totalQty' => $totalQty];
     }
 
-    public function processesPartial($id)
-    {
-
-        $current_wo = Workorder::findOrFail($id);
-        $manual_id = $current_wo->unit->manual_id;
-        $necessary = Necessary::where('name', 'Order New')->first();
-
-        $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
-
-        // Извлекаем компоненты, которые связаны с этим manual_id
-        $components = $this->filterComponentsForUnit(Component::where('manual_id', $manual_id)
-            ->where(function ($query) {
-                $query->where('kit', false)->orWhereNull('kit');
-            })
-            ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
-            ->get(), $current_wo);
-
-        // Ограничиваем процессы только текущим Workorder: берём id связанных TDR
-        $tdrIds = Tdr::where('workorder_id', $current_wo->id)
-            ->pluck('id');
-
-        // Загружаем только процессы для этих TDR, с сортировкой и названием процесса
-        $tdrProcessesQuery = TdrProcess::query()
-            ->whereIn('tdrs_id', $tdrIds);
-        $this->applyStdListProcessesVisibilityForWorkorder($current_wo, $tdrProcessesQuery);
-        $tdrProcesses = $tdrProcessesQuery->with('processName')
-            ->orderBy('sort_order')
-            ->get();
-
-        $proces = Process::all()->keyBy('id');
-        $vendors = Vendor::all();
-
-        $tdrs = Tdr::where('workorder_id', $current_wo->id)
-            ->where('component_id', '!=',null)
-            ->when($necessary, function ($query) use ($necessary) {
-                return $query->where('necessaries_id', '!=', $necessary->id);
-            })
-            ->where('use_process_forms', true)
-            ->with('component')
-            ->get();
-
-        $built = $this->buildAllPartsProcessGroupModalRows($tdrs, $tdrProcesses);
-        $processGroups = $built['processGroups'];
-        $totalQty = $built['totalQty'];
-
-        return view('admin.tdrs.partials.all-parts-processes', compact('current_wo',
-            'tdrs','components',
-            'manuals','tdrProcesses','proces','vendors','processGroups','totalQty'
-        ));
-    }
-
     public function processes(Request $request, $id)
     {
 
@@ -1315,15 +1259,9 @@ class TdrController extends Controller
             ->with('component')
             ->get();
 
-        $built = $this->buildAllPartsProcessGroupModalRows($tdrs, $tdrProcesses);
+        $built = $this->buildProcessGroupModalRows($tdrs, $tdrProcesses);
         $processGroups = $built['processGroups'];
         $totalQty = $built['totalQty'];
-
-        if ($request->ajax() || $request->wantsJson()) {
-            return view('admin.tdrs.partials.all-parts-processes', compact('current_wo',
-                'tdrs','components',
-                'manuals','tdrProcesses','proces','vendors','processGroups','totalQty' ));
-        }
 
         return view('admin.tdrs.processes', compact('current_wo',
             'tdrs','components',
@@ -1343,8 +1281,8 @@ class TdrController extends Controller
     {
         $current_wo = Workorder::findOrFail($id);
         $processName = ProcessName::findOrFail($processNameId);
-        if (ProcessName::hasNoProcessForm($processName)) {
-            abort(404, __('There is no process form for EC.'));
+        if (!ProcessName::canPrintProcessForm($processName)) {
+            abort(404, __('There is no process form for this process.'));
         }
         $manual_id = $current_wo->unit->manual_id;
         $necessary = Necessary::where('name', 'Order New')->first();
@@ -1394,7 +1332,7 @@ class TdrController extends Controller
             $currentProcessName = $tdrProcess->processName;
 
             if ($isNdtGroup) {
-                if (in_array($currentProcessName->id, $ndtProcessNameIds)) {
+                if (ProcessName::canPrintProcessForm($currentProcessName) && in_array($currentProcessName->id, $ndtProcessNameIds)) {
                     $filteredTdrProcesses->push($tdrProcess);
                 }
             } elseif ($isMachiningMergeGroup && in_array((int) $currentProcessName->id, $machiningMergeNameIds, true)) {
@@ -1589,7 +1527,7 @@ class TdrController extends Controller
             $processNames = ProcessName::whereIn('name', [
                 'NDT-1', 'NDT-2', 'NDT-3', 'NDT-4', 'NDT-5', 'NDT-6', 'NDT-7', 'NDT-8',
                 'Eddy Current Test', 'BNI'
-            ])->pluck('id', 'name');
+            ])->where('print_form', true)->pluck('id', 'name');
 
             $ndt_ids = [
                 'ndt1_name_id' => $processNames['NDT-1'] ?? null,
