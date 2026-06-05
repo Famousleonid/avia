@@ -36,6 +36,9 @@ class TdrProcess extends Model
         'traveler_group',
         'ec',
         'standalone_ec_only', // true = «только EC» (отдельная строка в SP Form); false = companion к Machining/RIL
+        'concession_number',  // EC-Finish: OEM concession number / date / authority
+        'concession_date',
+        'concession_oem',
         'user_id',
     ];
     protected $casts = [
@@ -44,6 +47,7 @@ class TdrProcess extends Model
         'date_start'  => 'date',   // <-- важно
         'date_finish' => 'date',   // <-- важно
         'date_promise' => 'date',
+        'concession_date' => 'date',
         'ignore_row'  => 'boolean',
         'in_traveler' => 'boolean',
         'traveler_group' => 'integer',

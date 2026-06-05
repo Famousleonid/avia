@@ -427,6 +427,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/ec', [EcController::class, 'index'])
         ->middleware('can:ec.access')
         ->name('ec.index');
+    Route::patch('/ec/{tdrProcess}/concession', [EcController::class, 'updateConcession'])
+        ->middleware('can:ec.access')
+        ->name('ec.concession.update');
     Route::resource('/conditions',  ConditionController::class);
     Route::resource('/materials',  MaterialController::class);
     Route::patch('/materials/{material}/inline', [MaterialController::class, 'inlineUpdate'])->name('materials.inline');

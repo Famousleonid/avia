@@ -13,12 +13,16 @@
         <td class="text-center">{{ $endAssyPartNumber ?: '' }}</td>
         <td class="text-center">{{ $component?->part_number ?: '' }}</td>
         <td class="text-center">{{ $applicability ?: '' }}</td>
-        <td>
-            <input
-                type="text"
-                class="form-control form-control-sm dir-input ec-approval-input"
-                aria-label="Approval No. for WO {{ $workorder?->number }}"
-            >
+        <td style="min-width:170px">
+            <input type="text" class="form-control form-control-sm dir-input ec-conc mb-1"
+                   data-id="{{ $ecProcess->id }}" data-field="concession_number"
+                   value="{{ $ecProcess->concession_number }}" placeholder="Approval No.">
+            <input type="date" class="form-control form-control-sm dir-input ec-conc mb-1"
+                   data-id="{{ $ecProcess->id }}" data-field="concession_date"
+                   value="{{ $ecProcess->concession_date?->format('Y-m-d') }}">
+            <input type="text" class="form-control form-control-sm dir-input ec-conc"
+                   data-id="{{ $ecProcess->id }}" data-field="concession_oem"
+                   value="{{ $ecProcess->concession_oem }}" placeholder="OEM">
         </td>
         <td class="text-center">{{ $ecProcess->date_start?->format('d/M/Y') ?: '' }}</td>
         <td class="text-center">{{ $ecProcess->date_finish?->format('d/M/Y') ?: '' }}</td>
