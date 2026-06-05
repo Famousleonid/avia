@@ -3271,7 +3271,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const drawBtn = p.rule_process_id
                 ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-draw" data-rpid="${p.rule_process_id}" data-label="${escHtml(p.label)}" title="${p.has_drawing ? 'Process drawing (has image)' : 'Add process drawing'}" style="font-size:11px;color:${p.has_drawing ? '#0d6efd' : 'var(--bs-secondary-color)'};opacity:${p.has_drawing ? '1' : '.5'}"><i class="bi bi-${p.has_drawing ? 'pencil-square' : 'image'}"></i></button>`
                 : '';
-            const gateBtn = `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-gate" data-idx="${i}" title="${p.is_gate ? 'EC gate anchor — click to clear' : 'Set EC gate anchor here (freeze everything after it on EC)'}" style="font-size:11px;color:${p.is_gate ? 'var(--bs-info)' : 'var(--bs-secondary-color)'};opacity:${p.is_gate ? '1' : '.45'}"><i class="bi bi-anchor"></i></button>`;
+            const gateBtn = `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-gate" data-idx="${i}" title="${p.is_gate ? 'EC gate anchor — click to clear' : 'Set EC gate anchor here (freeze everything after it on EC)'}" style="font-size:14px;line-height:1;text-decoration:none;color:${p.is_gate ? 'var(--bs-info)' : 'var(--bs-secondary-color)'};opacity:${p.is_gate ? '1' : '.5'}">⚓</button>`;
             return `<div class="dim-rule-process-item">
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
                 <span style="flex:0 0 38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
@@ -4686,7 +4686,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const dot = pr.has_document
             ? '<i class="bi bi-file-earmark-check-fill" style="color:var(--bs-warning)"></i>'
             : '<i class="bi bi-file-earmark" style="color:var(--bs-secondary-color)"></i>';
-        const gate = pr.is_gate ? '<i class="bi bi-anchor" style="color:var(--bs-info)" title="EC gate"></i> ' : '';
+        const gate = pr.is_gate ? '<span style="color:var(--bs-info)" title="EC gate">⚓</span> ' : '';
         return `<div class="pdw-tree-proc d-flex align-items-center gap-2" data-rp="${pr.rule_process_id}" data-kind="${pr.kind || 'main'}" data-label="${escHtml(pr.label)}"
                      style="padding:3px 8px;cursor:pointer;border-radius:4px;font-size:12px">
             ${dot}<span class="flex-grow-1">${gate}${escHtml(pr.label)}</span>
