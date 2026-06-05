@@ -941,8 +941,8 @@
     .pdw-page-tab.active { background:rgba(13,110,253,.15); border-color:#0d6efd; color:#0d6efd; font-weight:600; }
 </style>
 <div class="modal fade" id="pdwModal" tabindex="-1">
-    <div class="modal-dialog modal-fullscreen">
-        <div class="modal-content">
+    <div class="modal-dialog" style="max-width:88vw;width:88vw;height:88vh;margin:6vh auto;">
+        <div class="modal-content" style="height:100%;">
             <div class="modal-header py-2">
                 <h6 class="modal-title mb-0" id="pdwTitle">Process Documents</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -4613,46 +4613,67 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwShowTreeScreen();
         try {
             const data = await apiFetch('/inspection-components/' + icId + '/document-tree');
-            pdwTree = data.tree || [];
+            pdwTree = data || {};
             renderDocTree();
         } catch (e) {
             document.getElementById('pdw-tree').innerHTML = '<div class="text-danger" style="font-size:12px">' + escHtml(e.message) + '</div>';
         }
     }
 
+    function pdwProcHtml(pr) {
+        const dot = pr.has_document
+            ? '<i class="bi bi-file-earmark-check-fill" style="color:var(--bs-warning)"></i>'
+            : '<i class="bi bi-file-earmark" style="color:var(--bs-secondary-color)"></i>';
+        return `<div class="pdw-tree-proc d-flex align-items-center gap-2" data-rp="${pr.rule_process_id}" data-kind="${pr.kind || 'main'}" data-label="${escHtml(pr.label)}"
+                     style="padding:3px 8px;cursor:pointer;border-radius:4px;font-size:12px">
+            ${dot}<span class="flex-grow-1">${escHtml(pr.label)}</span>
+            <span class="text-secondary" style="font-size:10px">${pr.has_document ? 'edit' : 'add'} ›</span>
+        </div>`;
+    }
+    function pdwRuleHtml(r, editable, paramId) {
+        const procs = (r.processes || []).map(pdwProcHtml).join('')
+            || '<div style="font-size:11px;color:var(--bs-secondary-color);padding-left:8px">no processes</div>';
+        const badge = r.action ? `<span class="badge bg-secondary" style="font-size:9px;text-transform:uppercase">${escHtml(r.action)}</span>` : '';
+        const editBtn = editable
+            ? `<button class="pdw-tree-rule-edit btn btn-link btn-sm p-0 ms-1" data-param="${paramId}" data-rule="${r.rule_id}" title="Edit rule (processes / descriptions)" style="font-size:11px;color:var(--bs-info)"><i class="bi bi-pencil"></i></button>`
+            : '';
+        return `<div style="margin-left:16px;margin-top:3px">
+            <div style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-wrench"></i> ${escHtml(r.label)} ${badge}${editBtn}</div>
+            ${procs}
+        </div>`;
+    }
+    function pdwPhaseSection(title, rules) {
+        if (!rules || !rules.length) return '';
+        return `<div style="margin-bottom:10px">
+            <div class="fw-semibold" style="font-size:12px;color:#ffc107"><i class="bi bi-flag-fill"></i> ${title}</div>
+            ${rules.map(function (r) { return pdwRuleHtml(r, false, null); }).join('')}
+        </div>`;
+    }
+
     function renderDocTree() {
         const wrap = document.getElementById('pdw-tree');
-        if (!pdwTree.length) { wrap.innerHTML = '<div class="text-secondary" style="font-size:12px">No points / rules for this part yet.</div>'; return; }
-        wrap.innerHTML = pdwTree.map(function (pt) {
-            const rules = (pt.rules || []).map(function (r) {
-                const procs = (r.processes || []).map(function (pr) {
-                    const dot = pr.has_document
-                        ? '<i class="bi bi-file-earmark-check-fill" style="color:var(--bs-warning)"></i>'
-                        : '<i class="bi bi-file-earmark" style="color:var(--bs-secondary-color)"></i>';
-                    return `<div class="pdw-tree-proc d-flex align-items-center gap-2" data-rp="${pr.rule_process_id}" data-label="${escHtml(pr.label)}"
-                                 style="padding:3px 8px;cursor:pointer;border-radius:4px;font-size:12px">
-                        ${dot}<span class="flex-grow-1">${escHtml(pr.label)}</span>
-                        <span class="text-secondary" style="font-size:10px">${pr.has_document ? 'edit' : 'add'} ›</span>
-                    </div>`;
-                }).join('') || '<div style="font-size:11px;color:var(--bs-secondary-color);padding-left:8px">no processes</div>';
-                return `<div style="margin-left:16px;margin-top:3px">
-                    <div style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-wrench"></i> ${escHtml(r.label)}
-                        <span class="badge bg-secondary" style="font-size:9px;text-transform:uppercase">${escHtml(r.action)}</span>
-                        <button class="pdw-tree-rule-edit btn btn-link btn-sm p-0 ms-1" data-param="${pt.param_id}" data-rule="${r.rule_id}" title="Edit rule (processes / descriptions)" style="font-size:11px;color:var(--bs-info)"><i class="bi bi-pencil"></i></button></div>
-                    ${procs}
-                </div>`;
-            }).join('') || '<div style="margin-left:16px;font-size:11px;color:var(--bs-secondary-color)">no repair rules</div>';
-            return `<div style="margin-bottom:10px">
+        const t = pdwTree || {};
+        const hasAny = (t.start && t.start.length) || (t.points && t.points.length) || (t.finish && t.finish.length);
+        if (!hasAny) { wrap.innerHTML = '<div class="text-secondary" style="font-size:12px">No points / rules for this part yet.</div>'; return; }
+
+        let html = pdwPhaseSection('START', t.start);
+        (t.points || []).forEach(function (pt) {
+            const rules = (pt.rules || []).map(function (r) { return pdwRuleHtml(r, true, pt.param_id); }).join('')
+                || '<div style="margin-left:16px;font-size:11px;color:var(--bs-secondary-color)">no repair rules</div>';
+            html += `<div style="margin-bottom:10px">
                 <div class="fw-semibold" style="font-size:12px;color:#5ee3ff"><i class="bi bi-geo-alt-fill"></i> ${escHtml(pt.label)}
                     <button class="pdw-tree-add-rule btn btn-link btn-sm p-0 ms-2" data-param="${pt.param_id}" title="Add repair rule" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-plus-circle"></i></button></div>
                 ${rules}
             </div>`;
-        }).join('');
+        });
+        html += pdwPhaseSection('FINISH', t.finish);
+        wrap.innerHTML = html;
+
         wrap.querySelectorAll('.pdw-tree-proc').forEach(function (row) {
             row.addEventListener('mouseenter', function () { row.style.background = 'rgba(13,110,253,.10)'; });
             row.addEventListener('mouseleave', function () { row.style.background = ''; });
             row.addEventListener('click', function () {
-                openProcessDocumentsModal(parseInt(row.dataset.rp), row.dataset.label, 'main', true);
+                openProcessDocumentsModal(parseInt(row.dataset.rp), row.dataset.label, row.dataset.kind || 'main', true);
             });
         });
         // edit a rule (add process / change description) without leaving the hub
