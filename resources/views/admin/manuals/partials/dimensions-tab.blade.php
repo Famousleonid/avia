@@ -4657,6 +4657,25 @@ document.addEventListener('DOMContentLoaded', function () {
     let pdwTree = [], pdwTreeIcId = null, pdwTreeLabel = '', pdwFromTree = false, pdwTreeEditingRule = false;
     let pdwActiveRpKey = null; // "<kind>:<rule_process_id>" of the process whose docs are open
 
+    // Reflect "has document" of the currently-open process in the tree without refetching.
+    function pdwTreeMarkDocs() {
+        if (!pdwTree) return;
+        const has = (pdwDocs || []).length > 0;
+        const visit = function (rules) {
+            (rules || []).forEach(function (r) {
+                (r.processes || []).forEach(function (pr) {
+                    if (String(pr.rule_process_id) === String(pdwRuleProcessId) && (pr.kind || 'main') === pdwProcKind) {
+                        pr.has_document = has;
+                    }
+                });
+            });
+        };
+        visit(pdwTree.start);
+        (pdwTree.points || []).forEach(function (pt) { visit(pt.rules); });
+        visit(pdwTree.finish);
+        renderDocTree();
+    }
+
     function pdwApplyTreeActive() {
         const wrap = document.getElementById('pdw-tree');
         if (!wrap) return;
@@ -4899,6 +4918,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     pdwDocs = pdwDocs.filter(function (d) { return d.id != b.dataset.id; });
                     renderDocList();
                     pdwUpdateProcessFlag();
+                    pdwTreeMarkDocs();
                 } catch (e) { alert(e.message); }
             });
         });
@@ -4934,6 +4954,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             pdwHideDocForm();
             renderDocList();
+            pdwTreeMarkDocs();
         } catch (e) { alert(e.message); }
     });
 
