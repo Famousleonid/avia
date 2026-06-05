@@ -159,8 +159,11 @@ class ProcessDocumentController extends Controller
         $safe     = preg_replace('/[^A-Za-z0-9_-]+/', '_', $title);
         $filename = 'wo_' . ($workorder->number ?? $workorder->id) . '_' . $safe . $placeTag . '_' . now()->format('Ymd_Hi') . '.pdf';
 
+        // Tagged as a process-document generation so it stays out of the PDF Library
+        // listing (still in 'pdfs' so show/download keep working).
         $media = $workorder->addMediaFromString($pdf)
             ->usingFileName($filename)
+            ->withCustomProperties(['source' => 'process_document'])
             ->toMediaCollection('pdfs');
 
         return response()->json([

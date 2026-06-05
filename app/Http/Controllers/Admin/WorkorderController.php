@@ -1171,7 +1171,9 @@ class WorkorderController extends Controller
     {
         try {
             $workorder = Workorder::findOrFail($id);
-            $pdfs = $workorder->getMedia('pdfs')->map(function ($media) use ($workorder) {
+            $pdfs = $workorder->getMedia('pdfs')
+                ->reject(fn ($media) => $media->getCustomProperty('source') === 'process_document')
+                ->map(function ($media) use ($workorder) {
                 $documentName = $media->getCustomProperty('document_name') ?: ($media->name ?? null);
 
                 return [

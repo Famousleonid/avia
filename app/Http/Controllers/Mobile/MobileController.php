@@ -308,7 +308,9 @@ class MobileController extends Controller
             return $wo;
         }
 
-        $pdfs = $wo->getMedia('pdfs')->map(function ($media) use ($wo) {
+        $pdfs = $wo->getMedia('pdfs')
+            ->reject(fn ($media) => $media->getCustomProperty('source') === 'process_document')
+            ->map(function ($media) use ($wo) {
             $documentName = $media->getCustomProperty('document_name') ?: ($media->name ?? null);
             $label = $documentName ?: $media->file_name;
 
