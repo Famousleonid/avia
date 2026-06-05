@@ -5374,11 +5374,14 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             const lt = document.getElementById('pdw-ef-lbltype').value;
             if (lt === 'placeholder') body.placeholder = document.getElementById('pdw-ef-placeholder').value;
-            else if (lt === 'parameter') body.source_parameter_id = parseInt(document.getElementById('pdw-ef-lblparam').value) || null;
+            else if (lt === 'parameter') {
+                body.source_parameter_id = parseInt(document.getElementById('pdw-ef-lblparam').value) || null;
+                // point/parameter labels get a short leader (anchor → text box)
+                body.label_x_pct = Math.min(parseFloat(body.x_pct) + 8, 100);
+                body.label_y_pct = Math.max(parseFloat(body.y_pct) - 6, 0);
+            }
             else body.text = document.getElementById('pdw-ef-text').value;
-            // click = anchor (x/y); place the text box on a short leader (label_x/label_y)
-            body.label_x_pct = Math.min(parseFloat(body.x_pct) + 8, 100);
-            body.label_y_pct = Math.max(parseFloat(body.y_pct) - 6, 0);
+            // placeholder (WO number, …) and free text are stamped at the click point — no leader.
         }
         await pdwCreateElement(body);
         pdwHideElemForm();
