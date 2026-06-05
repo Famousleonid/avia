@@ -748,16 +748,15 @@ class WoMeasurementController extends Controller
             // Typical/pre-approved EC: processes are known and the concession is
             // routinely granted → keep working. Otherwise freeze everything AFTER the
             // gate anchor (is_gate process); fallback to stage post+finish when none set.
+            // Freeze everything AFTER the gate anchor (is_gate process). No anchor → no
+            // freeze (the engineer sets the anchor to mark the EC hold boundary).
             $typical = (bool) ($data['ec_typical'] ?? false);
-            if (!$typical) {
-                $gateSort = $this->gateAnchorSort($icId, $tdr->id);
-                $q = TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start');
-                if ($gateSort !== null) {
-                    $q->where('sort_order', '>', $gateSort);
-                } else {
-                    $q->whereIn('process_names_id', $this->heldOnEcProcessNameIds());
-                }
-                $q->delete();
+            $gateSort = $typical ? null : $this->gateAnchorSort($icId, $tdr->id);
+            if ($gateSort !== null) {
+                TdrProcess::where('tdrs_id', $tdr->id)
+                    ->whereNull('date_start')
+                    ->where('sort_order', '>', $gateSort)
+                    ->delete();
             }
             // Add the EC process (companion to Machining (EC); read by SP Form / TDR-print).
             $ecNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
@@ -781,14 +780,14 @@ class WoMeasurementController extends Controller
         // order_new — part condemned at the gate (NDT crack / unsalvageable).
         // Drop the not-yet-started post+finish work (moot on a scrapped part) and
         // raise an Order New TDR for the same part. Repair TDR stays as history.
+        // Condemn: drop not-started work after the gate anchor (no anchor → leave as is).
         $gateSort = $this->gateAnchorSort((int) $data['inspection_component_id'], $tdr->id);
-        $condemn = TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start');
         if ($gateSort !== null) {
-            $condemn->where('sort_order', '>', $gateSort);
-        } else {
-            $condemn->whereIn('process_names_id', $this->heldOnEcProcessNameIds());
+            TdrProcess::where('tdrs_id', $tdr->id)
+                ->whereNull('date_start')
+                ->where('sort_order', '>', $gateSort)
+                ->delete();
         }
-        $condemn->delete();
 
         $existing = Tdr::where('workorder_id', $workorder->id)
             ->where('order_component_id', $tdr->component_id)
@@ -901,18 +900,6 @@ class WoMeasurementController extends Controller
             }
         }
         return false;
-    }
-
-    /**
-     * EC gate (Path A) — process_names held when a part goes to EC:
-     * everything AFTER the NDT gate, i.e. stage `post` + `finish`.
-     *
-     * @return int[] process_names_id
-     */
-    private function heldOnEcProcessNameIds(): array
-    {
-        return \App\Models\ProcessName::whereIn('stage', ['post', 'finish'])
-            ->pluck('id')->map(fn($id) => (int) $id)->all();
     }
 
     /**
