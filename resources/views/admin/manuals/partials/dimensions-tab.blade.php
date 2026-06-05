@@ -940,14 +940,12 @@
     .pdw-page-tab { font-size:11px; padding:2px 8px; border:1px solid var(--bs-border-color); border-radius:3px; cursor:pointer; background:transparent; }
     .pdw-page-tab.active { background:rgba(13,110,253,.15); border-color:#0d6efd; color:#0d6efd; font-weight:600; }
 </style>
-<div class="modal fade" id="pdwModal" tabindex="-1">
-    <div class="modal-dialog" style="max-width:88vw;width:88vw;height:88vh;margin:6vh auto;">
-        <div class="modal-content" style="height:100%;">
-            <div class="modal-header py-2">
-                <h6 class="modal-title mb-0" id="pdwTitle">Process Documents</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div id="pdw-host" style="display:none">
+            <div class="d-flex align-items-center px-3 py-2 border-bottom" style="flex-shrink:0;gap:.5rem">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="pdwCloseBtn"><i class="bi bi-arrow-left"></i> Dimensions</button>
+                <h6 class="mb-0" id="pdwTitle">Process Documents</h6>
             </div>
-            <div class="modal-body p-0" style="overflow:hidden">
+            <div class="pdw-body p-0">
 
                 {{-- Screen T: Part → Point → Rule → Process tree (document hub) --}}
                 <div id="pdw-tree-screen" class="p-3 d-none" style="overflow-y:auto;height:100%">
@@ -1057,8 +1055,6 @@
                 </div>
 
             </div>
-        </div>
-    </div>
 </div>
 
 <script>
@@ -4573,10 +4569,40 @@ document.addEventListener('DOMContentLoaded', function () {
     const pdwDocScreen = document.getElementById('pdw-doc-screen');
     const pdwEdScreen  = document.getElementById('pdw-editor-screen');
 
-    function getPdwModal() {
-        if (!pdwModal) pdwModal = new bootstrap.Modal(document.getElementById('pdwModal'));
-        return pdwModal;
+    // Part Documents lives in its own (hidden) tab next to Dimensions, not a modal.
+    // Move the host into the tab pane once, then show/activate the tab on demand.
+    (function () {
+        const host = document.getElementById('pdw-host');
+        const mount = document.getElementById('pdw-host-mount');
+        if (host && mount && host.parentElement !== mount) {
+            host.style.display = 'flex';
+            host.style.flexDirection = 'column';
+            mount.appendChild(host);
+        }
+    })();
+    function pdwActivate() {
+        const navBtn = document.getElementById('nav-partdocs-tab');
+        if (!navBtn) return;
+        navBtn.classList.remove('d-none');
+        bootstrap.Tab.getOrCreateInstance(navBtn).show();
     }
+    function pdwIsActive() {
+        const pane = document.getElementById('nav-partdocs');
+        return !!(pane && pane.classList.contains('active'));
+    }
+    // Back to Dimensions
+    document.getElementById('pdwCloseBtn').addEventListener('click', function () {
+        const d = document.getElementById('nav-dimensions-tab');
+        if (d) bootstrap.Tab.getOrCreateInstance(d).show();
+    });
+    // Switching to any other tab hides the Part Documents tab again.
+    document.querySelectorAll('#nav-tab button[data-bs-toggle="tab"]').forEach(function (b) {
+        b.addEventListener('shown.bs.tab', function (ev) {
+            if (ev.target && ev.target.id !== 'nav-partdocs-tab') {
+                document.getElementById('nav-partdocs-tab').classList.add('d-none');
+            }
+        });
+    });
 
     const PDW_TYPE_LABEL = { drawing: 'Drawing', manual_page: 'Manual page', test_report: 'Test report' };
 
@@ -4609,7 +4635,7 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwTreeIcId = icId; pdwTreeLabel = label || ''; pdwFromTree = true;
         document.getElementById('pdwTitle').textContent = 'Part Documents — ' + pdwTreeLabel;
         document.getElementById('pdw-tree').innerHTML = '<div class="text-secondary" style="font-size:12px">Loading…</div>';
-        getPdwModal().show();
+        pdwActivate();
         pdwShowTreeScreen();
         try {
             const data = await apiFetch('/inspection-components/' + icId + '/document-tree');
@@ -4701,8 +4727,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function pdwTreeRefreshAfterRule() {
         if (!pdwTreeEditingRule) return;
         pdwTreeEditingRule = false;
-        const el = document.getElementById('pdwModal');
-        if (pdwTreeIcId && el && el.classList.contains('show')) {
+        if (pdwTreeIcId && pdwIsActive()) {
             openDocumentTree(pdwTreeIcId, pdwTreeLabel);
         }
     }
@@ -4732,7 +4757,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!fromTree) document.getElementById('pdwTitle').textContent = 'Process Documents — ' + (label || '');
         document.getElementById('pdw-doc-list').innerHTML = '<div class="text-secondary" style="font-size:12px">Loading…</div>';
         pdwHideDocForm();
-        getPdwModal().show();
+        pdwActivate();
         pdwShowDocScreen();
         try {
             const data = await apiFetch(pdwDocsBase());

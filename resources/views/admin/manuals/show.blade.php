@@ -754,10 +754,14 @@
 
         /* Dimensions tab */
         .manual-show-card #nav-dimensions,
-        .manual-show-card #nav-dimensions.active {
+        .manual-show-card #nav-dimensions.active,
+        .manual-show-card #nav-partdocs,
+        .manual-show-card #nav-partdocs.active {
             padding: 0 !important;
             overflow: hidden;
         }
+        #pdw-host { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+        #pdw-host > .pdw-body { flex: 1 1 auto; min-height: 0; position: relative; overflow: hidden; }
         /* display:flex prevents <style>/<script> tags from taking up block height */
         .manual-show-card #nav-dimensions #dim-tab-content-wrap {
             flex: 1 1 auto;
@@ -853,6 +857,9 @@
                                 type="button" role="tab" aria-controls="nav-revision" aria-selected="{{ $manualShowTab === 'revision' ? 'true' : 'false' }}">Revision</button>
                         <button class="nav-link @if(in_array($manualShowTab, ['dimensions','fc'])) active @endif" id="nav-dimensions-tab" data-bs-toggle="tab" data-bs-target="#nav-dimensions"
                                 type="button" role="tab" aria-controls="nav-dimensions" aria-selected="{{ in_array($manualShowTab, ['dimensions','fc']) ? 'true' : 'false' }}">Dimensions</button>
+                        {{-- Hidden until the rulers icon on a part is clicked; hides again on any other tab. --}}
+                        <button class="nav-link d-none" id="nav-partdocs-tab" data-bs-toggle="tab" data-bs-target="#nav-partdocs"
+                                type="button" role="tab" aria-controls="nav-partdocs" aria-selected="false">Part Documents</button>
                     </div>
                     <div class="ms-3 d-flex align-items-center gap-2" id="nav-tab-actions">
                         <button type="button" class="btn btn-sm d-none" id="nav-fc-open-btn"
@@ -1407,6 +1414,10 @@
                             'dimensionFigures' => $dimensionFigures,
                         ])
                     </div>
+                </div>
+                {{-- Part Documents hub — content (#pdw-host) is moved here from the Dimensions partial on init. --}}
+                <div class="tab-pane fade" id="nav-partdocs" role="tabpanel" aria-labelledby="nav-partdocs-tab" tabindex="0">
+                    <div id="pdw-host-mount" style="flex:1 1 auto;min-height:0;display:flex;flex-direction:column;"></div>
                 </div>
             </div>
 
