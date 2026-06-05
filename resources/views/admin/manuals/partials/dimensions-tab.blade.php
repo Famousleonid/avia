@@ -3477,6 +3477,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             ruleModal.hide();
             if (activePoint) renderSpecsPanel(activePoint);
+            pdwTreeRefreshAfterRule();
         } catch (e) {
             errEl.textContent = e.message;
             errEl.classList.remove('d-none');
@@ -3495,6 +3496,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             ruleModal.hide();
             if (activePoint) renderSpecsPanel(activePoint);
+            pdwTreeRefreshAfterRule();
         } catch (e) { alert(e.message); }
     });
 
@@ -4579,7 +4581,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const PDW_TYPE_LABEL = { drawing: 'Drawing', manual_page: 'Manual page', test_report: 'Test report' };
 
     const pdwTreeScreen = document.getElementById('pdw-tree-screen');
-    let pdwTree = [], pdwTreeIcId = null, pdwTreeLabel = '', pdwFromTree = false;
+    let pdwTree = [], pdwTreeIcId = null, pdwTreeLabel = '', pdwFromTree = false, pdwTreeEditingRule = false;
 
     // ---- screen switching ----
     function pdwShowTreeScreen() {
@@ -4635,12 +4637,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 }).join('') || '<div style="font-size:11px;color:var(--bs-secondary-color);padding-left:8px">no processes</div>';
                 return `<div style="margin-left:16px;margin-top:3px">
                     <div style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-wrench"></i> ${escHtml(r.label)}
-                        <span class="badge bg-secondary" style="font-size:9px;text-transform:uppercase">${escHtml(r.action)}</span></div>
+                        <span class="badge bg-secondary" style="font-size:9px;text-transform:uppercase">${escHtml(r.action)}</span>
+                        <button class="pdw-tree-rule-edit btn btn-link btn-sm p-0 ms-1" data-param="${pt.param_id}" data-rule="${r.rule_id}" title="Edit rule (processes / descriptions)" style="font-size:11px;color:var(--bs-info)"><i class="bi bi-pencil"></i></button></div>
                     ${procs}
                 </div>`;
             }).join('') || '<div style="margin-left:16px;font-size:11px;color:var(--bs-secondary-color)">no repair rules</div>';
             return `<div style="margin-bottom:10px">
-                <div class="fw-semibold" style="font-size:12px;color:#5ee3ff"><i class="bi bi-geo-alt-fill"></i> ${escHtml(pt.label)}</div>
+                <div class="fw-semibold" style="font-size:12px;color:#5ee3ff"><i class="bi bi-geo-alt-fill"></i> ${escHtml(pt.label)}
+                    <button class="pdw-tree-add-rule btn btn-link btn-sm p-0 ms-2" data-param="${pt.param_id}" title="Add repair rule" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-plus-circle"></i></button></div>
                 ${rules}
             </div>`;
         }).join('');
@@ -4651,7 +4655,39 @@ document.addEventListener('DOMContentLoaded', function () {
                 openProcessDocumentsModal(parseInt(row.dataset.rp), row.dataset.label, 'main', true);
             });
         });
+        // edit a rule (add process / change description) without leaving the hub
+        wrap.querySelectorAll('.pdw-tree-rule-edit').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                const param = (typeof parameters !== 'undefined' ? parameters : []).find(function (p) { return p.id == b.dataset.param; });
+                const rule  = param && (param.repair_rules || []).find(function (r) { return r.id == b.dataset.rule; });
+                if (param && rule) { pdwTreeEditingRule = true; openEditRuleModal(rule, param); }
+                else alert('Rule data not loaded — open it from the Dimensions panel.');
+            });
+        });
+        wrap.querySelectorAll('.pdw-tree-add-rule').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                const param = (typeof parameters !== 'undefined' ? parameters : []).find(function (p) { return p.id == b.dataset.param; });
+                if (param) { pdwTreeEditingRule = true; openAddRuleModal(param); }
+                else alert('Parameter data not loaded — open it from the Dimensions panel.');
+            });
+        });
     }
+
+    // After a rule is saved/deleted from the tree, refresh the tree (new processes, etc.).
+    // Guard: only when the hub modal is actually open, so a stale flag can't re-open it.
+    function pdwTreeRefreshAfterRule() {
+        if (!pdwTreeEditingRule) return;
+        pdwTreeEditingRule = false;
+        const el = document.getElementById('pdwModal');
+        if (pdwTreeIcId && el && el.classList.contains('show')) {
+            openDocumentTree(pdwTreeIcId, pdwTreeLabel);
+        }
+    }
+    document.getElementById('dimRepairRuleModal').addEventListener('hidden.bs.modal', function () {
+        pdwTreeEditingRule = false; // reset on cancel (save already consumed it)
+    });
 
     document.getElementById('pdwTreeBackBtn').addEventListener('click', function () {
         openDocumentTree(pdwTreeIcId, pdwTreeLabel); // refetch → refreshes has-document marks
