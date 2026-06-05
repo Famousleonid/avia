@@ -49,23 +49,6 @@ class ProcessDocumentController extends Controller
         return $this->createDocument($request, $masterRulePhaseRuleProcess, 'manual_page');
     }
 
-    // ── Documents (part level = inspection component) ─────────────
-    // The EC dimensions sheet: one part drawing, measurement elements bound to
-    // any of the part's parameters. Source params = ALL the part's parameters.
-
-    public function indexComponent(ManualInspectionComponent $manualInspectionComponent)
-    {
-        return $this->listDocuments(
-            $manualInspectionComponent,
-            $this->sourceParametersForComponent($manualInspectionComponent)
-        );
-    }
-
-    public function storeComponentDocument(Request $request, ManualInspectionComponent $manualInspectionComponent)
-    {
-        return $this->createDocument($request, $manualInspectionComponent, 'ec');
-    }
-
     /**
      * Document hub for a part: the Part → Point → Rule → Process tree, with a flag
      * for which rule-processes already have a document. Documents attach to the
@@ -392,13 +375,6 @@ class ProcessDocumentController extends Controller
         }
 
         return null;
-    }
-
-    /** All parameters of the manual — selectable as sources/references on the EC sheet
-     *  (incl. other parts, e.g. a mating dimension for calc). */
-    private function sourceParametersForComponent(ManualInspectionComponent $ic): array
-    {
-        return $this->manualParamOptions($ic->manual_id);
     }
 
     private function docPayload(ProcessDocument $d): array

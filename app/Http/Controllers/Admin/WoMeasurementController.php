@@ -9,8 +9,6 @@ use App\Models\Condition;
 use App\Models\ManualInspectionComponentVariant;
 use App\Models\ManualParameter;
 use App\Models\ManualParameterRepairRule;
-use App\Models\MasterRule;
-use App\Models\MasterRulePhaseRule;
 use App\Models\Necessary;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
@@ -926,37 +924,6 @@ class WoMeasurementController extends Controller
     private function fmtDim(float $v): string
     {
         return rtrim(rtrim(number_format($v, 4, '.', ''), '0'), '.');
-    }
-
-    /**
-     * EC gate (Path A) — Finish-phase process_names of the part's MasterRule.
-     * Used to identify the Finish processes (pipeline OR manual — keyed by
-     * process_names_id) that must be removed/held when a part goes to EC.
-     * Returns [] when the part has no MasterRule (no Finish phase defined).
-     *
-     * @return int[] process_names_id
-     */
-    private function finishProcessNameIds(?int $inspectionComponentId): array
-    {
-        if (!$inspectionComponentId) {
-            return [];
-        }
-        $masterRule = MasterRule::with('phaseRules.processes.manualProcess.process')
-            ->where('inspection_component_id', $inspectionComponentId)
-            ->first();
-        if (!$masterRule) {
-            return [];
-        }
-        $ids = [];
-        foreach ($masterRule->phaseRules->where('phase', MasterRulePhaseRule::PHASE_FINISH) as $rule) {
-            foreach ($rule->processes as $rp) {
-                $pnId = $rp->manualProcess?->process?->process_names_id;
-                if ($pnId) {
-                    $ids[] = (int) $pnId;
-                }
-            }
-        }
-        return array_values(array_unique($ids));
     }
 
     private function resolveRepairRule(ManualParameter $parameter, ?string $result, ?int $codesId, bool $useWear, ?string $findingContext = null): ?int

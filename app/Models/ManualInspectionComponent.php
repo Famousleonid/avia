@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class ManualInspectionComponent extends Model
 {
@@ -37,11 +36,5 @@ class ManualInspectionComponent extends Model
     public function masterRule(): HasMany
     {
         return $this->hasMany(MasterRule::class, 'inspection_component_id');
-    }
-
-    /** Part-level process documents — e.g. the EC dimensions sheet (doc_type='ec'). */
-    public function documents(): MorphMany
-    {
-        return $this->morphMany(ProcessDocument::class, 'documentable');
     }
 }
