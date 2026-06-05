@@ -88,8 +88,9 @@ class ProcessDocumentRenderer
                 continue;
             }
             $cls = $e->element_type === 'dimension' ? 'pdw-el pdw-dim' : 'pdw-el pdw-label';
+            $fs   = $e->font_size ? ';font-size:' . (int) $e->font_size . 'pt' : '';
             $text = htmlspecialchars($this->resolveValue($e, $workorder, $context, $docParam), ENT_QUOTES, 'UTF-8');
-            $els .= '<div class="' . $cls . '" style="left:' . $xp . '%;top:' . $yp . '%">' . $text . '</div>';
+            $els .= '<div class="' . $cls . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">' . $text . '</div>';
         }
 
         $svg = $lines !== ''
@@ -222,7 +223,7 @@ class ProcessDocumentRenderer
     private function resolvePlaceholder(string $ph, Workorder $workorder, array $context): string
     {
         switch ($ph) {
-            case '{wo_number}':      return (string) ($workorder->number ?? '');
+            case '{wo_number}':      return $workorder->number ? 'W' . $workorder->number : '';
             case '{serial_number}':  return (string) ($workorder->unit?->serial_number ?? $workorder->serial_number ?? '');
             case '{repair_number}':  return (string) ($context['repair_number'] ?? '');
             case '{component_pn}':   return (string) ($context['component_pn'] ?? '');

@@ -22,6 +22,7 @@ class ProcessDocumentElement extends Model
         'source_parameter_id',
         'placeholder',
         'text',
+        'font_size',
         'sort_order',
     ];
 

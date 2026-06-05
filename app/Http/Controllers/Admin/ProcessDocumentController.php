@@ -341,6 +341,7 @@ class ProcessDocumentController extends Controller
             'source_parameter_id' => 'nullable|exists:manual_parameters,id',
             'placeholder'         => 'nullable|string|max:100',
             'text'                => 'nullable|string|max:255',
+            'font_size'           => 'nullable|integer|min:5|max:72',
             'sort_order'          => 'nullable|integer',
         ]);
     }
@@ -442,6 +443,7 @@ class ProcessDocumentController extends Controller
             'source_parameter_id' => $e->source_parameter_id,
             'placeholder'         => $e->placeholder,
             'text'                => $e->text,
+            'font_size'           => $e->font_size,
             'sort_order'          => $e->sort_order,
         ];
     }

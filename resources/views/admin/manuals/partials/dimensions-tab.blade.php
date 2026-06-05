@@ -1046,6 +1046,8 @@
                             <select id="pdw-ef-placeholder" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
                             <select id="pdw-ef-lblparam" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
                         </div>
+                        <span style="font-size:12px;font-weight:600" class="ms-2">Size:</span>
+                        <input id="pdw-ef-fontsize" type="number" min="5" max="72" class="form-control form-control-sm" style="width:62px;font-size:12px" placeholder="pt" title="Font size (pt) — blank = default">
                         <button id="pdw-ef-save" class="btn btn-primary btn-sm ms-2" style="font-size:12px">Add</button>
                         <button id="pdw-ef-cancel" class="btn btn-secondary btn-sm" style="font-size:12px">Cancel</button>
                     </div>
@@ -5170,6 +5172,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function pdwFinishElement(el, e, coord) {
         el.dataset.elId = e.id;
+        if (e.font_size && !el.classList.contains('pdw-anchor-dot')) el.style.fontSize = e.font_size + 'px';
         if (!el.title) el.title = 'Drag to move · double-click to delete';
         pdwAddElementDrag(el, e, coord);
         el.addEventListener('dblclick', async function (ev) {
@@ -5341,6 +5344,7 @@ document.addEventListener('DOMContentLoaded', function () {
             plsel.classList.add('d-none');
             document.getElementById('pdw-ef-lblparam').classList.add('d-none');
         }
+        document.getElementById('pdw-ef-fontsize').value = '';
         form.classList.remove('d-none');
     }
     function pdwHideElemForm() {
@@ -5383,6 +5387,8 @@ document.addEventListener('DOMContentLoaded', function () {
             else body.text = document.getElementById('pdw-ef-text').value;
             // placeholder (WO number, …) and free text are stamped at the click point — no leader.
         }
+        const fs = parseInt(document.getElementById('pdw-ef-fontsize').value);
+        body.font_size = (fs >= 5 && fs <= 72) ? fs : null;
         await pdwCreateElement(body);
         pdwHideElemForm();
     });
