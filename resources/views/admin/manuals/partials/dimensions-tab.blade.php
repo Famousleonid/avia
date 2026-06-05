@@ -939,6 +939,8 @@
     .pdw-doc-type { font-size:10px; padding:1px 6px; border-radius:3px; background:rgba(13,110,253,.12); color:#0d6efd; flex-shrink:0; text-transform:uppercase; }
     .pdw-page-tab { font-size:11px; padding:2px 8px; border:1px solid var(--bs-border-color); border-radius:3px; cursor:pointer; background:transparent; }
     .pdw-page-tab.active { background:rgba(13,110,253,.15); border-color:#0d6efd; color:#0d6efd; font-weight:600; }
+    .pdw-tree-proc:hover { background:rgba(13,110,253,.10); }
+    .pdw-tree-proc.active { background:rgba(13,110,253,.20); box-shadow:inset 3px 0 0 #0d6efd; font-weight:600; }
 </style>
 <div id="pdw-host" style="display:none">
             <div class="d-flex align-items-center px-3 py-2 border-bottom" style="flex-shrink:0;gap:.5rem">
@@ -4613,11 +4615,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const pdwTreeScreen = document.getElementById('pdw-tree-screen');
     let pdwTree = [], pdwTreeIcId = null, pdwTreeLabel = '', pdwFromTree = false, pdwTreeEditingRule = false;
+    let pdwActiveRpKey = null; // "<kind>:<rule_process_id>" of the process whose docs are open
+
+    function pdwApplyTreeActive() {
+        const wrap = document.getElementById('pdw-tree');
+        if (!wrap) return;
+        wrap.querySelectorAll('.pdw-tree-proc.active').forEach(function (n) { n.classList.remove('active'); });
+        if (!pdwActiveRpKey) return;
+        wrap.querySelectorAll('.pdw-tree-proc').forEach(function (n) {
+            if (((n.dataset.kind || 'main') + ':' + n.dataset.rp) === pdwActiveRpKey) n.classList.add('active');
+        });
+    }
 
     // ---- right-column switching (tree on the left stays visible) ----
     const pdwRightEmpty = document.getElementById('pdw-right-empty');
     function pdwShowTreeScreen() {      // nothing selected → placeholder on the right
         pdwSetMode(null);
+        pdwActiveRpKey = null; pdwApplyTreeActive();
         pdwRightEmpty.classList.remove('d-none');
         pdwDocScreen.classList.add('d-none');
         pdwEdScreen.classList.add('d-none'); pdwEdScreen.classList.remove('d-flex');
@@ -4702,12 +4716,14 @@ document.addEventListener('DOMContentLoaded', function () {
         wrap.innerHTML = html;
 
         wrap.querySelectorAll('.pdw-tree-proc').forEach(function (row) {
-            row.addEventListener('mouseenter', function () { row.style.background = 'rgba(13,110,253,.10)'; });
-            row.addEventListener('mouseleave', function () { row.style.background = ''; });
             row.addEventListener('click', function () {
-                openProcessDocumentsModal(parseInt(row.dataset.rp), row.dataset.label, row.dataset.kind || 'main', true);
+                const kind = row.dataset.kind || 'main';
+                pdwActiveRpKey = kind + ':' + row.dataset.rp;
+                pdwApplyTreeActive();
+                openProcessDocumentsModal(parseInt(row.dataset.rp), row.dataset.label, kind, true);
             });
         });
+        pdwApplyTreeActive(); // re-highlight the open process after a re-render
         // edit a rule (add process / change description) without leaving the hub
         wrap.querySelectorAll('.pdw-tree-rule-edit').forEach(function (b) {
             b.addEventListener('click', function (ev) {
