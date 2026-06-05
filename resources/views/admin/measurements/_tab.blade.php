@@ -878,7 +878,7 @@
         const splitDisplay = !isMissingPart && m.actual_value != null && codeName && dimResult === 'PASS';
 
         // final landed in an oversize repair step → PASS, show the step (RO5)
-        const stepChip = m.repair_step_no ? `<span class="ms-rpass" style="font-weight:700;font-size:11px;margin-right:3px">RO${m.repair_step_no}</span>` : '';
+        const stepChip = m.repair_step_no ? `<span class="ms-rpass" style="font-weight:700;font-size:11px;margin-right:3px">${esc(m.repair_step_no)}</span>` : '';
         let valueHtml = '';
         if (m.actual_value != null) {
             if (splitDisplay) {

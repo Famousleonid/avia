@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('wo_measurements', function (Blueprint $table) {
-            $table->unsignedSmallInteger('repair_step_no')->nullable()->after('result');
+            $table->string('repair_step_no', 20)->nullable()->after('result');
         });
     }
 

@@ -184,7 +184,7 @@ class WoMeasurementController extends Controller
                 if ($s->dim_min !== null && $s->dim_max !== null
                     && $v >= (float) $s->dim_min && $v <= (float) $s->dim_max) {
                     $storedResult = 'PASS';
-                    $stepNo = (int) $s->step_no;
+                    $stepNo = $s->step_no; // string label, e.g. "R05"
                     break;
                 }
             }
