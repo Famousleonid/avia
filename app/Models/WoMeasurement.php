@@ -17,6 +17,7 @@ class WoMeasurement extends Model
         'actual_value',
         'limits_source',
         'result',
+        'repair_step_no', // оверсайз-ступень, в которую попал final-замер (PASS по ремонту)
         'codes_id',
         'finding_notes',
         'repair_required',

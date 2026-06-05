@@ -128,6 +128,7 @@ class WoMeasurementController extends Controller
                 'actual_value'                 => $m->actual_value,
                 'limits_source'                => $m->limits_source,
                 'result'                       => $m->result,
+                'repair_step_no'               => $m->repair_step_no,
                 'codes_id'                     => $m->codes_id,
                 'manual_parameter_repair_rule_id' => $m->manual_parameter_repair_rule_id,
                 'notes'                        => $m->notes,
@@ -167,12 +168,28 @@ class WoMeasurementController extends Controller
             'notes'               => 'nullable|string',
         ]);
 
-        $parameter = ManualParameter::with('repairRules.triggers', 'codes')->findOrFail($data['manual_parameter_id']);
+        $parameter = ManualParameter::with('repairRules.triggers', 'codes', 'repairSteps')->findOrFail($data['manual_parameter_id']);
         $useWear   = $workorder->usesWearLimits();
         $limits    = $parameter->effectiveLimits($useWear);
 
         $data['limits_source'] = $limits['source'];
-        $dimensionalResult     = $this->computeResult($data['actual_value'] ?? null, $limits);
+        // Rule resolution uses the orig/wear result. The STORED result for a FINAL
+        // measurement also accepts oversize repair steps (PASS + which step).
+        $dimensionalResult = $this->computeResult($data['actual_value'] ?? null, $limits);
+        $storedResult      = $dimensionalResult;
+        $stepNo            = null;
+        if (($data['stage'] ?? null) === 'final' && $storedResult === 'FAIL' && $data['actual_value'] !== null) {
+            $v = (float) $data['actual_value'];
+            foreach ($parameter->repairSteps as $s) {
+                if ($s->dim_min !== null && $s->dim_max !== null
+                    && $v >= (float) $s->dim_min && $v <= (float) $s->dim_max) {
+                    $storedResult = 'PASS';
+                    $stepNo = (int) $s->step_no;
+                    break;
+                }
+            }
+        }
+        $data['repair_step_no'] = $stepNo;
 
         // Result of the saved record:
         //  - any finding code selected            → FAIL
@@ -182,8 +199,8 @@ class WoMeasurementController extends Controller
         $isInspectionOnly = $limits['min'] === null && $limits['max'] === null;
         if (!empty($data['codes_id'])) {
             $data['result'] = 'FAIL';
-        } elseif ($dimensionalResult !== null) {
-            $data['result'] = $dimensionalResult;
+        } elseif ($storedResult !== null) {
+            $data['result'] = $storedResult;
         } elseif ($isInspectionOnly) {
             $data['result'] = 'PASS';
         } else {

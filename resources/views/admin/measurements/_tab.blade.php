@@ -877,12 +877,14 @@
         // Split display: dimension is in-tolerance but a finding makes it FAIL
         const splitDisplay = !isMissingPart && m.actual_value != null && codeName && dimResult === 'PASS';
 
+        // final landed in an oversize repair step → PASS, show the step (RO5)
+        const stepChip = m.repair_step_no ? `<span class="ms-rpass" style="font-weight:700;font-size:11px;margin-right:3px">RO${m.repair_step_no}</span>` : '';
         let valueHtml = '';
         if (m.actual_value != null) {
             if (splitDisplay) {
                 valueHtml = `<span class="ms-mval ms-rpass">${fmtDim(m.actual_value)}</span><span class="ms-rpass" style="font-weight:700;font-size:12px">OK</span>`;
             } else {
-                valueHtml = `<span class="ms-mval ${rc}">${fmtDim(m.actual_value)}</span><span class="${rc}" style="font-weight:700;font-size:12px">${m.result||'—'}</span>`;
+                valueHtml = `<span class="ms-mval ${rc}">${fmtDim(m.actual_value)}</span>${stepChip}<span class="${rc}" style="font-weight:700;font-size:12px">${m.result||'—'}</span>`;
             }
         } else if (m.result) {
             valueHtml = `<span class="${rc}" style="font-weight:700;font-size:12px">${m.result}</span>`;
