@@ -761,7 +761,12 @@
             overflow: hidden;
         }
         #pdw-host { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-        #pdw-host > .pdw-body { flex: 1 1 auto; min-height: 0; position: relative; overflow: hidden; }
+        /* two columns: tree (left, fixed) always visible; doc-list / editor / empty (right) */
+        #pdw-host > .pdw-body { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: row; }
+        #pdw-host #pdw-tree-screen { width: 340px; flex-shrink: 0; border-right: 1px solid var(--bs-border-color); }
+        #pdw-host #pdw-doc-screen,
+        #pdw-host #pdw-editor-screen,
+        #pdw-host #pdw-right-empty { flex: 1 1 auto; min-width: 0; }
         /* display:flex prevents <style>/<script> tags from taking up block height */
         .manual-show-card #nav-dimensions #dim-tab-content-wrap {
             flex: 1 1 auto;

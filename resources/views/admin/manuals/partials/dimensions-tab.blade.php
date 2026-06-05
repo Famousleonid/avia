@@ -947,13 +947,18 @@
             </div>
             <div class="pdw-body p-0">
 
-                {{-- Screen T: Part → Point → Rule → Process tree (document hub) --}}
-                <div id="pdw-tree-screen" class="p-3 d-none" style="overflow-y:auto;height:100%">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="fw-semibold">Part documents — Point → Rule → Process</span>
-                        <span class="text-secondary ms-2" style="font-size:11px">click a process to manage its drawing(s)</span>
+                {{-- LEFT column: Part → Point → Rule → Process tree (always visible) --}}
+                <div id="pdw-tree-screen" class="p-3" style="overflow-y:auto;height:100%">
+                    <div class="mb-2">
+                        <div class="fw-semibold" style="font-size:12px">Point → Rule → Process</div>
+                        <div class="text-secondary" style="font-size:11px">click a process to manage its drawing(s)</div>
                     </div>
                     <div id="pdw-tree"></div>
+                </div>
+
+                {{-- RIGHT column: placeholder when nothing selected --}}
+                <div id="pdw-right-empty" class="d-flex align-items-center justify-content-center text-secondary p-3" style="height:100%;font-size:13px">
+                    <div class="text-center"><i class="bi bi-arrow-left-circle" style="font-size:1.6rem;opacity:.4;display:block;margin-bottom:.4rem"></i>Select a process on the left</div>
                 </div>
 
                 {{-- Screen A: document list --}}
@@ -4609,23 +4614,24 @@ document.addEventListener('DOMContentLoaded', function () {
     const pdwTreeScreen = document.getElementById('pdw-tree-screen');
     let pdwTree = [], pdwTreeIcId = null, pdwTreeLabel = '', pdwFromTree = false, pdwTreeEditingRule = false;
 
-    // ---- screen switching ----
-    function pdwShowTreeScreen() {
+    // ---- right-column switching (tree on the left stays visible) ----
+    const pdwRightEmpty = document.getElementById('pdw-right-empty');
+    function pdwShowTreeScreen() {      // nothing selected → placeholder on the right
         pdwSetMode(null);
-        pdwTreeScreen.classList.remove('d-none');
+        pdwRightEmpty.classList.remove('d-none');
         pdwDocScreen.classList.add('d-none');
         pdwEdScreen.classList.add('d-none'); pdwEdScreen.classList.remove('d-flex');
     }
     function pdwShowDocScreen() {
         pdwSetMode(null);
-        pdwTreeScreen.classList.add('d-none');
+        pdwRightEmpty.classList.add('d-none');
         pdwDocScreen.classList.remove('d-none');
         pdwEdScreen.classList.add('d-none'); pdwEdScreen.classList.remove('d-flex');
-        document.getElementById('pdwTreeBackBtn').classList.toggle('d-none', !pdwFromTree);
+        document.getElementById('pdwTreeBackBtn').classList.add('d-none'); // tree always visible now
         renderDocList();
     }
     function pdwShowEditorScreen() {
-        pdwTreeScreen.classList.add('d-none');
+        pdwRightEmpty.classList.add('d-none');
         pdwDocScreen.classList.add('d-none');
         pdwEdScreen.classList.remove('d-none'); pdwEdScreen.classList.add('d-flex');
     }
