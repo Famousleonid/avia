@@ -780,10 +780,14 @@ class WoMeasurementController extends Controller
         // order_new — part condemned at the gate (NDT crack / unsalvageable).
         // Drop the not-yet-started post+finish work (moot on a scrapped part) and
         // raise an Order New TDR for the same part. Repair TDR stays as history.
-        TdrProcess::where('tdrs_id', $tdr->id)
-            ->whereIn('process_names_id', $this->heldOnEcProcessNameIds())
-            ->whereNull('date_start')
-            ->delete();
+        $gateSort = $this->gateAnchorSort((int) $data['inspection_component_id'], $tdr->id);
+        $condemn = TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start');
+        if ($gateSort !== null) {
+            $condemn->where('sort_order', '>', $gateSort);
+        } else {
+            $condemn->whereIn('process_names_id', $this->heldOnEcProcessNameIds());
+        }
+        $condemn->delete();
 
         $existing = Tdr::where('workorder_id', $workorder->id)
             ->where('order_component_id', $tdr->component_id)
