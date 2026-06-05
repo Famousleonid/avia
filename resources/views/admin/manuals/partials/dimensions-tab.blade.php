@@ -3272,7 +3272,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-draw" data-rpid="${p.rule_process_id}" data-label="${escHtml(p.label)}" title="${p.has_drawing ? 'Process drawing (has image)' : 'Add process drawing'}" style="font-size:11px;color:${p.has_drawing ? '#0d6efd' : 'var(--bs-secondary-color)'};opacity:${p.has_drawing ? '1' : '.5'}"><i class="bi bi-${p.has_drawing ? 'pencil-square' : 'image'}"></i></button>`
                 : '';
             const gateBtn = `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-gate" data-idx="${i}" title="${p.is_gate ? 'EC gate anchor — click to clear' : 'Set EC gate anchor here (freeze everything after it on EC)'}" style="font-size:14px;line-height:1;text-decoration:none;color:${p.is_gate ? 'var(--bs-info)' : 'var(--bs-secondary-color)'};opacity:${p.is_gate ? '1' : '.5'}">⚓</button>`;
-            return `<div class="dim-rule-process-item">
+            return `<div class="dim-rule-process-item" data-idx="${i}">
+                <span class="dim-rule-proc-drag" draggable="true" data-idx="${i}" title="Drag to reorder" style="cursor:grab;color:var(--bs-secondary-color);font-size:12px;padding:0 2px">⠿</span>
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
                 <span style="flex:0 0 38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
                 <input type="text" class="form-control form-control-sm dim-rule-proc-note flex-grow-1 ms-1"
@@ -3306,6 +3307,29 @@ document.addEventListener('DOMContentLoaded', function () {
                 const wasGate = !!dimRuleProcesses[idx].is_gate;
                 dimRuleProcesses.forEach(function (p) { p.is_gate = false; }); // one anchor per rule
                 dimRuleProcesses[idx].is_gate = !wasGate;
+                renderRuleProcessList();
+            });
+        });
+        // drag & drop reorder (order persists on Save via sort_order)
+        let rpDragFrom = null;
+        wrap.querySelectorAll('.dim-rule-proc-drag').forEach(function (h) {
+            h.addEventListener('dragstart', function (e) {
+                rpDragFrom = parseInt(h.dataset.idx);
+                e.dataTransfer.effectAllowed = 'move';
+                const row = h.closest('.dim-rule-process-item'); if (row) row.style.opacity = '.4';
+            });
+            h.addEventListener('dragend', function () {
+                wrap.querySelectorAll('.dim-rule-process-item').forEach(function (r) { r.style.opacity = ''; });
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-process-item').forEach(function (row) {
+            row.addEventListener('dragover', function (e) { e.preventDefault(); });
+            row.addEventListener('drop', function (e) {
+                e.preventDefault();
+                const to = parseInt(row.dataset.idx);
+                if (rpDragFrom === null || isNaN(to) || rpDragFrom === to) return;
+                dimRuleProcesses.splice(to, 0, dimRuleProcesses.splice(rpDragFrom, 1)[0]);
+                rpDragFrom = null;
                 renderRuleProcessList();
             });
         });
