@@ -92,6 +92,7 @@ class ProcessDocumentController extends Controller
                 'kind'            => $kind,
                 'label'           => $pname . ($withDesc && $rp->description ? ' — ' . $rp->description : ''),
                 'has_document'    => $docs->has((int) $rp->id),
+                'is_gate'         => $kind === 'main' ? (bool) $rp->is_gate : false,
             ];
         };
 

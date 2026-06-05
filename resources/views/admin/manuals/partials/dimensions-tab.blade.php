@@ -3271,13 +3271,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const drawBtn = p.rule_process_id
                 ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-draw" data-rpid="${p.rule_process_id}" data-label="${escHtml(p.label)}" title="${p.has_drawing ? 'Process drawing (has image)' : 'Add process drawing'}" style="font-size:11px;color:${p.has_drawing ? '#0d6efd' : 'var(--bs-secondary-color)'};opacity:${p.has_drawing ? '1' : '.5'}"><i class="bi bi-${p.has_drawing ? 'pencil-square' : 'image'}"></i></button>`
                 : '';
+            const gateBtn = `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-gate" data-idx="${i}" title="${p.is_gate ? 'EC gate anchor — click to clear' : 'Set EC gate anchor here (freeze everything after it on EC)'}" style="font-size:11px;color:${p.is_gate ? 'var(--bs-info)' : 'var(--bs-secondary-color)'};opacity:${p.is_gate ? '1' : '.45'}"><i class="bi bi-anchor"></i></button>`;
             return `<div class="dim-rule-process-item">
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
                 <span style="flex:0 0 38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
                 <input type="text" class="form-control form-control-sm dim-rule-proc-note flex-grow-1 ms-1"
                        data-idx="${i}" value="${escHtml(p.description || '')}"
                        placeholder="notes (напр. fig. 6039)" style="font-size:11px;height:24px">
-                ${drawBtn}
+                ${gateBtn}${drawBtn}
                 <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)">
                     <i class="bi bi-x"></i>
                 </button>
@@ -3297,6 +3298,15 @@ document.addEventListener('DOMContentLoaded', function () {
         wrap.querySelectorAll('.dim-rule-proc-draw').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 openProcessDocumentsModal(parseInt(btn.dataset.rpid), btn.dataset.label);
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-proc-gate').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const idx = parseInt(btn.dataset.idx);
+                const wasGate = !!dimRuleProcesses[idx].is_gate;
+                dimRuleProcesses.forEach(function (p) { p.is_gate = false; }); // one anchor per rule
+                dimRuleProcesses[idx].is_gate = !wasGate;
+                renderRuleProcessList();
             });
         });
     }
@@ -3378,7 +3388,7 @@ document.addEventListener('DOMContentLoaded', function () {
         dimRuleProcesses = (rule.processes || []).slice().sort(function (a, b) {
             return (a.sort_order || 0) - (b.sort_order || 0);
         }).map(function (p) {
-            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing };
+            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing, is_gate: !!p.is_gate };
         });
         dimRuleTriggers = (rule.triggers || []).map(function (t) {
             return { trigger: t.trigger, codes_id: t.codes_id || null, code_name: t.code_name || null };
@@ -3455,7 +3465,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { trigger: t.trigger, codes_id: t.codes_id || null };
             }),
             processes:         dimRuleProcesses.map(function (p, i) {
-                return { id: p.rule_process_id || null, manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, sort_order: i };
+                return { id: p.rule_process_id || null, manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, is_gate: !!p.is_gate, sort_order: i };
             }),
         };
 
@@ -4676,9 +4686,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const dot = pr.has_document
             ? '<i class="bi bi-file-earmark-check-fill" style="color:var(--bs-warning)"></i>'
             : '<i class="bi bi-file-earmark" style="color:var(--bs-secondary-color)"></i>';
+        const gate = pr.is_gate ? '<i class="bi bi-anchor" style="color:var(--bs-info)" title="EC gate"></i> ' : '';
         return `<div class="pdw-tree-proc d-flex align-items-center gap-2" data-rp="${pr.rule_process_id}" data-kind="${pr.kind || 'main'}" data-label="${escHtml(pr.label)}"
                      style="padding:3px 8px;cursor:pointer;border-radius:4px;font-size:12px">
-            ${dot}<span class="flex-grow-1">${escHtml(pr.label)}</span>
+            ${dot}<span class="flex-grow-1">${gate}${escHtml(pr.label)}</span>
             <span class="text-secondary" style="font-size:10px">${pr.has_document ? 'edit' : 'add'} ›</span>
         </div>`;
     }
