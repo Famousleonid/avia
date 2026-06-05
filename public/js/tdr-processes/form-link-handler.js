@@ -89,6 +89,35 @@ class FormLinkHandler {
     if (window.__genDocHandlerBound) return;
     window.__genDocHandlerBound = true;
 
+    // Print a same-origin PDF straight to the print dialog via a hidden iframe.
+    // Falls back to opening the PDF if the print frame can't be reached.
+    function printPdf(url) {
+        const ifr = document.createElement('iframe');
+        ifr.style.position = 'fixed';
+        ifr.style.right = '0';
+        ifr.style.bottom = '0';
+        ifr.style.width = '0';
+        ifr.style.height = '0';
+        ifr.style.border = '0';
+        let printed = false;
+        ifr.onload = function () {
+            try {
+                ifr.contentWindow.focus();
+                ifr.contentWindow.print();
+                printed = true;
+                // keep the frame around long enough for the dialog, then drop it
+                setTimeout(function () { ifr.remove(); }, 60000);
+            } catch (err) {
+                ifr.remove();
+                window.open(url, '_blank');
+            }
+        };
+        document.body.appendChild(ifr);
+        ifr.src = url;
+        // safety net: if onload never fires (blocked), open the viewer
+        setTimeout(function () { if (!printed && ifr.isConnected) { ifr.remove(); window.open(url, '_blank'); } }, 8000);
+    }
+
     document.addEventListener('click', async function (e) {
         const btn = e.target.closest('.gen-doc-btn');
         if (!btn) return;
@@ -97,6 +126,7 @@ class FormLinkHandler {
         const docId = btn.getAttribute('data-doc-id');
         const woId = btn.getAttribute('data-wo-id');
         const parameterId = btn.getAttribute('data-parameter-id'); // EC: render one place only
+        const docType = btn.getAttribute('data-doc-type') || '';
         if (!docId || !woId) return;
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -116,7 +146,12 @@ class FormLinkHandler {
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.show_url) {
-                window.open(data.show_url, '_blank');
+                // manual_page = reference copy → straight to print preview; others → PDF viewer
+                if (docType === 'manual_page') {
+                    printPdf(data.show_url);
+                } else {
+                    window.open(data.show_url, '_blank');
+                }
             } else {
                 alert((data && data.message) ? data.message : 'Failed to generate document');
             }
