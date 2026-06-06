@@ -499,16 +499,17 @@
             const isMissing = icsMissingTdr.has(part.id) || (MISSING_CODE_ID && part.params.some(p =>
                 paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
             ));
-            const pSt = isMissing ? 'missing' : partStatus(part);
-            const total = part.params.length;
-            const done  = part.params.filter(p => paramStatus(p) !== 'none').length;
-            const progHtml = isMissing
-                ? `<span class="ms-missing-label">missing</span>`
-                : (total > 0
-                    ? (done === total
-                        ? `<span class="ms-part-prog" style="color:#198754">✓</span>`
-                        : `<span class="ms-part-prog">${done}/${total}</span>`)
-                    : '');
+            const fcDone = isMissing && missingPartFcVerified(part);
+            const pSt = fcDone ? 'pass' : (isMissing ? 'missing' : partStatus(part));
+            const progHtml = fcDone
+                ? `<span class="ms-part-prog" style="color:#198754">✓</span>`
+                : (isMissing
+                    ? `<span class="ms-missing-label">missing</span>`
+                    : (part.params.length > 0
+                        ? (part.params.filter(p => paramStatus(p) !== 'none').length === part.params.length
+                            ? `<span class="ms-part-prog" style="color:#198754">✓</span>`
+                            : `<span class="ms-part-prog">${part.params.filter(p => paramStatus(p) !== 'none').length}/${part.params.length}</span>`)
+                        : ''));
             const el = document.createElement('div');
             el.className = 'ms-tab-param-item' + (isActive ? ' active' : '');
             el.style.cssText = 'padding:6px 10px;border-left-width:3px';
@@ -785,6 +786,12 @@
         } catch (e) { alert(e.message); this.disabled = false; }
     });
 
+    function missingPartFcVerified(part) {
+        const fcParams = part.params.filter(p => p.fc_mating_param_id);
+        if (!fcParams.length) return true; // no F&C — nothing to verify
+        return fcParams.every(p => paramMeasurements(p).some(m => m.stage === 'final'));
+    }
+
     function updateTdrBtnState(part) {
         const btn = document.getElementById('ms-add-tdr-btn');
         const revertBtn = document.getElementById('ms-revert-tdr-btn');
@@ -793,7 +800,9 @@
             btn.disabled = true;
             btn.classList.remove('btn-outline-danger');
             btn.classList.add('btn-outline-success');
-            if (revertBtn) revertBtn.classList.remove('d-none');   // part has TDR → allow change
+            // Missing Part: hide Change decision once F&C fit is verified
+            const fcDone = icsMissingTdr.has(part.id) && missingPartFcVerified(part);
+            if (revertBtn) revertBtn.classList.toggle('d-none', fcDone);
             return;
         }
         btn.classList.remove('btn-outline-success');
