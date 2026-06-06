@@ -501,8 +501,12 @@
                 paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
             ));
             const fcDone = isMissing && missingPartFcVerified(part);
-            const tdrLabel = icsTdrLabel.get(part.id); // 'repair'|'order new'|'missing'|undefined
-            const tdrLabelColors = { 'repair':'#fd7e14', 'order new':'#dc3545', 'missing':'#dc3545', 'tdr':'#6c757d' };
+            const tdrLabel = icsTdrLabel.get(part.id); // e.g. 'Worn, Order New' | 'missing' | undefined
+            const tdrLabelColor = !tdrLabel ? '#6c757d'
+                : tdrLabel === 'missing' ? '#dc3545'
+                : /order new/i.test(tdrLabel) ? '#dc3545'
+                : /repair/i.test(tdrLabel) ? '#fd7e14'
+                : '#6c757d';
             const total = part.params.length;
             const done  = part.params.filter(p => paramStatus(p) !== 'none').length;
             let pSt, progHtml;
@@ -514,8 +518,7 @@
                 progHtml = `<span class="ms-missing-label">missing</span>`;
             } else if (tdrLabel && tdrLabel !== 'missing') {
                 pSt = partStatus(part);
-                const col = tdrLabelColors[tdrLabel] || '#6c757d';
-                progHtml = `<span style="font-size:9px;color:${col};font-weight:600;flex-shrink:0">${tdrLabel}</span>`;
+                progHtml = `<span style="font-size:9px;color:${tdrLabelColor};font-weight:600;flex-shrink:0">${esc(tdrLabel)}</span>`;
             } else {
                 pSt = partStatus(part);
                 progHtml = total > 0

@@ -174,13 +174,18 @@ class WoMeasurementController extends Controller
             ->whereIn('component_id', $tdrComponentIds ?: [0])
             ->get(['tdr_type', 'codes_id', 'component_id']);
 
+        $codeNamesById = Code::whereIn('id', $tdrs->pluck('codes_id')->filter()->unique())
+            ->pluck('name', 'id');
+
         $tdrLabelByComponent = [];
         foreach ($tdrs as $tdr) {
             $isMissingTdr = $missingCodeId && (int)$tdr->codes_id === (int)$missingCodeId
                             && $tdr->tdr_type === Tdr::TYPE_ORDER_NEW;
+            $codeName = $tdr->codes_id ? ($codeNamesById[$tdr->codes_id] ?? null) : null;
+            $typeLabel = $tdr->tdr_type === Tdr::TYPE_ORDER_NEW ? 'Order New'
+                : ($tdr->tdr_type === Tdr::TYPE_COMPONENT_TDR ? 'Repair' : 'TDR');
             $label = $isMissingTdr ? 'missing'
-                : ($tdr->tdr_type === Tdr::TYPE_ORDER_NEW ? 'order new'
-                : ($tdr->tdr_type === Tdr::TYPE_COMPONENT_TDR ? 'repair' : 'tdr'));
+                : ($codeName ? $codeName . ', ' . $typeLabel : strtolower($typeLabel));
             $tdrLabelByComponent[$tdr->component_id] = $label;
         }
 
