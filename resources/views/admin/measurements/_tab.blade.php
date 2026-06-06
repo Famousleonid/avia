@@ -1531,6 +1531,7 @@
                 body: JSON.stringify({ inspection_component_id: part.id }),
             });
             icsWithTdr.delete(part.id);
+            icsMissingTdr.delete(part.id);
             document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
 
             // For Missing Part: also delete the Missing measurements to fully restore state
