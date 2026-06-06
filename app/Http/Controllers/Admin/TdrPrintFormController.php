@@ -184,10 +184,10 @@ class TdrPrintFormController extends Controller
         $current_wo = Workorder::findOrFail($id);
         $ordersParts = $this->buildKitPrlRows($current_wo);
 
-        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST - KIT');
+        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST - KIT', false);
     }
 
-    private function renderPrlForm(Workorder $current_wo, $ordersParts, string $formTitle = 'PARTS REPLACEMENT LIST')
+    private function renderPrlForm(Workorder $current_wo, $ordersParts, string $formTitle = 'PARTS REPLACEMENT LIST', bool $showPrintMarkQr = true)
     {
         $manual_id = $current_wo->unit->manual_id;
         $components = $this->filterComponentsForUnit(
@@ -218,7 +218,8 @@ class TdrPrintFormController extends Controller
             'ordersParts',
             'uniqueManuals',
             'hasMultipleManuals',
-            'formTitle'
+            'formTitle',
+            'showPrintMarkQr'
         ));
     }
 
@@ -435,7 +436,7 @@ class TdrPrintFormController extends Controller
         $ndtDefaultRows = (int) ($ndtFormCfg['table_rows_default'] ?? 18);
         $ndtRowsPerPage = (int) $request->query('ndt_table_rows', $ndtDefaultRows);
         $ndtRowsPerPage = max(1, min(99, $ndtRowsPerPage));
-        $ndt_table_pages = $this->buildStdProcessSheetTablePages($ndt_components, $ndtRowsPerPage);
+        $ndt_table_pages = $this->buildStdProcessSheetTablePages($ndt_components, $ndtRowsPerPage, true, true);
 
         return view('admin.tdrs.ndtFormStd', [
                 'current_wo' => $current_wo,
@@ -558,7 +559,7 @@ class TdrPrintFormController extends Controller
         }
     }
 
-    public function paintStd($workorder_id)
+    public function paintStd(Request $request, $workorder_id)
     {
         try {
             // Получаем рабочий заказ и связанные данные
@@ -702,19 +703,23 @@ class TdrPrintFormController extends Controller
             // Рассчитываем общее количество деталей
             $paintSum = $this->calcPaintSumsFromComponents($paint_components);
 
-            // Разбиение на страницы теперь происходит на фронтенде через JavaScript
-            // Передаём все компоненты без предварительного разбиения
+            $paintFormCfg = config('tdr_forms.paintFormStd', []);
+            $paintDefaultRows = (int) ($paintFormCfg['table_rows_default'] ?? 18);
+            $paintRowsPerPage = (int) $request->query('paint_table_rows', $paintDefaultRows);
+            $paintRowsPerPage = max(1, min(99, $paintRowsPerPage));
+            $paint_table_pages = $this->buildStdProcessSheetTablePages($paint_components, $paintRowsPerPage);
 
             return view('admin.tdrs.paintFormStd', [
                     'current_wo' => $current_wo,
                     'manual' => $manual,
-                    'paint_components' => $paint_components, // Передаём все компоненты напрямую
+                    'paint_components' => $paint_components,
+                    'paint_table_pages' => $paint_table_pages,
+                    'paint_rows_per_page' => $paintRowsPerPage,
                     'paint_processes' => $paint_processes,
                     'form_number' => $form_number,
                     'manuals' => [$manual],
                     'process_name' => $paintProcessName,
                     'paintSum' => $paintSum,
-                    // 'componentChunks' => $componentChunks, // Удалено - разбиение на фронтенде
                 ] + $paint_ids);
 
         } catch (\Exception $e) {
@@ -876,14 +881,20 @@ class TdrPrintFormController extends Controller
         }
     }
 
-    private function buildStdProcessSheetTablePages(array $components, int $rowsPerPage): array
+    private function buildStdProcessSheetTablePages(
+        array $components,
+        int $rowsPerPage,
+        bool $includeManualRows = true,
+        bool $paginateByRowSlots = false
+    ): array
     {
         $rowsPerPage = max(1, min(99, $rowsPerPage));
         $flat = [];
         $previousManual = null;
         foreach ($components as $component) {
             $currentManual = $component->manual ?? null;
-            $shouldInsertManualRow = ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
+            $shouldInsertManualRow = $includeManualRows
+                && ($currentManual !== null && $currentManual !== '' && $currentManual !== $previousManual);
             if ($shouldInsertManualRow) {
                 $flat[] = ['kind' => 'manual', 'text' => $currentManual];
             }
@@ -892,6 +903,8 @@ class TdrPrintFormController extends Controller
         }
         if ($flat === []) {
             $pages = [[]];
+        } elseif ($paginateByRowSlots) {
+            $pages = $this->paginateStdProcessSheetRowsBySlots($flat, $rowsPerPage);
         } else {
             $pages = array_chunk($flat, $rowsPerPage);
         }
@@ -908,6 +921,63 @@ class TdrPrintFormController extends Controller
         }
 
         return $pages;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    private function paginateStdProcessSheetRowsBySlots(array $rows, int $rowsPerPage): array
+    {
+        $pages = [];
+        $page = [];
+        $usedSlots = 0;
+
+        foreach ($rows as $row) {
+            $slots = $this->stdProcessSheetRowSlots($row, $rowsPerPage);
+
+            if ($page !== [] && ($usedSlots + $slots) > $rowsPerPage) {
+                $this->fillStdProcessSheetPage($page, $usedSlots, $rowsPerPage);
+                $pages[] = $page;
+                $page = [];
+                $usedSlots = 0;
+            }
+
+            $page[] = $row;
+            $usedSlots += $slots;
+        }
+
+        if ($page !== []) {
+            $this->fillStdProcessSheetPage($page, $usedSlots, $rowsPerPage);
+            $pages[] = $page;
+        }
+
+        return $pages ?: [[]];
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function stdProcessSheetRowSlots(array $row, int $rowsPerPage): int
+    {
+        if (($row['kind'] ?? '') !== 'data') {
+            return 1;
+        }
+
+        $component = $row['component'] ?? null;
+        $lineCount = is_object($component) ? (int) ($component->row_line_count ?? 1) : 1;
+
+        return max(1, min($rowsPerPage, $lineCount));
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $page
+     */
+    private function fillStdProcessSheetPage(array &$page, int $usedSlots, int $rowsPerPage): void
+    {
+        for ($slot = $usedSlots; $slot < $rowsPerPage; $slot++) {
+            $page[] = ['kind' => 'empty'];
+        }
     }
 
     public function stressStd(Request $request, $workorder_id)

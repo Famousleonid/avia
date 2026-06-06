@@ -328,6 +328,7 @@
     </style>
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $current_wo ?? null])
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" type="button" onclick="window.print()">Print Form</button>
     <button class="btn btn-secondary ms-2" type="button" data-bs-toggle="modal" data-bs-target="#printSettingsModal">⚙️ Print Settings</button>

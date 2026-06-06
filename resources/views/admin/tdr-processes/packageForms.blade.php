@@ -41,6 +41,7 @@
     </style>
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $formsData[0]['current_wo'] ?? null])
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" onclick="window.print()">Print All Forms</button>
     <button class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#printSettingsModal">

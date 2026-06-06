@@ -149,11 +149,16 @@ class VendorTrackingTest extends TestCase
             ->assertSee('id="quantumBufferSplitter"', false)
             ->assertSee('quantum-buffer-splitter-lines', false)
             ->assertSee('quantumRoBufferSplitRatio', false)
+            ->assertSee('id="quantumToolbarUnparsedCount"', false)
+            ->assertSee('setQuantumToolbarCount(data?.unparsed_total)', false)
             ->assertSee('id="quantumRecentVisibleToggle"', false)
             ->assertSee('id="quantumWorkorderSearch"', false)
             ->assertSee('vendor-tracking/quantum-ro-lines/find-workorder')
             ->assertSee("event.key !== 'Enter'", false)
             ->assertSee('highlightQuantumUnparsedRow(quantumUnparsedRowByLineId(data.line_id))', false)
+            ->assertDontSee('Unresolved / needs attention')
+            ->assertDontSee('Dismiss visible')
+            ->assertDontSee('dismiss-visible')
             ->assertDontSee('id="aiAssistantToggle"', false)
             ->assertSee('window.UserUiSettings.set(settingsScope, quantumSplitRatioKey', false)
             ->assertSee('applied')
@@ -172,7 +177,6 @@ class VendorTrackingTest extends TestCase
             ->assertDontSee('Fix incorrect Ref values')
             ->assertDontSee('1. Ref code')
             ->assertSeeInOrder([
-                'Unresolved / needs attention',
                 'R-OLD-' . $suffix,
                 'Latest received from Quantum',
                 'R-NEW-' . $suffix,
@@ -289,7 +293,7 @@ class VendorTrackingTest extends TestCase
 
         $response->assertOk();
         $html = (string) $response->getContent();
-        $unparsedStart = strpos($html, 'Unresolved / needs attention');
+        $unparsedStart = strpos($html, 'id="quantumUnparsedRowsBody"');
         $latestStart = strpos($html, 'Latest received from Quantum');
 
         $this->assertNotFalse($unparsedStart);
@@ -327,7 +331,8 @@ class VendorTrackingTest extends TestCase
         $response = $this->actingAs($admin)->get(route('vendor-tracking.index'));
         $response
             ->assertOk()
-            ->assertSee('Dismiss visible')
+            ->assertDontSee('Dismiss visible')
+            ->assertDontSee('dismiss-visible')
             ->assertSee('js-quantum-dismiss-row', false)
             ->assertSee('R-DISMISS-' . $suffix);
 
@@ -350,7 +355,7 @@ class VendorTrackingTest extends TestCase
 
         $afterResponse = $this->actingAs($admin)->get(route('vendor-tracking.index'));
         $afterHtml = (string) $afterResponse->getContent();
-        $unparsedStart = strpos($afterHtml, 'Unresolved / needs attention');
+        $unparsedStart = strpos($afterHtml, 'id="quantumUnparsedRowsBody"');
         $latestStart = strpos($afterHtml, 'Latest received from Quantum');
 
         $this->assertNotFalse($unparsedStart);

@@ -2,10 +2,10 @@
 <style>
 :root {
     --spec-process-row-height: 22px;
-    --spec-process-name-font-size: 11px;
-    --spec-component-description-font-size: 11px;
-    --spec-component-part-no-font-size: 11px;
-    --spec-component-serial-no-font-size: 11px;
+    --spec-process-name-font-size: 14px;
+    --spec-component-description-font-size: 14px;
+    --spec-component-part-no-font-size: 14px;
+    --spec-component-serial-no-font-size: 14px;
 }
 .spec-process-name-cell .spec-process-name-inner { height: var(--spec-process-row-height); min-height: 1em; }
 .spec-process-row-cell .spec-process-row-inner {

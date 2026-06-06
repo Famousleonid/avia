@@ -24,7 +24,7 @@
             --print-footer-font-size: 12px;
             --print-footer-padding: 1px 1px;
             --rm-footer-print-gap: 8mm;
-            --rm-table-data-font-size: 13px;
+            --rm-table-data-font-size: 14px;
         }
 
         .container-fluid {
@@ -348,10 +348,10 @@
     $totalNotes = count($technicalNotesList);
     $totalNotesPages = max(1, (int)ceil($totalNotes / $notesPerPage));
 
-    // Все записи rmRecords - используем значение по умолчанию из Print Settings (18 строк на страницу)
+    // Все записи rmRecords - используем значение по умолчанию из Print Settings (15 строк на страницу)
     $rmRecordsCollection = $rmRecords ?? collect();
     $totalDataCount = $rmRecordsCollection->count();
-    $rmTableRowsPerPage = 18; // Значение по умолчанию из Print Settings
+    $rmTableRowsPerPage = 15; // Значение по умолчанию из Print Settings
 
     // Распределяем rmRecords по страницам в зависимости от лимита строк
     // JavaScript потом может перераспределить в зависимости от настроек Print Settings
@@ -516,20 +516,20 @@
                                 </label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="rmTableDataFontSize" name="rmTableDataFontSize"
-                                           min="6" max="24" step="0.5" value="13">
+                                           min="6" max="24" step="0.5" value="14">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <label for="rmTableRows" class="form-label" data-bs-toggle="tooltip"
                                         data-bs-placement="top"
-                                        title="Максимальное количество строк в таблице R&M Record на одной странице. По умолчанию: 18 строк. Используется для всех страниц формы."
-                                        data-tooltip-ru="Максимальное количество строк в таблице R&M Record на одной странице. По умолчанию: 18 строк. Используется для всех страниц формы."
-                                        data-tooltip-en="Maximum number of rows in R&M Record table per page. Default: 18 rows. Used for all pages of the form.">
+                                        title="Максимальное количество строк в таблице R&M Record на одной странице. По умолчанию: 15 строк. Используется для всех страниц формы."
+                                        data-tooltip-ru="Максимальное количество строк в таблице R&M Record на одной странице. По умолчанию: 15 строк. Используется для всех страниц формы."
+                                        data-tooltip-en="Maximum number of rows in R&M Record table per page. Default: 15 rows. Used for all pages of the form.">
                                     Table (row)
                                 </label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="rmTableRows" name="rmTableRows"
-                                           min="1" max="100" step="1" value="18">
+                                           min="1" max="100" step="1" value="15">
                                 </div>
                             </div>
                         </div>
@@ -736,7 +736,7 @@
 <script>
     // Ключ для сохранения настроек печати
     const PRINT_SETTINGS_KEY = 'rmRecordForm_print_settings';
-    const PRINT_SETTINGS_LAYOUT_VERSION = 'rm-record-v2';
+    const PRINT_SETTINGS_LAYOUT_VERSION = 'rm-record-v3';
 
     // Настройки по умолчанию
     const defaultSettings = {
@@ -748,8 +748,8 @@
         footerWidth: '100%',
         footerFontSize: '12px',
         footerPadding: '1px 1px',
-        rmTableDataFontSize: '13px',
-        rmTableRows: '18'
+        rmTableDataFontSize: '14px',
+        rmTableRows: '15'
     };
 
     const lockedPrintSettings = {
@@ -798,8 +798,8 @@
             };
 
             const settings = normalizePrintSettings({
-                rmTableDataFontSize: getValue('rmTableDataFontSize', '13', 'px'),
-                rmTableRows: getValue('rmTableRows', '18', '')
+                rmTableDataFontSize: getValue('rmTableDataFontSize', '14', 'px'),
+                rmTableRows: getValue('rmTableRows', '15', '')
             });
 
             window.UserScopedStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(settings));
@@ -816,7 +816,6 @@
                 modal.hide();
             }
 
-            showNotification('Settings saved successfully!', 'success');
         } catch (e) {
             console.error('Ошибка сохранения настроек:', e);
             showNotification('Error saving settings', 'error');
@@ -836,7 +835,7 @@
         root.style.setProperty('--rm-print-edge-margin', settings.pageMargin || defaultSettings.pageMargin);
         root.style.setProperty('--rm-table-data-font-size', settings.rmTableDataFontSize || defaultSettings.rmTableDataFontSize);
 
-        const rmMaxRows = parseInt(settings.rmTableRows) || 18;
+        const rmMaxRows = parseInt(settings.rmTableRows) || 15;
 
         // Перераспределяем строки по страницам в зависимости от настроек
         redistributeRowsToPages(rmMaxRows);
@@ -1188,8 +1187,8 @@
     // Загрузка настроек в форму
     function loadSettingsToForm(settings) {
         const elements = {
-            'rmTableDataFontSize': { suffix: 'px', default: '13' },
-            'rmTableRows': { suffix: '', default: '18' }
+            'rmTableDataFontSize': { suffix: 'px', default: '14' },
+            'rmTableRows': { suffix: '', default: '15' }
         };
 
         Object.keys(elements).forEach(function(id) {

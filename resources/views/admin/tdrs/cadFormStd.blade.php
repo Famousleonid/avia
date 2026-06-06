@@ -15,14 +15,101 @@
     <title>CAD PLATE PROCESS SHEET</title>
     <link rel="stylesheet" href="{{ asset('assets/Bootstrap 5/bootstrap.min.css') }}">
     @include('admin.tdrs.partials.std-sheet-styles', ['tdrFormConfig' => $tdrFormConfig])
+    <style>
+        .std-page--cad .std-header {
+            gap: 18px;
+        }
+
+        .std-page--cad .std-header-title--cad {
+            transform: translateX(-28px);
+        }
+
+        .std-page--cad .std-meta-column {
+            gap: 10px;
+        }
+
+        .std-page--cad .std-meta-row {
+            grid-template-columns: 170px minmax(0, 1fr);
+            min-height: 36px;
+        }
+
+        .std-page--cad .std-meta-row--right {
+            grid-template-columns: 90px minmax(0, 1fr);
+        }
+
+        .std-page--cad .std-meta-label {
+            white-space: nowrap;
+        }
+
+        .std-page--cad .std-meta-value {
+            min-height: 30px;
+        }
+
+        .std-page--cad {
+            --std-row-min-height: 34px;
+        }
+
+        .std-page--cad .std-cad-instruction {
+            display: block;
+            font-size: 17px;
+            line-height: 1.2;
+            margin-top: 10px;
+            overflow: visible;
+            white-space: nowrap;
+        }
+
+        @media print {
+            .std-page--cad .std-header {
+                gap: 18px;
+            }
+
+            .std-page--cad .std-meta-column {
+                gap: 9px;
+            }
+
+            .std-page--cad .std-meta-row {
+                grid-template-columns: 150px minmax(0, 1fr);
+                min-height: 30px;
+            }
+
+            .std-page--cad .std-meta-row--right {
+                grid-template-columns: 82px minmax(0, 1fr);
+            }
+
+            .std-page--cad .std-meta-label {
+                white-space: nowrap;
+            }
+
+            .std-page--cad .std-meta-value {
+                min-height: 25px;
+            }
+
+            .std-page--cad .std-cad-instruction {
+                font-size: 15px;
+                line-height: 1.15;
+                margin-top: 8px;
+                overflow: visible;
+                white-space: nowrap;
+            }
+        }
+    </style>
 </head>
 <body>
+@include('shared.print-mark.qr', [
+    'printMarkWorkorder' => $current_wo ?? null,
+    'printMarkQrSize' => 40,
+    'printMarkQrScreenPlacement' => 'page',
+    'printMarkQrTop' => '3mm',
+    'printMarkQrRight' => '4mm',
+    'printMarkQrPrintTop' => '3mm',
+    'printMarkQrPrintRight' => '4mm',
+])
 @include('admin.tdrs.partials.std-sheet-toolbar')
 
 @foreach($cad_table_pages as $cadPageIndex => $cadPageRows)
     @php $cadPageNum = $cadPageIndex + 1; @endphp
     <div class="container-fluid std-sheet-container {{ $cadPageNum === 1 ? 'tdr-primary-sheet' : 'dynamic-page-wrapper' }}">
-        <div class="std-page page data-page {{ $cadPageNum === 1 ? 'tdr-primary-logical-page' : '' }}" data-page-index="{{ $cadPageNum }}">
+        <div class="std-page std-page--cad page data-page {{ $cadPageNum === 1 ? 'tdr-primary-logical-page' : '' }}" data-page-index="{{ $cadPageNum }}">
             <div class="std-header header-page">
                 <div class="std-header-top">
                     <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo" class="std-header-logo">
@@ -69,10 +156,8 @@
                     </div>
                 </div>
 
-                <div class="std-instruction std-instruction-row std-instruction-row--cad">
-                    <div class="std-instruction-text">Perform the CAD plate as specified under Process No. and in accordance with SMM No.</div>
-                    <div class="std-manual-ref-label">MANUAL REF:</div>
-                    <div class="std-manual-ref-box">{{ $manualNumber }}</div>
+                <div class="std-instruction std-cad-instruction">
+                    Perform the CAD plate as specified under Process No. and in accordance with SMM No.
                 </div>
             </div>
 
@@ -103,7 +188,7 @@
                     @elseif(($cadEntry['kind'] ?? '') === 'data')
                         @php
                             $component = $cadEntry['component'];
-                            $rowHeight = max(32, (int) ($component->row_height ?? 32));
+                            $rowHeight = max(34, (int) ($component->row_height ?? 34));
                             $processText = (string) ($component->process_name ?? '');
                             $processLength = mb_strlen($processText);
                             $processFitClass = $processLength > 48

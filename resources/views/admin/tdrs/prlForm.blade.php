@@ -400,6 +400,9 @@
 </head>
 
 <body>
+@if($showPrintMarkQr ?? true)
+    @include('shared.print-mark.qr', ['printMarkWorkorder' => $current_wo ?? null])
+@endif
 <!-- Кнопки для печати и настроек -->
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" onclick="window.print()">

@@ -27,6 +27,7 @@
     @include('shared.process-forms._styles')
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $current_wo ?? null])
 @if(!isset($hidePrintButton) || !$hidePrintButton)
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" onclick="window.print()">Print Form</button>

@@ -270,40 +270,6 @@ class VendorTrackingController extends Controller
         ]);
     }
 
-    public function dismissVisibleQuantumRoLines(Request $request): JsonResponse
-    {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
-
-        $data = $request->validate([
-            'line_ids' => ['required', 'array', 'min:1', 'max:200'],
-            'line_ids.*' => ['integer', 'min:1'],
-        ]);
-
-        $ids = collect($data['line_ids'])
-            ->map(fn ($id): int => (int) $id)
-            ->filter()
-            ->unique()
-            ->values();
-
-        $dismissedLines = QuantumRoLine::query()
-            ->whereIn('id', $ids)
-            ->orderByDesc('source_last_modified')
-            ->orderByDesc('id')
-            ->get()
-            ->map(fn (QuantumRoLine $line): ?array => $this->dismissQuantumLine($line))
-            ->filter()
-            ->values();
-
-        return response()->json([
-            'success' => true,
-            'dismissed' => $dismissedLines->count(),
-            'dismissed_ids' => $dismissedLines->pluck('id')->values(),
-            'lines' => $dismissedLines,
-            'unparsed_total' => $this->quantumUnparsedTotal(),
-            'status_counts' => $this->quantumStatusCounts(),
-        ]);
-    }
-
     public function restoreQuantumRoLine(QuantumRoLine $quantumRoLine): JsonResponse
     {
         abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);

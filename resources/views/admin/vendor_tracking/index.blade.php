@@ -781,11 +781,6 @@
             white-space: nowrap;
         }
 
-        .quantum-buffer-dismiss-visible {
-            line-height: 1;
-            padding: .18rem .42rem;
-        }
-
         .quantum-buffer-table-wrap {
             flex: 1 1 auto;
             min-height: 0;
@@ -1481,9 +1476,10 @@
                 <div class="d-flex align-items-center gap-2">
                     <button type="button" class="btn btn-outline-warning btn-sm vendor-tracking-toolbar-btn" data-bs-toggle="modal" data-bs-target="#quantumRoBufferModal" title="Quantum buffer unresolved rows">
                         <i class="bi bi-database-exclamation me-1"></i> Quantum
-                        @if(($quantumUnparsedTotal ?? 0) > 0)
-                            <span class="badge text-bg-warning ms-1">{{ number_format($quantumUnparsedTotal) }}</span>
-                        @endif
+                        <span
+                            class="badge text-bg-warning ms-1 {{ ($quantumUnparsedTotal ?? 0) > 0 ? '' : 'd-none' }}"
+                            id="quantumToolbarUnparsedCount"
+                        >{{ number_format($quantumUnparsedTotal ?? 0) }}</span>
                     </button>
                     <button type="button" class="btn btn-outline-secondary btn-sm vendor-tracking-toolbar-btn" id="vendorTrackingSettingsBtn" title="Table settings">
                         <i class="bi bi-gear me-1"></i> Settings
@@ -1878,21 +1874,6 @@
                 </div>
                 <div class="modal-body">
                     <div class="quantum-buffer-section quantum-buffer-unparsed-section">
-                        <div class="quantum-buffer-section-head">
-                            <div class="quantum-buffer-section-title">Unresolved / needs attention</div>
-                            <div class="d-flex align-items-center gap-2 small text-muted">
-                                <button
-                                    type="button"
-                                    class="btn btn-outline-secondary btn-sm quantum-buffer-dismiss-visible"
-                                    id="quantumDismissVisibleBtn"
-                                    data-url="{{ route('vendor-tracking.quantum-lines.dismiss-visible') }}"
-                                    title="Dismiss all visible unresolved rows"
-                                >
-                                    Dismiss visible
-                                </button>
-                                <span id="quantumUnparsedSectionCount">{{ number_format($quantumUnparsedTotal ?? 0) }}</span> rows
-                            </div>
-                        </div>
                         <div class="quantum-buffer-table-wrap quantum-buffer-unparsed-wrap">
                             <table class="table table-sm table-bordered align-middle quantum-buffer-table">
                                 <thead>
@@ -2710,7 +2691,6 @@
             const quantumRecentSection = document.querySelector('.quantum-buffer-recent-section');
             const quantumBufferSplitter = document.getElementById('quantumBufferSplitter');
             const quantumRecentVisibleToggle = document.getElementById('quantumRecentVisibleToggle');
-            const quantumDismissVisibleBtn = document.getElementById('quantumDismissVisibleBtn');
             let isLoadingQuantumRecent = false;
             let activeQuantumSearchRow = null;
             let activeQuantumUnparsedSearchRow = null;
@@ -2898,6 +2878,17 @@
                 element.textContent = Number(value).toLocaleString('en-US');
             };
 
+            const setQuantumToolbarCount = function (value) {
+                const element = document.getElementById('quantumToolbarUnparsedCount');
+                if (!element || value === undefined || value === null) {
+                    return;
+                }
+
+                const count = Number(value) || 0;
+                element.textContent = count.toLocaleString('en-US');
+                element.classList.toggle('d-none', count <= 0);
+            };
+
             const setQuantumStatusCounts = function (counts) {
                 if (!counts || typeof counts !== 'object') {
                     return;
@@ -3073,16 +3064,9 @@
             };
 
             const setQuantumDismissButtonsDisabled = function (disabled) {
-                quantumDismissVisibleBtn?.toggleAttribute('disabled', Boolean(disabled));
                 quantumUnparsedBody?.querySelectorAll('.js-quantum-dismiss-row').forEach(function (button) {
                     button.toggleAttribute('disabled', Boolean(disabled));
                 });
-            };
-
-            const visibleQuantumUnparsedIds = function () {
-                return Array.from(quantumUnparsedBody?.querySelectorAll('tr[data-quantum-line-id]') || [])
-                    .map(row => Number(row.dataset.quantumLineId || 0))
-                    .filter(Boolean);
             };
 
             const ensureQuantumUnparsedEmptyRow = function () {
@@ -3136,8 +3120,8 @@
                 });
 
                 ensureQuantumUnparsedEmptyRow();
+                setQuantumToolbarCount(data?.unparsed_total);
                 setQuantumCountText('quantumUnparsedTotalCount', data?.unparsed_total);
-                setQuantumCountText('quantumUnparsedSectionCount', data?.unparsed_total);
                 setQuantumStatusCounts(data?.status_counts);
             };
 
@@ -3207,8 +3191,8 @@
                     }
                 }
 
+                setQuantumToolbarCount(data?.unparsed_total);
                 setQuantumCountText('quantumUnparsedTotalCount', data?.unparsed_total);
-                setQuantumCountText('quantumUnparsedSectionCount', data?.unparsed_total);
                 setQuantumStatusCounts(data?.status_counts);
             };
 
@@ -3418,17 +3402,6 @@
                 }
 
                 dismissQuantumRows(button.dataset.dismissUrl || '');
-            });
-
-            quantumDismissVisibleBtn?.addEventListener('click', function () {
-                const lineIds = visibleQuantumUnparsedIds();
-
-                if (!lineIds.length) {
-                    setQuantumSearchStatus('No unresolved rows visible', 'text-muted');
-                    return;
-                }
-
-                dismissQuantumRows(quantumDismissVisibleBtn.dataset.url || '', { line_ids: lineIds });
             });
 
             quantumRecentBody?.addEventListener('click', function (event) {

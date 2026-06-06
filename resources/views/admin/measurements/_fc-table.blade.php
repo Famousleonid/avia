@@ -64,6 +64,7 @@ tr.row-hidden { display: none; }
 </style>
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null])
 <div class="page-wrap">
 
 <aside class="sidebar">

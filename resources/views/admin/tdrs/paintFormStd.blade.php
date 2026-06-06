@@ -6,6 +6,9 @@
         $tdrFormConfig = config('tdr_forms.paintFormStd');
         $componentName = (string) $current_wo->description;
         $manualNumber = substr((string) ($manual->number ?? ''), 0, 8);
+        $paint_table_pages = $paint_table_pages ?? [[]];
+        $paint_total_pages = max(1, count($paint_table_pages));
+        $paintGlobalRowIndex = 1;
     @endphp
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,10 +17,13 @@
     @include('admin.tdrs.partials.std-sheet-styles', ['tdrFormConfig' => $tdrFormConfig])
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $current_wo ?? null])
 @include('admin.tdrs.partials.std-sheet-toolbar')
 
-<div class="container-fluid std-sheet-container">
-    <div class="std-page page data-page" data-page-index="1">
+@foreach($paint_table_pages as $paintPageIndex => $paintPageRows)
+    @php $paintPageNum = $paintPageIndex + 1; @endphp
+<div class="container-fluid std-sheet-container {{ $paintPageNum === 1 ? 'tdr-primary-sheet' : 'dynamic-page-wrapper' }}">
+    <div class="std-page page data-page {{ $paintPageNum === 1 ? 'tdr-primary-logical-page' : '' }}" data-page-index="{{ $paintPageNum }}">
         <div class="std-header header-page">
             <div class="std-header-top">
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo" class="std-header-logo">
@@ -82,51 +88,50 @@
             </div>
         </div>
 
-        <div class="all-rows-container" style="--std-table-columns: 1fr 2fr 2fr 4fr 1fr 2fr;">
-            @php
-                $previousManual = null;
-                $rowIndex = 1;
-            @endphp
-
-            @forelse($paint_components as $component)
-                @php
-                    $currentManual = $component->manual ?? null;
-                    $shouldInsertManualRow = $currentManual !== null
-                        && $currentManual !== ''
-                        && $currentManual !== $previousManual;
-                @endphp
-
-                @if($shouldInsertManualRow)
-                    <div class="data-row manual-row std-grid-row std-grid-row--manual std-grid-row--full" data-row-index="{{ $rowIndex }}">
-                        <div class="std-cell"><strong>{{ $currentManual }}</strong></div>
-                    </div>
-                    @php $rowIndex++; @endphp
-                @endif
-
-                @php $rowHeight = max(34, (int) ($component->row_height ?? 32)); @endphp
-                <div class="data-row std-grid-row" data-row-index="{{ $rowIndex }}" style="--std-row-min-height: {{ $rowHeight }}px;">
-                    <div class="std-cell">
-                        <span class="std-cell--multiline">{{ $component->item_display ?? $component->ipl_num }}</span>
-                    </div>
-                    <div class="std-cell">{{ $component->part_number }}</div>
-                    <div class="std-cell">
-                        <span @if(strlen($component->name) > 15) class="std-description-long" @endif>{{ $component->name }}</span>
-                    </div>
-                    <div class="std-cell">
-                        <span @if(strlen($component->process_name) > 30) class="std-description-long" @endif>{{ $component->process_name }}</span>
-                    </div>
-                    <div class="std-cell">{{ $component->qty }}</div>
-                    <div class="std-cell">{{ $manualNumber }}</div>
-                </div>
-                @php
-                    $rowIndex++;
-                    $previousManual = $currentManual;
-                @endphp
-            @empty
-                <div class="data-row std-grid-row std-grid-row--full" data-row-index="1">
+        <div class="all-rows-container page-rows-container" style="--std-table-columns: 1fr 2fr 2fr 4fr 1fr 2fr;">
+            @if(empty($paint_components))
+                <div class="data-row std-grid-row std-grid-row--full">
                     <div class="std-cell"><strong>No Paint components with paint_list flag</strong></div>
                 </div>
-            @endforelse
+            @endif
+
+            @foreach($paintPageRows as $paintEntry)
+                @if(($paintEntry['kind'] ?? '') === 'manual')
+                    <div class="data-row manual-row std-grid-row std-grid-row--manual std-grid-row--full" data-row-index="{{ $paintGlobalRowIndex }}">
+                        <div class="std-cell"><strong>{{ $paintEntry['text'] ?? '' }}</strong></div>
+                    </div>
+                    @php $paintGlobalRowIndex++; @endphp
+                @elseif(($paintEntry['kind'] ?? '') === 'data')
+                    @php
+                        $component = $paintEntry['component'];
+                        $rowHeight = max(34, (int) ($component->row_height ?? 32));
+                    @endphp
+                    <div class="data-row std-grid-row" data-row-index="{{ $paintGlobalRowIndex }}" style="--std-row-min-height: {{ $rowHeight }}px;">
+                        <div class="std-cell">
+                            <span class="std-cell--multiline">{{ $component->item_display ?? $component->ipl_num }}</span>
+                        </div>
+                        <div class="std-cell">{{ $component->part_number }}</div>
+                        <div class="std-cell">
+                            <span @if(strlen($component->name) > 15) class="std-description-long" @endif>{{ $component->name }}</span>
+                        </div>
+                        <div class="std-cell">
+                            <span @if(strlen($component->process_name) > 30) class="std-description-long" @endif>{{ $component->process_name }}</span>
+                        </div>
+                        <div class="std-cell">{{ $component->qty }}</div>
+                        <div class="std-cell">{{ $manualNumber }}</div>
+                    </div>
+                    @php $paintGlobalRowIndex++; @endphp
+                @else
+                    <div class="data-row empty-row std-grid-row">
+                        <div class="std-cell"></div>
+                        <div class="std-cell"></div>
+                        <div class="std-cell"></div>
+                        <div class="std-cell"></div>
+                        <div class="std-cell"></div>
+                        <div class="std-cell"></div>
+                    </div>
+                @endif
+            @endforeach
         </div>
 
         <div class="std-table-summary">
@@ -136,7 +141,8 @@
             <div class="std-footer-grid">
                 <div class="std-footer-left">{{ __('Form # 014') }}</div>
                 <div class="std-footer-center">
-                    {{ __('Page') }} <span class="page-number">1</span> {{ __('of') }} <span class="total-pages">1</span>
+                    {{ __('Page') }} <span class="page-number" data-tdr-footer-page>{{ $paintPageNum }}</span>
+                    {{ __('of') }} <span class="total-pages" data-tdr-footer-total>{{ $paint_total_pages }}</span>
                 </div>
                 <div class="std-footer-right">
                     {{ __('Rev#0, 15/Dec/2012') }}
@@ -145,6 +151,7 @@
         </footer>
     </div>
 </div>
+@endforeach
 
 @include('shared.tdr-forms._print-settings-modal', ['formType' => 'paintFormStd', 'formConfig' => $tdrFormConfig])
 
@@ -159,116 +166,7 @@
 </script>
 
 <script>
-    window.tdrFormApplyTableRowLimits = function(settings) {
-        const paintMaxRows = parseInt(settings.stdTableRows ?? settings.paintTableRows, 10) || 18;
-        const primarySheet = document.querySelector('.container-fluid.std-sheet-container');
-        const allRowsContainer = primarySheet ? primarySheet.querySelector('.all-rows-container') : null;
-
-        if (!primarySheet || !allRowsContainer) {
-            return;
-        }
-
-        document.querySelectorAll('.dynamic-page-wrapper').forEach(function(wrapper) {
-            wrapper.remove();
-        });
-
-        allRowsContainer.querySelectorAll('.empty-row').forEach(function(row) {
-            row.remove();
-        });
-
-        const allRows = Array.from(allRowsContainer.querySelectorAll('.data-row:not(.empty-row)'));
-        const manualRows = allRows.filter(function(row) {
-            return row.classList.contains('manual-row');
-        });
-        const dataRows = allRows.filter(function(row) {
-            return !row.classList.contains('manual-row');
-        });
-        const hasManualRows = manualRows.length > 0;
-        const rowsToProcess = hasManualRows ? allRows : dataRows;
-        const totalRows = rowsToProcess.length;
-        const totalPages = Math.max(1, Math.ceil(totalRows / paintMaxRows));
-
-        const originalHeader = primarySheet.querySelector('.header-page');
-        const originalTableHeader = primarySheet.querySelector('.table-header');
-        const originalFooter = primarySheet.querySelector('footer');
-
-        rowsToProcess.forEach(function(row, index) {
-            row.style.display = index < paintMaxRows ? '' : 'none';
-        });
-
-        const updateFooter = function(footer, page, total) {
-            const pageEl = footer.querySelector('.page-number');
-            const totalEl = footer.querySelector('.total-pages');
-            if (pageEl) pageEl.textContent = String(page);
-            if (totalEl) totalEl.textContent = String(total);
-        };
-
-        updateFooter(originalFooter, 1, totalPages);
-
-        let insertAnchor = primarySheet;
-        for (let pageIndex = 1; pageIndex < totalPages; pageIndex++) {
-            const startIndex = pageIndex * paintMaxRows;
-            const endIndex = Math.min(startIndex + paintMaxRows, rowsToProcess.length);
-            const pageRows = rowsToProcess.slice(startIndex, endIndex);
-
-            const pageWrapper = document.createElement('div');
-            pageWrapper.className = 'container-fluid std-sheet-container dynamic-page-wrapper';
-
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'std-page page data-page';
-            pageDiv.setAttribute('data-page-index', String(pageIndex + 1));
-
-            pageDiv.appendChild(originalHeader.cloneNode(true));
-            pageDiv.appendChild(originalTableHeader.cloneNode(true));
-
-            const rowsContainer = document.createElement('div');
-            rowsContainer.className = 'all-rows-container';
-            rowsContainer.style.setProperty('--std-table-columns', getComputedStyle(allRowsContainer).getPropertyValue('--std-table-columns'));
-
-            pageRows.forEach(function(row) {
-                const node = row.cloneNode(true);
-                node.style.display = '';
-                rowsContainer.appendChild(node);
-            });
-
-            const rowsOnLastPage = pageRows.length;
-            const emptyRowsNeeded = rowsOnLastPage === 0 ? paintMaxRows : (paintMaxRows - rowsOnLastPage);
-            if (pageIndex === totalPages - 1 && emptyRowsNeeded > 0 && emptyRowsNeeded < paintMaxRows) {
-                for (let i = 0; i < emptyRowsNeeded; i++) {
-                    const emptyRow = document.createElement('div');
-                    emptyRow.className = 'data-row empty-row std-grid-row';
-                    emptyRow.innerHTML =
-                        '<div class="std-cell"></div><div class="std-cell"></div><div class="std-cell"></div>' +
-                        '<div class="std-cell"></div><div class="std-cell"></div><div class="std-cell"></div>';
-                    rowsContainer.appendChild(emptyRow);
-                }
-            }
-
-            pageDiv.appendChild(rowsContainer);
-
-            const footerClone = originalFooter.cloneNode(true);
-            updateFooter(footerClone, pageIndex + 1, totalPages);
-            pageDiv.appendChild(footerClone);
-
-            pageWrapper.appendChild(pageDiv);
-            primarySheet.parentNode.insertBefore(pageWrapper, insertAnchor.nextSibling);
-            insertAnchor = pageWrapper;
-        }
-
-        if (totalPages === 1) {
-            const emptyRowsNeeded = totalRows === 0 ? paintMaxRows : (paintMaxRows - totalRows);
-            if (emptyRowsNeeded > 0 && emptyRowsNeeded < paintMaxRows) {
-                for (let i = 0; i < emptyRowsNeeded; i++) {
-                    const emptyRow = document.createElement('div');
-                    emptyRow.className = 'data-row empty-row std-grid-row';
-                    emptyRow.innerHTML =
-                        '<div class="std-cell"></div><div class="std-cell"></div><div class="std-cell"></div>' +
-                        '<div class="std-cell"></div><div class="std-cell"></div><div class="std-cell"></div>';
-                    allRowsContainer.appendChild(emptyRow);
-                }
-            }
-        }
-    };
+    window.tdrFormApplyTableRowLimits = function () {};
 </script>
 @include('components.session-heartbeat-config')
 <script src="{{ asset('js/main.js') }}?v={{ filemtime(public_path('js/main.js')) }}"></script>

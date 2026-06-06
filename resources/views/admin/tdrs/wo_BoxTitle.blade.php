@@ -219,6 +219,51 @@
             font-size: 0.4rem;
         }
 
+        .wo-box-title-card {
+            isolation: isolate;
+            overflow: hidden;
+            position: relative;
+            width: 600px;
+        }
+
+        .wo-box-title-card::before {
+            align-items: center;
+            color: rgba(0, 0, 0, 0.10);
+            content: attr(data-system-print-mark);
+            display: flex;
+            font-family: "Calibri", serif;
+            font-size: 24px;
+            font-weight: 600;
+            inset: 0;
+            justify-content: center;
+            letter-spacing: 1px;
+            line-height: 1.15;
+            pointer-events: none;
+            position: absolute;
+            text-align: center;
+            text-transform: uppercase;
+            transform: rotate(-24deg);
+            white-space: nowrap;
+            z-index: 0;
+        }
+
+        .wo-box-title-card > .row {
+            position: relative;
+            z-index: 1;
+        }
+
+        @media print {
+            .wo-box-title-card {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .wo-box-title-card::before {
+                color: rgba(0, 0, 0, 0.12);
+            }
+
+        }
+
 
 
 
@@ -235,8 +280,19 @@
 </div>
 
 <div class="container " style="margin-top: 40px">
+    @php
+        $printedAt = now();
+        $printedBy = optional(auth()->user())->name ?: 'system';
+        $systemPrintMark = sprintf(
+            'Aviatechnik system print - W%s - %s %s - %s',
+            $current_wo->number,
+            format_project_date($printedAt),
+            $printedAt->format('H:i'),
+            $printedBy
+        );
+    @endphp
     @for ($i = 0; $i < 2; $i++)
-<div class="" style="margin-top: 80px">
+<div class="wo-box-title-card" data-system-print-mark="{{ $systemPrintMark }}" style="margin-top: 80px">
     <div class="row " style="width: 600px; ">
         <div class="col text-bold border-all text-center " style="height: 150px;padding: -50px; font-size: 100px">
             W{{ $current_wo->number }}

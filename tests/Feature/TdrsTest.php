@@ -424,6 +424,109 @@ class TdrsTest extends TestCase
         $saved->assertDontSee('lc-include-toggle-all', false);
     }
 
+    public function test_log_card_can_load_components_from_another_manual(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $extraManual = $this->createManual([
+            'number' => 'LC-EXTRA',
+            'title' => 'Extra Log Manual',
+        ]);
+        $extraComponent = Component::query()->create([
+            'manual_id' => $extraManual->id,
+            'part_number' => 'LC-EXTRA-100',
+            'name' => 'Extra Manual Log Part',
+            'ipl_num' => '3-10',
+            'log_card' => true,
+        ]);
+        Component::query()->create([
+            'manual_id' => $extraManual->id,
+            'part_number' => 'LC-NOLOG-100',
+            'name' => 'Extra Manual No Log Part',
+            'ipl_num' => '3-20',
+            'log_card' => false,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('log_card.manual-components', [
+            'workorder' => $workorder->id,
+            'manual' => $extraManual->id,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Manual: LC-EXTRA Extra Log Manual', false);
+        $response->assertSee('Extra Manual Log Part', false);
+        $response->assertSee('value="'.$extraComponent->id.'"', false);
+        $response->assertDontSee('Extra Manual No Log Part', false);
+    }
+
+    public function test_log_card_store_accepts_manual_separator_rows(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $primaryComponent = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'LC-PRIMARY-100',
+            'name' => 'Primary Log Part',
+            'ipl_num' => '1-10',
+            'log_card' => true,
+        ]);
+        $extraManual = $this->createManual([
+            'number' => 'LC-EXTRA',
+            'title' => 'Extra Log Manual',
+        ]);
+        $extraComponent = Component::query()->create([
+            'manual_id' => $extraManual->id,
+            'part_number' => 'LC-EXTRA-100',
+            'name' => 'Extra Manual Log Part',
+            'ipl_num' => '3-10',
+            'log_card' => true,
+        ]);
+
+        $payload = [
+            [
+                'row_type' => 'manual',
+                'manual_id' => (string) $workorder->unit->manual_id,
+                'manual_label' => 'Primary Manual',
+            ],
+            [
+                'component_id' => (string) $primaryComponent->id,
+                'manual_id' => (string) $workorder->unit->manual_id,
+                'included' => '1',
+                'serial_number' => 'SN-PRIMARY',
+            ],
+            [
+                'row_type' => 'manual',
+                'manual_id' => (string) $extraManual->id,
+                'manual_label' => 'LC-EXTRA Extra Log Manual',
+            ],
+            [
+                'component_id' => (string) $extraComponent->id,
+                'manual_id' => (string) $extraManual->id,
+                'included' => '1',
+                'serial_number' => 'SN-EXTRA',
+            ],
+        ];
+
+        $response = $this->actingAs($admin)->postJson(route('log_card.store'), [
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode($payload),
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+
+        $rows = json_decode((string) LogCard::where('workorder_id', $workorder->id)->firstOrFail()->component_data, true);
+        $this->assertSame('manual', $rows[0]['row_type']);
+        $this->assertSame($primaryComponent->id, (int) $rows[1]['component_id']);
+        $this->assertSame('manual', $rows[2]['row_type']);
+        $this->assertSame($extraComponent->id, (int) $rows[3]['component_id']);
+
+        $saved = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
+        $saved->assertOk();
+        $saved->assertSee('Manual: LC-EXTRA Extra Log Manual', false);
+        $saved->assertSee('Extra Manual Log Part', false);
+    }
+
     public function test_log_card_partial_filters_components_by_ipl_branch_rule(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -925,6 +1028,7 @@ class TdrsTest extends TestCase
 
         $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
         $kitResponse->assertOk();
+        $kitResponse->assertDontSee('system-print-qr');
         $kitResponse->assertSee('PARTS REPLACEMENT LIST - KIT');
         $kitResponse->assertDontSee('KIT PARTS REPLACEMENT LIST');
         $kitResponse->assertDontSee('2<br />' . "\n" . '2', false);

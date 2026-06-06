@@ -17,6 +17,7 @@
     @include('admin.tdrs.partials.std-sheet-styles', ['tdrFormConfig' => $tdrFormConfig])
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $current_wo ?? null])
 @include('admin.tdrs.partials.std-sheet-toolbar')
 
 @foreach($stress_table_pages as $stressPageIndex => $stressPageRows)

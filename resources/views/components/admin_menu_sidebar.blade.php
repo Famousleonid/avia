@@ -291,31 +291,54 @@
         </li>
 
         @systemadmin
-            <li class="nav-item press-spinner">
-                <a href="{{route('admin.activity.index')}}" class="nav-link">
-                    <i class="bi bi-stickies me-2"></i> <span>Log</span>
-                </a>
-            </li>
+            @php
+                $systemMenuOpen = request()->routeIs('admin.activity.*', 'mobile.*', 'admin.project-settings.*');
+            @endphp
+            <li class="nav-item">
+                <button class="nav-link w-100 d-flex align-items-center flex-nowrap text-start"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#menu-system-admin"
+                        aria-expanded="{{ $systemMenuOpen ? 'true' : 'false' }}"
+                        data-persist="1"
+                        aria-controls="menu-system-admin">
+                    <i class="bi bi-shield-lock me-2"></i>
+                    <span class="flex-grow-1 text-nowrap">System</span>
+                    <i class="bi bi-chevron-down ms-auto lib-chevron"></i>
+                </button>
 
-        <li class="nav-item press-spinner">
-            <a href="{{route('mobile.index')}}" class="nav-link">
-                <i class="bi bi-phone me-2"></i> <span>Mobile</span>
-            </a>
-        </li>
-        @endsystemadmin
+                <ul class="list-unstyled collapse ms-4 {{ $systemMenuOpen ? 'show' : '' }}" id="menu-system-admin">
+                    <li class="nav-item press-spinner">
+                        <a href="{{ route('admin.activity.index') }}" class="nav-link {{ request()->routeIs('admin.activity.*') ? 'active' : '' }}">
+                            <i class="bi bi-stickies me-2"></i> <span>Log</span>
+                        </a>
+                    </li>
 
-        @systemadmin
-            <li class="nav-item press-spinner">
-                <form action="{{ route('admin.database.backup') }}" method="post" class="m-0" id="admin-database-backup-form">
-                    @csrf
-                    <button type="submit"
-                            class="nav-link w-100 text-start border-0 bg-transparent"
-                            style="color: inherit;"
-                            title="Create full database backup (stored under storage/app/backups)"
-                            onclick="return confirm('Create a full database backup now? This may take a minute.');">
-                        <i class="bi bi-database-down me-2"></i><span>Database backup</span>
-                    </button>
-                </form>
+                    <li class="nav-item press-spinner">
+                        <a href="{{ route('mobile.index') }}" class="nav-link {{ request()->routeIs('mobile.*') ? 'active' : '' }}">
+                            <i class="bi bi-phone me-2"></i> <span>Mobile</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item press-spinner">
+                        <form action="{{ route('admin.database.backup') }}" method="post" class="m-0" id="admin-database-backup-form">
+                            @csrf
+                            <button type="submit"
+                                    class="nav-link w-100 text-start border-0 bg-transparent"
+                                    style="color: inherit;"
+                                    title="Create full database backup (stored under storage/app/backups)"
+                                    onclick="return confirm('Create a full database backup now? This may take a minute.');">
+                                <i class="bi bi-database-down me-2"></i><span>Database backup</span>
+                            </button>
+                        </form>
+                    </li>
+
+                    <li class="nav-item press-spinner">
+                        <a href="{{ route('admin.project-settings.index') }}" class="nav-link {{ request()->routeIs('admin.project-settings.*') ? 'active' : '' }}">
+                            <i class="bi bi-sliders me-2"></i> <span>Settings</span>
+                        </a>
+                    </li>
+                </ul>
             </li>
         @endsystemadmin
 

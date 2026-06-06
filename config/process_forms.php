@@ -74,9 +74,9 @@ return [
         'storage_key' => 'specProcessForm_print_settings',
         'process_table_extra_empty_rows' => 2,
         'process_table_row_height' => 24,
-        'process_name_font_size' => 13,
-        'component_description_font_size' => 13,
-        'component_part_no_font_size' => 13,
-        'component_serial_no_font_size' => 13,
+        'process_name_font_size' => 14,
+        'component_description_font_size' => 14,
+        'component_part_no_font_size' => 14,
+        'component_serial_no_font_size' => 14,
     ],
 ];

@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\ManualProcessLockController;
 use App\Http\Controllers\Admin\ManualPartLockController;
 use App\Http\Controllers\Admin\ManualServiceBulletinController;
 use App\Http\Controllers\Admin\ProcessController;
+use App\Http\Controllers\Admin\ProjectSettingController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RmReportController;
 use App\Http\Controllers\Admin\ServiceBulletinLogController;
@@ -61,6 +62,7 @@ use App\Http\Controllers\Mobile\MobileComponentController;
 use App\Http\Controllers\Mobile\MobileController;
 use App\Http\Controllers\Mobile\MobileProcessController;
 use App\Http\Controllers\Mobile\MobileTaskController;
+use App\Http\Controllers\PrintMarkController;
 use App\Http\Controllers\ProfileController;
 use App\Support\Device;
 use Illuminate\Support\Facades\Artisan;
@@ -93,6 +95,11 @@ Route::get('/', function (\Illuminate\Http\Request $request) {
     }
     return redirect(Device::homePath($request));
 })->name('home');
+
+Route::get('/p/{token}', [PrintMarkController::class, 'show'])
+    ->where('token', '[A-Za-z0-9]{8,24}')
+    ->middleware('throttle:60,1')
+    ->name('print-mark.show');
 
 Route::middleware(['auth', 'verified', 'desktop'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -269,6 +276,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('log_card/logCardForm/{id}', [LogCardController::class, 'logCardForm'])->name('log_card.logCardForm');
         Route::get('log_card/sertDistrForm/{id}', [LogCardController::class, 'sertDistrForm'])->name('log_card.sertDistrForm');
         Route::post('log_card/sertDistrForm/{id}', [LogCardController::class, 'updateDestructionCertificate'])->name('log_card.destruction_certificate.update');
+        Route::get('log_card/{workorder}/manual-components/{manual}', [LogCardController::class, 'manualComponentsPartial'])->name('log_card.manual-components');
         Route::get('tdrs/woProcessForm/{id}', [TdrPrintFormController::class, 'wo_Process_Form'])->name('tdrs.woProcessForm');
         Route::get('tdrs/woBoxTitle/{id}', [TdrPrintFormController::class, 'wo_BoxTitle'])->name('tdrs.wo_BoxTitle');
 
@@ -449,6 +457,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     // Components editing from inspection
     Route::get('/components/{component}/json', [ComponentController::class, 'showJson'])->name('components.showJson');
     Route::patch('/components/{component}/flags', [ComponentController::class, 'updateFlags'])->name('components.updateFlags');
+    Route::delete('/components/{component}/image/{media}', [ComponentController::class, 'destroyImage'])->name('components.image.destroy');
     Route::patch('/manuals/{manual}/components/kit-prl-choice-group', [ComponentController::class, 'updateKitPrlChoiceGroup'])->name('manuals.components.kit-prl-choice-group');
     Route::post('/components/{component}/update-from-inspection', [ComponentController::class, 'updateFromInspection'])->name('components.updateFromInspection');
 
@@ -537,7 +546,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/vendor-tracking/row', [VendorTrackingController::class, 'updateRow'])->name('vendor-tracking.row.update');
     Route::get('/vendor-tracking/quantum-ro-lines/recent', [VendorTrackingController::class, 'recentQuantumRoLines'])->name('vendor-tracking.quantum-lines.recent');
     Route::get('/vendor-tracking/quantum-ro-lines/find-workorder', [VendorTrackingController::class, 'findQuantumRoLineByWorkorder'])->name('vendor-tracking.quantum-lines.find-workorder');
-    Route::patch('/vendor-tracking/quantum-ro-lines/dismiss-visible', [VendorTrackingController::class, 'dismissVisibleQuantumRoLines'])->name('vendor-tracking.quantum-lines.dismiss-visible');
     Route::patch('/vendor-tracking/quantum-ro-lines/{quantumRoLine}/restore', [VendorTrackingController::class, 'restoreQuantumRoLine'])->name('vendor-tracking.quantum-lines.restore');
     Route::patch('/vendor-tracking/quantum-ro-lines/{quantumRoLine}/dismiss', [VendorTrackingController::class, 'dismissQuantumRoLine'])->name('vendor-tracking.quantum-lines.dismiss');
 
@@ -632,6 +640,11 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 });
 
 Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin')->group(function () {
+    Route::middleware('systemAdmin')->group(function () {
+        Route::get('/project-settings', [ProjectSettingController::class, 'index'])->name('admin.project-settings.index');
+        Route::post('/project-settings', [ProjectSettingController::class, 'update'])->name('admin.project-settings.update');
+    });
+
     Route::get('/ai-agent/history', [AiAgentController::class, 'history'])->name('admin.ai.history');
     Route::post('/ai-agent/chat', [AiAgentController::class, 'chat'])->name('admin.ai.chat');
     Route::post('/ai-agent/reset', [AiAgentController::class, 'reset'])->name('admin.ai.reset');

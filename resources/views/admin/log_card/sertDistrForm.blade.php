@@ -204,6 +204,7 @@
     </style>
 </head>
 <body>
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $current_wo ?? null])
 <div class="no-print text-start mb-3">
     <button type="button" class="btn btn-outline-primary" onclick="window.print()">{{ __('Print Form') }}</button>
     <span class="ms-3 small text-muted" id="certSaveStatus"></span>

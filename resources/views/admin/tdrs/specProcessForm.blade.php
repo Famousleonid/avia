@@ -34,6 +34,7 @@
             transform: scale(0.94);
             transform-origin: top ;
             padding: 1px;
+            margin-top: 50px;
             margin-left: 10px;
             margin-right: 10px;
         }
@@ -423,7 +424,7 @@
         }
 
         .spec-process-table-body .spec-process-row-inner {
-            font-size: 0.95rem;
+            font-size: var(--spec-process-name-font-size);
             font-weight: 700;
         }
     </style>

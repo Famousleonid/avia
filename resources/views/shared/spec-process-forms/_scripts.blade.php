@@ -7,8 +7,8 @@
 @endphp
 <script>
 (function() {
-    const PRINT_SETTINGS_KEY = '{{ $storageKey }}_v6';
-    const SETTINGS_VERSION = 6;
+    const PRINT_SETTINGS_KEY = '{{ $storageKey }}_v7';
+    const SETTINGS_VERSION = 7;
     const defaultSettings = {
         processTableMinRows: {{ $formConfig['process_table_min_rows'] ?? 10 }},
         processTableExtraEmptyRows: {{ $formConfig['process_table_extra_empty_rows'] ?? 0 }},

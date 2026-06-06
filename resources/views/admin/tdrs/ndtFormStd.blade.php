@@ -28,24 +28,180 @@
         $ndt_table_pages = $ndt_table_pages ?? [[]];
         $ndt_total_pages = max(1, count($ndt_table_pages));
         $ndtGlobalRowIndex = 1;
+        $ndtSettingsStorageKey = $tdrFormConfig['storage_key'] ?? 'ndtFormStd_print_settings';
+        $ndtTableRowsKey = $tdrFormConfig['table_rows_key'] ?? 'stdTableRows';
+        $ndtDefaultRows = (int) ($tdrFormConfig['table_rows_default'] ?? 14);
     @endphp
+    <script>
+        (function syncNdtRowsQueryBeforeRender() {
+            if (!window.UserScopedStorage) return;
+            const storageKey = @json($ndtSettingsStorageKey);
+            const rowsKey = @json($ndtTableRowsKey);
+            const defaultRows = {{ $ndtDefaultRows }};
+            let rows = defaultRows;
+            try {
+                const saved = window.UserScopedStorage.getItem(storageKey);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    const savedRows = parseInt(String(parsed?.[rowsKey] ?? '').replace(/[^\d]/g, ''), 10);
+                    if (Number.isFinite(savedRows) && savedRows >= 1) rows = savedRows;
+                }
+            } catch (e) {
+                rows = defaultRows;
+            }
+
+            const url = new URL(window.location.href);
+            const queryRows = parseInt(String(url.searchParams.get('ndt_table_rows') ?? '').replace(/[^\d]/g, ''), 10);
+            if (rows === defaultRows) {
+                if (url.searchParams.has('ndt_table_rows')) {
+                    url.searchParams.delete('ndt_table_rows');
+                    window.location.replace(url.href);
+                }
+                return;
+            }
+            if (queryRows !== rows) {
+                url.searchParams.set('ndt_table_rows', String(rows));
+                window.location.replace(url.href);
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NDT Form</title>
     <link rel="stylesheet" href="{{ asset('assets/Bootstrap 5/bootstrap.min.css') }}">
     @include('admin.tdrs.partials.std-sheet-styles', ['tdrFormConfig' => $tdrFormConfig])
+    <style>
+        .std-page--ndt .std-header-title--ndt {
+            transform: translateX(-38px);
+        }
+
+        .std-page--ndt .std-ndt-cmm-label {
+            font-size: 16px;
+        }
+
+        .std-page--ndt .std-ndt-cmm-box {
+            font-size: 16px;
+        }
+
+        .std-page--ndt .std-ndt-title {
+            transform: translate(12px, 4px);
+        }
+
+        .std-page--ndt .std-grid-row--header > .std-cell {
+            overflow-wrap: normal;
+            padding-left: 3px;
+            padding-right: 3px;
+            white-space: nowrap;
+        }
+
+        @media print {
+            .std-page--ndt .std-header {
+                gap: 11px;
+            }
+
+            .std-page--ndt .std-header-top {
+                grid-template-columns: 188px minmax(0, 1fr);
+                column-gap: 11px;
+            }
+
+            .std-page--ndt .std-header-logo {
+                width: 178px;
+            }
+
+            .std-page--ndt .std-header-title--ndt {
+                font-size: 28px;
+                margin-top: 4px;
+            }
+
+            .std-page--ndt .std-meta-grid {
+                column-gap: 24px;
+            }
+
+            .std-page--ndt .std-meta-column {
+                gap: 7px;
+            }
+
+            .std-page--ndt .std-meta-row {
+                grid-template-columns: 134px minmax(0, 1fr);
+                min-height: 30px;
+            }
+
+            .std-page--ndt .std-meta-row--right {
+                grid-template-columns: 82px minmax(0, 1fr);
+            }
+
+            .std-page--ndt .std-meta-label {
+                font-size: 13px;
+            }
+
+            .std-page--ndt .std-meta-value {
+                min-height: 24px;
+            }
+
+            .std-page--ndt .std-ndt-grid--aligned {
+                grid-template-rows: auto 24px auto 24px auto 44px;
+                column-gap: 17px;
+                row-gap: 4px;
+            }
+
+            .std-page--ndt .std-ndt-title {
+                font-size: 14px;
+            }
+
+            .std-page--ndt .std-ndt-line {
+                grid-template-columns: 24px minmax(0, 1fr);
+                min-height: 24px;
+            }
+
+            .std-page--ndt .std-ndt-index,
+            .std-page--ndt .std-ndt-value {
+                font-size: 12px;
+            }
+
+            .std-page--ndt .std-manual-ref-box {
+                min-height: 44px;
+            }
+
+            .std-page--ndt .std-table {
+                margin-top: 8px;
+            }
+
+            .std-page--ndt {
+                --std-row-min-height: 35px;
+                --std-header-row-height: 34px;
+            }
+
+            .std-page--ndt .std-grid-row--header > .std-cell {
+                min-height: var(--std-header-row-height);
+                font-size: 13px;
+            }
+
+            .std-page--ndt .std-footer-grid {
+                font-size: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
+@include('shared.print-mark.qr', [
+    'printMarkWorkorder' => $current_wo ?? null,
+    'printMarkQrSize' => 40,
+    'printMarkQrScreenPlacement' => 'page',
+    'printMarkQrTop' => '3mm',
+    'printMarkQrRight' => '4mm',
+    'printMarkQrPrintTop' => '3mm',
+    'printMarkQrPrintRight' => '4mm',
+])
 @include('admin.tdrs.partials.std-sheet-toolbar')
 
 @foreach($ndt_table_pages as $ndtPageIndex => $ndtPageRows)
     @php $ndtPageNum = $ndtPageIndex + 1; @endphp
     <div class="container-fluid std-sheet-container {{ $ndtPageNum === 1 ? 'tdr-primary-sheet' : 'dynamic-page-wrapper' }}">
-        <div class="std-page page data-page {{ $ndtPageNum === 1 ? 'tdr-primary-logical-page' : '' }}" data-page-index="{{ $ndtPageNum }}">
+        <div class="std-page std-page--ndt page data-page {{ $ndtPageNum === 1 ? 'tdr-primary-logical-page' : '' }}" data-page-index="{{ $ndtPageNum }}">
             <div class="std-header header-page">
                 <div class="std-header-top">
                     <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo" class="std-header-logo">
-                    <h2 class="std-header-title std-header-title--ndt">NDT PROCESS SHEET</h2>
+                    <h1 class="std-header-title std-header-title--ndt">NDT PROCESS SHEET</h1>
                 </div>
 
                 <div class="std-meta-grid">
@@ -133,7 +289,7 @@
                 </div>
             </div>
 
-            <div class="std-table table-header" style="--std-table-columns: 1fr 3fr 3fr 2fr 1fr 1fr 1fr;">
+            <div class="std-table table-header" style="--std-table-columns: 1fr 2.4fr 3.2fr 2fr 0.9fr 1.25fr 1.25fr;">
                 <div class="std-grid-row std-grid-row--header">
                     <div class="std-cell">ITEM No.</div>
                     <div class="std-cell">Part No</div>
@@ -145,7 +301,7 @@
                 </div>
             </div>
 
-            <div class="all-rows-container page-rows-container" style="--std-table-columns: 1fr 3fr 3fr 2fr 1fr 1fr 1fr;">
+            <div class="all-rows-container page-rows-container" style="--std-table-columns: 1fr 2.4fr 3.2fr 2fr 0.9fr 1.25fr 1.25fr;">
                 @if(empty($ndt_components))
                     <div class="data-row-ndt std-grid-row std-grid-row--full">
                         <div class="std-cell"><strong>No NDT components with ndt_list flag</strong></div>
@@ -161,7 +317,7 @@
                     @elseif(($ndtEntry['kind'] ?? '') === 'data')
                         @php
                             $component = $ndtEntry['component'];
-                            $rowHeight = max(32, (int) ($component->row_height ?? 32));
+                            $rowHeight = max(35, (int) ($component->row_height ?? 35));
                         @endphp
                         <div class="data-row-ndt std-grid-row" data-row-index="{{ $ndtGlobalRowIndex }}" style="--std-row-min-height: {{ $rowHeight }}px;">
                             <div class="std-cell">
