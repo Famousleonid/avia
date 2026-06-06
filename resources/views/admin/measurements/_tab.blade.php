@@ -891,6 +891,8 @@
         const lastInit=inits[inits.length-1]||null, lastFin=fins[fins.length-1]||null;
         ms.forEach(m=>rec.appendChild(buildMeasRow(m,param)));
 
+        if (MISSING_CODE_ID && ms.some(m => m.codes_id == MISSING_CODE_ID)) return;
+
         if(!lastInit){ frm.appendChild(buildForm(param,'initial',null)); }
         else if(lastInit.result==='FAIL'&&!lastFin){
             const w=document.createElement('div'); w.className='mt-2';
