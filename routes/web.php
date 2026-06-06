@@ -466,6 +466,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/components/{component}/single', [ComponentController::class, 'updateSingle'])->name('components.updateSingle');
     Route::resource('/components', ComponentController::class);
     Route::post('/processes', [ProcessController::class, 'store'])->name('processes.store');
+    Route::patch('/process-names/{processName}/scope', [ProcessController::class, 'updateScope'])->name('process-names.update-scope');
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::get('/manual_processes/{manual_process}/edit', [ManualProcessController::class, 'edit'])->name('manual_processes.edit');
     Route::put('/manual_processes/{manual_process}', [ManualProcessController::class, 'update'])->name('manual_processes.update');

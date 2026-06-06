@@ -223,12 +223,15 @@ class ProcessDocumentRenderer
     private function resolvePlaceholder(string $ph, Workorder $workorder, array $context): string
     {
         switch ($ph) {
-            case '{wo_number}':      return $workorder->number ? 'W' . $workorder->number : '';
-            case '{serial_number}':  return (string) ($workorder->unit?->serial_number ?? $workorder->serial_number ?? '');
-            case '{repair_number}':  return (string) ($context['repair_number'] ?? '');
-            case '{component_pn}':   return (string) ($context['component_pn'] ?? '');
-            case '{date}':           return now()->format('d/M/Y');
-            default:                 return $ph;
+            case '{wo_number}':       return $workorder->number ? 'W' . $workorder->number : '';
+            case '{serial_number}':   return (string) ($workorder->unit?->serial_number ?? $workorder->serial_number ?? '');
+            case '{repair_number}':   return (string) ($context['repair_number'] ?? '');
+            case '{component_pn}':    return (string) ($context['component_pn'] ?? '');
+            case '{technician_name}': return (string) ($workorder->user?->name ?? '');
+            case '{manual_number}':   return (string) ($workorder->unit?->manuals?->number ?? '');
+            case '{manual_lib}':      return (string) ($workorder->unit?->manuals?->lib ?? '');
+            case '{date}':            return now()->format('d/M/Y');
+            default:                  return $ph;
         }
     }
 

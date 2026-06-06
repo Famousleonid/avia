@@ -47,6 +47,11 @@ class WoMeasurementController extends Controller
                     ->unique()
                     ->values(),
                 'is_bush' => $ic->variants->contains(fn($v) => $v->component?->is_bush),
+                'component_ids' => $ic->variants
+                    ->map(fn($v) => $v->component_id)
+                    ->filter()
+                    ->unique()
+                    ->values(),
             ]);
 
         $figures = $manual->dimensionFigures()
@@ -79,24 +84,9 @@ class WoMeasurementController extends Controller
                 'repairRules.triggers.code',
                 'repairRules.processes.manualProcess.process.process_name',
                 'points',
-                'repairSteps',
+                'repairSteps.component',
             ])
             ->get();
-
-        // Build F&C mating map: param_id → mating_param_id via shared is_fits_clearance point
-        $paramsByFcPoint = [];
-        foreach ($rawParameters as $p) {
-            foreach ($p->points->filter(fn($pt) => $pt->is_fits_clearance) as $pt) {
-                $paramsByFcPoint[$pt->id][] = $p->id;
-            }
-        }
-        $fcMatingMap = [];
-        foreach ($paramsByFcPoint as $ids) {
-            if (count($ids) >= 2) {
-                $fcMatingMap[$ids[0]] = $ids[1];
-                $fcMatingMap[$ids[1]] = $ids[0];
-            }
-        }
 
         $parameters = $rawParameters->map(fn($p) => [
                 'id'                      => $p->id,
@@ -134,11 +124,15 @@ class WoMeasurementController extends Controller
                 ])->values(),
                 'point_ids'           => $p->points->pluck('id')->values(),
                 'repair_steps'        => $p->repairSteps->map(fn($s) => [
-                    'step_no' => $s->step_no,
-                    'dim_min' => $s->dim_min,
-                    'dim_max' => $s->dim_max,
+                    'step_no'        => $s->step_no,
+                    'dim_min'        => $s->dim_min,
+                    'dim_max'        => $s->dim_max,
+                    'after_dim_min'  => $s->after_dim_min,
+                    'after_dim_max'  => $s->after_dim_max,
+                    'component_id'   => $s->component_id,
+                    'component_pn'   => $s->component?->part_number,
+                    'component_ipl'  => $s->component?->ipl_num,
                 ])->values(),
-                'fc_mating_param_id'  => $fcMatingMap[$p->id] ?? null,
             ]);
 
         $measurements = WoMeasurement::where('workorder_id', $workorder->id)
@@ -163,42 +157,68 @@ class WoMeasurementController extends Controller
         $missingCodeId = Code::where('name', 'Missing')->value('id');
 
         $tdrComponentIds = Tdr::where('workorder_id', $workorder->id)
-            ->pluck('component_id')->unique()->filter()->all();
-        $icsWithTdr = count($tdrComponentIds) > 0
-            ? ManualInspectionComponentVariant::whereIn('component_id', $tdrComponentIds)
-                ->pluck('inspection_component_id')->unique()->values()->all()
-            : [];
+            ->pluck('component_id')->unique()->filter()->values()->all();
 
         // Build ic_id → tdr label map
-        $tdrs = Tdr::where('workorder_id', $workorder->id)
-            ->whereIn('component_id', $tdrComponentIds ?: [0])
-            ->get(['tdr_type', 'codes_id', 'component_id']);
-
-        $codeNamesById = Code::whereIn('id', $tdrs->pluck('codes_id')->filter()->unique())
-            ->pluck('name', 'id');
-
-        $tdrLabelByComponent = [];
-        foreach ($tdrs as $tdr) {
-            $isMissingTdr = $missingCodeId && (int)$tdr->codes_id === (int)$missingCodeId
-                            && $tdr->tdr_type === Tdr::TYPE_ORDER_NEW;
-            $codeName = $tdr->codes_id ? ($codeNamesById[$tdr->codes_id] ?? null) : null;
-            $typeLabel = $tdr->tdr_type === Tdr::TYPE_ORDER_NEW ? 'Order New'
-                : ($tdr->tdr_type === Tdr::TYPE_COMPONENT_TDR ? 'Repair' : 'TDR');
-            $label = $isMissingTdr ? 'missing'
-                : ($codeName ? $codeName . ', ' . $typeLabel : strtolower($typeLabel));
-            $tdrLabelByComponent[$tdr->component_id] = $label;
-        }
-
-        // ic_id → label (use highest-priority label if multiple TDRs per IC)
+        // Uses ipl_num bridge: TDR and IC variant may reference different component
+        // records in the components table even for the same physical part (same ipl_num).
         $icsTdrLabel = [];
+        $priority    = ['missing' => 3, 'order new' => 2, 'repair' => 1, 'tdr' => 0];
+
         if (count($tdrComponentIds) > 0) {
-            $variants = ManualInspectionComponentVariant::whereIn('component_id', $tdrComponentIds)
+            $tdrs = Tdr::where('workorder_id', $workorder->id)
+                ->whereIn('component_id', $tdrComponentIds)
+                ->get(['tdr_type', 'codes_id', 'component_id']);
+
+            $codeNamesById = Code::whereIn('id', $tdrs->pluck('codes_id')->filter()->unique())
+                ->pluck('name', 'id');
+
+            // Step 1: label per component_id (highest priority wins per comp)
+            $tdrLabelByComponent = [];
+            foreach ($tdrs as $tdr) {
+                $isMissingTdr = $missingCodeId && (int)$tdr->codes_id === (int)$missingCodeId
+                                && $tdr->tdr_type === Tdr::TYPE_ORDER_NEW;
+                $codeName  = $tdr->codes_id ? ($codeNamesById[$tdr->codes_id] ?? null) : null;
+                $typeLabel = $tdr->tdr_type === Tdr::TYPE_ORDER_NEW  ? 'Order New'
+                           : ($tdr->tdr_type === Tdr::TYPE_COMPONENT_TDR ? 'Repair' : 'TDR');
+                $label = $isMissingTdr ? 'missing'
+                       : ($codeName ? $codeName . ', ' . $typeLabel : strtolower($typeLabel));
+                if (!isset($tdrLabelByComponent[$tdr->component_id]) ||
+                    ($priority[$label] ?? 0) > ($priority[$tdrLabelByComponent[$tdr->component_id]] ?? 0)) {
+                    $tdrLabelByComponent[$tdr->component_id] = $label;
+                }
+            }
+
+            // Step 2: bridge via ipl_num → build ipl → label map
+            $iplByTdrComp = Component::whereIn('id', $tdrComponentIds)
+                ->pluck('ipl_num', 'id');
+
+            $tdrLabelByIpl = [];
+            foreach ($tdrLabelByComponent as $compId => $label) {
+                $ipl = $iplByTdrComp[$compId] ?? null;
+                if (!$ipl) continue;
+                if (!isset($tdrLabelByIpl[$ipl]) ||
+                    ($priority[$label] ?? 0) > ($priority[$tdrLabelByIpl[$ipl]] ?? 0)) {
+                    $tdrLabelByIpl[$ipl] = $label;
+                }
+            }
+
+            // Step 3: find component_ids in THIS manual with those ipl_nums
+            $manualCompsByIpl = Component::where('manual_id', $manual->id)
+                ->whereIn('ipl_num', array_keys($tdrLabelByIpl))
+                ->get(['id', 'ipl_num'])
+                ->keyBy('id'); // id → Component
+
+            // Step 4: find IC variants for those component_ids, build icsTdrLabel
+            $variants = ManualInspectionComponentVariant::whereIn('component_id', $manualCompsByIpl->keys())
                 ->get(['inspection_component_id', 'component_id']);
-            $priority = ['missing' => 3, 'order new' => 2, 'repair' => 1, 'tdr' => 0];
+
             foreach ($variants as $v) {
-                $label = $tdrLabelByComponent[$v->component_id] ?? 'tdr';
+                $ipl   = $manualCompsByIpl[$v->component_id]?->ipl_num ?? null;
+                $label = $ipl ? ($tdrLabelByIpl[$ipl] ?? 'tdr') : 'tdr';
                 $icId  = $v->inspection_component_id;
-                if (!isset($icsTdrLabel[$icId]) || ($priority[$label] ?? 0) > ($priority[$icsTdrLabel[$icId]] ?? 0)) {
+                if (!isset($icsTdrLabel[$icId]) ||
+                    ($priority[$label] ?? 0) > ($priority[$icsTdrLabel[$icId]] ?? 0)) {
                     $icsTdrLabel[$icId] = $label;
                 }
             }
@@ -910,28 +930,56 @@ class WoMeasurementController extends Controller
 
         $icId = (int) $data['inspection_component_id'];
 
-        // Find Repair TDR for this IC
-        $componentIds = ManualInspectionComponentVariant::where('inspection_component_id', $icId)
+        // Find Repair TDR for this IC — bridge via ipl_num same as in data()
+        $directComponentIds = ManualInspectionComponentVariant::where('inspection_component_id', $icId)
             ->pluck('component_id');
+
+        $manual  = $workorder->unit->manuals;
+        $useWear = $workorder->usesWearLimits();
+
+        // Extend lookup via ipl_num to handle different component records for same part
+        $variantIplNums = Component::whereIn('id', $directComponentIds)->pluck('ipl_num')->filter()->unique();
+        $allComponentIds = Component::where('manual_id', $manual->id)
+            ->whereIn('ipl_num', $variantIplNums)
+            ->pluck('id')
+            ->merge($directComponentIds)
+            ->unique()->values();
 
         $tdr = Tdr::where('workorder_id', $workorder->id)
             ->where('tdr_type', Tdr::TYPE_COMPONENT_TDR)
-            ->whereIn('component_id', $componentIds)
+            ->whereIn('component_id', $allComponentIds)
             ->first();
 
         if (!$tdr) {
             return response()->json(['error' => 'No Repair TDR found for this part'], 404);
         }
 
-        // Collect rule IDs from current FAIL measurements (only unstarted processes may be replaced)
+        // Collect rule IDs from current FAIL measurements
         $paramIds = ManualParameter::where('inspection_component_id', $icId)->pluck('id');
 
-        $ruleIds = WoMeasurement::where('workorder_id', $workorder->id)
+        $allFails = WoMeasurement::where('workorder_id', $workorder->id)
             ->whereIn('manual_parameter_id', $paramIds)
             ->where('result', 'FAIL')
-            ->whereNotNull('manual_parameter_repair_rule_id')
-            ->pluck('manual_parameter_repair_rule_id')
-            ->unique()->values()->all();
+            ->get(['id', 'manual_parameter_id', 'result', 'codes_id', 'manual_parameter_repair_rule_id', 'stage']);
+
+        // For FAILs without a rule_id, try to re-resolve now
+        // (rule may have been added after the measurement was saved)
+        $paramsById = ManualParameter::whereIn('id', $allFails->pluck('manual_parameter_id')->unique())
+            ->with('repairRules.triggers')
+            ->get()->keyBy('id');
+
+        $ruleIds = [];
+        foreach ($allFails as $m) {
+            $rId = $m->manual_parameter_repair_rule_id;
+            if (!$rId) {
+                $param = $paramsById[$m->manual_parameter_id] ?? null;
+                if ($param) {
+                    $rId = $this->resolveRepairRule($param, $m->result, $m->codes_id, $useWear);
+                }
+            }
+            if ($rId) $ruleIds[] = $rId;
+        }
+        $ruleIds = array_values(array_unique($ruleIds));
 
         // Delete only processes that haven't started
         $startedExists = TdrProcess::where('tdrs_id', $tdr->id)->whereNotNull('date_start')->exists();
@@ -957,11 +1005,18 @@ class WoMeasurementController extends Controller
 
         app(RepairPipeline::class)->run($ctx);
 
+        // Skip process_names_id already covered by a started process (avoid duplicates on repeat)
+        $startedNameIds = TdrProcess::where('tdrs_id', $tdr->id)
+            ->whereNotNull('date_start')
+            ->pluck('process_names_id')
+            ->toArray();
+
         $existingSorts = TdrProcess::where('tdrs_id', $tdr->id)->pluck('sort_order')->toArray();
 
         foreach ($ctx->orderedGroups() as $group) {
+            if (in_array($group['process_names_id'], $startedNameIds)) continue;
+
             $sort = $baseSort + (int) $group['sort_order'];
-            // avoid sort_order collision with started processes
             while (in_array($sort, $existingSorts)) { $sort++; }
             $existingSorts[] = $sort;
 

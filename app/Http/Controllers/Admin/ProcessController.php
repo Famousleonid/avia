@@ -271,4 +271,13 @@ class ProcessController extends Controller
         return redirect($returnTo !== '' ? $returnTo : $fallbackUrl)
             ->with('error', $decision->message);
     }
+
+    public function updateScope(Request $request, ProcessName $processName)
+    {
+        $validated = $request->validate([
+            'scope' => 'required|in:point,part',
+        ]);
+        $processName->update(['scope' => $validated['scope']]);
+        return response()->json(['ok' => true, 'scope' => $processName->scope]);
+    }
 }

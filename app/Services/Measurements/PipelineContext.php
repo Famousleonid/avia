@@ -106,10 +106,11 @@ class PipelineContext
     {
         $scope = $this->scopeOf($nameId);
 
-        // scope=point with a known point → row per point; otherwise aggregate per name.
+        // scope=point with a known point → row per point (per rule/zone).
+        // scope=part → ONE row globally across all phases (dedup by nameId only).
         $key = ($scope === 'point' && $pointKey !== null)
             ? $phase . '|' . $nameId . '|' . $pointKey
-            : $phase . '|' . $nameId;
+            : (string) $nameId;
 
         if (isset($this->mergeIndex[$key])) {
             $g = &$this->processGroups[$this->mergeIndex[$key]];
@@ -163,10 +164,25 @@ class PipelineContext
     {
         $groups = $this->processGroups;
         usort($groups, function ($a, $b) {
+            // 1. Phase order: start → main → finish
             $ra = $this->rankOf($a);
             $rb = $this->rankOf($b);
+            if ($ra !== $rb) return $ra <=> $rb;
 
-            return $ra === $rb ? ($a['_seq'] <=> $b['_seq']) : ($ra <=> $rb);
+            // 2. Within same phase: scope=point before scope=part
+            $pa = $a['scope'] === 'point' ? 0 : 1;
+            $pb = $b['scope'] === 'point' ? 0 : 1;
+            if ($pa !== $pb) return $pa <=> $pb;
+
+            // 3. Within scope=point: group same process_names_id together, then by insertion order
+            if ($pa === 0) {
+                if ($a['process_names_id'] !== $b['process_names_id']) {
+                    return $a['process_names_id'] <=> $b['process_names_id'];
+                }
+            }
+
+            // 4. Fallback: insertion order
+            return $a['_seq'] <=> $b['_seq'];
         });
 
         $out  = [];

@@ -3269,10 +3269,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-draw" data-rpid="${p.rule_process_id}" data-label="${escHtml(p.label)}" title="${p.has_drawing ? 'Process drawing (has image)' : 'Add process drawing'}" style="font-size:11px;color:${p.has_drawing ? '#0d6efd' : 'var(--bs-secondary-color)'};opacity:${p.has_drawing ? '1' : '.5'}"><i class="bi bi-${p.has_drawing ? 'pencil-square' : 'image'}"></i></button>`
                 : '';
             const gateBtn = `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-gate" data-idx="${i}" title="${p.is_gate ? 'EC gate anchor — click to clear' : 'Set EC gate anchor here (freeze everything after it on EC)'}" style="font-size:14px;line-height:1;text-decoration:none;color:${p.is_gate ? 'var(--bs-info)' : 'var(--bs-secondary-color)'};opacity:${p.is_gate ? '1' : '.5'}">⚓</button>`;
+            const scope = p.scope || null;
+            const scopeColor = scope === 'part' ? '#198754' : scope === 'point' ? '#fd7e14' : '#6c757d';
+            const scopeTitle = scope === 'part' ? 'scope=part: одна строка на деталь (click → point)' : scope === 'point' ? 'scope=point: строка на каждую точку (click → part)' : 'scope не задан (click → part)';
+            const scopeBtn = p.process_names_id
+                ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-scope" data-idx="${i}" data-pnid="${p.process_names_id}" title="${scopeTitle}" style="font-size:9px;font-weight:700;color:${scopeColor};border:1px solid ${scopeColor};border-radius:3px;padding:0 4px;line-height:16px;text-decoration:none">${scope || '?'}</button>`
+                : '';
             return `<div class="dim-rule-process-item" data-idx="${i}">
                 <span class="dim-rule-proc-drag" draggable="true" data-idx="${i}" title="Drag to reorder" style="cursor:grab;color:var(--bs-secondary-color);font-size:12px;padding:0 2px">⠿</span>
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
-                <span style="flex:0 0 38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
+                <span style="flex:0 0 35%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
+                ${scopeBtn}
                 <input type="text" class="form-control form-control-sm dim-rule-proc-note flex-grow-1 ms-1"
                        data-idx="${i}" value="${escHtml(p.description || '')}"
                        placeholder="notes (напр. fig. 6039)" style="font-size:11px;height:24px">
@@ -3305,6 +3312,27 @@ document.addEventListener('DOMContentLoaded', function () {
                 dimRuleProcesses.forEach(function (p) { p.is_gate = false; }); // one anchor per rule
                 dimRuleProcesses[idx].is_gate = !wasGate;
                 renderRuleProcessList();
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-proc-scope').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                const idx   = parseInt(btn.dataset.idx);
+                const pnId  = parseInt(btn.dataset.pnid);
+                const cur   = dimRuleProcesses[idx].scope || null;
+                const next  = cur === 'part' ? 'point' : 'part';
+                btn.disabled = true;
+                try {
+                    await fetch('/process-names/' + pnId + '/scope', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+                        body: JSON.stringify({ scope: next }),
+                    });
+                    // Update all processes in the list that share this process_names_id
+                    dimRuleProcesses.forEach(function (p) {
+                        if (p.process_names_id === pnId) p.scope = next;
+                    });
+                    renderRuleProcessList();
+                } catch(e) { alert('Error: ' + e.message); btn.disabled = false; }
             });
         });
         // drag & drop reorder (order persists on Save via sort_order)
@@ -3409,7 +3437,7 @@ document.addEventListener('DOMContentLoaded', function () {
         dimRuleProcesses = (rule.processes || []).slice().sort(function (a, b) {
             return (a.sort_order || 0) - (b.sort_order || 0);
         }).map(function (p) {
-            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing, is_gate: !!p.is_gate };
+            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing, is_gate: !!p.is_gate, process_names_id: p.process_names_id || null, scope: p.scope || null };
         });
         dimRuleTriggers = (rule.triggers || []).map(function (t) {
             return { trigger: t.trigger, codes_id: t.codes_id || null, code_name: t.code_name || null };
@@ -5140,7 +5168,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function pdwFinishElement(el, e, coord) {
         el.dataset.elId = e.id;
-        if (e.font_size && !el.classList.contains('pdw-anchor-dot')) el.style.fontSize = e.font_size + 'px';
+        if (e.font_size && !el.classList.contains('pdw-anchor-dot')) el.style.fontSize = e.font_size + 'pt';
         if (!el.title) el.title = 'Drag to move · double-click to delete';
         pdwAddElementDrag(el, e, coord);
         el.addEventListener('dblclick', async function (ev) {
@@ -5217,9 +5245,43 @@ document.addEventListener('DOMContentLoaded', function () {
     window.addEventListener('mouseup', function () { if (pdwDragging) { pdwDragging = false; pdwCanvas.classList.remove('grabbing'); } });
     document.getElementById('pdwZoomReset').addEventListener('click', pdwFit);
 
+    // ---- dimension placement preview (temporary dots + dashed line) ----
+    function pdwUpdateDimPreview() {
+        const ns = 'http://www.w3.org/2000/svg';
+        let g = pdwSvg.querySelector('#pdw-dim-preview');
+        if (!g) {
+            g = document.createElementNS(ns, 'g');
+            g.id = 'pdw-dim-preview';
+            pdwSvg.appendChild(g);
+        }
+        g.innerHTML = '';
+        if (!pdwDimStage) return;
+
+        function dot(xp, yp) {
+            const c = document.createElementNS(ns, 'circle');
+            c.setAttribute('cx', xp + '%'); c.setAttribute('cy', yp + '%');
+            c.setAttribute('r', '5'); c.setAttribute('fill', '#0d6efd');
+            c.setAttribute('stroke', 'white'); c.setAttribute('stroke-width', '2');
+            g.appendChild(c);
+        }
+
+        dot(pdwDimStage.x_pct, pdwDimStage.y_pct);
+
+        if (pdwDimStage.x2_pct != null) {
+            const line = document.createElementNS(ns, 'line');
+            line.setAttribute('x1', pdwDimStage.x_pct + '%'); line.setAttribute('y1', pdwDimStage.y_pct + '%');
+            line.setAttribute('x2', pdwDimStage.x2_pct + '%'); line.setAttribute('y2', pdwDimStage.y2_pct + '%');
+            line.setAttribute('stroke', '#0d6efd'); line.setAttribute('stroke-width', '1.5');
+            line.setAttribute('stroke-dasharray', '5 3');
+            g.appendChild(line);
+            dot(pdwDimStage.x2_pct, pdwDimStage.y2_pct);
+        }
+    }
+
     // ---- add modes ----
     function pdwSetMode(mode) {
         pdwMode = mode; pdwDimStage = null;
+        pdwUpdateDimPreview(); // clear preview when mode is reset
         document.querySelectorAll('.pdw-mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === mode); });
         pdwCanvas.classList.toggle('add-mode', !!mode);
         const dim = (mode === 'linear' || mode === 'diameter' || mode === 'radius');
@@ -5232,11 +5294,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // WO placeholders available for labels
     const PDW_PLACEHOLDERS = [
-        { value: '{wo_number}',      label: 'WO Number' },
-        { value: '{repair_number}',  label: 'Repair Number' },
-        { value: '{serial_number}',  label: 'Serial Number' },
-        { value: '{component_pn}',   label: 'Component P/N' },
-        { value: '{date}',           label: 'Date' },
+        { value: '{wo_number}',        label: 'WO Number' },
+        { value: '{repair_number}',    label: 'Repair Number' },
+        { value: '{serial_number}',    label: 'Serial Number' },
+        { value: '{component_pn}',     label: 'Component P/N' },
+        { value: '{technician_name}',  label: 'Technician Name' },
+        { value: '{manual_number}',    label: 'Manual Number' },
+        { value: '{manual_lib}',       label: 'Manual Library #' },
+        { value: '{date}',             label: 'Date' },
     ];
     let pdwPending = null; // {element_type, coords...} awaiting form fill
 
@@ -5250,11 +5315,13 @@ document.addEventListener('DOMContentLoaded', function () {
             // 3 clicks: arrow start → arrow end → value position
             if (!pdwDimStage) {
                 pdwDimStage = { mask: pdwMode, x_pct: xp, y_pct: yp };
+                pdwUpdateDimPreview(); // show dot at start point
                 document.getElementById('pdwHint').textContent = 'Click arrow end';
                 return;
             }
             if (pdwDimStage.x2_pct == null) {
                 pdwDimStage.x2_pct = xp; pdwDimStage.y2_pct = yp;
+                pdwUpdateDimPreview(); // show line start→end
                 document.getElementById('pdwHint').textContent = 'Click where the value goes';
                 return;
             }
@@ -5265,9 +5332,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 label_x_pct: xp, label_y_pct: yp,
             };
             pdwDimStage = null;
+            pdwUpdateDimPreview(); // clear preview after completing
             pdwShowElemForm('dimension');
         } else if (pdwMode === 'label') {
             pdwPending = { element_type: 'label', x_pct: xp, y_pct: yp };
+            pdwShowLabelPreview(xp, yp); // teal dot while form is open
             pdwShowElemForm('label');
         }
         pdwSetMode(null);
@@ -5312,12 +5381,29 @@ document.addEventListener('DOMContentLoaded', function () {
             plsel.classList.add('d-none');
             document.getElementById('pdw-ef-lblparam').classList.add('d-none');
         }
-        document.getElementById('pdw-ef-fontsize').value = '';
+        document.getElementById('pdw-ef-fontsize').value = '13';
         form.classList.remove('d-none');
     }
+    function pdwShowLabelPreview(xp, yp) {
+        const ns = 'http://www.w3.org/2000/svg';
+        let g = pdwSvg.querySelector('#pdw-label-preview');
+        if (!g) { g = document.createElementNS(ns, 'g'); g.id = 'pdw-label-preview'; pdwSvg.appendChild(g); }
+        g.innerHTML = '';
+        const c = document.createElementNS(ns, 'circle');
+        c.setAttribute('cx', xp + '%'); c.setAttribute('cy', yp + '%');
+        c.setAttribute('r', '5'); c.setAttribute('fill', '#14b8a6');
+        c.setAttribute('stroke', 'white'); c.setAttribute('stroke-width', '2');
+        g.appendChild(c);
+    }
+    function pdwClearLabelPreview() {
+        const g = pdwSvg.querySelector('#pdw-label-preview');
+        if (g) g.innerHTML = '';
+    }
+
     function pdwHideElemForm() {
         document.getElementById('pdw-elem-form').classList.add('d-none');
         pdwPending = null;
+        pdwClearLabelPreview();
     }
     document.getElementById('pdw-ef-source').addEventListener('change', function () {
         const needsParam = this.value === 'measurement' || this.value === 'calc';

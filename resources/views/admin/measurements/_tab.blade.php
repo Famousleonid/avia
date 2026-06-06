@@ -160,6 +160,23 @@
         </div>
     </div>
 
+    {{-- Modal: Bushing Print Sketch --}}
+    <div class="modal fade" id="msSketchModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0" id="msSketchTitle">Bushing Sketch</h6>
+                    <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="msSketchBody" style="font-size:12px"></div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="msSketchPrintBtn"><i class="bi bi-printer"></i> Print</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Modal: Main results gate (Path A — after machining/final measurements) --}}
     <div class="modal fade" id="msGateModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -209,6 +226,9 @@
                 <button id="ms-revert-tdr-btn" class="btn btn-outline-warning btn-sm d-none" style="font-size:11px" title="Revert TDR" disabled hidden>
                     <i class="bi bi-arrow-counterclockwise"></i> Change decision
                 </button>
+                <button id="ms-print-sketch-btn" class="btn btn-outline-info btn-sm d-none" style="font-size:11px">
+                    <i class="bi bi-printer"></i> Print Sketch
+                </button>
                 <button id="ms-missing-part-btn" class="btn btn-outline-secondary btn-sm d-none" disabled hidden style="font-size:11px">
                     <i class="bi bi-question-circle"></i> Missing Part
                 </button>
@@ -229,7 +249,8 @@
 
 <script>
 (function () {
-    const WO_ID = @json((int)$wo->id);
+    const WO_ID  = @json((int)$wo->id);
+    const WO_NUM = @json((string)$wo->number);
     const CSRF  = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
     let inspComponents = [], figures = [], parameters = [], measurements = [], USE_WEAR = false;
@@ -749,6 +770,7 @@
         updateTdrBtnState(part);
         updateMissingPartBtnState(part);
         updateRepairActionState(part);
+        updatePrintSketchBtnState(part);
 
         accWrap.innerHTML = '';
         part.params.forEach(param => accWrap.appendChild(buildAccordionRow(part, param)));
@@ -811,9 +833,11 @@
     });
 
     function missingPartFcVerified(part) {
-        const fcParams = part.params.filter(p => p.fc_mating_param_id);
-        if (!fcParams.length) return true; // no F&C — nothing to verify
-        return fcParams.every(p => paramMeasurements(p).some(m => m.stage === 'final'));
+        if (!part.is_bush) return true; // non-bushing parts have no mating to verify
+        const matingInfo = getMatingRepairInfo(part.id);
+        if (!matingInfo) return true; // no mating repair parameter configured
+        // Mating bore (e.g. Main Fitting ID) must have a final measurement
+        return paramMeasurements(matingInfo.matingParam).some(m => m.stage === 'final');
     }
 
     function updateRepairActionState(part) {
@@ -828,10 +852,15 @@
         const hasRepairFail = !isMissing && !icsWithTdr.has(part.id) && part.params.some(p =>
             paramMeasurements(p).some(m => m.result === 'FAIL' && !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID))
         );
+        const hasAnyRealMeasurements = part.params.some(p =>
+            paramMeasurements(p).some(m => !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID))
+        );
 
         if (hasRepairTdr) {
             hint.classList.add('d-none');
             updateBtn.classList.remove('d-none');
+            updateBtn.disabled = !hasAnyRealMeasurements;
+            updateBtn.title = hasAnyRealMeasurements ? '' : 'Введите замеры/инспекцию перед обновлением процессов';
         } else if (hasRepairFail) {
             hint.classList.remove('d-none');
             updateBtn.classList.add('d-none');
@@ -878,6 +907,121 @@
         btn.disabled = !hasAnyFail;
     }
 
+    /**
+     * Returns true if any parameter in the manual has a repair_step whose
+     * component_id belongs to this bushing IC's variants.
+     */
+    function hasMatingRepairParam(icId) {
+        const ic = inspComponents.find(c => c.id === icId);
+        if (!ic || !ic.is_bush || !(ic.component_ids || []).length) return false;
+        const cidSet = new Set(ic.component_ids.map(Number));
+        return parameters.some(p =>
+            (p.repair_steps || []).some(s => s.component_id && cidSet.has(Number(s.component_id)))
+        );
+    }
+
+    /**
+     * For a bushing IC, find the mating parameter (the one whose repair_step
+     * component_id matches one of this IC's component_ids) and return current step info.
+     *
+     * If multiple candidates exist (same component used in several repair_steps),
+     * prefer the parameter that already has a final measurement with a repair_step_no —
+     * that is the actual mating surface that was measured.
+     *
+     * Returns {matingParam, stepNo, step} or null.
+     */
+    function getMatingRepairInfo(icId) {
+        const ic = inspComponents.find(c => c.id === icId);
+        if (!ic || !ic.is_bush || !(ic.component_ids || []).length) return null;
+        const cidSet = new Set(ic.component_ids.map(Number));
+
+        // Collect all candidate parameters (have at least one repair_step referencing this IC)
+        const candidates = [];
+        for (const p of parameters) {
+            if ((p.repair_steps || []).some(s => s.component_id && cidSet.has(Number(s.component_id)))) {
+                candidates.push(p);
+            }
+        }
+        if (!candidates.length) return null;
+
+        // Prefer the candidate whose final measurement has a repair_step_no set —
+        // that is the mating surface that was actually machined and measured.
+        const withStep = candidates.find(p => {
+            const fins = paramMeasurements(p).filter(m => m.stage === 'final');
+            return fins.length && fins[fins.length - 1].repair_step_no;
+        });
+        const matingParam = withStep || candidates[0];
+
+        const matingFinals = paramMeasurements(matingParam).filter(m => m.stage === 'final');
+        const stepNo = matingFinals.length ? matingFinals[matingFinals.length - 1].repair_step_no : null;
+        const step   = stepNo ? matingParam.repair_steps.find(st => st.step_no === stepNo) : null;
+        return { matingParam, stepNo, step };
+    }
+
+    function getBushingSketchInfo(part) {
+        return getMatingRepairInfo(part.id);
+    }
+
+    function updatePrintSketchBtnState(part) {
+        const btn = document.getElementById('ms-print-sketch-btn');
+        if (!btn) return;
+        if (!part?.is_bush) { btn.classList.add('d-none'); return; }
+        // Always show for bushings; enable always (show whatever info is available)
+        btn.classList.remove('d-none');
+        btn.disabled = false;
+        const info = getBushingSketchInfo(part);
+        btn.title = info ? `Print sketch — oversize ${info.stepNo}` : 'Print bushing info';
+    }
+
+    document.getElementById('ms-print-sketch-btn')?.addEventListener('click', function () {
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part) return;
+
+        const ic = inspComponents.find(c => c.id === part.id);
+        const pnList  = (ic?.part_numbers || []).filter(Boolean);
+        const iplList = (ic?.ipl_nums || []).filter(Boolean);
+
+        const info = getBushingSketchInfo(part);
+
+        let titleText = part.label;
+        let bodyHtml = '';
+
+        if (info) {
+            titleText += ` — Oversize ${info.stepNo}`;
+            const pnRow = info.step.component_pn
+                ? `<tr><td class="text-secondary pe-3">Required P/N</td><td><strong>${esc(info.step.component_pn)}</strong>${info.step.component_ipl ? ` <span class="text-secondary">(IPL# ${esc(info.step.component_ipl)})</span>` : ''}</td></tr>`
+                : '<tr><td class="text-secondary pe-3">Required P/N</td><td class="text-warning">— not configured —</td></tr>';
+            bodyHtml = `<table class="table table-sm table-borderless mb-0" style="font-size:12px"><tbody>
+                <tr><td class="text-secondary pe-3">W/O</td><td><strong>${esc(WO_NUM)}</strong></td></tr>
+                <tr><td class="text-secondary pe-3">Part</td><td>${esc(part.label)}${iplList.length ? ' <span class="text-secondary ms-2">IPL# '+esc(iplList[0])+'</span>' : ''}${pnList.length ? ' <span class="text-secondary ms-1">'+esc(pnList[0])+'</span>' : ''}</td></tr>
+                <tr><td class="text-secondary pe-3">Repair step</td><td><span style="color:#0d6efd;font-weight:700">${esc(info.stepNo)}</span></td></tr>
+                <tr><td class="text-secondary pe-3">Mating bore</td><td>${esc(info.matingParam.description)}</td></tr>
+                ${pnRow}
+                <tr class="border-top"><td class="text-secondary pe-3 pt-2">Bore ref min</td><td class="pt-2 font-monospace fw-bold" style="font-size:14px">${fmtDim(info.step.dim_min)} in</td></tr>
+                <tr><td class="text-secondary pe-3">Bore ref max</td><td class="font-monospace fw-bold" style="font-size:14px">${fmtDim(info.step.dim_max)} in</td></tr>
+                ${info.step.after_dim_min != null ? `<tr class="text-secondary"><td class="pe-3">After plate min</td><td class="font-monospace">${fmtDim(info.step.after_dim_min)}</td></tr>` : ''}
+                ${info.step.after_dim_max != null ? `<tr class="text-secondary"><td class="pe-3">After plate max</td><td class="font-monospace">${fmtDim(info.step.after_dim_max)}</td></tr>` : ''}
+            </tbody></table>`;
+        } else {
+            // No oversize step yet — show basic bushing info
+            bodyHtml = `<table class="table table-sm table-borderless mb-0" style="font-size:12px"><tbody>
+                <tr><td class="text-secondary pe-3">W/O</td><td><strong>${esc(WO_NUM)}</strong></td></tr>
+                <tr><td class="text-secondary pe-3">Part</td><td>${esc(part.label)}${iplList.length ? ' <span class="text-secondary ms-2">IPL# '+esc(iplList[0])+'</span>' : ''}${pnList.length ? ' <span class="text-secondary ms-1">'+esc(pnList[0])+'</span>' : ''}</td></tr>
+                <tr><td class="text-secondary pe-3">Repair step</td><td class="text-secondary">— mating not measured yet —</td></tr>
+            </tbody></table>`;
+        }
+
+        document.getElementById('msSketchTitle').textContent = titleText;
+        document.getElementById('msSketchBody').innerHTML = bodyHtml;
+
+        const modal = new bootstrap.Modal(document.getElementById('msSketchModal'));
+        modal.show();
+    });
+
+    document.getElementById('msSketchPrintBtn')?.addEventListener('click', function () {
+        window.print();
+    });
+
     function buildAccordionRow(part, param) {
         const isActive = activeParam?.id === param.id;
         const st   = paramStatus(param);
@@ -903,7 +1047,7 @@
         hdr.className = 'ms-acc-hdr' + (isActive ? ' active' : '');
         hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
             <span class="ms-tab-param-desc">${esc(param.description)}</span>
-            ${param.fc_mating_param_id ? '<span class="ms-fc-badge">F&amp;C</span>' : ''}
+            ${hasMatingRepairParam(param.inspection_component_id) ? '<span class="ms-fc-badge">OVS</span>' : ''}
             ${buildParamHintHtml(param)}
             ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
             ${lastHtml}`;
@@ -963,26 +1107,33 @@
         const hasLim = lim.min !== null || lim.max !== null;
 
         if (hasLim) {
-            // Required step from mating part (F&C pair)
+            // If this parameter belongs to a bushing IC, show the required bore ref
+            // from the mating parameter's current repair step (via repair_step.component_id link).
             let reqStepHtml = '';
-            if (param.fc_mating_param_id && (param.repair_steps || []).length > 0) {
-                const matingParam = parameters.find(p => p.id === param.fc_mating_param_id);
-                if (matingParam) {
-                    const matingFinals = paramMeasurements(matingParam).filter(m => m.stage === 'final');
-                    const stepNo = matingFinals.length ? matingFinals[matingFinals.length - 1].repair_step_no : null;
-                    if (stepNo) {
-                        const step = param.repair_steps.find(s => s.step_no === stepNo);
-                        if (step) {
-                            reqStepHtml = `
-                                <div class="ms-lim-cell" style="background:rgba(13,110,253,.1);border-left:2px solid #0d6efd">
-                                    <div class="ms-lim-lbl" style="color:#0d6efd">req min (${esc(stepNo)})</div>
-                                    <div class="ms-lim-val" style="color:#0d6efd">${fmtDim(step.dim_min)}</div>
-                                </div>
-                                <div class="ms-lim-cell" style="background:rgba(13,110,253,.1)">
-                                    <div class="ms-lim-lbl" style="color:#0d6efd">req max (${esc(stepNo)})</div>
-                                    <div class="ms-lim-val" style="color:#0d6efd">${fmtDim(step.dim_max)}</div>
-                                </div>`;
-                        }
+            let reqStepPnHtml = '';
+            const paramIc = inspComponents.find(c => c.id === param.inspection_component_id);
+            if (paramIc && paramIc.is_bush) {
+                const matingInfo = getMatingRepairInfo(param.inspection_component_id);
+                if (matingInfo && matingInfo.step) {
+                    const { stepNo, step } = matingInfo;
+                    reqStepHtml = `
+                        <div class="ms-lim-cell" style="background:rgba(13,110,253,.1);border-left:2px solid #0d6efd">
+                            <div class="ms-lim-lbl" style="color:#0d6efd">req min (${esc(stepNo)})</div>
+                            <div class="ms-lim-val" style="color:#0d6efd">${fmtDim(step.dim_min)}</div>
+                        </div>
+                        <div class="ms-lim-cell" style="background:rgba(13,110,253,.1)">
+                            <div class="ms-lim-lbl" style="color:#0d6efd">req max (${esc(stepNo)})</div>
+                            <div class="ms-lim-val" style="color:#0d6efd">${fmtDim(step.dim_max)}</div>
+                        </div>`;
+                    if (step.component_pn || step.component_ipl) {
+                        const pnText  = step.component_pn  ? `P/N <strong>${esc(step.component_pn)}</strong>` : '';
+                        const iplText = step.component_ipl ? `IPL# ${esc(step.component_ipl)}` : '';
+                        reqStepPnHtml = `<div class="mt-1 px-1 py-1 rounded d-flex align-items-center gap-2" style="background:rgba(13,110,253,.08);border:1px solid rgba(13,110,253,.2);font-size:11px">
+                            <span style="color:#0d6efd;font-weight:600">${esc(stepNo)}</span>
+                            <span class="text-secondary">→</span>
+                            ${pnText ? `<span>${pnText}</span>` : ''}
+                            ${iplText ? `<span class="text-secondary">${iplText}</span>` : ''}
+                        </div>`;
                     }
                 }
             }
@@ -994,6 +1145,11 @@
                 ${param.wear_dim_min != null ? `<div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear min</div><div class="ms-lim-val">${fmtDim(param.wear_dim_min)}</div></div><div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear max</div><div class="ms-lim-val">${fmtDim(param.wear_dim_max)}</div></div>` : ''}
                 ${reqStepHtml}`;
             body.appendChild(limDiv);
+            if (reqStepPnHtml) {
+                const pnDiv = document.createElement('div');
+                pnDiv.innerHTML = reqStepPnHtml;
+                body.appendChild(pnDiv);
+            }
         }
 
         const recDiv = document.createElement('div'); recDiv.id = 'ms-prec-' + param.id;
@@ -1017,7 +1173,7 @@
             paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
         );
         if (partIsMissing) {
-            if (!param.fc_mating_param_id) return; // new part — no standalone measurements needed
+            if (!hasMatingRepairParam(param.inspection_component_id)) return; // new part — no standalone measurements needed
             if (!lastFin) {
                 const w = document.createElement('div'); w.className = 'mt-2';
                 w.innerHTML = `<button class="btn btn-outline-info btn-sm w-100" style="font-size:11px"><i class="bi bi-plus-circle"></i> Add Final measurement (new part installed)</button>`;
@@ -1256,6 +1412,7 @@
         updateTdrBtnState(part);
         updateMissingPartBtnState(part);
         updateRepairActionState(part);
+        updatePrintSketchBtnState(part);
         if (!activeParam) return;
         const freshParam = part.params.find(p => p.id === activeParam.id) || activeParam;
         activeParam = freshParam;
@@ -1277,7 +1434,7 @@
             const hdr = row.querySelector('.ms-acc-hdr');
             hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
                 <span class="ms-tab-param-desc">${esc(freshParam.description)}</span>
-                ${freshParam.fc_mating_param_id ? '<span class="ms-fc-badge">F&amp;C</span>' : ''}
+                ${hasMatingRepairParam(freshParam.inspection_component_id) ? '<span class="ms-fc-badge">OVS</span>' : ''}
                 ${buildParamHintHtml(freshParam)}
                 ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
                 ${lastHtml}`;
@@ -1645,8 +1802,20 @@
         }
     });
 
-    document.getElementById('tab-measurements')?.addEventListener('shown.bs.tab', function(){
+    document.getElementById('tab-measurements')?.addEventListener('shown.bs.tab', async function(){
         if(!loaded){ loaded=true; loadData(); }
+        else {
+            // Lightweight TDR-labels refresh (keeps selected part / accordion state)
+            try {
+                const data = await apiFetch('/workorders/'+WO_ID+'/measurements/data');
+                icsWithTdr   = new Set(data.ics_with_tdr||[]);
+                icsMissingTdr= new Set(data.ics_missing_tdr||[]);
+                icsTdrLabel  = new Map(Object.entries(data.ics_tdr_label||{}).map(([k,v])=>[parseInt(k),v]));
+                renderPartsList();
+                const part = partsTree.find(p => p.id === activePartId);
+                if (part) updateRepairActionState(part);
+            } catch(e) { /* silent — stale data is better than a crash */ }
+        }
         const w = document.getElementById('ms-fc-btn-wrap');
         if (w) { w.classList.remove('d-none'); w.classList.add('d-flex'); }
     });

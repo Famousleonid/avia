@@ -294,7 +294,8 @@ class ManualParameterController extends Controller
         ])->values()->all();
         $data['processes'] = $rule->processes->map(function ($rp) {
             $mp    = $rp->manualProcess;
-            $label = trim(($mp?->process?->process_name?->name ?? '') . ' — ' . ($mp?->process?->process ?? ''));
+            $pn    = $mp?->process?->process_name;
+            $label = trim(($pn?->name ?? '') . ' — ' . ($mp?->process?->process ?? ''));
             // has_drawing = at least one document with at least one page that has an image
             $hasDrawing = $rp->documents->contains(fn($d) =>
                 $d->pages->contains(fn($p) => !empty($p->image_path)));
@@ -306,6 +307,8 @@ class ManualParameterController extends Controller
                 'sort_order'        => $rp->sort_order,
                 'label'             => $label,
                 'has_drawing'       => $hasDrawing,
+                'process_names_id'  => $pn?->id,
+                'scope'             => $pn?->scope,
             ];
         })->values()->all();
         return $data;
