@@ -713,55 +713,90 @@
         if (!btn) return;
         if (!part || part.is_bush) { btn.classList.add('d-none'); btn.disabled = true; return; }
         btn.classList.remove('d-none');
-        const enable = MISSING_CODE_ID && !part.params.some(p =>
+        const alreadyMissing = MISSING_CODE_ID && part.params.some(p =>
             paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
         );
-        btn.disabled = !enable;
-        btn.classList.toggle('btn-outline-warning',   !!enable);
-        btn.classList.toggle('btn-outline-secondary', !enable);
+        btn.disabled = false;
+        if (alreadyMissing) {
+            btn.classList.remove('btn-outline-warning', 'btn-outline-secondary');
+            btn.classList.add('btn-outline-danger');
+            btn.innerHTML = '<i class="bi bi-x-circle"></i> Cancel Missing';
+        } else {
+            btn.classList.remove('btn-outline-danger', 'btn-outline-secondary');
+            btn.classList.add('btn-outline-warning');
+            btn.innerHTML = '<i class="bi bi-question-circle"></i> Missing Part';
+            if (!MISSING_CODE_ID) btn.disabled = true;
+        }
     }
 
     document.getElementById('ms-missing-part-btn').addEventListener('click', async function () {
         const part = partsTree.find(p => p.id === activePartId);
         if (!part || !MISSING_CODE_ID) return;
-        const ic = inspComponents.find(c => c.id === part.id);
-        const pn = (ic?.ipl_nums || [])[0] || '';
-        if (!pn) { alert('No IPL# for this part — cannot create TDR.'); return; }
-        const targetParam = part.params.find(p => p.orig_dim_min !== null || p.orig_dim_max !== null)
-            || part.params[0];
-        if (!targetParam) return;
+
+        const alreadyMissing = part.params.some(p =>
+            paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
+        );
+
         this.disabled = true;
-        try {
-            // Step 1: record Missing measurement
-            const saved = await apiFetch('/workorders/' + WO_ID + '/measurements', {
-                method: 'POST',
-                body: JSON.stringify({
-                    manual_parameter_id: targetParam.id,
-                    stage: 'initial',
-                    replaces_id: null,
-                    actual_value: null,
-                    codes_id: MISSING_CODE_ID,
-                    notes: null,
-                }),
-            });
-            measurements.push(saved);
-            // Step 2: create Order New TDR directly (SN not required — part is lost)
-            await apiFetch('/workorders/' + WO_ID + '/tdr-from-measurement', {
-                method: 'POST',
-                body: JSON.stringify({
-                    wo_measurement_id: saved.id,
-                    missing_meas_id:   saved.id,
-                    pn,
-                    sn:   null,
-                    qty:  1,
-                    rule_ids: [],
-                }),
-            });
-            icsWithTdr.add(activePartId);
-            if (typeof showNotification === 'function') showNotification('Missing Part — Order New TDR created', 'success');
-            document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
-            refreshActive();
-        } catch (e) { alert(e.message); this.disabled = false; }
+
+        if (alreadyMissing) {
+            // ── Cancel Missing: delete measurements + revert TDR ──────
+            if (!confirm('Cancel Missing Part for "' + part.label + '"?')) { this.disabled = false; return; }
+            try {
+                const missingIds = part.params.flatMap(p =>
+                    paramMeasurements(p).filter(m => m.codes_id == MISSING_CODE_ID).map(m => m.id)
+                );
+                for (const id of missingIds) {
+                    await apiFetch('/measurements/' + id, { method: 'DELETE' });
+                    measurements = measurements.filter(m => m.id !== id);
+                }
+                if (icsWithTdr.has(part.id)) {
+                    await apiFetch('/workorders/' + WO_ID + '/revert-part-tdr', {
+                        method: 'POST',
+                        body: JSON.stringify({ inspection_component_id: part.id }),
+                    });
+                    icsWithTdr.delete(part.id);
+                    document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
+                }
+                if (typeof showNotification === 'function') showNotification('Missing cancelled', 'success');
+                refreshActive();
+            } catch (e) { alert(e.message); this.disabled = false; }
+
+        } else {
+            // ── Mark as Missing: record measurement + create TDR ──────
+            const ic = inspComponents.find(c => c.id === part.id);
+            const pn = (ic?.ipl_nums || [])[0] || '';
+            if (!pn) { alert('No IPL# for this part — cannot create TDR.'); this.disabled = false; return; }
+            const targetParam = part.params.find(p => p.orig_dim_min !== null || p.orig_dim_max !== null)
+                || part.params[0];
+            if (!targetParam) { this.disabled = false; return; }
+            try {
+                const saved = await apiFetch('/workorders/' + WO_ID + '/measurements', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        manual_parameter_id: targetParam.id,
+                        stage: 'initial',
+                        replaces_id: null,
+                        actual_value: null,
+                        codes_id: MISSING_CODE_ID,
+                        notes: null,
+                    }),
+                });
+                measurements.push(saved);
+                await apiFetch('/workorders/' + WO_ID + '/tdr-from-measurement', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        wo_measurement_id: saved.id,
+                        missing_meas_id:   saved.id,
+                        pn, sn: null, qty: 1, rule_ids: [],
+                    }),
+                });
+                icsWithTdr.add(activePartId);
+                if (typeof showNotification === 'function') showNotification('Missing Part — Order New TDR created', 'success');
+                document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
+                refreshActive();
+            } catch (e) { alert(e.message); this.disabled = false; }
+        }
     });
 
     function updateTdrBtnState(part) {
