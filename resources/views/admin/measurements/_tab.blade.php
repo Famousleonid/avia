@@ -22,6 +22,7 @@
     .ms-pdot.pass { background:#198754; } .ms-pdot.fail { background:#dc3545; } .ms-pdot.partial { background:#ffc107; } .ms-pdot.none { background:#ffc107; }
     .ms-pdot.missing { background:transparent; border:2px dashed #6c757d; }
     .ms-missing-label { font-size:9px; color:#dc3545; font-weight:600; flex-shrink:0; margin-left:2px; }
+    .ms-fc-badge { font-size:9px; padding:1px 4px; background:rgba(20,184,166,.15); color:#0d9488; border-radius:2px; flex-shrink:0; font-weight:600; border:1px solid rgba(20,184,166,.3); }
 
     #ms-tab-viewer { order: 3; flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; }
     #ms-tab-fig-label { padding: 3px 8px; font-size: 10px; color: var(--bs-secondary-color); border-bottom: 1px solid var(--bs-border-color); flex-shrink: 0; }
@@ -227,7 +228,7 @@
     let inspComponents = [], figures = [], parameters = [], measurements = [], USE_WEAR = false;
     let allCodes = [], MISSING_CODE_ID = null;
     let partsTree = [];
-    let icsWithTdr = new Set();
+    let icsWithTdr = new Set(), icsMissingTdr = new Set();
     let activePartId = null, activeParam = null, activeFigure = null;
     let callouts = [];
     let loaded = false;
@@ -495,9 +496,9 @@
         }
         partsTree.forEach(part => {
             const isActive = activePartId === part.id;
-            const isMissing = MISSING_CODE_ID && part.params.some(p =>
+            const isMissing = icsMissingTdr.has(part.id) || (MISSING_CODE_ID && part.params.some(p =>
                 paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
-            );
+            ));
             const pSt = isMissing ? 'missing' : partStatus(part);
             const total = part.params.length;
             const done  = part.params.filter(p => paramStatus(p) !== 'none').length;
@@ -829,6 +830,7 @@
         hdr.className = 'ms-acc-hdr' + (isActive ? ' active' : '');
         hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
             <span class="ms-tab-param-desc">${esc(param.description)}</span>
+            ${param.fc_mating_param_id ? '<span class="ms-fc-badge">F&amp;C</span>' : ''}
             ${buildParamHintHtml(param)}
             ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
             ${lastHtml}`;
@@ -1221,6 +1223,7 @@
             allCodes=data.codes||[];
             MISSING_CODE_ID=data.missing_code_id||null;
             icsWithTdr=new Set(data.ics_with_tdr||[]);
+            icsMissingTdr=new Set(data.ics_missing_tdr||[]);
             partsTree=buildPartsTree();
             if(loadingEl) loadingEl.style.display='none';
             renderPartsList();

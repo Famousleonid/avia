@@ -169,6 +169,18 @@ class WoMeasurementController extends Controller
                 ->pluck('inspection_component_id')->unique()->values()->all()
             : [];
 
+        // ICs whose TDR is specifically a Missing (Order New + codes_id=Missing)
+        $missingTdrComponentIds = $missingCodeId
+            ? Tdr::where('workorder_id', $workorder->id)
+                ->where('tdr_type', Tdr::TYPE_ORDER_NEW)
+                ->where('codes_id', $missingCodeId)
+                ->pluck('component_id')->unique()->filter()->all()
+            : [];
+        $icsMissingTdr = count($missingTdrComponentIds) > 0
+            ? ManualInspectionComponentVariant::whereIn('component_id', $missingTdrComponentIds)
+                ->pluck('inspection_component_id')->unique()->values()->all()
+            : [];
+
         return response()->json([
             'use_wear'             => $useWear,
             'inspection_components'=> $inspectionComponents,
@@ -178,6 +190,7 @@ class WoMeasurementController extends Controller
             'codes'                => $codes,
             'missing_code_id'      => $missingCodeId,
             'ics_with_tdr'         => $icsWithTdr,
+            'ics_missing_tdr'      => $icsMissingTdr,
         ]);
     }
 
