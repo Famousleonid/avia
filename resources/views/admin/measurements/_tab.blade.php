@@ -199,6 +199,9 @@
                 <button id="ms-revert-tdr-btn" class="btn btn-outline-warning btn-sm d-none" style="font-size:11px" title="Revert TDR and choose again (only if work not started)">
                     <i class="bi bi-arrow-counterclockwise"></i> Change decision
                 </button>
+                <button id="ms-missing-part-btn" class="btn btn-outline-secondary btn-sm" disabled style="font-size:11px" title="Record active parameter as Missing Part">
+                    <i class="bi bi-question-circle"></i> Missing Part
+                </button>
                 <button id="ms-add-tdr-btn" class="btn btn-outline-danger btn-sm" disabled style="font-size:11px">
                     <i class="bi bi-plus-circle"></i> Add to TDR
                 </button>
@@ -697,10 +700,41 @@
         document.getElementById('ms-comp-sub').textContent = subParts.join('  ·  ');
 
         updateTdrBtnState(part);
+        updateMissingPartBtnState(null);
 
         accWrap.innerHTML = '';
         part.params.forEach(param => accWrap.appendChild(buildAccordionRow(part, param)));
     }
+
+    function updateMissingPartBtnState(param) {
+        const btn = document.getElementById('ms-missing-part-btn');
+        if (!btn) return;
+        if (!param || !MISSING_CODE_ID) { btn.disabled = true; return; }
+        const hasMeas = param.orig_dim_min !== null || param.orig_dim_max !== null;
+        if (!hasMeas) { btn.disabled = true; return; }
+        const alreadyMissing = paramMeasurements(param).some(m => m.codes_id == MISSING_CODE_ID);
+        btn.disabled = alreadyMissing;
+    }
+
+    document.getElementById('ms-missing-part-btn').addEventListener('click', async function () {
+        if (!activeParam || !MISSING_CODE_ID) return;
+        this.disabled = true;
+        try {
+            const saved = await apiFetch('/workorders/' + WO_ID + '/measurements', {
+                method: 'POST',
+                body: JSON.stringify({
+                    manual_parameter_id: activeParam.id,
+                    stage: 'initial',
+                    replaces_id: null,
+                    actual_value: null,
+                    codes_id: MISSING_CODE_ID,
+                    notes: null,
+                }),
+            });
+            measurements.push(saved);
+            refreshActive();
+        } catch (e) { alert(e.message); this.disabled = false; }
+    });
 
     function updateTdrBtnState(part) {
         const btn = document.getElementById('ms-add-tdr-btn');
@@ -766,12 +800,14 @@
         // toggle: second click on open row collapses it
         if (activeParam?.id === param.id) {
             activeParam = null;
+            updateMissingPartBtnState(null);
             accWrap.querySelectorAll('.ms-acc-hdr').forEach(h => h.classList.remove('active'));
             accWrap.querySelectorAll('.ms-acc-body').forEach(b => b.classList.remove('open'));
             return;
         }
 
         activeParam = param;
+        updateMissingPartBtnState(param);
 
         // collapse all
         accWrap.querySelectorAll('.ms-acc-hdr').forEach(h => h.classList.remove('active'));
@@ -948,10 +984,9 @@
         d.innerHTML=`
             <div style="font-size:10px;font-weight:600;color:var(--bs-secondary-color);margin-bottom:6px">${stage==='final'?'Final measurement (after repair)':'Record measurement'}</div>
             ${hasMeas?`
-            <div class="ms-frow d-flex gap-2 align-items-end">
-                <div style="flex:1"><div class="ms-flabel">Actual value</div>
-                <input type="number" class="form-control form-control-sm" step="0.0001" id="mst-val-${uid}" placeholder="0.0000" style="font-family:monospace;font-size:13px"></div>
-                <div class="form-check mb-1 flex-shrink-0"><input class="form-check-input" type="checkbox" id="mst-missing-${uid}"><label class="form-check-label text-danger" for="mst-missing-${uid}" style="font-size:11px">Missing Part</label></div>
+            <div class="ms-frow">
+                <div class="ms-flabel">Actual value</div>
+                <input type="number" class="form-control form-control-sm" step="0.0001" id="mst-val-${uid}" placeholder="0.0000" style="font-family:monospace;font-size:13px">
             </div>`:''}
             ${hasInsp?`
             <div class="ms-frow"><div class="ms-flabel">Finding</div>
@@ -961,24 +996,16 @@
             <div class="text-danger small d-none mb-1" id="mst-err-${uid}"></div>
             <button class="btn btn-primary btn-sm w-100" style="font-size:12px" id="mst-save-${uid}"><i class="bi bi-check2"></i> Save</button>`;
 
-        if(hasMeas) d.querySelector('#mst-missing-'+uid)?.addEventListener('change',function(){
-            const isMissing = this.checked;
-            d.querySelector('#mst-val-'+uid).disabled = isMissing;
-            if(isMissing) d.querySelector('#mst-val-'+uid).value = '';
-            const codeEl = d.querySelector('#mst-code-'+uid);
-            if(codeEl) codeEl.disabled = isMissing;
-        });
         d.querySelector('#mst-save-'+uid).addEventListener('click',async()=>{
             const err=d.querySelector('#mst-err-'+uid); err.classList.add('d-none');
             const btn=d.querySelector('#mst-save-'+uid); btn.disabled=true;
-            const isMissing=hasMeas&&(d.querySelector('#mst-missing-'+uid)?.checked);
             const valRaw=hasMeas?(d.querySelector('#mst-val-'+uid)?.value||''):'';
             const body={
                 manual_parameter_id: param.id,
                 stage,
                 replaces_id: replacesId||null,
-                actual_value: hasMeas?(isMissing?null:(valRaw!==''?parseFloat(valRaw):null)):null,
-                codes_id: isMissing ? MISSING_CODE_ID : (hasInsp?(d.querySelector('#mst-code-'+uid)?.value||null):null),
+                actual_value: hasMeas?(valRaw!==''?parseFloat(valRaw):null):null,
+                codes_id: hasInsp?(d.querySelector('#mst-code-'+uid)?.value||null):null,
                 notes: d.querySelector('#mst-notes-'+uid)?.value.trim()||null,
             };
             try {
@@ -1091,6 +1118,7 @@
         renderPartsList();
         updateTdrBtnState(part);
         if (!activeParam) return;
+        updateMissingPartBtnState(activeParam);
         const freshParam = part.params.find(p => p.id === activeParam.id) || activeParam;
         activeParam = freshParam;
         const row = accWrap.querySelector(`[data-param-id="${freshParam.id}"]`);
