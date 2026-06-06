@@ -1520,7 +1520,8 @@
             if (missingIds.length) {
                 // Was a Missing Part TDR — state fully reset, no modal needed
                 if (typeof showNotification === 'function') showNotification('Missing cancelled — part restored', 'success');
-                refreshActive();
+                renderPartsList();
+                renderComponentPanel(part);  // full re-render so Missing badge clears
             } else {
                 // Regular Repair/Order New — reopen modal to pick a new decision
                 if (typeof showNotification === 'function') showNotification('TDR reverted — choose a new decision', 'success');
