@@ -169,17 +169,35 @@ class WoMeasurementController extends Controller
                 ->pluck('inspection_component_id')->unique()->values()->all()
             : [];
 
-        // ICs whose TDR is specifically a Missing (Order New + codes_id=Missing)
-        $missingTdrComponentIds = $missingCodeId
-            ? Tdr::where('workorder_id', $workorder->id)
-                ->where('tdr_type', Tdr::TYPE_ORDER_NEW)
-                ->where('codes_id', $missingCodeId)
-                ->pluck('component_id')->unique()->filter()->all()
-            : [];
-        $icsMissingTdr = count($missingTdrComponentIds) > 0
-            ? ManualInspectionComponentVariant::whereIn('component_id', $missingTdrComponentIds)
-                ->pluck('inspection_component_id')->unique()->values()->all()
-            : [];
+        // Build ic_id → tdr label map
+        $tdrs = Tdr::where('workorder_id', $workorder->id)
+            ->whereIn('component_id', $tdrComponentIds ?: [0])
+            ->get(['tdr_type', 'codes_id', 'component_id']);
+
+        $tdrLabelByComponent = [];
+        foreach ($tdrs as $tdr) {
+            $isMissingTdr = $missingCodeId && (int)$tdr->codes_id === (int)$missingCodeId
+                            && $tdr->tdr_type === Tdr::TYPE_ORDER_NEW;
+            $label = $isMissingTdr ? 'missing'
+                : ($tdr->tdr_type === Tdr::TYPE_ORDER_NEW ? 'order new'
+                : ($tdr->tdr_type === Tdr::TYPE_COMPONENT_TDR ? 'repair' : 'tdr'));
+            $tdrLabelByComponent[$tdr->component_id] = $label;
+        }
+
+        // ic_id → label (use highest-priority label if multiple TDRs per IC)
+        $icsTdrLabel = [];
+        if (count($tdrComponentIds) > 0) {
+            $variants = ManualInspectionComponentVariant::whereIn('component_id', $tdrComponentIds)
+                ->get(['inspection_component_id', 'component_id']);
+            $priority = ['missing' => 3, 'order new' => 2, 'repair' => 1, 'tdr' => 0];
+            foreach ($variants as $v) {
+                $label = $tdrLabelByComponent[$v->component_id] ?? 'tdr';
+                $icId  = $v->inspection_component_id;
+                if (!isset($icsTdrLabel[$icId]) || ($priority[$label] ?? 0) > ($priority[$icsTdrLabel[$icId]] ?? 0)) {
+                    $icsTdrLabel[$icId] = $label;
+                }
+            }
+        }
 
         return response()->json([
             'use_wear'             => $useWear,
@@ -189,8 +207,9 @@ class WoMeasurementController extends Controller
             'measurements'         => $measurements,
             'codes'                => $codes,
             'missing_code_id'      => $missingCodeId,
-            'ics_with_tdr'         => $icsWithTdr,
-            'ics_missing_tdr'      => $icsMissingTdr,
+            'ics_with_tdr'         => array_keys($icsTdrLabel),
+            'ics_missing_tdr'      => array_keys(array_filter($icsTdrLabel, fn($l) => $l === 'missing')),
+            'ics_tdr_label'        => $icsTdrLabel,   // ic_id → 'repair'|'order new'|'missing'|'tdr'
         ]);
     }
 

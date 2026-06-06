@@ -199,13 +199,14 @@
                 <div id="ms-comp-sub"></div>
             </div>
             <div class="d-flex gap-1 flex-shrink-0">
-                <button id="ms-revert-tdr-btn" class="btn btn-outline-warning btn-sm d-none" style="font-size:11px" title="Revert TDR and choose again (only if work not started)">
+                {{-- TDR creation disabled from Measurements — use TDR tab --}}
+                <button id="ms-revert-tdr-btn" class="btn btn-outline-warning btn-sm d-none" style="font-size:11px" title="Revert TDR" disabled hidden>
                     <i class="bi bi-arrow-counterclockwise"></i> Change decision
                 </button>
-                <button id="ms-missing-part-btn" class="btn btn-outline-secondary btn-sm" disabled style="font-size:11px" title="Record active parameter as Missing Part">
+                <button id="ms-missing-part-btn" class="btn btn-outline-secondary btn-sm d-none" disabled hidden style="font-size:11px">
                     <i class="bi bi-question-circle"></i> Missing Part
                 </button>
-                <button id="ms-add-tdr-btn" class="btn btn-outline-danger btn-sm" disabled style="font-size:11px">
+                <button id="ms-add-tdr-btn" class="btn btn-outline-danger btn-sm d-none" disabled hidden style="font-size:11px">
                     <i class="bi bi-plus-circle"></i> Add to TDR
                 </button>
             </div>
@@ -228,7 +229,7 @@
     let inspComponents = [], figures = [], parameters = [], measurements = [], USE_WEAR = false;
     let allCodes = [], MISSING_CODE_ID = null;
     let partsTree = [];
-    let icsWithTdr = new Set(), icsMissingTdr = new Set();
+    let icsWithTdr = new Set(), icsMissingTdr = new Set(), icsTdrLabel = new Map();
     let activePartId = null, activeParam = null, activeFigure = null;
     let callouts = [];
     let loaded = false;
@@ -500,16 +501,29 @@
                 paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
             ));
             const fcDone = isMissing && missingPartFcVerified(part);
-            const pSt = fcDone ? 'pass' : (isMissing ? 'missing' : partStatus(part));
-            const progHtml = fcDone
-                ? `<span class="ms-part-prog" style="color:#198754">✓</span>`
-                : (isMissing
-                    ? `<span class="ms-missing-label">missing</span>`
-                    : (part.params.length > 0
-                        ? (part.params.filter(p => paramStatus(p) !== 'none').length === part.params.length
-                            ? `<span class="ms-part-prog" style="color:#198754">✓</span>`
-                            : `<span class="ms-part-prog">${part.params.filter(p => paramStatus(p) !== 'none').length}/${part.params.length}</span>`)
-                        : ''));
+            const tdrLabel = icsTdrLabel.get(part.id); // 'repair'|'order new'|'missing'|undefined
+            const tdrLabelColors = { 'repair':'#fd7e14', 'order new':'#dc3545', 'missing':'#dc3545', 'tdr':'#6c757d' };
+            const total = part.params.length;
+            const done  = part.params.filter(p => paramStatus(p) !== 'none').length;
+            let pSt, progHtml;
+            if (fcDone) {
+                pSt = 'pass';
+                progHtml = `<span class="ms-part-prog" style="color:#198754">✓</span>`;
+            } else if (isMissing) {
+                pSt = 'missing';
+                progHtml = `<span class="ms-missing-label">missing</span>`;
+            } else if (tdrLabel && tdrLabel !== 'missing') {
+                pSt = partStatus(part);
+                const col = tdrLabelColors[tdrLabel] || '#6c757d';
+                progHtml = `<span style="font-size:9px;color:${col};font-weight:600;flex-shrink:0">${tdrLabel}</span>`;
+            } else {
+                pSt = partStatus(part);
+                progHtml = total > 0
+                    ? (done === total
+                        ? `<span class="ms-part-prog" style="color:#198754">✓</span>`
+                        : `<span class="ms-part-prog">${done}/${total}</span>`)
+                    : '';
+            }
             const el = document.createElement('div');
             el.className = 'ms-tab-param-item' + (isActive ? ' active' : '');
             el.style.cssText = 'padding:6px 10px;border-left-width:3px';
@@ -1136,14 +1150,14 @@
         const hint = document.getElementById('msGateHint');
         let opts;
         if (!ndt) {
-            opts = [{ k: 'order_new', label: 'Order New', cls: 'btn-danger' }];
-            hint.textContent = 'NDT not passed → Order New';
+            opts = [];
+            hint.textContent = 'NDT not passed — go to TDR tab to Order New';
         } else if (gateState.allPass) {
-            opts = [{ k: 'finish', label: 'Finish', cls: 'btn-success' }, { k: 'order_new', label: 'Order New', cls: 'btn-outline-danger' }];
+            opts = [{ k: 'finish', label: 'Finish', cls: 'btn-success' }];
             hint.textContent = 'All dimensions PASS';
         } else {
-            opts = [{ k: 'ec', label: 'EC', cls: 'btn-warning' }, { k: 'order_new', label: 'Order New', cls: 'btn-outline-danger' }];
-            hint.textContent = 'Some dimensions FAIL';
+            opts = [{ k: 'ec', label: 'EC', cls: 'btn-warning' }];
+            hint.textContent = 'Some dimensions FAIL → EC';
         }
         // "Typical EC" only matters when EC is on the table.
         const ecOnTable = opts.some(o => o.k === 'ec');
@@ -1235,6 +1249,7 @@
             MISSING_CODE_ID=data.missing_code_id||null;
             icsWithTdr=new Set(data.ics_with_tdr||[]);
             icsMissingTdr=new Set(data.ics_missing_tdr||[]);
+            icsTdrLabel=new Map(Object.entries(data.ics_tdr_label||{}).map(([k,v])=>[parseInt(k),v]));
             partsTree=buildPartsTree();
             if(loadingEl) loadingEl.style.display='none';
             renderPartsList();
