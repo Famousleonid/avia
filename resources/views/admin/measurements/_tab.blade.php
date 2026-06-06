@@ -199,6 +199,12 @@
                 <div id="ms-comp-sub"></div>
             </div>
             <div class="d-flex gap-1 flex-shrink-0">
+                <span id="ms-add-repair-hint" class="d-none text-secondary" style="font-size:11px;white-space:nowrap">
+                    <i class="bi bi-arrow-right-circle"></i> Go to TDR tab to add Repair
+                </span>
+                <button id="ms-update-processes-btn" class="btn btn-outline-primary btn-sm d-none" style="font-size:11px">
+                    <i class="bi bi-arrow-repeat"></i> Update Processes
+                </button>
                 {{-- TDR creation disabled from Measurements — use TDR tab --}}
                 <button id="ms-revert-tdr-btn" class="btn btn-outline-warning btn-sm d-none" style="font-size:11px" title="Revert TDR" disabled hidden>
                     <i class="bi bi-arrow-counterclockwise"></i> Change decision
@@ -742,6 +748,7 @@
 
         updateTdrBtnState(part);
         updateMissingPartBtnState(part);
+        updateRepairActionState(part);
 
         accWrap.innerHTML = '';
         part.params.forEach(param => accWrap.appendChild(buildAccordionRow(part, param)));
@@ -808,6 +815,46 @@
         if (!fcParams.length) return true; // no F&C — nothing to verify
         return fcParams.every(p => paramMeasurements(p).some(m => m.stage === 'final'));
     }
+
+    function updateRepairActionState(part) {
+        const hint      = document.getElementById('ms-add-repair-hint');
+        const updateBtn = document.getElementById('ms-update-processes-btn');
+        if (!hint || !updateBtn) return;
+
+        const isMissing = icsMissingTdr.has(part.id) || (MISSING_CODE_ID && part.params.some(p =>
+            paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
+        ));
+        const hasRepairTdr = !isMissing && icsTdrLabel.has(part.id) && /repair/i.test(icsTdrLabel.get(part.id) || '');
+        const hasRepairFail = !isMissing && !icsWithTdr.has(part.id) && part.params.some(p =>
+            paramMeasurements(p).some(m => m.result === 'FAIL' && !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID))
+        );
+
+        if (hasRepairTdr) {
+            hint.classList.add('d-none');
+            updateBtn.classList.remove('d-none');
+        } else if (hasRepairFail) {
+            hint.classList.remove('d-none');
+            updateBtn.classList.add('d-none');
+        } else {
+            hint.classList.add('d-none');
+            updateBtn.classList.add('d-none');
+        }
+    }
+
+    document.getElementById('ms-update-processes-btn')?.addEventListener('click', async function () {
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part) return;
+        this.disabled = true;
+        try {
+            await apiFetch('/workorders/' + WO_ID + '/update-part-processes', {
+                method: 'POST',
+                body: JSON.stringify({ inspection_component_id: part.id }),
+            });
+            document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
+            if (typeof showNotification === 'function') showNotification('Repair processes updated', 'success');
+        } catch (e) { alert(e.message); }
+        finally { this.disabled = false; }
+    });
 
     function updateTdrBtnState(part) {
         const btn = document.getElementById('ms-add-tdr-btn');
@@ -1208,6 +1255,7 @@
         renderPartsList();
         updateTdrBtnState(part);
         updateMissingPartBtnState(part);
+        updateRepairActionState(part);
         if (!activeParam) return;
         const freshParam = part.params.find(p => p.id === activeParam.id) || activeParam;
         activeParam = freshParam;

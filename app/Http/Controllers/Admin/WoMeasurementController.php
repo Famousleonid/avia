@@ -897,6 +897,89 @@ class WoMeasurementController extends Controller
      * Allowed ONLY while no work has started (no TdrProcess has date_start).
      * If work started, the caller must use scrap (B2) instead.
      */
+
+    /**
+     * Update (regenerate) repair processes for a part based on current measurements.
+     * Replaces all unstarted TdrProcesses on the Repair TDR with a fresh pipeline run.
+     */
+    public function updatePartProcesses(Request $request, Workorder $workorder)
+    {
+        $data = $request->validate([
+            'inspection_component_id' => 'required|exists:manual_inspection_components,id',
+        ]);
+
+        $icId = (int) $data['inspection_component_id'];
+
+        // Find Repair TDR for this IC
+        $componentIds = ManualInspectionComponentVariant::where('inspection_component_id', $icId)
+            ->pluck('component_id');
+
+        $tdr = Tdr::where('workorder_id', $workorder->id)
+            ->where('tdr_type', Tdr::TYPE_COMPONENT_TDR)
+            ->whereIn('component_id', $componentIds)
+            ->first();
+
+        if (!$tdr) {
+            return response()->json(['error' => 'No Repair TDR found for this part'], 404);
+        }
+
+        // Collect rule IDs from current FAIL measurements (only unstarted processes may be replaced)
+        $paramIds = ManualParameter::where('inspection_component_id', $icId)->pluck('id');
+
+        $ruleIds = WoMeasurement::where('workorder_id', $workorder->id)
+            ->whereIn('manual_parameter_id', $paramIds)
+            ->where('result', 'FAIL')
+            ->whereNotNull('manual_parameter_repair_rule_id')
+            ->pluck('manual_parameter_repair_rule_id')
+            ->unique()->values()->all();
+
+        // Delete only processes that haven't started
+        $startedExists = TdrProcess::where('tdrs_id', $tdr->id)->whereNotNull('date_start')->exists();
+        if ($startedExists) {
+            // Only replace unstarted processes; keep started ones
+            TdrProcess::where('tdrs_id', $tdr->id)->whereNull('date_start')->delete();
+            $baseSort = TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0;
+        } else {
+            TdrProcess::where('tdrs_id', $tdr->id)->delete();
+            $baseSort = 0;
+        }
+
+        if (empty($ruleIds)) {
+            return response()->json(['ok' => true, 'message' => 'No repair rules matched — processes cleared']);
+        }
+
+        // Re-run pipeline
+        $ctx = new PipelineContext();
+        $ctx->inspectionComponentId = $icId;
+        $ctx->mainRuleIds           = $ruleIds;
+        $ctx->defectCodeIds         = [];
+        $ctx->heldPendingEc         = false;
+
+        app(RepairPipeline::class)->run($ctx);
+
+        $existingSorts = TdrProcess::where('tdrs_id', $tdr->id)->pluck('sort_order')->toArray();
+
+        foreach ($ctx->orderedGroups() as $group) {
+            $sort = $baseSort + (int) $group['sort_order'];
+            // avoid sort_order collision with started processes
+            while (in_array($sort, $existingSorts)) { $sort++; }
+            $existingSorts[] = $sort;
+
+            TdrProcess::create([
+                'tdrs_id'                => $tdr->id,
+                'process_names_id'       => $group['process_names_id'],
+                'processes'              => $group['process_ids'],
+                'rule_process_ids'       => $group['rule_process_ids'] ?? [],
+                'phase_rule_process_ids' => $group['phase_rule_process_ids'] ?? [],
+                'description'            => $group['description'] ?? '',
+                'sort_order'             => $sort,
+                'in_traveler'            => false,
+            ]);
+        }
+
+        return response()->json(['ok' => true, 'tdr_id' => $tdr->id]);
+    }
+
     public function revertPartTdr(Request $request, Workorder $workorder)
     {
         $data = $request->validate([
