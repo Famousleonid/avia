@@ -700,30 +700,35 @@
         document.getElementById('ms-comp-sub').textContent = subParts.join('  ·  ');
 
         updateTdrBtnState(part);
-        updateMissingPartBtnState(null);
+        updateMissingPartBtnState(part);
 
         accWrap.innerHTML = '';
         part.params.forEach(param => accWrap.appendChild(buildAccordionRow(part, param)));
     }
 
-    function updateMissingPartBtnState(param) {
+    function updateMissingPartBtnState(part) {
         const btn = document.getElementById('ms-missing-part-btn');
         if (!btn) return;
-        if (!param || !MISSING_CODE_ID) { btn.disabled = true; return; }
-        const hasMeas = param.orig_dim_min !== null || param.orig_dim_max !== null;
-        if (!hasMeas) { btn.disabled = true; return; }
-        const alreadyMissing = paramMeasurements(param).some(m => m.codes_id == MISSING_CODE_ID);
+        if (!part || !MISSING_CODE_ID) { btn.disabled = true; return; }
+        const alreadyMissing = part.params.some(p =>
+            paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
+        );
         btn.disabled = alreadyMissing;
     }
 
     document.getElementById('ms-missing-part-btn').addEventListener('click', async function () {
-        if (!activeParam || !MISSING_CODE_ID) return;
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part || !MISSING_CODE_ID) return;
+        // Record Missing on the first parameter (preferably one with dimensional limits)
+        const targetParam = part.params.find(p => p.orig_dim_min !== null || p.orig_dim_max !== null)
+            || part.params[0];
+        if (!targetParam) return;
         this.disabled = true;
         try {
             const saved = await apiFetch('/workorders/' + WO_ID + '/measurements', {
                 method: 'POST',
                 body: JSON.stringify({
-                    manual_parameter_id: activeParam.id,
+                    manual_parameter_id: targetParam.id,
                     stage: 'initial',
                     replaces_id: null,
                     actual_value: null,
@@ -800,14 +805,12 @@
         // toggle: second click on open row collapses it
         if (activeParam?.id === param.id) {
             activeParam = null;
-            updateMissingPartBtnState(null);
             accWrap.querySelectorAll('.ms-acc-hdr').forEach(h => h.classList.remove('active'));
             accWrap.querySelectorAll('.ms-acc-body').forEach(b => b.classList.remove('open'));
             return;
         }
 
         activeParam = param;
-        updateMissingPartBtnState(param);
 
         // collapse all
         accWrap.querySelectorAll('.ms-acc-hdr').forEach(h => h.classList.remove('active'));
@@ -891,7 +894,11 @@
         const lastInit=inits[inits.length-1]||null, lastFin=fins[fins.length-1]||null;
         ms.forEach(m=>rec.appendChild(buildMeasRow(m,param)));
 
-        if (MISSING_CODE_ID && ms.some(m => m.codes_id == MISSING_CODE_ID)) return;
+        const part = partsTree.find(p => p.id === param.inspection_component_id);
+        const partIsMissing = MISSING_CODE_ID && part?.params.some(p =>
+            paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
+        );
+        if (partIsMissing) return;
 
         if(!lastInit){ frm.appendChild(buildForm(param,'initial',null)); }
         else if(lastInit.result==='FAIL'&&!lastFin){
@@ -1119,8 +1126,8 @@
         if (!part) return;
         renderPartsList();
         updateTdrBtnState(part);
+        updateMissingPartBtnState(part);
         if (!activeParam) return;
-        updateMissingPartBtnState(activeParam);
         const freshParam = part.params.find(p => p.id === activeParam.id) || activeParam;
         activeParam = freshParam;
         const row = accWrap.querySelector(`[data-param-id="${freshParam.id}"]`);
