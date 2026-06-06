@@ -898,7 +898,16 @@
         const partIsMissing = MISSING_CODE_ID && part?.params.some(p =>
             paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
         );
-        if (partIsMissing) return;
+        if (partIsMissing) {
+            if (!param.fc_mating_param_id) return; // new part — no standalone measurements needed
+            if (!lastFin) {
+                const w = document.createElement('div'); w.className = 'mt-2';
+                w.innerHTML = `<button class="btn btn-outline-info btn-sm w-100" style="font-size:11px"><i class="bi bi-plus-circle"></i> Add Final measurement (new part installed)</button>`;
+                w.querySelector('button').addEventListener('click', () => w.replaceWith(buildForm(param, 'final', null)));
+                frm.appendChild(w);
+            }
+            return;
+        }
 
         if(!lastInit){ frm.appendChild(buildForm(param,'initial',null)); }
         else if(lastInit.result==='FAIL'&&!lastFin){
