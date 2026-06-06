@@ -1202,6 +1202,7 @@
             const hdr = row.querySelector('.ms-acc-hdr');
             hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
                 <span class="ms-tab-param-desc">${esc(freshParam.description)}</span>
+                ${freshParam.fc_mating_param_id ? '<span class="ms-fc-badge">F&amp;C</span>' : ''}
                 ${buildParamHintHtml(freshParam)}
                 ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
                 ${lastHtml}`;
