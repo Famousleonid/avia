@@ -731,7 +731,8 @@
             paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
         );
         const hasAnyMeasurements = part.params.some(p => paramMeasurements(p).length > 0);
-        const enable = MISSING_CODE_ID && !alreadyMissing && !hasAnyMeasurements;
+        const hasTdr = icsWithTdr.has(part.id);
+        const enable = MISSING_CODE_ID && !alreadyMissing && !hasAnyMeasurements && !hasTdr;
         btn.disabled = !enable;
         btn.classList.toggle('btn-outline-warning',   !!enable);
         btn.classList.toggle('btn-outline-secondary', !enable);
