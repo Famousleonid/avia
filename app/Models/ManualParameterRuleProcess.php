@@ -15,7 +15,12 @@ class ManualParameterRuleProcess extends Model
         'repair_rule_id',
         'manual_process_id',
         'description',
+        'is_gate', // EC gate anchor (one per rule) — freeze everything after it on EC
         'sort_order',
+    ];
+
+    protected $casts = [
+        'is_gate' => 'boolean',
     ];
 
     public function rule(): BelongsTo

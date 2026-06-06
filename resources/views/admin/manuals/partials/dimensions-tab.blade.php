@@ -939,23 +939,28 @@
     .pdw-doc-type { font-size:10px; padding:1px 6px; border-radius:3px; background:rgba(13,110,253,.12); color:#0d6efd; flex-shrink:0; text-transform:uppercase; }
     .pdw-page-tab { font-size:11px; padding:2px 8px; border:1px solid var(--bs-border-color); border-radius:3px; cursor:pointer; background:transparent; }
     .pdw-page-tab.active { background:rgba(13,110,253,.15); border-color:#0d6efd; color:#0d6efd; font-weight:600; }
+    .pdw-tree-proc:hover { background:rgba(13,110,253,.10); }
+    .pdw-tree-proc.active { background:rgba(13,110,253,.20); box-shadow:inset 3px 0 0 #0d6efd; font-weight:600; }
 </style>
-<div class="modal fade" id="pdwModal" tabindex="-1">
-    <div class="modal-dialog modal-fullscreen">
-        <div class="modal-content">
-            <div class="modal-header py-2">
-                <h6 class="modal-title mb-0" id="pdwTitle">Process Documents</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div id="pdw-host" style="display:none">
+            <div class="d-flex align-items-center px-3 py-2 border-bottom" style="flex-shrink:0;gap:.5rem">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="pdwCloseBtn"><i class="bi bi-arrow-left"></i> Dimensions</button>
+                <h6 class="mb-0" id="pdwTitle">Process Documents</h6>
             </div>
-            <div class="modal-body p-0" style="overflow:hidden">
+            <div class="pdw-body p-0">
 
-                {{-- Screen T: Part → Point → Rule → Process tree (document hub) --}}
-                <div id="pdw-tree-screen" class="p-3 d-none" style="overflow-y:auto;height:100%">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="fw-semibold">Part documents — Point → Rule → Process</span>
-                        <span class="text-secondary ms-2" style="font-size:11px">click a process to manage its drawing(s)</span>
+                {{-- LEFT column: Part → Point → Rule → Process tree (always visible) --}}
+                <div id="pdw-tree-screen" class="p-3" style="overflow-y:auto;height:100%">
+                    <div class="mb-2">
+                        <div class="fw-semibold" style="font-size:12px">Point → Rule → Process</div>
+                        <div class="text-secondary" style="font-size:11px">click a process to manage its drawing(s)</div>
                     </div>
                     <div id="pdw-tree"></div>
+                </div>
+
+                {{-- RIGHT column: placeholder when nothing selected --}}
+                <div id="pdw-right-empty" class="d-flex align-items-center justify-content-center text-secondary p-3" style="height:100%;font-size:13px">
+                    <div class="text-center"><i class="bi bi-arrow-left-circle" style="font-size:1.6rem;opacity:.4;display:block;margin-bottom:.4rem"></i>Select a process on the left</div>
                 </div>
 
                 {{-- Screen A: document list --}}
@@ -1001,11 +1006,6 @@
                         <div id="pdw-page-tabs" class="d-flex gap-1 align-items-center"></div>
                         <button class="btn btn-outline-secondary btn-sm py-0 px-2" id="pdwAddPageBtn" title="Add page"><i class="bi bi-plus-lg"></i> Page</button>
                         <button class="btn btn-outline-danger btn-sm py-0 px-2 d-none" id="pdwDelPageBtn" title="Remove current page"><i class="bi bi-trash3"></i></button>
-                        {{-- EC: which place (parameter) this page documents (1-2 pages per place) --}}
-                        <span id="pdwPagePlaceWrap" class="d-none align-items-center gap-1">
-                            <span class="text-secondary" style="font-size:11px">Place:</span>
-                            <select id="pdwPagePlace" class="form-select form-select-sm py-0" style="width:auto;font-size:11px" title="Place (point/parameter) this page documents"></select>
-                        </span>
                         <span class="border-start ps-2 ms-1"></span>
                         {{-- tools --}}
                         <button class="btn btn-outline-secondary btn-sm" id="pdwUploadBtn"><i class="bi bi-upload"></i> Image</button>
@@ -1041,6 +1041,8 @@
                             <select id="pdw-ef-placeholder" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
                             <select id="pdw-ef-lblparam" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
                         </div>
+                        <span style="font-size:12px;font-weight:600" class="ms-2">Size:</span>
+                        <input id="pdw-ef-fontsize" type="number" min="5" max="72" class="form-control form-control-sm" style="width:62px;font-size:12px" placeholder="pt" title="Font size (pt) — blank = default">
                         <button id="pdw-ef-save" class="btn btn-primary btn-sm ms-2" style="font-size:12px">Add</button>
                         <button id="pdw-ef-cancel" class="btn btn-secondary btn-sm" style="font-size:12px">Cancel</button>
                     </div>
@@ -1057,8 +1059,6 @@
                 </div>
 
             </div>
-        </div>
-    </div>
 </div>
 
 <script>
@@ -1195,7 +1195,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return `<div class="dim-insp-comp-row" data-ic-id="${ic.id}" draggable="true">
                 <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
                 <button class="btn btn-link p-0 dim-ic-plan" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Repair Plan (Start/Finish)"><i class="bi bi-diagram-3"></i></button>
-                <button class="btn btn-link p-0 dim-ic-ec-doc" data-ic-id="${ic.id}" style="font-size:10px;color:${ic.has_ec_drawing ? 'var(--bs-warning)' : 'var(--bs-secondary-color)'}" title="Part documents (drawings for WO / EC)"><i class="bi bi-rulers"></i></button>
+                <button class="btn btn-link p-0 dim-ic-ec-doc" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Part documents (drawings for WO / EC)"><i class="bi bi-file-earmark-text"></i></button>
                 <span class="dim-insp-comp-name fw-semibold flex-grow-1" data-ic-id="${ic.id}" style="color:#5ee3ff;font-size:11px" title="Double-click to rename">${escHtml(ic.label)}</span>
                 <button class="btn btn-link p-0 dim-ic-expand" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Variants">
                     <i class="bi bi-${isOpen ? 'chevron-up' : 'chevron-down'}"></i>
@@ -3268,13 +3268,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const drawBtn = p.rule_process_id
                 ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-draw" data-rpid="${p.rule_process_id}" data-label="${escHtml(p.label)}" title="${p.has_drawing ? 'Process drawing (has image)' : 'Add process drawing'}" style="font-size:11px;color:${p.has_drawing ? '#0d6efd' : 'var(--bs-secondary-color)'};opacity:${p.has_drawing ? '1' : '.5'}"><i class="bi bi-${p.has_drawing ? 'pencil-square' : 'image'}"></i></button>`
                 : '';
-            return `<div class="dim-rule-process-item">
+            const gateBtn = `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-gate" data-idx="${i}" title="${p.is_gate ? 'EC gate anchor — click to clear' : 'Set EC gate anchor here (freeze everything after it on EC)'}" style="font-size:14px;line-height:1;text-decoration:none;color:${p.is_gate ? 'var(--bs-info)' : 'var(--bs-secondary-color)'};opacity:${p.is_gate ? '1' : '.5'}">⚓</button>`;
+            return `<div class="dim-rule-process-item" data-idx="${i}">
+                <span class="dim-rule-proc-drag" draggable="true" data-idx="${i}" title="Drag to reorder" style="cursor:grab;color:var(--bs-secondary-color);font-size:12px;padding:0 2px">⠿</span>
                 <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
                 <span style="flex:0 0 38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
                 <input type="text" class="form-control form-control-sm dim-rule-proc-note flex-grow-1 ms-1"
                        data-idx="${i}" value="${escHtml(p.description || '')}"
                        placeholder="notes (напр. fig. 6039)" style="font-size:11px;height:24px">
-                ${drawBtn}
+                ${gateBtn}${drawBtn}
                 <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)">
                     <i class="bi bi-x"></i>
                 </button>
@@ -3294,6 +3296,38 @@ document.addEventListener('DOMContentLoaded', function () {
         wrap.querySelectorAll('.dim-rule-proc-draw').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 openProcessDocumentsModal(parseInt(btn.dataset.rpid), btn.dataset.label);
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-proc-gate').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const idx = parseInt(btn.dataset.idx);
+                const wasGate = !!dimRuleProcesses[idx].is_gate;
+                dimRuleProcesses.forEach(function (p) { p.is_gate = false; }); // one anchor per rule
+                dimRuleProcesses[idx].is_gate = !wasGate;
+                renderRuleProcessList();
+            });
+        });
+        // drag & drop reorder (order persists on Save via sort_order)
+        let rpDragFrom = null;
+        wrap.querySelectorAll('.dim-rule-proc-drag').forEach(function (h) {
+            h.addEventListener('dragstart', function (e) {
+                rpDragFrom = parseInt(h.dataset.idx);
+                e.dataTransfer.effectAllowed = 'move';
+                const row = h.closest('.dim-rule-process-item'); if (row) row.style.opacity = '.4';
+            });
+            h.addEventListener('dragend', function () {
+                wrap.querySelectorAll('.dim-rule-process-item').forEach(function (r) { r.style.opacity = ''; });
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-process-item').forEach(function (row) {
+            row.addEventListener('dragover', function (e) { e.preventDefault(); });
+            row.addEventListener('drop', function (e) {
+                e.preventDefault();
+                const to = parseInt(row.dataset.idx);
+                if (rpDragFrom === null || isNaN(to) || rpDragFrom === to) return;
+                dimRuleProcesses.splice(to, 0, dimRuleProcesses.splice(rpDragFrom, 1)[0]);
+                rpDragFrom = null;
+                renderRuleProcessList();
             });
         });
     }
@@ -3375,7 +3409,7 @@ document.addEventListener('DOMContentLoaded', function () {
         dimRuleProcesses = (rule.processes || []).slice().sort(function (a, b) {
             return (a.sort_order || 0) - (b.sort_order || 0);
         }).map(function (p) {
-            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing };
+            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing, is_gate: !!p.is_gate };
         });
         dimRuleTriggers = (rule.triggers || []).map(function (t) {
             return { trigger: t.trigger, codes_id: t.codes_id || null, code_name: t.code_name || null };
@@ -3452,7 +3486,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { trigger: t.trigger, codes_id: t.codes_id || null };
             }),
             processes:         dimRuleProcesses.map(function (p, i) {
-                return { manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, sort_order: i };
+                return { id: p.rule_process_id || null, manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, is_gate: !!p.is_gate, sort_order: i };
             }),
         };
 
@@ -3477,6 +3511,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             ruleModal.hide();
             if (activePoint) renderSpecsPanel(activePoint);
+            pdwTreeRefreshAfterRule();
         } catch (e) {
             errEl.textContent = e.message;
             errEl.classList.remove('d-none');
@@ -3495,6 +3530,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             ruleModal.hide();
             if (activePoint) renderSpecsPanel(activePoint);
+            pdwTreeRefreshAfterRule();
         } catch (e) { alert(e.message); }
     });
 
@@ -4571,33 +4607,101 @@ document.addEventListener('DOMContentLoaded', function () {
     const pdwDocScreen = document.getElementById('pdw-doc-screen');
     const pdwEdScreen  = document.getElementById('pdw-editor-screen');
 
-    function getPdwModal() {
-        if (!pdwModal) pdwModal = new bootstrap.Modal(document.getElementById('pdwModal'));
-        return pdwModal;
+    // Part Documents lives in its own (hidden) tab next to Dimensions, not a modal.
+    // Move the host into the tab pane once, then show/activate the tab on demand.
+    (function () {
+        const host = document.getElementById('pdw-host');
+        const mount = document.getElementById('pdw-host-mount');
+        if (host && mount && host.parentElement !== mount) {
+            host.style.display = 'flex';
+            host.style.flexDirection = 'column';
+            mount.appendChild(host);
+        }
+        // Rule modals are opened from the Part Documents tab too; move them to <body>
+        // so they aren't trapped inside the (hidden) Dimensions pane when shown.
+        ['dimRepairRuleModal', 'dimMasterRuleModal'].forEach(function (id) {
+            const m = document.getElementById(id);
+            if (m && m.parentElement !== document.body) document.body.appendChild(m);
+        });
+    })();
+    function pdwActivate() {
+        const navBtn = document.getElementById('nav-partdocs-tab');
+        if (!navBtn) return;
+        navBtn.classList.remove('d-none');
+        bootstrap.Tab.getOrCreateInstance(navBtn).show();
     }
+    function pdwIsActive() {
+        const pane = document.getElementById('nav-partdocs');
+        return !!(pane && pane.classList.contains('active'));
+    }
+    // Back to Dimensions
+    document.getElementById('pdwCloseBtn').addEventListener('click', function () {
+        const d = document.getElementById('nav-dimensions-tab');
+        if (d) bootstrap.Tab.getOrCreateInstance(d).show();
+    });
+    // Switching to any other tab hides the Part Documents tab again.
+    document.querySelectorAll('#nav-tab button[data-bs-toggle="tab"]').forEach(function (b) {
+        b.addEventListener('shown.bs.tab', function (ev) {
+            if (ev.target && ev.target.id !== 'nav-partdocs-tab') {
+                document.getElementById('nav-partdocs-tab').classList.add('d-none');
+            }
+        });
+    });
 
     const PDW_TYPE_LABEL = { drawing: 'Drawing', manual_page: 'Manual page', test_report: 'Test report' };
 
     const pdwTreeScreen = document.getElementById('pdw-tree-screen');
-    let pdwTree = [], pdwTreeIcId = null, pdwTreeLabel = '', pdwFromTree = false;
+    let pdwTree = [], pdwTreeIcId = null, pdwTreeLabel = '', pdwFromTree = false, pdwTreeEditingRule = false;
+    let pdwActiveRpKey = null; // "<kind>:<rule_process_id>" of the process whose docs are open
 
-    // ---- screen switching ----
-    function pdwShowTreeScreen() {
+    // Reflect "has document" of the currently-open process in the tree without refetching.
+    function pdwTreeMarkDocs() {
+        if (!pdwTree) return;
+        const has = (pdwDocs || []).length > 0;
+        const visit = function (rules) {
+            (rules || []).forEach(function (r) {
+                (r.processes || []).forEach(function (pr) {
+                    if (String(pr.rule_process_id) === String(pdwRuleProcessId) && (pr.kind || 'main') === pdwProcKind) {
+                        pr.has_document = has;
+                    }
+                });
+            });
+        };
+        visit(pdwTree.start);
+        (pdwTree.points || []).forEach(function (pt) { visit(pt.rules); });
+        visit(pdwTree.finish);
+        renderDocTree();
+    }
+
+    function pdwApplyTreeActive() {
+        const wrap = document.getElementById('pdw-tree');
+        if (!wrap) return;
+        wrap.querySelectorAll('.pdw-tree-proc.active').forEach(function (n) { n.classList.remove('active'); });
+        if (!pdwActiveRpKey) return;
+        wrap.querySelectorAll('.pdw-tree-proc').forEach(function (n) {
+            if (((n.dataset.kind || 'main') + ':' + n.dataset.rp) === pdwActiveRpKey) n.classList.add('active');
+        });
+    }
+
+    // ---- right-column switching (tree on the left stays visible) ----
+    const pdwRightEmpty = document.getElementById('pdw-right-empty');
+    function pdwShowTreeScreen() {      // nothing selected → placeholder on the right
         pdwSetMode(null);
-        pdwTreeScreen.classList.remove('d-none');
+        pdwActiveRpKey = null; pdwApplyTreeActive();
+        pdwRightEmpty.classList.remove('d-none');
         pdwDocScreen.classList.add('d-none');
         pdwEdScreen.classList.add('d-none'); pdwEdScreen.classList.remove('d-flex');
     }
     function pdwShowDocScreen() {
         pdwSetMode(null);
-        pdwTreeScreen.classList.add('d-none');
+        pdwRightEmpty.classList.add('d-none');
         pdwDocScreen.classList.remove('d-none');
         pdwEdScreen.classList.add('d-none'); pdwEdScreen.classList.remove('d-flex');
-        document.getElementById('pdwTreeBackBtn').classList.toggle('d-none', !pdwFromTree);
+        document.getElementById('pdwTreeBackBtn').classList.add('d-none'); // tree always visible now
         renderDocList();
     }
     function pdwShowEditorScreen() {
-        pdwTreeScreen.classList.add('d-none');
+        pdwRightEmpty.classList.add('d-none');
         pdwDocScreen.classList.add('d-none');
         pdwEdScreen.classList.remove('d-none'); pdwEdScreen.classList.add('d-flex');
     }
@@ -4607,51 +4711,120 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwTreeIcId = icId; pdwTreeLabel = label || ''; pdwFromTree = true;
         document.getElementById('pdwTitle').textContent = 'Part Documents — ' + pdwTreeLabel;
         document.getElementById('pdw-tree').innerHTML = '<div class="text-secondary" style="font-size:12px">Loading…</div>';
-        getPdwModal().show();
+        pdwActivate();
         pdwShowTreeScreen();
         try {
             const data = await apiFetch('/inspection-components/' + icId + '/document-tree');
-            pdwTree = data.tree || [];
+            pdwTree = data || {};
             renderDocTree();
         } catch (e) {
             document.getElementById('pdw-tree').innerHTML = '<div class="text-danger" style="font-size:12px">' + escHtml(e.message) + '</div>';
         }
     }
 
+    function pdwProcHtml(pr) {
+        const dot = pr.has_document
+            ? '<i class="bi bi-file-earmark-check-fill" style="color:var(--bs-warning)"></i>'
+            : '<i class="bi bi-file-earmark" style="color:var(--bs-secondary-color)"></i>';
+        const gate = pr.is_gate ? '<span style="color:var(--bs-info)" title="EC gate">⚓</span> ' : '';
+        return `<div class="pdw-tree-proc d-flex align-items-center gap-2" data-rp="${pr.rule_process_id}" data-kind="${pr.kind || 'main'}" data-label="${escHtml(pr.label)}"
+                     style="padding:3px 8px;cursor:pointer;border-radius:4px;font-size:12px">
+            ${dot}<span class="flex-grow-1">${gate}${escHtml(pr.label)}</span>
+            <span class="text-secondary" style="font-size:10px">${pr.has_document ? 'edit' : 'add'} ›</span>
+        </div>`;
+    }
+    function pdwRuleHtml(r, editable, paramId) {
+        const procs = (r.processes || []).map(pdwProcHtml).join('')
+            || '<div style="font-size:11px;color:var(--bs-secondary-color);padding-left:8px">no processes</div>';
+        const badge = r.action ? `<span class="badge bg-secondary" style="font-size:9px;text-transform:uppercase">${escHtml(r.action)}</span>` : '';
+        const editBtn = editable
+            ? `<button class="pdw-tree-rule-edit btn btn-link btn-sm p-0 ms-1" data-param="${paramId}" data-rule="${r.rule_id}" title="Edit rule (processes / descriptions)" style="font-size:11px;color:var(--bs-info)"><i class="bi bi-pencil"></i></button>`
+            : '';
+        return `<div style="margin-left:16px;margin-top:3px">
+            <div style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-wrench"></i> ${escHtml(r.label)} ${badge}${editBtn}</div>
+            ${procs}
+        </div>`;
+    }
+    function pdwPhaseSection(title, rules) {
+        if (!rules || !rules.length) return '';
+        return `<div style="margin-bottom:10px">
+            <div class="fw-semibold" style="font-size:12px;color:#ffc107"><i class="bi bi-flag-fill"></i> ${title}
+                <button class="pdw-tree-edit-phase btn btn-link btn-sm p-0 ms-1" title="Edit Start/Finish plan" style="font-size:11px;color:var(--bs-info)"><i class="bi bi-pencil"></i></button></div>
+            ${rules.map(function (r) { return pdwRuleHtml(r, false, null); }).join('')}
+        </div>`;
+    }
+
     function renderDocTree() {
         const wrap = document.getElementById('pdw-tree');
-        if (!pdwTree.length) { wrap.innerHTML = '<div class="text-secondary" style="font-size:12px">No points / rules for this part yet.</div>'; return; }
-        wrap.innerHTML = pdwTree.map(function (pt) {
-            const rules = (pt.rules || []).map(function (r) {
-                const procs = (r.processes || []).map(function (pr) {
-                    const dot = pr.has_document
-                        ? '<i class="bi bi-file-earmark-check-fill" style="color:var(--bs-warning)"></i>'
-                        : '<i class="bi bi-file-earmark" style="color:var(--bs-secondary-color)"></i>';
-                    return `<div class="pdw-tree-proc d-flex align-items-center gap-2" data-rp="${pr.rule_process_id}" data-label="${escHtml(pr.label)}"
-                                 style="padding:3px 8px;cursor:pointer;border-radius:4px;font-size:12px">
-                        ${dot}<span class="flex-grow-1">${escHtml(pr.label)}</span>
-                        <span class="text-secondary" style="font-size:10px">${pr.has_document ? 'edit' : 'add'} ›</span>
-                    </div>`;
-                }).join('') || '<div style="font-size:11px;color:var(--bs-secondary-color);padding-left:8px">no processes</div>';
-                return `<div style="margin-left:16px;margin-top:3px">
-                    <div style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-wrench"></i> ${escHtml(r.label)}
-                        <span class="badge bg-secondary" style="font-size:9px;text-transform:uppercase">${escHtml(r.action)}</span></div>
-                    ${procs}
-                </div>`;
-            }).join('') || '<div style="margin-left:16px;font-size:11px;color:var(--bs-secondary-color)">no repair rules</div>';
-            return `<div style="margin-bottom:10px">
-                <div class="fw-semibold" style="font-size:12px;color:#5ee3ff"><i class="bi bi-geo-alt-fill"></i> ${escHtml(pt.label)}</div>
+        const t = pdwTree || {};
+        const hasAny = (t.start && t.start.length) || (t.points && t.points.length) || (t.finish && t.finish.length);
+        if (!hasAny) { wrap.innerHTML = '<div class="text-secondary" style="font-size:12px">No points / rules for this part yet.</div>'; return; }
+
+        let html = pdwPhaseSection('START', t.start);
+        (t.points || []).forEach(function (pt) {
+            const rules = (pt.rules || []).map(function (r) { return pdwRuleHtml(r, true, pt.param_id); }).join('')
+                || '<div style="margin-left:16px;font-size:11px;color:var(--bs-secondary-color)">no repair rules</div>';
+            html += `<div style="margin-bottom:10px">
+                <div class="fw-semibold" style="font-size:12px;color:#5ee3ff"><i class="bi bi-geo-alt-fill"></i> ${escHtml(pt.label)}
+                    <button class="pdw-tree-add-rule btn btn-link btn-sm p-0 ms-2" data-param="${pt.param_id}" title="Add repair rule" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-plus-circle"></i></button></div>
                 ${rules}
             </div>`;
-        }).join('');
+        });
+        html += pdwPhaseSection('FINISH', t.finish);
+        wrap.innerHTML = html;
+
         wrap.querySelectorAll('.pdw-tree-proc').forEach(function (row) {
-            row.addEventListener('mouseenter', function () { row.style.background = 'rgba(13,110,253,.10)'; });
-            row.addEventListener('mouseleave', function () { row.style.background = ''; });
             row.addEventListener('click', function () {
-                openProcessDocumentsModal(parseInt(row.dataset.rp), row.dataset.label, 'main', true);
+                const kind = row.dataset.kind || 'main';
+                pdwActiveRpKey = kind + ':' + row.dataset.rp;
+                pdwApplyTreeActive();
+                openProcessDocumentsModal(parseInt(row.dataset.rp), row.dataset.label, kind, true);
+            });
+        });
+        pdwApplyTreeActive(); // re-highlight the open process after a re-render
+        // edit a rule (add process / change description) without leaving the hub
+        wrap.querySelectorAll('.pdw-tree-rule-edit').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                const param = (typeof parameters !== 'undefined' ? parameters : []).find(function (p) { return p.id == b.dataset.param; });
+                const rule  = param && (param.repair_rules || []).find(function (r) { return r.id == b.dataset.rule; });
+                if (param && rule) { pdwTreeEditingRule = true; openEditRuleModal(rule, param); }
+                else alert('Rule data not loaded — open it from the Dimensions panel.');
+            });
+        });
+        wrap.querySelectorAll('.pdw-tree-add-rule').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                const param = (typeof parameters !== 'undefined' ? parameters : []).find(function (p) { return p.id == b.dataset.param; });
+                if (param) { pdwTreeEditingRule = true; openAddRuleModal(param); }
+                else alert('Parameter data not loaded — open it from the Dimensions panel.');
+            });
+        });
+        // edit Start/Finish plan (MasterRule) from the hub
+        wrap.querySelectorAll('.pdw-tree-edit-phase').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                if (pdwTreeIcId) { pdwTreeEditingRule = true; openMasterRuleModal(pdwTreeIcId, pdwTreeLabel); }
             });
         });
     }
+
+    // After a rule is saved/deleted from the tree, refresh the tree (new processes, etc.).
+    // Guard: only when the hub modal is actually open, so a stale flag can't re-open it.
+    function pdwTreeRefreshAfterRule() {
+        if (!pdwTreeEditingRule) return;
+        pdwTreeEditingRule = false;
+        if (pdwTreeIcId && pdwIsActive()) {
+            openDocumentTree(pdwTreeIcId, pdwTreeLabel);
+        }
+    }
+    document.getElementById('dimRepairRuleModal').addEventListener('hidden.bs.modal', function () {
+        pdwTreeEditingRule = false; // reset on cancel (save already consumed it)
+    });
+    // MasterRule (Start/Finish) modal stays open for multi-edit → refresh the tree on close.
+    document.getElementById('dimMasterRuleModal').addEventListener('hidden.bs.modal', function () {
+        pdwTreeRefreshAfterRule();
+    });
 
     document.getElementById('pdwTreeBackBtn').addEventListener('click', function () {
         openDocumentTree(pdwTreeIcId, pdwTreeLabel); // refetch → refreshes has-document marks
@@ -4660,7 +4833,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // ---- open: load documents, show list ----
     let pdwProcKind = 'main'; // 'main' (point rule) | 'phase' (Start/Finish)
     function pdwDocsBase() {
-        if (pdwProcKind === 'component') return '/inspection-components/' + pdwRuleProcessId + '/documents';
         return pdwProcKind === 'phase'
             ? '/phase-rule-processes/' + pdwRuleProcessId + '/documents'
             : '/rule-processes/' + pdwRuleProcessId + '/documents';
@@ -4668,14 +4840,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function openProcessDocumentsModal(ruleProcessId, label, kind, fromTree) {
         pdwRuleProcessId = ruleProcessId;
-        pdwProcKind = (kind === 'phase' || kind === 'component') ? kind : 'main';
+        pdwProcKind = (kind === 'phase') ? 'phase' : 'main';
         pdwFromTree = !!fromTree;
         pdwDocs = []; pdwSourceParams = []; pdwDoc = null; pdwPage = null;
         document.getElementById('pdwDocScreenTitle').textContent = label || 'Documents';
         if (!fromTree) document.getElementById('pdwTitle').textContent = 'Process Documents — ' + (label || '');
         document.getElementById('pdw-doc-list').innerHTML = '<div class="text-secondary" style="font-size:12px">Loading…</div>';
         pdwHideDocForm();
-        getPdwModal().show();
+        pdwActivate();
         pdwShowDocScreen();
         try {
             const data = await apiFetch(pdwDocsBase());
@@ -4692,11 +4864,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     function pdwUpdateProcessFlag() {
         const hasImg = pdwProcessHasImage();
-        if (pdwProcKind === 'component') {
-            const p = (typeof inspComponents !== 'undefined' && inspComponents) ? inspComponents.find(function (x) { return x.id === pdwRuleProcessId; }) : null;
-            if (p) { p.has_ec_drawing = hasImg; if (typeof renderInspComponents === 'function') renderInspComponents(); }
-            return;
-        }
         if (pdwProcKind === 'phase') {
             const rp = dimMrProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
             if (rp) { rp.has_drawing = hasImg; renderMrProcessList(); }
@@ -4742,6 +4909,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     pdwDocs = pdwDocs.filter(function (d) { return d.id != b.dataset.id; });
                     renderDocList();
                     pdwUpdateProcessFlag();
+                    pdwTreeMarkDocs();
                 } catch (e) { alert(e.message); }
             });
         });
@@ -4777,6 +4945,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             pdwHideDocForm();
             renderDocList();
+            pdwTreeMarkDocs();
         } catch (e) { alert(e.message); }
     });
 
@@ -4820,30 +4989,9 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwSetMode(null);
         pdwHideElemForm();
         renderPageTabs();
-        renderPagePlace();
         if (page.image_path) pdwShowImage(page.image_path);
         else { pdwEmpty.classList.remove('d-none'); pdwImgCont.classList.add('d-none'); pdwOverlay.innerHTML = ''; pdwSvg.innerHTML = ''; }
     }
-
-    // EC (component docs): per-page "place" = which parameter/point this page documents.
-    function renderPagePlace() {
-        const wrap = document.getElementById('pdwPagePlaceWrap');
-        const sel  = document.getElementById('pdwPagePlace');
-        if (pdwProcKind !== 'component' || !pdwPage) { wrap.classList.add('d-none'); wrap.classList.remove('d-flex'); return; }
-        wrap.classList.remove('d-none'); wrap.classList.add('d-flex');
-        sel.innerHTML = '<option value="">— place —</option>' + pdwParamOptions(pdwPage.parameter_id);
-    }
-
-    document.getElementById('pdwPagePlace').addEventListener('change', async function () {
-        if (!pdwPage) return;
-        const val = this.value ? parseInt(this.value) : null;
-        try {
-            const saved = await apiFetch('/process-document-pages/' + pdwPage.id, { method: 'PATCH', body: JSON.stringify({ parameter_id: val }) });
-            pdwPage.parameter_id = saved.parameter_id;
-            const idx = (pdwDoc.pages || []).findIndex(function (p) { return p.id === pdwPage.id; });
-            if (idx !== -1) pdwDoc.pages[idx].parameter_id = saved.parameter_id;
-        } catch (e) { alert(e.message); }
-    });
 
     document.getElementById('pdwAddPageBtn').addEventListener('click', async function () {
         if (!pdwDoc) return;
@@ -4992,6 +5140,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function pdwFinishElement(el, e, coord) {
         el.dataset.elId = e.id;
+        if (e.font_size && !el.classList.contains('pdw-anchor-dot')) el.style.fontSize = e.font_size + 'px';
         if (!el.title) el.title = 'Drag to move · double-click to delete';
         pdwAddElementDrag(el, e, coord);
         el.addEventListener('dblclick', async function (ev) {
@@ -5163,6 +5312,7 @@ document.addEventListener('DOMContentLoaded', function () {
             plsel.classList.add('d-none');
             document.getElementById('pdw-ef-lblparam').classList.add('d-none');
         }
+        document.getElementById('pdw-ef-fontsize').value = '';
         form.classList.remove('d-none');
     }
     function pdwHideElemForm() {
@@ -5196,12 +5346,17 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             const lt = document.getElementById('pdw-ef-lbltype').value;
             if (lt === 'placeholder') body.placeholder = document.getElementById('pdw-ef-placeholder').value;
-            else if (lt === 'parameter') body.source_parameter_id = parseInt(document.getElementById('pdw-ef-lblparam').value) || null;
+            else if (lt === 'parameter') {
+                body.source_parameter_id = parseInt(document.getElementById('pdw-ef-lblparam').value) || null;
+                // point/parameter labels get a short leader (anchor → text box)
+                body.label_x_pct = Math.min(parseFloat(body.x_pct) + 8, 100);
+                body.label_y_pct = Math.max(parseFloat(body.y_pct) - 6, 0);
+            }
             else body.text = document.getElementById('pdw-ef-text').value;
-            // click = anchor (x/y); place the text box on a short leader (label_x/label_y)
-            body.label_x_pct = Math.min(parseFloat(body.x_pct) + 8, 100);
-            body.label_y_pct = Math.max(parseFloat(body.y_pct) - 6, 0);
+            // placeholder (WO number, …) and free text are stamped at the click point — no leader.
         }
+        const fs = parseInt(document.getElementById('pdw-ef-fontsize').value);
+        body.font_size = (fs >= 5 && fs <= 72) ? fs : null;
         await pdwCreateElement(body);
         pdwHideElemForm();
     });

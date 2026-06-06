@@ -126,7 +126,7 @@
                             <th class="text-center ec-col-part">End Assy/<br>Part Number</th>
                             <th class="text-center ec-col-part">Affected Part No.</th>
                             <th class="text-center ec-col-applicability">Applicability</th>
-                            <th class="text-center ec-col-approval">Approval No.</th>
+                            <th class="text-center ec-col-approval">Concession<br><span style="font-weight:400;font-size:11px">No. / Date / OEM</span></th>
                             <th class="text-center ec-col-date">Request Date</th>
                             <th class="text-center ec-col-date">Issue Date</th>
                             <th class="text-center ec-col-wo">WO No.</th>
@@ -168,6 +168,28 @@
                     showAll.form.submit();
                 });
             }
+
+            // EC-Finish: save concession (number/date/OEM) on change — delegated for lazy-loaded rows.
+            const ecCsrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            document.addEventListener('change', async function (e) {
+                const inp = e.target.closest('.ec-conc');
+                if (!inp) return;
+                const id = inp.dataset.id, field = inp.dataset.field;
+                if (!id || !field) return;
+                inp.classList.remove('is-invalid', 'is-valid');
+                try {
+                    const res = await fetch('/ec/' + id + '/concession', {
+                        method: 'PATCH',
+                        headers: { 'X-CSRF-TOKEN': ecCsrf, 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ [field]: inp.value }),
+                    });
+                    if (!res.ok) throw new Error('save failed');
+                    inp.classList.add('is-valid');
+                    setTimeout(function () { inp.classList.remove('is-valid'); }, 1000);
+                } catch (err) {
+                    inp.classList.add('is-invalid');
+                }
+            });
 
             if (!scrollArea || !tbody || !status) return;
 

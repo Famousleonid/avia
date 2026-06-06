@@ -30,6 +30,7 @@ abstract class PhaseRuleHandler implements StepHandler
                 continue;
             }
             $byNameId = [];
+            $byNameRpIds = [];
             $byNameDescriptions = [];
             foreach ($rule->processes as $rp) {
                 $process = $rp->manualProcess?->process;
@@ -37,9 +38,10 @@ abstract class PhaseRuleHandler implements StepHandler
                     continue;
                 }
                 $byNameId[$process->process_names_id][]           = $process->id;
+                $byNameRpIds[$process->process_names_id][]         = $rp->id; // MasterRulePhaseRuleProcess id
                 $byNameDescriptions[$process->process_names_id][] = $rp->description;
             }
-            $ctx->addPhaseGroups($this->phase(), $byNameId, [], $byNameDescriptions);
+            $ctx->addPhaseGroups($this->phase(), $byNameId, $byNameRpIds, $byNameDescriptions);
         }
     }
 

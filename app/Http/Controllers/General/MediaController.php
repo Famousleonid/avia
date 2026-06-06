@@ -279,6 +279,8 @@ class MediaController extends Controller
         $uploadedPdfs = [];
         foreach ($workorder->getMedia('pdfs') as $media) {
             if (!$media->id) continue;
+            // process-document generations are accessed from the process row, not the library
+            if ($media->getCustomProperty('source') === 'process_document') continue;
 
             $documentName = $media->getCustomProperty('document_name') ?: ($media->name ?? null);
 

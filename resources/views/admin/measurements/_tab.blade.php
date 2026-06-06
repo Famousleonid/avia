@@ -20,6 +20,9 @@
     .ms-pdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .ms-part-prog { font-size: 9px; color: var(--bs-secondary-color); flex-shrink: 0; }
     .ms-pdot.pass { background:#198754; } .ms-pdot.fail { background:#dc3545; } .ms-pdot.partial { background:#ffc107; } .ms-pdot.none { background:#ffc107; }
+    .ms-pdot.missing { background:transparent; border:2px dashed #6c757d; }
+    .ms-missing-label { font-size:9px; color:#dc3545; font-weight:600; flex-shrink:0; margin-left:2px; }
+    .ms-fc-badge { font-size:9px; padding:1px 4px; background:rgba(20,184,166,.15); color:#0d9488; border-radius:2px; flex-shrink:0; font-weight:600; border:1px solid rgba(20,184,166,.3); }
 
     #ms-tab-viewer { order: 3; flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; }
     #ms-tab-fig-label { padding: 3px 8px; font-size: 10px; color: var(--bs-secondary-color); border-bottom: 1px solid var(--bs-border-color); flex-shrink: 0; }
@@ -196,10 +199,20 @@
                 <div id="ms-comp-sub"></div>
             </div>
             <div class="d-flex gap-1 flex-shrink-0">
-                <button id="ms-revert-tdr-btn" class="btn btn-outline-warning btn-sm d-none" style="font-size:11px" title="Revert TDR and choose again (only if work not started)">
+                <span id="ms-add-repair-hint" class="d-none text-secondary" style="font-size:11px;white-space:nowrap">
+                    <i class="bi bi-arrow-right-circle"></i> Go to TDR tab to add Repair
+                </span>
+                <button id="ms-update-processes-btn" class="btn btn-outline-primary btn-sm d-none" style="font-size:11px">
+                    <i class="bi bi-arrow-repeat"></i> Update Processes
+                </button>
+                {{-- TDR creation disabled from Measurements — use TDR tab --}}
+                <button id="ms-revert-tdr-btn" class="btn btn-outline-warning btn-sm d-none" style="font-size:11px" title="Revert TDR" disabled hidden>
                     <i class="bi bi-arrow-counterclockwise"></i> Change decision
                 </button>
-                <button id="ms-add-tdr-btn" class="btn btn-outline-danger btn-sm" disabled style="font-size:11px">
+                <button id="ms-missing-part-btn" class="btn btn-outline-secondary btn-sm d-none" disabled hidden style="font-size:11px">
+                    <i class="bi bi-question-circle"></i> Missing Part
+                </button>
+                <button id="ms-add-tdr-btn" class="btn btn-outline-danger btn-sm d-none" disabled hidden style="font-size:11px">
                     <i class="bi bi-plus-circle"></i> Add to TDR
                 </button>
             </div>
@@ -222,7 +235,7 @@
     let inspComponents = [], figures = [], parameters = [], measurements = [], USE_WEAR = false;
     let allCodes = [], MISSING_CODE_ID = null;
     let partsTree = [];
-    let icsWithTdr = new Set();
+    let icsWithTdr = new Set(), icsMissingTdr = new Set(), icsTdrLabel = new Map();
     let activePartId = null, activeParam = null, activeFigure = null;
     let callouts = [];
     let loaded = false;
@@ -490,14 +503,36 @@
         }
         partsTree.forEach(part => {
             const isActive = activePartId === part.id;
-            const pSt = partStatus(part);
+            const isMissing = icsMissingTdr.has(part.id) || (MISSING_CODE_ID && part.params.some(p =>
+                paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
+            ));
+            const fcDone = isMissing && missingPartFcVerified(part);
+            const tdrLabel = icsTdrLabel.get(part.id); // e.g. 'Worn, Order New' | 'missing' | undefined
+            const tdrLabelColor = !tdrLabel ? '#6c757d'
+                : tdrLabel === 'missing' ? '#dc3545'
+                : /order new/i.test(tdrLabel) ? '#dc3545'
+                : /repair/i.test(tdrLabel) ? '#fd7e14'
+                : '#6c757d';
             const total = part.params.length;
             const done  = part.params.filter(p => paramStatus(p) !== 'none').length;
-            const progHtml = total > 0
-                ? (done === total
-                    ? `<span class="ms-part-prog" style="color:#198754">✓</span>`
-                    : `<span class="ms-part-prog">${done}/${total}</span>`)
-                : '';
+            let pSt, progHtml;
+            if (fcDone) {
+                pSt = 'pass';
+                progHtml = `<span class="ms-part-prog" style="color:#198754">✓</span>`;
+            } else if (isMissing) {
+                pSt = 'missing';
+                progHtml = `<span class="ms-missing-label">missing</span>`;
+            } else if (tdrLabel && tdrLabel !== 'missing') {
+                pSt = partStatus(part);
+                progHtml = `<span style="font-size:9px;color:${tdrLabelColor};font-weight:600;flex-shrink:0">${esc(tdrLabel)}</span>`;
+            } else {
+                pSt = partStatus(part);
+                progHtml = total > 0
+                    ? (done === total
+                        ? `<span class="ms-part-prog" style="color:#198754">✓</span>`
+                        : `<span class="ms-part-prog">${done}/${total}</span>`)
+                    : '';
+            }
             const el = document.createElement('div');
             el.className = 'ms-tab-param-item' + (isActive ? ' active' : '');
             el.style.cssText = 'padding:6px 10px;border-left-width:3px';
@@ -516,6 +551,7 @@
 
     function renderFigureNav(param, currentFig) {
         figNav.innerHTML='';
+        if (!param) { figNav.classList.remove('visible'); return; }
         const figs=uniqueFigures(param);
         if(figs.length<=1){ figNav.classList.remove('visible'); return; }
         figNav.classList.add('visible');
@@ -663,15 +699,29 @@
     /* ── Select component ─────────────────────────────────────── */
     function selectComponent(part) {
         activePartId = part.id;
-        activeParam  = part.params.length > 0 ? part.params[0] : null;
+        activeParam  = null;   // no accordion auto-expanded on part selection
         renderPartsList();
         renderComponentPanel(part);
-        if (activeParam) {
-            const figs = uniqueFigures(activeParam);
+        // Show the figure using the first param's location (markers all dim, none active)
+        const firstParam = part.params[0] || null;
+        if (firstParam) {
+            const figs = uniqueFigures(firstParam);
             const fig = figs[0] || null;
             activeFigure = fig;
-            if (fig) showFigure(fig);
-            else {
+            if (fig) {
+                figLabel.textContent = fig.title || '—';
+                if (!fig.image_path) {
+                    emptyViewer.style.display = ''; figContainer.style.display = 'none';
+                    overlay.innerHTML = ''; return;
+                }
+                emptyViewer.style.display = 'none'; figContainer.style.display = '';
+                if (figImg.src !== fig.image_path) {
+                    figImg.onload = () => { fitImage(); renderMarkers(part, null, fig); };
+                    figImg.src = fig.image_path;
+                } else {
+                    renderMarkers(part, null, fig);
+                }
+            } else {
                 emptyViewer.style.display = '';
                 figContainer.style.display = 'none';
                 overlay.innerHTML = ''; svgEl.innerHTML = ''; callouts = [];
@@ -697,10 +747,114 @@
         document.getElementById('ms-comp-sub').textContent = subParts.join('  ·  ');
 
         updateTdrBtnState(part);
+        updateMissingPartBtnState(part);
+        updateRepairActionState(part);
 
         accWrap.innerHTML = '';
         part.params.forEach(param => accWrap.appendChild(buildAccordionRow(part, param)));
     }
+
+    function updateMissingPartBtnState(part) {
+        const btn = document.getElementById('ms-missing-part-btn');
+        if (!btn) return;
+        if (!part || part.is_bush) { btn.classList.add('d-none'); btn.disabled = true; return; }
+        btn.classList.remove('d-none');
+        btn.innerHTML = '<i class="bi bi-question-circle"></i> Missing Part';
+        const alreadyMissing = MISSING_CODE_ID && part.params.some(p =>
+            paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
+        );
+        const hasAnyMeasurements = part.params.some(p => paramMeasurements(p).length > 0);
+        const hasTdr = icsWithTdr.has(part.id);
+        const enable = MISSING_CODE_ID && !alreadyMissing && !hasAnyMeasurements && !hasTdr;
+        btn.disabled = !enable;
+        btn.classList.toggle('btn-outline-warning',   !!enable);
+        btn.classList.toggle('btn-outline-secondary', !enable);
+    }
+
+    document.getElementById('ms-missing-part-btn').addEventListener('click', async function () {
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part || !MISSING_CODE_ID) return;
+
+        this.disabled = true;
+        const ic = inspComponents.find(c => c.id === part.id);
+        const pn = (ic?.ipl_nums || [])[0] || '';
+        if (!pn) { alert('No IPL# for this part — cannot create TDR.'); this.disabled = false; return; }
+        const targetParam = part.params.find(p => p.orig_dim_min !== null || p.orig_dim_max !== null)
+            || part.params[0];
+        if (!targetParam) { this.disabled = false; return; }
+        try {
+            const saved = await apiFetch('/workorders/' + WO_ID + '/measurements', {
+                method: 'POST',
+                body: JSON.stringify({
+                    manual_parameter_id: targetParam.id,
+                    stage: 'initial',
+                    replaces_id: null,
+                    actual_value: null,
+                    codes_id: MISSING_CODE_ID,
+                    notes: null,
+                }),
+            });
+            measurements.push(saved);
+            await apiFetch('/workorders/' + WO_ID + '/tdr-from-measurement', {
+                method: 'POST',
+                body: JSON.stringify({
+                    wo_measurement_id: saved.id,
+                    missing_meas_id:   saved.id,
+                    pn, sn: null, qty: 1, rule_ids: [],
+                }),
+            });
+            icsWithTdr.add(activePartId);
+            if (typeof showNotification === 'function') showNotification('Missing Part — Order New TDR created', 'success');
+            document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
+            refreshActive();
+        } catch (e) { alert(e.message); this.disabled = false; }
+    });
+
+    function missingPartFcVerified(part) {
+        const fcParams = part.params.filter(p => p.fc_mating_param_id);
+        if (!fcParams.length) return true; // no F&C — nothing to verify
+        return fcParams.every(p => paramMeasurements(p).some(m => m.stage === 'final'));
+    }
+
+    function updateRepairActionState(part) {
+        const hint      = document.getElementById('ms-add-repair-hint');
+        const updateBtn = document.getElementById('ms-update-processes-btn');
+        if (!hint || !updateBtn) return;
+
+        const isMissing = icsMissingTdr.has(part.id) || (MISSING_CODE_ID && part.params.some(p =>
+            paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
+        ));
+        const hasRepairTdr = !isMissing && icsTdrLabel.has(part.id) && /repair/i.test(icsTdrLabel.get(part.id) || '');
+        const hasRepairFail = !isMissing && !icsWithTdr.has(part.id) && part.params.some(p =>
+            paramMeasurements(p).some(m => m.result === 'FAIL' && !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID))
+        );
+
+        if (hasRepairTdr) {
+            hint.classList.add('d-none');
+            updateBtn.classList.remove('d-none');
+        } else if (hasRepairFail) {
+            hint.classList.remove('d-none');
+            updateBtn.classList.add('d-none');
+        } else {
+            hint.classList.add('d-none');
+            updateBtn.classList.add('d-none');
+        }
+    }
+
+    document.getElementById('ms-update-processes-btn')?.addEventListener('click', async function () {
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part) return;
+        this.disabled = true;
+        try {
+            await apiFetch('/workorders/' + WO_ID + '/update-part-processes', {
+                method: 'POST',
+                body: JSON.stringify({ inspection_component_id: part.id }),
+            });
+            document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
+            if (typeof showNotification === 'function') showNotification('Repair processes updated', 'success');
+        } catch (e) { alert(e.message); }
+        finally { this.disabled = false; }
+    });
 
     function updateTdrBtnState(part) {
         const btn = document.getElementById('ms-add-tdr-btn');
@@ -710,7 +864,9 @@
             btn.disabled = true;
             btn.classList.remove('btn-outline-danger');
             btn.classList.add('btn-outline-success');
-            if (revertBtn) revertBtn.classList.remove('d-none');   // part has TDR → allow change
+            // Missing Part: hide Change decision once F&C fit is verified
+            const fcDone = icsMissingTdr.has(part.id) && missingPartFcVerified(part);
+            if (revertBtn) revertBtn.classList.toggle('d-none', fcDone);
             return;
         }
         btn.classList.remove('btn-outline-success');
@@ -747,6 +903,7 @@
         hdr.className = 'ms-acc-hdr' + (isActive ? ' active' : '');
         hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
             <span class="ms-tab-param-desc">${esc(param.description)}</span>
+            ${param.fc_mating_param_id ? '<span class="ms-fc-badge">F&amp;C</span>' : ''}
             ${buildParamHintHtml(param)}
             ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
             ${lastHtml}`;
@@ -806,11 +963,36 @@
         const hasLim = lim.min !== null || lim.max !== null;
 
         if (hasLim) {
+            // Required step from mating part (F&C pair)
+            let reqStepHtml = '';
+            if (param.fc_mating_param_id && (param.repair_steps || []).length > 0) {
+                const matingParam = parameters.find(p => p.id === param.fc_mating_param_id);
+                if (matingParam) {
+                    const matingFinals = paramMeasurements(matingParam).filter(m => m.stage === 'final');
+                    const stepNo = matingFinals.length ? matingFinals[matingFinals.length - 1].repair_step_no : null;
+                    if (stepNo) {
+                        const step = param.repair_steps.find(s => s.step_no === stepNo);
+                        if (step) {
+                            reqStepHtml = `
+                                <div class="ms-lim-cell" style="background:rgba(13,110,253,.1);border-left:2px solid #0d6efd">
+                                    <div class="ms-lim-lbl" style="color:#0d6efd">req min (${esc(stepNo)})</div>
+                                    <div class="ms-lim-val" style="color:#0d6efd">${fmtDim(step.dim_min)}</div>
+                                </div>
+                                <div class="ms-lim-cell" style="background:rgba(13,110,253,.1)">
+                                    <div class="ms-lim-lbl" style="color:#0d6efd">req max (${esc(stepNo)})</div>
+                                    <div class="ms-lim-val" style="color:#0d6efd">${fmtDim(step.dim_max)}</div>
+                                </div>`;
+                        }
+                    }
+                }
+            }
+
             const limDiv = document.createElement('div'); limDiv.className = 'ms-spec-lims';
             limDiv.innerHTML = `
                 <div class="ms-lim-cell"><div class="ms-lim-lbl">orig min</div><div class="ms-lim-val">${fmtDim(param.orig_dim_min)}</div></div>
                 <div class="ms-lim-cell"><div class="ms-lim-lbl">orig max</div><div class="ms-lim-val">${fmtDim(param.orig_dim_max)}</div></div>
-                ${param.wear_dim_min != null ? `<div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear min</div><div class="ms-lim-val">${fmtDim(param.wear_dim_min)}</div></div><div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear max</div><div class="ms-lim-val">${fmtDim(param.wear_dim_max)}</div></div>` : ''}`;
+                ${param.wear_dim_min != null ? `<div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear min</div><div class="ms-lim-val">${fmtDim(param.wear_dim_min)}</div></div><div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear max</div><div class="ms-lim-val">${fmtDim(param.wear_dim_max)}</div></div>` : ''}
+                ${reqStepHtml}`;
             body.appendChild(limDiv);
         }
 
@@ -829,6 +1011,21 @@
         const inits=ms.filter(m=>m.stage==='initial'), fins=ms.filter(m=>m.stage==='final');
         const lastInit=inits[inits.length-1]||null, lastFin=fins[fins.length-1]||null;
         ms.forEach(m=>rec.appendChild(buildMeasRow(m,param)));
+
+        const part = partsTree.find(p => p.id === param.inspection_component_id);
+        const partIsMissing = MISSING_CODE_ID && part?.params.some(p =>
+            paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
+        );
+        if (partIsMissing) {
+            if (!param.fc_mating_param_id) return; // new part — no standalone measurements needed
+            if (!lastFin) {
+                const w = document.createElement('div'); w.className = 'mt-2';
+                w.innerHTML = `<button class="btn btn-outline-info btn-sm w-100" style="font-size:11px"><i class="bi bi-plus-circle"></i> Add Final measurement (new part installed)</button>`;
+                w.querySelector('button').addEventListener('click', () => w.replaceWith(buildForm(param, 'final', null)));
+                frm.appendChild(w);
+            }
+            return;
+        }
 
         if(!lastInit){ frm.appendChild(buildForm(param,'initial',null)); }
         else if(lastInit.result==='FAIL'&&!lastFin){
@@ -877,12 +1074,14 @@
         // Split display: dimension is in-tolerance but a finding makes it FAIL
         const splitDisplay = !isMissingPart && m.actual_value != null && codeName && dimResult === 'PASS';
 
+        // final landed in an oversize repair step → PASS, show the step (RO5)
+        const stepChip = m.repair_step_no ? `<span class="ms-rpass" style="font-weight:700;font-size:11px;margin-right:3px">${esc(m.repair_step_no)}</span>` : '';
         let valueHtml = '';
         if (m.actual_value != null) {
             if (splitDisplay) {
                 valueHtml = `<span class="ms-mval ms-rpass">${fmtDim(m.actual_value)}</span><span class="ms-rpass" style="font-weight:700;font-size:12px">OK</span>`;
             } else {
-                valueHtml = `<span class="ms-mval ${rc}">${fmtDim(m.actual_value)}</span><span class="${rc}" style="font-weight:700;font-size:12px">${m.result||'—'}</span>`;
+                valueHtml = `<span class="ms-mval ${rc}">${fmtDim(m.actual_value)}</span>${stepChip}<span class="${rc}" style="font-weight:700;font-size:12px">${m.result||'—'}</span>`;
             }
         } else if (m.result) {
             valueHtml = `<span class="${rc}" style="font-weight:700;font-size:12px">${m.result}</span>`;
@@ -921,10 +1120,9 @@
         d.innerHTML=`
             <div style="font-size:10px;font-weight:600;color:var(--bs-secondary-color);margin-bottom:6px">${stage==='final'?'Final measurement (after repair)':'Record measurement'}</div>
             ${hasMeas?`
-            <div class="ms-frow d-flex gap-2 align-items-end">
-                <div style="flex:1"><div class="ms-flabel">Actual value</div>
-                <input type="number" class="form-control form-control-sm" step="0.0001" id="mst-val-${uid}" placeholder="0.0000" style="font-family:monospace;font-size:13px"></div>
-                <div class="form-check mb-1 flex-shrink-0"><input class="form-check-input" type="checkbox" id="mst-missing-${uid}"><label class="form-check-label text-danger" for="mst-missing-${uid}" style="font-size:11px">Missing Part</label></div>
+            <div class="ms-frow">
+                <div class="ms-flabel">Actual value</div>
+                <input type="number" class="form-control form-control-sm" step="0.0001" id="mst-val-${uid}" placeholder="0.0000" style="font-family:monospace;font-size:13px">
             </div>`:''}
             ${hasInsp?`
             <div class="ms-frow"><div class="ms-flabel">Finding</div>
@@ -934,24 +1132,16 @@
             <div class="text-danger small d-none mb-1" id="mst-err-${uid}"></div>
             <button class="btn btn-primary btn-sm w-100" style="font-size:12px" id="mst-save-${uid}"><i class="bi bi-check2"></i> Save</button>`;
 
-        if(hasMeas) d.querySelector('#mst-missing-'+uid)?.addEventListener('change',function(){
-            const isMissing = this.checked;
-            d.querySelector('#mst-val-'+uid).disabled = isMissing;
-            if(isMissing) d.querySelector('#mst-val-'+uid).value = '';
-            const codeEl = d.querySelector('#mst-code-'+uid);
-            if(codeEl) codeEl.disabled = isMissing;
-        });
         d.querySelector('#mst-save-'+uid).addEventListener('click',async()=>{
             const err=d.querySelector('#mst-err-'+uid); err.classList.add('d-none');
             const btn=d.querySelector('#mst-save-'+uid); btn.disabled=true;
-            const isMissing=hasMeas&&(d.querySelector('#mst-missing-'+uid)?.checked);
             const valRaw=hasMeas?(d.querySelector('#mst-val-'+uid)?.value||''):'';
             const body={
                 manual_parameter_id: param.id,
                 stage,
                 replaces_id: replacesId||null,
-                actual_value: hasMeas?(isMissing?null:(valRaw!==''?parseFloat(valRaw):null)):null,
-                codes_id: isMissing ? MISSING_CODE_ID : (hasInsp?(d.querySelector('#mst-code-'+uid)?.value||null):null),
+                actual_value: hasMeas?(valRaw!==''?parseFloat(valRaw):null):null,
+                codes_id: hasInsp?(d.querySelector('#mst-code-'+uid)?.value||null):null,
                 notes: d.querySelector('#mst-notes-'+uid)?.value.trim()||null,
             };
             try {
@@ -974,6 +1164,7 @@
     async function maybeOpenGate(param) {
         const partId = param.inspection_component_id;
         if (!partId || !icsWithTdr.has(partId)) return; // gate only when the part has a (repair) TDR
+        if (icsMissingTdr.has(partId)) return; // Missing Part — F&C final is a fit check, not a repair gate
         try {
             const res = await apiFetch('/workorders/' + WO_ID + '/gate/evaluate', {
                 method: 'POST', body: JSON.stringify({ inspection_component_id: partId }),
@@ -1009,14 +1200,14 @@
         const hint = document.getElementById('msGateHint');
         let opts;
         if (!ndt) {
-            opts = [{ k: 'order_new', label: 'Order New', cls: 'btn-danger' }];
-            hint.textContent = 'NDT not passed → Order New';
+            opts = [];
+            hint.textContent = 'NDT not passed — go to TDR tab to Order New';
         } else if (gateState.allPass) {
-            opts = [{ k: 'finish', label: 'Finish', cls: 'btn-success' }, { k: 'order_new', label: 'Order New', cls: 'btn-outline-danger' }];
+            opts = [{ k: 'finish', label: 'Finish', cls: 'btn-success' }];
             hint.textContent = 'All dimensions PASS';
         } else {
-            opts = [{ k: 'ec', label: 'EC', cls: 'btn-warning' }, { k: 'order_new', label: 'Order New', cls: 'btn-outline-danger' }];
-            hint.textContent = 'Some dimensions FAIL';
+            opts = [{ k: 'ec', label: 'EC', cls: 'btn-warning' }];
+            hint.textContent = 'Some dimensions FAIL → EC';
         }
         // "Typical EC" only matters when EC is on the table.
         const ecOnTable = opts.some(o => o.k === 'ec');
@@ -1063,6 +1254,8 @@
         if (!part) return;
         renderPartsList();
         updateTdrBtnState(part);
+        updateMissingPartBtnState(part);
+        updateRepairActionState(part);
         if (!activeParam) return;
         const freshParam = part.params.find(p => p.id === activeParam.id) || activeParam;
         activeParam = freshParam;
@@ -1084,6 +1277,7 @@
             const hdr = row.querySelector('.ms-acc-hdr');
             hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
                 <span class="ms-tab-param-desc">${esc(freshParam.description)}</span>
+                ${freshParam.fc_mating_param_id ? '<span class="ms-fc-badge">F&amp;C</span>' : ''}
                 ${buildParamHintHtml(freshParam)}
                 ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
                 ${lastHtml}`;
@@ -1105,6 +1299,8 @@
             allCodes=data.codes||[];
             MISSING_CODE_ID=data.missing_code_id||null;
             icsWithTdr=new Set(data.ics_with_tdr||[]);
+            icsMissingTdr=new Set(data.ics_missing_tdr||[]);
+            icsTdrLabel=new Map(Object.entries(data.ics_tdr_label||{}).map(([k,v])=>[parseInt(k),v]));
             partsTree=buildPartsTree();
             if(loadingEl) loadingEl.style.display='none';
             renderPartsList();
@@ -1411,20 +1607,39 @@
                 body: JSON.stringify({ inspection_component_id: part.id }),
             });
             icsWithTdr.delete(part.id);
-            updateTdrBtnState(part);
-            document.dispatchEvent(new CustomEvent('tdr-created-from-measurements')); // refresh TDR view
-            if (typeof showNotification === 'function') showNotification('TDR reverted — choose a new decision', 'success');
-            // re-open the decision modal
-            const allFailMeas = [];
-            let firstFailParam = null;
-            part.params.forEach(param => {
-                const fails = paramMeasurements(param).filter(m => m.result === 'FAIL');
-                if (fails.length && !firstFailParam) firstFailParam = param;
-                allFailMeas.push(...fails);
-            });
-            if (firstFailParam && allFailMeas.length) openTdrModal(firstFailParam, allFailMeas);
+            icsMissingTdr.delete(part.id);
+            document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
+
+            // For Missing Part: also delete the Missing measurements to fully restore state
+            const missingIds = MISSING_CODE_ID
+                ? part.params.flatMap(p =>
+                    paramMeasurements(p).filter(m => m.codes_id == MISSING_CODE_ID).map(m => m.id))
+                : [];
+            for (const id of missingIds) {
+                await apiFetch('/measurements/' + id, { method: 'DELETE' });
+                measurements = measurements.filter(m => m.id !== id);
+            }
+
+            if (missingIds.length) {
+                // Was a Missing Part TDR — state fully reset, no modal needed
+                if (typeof showNotification === 'function') showNotification('Missing cancelled — part restored', 'success');
+                renderPartsList();
+                renderComponentPanel(part);  // full re-render so Missing badge clears
+            } else {
+                // Regular Repair/Order New — reopen modal to pick a new decision
+                if (typeof showNotification === 'function') showNotification('TDR reverted — choose a new decision', 'success');
+                const allFailMeas = [];
+                let firstFailParam = null;
+                part.params.forEach(param => {
+                    const fails = paramMeasurements(param).filter(m => m.result === 'FAIL');
+                    if (fails.length && !firstFailParam) firstFailParam = param;
+                    allFailMeas.push(...fails);
+                });
+                if (firstFailParam && allFailMeas.length) openTdrModal(firstFailParam, allFailMeas);
+                else refreshActive();
+            }
         } catch (e) {
-            alert(e.message); // e.g. "Work already started — use Scrap instead"
+            alert(e.message);
         } finally {
             this.disabled = false;
         }

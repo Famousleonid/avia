@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ManualInspectionComponent;
 use App\Models\ManualParameter;
 use App\Models\ManualParameterRuleProcess;
+use App\Models\MasterRule;
 use App\Models\MasterRulePhaseRuleProcess;
 use App\Models\ProcessDocument;
 use App\Models\ProcessDocumentElement;
@@ -48,23 +49,6 @@ class ProcessDocumentController extends Controller
         return $this->createDocument($request, $masterRulePhaseRuleProcess, 'manual_page');
     }
 
-    // ── Documents (part level = inspection component) ─────────────
-    // The EC dimensions sheet: one part drawing, measurement elements bound to
-    // any of the part's parameters. Source params = ALL the part's parameters.
-
-    public function indexComponent(ManualInspectionComponent $manualInspectionComponent)
-    {
-        return $this->listDocuments(
-            $manualInspectionComponent,
-            $this->sourceParametersForComponent($manualInspectionComponent)
-        );
-    }
-
-    public function storeComponentDocument(Request $request, ManualInspectionComponent $manualInspectionComponent)
-    {
-        return $this->createDocument($request, $manualInspectionComponent, 'ec');
-    }
-
     /**
      * Document hub for a part: the Part → Point → Rule → Process tree, with a flag
      * for which rule-processes already have a document. Documents attach to the
@@ -72,44 +56,72 @@ class ProcessDocumentController extends Controller
      */
     public function documentTree(ManualInspectionComponent $manualInspectionComponent)
     {
+        // ── Main: Point → Repair rule → Process (ManualParameterRuleProcess) ──
         $params = ManualParameter::where('inspection_component_id', $manualInspectionComponent->id)
-            ->with([
-                'points:id,code',
-                'repairRules.processes.manualProcess.process.process_name',
-            ])
+            ->with(['points:id,code', 'repairRules.processes.manualProcess.process.process_name'])
             ->orderBy('sort_order')
             ->get();
 
-        $rpIds = $params->flatMap(fn($p) => $p->repairRules->flatMap(fn($r) => $r->processes->pluck('id')))
-            ->unique()->values();
-        $withDocs = ProcessDocument::where('documentable_type', ManualParameterRuleProcess::class)
-            ->whereIn('documentable_id', $rpIds)
-            ->pluck('documentable_id')->map(fn($i) => (int) $i)->unique()->flip();
+        $mainRpIds = $params->flatMap(fn($p) => $p->repairRules->flatMap(fn($r) => $r->processes->pluck('id')))->unique();
+        $mainDocs  = ProcessDocument::where('documentable_type', ManualParameterRuleProcess::class)
+            ->whereIn('documentable_id', $mainRpIds)
+            ->pluck('documentable_id')->map(fn($i) => (int) $i)->flip();
 
-        $tree = $params->map(function ($p) use ($withDocs) {
+        $procNode = function ($rp, $kind, $docs, $withDesc = true) {
+            $pname = $rp->manualProcess?->process?->process_name?->name ?? 'Process';
+
+            return [
+                'rule_process_id' => $rp->id,
+                'kind'            => $kind,
+                'label'           => $pname . ($withDesc && $rp->description ? ' — ' . $rp->description : ''),
+                'has_document'    => $docs->has((int) $rp->id),
+                'is_gate'         => $kind === 'main' ? (bool) $rp->is_gate : false,
+            ];
+        };
+
+        $points = $params->map(function ($p) use ($mainDocs, $procNode) {
             $pts = $p->points->pluck('code')->filter()->implode(', ');
 
             return [
                 'param_id' => $p->id,
                 'label'    => trim(($pts ? $pts . ' · ' : '') . ($p->description ?? '')) ?: ('#' . $p->id),
                 'rules'    => $p->repairRules->map(fn($r) => [
-                    'rule_id' => $r->id,
-                    'label'   => $r->name ?: ('Rule #' . $r->id),
-                    'action'  => $r->action ?? 'repair',
-                    'processes' => $r->processes->map(function ($rp) use ($withDocs) {
-                        $pname = $rp->manualProcess?->process?->process_name?->name ?? 'Process';
-
-                        return [
-                            'rule_process_id' => $rp->id,
-                            'label'           => $pname . ($rp->description ? ' — ' . $rp->description : ''),
-                            'has_document'    => $withDocs->has((int) $rp->id),
-                        ];
-                    })->values(),
+                    'rule_id'   => $r->id,
+                    'label'     => $r->name ?: ('Rule #' . $r->id),
+                    'action'    => $r->action ?? 'repair',
+                    'processes' => $r->processes->map(fn($rp) => $procNode($rp, 'main', $mainDocs))->values(),
                 ])->values(),
             ];
         })->values();
 
-        return response()->json(['tree' => $tree]);
+        // ── Start / Finish: MasterRule phase rule → Process (MasterRulePhaseRuleProcess) ──
+        $masterRule = MasterRule::where('inspection_component_id', $manualInspectionComponent->id)
+            ->with('phaseRules.processes.manualProcess.process.process_name')
+            ->first();
+        $phaseRpIds = $masterRule
+            ? $masterRule->phaseRules->flatMap(fn($r) => $r->processes->pluck('id'))->unique()
+            : collect();
+        $phaseDocs = ProcessDocument::where('documentable_type', MasterRulePhaseRuleProcess::class)
+            ->whereIn('documentable_id', $phaseRpIds)
+            ->pluck('documentable_id')->map(fn($i) => (int) $i)->flip();
+
+        $phaseNodes = function (string $phase) use ($masterRule, $phaseDocs, $procNode) {
+            if (!$masterRule) {
+                return [];
+            }
+
+            return $masterRule->phaseRules->where('phase', $phase)->map(fn($r) => [
+                'rule_id'   => $r->id,
+                'label'     => $r->name ?: (ucfirst($phase) . ' rule'),
+                'processes' => $r->processes->map(fn($rp) => $procNode($rp, 'phase', $phaseDocs, false))->values(),
+            ])->values();
+        };
+
+        return response()->json([
+            'start'  => $phaseNodes('start'),
+            'points' => $points,
+            'finish' => $phaseNodes('finish'),
+        ]);
     }
 
     // ── Generation (2c.1) — template + WO data → PDF in WO library ─
@@ -130,8 +142,11 @@ class ProcessDocumentController extends Controller
         $safe     = preg_replace('/[^A-Za-z0-9_-]+/', '_', $title);
         $filename = 'wo_' . ($workorder->number ?? $workorder->id) . '_' . $safe . $placeTag . '_' . now()->format('Ymd_Hi') . '.pdf';
 
+        // Tagged as a process-document generation so it stays out of the PDF Library
+        // listing (still in 'pdfs' so show/download keep working).
         $media = $workorder->addMediaFromString($pdf)
             ->usingFileName($filename)
+            ->withCustomProperties(['source' => 'process_document'])
             ->toMediaCollection('pdfs');
 
         return response()->json([
@@ -309,6 +324,7 @@ class ProcessDocumentController extends Controller
             'source_parameter_id' => 'nullable|exists:manual_parameters,id',
             'placeholder'         => 'nullable|string|max:100',
             'text'                => 'nullable|string|max:255',
+            'font_size'           => 'nullable|integer|min:5|max:72',
             'sort_order'          => 'nullable|integer',
         ]);
     }
@@ -361,13 +377,6 @@ class ProcessDocumentController extends Controller
         return null;
     }
 
-    /** All parameters of the manual — selectable as sources/references on the EC sheet
-     *  (incl. other parts, e.g. a mating dimension for calc). */
-    private function sourceParametersForComponent(ManualInspectionComponent $ic): array
-    {
-        return $this->manualParamOptions($ic->manual_id);
-    }
-
     private function docPayload(ProcessDocument $d): array
     {
         return [
@@ -410,6 +419,7 @@ class ProcessDocumentController extends Controller
             'source_parameter_id' => $e->source_parameter_id,
             'placeholder'         => $e->placeholder,
             'text'                => $e->text,
+            'font_size'           => $e->font_size,
             'sort_order'          => $e->sort_order,
         ];
     }

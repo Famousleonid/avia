@@ -43,10 +43,10 @@ class PipelineContext
     public bool $heldPendingEc = false;
 
     /** Stage execution order; gate sits at `ndt`, EC holds post + finish. */
-    private const STAGE_RANK = ['start' => 10, 'prep' => 20, 'ndt' => 30, 'post' => 40, 'finish' => 50];
-
-    /** Fallback rank for unclassified (null) stage — keep within its phase. */
-    private const PHASE_FALLBACK = ['start' => 11, 'main' => 35, 'finish' => 51];
+    /** Order = phase only (Start → Main → Finish); WITHIN a phase the rule's own
+     *  process order (sort_order) is preserved via insertion sequence. NOT by stage —
+     *  e.g. NDT on base material vs NDT on plating must stay where the rule puts them. */
+    private const PHASE_RANK = ['start' => 0, 'main' => 1, 'finish' => 2];
 
     private int $insertSeq = 0;
 
@@ -176,15 +176,20 @@ class PipelineContext
                 $g['descriptions'],
                 fn ($d) => $d !== null && $d !== ''
             )));
+            // Phase (Start/Finish) rp ids are MasterRulePhaseRuleProcess ids — keep them
+            // SEPARATE from Main (ManualParameterRuleProcess) ids; the id spaces collide.
+            $rpIds   = array_values(array_unique($g['rule_process_ids']));
+            $isPhase = in_array($g['phase'], ['start', 'finish'], true);
             $out[] = [
-                'process_names_id' => $g['process_names_id'],
-                'process_ids'      => array_values(array_unique($g['process_ids'])),
-                'rule_process_ids' => array_values(array_unique($g['rule_process_ids'])),
-                'description'      => implode('; ', $notes),
-                'sort_order'       => $sort++,
-                'phase'            => $g['phase'],
-                'stage'            => $g['stage'],
-                'scope'            => $g['scope'],
+                'process_names_id'        => $g['process_names_id'],
+                'process_ids'             => array_values(array_unique($g['process_ids'])),
+                'rule_process_ids'        => $isPhase ? [] : $rpIds,
+                'phase_rule_process_ids'  => $isPhase ? $rpIds : [],
+                'description'             => implode('; ', $notes),
+                'sort_order'              => $sort++,
+                'phase'                   => $g['phase'],
+                'stage'                   => $g['stage'],
+                'scope'                   => $g['scope'],
             ];
         }
 
@@ -193,11 +198,7 @@ class PipelineContext
 
     private function rankOf(array $g): int
     {
-        if (!empty($g['stage']) && isset(self::STAGE_RANK[$g['stage']])) {
-            return self::STAGE_RANK[$g['stage']];
-        }
-
-        return self::PHASE_FALLBACK[$g['phase']] ?? 35;
+        return self::PHASE_RANK[$g['phase']] ?? 1;
     }
 
     public function isEmpty(): bool

@@ -374,8 +374,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'storePhaseDocument'])->name('phase-rule-processes.documents.store');
     // Part-level (inspection component) documents — EC dimensions sheet
     Route::get('/inspection-components/{manualInspectionComponent}/document-tree', [ProcessDocumentController::class, 'documentTree'])->name('inspection-components.document-tree');
-    Route::get('/inspection-components/{manualInspectionComponent}/documents', [ProcessDocumentController::class, 'indexComponent'])->name('inspection-components.documents.index');
-    Route::post('/inspection-components/{manualInspectionComponent}/documents', [ProcessDocumentController::class, 'storeComponentDocument'])->name('inspection-components.documents.store');
     Route::patch('/process-documents/{processDocument}', [ProcessDocumentController::class, 'updateDocument'])->name('process-documents.update');
     Route::delete('/process-documents/{processDocument}', [ProcessDocumentController::class, 'destroyDocument'])->name('process-documents.destroy');
     // generate concrete PDF for a WO (2c.1)
@@ -429,12 +427,16 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::delete('/measurements/{woMeasurement}', [WoMeasurementController::class, 'destroy'])->name('measurements.destroy');
     Route::post('/workorders/{workorder}/tdr-from-measurement', [WoMeasurementController::class, 'createTdrFromMeasurement'])->name('workorders.tdr-from-measurement');
     Route::post('/workorders/{workorder}/revert-part-tdr', [WoMeasurementController::class, 'revertPartTdr'])->name('workorders.revert-part-tdr');
+    Route::post('/workorders/{workorder}/update-part-processes', [WoMeasurementController::class, 'updatePartProcesses'])->name('workorders.update-part-processes');
     Route::post('/workorders/{workorder}/gate/evaluate', [WoMeasurementController::class, 'gateEvaluate'])->name('workorders.gate.evaluate');
     Route::post('/workorders/{workorder}/gate/apply', [WoMeasurementController::class, 'gateApply'])->name('workorders.gate.apply');
     Route::get('/workorders/{workorder}/component-by-ipl', [WoMeasurementController::class, 'componentByIpl'])->name('workorders.component-by-ipl');
     Route::get('/ec', [EcController::class, 'index'])
         ->middleware('can:ec.access')
         ->name('ec.index');
+    Route::patch('/ec/{tdrProcess}/concession', [EcController::class, 'updateConcession'])
+        ->middleware('can:ec.access')
+        ->name('ec.concession.update');
     Route::resource('/conditions',  ConditionController::class);
     Route::resource('/materials',  MaterialController::class);
     Route::patch('/materials/{material}/inline', [MaterialController::class, 'inlineUpdate'])->name('materials.inline');

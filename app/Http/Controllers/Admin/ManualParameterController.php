@@ -163,6 +163,8 @@ class ManualParameterController extends Controller
             'action'            => 'nullable|in:repair,order_new,ec',
             'notes'             => 'nullable|string',
             'processes'                     => 'nullable|array',
+            'processes.*.id'                => 'nullable|integer',
+            'processes.*.is_gate'           => 'boolean',
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
             'processes.*.description'       => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
@@ -194,6 +196,8 @@ class ManualParameterController extends Controller
             'action'            => 'nullable|in:repair,order_new,ec',
             'notes'             => 'nullable|string',
             'processes'                     => 'nullable|array',
+            'processes.*.id'                => 'nullable|integer',
+            'processes.*.is_gate'           => 'boolean',
             'processes.*.manual_process_id' => 'required|exists:manual_processes,id',
             'processes.*.description'       => 'nullable|string|max:255',
             'processes.*.sort_order'        => 'integer',
@@ -236,15 +240,31 @@ class ManualParameterController extends Controller
 
     private function syncRuleProcesses(ManualParameterRepairRule $rule, array $processes): void
     {
-        $rule->processes()->delete();
+        // Upsert (NOT delete-all+recreate): keep existing rule-process ids so their
+        // attached documents survive a rule edit (adding a description, reordering…).
+        // Only ONE gate anchor per rule — keep the first flagged process.
+        $gateSeen = false;
+        $keepIds = [];
         foreach ($processes as $i => $p) {
-            ManualParameterRuleProcess::create([
-                'repair_rule_id'    => $rule->id,
+            $isGate = !empty($p['is_gate']) && !$gateSeen;
+            if ($isGate) {
+                $gateSeen = true;
+            }
+            $attrs = [
                 'manual_process_id' => $p['manual_process_id'],
                 'description'       => $p['description'] ?? null,
+                'is_gate'           => $isGate,
                 'sort_order'        => $p['sort_order'] ?? $i,
-            ]);
+            ];
+            $existing = !empty($p['id']) ? $rule->processes()->whereKey($p['id'])->first() : null;
+            if ($existing) {
+                $existing->update($attrs);
+                $keepIds[] = $existing->id;
+            } else {
+                $keepIds[] = $rule->processes()->create($attrs)->id;
+            }
         }
+        $rule->processes()->whereNotIn('id', $keepIds ?: [0])->delete();
     }
 
     private function syncRuleTriggers(ManualParameterRepairRule $rule, array $triggers): void
@@ -282,6 +302,7 @@ class ManualParameterController extends Controller
                 'id'                => $rp->id,
                 'manual_process_id' => $rp->manual_process_id,
                 'description'       => $rp->description,
+                'is_gate'           => (bool) $rp->is_gate,
                 'sort_order'        => $rp->sort_order,
                 'label'             => $label,
                 'has_drawing'       => $hasDrawing,

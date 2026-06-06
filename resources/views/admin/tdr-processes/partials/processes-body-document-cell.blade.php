@@ -1,12 +1,18 @@
 {{-- Document column cell: generate a concrete PDF from the process' document template(s). --}}
 {{-- Requires: $tdrProcessRow, $docsByRp (rule_process_id => [ProcessDocument]), $current_wo --}}
 {{-- Документы привязаны к процессу (rule-process); Machining (EC) сохраняет связь → тот же чертёж. --}}
-@if(!empty($docsByRp))
+@if(!empty($docsByRp) || !empty($phaseDocsByRp ?? []))
 @php
     $rowDocs = [];
     foreach ((array) ($tdrProcessRow->rule_process_ids ?? []) as $rid) {
         foreach ($docsByRp[$rid] ?? [] as $d) {
             $rowDocs[$d->id] = $d;
+        }
+    }
+    // Start/Finish process documents (separate id space).
+    foreach ((array) ($tdrProcessRow->phase_rule_process_ids ?? []) as $rid) {
+        foreach (($phaseDocsByRp[$rid] ?? []) as $d) {
+            $rowDocs['p' . $d->id] = $d;
         }
     }
     $rowDocs = array_values($rowDocs);
@@ -19,9 +25,10 @@
         <button type="button"
                 class="btn btn-sm btn-outline-success gen-doc-btn" style="width: 60px"
                 data-doc-id="{{ $d->id }}"
+                data-doc-type="{{ $d->doc_type }}"
                 data-wo-id="{{ $current_wo->id }}"
                 title="{{ __('Generate document') }}: {{ $d->title ?: $d->doc_type }}">
-            <i class="bi bi-file-earmark-pdf"></i>
+            <i class="bi {{ $d->doc_type === 'manual_page' ? 'bi-printer' : 'bi-file-earmark-pdf' }}"></i>
         </button>
     @else
         <div class="dropdown d-inline-block">
@@ -32,8 +39,8 @@
                 @foreach($rowDocs as $d)
                     <li>
                         <button type="button" class="dropdown-item gen-doc-btn"
-                                data-doc-id="{{ $d->id }}" data-wo-id="{{ $current_wo->id }}">
-                            <i class="bi bi-file-earmark-pdf me-1"></i>{{ $d->title ?: $d->doc_type ?: ('Doc #'.$d->id) }}
+                                data-doc-id="{{ $d->id }}" data-doc-type="{{ $d->doc_type }}" data-wo-id="{{ $current_wo->id }}">
+                            <i class="bi {{ $d->doc_type === 'manual_page' ? 'bi-printer' : 'bi-file-earmark-pdf' }} me-1"></i>{{ $d->title ?: $d->doc_type ?: ('Doc #'.$d->id) }}
                         </button>
                     </li>
                 @endforeach
