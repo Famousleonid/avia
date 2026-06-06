@@ -71,16 +71,33 @@ class WoMeasurementController extends Controller
                 ])->values(),
             ]);
 
-        $parameters = ManualParameter::where('manual_id', $manual->id)
+        $rawParameters = ManualParameter::where('manual_id', $manual->id)
             ->with([
                 'inspectionComponent',
                 'codes.code',
                 'repairRules.triggers.code',
                 'repairRules.processes.manualProcess.process.process_name',
                 'points',
+                'repairSteps',
             ])
-            ->get()
-            ->map(fn($p) => [
+            ->get();
+
+        // Build F&C mating map: param_id → mating_param_id via shared is_fits_clearance point
+        $paramsByFcPoint = [];
+        foreach ($rawParameters as $p) {
+            foreach ($p->points->filter(fn($pt) => $pt->is_fits_clearance) as $pt) {
+                $paramsByFcPoint[$pt->id][] = $p->id;
+            }
+        }
+        $fcMatingMap = [];
+        foreach ($paramsByFcPoint as $ids) {
+            if (count($ids) >= 2) {
+                $fcMatingMap[$ids[0]] = $ids[1];
+                $fcMatingMap[$ids[1]] = $ids[0];
+            }
+        }
+
+        $parameters = $rawParameters->map(fn($p) => [
                 'id'                      => $p->id,
                 'inspection_component_id' => $p->inspection_component_id,
                 'description'             => $p->description,
@@ -114,7 +131,13 @@ class WoMeasurementController extends Controller
                         ),
                     ])->values(),
                 ])->values(),
-                'point_ids' => $p->points->pluck('id')->values(),
+                'point_ids'           => $p->points->pluck('id')->values(),
+                'repair_steps'        => $p->repairSteps->map(fn($s) => [
+                    'step_no' => $s->step_no,
+                    'dim_min' => $s->dim_min,
+                    'dim_max' => $s->dim_max,
+                ])->values(),
+                'fc_mating_param_id'  => $fcMatingMap[$p->id] ?? null,
             ]);
 
         $measurements = WoMeasurement::where('workorder_id', $workorder->id)

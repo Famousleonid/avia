@@ -806,11 +806,36 @@
         const hasLim = lim.min !== null || lim.max !== null;
 
         if (hasLim) {
+            // Required step from mating part (F&C pair)
+            let reqStepHtml = '';
+            if (param.fc_mating_param_id && (param.repair_steps || []).length > 0) {
+                const matingParam = parameters.find(p => p.id === param.fc_mating_param_id);
+                if (matingParam) {
+                    const matingFinals = paramMeasurements(matingParam).filter(m => m.stage === 'final');
+                    const stepNo = matingFinals.length ? matingFinals[matingFinals.length - 1].repair_step_no : null;
+                    if (stepNo) {
+                        const step = param.repair_steps.find(s => s.step_no === stepNo);
+                        if (step) {
+                            reqStepHtml = `
+                                <div class="ms-lim-cell" style="background:rgba(13,110,253,.1);border-left:2px solid #0d6efd">
+                                    <div class="ms-lim-lbl" style="color:#0d6efd">req min (${esc(stepNo)})</div>
+                                    <div class="ms-lim-val" style="color:#0d6efd">${fmtDim(step.dim_min)}</div>
+                                </div>
+                                <div class="ms-lim-cell" style="background:rgba(13,110,253,.1)">
+                                    <div class="ms-lim-lbl" style="color:#0d6efd">req max (${esc(stepNo)})</div>
+                                    <div class="ms-lim-val" style="color:#0d6efd">${fmtDim(step.dim_max)}</div>
+                                </div>`;
+                        }
+                    }
+                }
+            }
+
             const limDiv = document.createElement('div'); limDiv.className = 'ms-spec-lims';
             limDiv.innerHTML = `
                 <div class="ms-lim-cell"><div class="ms-lim-lbl">orig min</div><div class="ms-lim-val">${fmtDim(param.orig_dim_min)}</div></div>
                 <div class="ms-lim-cell"><div class="ms-lim-lbl">orig max</div><div class="ms-lim-val">${fmtDim(param.orig_dim_max)}</div></div>
-                ${param.wear_dim_min != null ? `<div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear min</div><div class="ms-lim-val">${fmtDim(param.wear_dim_min)}</div></div><div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear max</div><div class="ms-lim-val">${fmtDim(param.wear_dim_max)}</div></div>` : ''}`;
+                ${param.wear_dim_min != null ? `<div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear min</div><div class="ms-lim-val">${fmtDim(param.wear_dim_min)}</div></div><div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear max</div><div class="ms-lim-val">${fmtDim(param.wear_dim_max)}</div></div>` : ''}
+                ${reqStepHtml}`;
             body.appendChild(limDiv);
         }
 
