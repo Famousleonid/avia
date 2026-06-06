@@ -429,7 +429,7 @@ class WoMeasurementController extends Controller
         // ── Missing Part ─────────────────────────────────────────────
         if (!empty($data['missing_meas_id'])) {
             $missingCode      = Code::where('name', 'Missing')->first();
-            $necessary        = Necessary::where('name', 'Order New')->firstOrFail();
+            $necessary        = Necessary::where('name', 'Order New')->first();
             $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
 
             $tdr = Tdr::create([
@@ -441,7 +441,7 @@ class WoMeasurementController extends Controller
                 'description'        => $desc,
                 'codes_id'           => $missingCode?->id,
                 'conditions_id'      => $missingCondition?->id,
-                'necessaries_id'     => $necessary->id,
+                'necessaries_id'     => $necessary?->id,
                 'qty'                => $qty,
                 'use_tdr'            => false,
                 'use_process_forms'  => false,
