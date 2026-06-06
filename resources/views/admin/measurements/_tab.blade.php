@@ -1091,6 +1091,7 @@
     async function maybeOpenGate(param) {
         const partId = param.inspection_component_id;
         if (!partId || !icsWithTdr.has(partId)) return; // gate only when the part has a (repair) TDR
+        if (icsMissingTdr.has(partId)) return; // Missing Part — F&C final is a fit check, not a repair gate
         try {
             const res = await apiFetch('/workorders/' + WO_ID + '/gate/evaluate', {
                 method: 'POST', body: JSON.stringify({ inspection_component_id: partId }),
