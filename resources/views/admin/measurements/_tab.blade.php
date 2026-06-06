@@ -20,6 +20,8 @@
     .ms-pdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .ms-part-prog { font-size: 9px; color: var(--bs-secondary-color); flex-shrink: 0; }
     .ms-pdot.pass { background:#198754; } .ms-pdot.fail { background:#dc3545; } .ms-pdot.partial { background:#ffc107; } .ms-pdot.none { background:#ffc107; }
+    .ms-pdot.missing { background:transparent; border:2px dashed #6c757d; }
+    .ms-missing-label { font-size:9px; color:#dc3545; font-weight:600; flex-shrink:0; margin-left:2px; }
 
     #ms-tab-viewer { order: 3; flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; }
     #ms-tab-fig-label { padding: 3px 8px; font-size: 10px; color: var(--bs-secondary-color); border-bottom: 1px solid var(--bs-border-color); flex-shrink: 0; }
@@ -493,14 +495,19 @@
         }
         partsTree.forEach(part => {
             const isActive = activePartId === part.id;
-            const pSt = partStatus(part);
+            const isMissing = MISSING_CODE_ID && part.params.some(p =>
+                paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
+            );
+            const pSt = isMissing ? 'missing' : partStatus(part);
             const total = part.params.length;
             const done  = part.params.filter(p => paramStatus(p) !== 'none').length;
-            const progHtml = total > 0
-                ? (done === total
-                    ? `<span class="ms-part-prog" style="color:#198754">✓</span>`
-                    : `<span class="ms-part-prog">${done}/${total}</span>`)
-                : '';
+            const progHtml = isMissing
+                ? `<span class="ms-missing-label">missing</span>`
+                : (total > 0
+                    ? (done === total
+                        ? `<span class="ms-part-prog" style="color:#198754">✓</span>`
+                        : `<span class="ms-part-prog">${done}/${total}</span>`)
+                    : '');
             const el = document.createElement('div');
             el.className = 'ms-tab-param-item' + (isActive ? ' active' : '');
             el.style.cssText = 'padding:6px 10px;border-left-width:3px';
