@@ -46,6 +46,7 @@ class WoMeasurementController extends Controller
                     ->filter()
                     ->unique()
                     ->values(),
+                'is_bush' => $ic->variants->contains(fn($v) => $v->component?->is_bush),
             ]);
 
         $figures = $manual->dimensionFigures()

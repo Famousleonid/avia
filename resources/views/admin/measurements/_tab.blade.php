@@ -711,7 +711,9 @@
     function updateMissingPartBtnState(part) {
         const btn = document.getElementById('ms-missing-part-btn');
         if (!btn) return;
-        const enable = part && MISSING_CODE_ID && !part.params.some(p =>
+        if (!part || part.is_bush) { btn.classList.add('d-none'); btn.disabled = true; return; }
+        btn.classList.remove('d-none');
+        const enable = MISSING_CODE_ID && !part.params.some(p =>
             paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
         );
         btn.disabled = !enable;
