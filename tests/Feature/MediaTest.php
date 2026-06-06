@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Component;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -95,5 +96,67 @@ class MediaTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('success', true);
         $this->assertDatabaseMissing('media', ['id' => $media->id]);
+    }
+
+    public function test_authenticated_user_can_delete_component_image(): void
+    {
+        File::cleanDirectory(base_path('codex-test-runtime/disks/public'));
+        Bus::fake();
+
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-10',
+            'part_number' => 'PN-DELETE-IMG',
+            'name' => 'Delete Image Part',
+            'units_assy' => '1',
+        ]);
+        $media = $component
+            ->addMedia(UploadedFile::fake()->image('component.jpg', 10, 10))
+            ->toMediaCollection('components');
+
+        $response = $this->actingAs($admin)->deleteJson(route('components.image.destroy', [
+            'component' => $component,
+            'media' => $media,
+        ]));
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $this->assertDatabaseMissing('media', ['id' => $media->id]);
+    }
+
+    public function test_component_image_delete_requires_matching_component_media(): void
+    {
+        File::cleanDirectory(base_path('codex-test-runtime/disks/public'));
+        Bus::fake();
+
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-10',
+            'part_number' => 'PN-KEEP-IMG',
+            'name' => 'Keep Image Part',
+            'units_assy' => '1',
+        ]);
+        $otherComponent = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-20',
+            'part_number' => 'PN-OTHER-IMG',
+            'name' => 'Other Image Part',
+            'units_assy' => '1',
+        ]);
+        $media = $otherComponent
+            ->addMedia(UploadedFile::fake()->image('other-component.jpg', 10, 10))
+            ->toMediaCollection('components');
+
+        $response = $this->actingAs($admin)->deleteJson(route('components.image.destroy', [
+            'component' => $component,
+            'media' => $media,
+        ]));
+
+        $response->assertNotFound();
+        $this->assertDatabaseHas('media', ['id' => $media->id]);
     }
 }

@@ -54,6 +54,12 @@ class LogCardController extends Controller
 
 
         $ctx = $this->prepareGroupedLogCardComponents($current_wo);
+        $ctx['components'] = $this->componentsForSavedLogCardRows($ctx['components'], is_array($componentData) ? $componentData : []);
+        $availableLogCardManuals = Manual::query()
+            ->whereKeyNot((int) ($current_wo->unit->manual_id ?? 0))
+            ->whereHas('components', fn ($query) => $query->where('log_card', 1))
+            ->orderBy('number')
+            ->get(['id', 'number', 'title']);
 
 
         [$presetByIplGroup, $separateQueue] = $this->splitLogCardComponentPresets(is_array($componentData) ? $componentData : []);
@@ -86,7 +92,8 @@ class LogCardController extends Controller
                 'presetByIplGroup',
                 'separateQueue',
                 'tabMeta',
-                'logCardTdrAccess'
+                'logCardTdrAccess',
+                'availableLogCardManuals'
             ), $ctx)
         );
     }
@@ -126,9 +133,26 @@ class LogCardController extends Controller
      *   necessary: ?\App\Models\Necessary
      * }
      */
-    private function prepareGroupedLogCardComponents(Workorder $current_wo): array
+    public function manualComponentsPartial(Request $request, Workorder $workorder, Manual $manual)
     {
-        $manual_id = $current_wo->unit->manual_id;
+        $logCardTdrAccess = app(LogCardTdrAccessService::class)->forWorkorder($workorder, auth()->user());
+        if ($logCardTdrAccess['read_only'] ?? false) {
+            return response($logCardTdrAccess['message'] ?? 'Log Card editing is locked.', 423);
+        }
+
+        $ctx = $this->prepareGroupedLogCardComponents($workorder, (int) $manual->id, false);
+
+        return view('admin.log_card.partials.draft-manual-rows', array_merge($ctx, [
+            'manual' => $manual,
+            'sectionKey' => 'manual_'.$manual->id,
+            'logCardTdrReadOnly' => false,
+        ]));
+    }
+
+    private function prepareGroupedLogCardComponents(Workorder $current_wo, ?int $manualId = null, bool $filterForWorkorderUnit = true): array
+    {
+        $manual_id = $manualId ?: (int) $current_wo->unit->manual_id;
+        $manual = Manual::find($manual_id);
 
         $necessary = Necessary::where('name', 'Order New')->first();
         $code = Code::where('name', 'Missing')->first();
@@ -138,7 +162,11 @@ class LogCardController extends Controller
             ->where('log_card', 1)
             ->orderBy('ipl_num', 'asc')
             ->get();
-        $components = $this->filterLogCardComponentsForUnit($components, $current_wo);
+        if ($filterForWorkorderUnit) {
+            $components = $this->filterLogCardComponentsForUnit($components, $current_wo);
+        } else {
+            $components = $components->values();
+        }
 
         $tdrs = Tdr::where('workorder_id', $current_wo->id)->with(['codes', 'necessaries'])->get();
 
@@ -226,7 +254,33 @@ class LogCardController extends Controller
             'tdrs' => $tdrs,
             'code' => $code,
             'necessary' => $necessary,
+            'manual' => $manual,
         ];
+    }
+
+    private function componentsForSavedLogCardRows($components, array $componentData)
+    {
+        $componentIds = collect($componentData)
+            ->filter(fn ($row) => is_array($row) && ! empty($row['component_id']))
+            ->map(fn ($row) => (int) $row['component_id'])
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($componentIds->isEmpty()) {
+            return $components;
+        }
+
+        $existingIds = $components->pluck('id')->map(fn ($id) => (int) $id);
+        $missingIds = $componentIds->diff($existingIds)->values();
+        if ($missingIds->isEmpty()) {
+            return $components;
+        }
+
+        return $components
+            ->merge(Component::with(['manual', 'assemblies'])->whereIn('id', $missingIds)->get())
+            ->unique('id')
+            ->values();
     }
 
     private function filterLogCardComponentsForUnit($components, Workorder $workorder)
@@ -256,11 +310,6 @@ class LogCardController extends Controller
 
         $builders = Builder::all();
 
-        $manuals = Manual::where('id', $manual)
-            ->with('builder')
-            ->get();
-
-        $components = Component::where('manual_id', $manual)->get();
         $log_card = LogCard::where('workorder_id', $current_wo->id)->first();
 
         // Получаем массив из JSON
@@ -270,6 +319,28 @@ class LogCardController extends Controller
                 ? $log_card->component_data
                 : json_decode($log_card->component_data, true);
         }
+        $componentData = is_array($componentData) ? $componentData : [];
+
+        $manualIds = collect($componentData)
+            ->filter(fn ($row) => is_array($row) && ! empty($row['manual_id']))
+            ->map(fn ($row) => (int) $row['manual_id'])
+            ->push((int) $manual)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $componentIds = collect($componentData)
+            ->filter(fn ($row) => is_array($row) && ! empty($row['component_id']))
+            ->map(fn ($row) => (int) $row['component_id'])
+            ->filter()
+            ->unique()
+            ->values();
+
+        $manuals = Manual::whereIn('id', $manualIds)
+            ->with('builder')
+            ->get();
+
+        $components = Component::whereIn('id', $componentIds)->get();
 
         $log_count= count($componentData);
 
@@ -434,7 +505,7 @@ class LogCardController extends Controller
 
         // Получаем массив из JSON
         // Загружаем коды для отображения названий
-        
+
 
     /**
      * Show the form for editing the specified resource.
@@ -738,7 +809,7 @@ class LogCardController extends Controller
             ->map(fn ($items) => $items->first()->orderComponentAssembly);
 
         foreach ($rows as &$row) {
-            if (! is_array($row) || empty($row['component_id'])) {
+            if (! is_array($row) || ($row['row_type'] ?? '') === 'manual' || empty($row['component_id'])) {
                 continue;
             }
 
@@ -802,12 +873,22 @@ class LogCardController extends Controller
                 'component_data' => [__('Добавьте в Log Card хотя бы одну позицию (выберите компонент).')],
             ]);
         }
+        $hasComponentRow = false;
         foreach ($decoded as $row) {
+            if (is_array($row) && ($row['row_type'] ?? '') === 'manual') {
+                continue;
+            }
             if (!is_array($row) || (!isset($row['component_id']) || $row['component_id'] === '' || $row['component_id'] === null)) {
                 throw ValidationException::withMessages([
                     'component_data' => [__('Каждая строка должна содержать component_id.')],
                 ]);
             }
+            $hasComponentRow = true;
+        }
+        if (! $hasComponentRow) {
+            throw ValidationException::withMessages([
+                'component_data' => [__('Добавьте в Log Card хотя бы одну позицию (выберите компонент).')],
+            ]);
         }
     }
 

@@ -198,6 +198,23 @@
                     }
                 }
             }
+@elseif(($formType ?? '') === 'paintFormStd')
+            {
+                const rows = parseInt(String(settings['{{ $tableRowsKey }}'] ?? '').replace(/[^\d]/g, ''), 10);
+                if (Number.isFinite(rows) && rows >= 1) {
+                    const u = new URL(window.location.href);
+                    const def = {{ (int) $tableRowsDefault }};
+                    if (rows === def) {
+                        u.searchParams.delete('paint_table_rows');
+                    } else {
+                        u.searchParams.set('paint_table_rows', String(rows));
+                    }
+                    if (u.href !== window.location.href) {
+                        window.location.href = u.href;
+                        return;
+                    }
+                }
+            }
 @endif
             if (document.activeElement?.blur) document.activeElement.blur();
             const modal = window.bootstrap?.Modal?.getInstance(document.getElementById('printSettingsModal'));
@@ -221,6 +238,24 @@
                 if (window.location.search.indexOf('stress_table_rows') !== -1) {
                     const u = new URL(window.location.href);
                     u.searchParams.delete('stress_table_rows');
+                    window.location.href = u.href;
+                }
+@elseif(($formType ?? '') === 'ndtFormStd')
+                if (window.location.search.indexOf('ndt_table_rows') !== -1) {
+                    const u = new URL(window.location.href);
+                    u.searchParams.delete('ndt_table_rows');
+                    window.location.href = u.href;
+                }
+@elseif(($formType ?? '') === 'cadFormStd')
+                if (window.location.search.indexOf('cad_table_rows') !== -1) {
+                    const u = new URL(window.location.href);
+                    u.searchParams.delete('cad_table_rows');
+                    window.location.href = u.href;
+                }
+@elseif(($formType ?? '') === 'paintFormStd')
+                if (window.location.search.indexOf('paint_table_rows') !== -1) {
+                    const u = new URL(window.location.href);
+                    u.searchParams.delete('paint_table_rows');
                     window.location.href = u.href;
                 }
 @endif
@@ -265,30 +300,65 @@
 @elseif(($formType ?? '') === 'ndtFormStd')
             (function syncNdtRowsQueryFromStorage() {
                 const u = new URL(window.location.href);
-                if (u.searchParams.has('ndt_table_rows')) {
-                    return;
-                }
                 const rows = parseInt(String(settings['{{ $tableRowsKey }}'] ?? '').replace(/[^\d]/g, ''), 10);
                 const def = {{ (int) $tableRowsDefault }};
-                if (!Number.isFinite(rows) || rows < 1 || rows === def) {
+                if (!Number.isFinite(rows) || rows < 1) {
                     return;
                 }
-                u.searchParams.set('ndt_table_rows', String(rows));
-                window.location.replace(u.href);
+                const queryRows = parseInt(String(u.searchParams.get('ndt_table_rows') ?? '').replace(/[^\d]/g, ''), 10);
+                if (rows === def) {
+                    if (u.searchParams.has('ndt_table_rows')) {
+                        u.searchParams.delete('ndt_table_rows');
+                        window.location.replace(u.href);
+                    }
+                    return;
+                }
+                if (queryRows !== rows) {
+                    u.searchParams.set('ndt_table_rows', String(rows));
+                    window.location.replace(u.href);
+                }
             })();
 @elseif(($formType ?? '') === 'cadFormStd')
             (function syncCadRowsQueryFromStorage() {
                 const u = new URL(window.location.href);
-                if (u.searchParams.has('cad_table_rows')) {
-                    return;
-                }
                 const rows = parseInt(String(settings['{{ $tableRowsKey }}'] ?? '').replace(/[^\d]/g, ''), 10);
                 const def = {{ (int) $tableRowsDefault }};
-                if (!Number.isFinite(rows) || rows < 1 || rows === def) {
+                if (!Number.isFinite(rows) || rows < 1) {
                     return;
                 }
-                u.searchParams.set('cad_table_rows', String(rows));
-                window.location.replace(u.href);
+                const queryRows = parseInt(String(u.searchParams.get('cad_table_rows') ?? '').replace(/[^\d]/g, ''), 10);
+                if (rows === def) {
+                    if (u.searchParams.has('cad_table_rows')) {
+                        u.searchParams.delete('cad_table_rows');
+                        window.location.replace(u.href);
+                    }
+                    return;
+                }
+                if (queryRows !== rows) {
+                    u.searchParams.set('cad_table_rows', String(rows));
+                    window.location.replace(u.href);
+                }
+            })();
+@elseif(($formType ?? '') === 'paintFormStd')
+            (function syncPaintRowsQueryFromStorage() {
+                const u = new URL(window.location.href);
+                const rows = parseInt(String(settings['{{ $tableRowsKey }}'] ?? '').replace(/[^\d]/g, ''), 10);
+                const def = {{ (int) $tableRowsDefault }};
+                if (!Number.isFinite(rows) || rows < 1) {
+                    return;
+                }
+                const queryRows = parseInt(String(u.searchParams.get('paint_table_rows') ?? '').replace(/[^\d]/g, ''), 10);
+                if (rows === def) {
+                    if (u.searchParams.has('paint_table_rows')) {
+                        u.searchParams.delete('paint_table_rows');
+                        window.location.replace(u.href);
+                    }
+                    return;
+                }
+                if (queryRows !== rows) {
+                    u.searchParams.set('paint_table_rows', String(rows));
+                    window.location.replace(u.href);
+                }
             })();
 @endif
         }, 300);

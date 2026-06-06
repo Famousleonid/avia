@@ -37,8 +37,10 @@ return [
 
     'ndtFormStd' => [
         ...$stdPrintSettings,
-        'storage_key' => 'ndtFormStd_print_settings_v3',
+        'storage_key' => 'ndtFormStd_print_settings_v4',
         'tooltip_lang_key' => 'ndtFormStd_tooltip_lang',
+        'table_rows_default' => 14,
+        'table_data_font_size' => 14,
     ],
 
     'cadFormStd' => [

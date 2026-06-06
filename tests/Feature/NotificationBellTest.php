@@ -72,4 +72,42 @@ class NotificationBellTest extends TestCase
             ->assertJsonPath('items.0.ui.workorder.owner_name', 'Bilinoy leonid')
             ->assertJsonPath('items.0.payload.workorder_user_name', 'Bilinoy leonid');
     }
+
+    public function test_notifications_page_links_draft_created_text_to_main_draft(): void
+    {
+        $recipient = $this->createUserWithRole('Admin');
+        $shipping = $this->createUserWithRole('Shipping');
+        $workorder = $this->createWorkorder([
+            'number' => 8,
+            'user_id' => $shipping->id,
+            'is_draft' => true,
+        ]);
+
+        $recipient->notify(new NewMessageNotification(
+            fromUserId: $shipping->id,
+            fromName: $shipping->name,
+            text: 'Draft WO 8 created by ' . $shipping->name,
+            url: route('mains.show', $workorder->id),
+            type: 'workorder',
+            event: 'draft_created',
+            ui: [
+                'workorder' => [
+                    'id' => $workorder->id,
+                    'no' => $workorder->number,
+                    'is_draft' => true,
+                ],
+                'actor' => [
+                    'id' => $shipping->id,
+                    'name' => $shipping->name,
+                ],
+            ],
+            title: 'Draft Workorder created',
+        ));
+
+        $this->actingAs($recipient)
+            ->get(route('notifications.index'))
+            ->assertOk()
+            ->assertSee('href="' . route('mains.show', $workorder->id) . '"', false)
+            ->assertSee('Draft WO 8 created by ' . e($shipping->name), false);
+    }
 }

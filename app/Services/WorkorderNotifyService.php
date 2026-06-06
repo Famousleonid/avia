@@ -115,7 +115,7 @@ class WorkorderNotifyService
             'severity' => 'info',
             'title' => 'Draft Workorder created',
             'text' => "Draft WO {$workorder->number} created by {$byUserName}",
-            'url' => route('workorders.edit', $workorder->id),
+            'url' => route('mains.show', $workorder->id),
             'ui' => [
                 'workorder' => [
                     'id' => $workorder->id,

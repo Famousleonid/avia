@@ -583,6 +583,19 @@
 
         @foreach($componentData as $item)
             @php
+                if (($item['row_type'] ?? '') === 'manual') {
+                    $manualLabel = $item['manual_label'] ?? trim((string) (($item['manual_number'] ?? '').' '.($item['manual_title'] ?? '')));
+                } else {
+                    $manualLabel = null;
+                }
+            @endphp
+            @if(($item['row_type'] ?? '') === 'manual')
+                <div class="border-l-b-r text-start align-content-center ps-2 pt-1 fs-7" style="grid-column: 1 / -1; min-height: 27px;">
+                    <strong>MANUAL:</strong> {{ $manualLabel ?: 'Manual' }}
+                </div>
+                @continue
+            @endif
+            @php
                 $comp = $components->firstWhere('id', $item['component_id']);
                 $hasSerialNumber = !empty($item['serial_number']);
                 $hasAssySerialNumber = isset($item['assy_serial_number']) && !empty($item['assy_serial_number']);

@@ -394,6 +394,84 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response->assertSee('PN-NDT-ROUTE');
     }
 
+    public function test_ndt_std_form_uses_fourteen_body_rows_per_page_by_default(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'NDT-ROWS']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+
+        for ($i = 1; $i <= 16; $i++) {
+            Component::query()->create([
+                'manual_id' => $manual->id,
+                'ipl_num' => '3-' . str_pad((string) $i, 2, '0', STR_PAD_LEFT),
+                'part_number' => 'PN-NDT-ROWS-' . str_pad((string) $i, 2, '0', STR_PAD_LEFT),
+                'name' => 'NDT Row Part ' . $i,
+                'units_assy' => 1,
+                'ndt_list' => true,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('tdrs.ndtStd', $workorder->id));
+
+        $response->assertOk();
+        $html = $response->getContent();
+        $firstRowsStart = strpos($html, 'class="all-rows-container page-rows-container"');
+        $firstRowsEnd = strpos($html, 'class="std-table-summary"', $firstRowsStart);
+        $this->assertNotFalse($firstRowsStart);
+        $this->assertNotFalse($firstRowsEnd);
+        $firstPageRows = substr($html, $firstRowsStart, $firstRowsEnd - $firstRowsStart);
+
+        $this->assertSame(2, substr_count($html, 'std-page std-page--ndt page data-page'));
+        $this->assertSame(13, substr_count($firstPageRows, 'data-row-ndt std-grid-row" data-row-index'));
+        $this->assertStringContainsString('manual-row std-grid-row std-grid-row--manual', $firstPageRows);
+        $this->assertStringContainsString('NDT-ROWS', $firstPageRows);
+        $this->assertStringContainsString('PN-NDT-ROWS-13', $firstPageRows);
+        $this->assertStringNotContainsString('PN-NDT-ROWS-14', $firstPageRows);
+    }
+
+    public function test_ndt_std_form_keeps_approved_print_layout_parameters(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'NDT-LAYOUT']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-10',
+            'part_number' => 'PN-NDT-LAYOUT',
+            'name' => 'NDT Layout Part',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.ndtStd', $workorder->id));
+
+        $response->assertOk();
+        $html = preg_replace('/\s+/', ' ', $response->getContent());
+
+        $this->assertStringContainsString('.std-page--ndt .std-header-title--ndt { transform: translateX(-38px); }', $html);
+        $this->assertStringContainsString('.std-page--ndt .std-ndt-title { transform: translate(12px, 4px); }', $html);
+        $this->assertStringContainsString('.std-page--ndt .std-ndt-cmm-label { font-size: 16px; }', $html);
+        $this->assertStringContainsString('.std-page--ndt .std-ndt-cmm-box { font-size: 16px; }', $html);
+        $this->assertStringContainsString('.std-page--ndt .std-header { gap: 11px; }', $html);
+        $this->assertStringContainsString('grid-template-rows: auto 24px auto 24px auto 44px;', $html);
+        $this->assertStringContainsString('.std-page--ndt .std-table { margin-top: 8px; }', $html);
+        $this->assertStringContainsString('--std-row-min-height: 35px;', $html);
+        $this->assertStringContainsString('.std-page--ndt .std-footer-grid { font-size: 15px; }', $html);
+        $this->assertStringContainsString('height: 40px;', $html);
+        $this->assertStringContainsString('--std-table-columns: 1fr 2.4fr 3.2fr 2fr 0.9fr 1.25fr 1.25fr;', $html);
+        $this->assertStringContainsString('white-space: nowrap;', $html);
+        $this->assertStringNotContainsString('Settings saved successfully!', $html);
+    }
+
     public function test_ndt_std_form_footer_uses_first_ndt_process_bucket_for_totals(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -613,6 +691,80 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
 
         $response->assertOk();
         $response->assertSeeInOrder(['Total QTY:', '5'], false);
+    }
+
+    public function test_cad_std_form_keeps_screen_and_print_header_layout_aligned(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'CAD-LAYOUT']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '8-10',
+            'part_number' => 'PN-CAD-LAYOUT',
+            'name' => 'CAD Layout Part',
+            'units_assy' => 1,
+            'cad_list' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.cadStd', $workorder->id));
+
+        $response->assertOk();
+        $html = preg_replace('/\s+/', ' ', $response->getContent());
+
+        $this->assertStringContainsString('<div class="std-instruction std-cad-instruction"> Perform the CAD plate as specified under Process No. and in accordance with SMM No. </div>', $html);
+        $this->assertStringNotContainsString('<div class="std-instruction std-instruction-row std-instruction-row--cad">', $html);
+        $this->assertStringContainsString('.std-page--cad .std-meta-row { grid-template-columns: 170px minmax(0, 1fr); min-height: 36px; }', $html);
+        $this->assertStringContainsString('.std-page--cad .std-meta-label { white-space: nowrap; }', $html);
+        $this->assertStringContainsString('.std-page--cad .std-cad-instruction { display: block; font-size: 17px; line-height: 1.2; margin-top: 10px; overflow: visible; white-space: nowrap; }', $html);
+        $this->assertStringContainsString('.std-page--cad .std-meta-row { grid-template-columns: 150px minmax(0, 1fr); min-height: 30px; }', $html);
+        $this->assertStringContainsString('.std-page--cad .std-cad-instruction { font-size: 15px; line-height: 1.15; margin-top: 8px; overflow: visible; white-space: nowrap; }', $html);
+    }
+
+    public function test_paint_std_form_renders_all_print_pages_on_server_when_rows_exceed_limit(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => 'PAINT-PAGES']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+
+        for ($i = 1; $i <= 4; $i++) {
+            Component::query()->create([
+                'manual_id' => $manual->id,
+                'ipl_num' => '9-' . str_pad((string) $i, 2, '0', STR_PAD_LEFT),
+                'part_number' => 'PN-PAINT-PAGE-' . $i,
+                'name' => 'Paint Page Part ' . $i,
+                'units_assy' => 1,
+                'paint_list' => true,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('tdrs.paintStd', [
+            'workorder_id' => $workorder->id,
+            'paint_table_rows' => 3,
+        ]));
+
+        $response->assertOk();
+        $html = $response->getContent();
+
+        $this->assertSame(2, substr_count($html, 'std-page page data-page'));
+        $this->assertStringContainsString('PN-PAINT-PAGE-1', $html);
+        $this->assertStringContainsString('PN-PAINT-PAGE-4', $html);
+        $this->assertStringContainsString('tdr-primary-logical-page', $html);
+        $this->assertStringContainsString('dynamic-page-wrapper', $html);
+        $this->assertStringContainsString('data-tdr-footer-page>1</span>', $html);
+        $this->assertStringContainsString('data-tdr-footer-page>2</span>', $html);
+        $this->assertSame(2, substr_count($html, 'data-tdr-footer-total>2</span>'));
+        $this->assertStringNotContainsString('cloneNode', $html);
+        $this->assertStringNotContainsString('rowsToProcess', $html);
     }
 
     public function test_spec_process_form_uses_collapsed_cad_rows_for_cad_total(): void

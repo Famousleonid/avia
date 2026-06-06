@@ -63,7 +63,7 @@
         </div>
     @endif
 
-    @if(!$hasRows && !$hasSavedLogCard)
+    @if(!$hasRows && !$hasSavedLogCard && $availableLogCardManuals->isEmpty())
         <p class="text-center text-muted mt-3">{{ __('No components with log_card=1 for this manual.') }}</p>
     @elseif(!$hasSavedLogCard)
         <div class="table-responsive table-scroll-container">
@@ -83,153 +83,34 @@
                         <th class="text-primary text-center">{{ __('Assy') }} ({{ __('IPL') }} / {{ __('Part Number') }})</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @foreach($groupedComponents as $groupIndex => $group)
-                        @php
-                            $compList = $group['components'];
-                            $onlyOne = $compList->count() === 1;
-                        @endphp
-                        @foreach($compList as $i => $componentDataRow)
-                            @php
-                                $component = $componentDataRow['component'];
-                                $assemblyRows = ($component->relationLoaded('assemblies') ? $component->assemblies : collect())
-                                    ->filter(function ($assembly) {
-                                        return filled($assembly->assy_part_number ?? null)
-                                            || filled($assembly->assy_ipl_num ?? null);
-                                    })
-                                    ->values();
-                                $defaultAssemblyId = $assemblyRows->first()->id ?? null;
-                                $componentInputName = 'lc_selected_component['.$groupIndex.']';
-                                $assemblyInputName = 'lc_selected_assembly['.$groupIndex.'_'.$component->id.']';
-                            @endphp
-                            <tr>
-                                <td class="text-center">
-                                    <input type="checkbox"
-                                           class="form-check-input lc-include-checkbox"
-                                           name="lc_include[{{ $groupIndex }}]"
-                                           value="1"
-                                           data-component-id="{{ $component->id }}"
-                                           data-group-key="{{ $groupIndex }}"
-                                           data-ipl-group="{{ $group['ipl_group'] }}"
-                                           @disabled($logCardTdrReadOnly)
-                                           checked>
-                                </td>
-                                <td>
-                                    <input type="hidden"
-                                           name="{{ $componentInputName }}"
-                                           value="{{ $component->id }}"
-                                           data-ipl-group="{{ $group['ipl_group'] }}">
-                                    {{ $component->name }} ({{ $component->ipl_num }}) / {{ $component->part_number }}
-                                </td>
-                                <td class="text-start ps-3">
-                                    @if($assemblyRows->isNotEmpty())
-                                        <div class="lc-assy-choice" data-component-id="{{ $component->id }}">
-                                            @if($assemblyRows->count() > 1)
-                                                <select class="form-control form-control-sm lc-inline-input lc-assy-select"
-                                                        name="{{ $assemblyInputName }}"
-                                                        data-component-id="{{ $component->id }}"
-                                                        @disabled($logCardTdrReadOnly)>
-                                                    @foreach($assemblyRows as $assembly)
-                                                        <option value="{{ $assembly->id }}"
-                                                                data-component-id="{{ $component->id }}"
-                                                                data-assy-part-number="{{ $assembly->assy_part_number }}"
-                                                                data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
-                                                                data-units-assy="{{ $assembly->units_assy }}"
-                                                                @selected((int) $defaultAssemblyId === (int) $assembly->id)>
-                                                            {{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            @else
-                                                @php $assembly = $assemblyRows->first(); @endphp
-                                                <input type="hidden"
-                                                       name="{{ $assemblyInputName }}"
-                                                       value="{{ $assembly->id }}"
-                                                       data-component-id="{{ $component->id }}"
-                                                       data-assy-part-number="{{ $assembly->assy_part_number }}"
-                                                       data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
-                                                       data-units-assy="{{ $assembly->units_assy }}">
-                                                <div class="small text-muted">{{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}</div>
-                                            @endif
-                                        </div>
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    @endforeach
-
-                    @foreach($separateComponents as $index => $row)
-                        @php
-                            $component = $row['component'];
-                            $assemblyRows = ($component->relationLoaded('assemblies') ? $component->assemblies : collect())
-                                ->filter(function ($assembly) {
-                                    return filled($assembly->assy_part_number ?? null)
-                                        || filled($assembly->assy_ipl_num ?? null);
-                                })
-                                ->values();
-                            $assemblyInputName = 'lc_selected_assembly[separate_'.$index.']';
-                        @endphp
-                        <tr>
-                            <td class="text-center">
-                                <input type="checkbox"
-                                       class="form-check-input lc-include-checkbox"
-                                       name="lc_include[separate_{{ $index }}]"
-                                       value="1"
-                                       data-component-id="{{ $component->id }}"
-                                       data-group-key="separate_{{ $index }}"
-                                       @disabled($logCardTdrReadOnly)
-                                       checked>
-                            </td>
-                            <td>
-                                <input type="hidden"
-                                       name="lc_selected_component[separate_{{ $index }}]"
-                                       value="{{ $component->id }}"
-                                       data-unit-index="{{ $row['unit_index'] }}"
-                                       data-units-assy="{{ $row['units_assy'] }}">
-                                {{ $component->name }} ({{ $component->ipl_num }}) / {{ $component->part_number }}
-                                <br><small class="text-muted">{{ __('Unit') }} {{ $row['unit_index'] }} {{ __('of') }} {{ $row['units_assy'] }}</small>
-                            </td>
-                            <td class="text-start ps-3">
-                                @if($assemblyRows->isNotEmpty())
-                                    <div class="lc-assy-choice" data-component-id="{{ $component->id }}">
-                                        @if($assemblyRows->count() > 1)
-                                            <select class="form-control form-control-sm lc-inline-input lc-assy-select"
-                                                    name="{{ $assemblyInputName }}"
-                                                    data-component-id="{{ $component->id }}"
-                                                    @disabled($logCardTdrReadOnly)>
-                                                @foreach($assemblyRows as $assembly)
-                                                    <option value="{{ $assembly->id }}"
-                                                            data-component-id="{{ $component->id }}"
-                                                            data-assy-part-number="{{ $assembly->assy_part_number }}"
-                                                            data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
-                                                            data-units-assy="{{ $assembly->units_assy }}"
-                                                            @selected($loop->first)>
-                                                        {{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        @else
-                                            @php $assembly = $assemblyRows->first(); @endphp
-                                            <input type="hidden"
-                                                   name="{{ $assemblyInputName }}"
-                                                   value="{{ $assembly->id }}"
-                                                   data-component-id="{{ $component->id }}"
-                                                   data-assy-part-number="{{ $assembly->assy_part_number }}"
-                                                   data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
-                                                   data-units-assy="{{ $assembly->units_assy }}">
-                                            <div class="small text-muted">{{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}</div>
-                                        @endif
-                                    </div>
-                                @else
-                                    <span class="text-muted">-</span>
-                                @endif
-                            </td>
-                        </tr>
-                    @endforeach
+                <tbody id="log-card-draft-body">
+                    @if($hasRows)
+                        @include('admin.log_card.partials.draft-manual-rows', [
+                            'manual' => $manual,
+                            'sectionKey' => '',
+                        ])
+                    @endif
                 </tbody>
             </table>
+        </div>
+        <div class="d-flex align-items-center justify-content-end gap-2 mt-2">
+            <select class="form-select form-select-sm"
+                    id="logCardExtraManualSelect"
+                    style="max-width: 420px;"
+                    @disabled($logCardTdrReadOnly)>
+                <option value="">{{ __('Select manual') }}</option>
+                @foreach($availableLogCardManuals as $availableManual)
+                    <option value="{{ $availableManual->id }}">
+                        {{ trim(($availableManual->number ?? '').' '.($availableManual->title ?? '')) }}
+                    </option>
+                @endforeach
+            </select>
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    id="logCardAddManualBtn"
+                    @disabled($logCardTdrReadOnly || $availableLogCardManuals->isEmpty())>
+                <i class="fas fa-plus"></i> {{ __('Add another manual') }}
+            </button>
         </div>
     @else
         <div class="table-responsive table-scroll-container">
@@ -246,6 +127,25 @@
                 </thead>
                 <tbody>
                     @foreach($componentData as $index => $item)
+                        @php
+                            if (($item['row_type'] ?? '') === 'manual') {
+                                $manualLabel = $item['manual_label'] ?? trim((string) (($item['manual_number'] ?? '').' '.($item['manual_title'] ?? '')));
+                            } else {
+                                $manualLabel = null;
+                            }
+                        @endphp
+                        @if(($item['row_type'] ?? '') === 'manual')
+                            <tr class="table-secondary lc-manual-saved-row"
+                                data-row-index="{{ $index }}"
+                                data-row-type="manual"
+                                data-manual-id="{{ $item['manual_id'] ?? '' }}"
+                                data-manual-label="{{ $manualLabel }}">
+                                <td colspan="6" class="fw-semibold text-dark">
+                                    {{ __('Manual') }}: {{ $manualLabel ?: __('Manual') }}
+                                </td>
+                            </tr>
+                            @continue
+                        @endif
                         @php
                             $component = $components->firstWhere('id', (int) ($item['component_id'] ?? 0));
                             if (!$component) {

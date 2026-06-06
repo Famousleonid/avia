@@ -159,6 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var extraPartsTabActions = document.getElementById('extraPartsTabActions');
     var logCardTabBody = document.getElementById('logCardTabBody');
     var logCardPartialUrl = '{{ route("log_card.partial", ["workorder_id" => $current_wo->id]) }}';
+    var logCardManualComponentsUrlTemplate = '{{ route("log_card.manual-components", ["workorder" => $current_wo->id, "manual" => "__MANUAL__"]) }}';
     var transfersTabBody = document.getElementById('transfersTabBody');
     var transfersPartialUrl = @json(($hasTransfers ?? false) ? route('transfers.partial', ['workorder' => $current_wo->id]) : null);
     var transfersTabActions = document.getElementById('transfersTabActions');
@@ -552,7 +553,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function logCardTabSavedPayload(root) {
         if (!root) return null;
         var data = [];
-        root.querySelectorAll('tr.lc-saved-row').forEach(function(row) {
+        root.querySelectorAll('tr.lc-manual-saved-row, tr.lc-saved-row').forEach(function(row) {
+            if (row.dataset.rowType === 'manual') {
+                data.push({
+                    row_type: 'manual',
+                    manual_id: row.dataset.manualId || '',
+                    manual_label: row.dataset.manualLabel || ''
+                });
+                return;
+            }
+
             var item = {
                 component_id: row.dataset.componentId || '',
                 serial_number: '',
@@ -589,10 +599,24 @@ document.addEventListener('DOMContentLoaded', function() {
         var meta;
         try { meta = JSON.parse(metaEl.textContent); } catch (e) { return null; }
         var data = [];
-        root.querySelectorAll('.lc-include-checkbox:checked').forEach(function(include) {
+        var emittedManuals = new Set();
+        root.querySelectorAll('tr').forEach(function(rowEl) {
+            var include = rowEl.querySelector ? rowEl.querySelector('.lc-include-checkbox:checked') : null;
+            if (!include) return;
             var tr = include.closest('tr');
             var componentInput = tr ? tr.querySelector('input[name^="lc_selected_component"]') : null;
             if (!componentInput || !componentInput.value) return;
+
+            var manualId = (tr && tr.dataset.manualId) || '';
+            var manualLabel = (tr && tr.dataset.manualLabel) || '';
+            if (manualId && !emittedManuals.has(manualId)) {
+                data.push({
+                    row_type: 'manual',
+                    manual_id: manualId,
+                    manual_label: manualLabel
+                });
+                emittedManuals.add(manualId);
+            }
 
             var groupKey = (include && include.dataset.groupKey) || '';
             var isSeparate = groupKey.indexOf('separate_') === 0;
@@ -607,6 +631,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 reason: rsEl && rsEl.value ? rsEl.value : '',
                 new_serial_number: ''
             };
+            if (manualId) row.manual_id = manualId;
             if (!isSeparate && componentInput.dataset.iplGroup) row.ipl_group = componentInput.dataset.iplGroup;
             if (componentInput.dataset.unitIndex) row.unit_index = componentInput.dataset.unitIndex;
             if (componentInput.dataset.unitsAssy) row.units_assy = componentInput.dataset.unitsAssy;
@@ -629,6 +654,57 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function syncLogCardExtraManualControls() {
+        var root = document.getElementById('log-card-partial-shell');
+        if (!root || root.dataset.state !== 'draft') return;
+
+        var select = document.getElementById('logCardExtraManualSelect');
+        if (!select) return;
+
+        var added = new Set();
+        root.querySelectorAll('tr[data-manual-id]').forEach(function(row) {
+            if (row.dataset.manualId) added.add(String(row.dataset.manualId));
+        });
+
+        select.querySelectorAll('option[value]').forEach(function(option) {
+            if (!option.value) return;
+            option.disabled = added.has(String(option.value));
+        });
+
+        if (select.value && select.selectedOptions[0] && select.selectedOptions[0].disabled) {
+            select.value = '';
+        }
+    }
+
+    function logCardAddManualRows(manualId) {
+        var tbody = document.getElementById('log-card-draft-body');
+        if (!tbody || !manualId) return Promise.resolve(false);
+
+        var url = logCardManualComponentsUrlTemplate.replace('__MANUAL__', encodeURIComponent(manualId));
+        return fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
+            credentials: 'same-origin'
+        })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                var template = document.createElement('template');
+                template.innerHTML = html.trim();
+                tbody.appendChild(template.content);
+                syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
+                syncLogCardExtraManualControls();
+                return true;
+            })
+            .catch(function(err) {
+                if (typeof window.tdrShowNotify === 'function') {
+                    window.tdrShowNotify('{{ __("Failed to load manual parts.") }}' + (err && err.message ? ' (' + err.message + ')' : ''), 'error');
+                }
+                return false;
+            });
+    }
+
     function loadLogCardPartial() {
         if (!logCardTabBody) return;
         logCardTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
@@ -641,6 +717,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 logCardTabBody.innerHTML = html;
                 syncLogCardToolbarFromPartial();
                 syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
+                syncLogCardExtraManualControls();
             })
             .catch(function(err) {
                 logCardTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
@@ -2241,6 +2318,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
                 return;
             }
+        });
+
+        logCardTabBody.addEventListener('click', function(e) {
+            if (logCardTabIsReadOnly()) return;
+            var addManualBtn = e.target.closest && e.target.closest('#logCardAddManualBtn');
+            if (!addManualBtn) return;
+
+            e.preventDefault();
+            var select = document.getElementById('logCardExtraManualSelect');
+            var manualId = select ? select.value : '';
+            if (!manualId) {
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify('{{ __("Select manual first.") }}', 'warning');
+                return;
+            }
+
+            addManualBtn.disabled = true;
+            logCardAddManualRows(manualId).finally(function() {
+                addManualBtn.disabled = false;
+            });
         });
 
         function logCardPersistInlineSave(field) {

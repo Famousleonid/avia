@@ -1568,6 +1568,17 @@
                     <div class="col-md-6">
                         <label for="manual_edit_drawer_img" class="form-label">{{ __('Image') }}</label>
                         <input id="manual_edit_drawer_img" type="file" name="img" class="form-control" accept="image/*">
+                        <div id="manual_edit_drawer_current_img" class="mt-2 d-none">
+                            <div class="d-flex align-items-center gap-2">
+                                <a id="manual_edit_drawer_current_img_link" href="#" data-fancybox="manual-edit-component-image">
+                                    <img id="manual_edit_drawer_current_img_preview" src="" alt="IMG" class="component-avatar">
+                                </a>
+                                <button type="button" class="btn btn-outline-danger btn-sm" id="manual_edit_drawer_delete_img">
+                                    <i class="bi bi-trash"></i>
+                                    {{ __('Delete img') }}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -2608,6 +2619,72 @@
                 if (field) field.value = value || '';
             }
 
+            var manualEditCurrentImage = {
+                wrap: document.getElementById('manual_edit_drawer_current_img'),
+                link: document.getElementById('manual_edit_drawer_current_img_link'),
+                preview: document.getElementById('manual_edit_drawer_current_img_preview'),
+                deleteBtn: document.getElementById('manual_edit_drawer_delete_img')
+            };
+
+            function manualEditSetImage(image) {
+                var hasImage = !!(image && image.id && image.delete_url);
+                manualEditCurrentImage.wrap?.classList.toggle('d-none', !hasImage);
+                if (manualEditCurrentImage.link) manualEditCurrentImage.link.href = hasImage ? (image.url || '#') : '#';
+                if (manualEditCurrentImage.preview) manualEditCurrentImage.preview.src = hasImage ? (image.thumb_url || image.url || '') : '';
+                if (manualEditCurrentImage.deleteBtn) {
+                    manualEditCurrentImage.deleteBtn.dataset.deleteUrl = hasImage ? image.delete_url : '';
+                    manualEditCurrentImage.deleteBtn.disabled = !hasImage;
+                }
+            }
+
+            manualEditCurrentImage.deleteBtn?.addEventListener('click', async function () {
+                var button = manualEditCurrentImage.deleteBtn;
+                var url = button?.dataset.deleteUrl || '';
+                if (!url) return;
+                if (typeof window.confirmDialog === 'function') {
+                    var confirmed = await window.confirmDialog({
+                        title: '{{ __('Delete image?') }}',
+                        message: '{{ __('The current part image will be removed.') }}',
+                        okText: '{{ __('Delete') }}',
+                        cancelText: '{{ __('Cancel') }}',
+                        danger: true,
+                    });
+                    if (!confirmed) return;
+                } else if (!confirm('{{ __('Delete image?') }}')) {
+                    return;
+                }
+
+                button.disabled = true;
+                fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                })
+                    .then(function (response) {
+                        return response.json().then(function (data) {
+                            return { ok: response.ok, data: data };
+                        }).catch(function () {
+                            return { ok: response.ok, data: {} };
+                        });
+                    })
+                    .then(function (result) {
+                        if (!result.ok || !result.data.success) {
+                            throw new Error(result.data.message || '{{ __('Failed to delete image.') }}');
+                        }
+                        manualEditSetImage(null);
+                    })
+                    .catch(function (err) {
+                        button.disabled = false;
+                        if (typeof showNotification === 'function') {
+                            showNotification(err.message || '{{ __('Failed to delete image.') }}', 'error');
+                        }
+                    });
+            });
+
             document.addEventListener('click', function (event) {
                 var button = event.target.closest('.open-manual-edit-component-drawer');
                 if (!button || !manualEditDrawer) return;
@@ -2615,6 +2692,7 @@
                 manualDrawerSetErrors(manualEditDrawer.errorsBox, []);
                 manualEditDrawer.config.loadedId = '';
                 manualEditDrawer.form.action = button.dataset.updateUrl || '';
+                manualEditSetImage(null);
                 bootstrap.Offcanvas.getOrCreateInstance(manualEditDrawer.offcanvasEl).show();
 
                 fetch(button.dataset.componentUrl, {
@@ -2646,6 +2724,7 @@
                             var checkbox = document.getElementById('manual_edit_drawer_' + field);
                             if (checkbox) checkbox.checked = !!component[field];
                         });
+                        manualEditSetImage(component.image || null);
                         manualSyncBush(manualEditDrawer.isBush, manualEditDrawer.bushContainer);
                         manualEditDrawer.assemblies.reset(Array.isArray(component.assemblies) ? component.assemblies : []);
                     })

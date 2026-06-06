@@ -221,6 +221,19 @@
                     `;
                 }
 
+                if (event === 'draft_created') {
+                    const text = h(n?.text ?? '');
+                    const url = n?.url ? h(n.url) : '';
+
+                    return `
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="badge text-bg-info">DRAFT</span>
+                            ${woLabel ? `<span class="text-warning fw-semibold">${woLabel}</span>` : ``}
+                        </div>
+                        ${text ? `<div class="small mt-1">${url ? `<a class="text-info text-decoration-none" href="${url}">${text}</a>` : text}</div>` : ``}
+                    `;
+                }
+
                 if (event === 'process_ready_for_next') {
                     const processName = h(ui?.process?.name ?? n?.payload?.process_name ?? '');
                     const previousName = h(ui?.process?.previous_name ?? n?.payload?.previous_process_name ?? '');

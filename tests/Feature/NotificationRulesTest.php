@@ -92,12 +92,13 @@ class NotificationRulesTest extends TestCase
 
         app(WorkorderNotifyService::class)->draftCreated($workorder, $shipping->id, $shipping->name);
 
-        Notification::assertSentTo($admin, NewMessageNotification::class, function ($notification) use ($shipping) {
+        Notification::assertSentTo($admin, NewMessageNotification::class, function ($notification) use ($shipping, $workorder) {
             $data = $notification->toDatabase($shipping);
 
             return $data['event'] === 'draft_created'
                 && $data['type'] === 'workorder'
                 && $data['title'] === 'New draft'
+                && $data['url'] === route('mains.show', $workorder->id)
                 && str_contains($data['text'], 'Draft WO 2');
         });
 

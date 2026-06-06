@@ -16,6 +16,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class ComponentController extends Controller
 {
     private const COMPONENT_FLAGS = [
@@ -667,6 +668,26 @@ class ComponentController extends Controller
         ]);
     }
 
+    public function destroyImage(Request $request, Component $component, Media $media)
+    {
+        if ($deny = $this->denyIfComponentPartsLocked($request, $component)) {
+            return $deny;
+        }
+
+        abort_unless(
+            $media->model_type === $component->getMorphClass()
+            && (int) $media->model_id === (int) $component->id
+            && $media->collection_name === 'components',
+            404
+        );
+
+        $media->delete();
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
     /**
      * Обновить один Component (part) по ID — для модалки на manual.show (вкладка Parts).
      * Принимает те же поля, что и create: ipl_num, assy_ipl_num, part_number, assy_part_number,
@@ -795,6 +816,7 @@ class ComponentController extends Controller
     public function showJson($id)
     {
         $component = Component::with(['assemblies'])->findOrFail($id);
+        $image = $component->getFirstMedia('components');
 
         $user = auth()->user();
         $manualId = (int) ($component->manual_id ?? 0);
@@ -833,6 +855,15 @@ class ComponentController extends Controller
                 'stress_relief_list' => (bool) $component->stress_relief_list,
                 'paint_list'       => (bool) $component->paint_list,
                 'bush_ipl_num'     => $component->bush_ipl_num,
+                'image'            => $image ? [
+                    'id' => $image->id,
+                    'url' => $component->getFirstMediaBigUrl('components'),
+                    'thumb_url' => $component->getFirstMediaThumbnailUrl('components'),
+                    'delete_url' => route('components.image.destroy', [
+                        'component' => $component->id,
+                        'media' => $image->id,
+                    ]),
+                ] : null,
                 'assemblies'        => $component->assemblies->map(fn ($assembly) => [
                     'id' => $assembly->id,
                     'assy_part_number' => $assembly->assy_part_number,

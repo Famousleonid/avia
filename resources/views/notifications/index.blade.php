@@ -65,9 +65,11 @@
                         $toName = trim((string) ($n->to_name ?? ''));
                         $time = $n->created_at_human ?? optional($n->created_at)->diffForHumans();
                         $text = $n->text ?? '';
+                        $url = trim((string) ($n->url ?? ''));
                         $ui = is_array($n->ui ?? null) ? $n->ui : [];
                         $payload = is_array($n->payload ?? null) ? $n->payload : [];
                         $isProcessReady = ($n->type ?? null) === 'workorder' && ($n->event ?? null) === 'process_ready_for_next';
+                        $isDraftCreated = ($n->type ?? null) === 'workorder' && ($n->event ?? null) === 'draft_created';
                         $woNo = data_get($ui, 'workorder.no') ?? data_get($payload, 'workorder_no');
                         $woOwner = data_get($ui, 'workorder.owner_name')
                             ?? data_get($ui, 'workorder.user_name')
@@ -112,6 +114,10 @@
                                         @if($previousName)
                                             Previous process <span class="notif-chip-info">{{ $previousName }}</span> was returned.
                                         @endif
+                                    </div>
+                                @elseif($isDraftCreated && $text && $url)
+                                    <div class="notif-text text-light small mt-1">
+                                        <a href="{{ $url }}" class="text-info text-decoration-none" data-spinner>{{ $text }}</a>
                                     </div>
                                 @elseif($text)
                                     <div class="notif-text text-light small mt-1">
