@@ -666,11 +666,13 @@
     /* ── Select component ─────────────────────────────────────── */
     function selectComponent(part) {
         activePartId = part.id;
-        activeParam  = part.params.length > 0 ? part.params[0] : null;
+        activeParam  = null;   // no accordion auto-expanded on part selection
         renderPartsList();
         renderComponentPanel(part);
-        if (activeParam) {
-            const figs = uniqueFigures(activeParam);
+        // Show the figure using the first param's location (markers all dim, none active)
+        const firstParam = part.params[0] || null;
+        if (firstParam) {
+            const figs = uniqueFigures(firstParam);
             const fig = figs[0] || null;
             activeFigure = fig;
             if (fig) showFigure(fig);
@@ -709,11 +711,12 @@
     function updateMissingPartBtnState(part) {
         const btn = document.getElementById('ms-missing-part-btn');
         if (!btn) return;
-        if (!part || !MISSING_CODE_ID) { btn.disabled = true; return; }
-        const alreadyMissing = part.params.some(p =>
+        const enable = part && MISSING_CODE_ID && !part.params.some(p =>
             paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
         );
-        btn.disabled = alreadyMissing;
+        btn.disabled = !enable;
+        btn.classList.toggle('btn-outline-warning',   !!enable);
+        btn.classList.toggle('btn-outline-secondary', !enable);
     }
 
     document.getElementById('ms-missing-part-btn').addEventListener('click', async function () {
