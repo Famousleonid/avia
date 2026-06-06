@@ -519,6 +519,7 @@
 
     function renderFigureNav(param, currentFig) {
         figNav.innerHTML='';
+        if (!param) { figNav.classList.remove('visible'); return; }
         const figs=uniqueFigures(param);
         if(figs.length<=1){ figNav.classList.remove('visible'); return; }
         figNav.classList.add('visible');
@@ -675,8 +676,20 @@
             const figs = uniqueFigures(firstParam);
             const fig = figs[0] || null;
             activeFigure = fig;
-            if (fig) showFigure(fig);
-            else {
+            if (fig) {
+                figLabel.textContent = fig.title || '—';
+                if (!fig.image_path) {
+                    emptyViewer.style.display = ''; figContainer.style.display = 'none';
+                    overlay.innerHTML = ''; return;
+                }
+                emptyViewer.style.display = 'none'; figContainer.style.display = '';
+                if (figImg.src !== fig.image_path) {
+                    figImg.onload = () => { fitImage(); renderMarkers(part, null, fig); };
+                    figImg.src = fig.image_path;
+                } else {
+                    renderMarkers(part, null, fig);
+                }
+            } else {
                 emptyViewer.style.display = '';
                 figContainer.style.display = 'none';
                 overlay.innerHTML = ''; svgEl.innerHTML = ''; callouts = [];
