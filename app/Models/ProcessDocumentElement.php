@@ -24,16 +24,21 @@ class ProcessDocumentElement extends Model
         'text',
         'font_size',
         'sort_order',
+        'formula_expression',
+        'formula_tol_plus',
+        'formula_tol_minus',
     ];
 
     protected $casts = [
-        'x_pct'        => 'decimal:2',
-        'y_pct'        => 'decimal:2',
-        'x2_pct'       => 'decimal:2',
-        'y2_pct'       => 'decimal:2',
-        'label_x_pct'  => 'decimal:2',
-        'label_y_pct'  => 'decimal:2',
-        'static_value' => 'decimal:4',
+        'x_pct'             => 'decimal:2',
+        'y_pct'             => 'decimal:2',
+        'x2_pct'            => 'decimal:2',
+        'y2_pct'            => 'decimal:2',
+        'label_x_pct'       => 'decimal:2',
+        'label_y_pct'       => 'decimal:2',
+        'static_value'      => 'decimal:4',
+        'formula_tol_plus'  => 'decimal:4',
+        'formula_tol_minus' => 'decimal:4',
     ];
 
     public function page(): BelongsTo

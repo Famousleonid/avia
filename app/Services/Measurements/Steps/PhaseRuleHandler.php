@@ -29,19 +29,21 @@ abstract class PhaseRuleHandler implements StepHandler
             if (!$this->conditionMet($rule, $ctx)) {
                 continue;
             }
-            $byNameId = [];
-            $byNameRpIds = [];
-            $byNameDescriptions = [];
+            $entries = [];
             foreach ($rule->processes as $rp) {
                 $process = $rp->manualProcess?->process;
                 if (!$process) {
                     continue;
                 }
-                $byNameId[$process->process_names_id][]           = $process->id;
-                $byNameRpIds[$process->process_names_id][]         = $rp->id; // MasterRulePhaseRuleProcess id
-                $byNameDescriptions[$process->process_names_id][] = $rp->description;
+                $entries[] = [
+                    'process_names_id' => (int) $process->process_names_id,
+                    'process_id'       => (int) $process->id,
+                    'rule_process_id'  => (int) $rp->id, // MasterRulePhaseRuleProcess id
+                    'description'      => $rp->description,
+                    'point_key'        => null,           // phase-level, no point identity
+                ];
             }
-            $ctx->addPhaseGroups($this->phase(), $byNameId, $byNameRpIds, $byNameDescriptions);
+            $ctx->addPointGroups($this->phase(), $entries);
         }
     }
 

@@ -19,7 +19,7 @@
     .ms-sdot.partial { background:#ffc107; border-color:#ffca2c; } .ms-sdot.none { background:#6c757d; border-color:#868e96; }
     .ms-pdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .ms-part-prog { font-size: 9px; color: var(--bs-secondary-color); flex-shrink: 0; }
-    .ms-pdot.pass { background:#198754; } .ms-pdot.fail { background:#dc3545; } .ms-pdot.partial { background:#ffc107; } .ms-pdot.none { background:#ffc107; }
+    .ms-pdot.pass { background:#198754; } .ms-pdot.fail { background:#dc3545; } .ms-pdot.partial { background:#ffc107; } .ms-pdot.none { background:#6c757d; }
     .ms-pdot.missing { background:transparent; border:2px dashed #6c757d; }
     .ms-missing-label { font-size:9px; color:#dc3545; font-weight:600; flex-shrink:0; margin-left:2px; }
     .ms-fc-badge { font-size:9px; padding:1px 4px; background:rgba(20,184,166,.15); color:#0d9488; border-radius:2px; flex-shrink:0; font-weight:600; border:1px solid rgba(20,184,166,.3); }
@@ -160,54 +160,6 @@
         </div>
     </div>
 
-    {{-- Modal: Bushing Print Sketch --}}
-    <div class="modal fade" id="msSketchModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header py-2">
-                    <h6 class="modal-title mb-0" id="msSketchTitle">Bushing Sketch</h6>
-                    <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" id="msSketchBody" style="font-size:12px"></div>
-                <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary btn-sm" id="msSketchPrintBtn"><i class="bi bi-printer"></i> Print</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Modal: Main results gate (Path A — after machining/final measurements) --}}
-    <div class="modal fade" id="msGateModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content">
-                <div class="modal-header py-2">
-                    <h6 class="modal-title mb-0">Main results — confirm outcome</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" style="font-size:12px">
-                    <div class="text-secondary mb-2" id="msGatePartLabel"></div>
-                    <div id="msGatePoints" class="border rounded p-2 mb-2" style="max-height:240px;overflow-y:auto"></div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="msGateNdt">
-                        <label class="form-check-label" for="msGateNdt" style="cursor:pointer;font-weight:600">NDT Pass</label>
-                    </div>
-                    <div class="form-check d-none" id="msGateEcTypicalWrap">
-                        <input class="form-check-input" type="checkbox" id="msGateEcTypical">
-                        <label class="form-check-label" for="msGateEcTypical" style="cursor:pointer">
-                            Typical EC (pre-approved) — keep working (plating / finish proceed)
-                        </label>
-                    </div>
-                    <div class="text-danger small mt-1 d-none" id="msGateErr"></div>
-                </div>
-                <div class="modal-footer py-2 d-flex justify-content-between">
-                    <span class="text-secondary" style="font-size:11px" id="msGateHint"></span>
-                    <div id="msGateButtons" class="d-flex gap-2"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     {{-- Component panel --}}
     <div id="ms-tab-entry">
         <div id="ms-comp-hdr" style="display:none">
@@ -229,6 +181,15 @@
                 <button id="ms-print-sketch-btn" class="btn btn-outline-info btn-sm d-none" style="font-size:11px">
                     <i class="bi bi-printer"></i> Print Sketch
                 </button>
+                {{-- Missing measurements popup --}}
+                <div id="ms-sketch-missing-modal" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center">
+                    <div style="position:absolute;inset:0;background:rgba(0,0,0,.35)" onclick="document.getElementById('ms-sketch-missing-modal').style.display='none'"></div>
+                    <div style="position:relative;background:#fff8e1;border:1px solid #ffc107;border-radius:8px;padding:20px 24px;min-width:280px;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.18)">
+                        <div style="font-weight:700;font-size:13px;color:#856404;margin-bottom:10px">⚠ Not measured</div>
+                        <div id="ms-sketch-missing-body" style="font-size:12px;color:#495057;line-height:1.8"></div>
+                        <button onclick="document.getElementById('ms-sketch-missing-modal').style.display='none'" class="btn btn-sm btn-outline-secondary" style="margin-top:14px;font-size:11px">Close</button>
+                    </div>
+                </div>
                 <button id="ms-missing-part-btn" class="btn btn-outline-secondary btn-sm d-none" disabled hidden style="font-size:11px">
                     <i class="bi bi-question-circle"></i> Missing Part
                 </button>
@@ -508,10 +469,11 @@
 
     function partStatus(part) {
         const req=part.params.filter(p=>p.is_required);
-        if(!req.length) return 'none';
+        if(!req.length) return 'none'; // no required params → grey
         const sts=req.map(p=>paramStatus(p));
         if(sts.includes('fail')) return 'fail';
-        if(sts.some(s=>s==='none'||s==='partial')) return 'partial';
+        if(sts.every(s=>s==='none')) return 'none'; // nothing measured yet → grey
+        if(sts.some(s=>s==='none'||s==='partial')) return 'partial'; // in progress → yellow
         return 'pass';
     }
 
@@ -537,12 +499,17 @@
             const total = part.params.length;
             const done  = part.params.filter(p => paramStatus(p) !== 'none').length;
             let pSt, progHtml;
-            if (fcDone) {
+            if (fcDone && part.is_bush) {
+                // Bushing missing + mating bore confirmed → show ✓
                 pSt = 'pass';
                 progHtml = `<span class="ms-part-prog" style="color:#198754">✓</span>`;
             } else if (isMissing) {
                 pSt = 'missing';
-                progHtml = `<span class="ms-missing-label">missing</span>`;
+                // Show "Missing, Order New" if TDR exists, otherwise plain "missing"
+                const missingLbl = icsTdrLabel.get(part.id);
+                progHtml = missingLbl
+                    ? `<span style="font-size:9px;color:#dc3545;font-weight:600;flex-shrink:0">${esc(missingLbl === 'missing' ? 'Missing, Order New' : missingLbl)}</span>`
+                    : `<span class="ms-missing-label">missing</span>`;
             } else if (tdrLabel && tdrLabel !== 'missing') {
                 pSt = partStatus(part);
                 progHtml = `<span style="font-size:9px;color:${tdrLabelColor};font-weight:600;flex-shrink:0">${esc(tdrLabel)}</span>`;
@@ -887,20 +854,15 @@
 
     function updateTdrBtnState(part) {
         const btn = document.getElementById('ms-add-tdr-btn');
-        const revertBtn = document.getElementById('ms-revert-tdr-btn');
         if (!btn) return;
         if (icsWithTdr.has(part.id)) {
             btn.disabled = true;
             btn.classList.remove('btn-outline-danger');
             btn.classList.add('btn-outline-success');
-            // Missing Part: hide Change decision once F&C fit is verified
-            const fcDone = icsMissingTdr.has(part.id) && missingPartFcVerified(part);
-            if (revertBtn) revertBtn.classList.toggle('d-none', fcDone);
             return;
         }
         btn.classList.remove('btn-outline-success');
         btn.classList.add('btn-outline-danger');
-        if (revertBtn) revertBtn.classList.add('d-none');
         const hasAnyFail = part.params.some(p =>
             paramMeasurements(p).some(m => m.result === 'FAIL')
         );
@@ -913,10 +875,10 @@
      */
     function hasMatingRepairParam(icId) {
         const ic = inspComponents.find(c => c.id === icId);
-        if (!ic || !ic.is_bush || !(ic.component_ids || []).length) return false;
-        const cidSet = new Set(ic.component_ids.map(Number));
+        if (!ic || !ic.is_bush) return false;
+        // Bushing has at least one parameter with repair steps configured
         return parameters.some(p =>
-            (p.repair_steps || []).some(s => s.component_id && cidSet.has(Number(s.component_id)))
+            p.inspection_component_id === ic.id && (p.repair_steps || []).length > 0
         );
     }
 
@@ -932,34 +894,60 @@
      */
     function getMatingRepairInfo(icId) {
         const ic = inspComponents.find(c => c.id === icId);
-        if (!ic || !ic.is_bush || !(ic.component_ids || []).length) return null;
-        const cidSet = new Set(ic.component_ids.map(Number));
+        if (!ic || !ic.is_bush) return null;
 
-        // Collect all candidate parameters (have at least one repair_step referencing this IC)
-        const candidates = [];
-        for (const p of parameters) {
-            if ((p.repair_steps || []).some(s => s.component_id && cidSet.has(Number(s.component_id)))) {
-                candidates.push(p);
-            }
+        // Step 1: find OD parameters of this bushing that have repair_steps configured
+        const odParams = parameters.filter(p =>
+            p.inspection_component_id === ic.id && (p.repair_steps || []).length > 0
+        );
+        if (!odParams.length) return null;
+
+        // Step 2: for each OD param, find the mating bore parameter:
+        //   - belongs to a DIFFERENT IC
+        //   - shares at least one point with the OD param
+        //   - has a final measurement with repair_step_no set
+        for (const odParam of odParams) {
+            const odPointSet = new Set(odParam.point_ids || []);
+            if (!odPointSet.size) continue;
+
+            const matingCandidates = parameters.filter(p =>
+                p.inspection_component_id !== ic.id &&
+                (p.point_ids || []).some(pid => odPointSet.has(pid))
+            );
+
+            // Prefer the one whose final measurement already has a repair_step_no
+            const withStep = matingCandidates.find(p => {
+                const fins = paramMeasurements(p).filter(m => m.stage === 'final');
+                return fins.length && fins[fins.length - 1].repair_step_no;
+            });
+            if (!withStep) continue;
+
+            const matingFinals = paramMeasurements(withStep).filter(m => m.stage === 'final');
+            const stepNo = matingFinals[matingFinals.length - 1].repair_step_no;
+            const measuredValue = matingFinals[matingFinals.length - 1].actual_value;
+
+            // Step 3: look up the step in the bushing OD's repair_steps
+            const step = odParam.repair_steps.find(s => s.step_no === stepNo) || null;
+
+            return { matingParam: withStep, odParam, stepNo, step, measuredValue };
         }
-        if (!candidates.length) return null;
 
-        // Prefer the candidate whose final measurement has a repair_step_no set —
-        // that is the mating surface that was actually machined and measured.
-        const withStep = candidates.find(p => {
-            const fins = paramMeasurements(p).filter(m => m.stage === 'final');
-            return fins.length && fins[fins.length - 1].repair_step_no;
-        });
-        const matingParam = withStep || candidates[0];
-
-        const matingFinals = paramMeasurements(matingParam).filter(m => m.stage === 'final');
-        const stepNo = matingFinals.length ? matingFinals[matingFinals.length - 1].repair_step_no : null;
-        const step   = stepNo ? matingParam.repair_steps.find(st => st.step_no === stepNo) : null;
-        return { matingParam, stepNo, step };
+        return null;
     }
 
     function getBushingSketchInfo(part) {
         return getMatingRepairInfo(part.id);
+    }
+
+    /** OVS badge for a param row — only on OD param (the one with repair_steps configured) */
+    function ovsBadgeHtml(param) {
+        if (!param?.inspection_component_id) return '';
+        // Only show on the parameter that HAS repair_steps (i.e. the bushing OD, not ID)
+        if (!(param.repair_steps || []).length) return '';
+        const mi = getMatingRepairInfo(param.inspection_component_id);
+        if (mi) return `<span class="ms-fc-badge">OVS ${esc(String(mi.stepNo))}</span>`;
+        if (hasMatingRepairParam(param.inspection_component_id)) return '<span class="ms-fc-badge">OVS</span>';
+        return '';
     }
 
     function updatePrintSketchBtnState(part) {
@@ -976,50 +964,20 @@
     document.getElementById('ms-print-sketch-btn')?.addEventListener('click', function () {
         const part = partsTree.find(p => p.id === activePartId);
         if (!part) return;
+        const base = '/workorders/' + WO_ID + '/inspection-components/' + part.id + '/bushing-sketch-view';
 
-        const ic = inspComponents.find(c => c.id === part.id);
-        const pnList  = (ic?.part_numbers || []).filter(Boolean);
-        const iplList = (ic?.ipl_nums || []).filter(Boolean);
-
-        const info = getBushingSketchInfo(part);
-
-        let titleText = part.label;
-        let bodyHtml = '';
-
-        if (info) {
-            titleText += ` — Oversize ${info.stepNo}`;
-            const pnRow = info.step.component_pn
-                ? `<tr><td class="text-secondary pe-3">Required P/N</td><td><strong>${esc(info.step.component_pn)}</strong>${info.step.component_ipl ? ` <span class="text-secondary">(IPL# ${esc(info.step.component_ipl)})</span>` : ''}</td></tr>`
-                : '<tr><td class="text-secondary pe-3">Required P/N</td><td class="text-warning">— not configured —</td></tr>';
-            bodyHtml = `<table class="table table-sm table-borderless mb-0" style="font-size:12px"><tbody>
-                <tr><td class="text-secondary pe-3">W/O</td><td><strong>${esc(WO_NUM)}</strong></td></tr>
-                <tr><td class="text-secondary pe-3">Part</td><td>${esc(part.label)}${iplList.length ? ' <span class="text-secondary ms-2">IPL# '+esc(iplList[0])+'</span>' : ''}${pnList.length ? ' <span class="text-secondary ms-1">'+esc(pnList[0])+'</span>' : ''}</td></tr>
-                <tr><td class="text-secondary pe-3">Repair step</td><td><span style="color:#0d6efd;font-weight:700">${esc(info.stepNo)}</span></td></tr>
-                <tr><td class="text-secondary pe-3">Mating bore</td><td>${esc(info.matingParam.description)}</td></tr>
-                ${pnRow}
-                <tr class="border-top"><td class="text-secondary pe-3 pt-2">Bore ref min</td><td class="pt-2 font-monospace fw-bold" style="font-size:14px">${fmtDim(info.step.dim_min)} in</td></tr>
-                <tr><td class="text-secondary pe-3">Bore ref max</td><td class="font-monospace fw-bold" style="font-size:14px">${fmtDim(info.step.dim_max)} in</td></tr>
-                ${info.step.after_dim_min != null ? `<tr class="text-secondary"><td class="pe-3">After plate min</td><td class="font-monospace">${fmtDim(info.step.after_dim_min)}</td></tr>` : ''}
-                ${info.step.after_dim_max != null ? `<tr class="text-secondary"><td class="pe-3">After plate max</td><td class="font-monospace">${fmtDim(info.step.after_dim_max)}</td></tr>` : ''}
-            </tbody></table>`;
-        } else {
-            // No oversize step yet — show basic bushing info
-            bodyHtml = `<table class="table table-sm table-borderless mb-0" style="font-size:12px"><tbody>
-                <tr><td class="text-secondary pe-3">W/O</td><td><strong>${esc(WO_NUM)}</strong></td></tr>
-                <tr><td class="text-secondary pe-3">Part</td><td>${esc(part.label)}${iplList.length ? ' <span class="text-secondary ms-2">IPL# '+esc(iplList[0])+'</span>' : ''}${pnList.length ? ' <span class="text-secondary ms-1">'+esc(pnList[0])+'</span>' : ''}</td></tr>
-                <tr><td class="text-secondary pe-3">Repair step</td><td class="text-secondary">— mating not measured yet —</td></tr>
-            </tbody></table>`;
-        }
-
-        document.getElementById('msSketchTitle').textContent = titleText;
-        document.getElementById('msSketchBody').innerHTML = bodyHtml;
-
-        const modal = new bootstrap.Modal(document.getElementById('msSketchModal'));
-        modal.show();
-    });
-
-    document.getElementById('msSketchPrintBtn')?.addEventListener('click', function () {
-        window.print();
+        fetch(base + '?check=1')
+            .then(r => r.json())
+            .then(data => {
+                if (data.missing && data.missing.length > 0) {
+                    document.getElementById('ms-sketch-missing-body').innerHTML =
+                        data.missing.map(m => '• ' + m).join('<br>');
+                    document.getElementById('ms-sketch-missing-modal').style.display = 'flex';
+                } else {
+                    window.open(base, '_blank');
+                }
+            })
+            .catch(() => window.open(base, '_blank'));
     });
 
     function buildAccordionRow(part, param) {
@@ -1047,7 +1005,7 @@
         hdr.className = 'ms-acc-hdr' + (isActive ? ' active' : '');
         hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
             <span class="ms-tab-param-desc">${esc(param.description)}</span>
-            ${hasMatingRepairParam(param.inspection_component_id) ? '<span class="ms-fc-badge">OVS</span>' : ''}
+            ${ovsBadgeHtml(param)}
             ${buildParamHintHtml(param)}
             ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
             ${lastHtml}`;
@@ -1112,7 +1070,8 @@
             let reqStepHtml = '';
             let reqStepPnHtml = '';
             const paramIc = inspComponents.find(c => c.id === param.inspection_component_id);
-            if (paramIc && paramIc.is_bush) {
+            // req step dims only on the OD param (has repair_steps) — not on ID or other bushing params
+            if (paramIc && paramIc.is_bush && (param.repair_steps || []).length > 0) {
                 const matingInfo = getMatingRepairInfo(param.inspection_component_id);
                 if (matingInfo && matingInfo.step) {
                     const { stepNo, step } = matingInfo;
@@ -1303,7 +1262,7 @@
             try {
                 const saved=await apiFetch('/workorders/'+WO_ID+'/measurements',{method:'POST',body:JSON.stringify(body)});
                 measurements.push(saved); refreshActive();
-                if (stage === 'final') maybeOpenGate(param);
+                // gate removed — NDT is a separate workflow step
             } catch(e){ err.textContent=e.message; err.classList.remove('d-none'); btn.disabled=false; }
         });
         return d;
@@ -1312,97 +1271,6 @@
     function effectiveLimits(param) {
         if(USE_WEAR&&param.wear_dim_min!=null) return {source:'wear',min:param.wear_dim_min,max:param.wear_dim_max};
         return {source:'orig',min:param.orig_dim_min,max:param.orig_dim_max};
-    }
-
-    // ── EC gate (Path A) — after Main / final measurements ────────────────
-    let gateModal = null, gateState = null;
-
-    async function maybeOpenGate(param) {
-        const partId = param.inspection_component_id;
-        if (!partId || !icsWithTdr.has(partId)) return; // gate only when the part has a (repair) TDR
-        if (icsMissingTdr.has(partId)) return; // Missing Part — F&C final is a fit check, not a repair gate
-        try {
-            const res = await apiFetch('/workorders/' + WO_ID + '/gate/evaluate', {
-                method: 'POST', body: JSON.stringify({ inspection_component_id: partId }),
-            });
-            if (res.ready) openGateModal(partId, res);
-        } catch (e) { console.error('gate evaluate', e); }
-    }
-
-    function openGateModal(partId, res) {
-        gateState = { partId: partId, allPass: res.all_pass };
-        const part = partsTree.find(p => p.id === partId);
-        document.getElementById('msGatePartLabel').textContent =
-            (part ? part.label + ' — ' : '') + 'final results (' + res.points.length + ' point' + (res.points.length === 1 ? '' : 's') + ')';
-        document.getElementById('msGatePoints').innerHTML = res.points.map(function (p) {
-            const cls = p.pass ? 'text-success' : 'text-danger';
-            return `<div class="d-flex align-items-center gap-2 py-1 border-bottom">
-                ${p.pt_codes ? '<span class="badge bg-secondary" style="font-size:9px;min-width:34px">' + esc(p.pt_codes) + '</span>' : '<span style="min-width:34px"></span>'}
-                <span class="flex-grow-1">${esc(p.description || '')}</span>
-                <span class="font-monospace">${p.final_value != null ? fmtDim(p.final_value) : '—'}</span>
-                <span class="fw-semibold ${cls}" style="min-width:38px;text-align:right">${p.pass ? 'PASS' : 'FAIL'}</span>
-            </div>`;
-        }).join('');
-        document.getElementById('msGateNdt').checked = false;
-        document.getElementById('msGateErr').classList.add('d-none');
-        renderGateButtons();
-        if (!gateModal) gateModal = new bootstrap.Modal(document.getElementById('msGateModal'));
-        gateModal.show();
-    }
-
-    function renderGateButtons() {
-        const ndt  = document.getElementById('msGateNdt').checked;
-        const wrap = document.getElementById('msGateButtons');
-        const hint = document.getElementById('msGateHint');
-        let opts;
-        if (!ndt) {
-            opts = [];
-            hint.textContent = 'NDT not passed — go to TDR tab to Order New';
-        } else if (gateState.allPass) {
-            opts = [{ k: 'finish', label: 'Finish', cls: 'btn-success' }];
-            hint.textContent = 'All dimensions PASS';
-        } else {
-            opts = [{ k: 'ec', label: 'EC', cls: 'btn-warning' }];
-            hint.textContent = 'Some dimensions FAIL → EC';
-        }
-        // "Typical EC" only matters when EC is on the table.
-        const ecOnTable = opts.some(o => o.k === 'ec');
-        document.getElementById('msGateEcTypicalWrap').classList.toggle('d-none', !ecOnTable);
-        if (!ecOnTable) document.getElementById('msGateEcTypical').checked = false;
-        wrap.innerHTML = opts.map(function (o) {
-            return `<button type="button" class="btn btn-sm ${o.cls} ms-gate-btn" data-outcome="${o.k}" style="font-size:12px">${o.label}</button>`;
-        }).join('');
-        wrap.querySelectorAll('.ms-gate-btn').forEach(function (b) {
-            b.addEventListener('click', function () { applyGateOutcome(b.dataset.outcome); });
-        });
-    }
-
-    document.getElementById('msGateNdt').addEventListener('change', renderGateButtons);
-
-    async function applyGateOutcome(outcome) {
-        const ndt = document.getElementById('msGateNdt').checked;
-        const ecTypical = document.getElementById('msGateEcTypical').checked;
-        const err = document.getElementById('msGateErr');
-        err.classList.add('d-none');
-        try {
-            const res = await apiFetch('/workorders/' + WO_ID + '/gate/apply', {
-                method: 'POST',
-                body: JSON.stringify({ inspection_component_id: gateState.partId, outcome: outcome, ndt_pass: ndt, ec_typical: ecTypical }),
-            });
-            if (res && res.ok === false) throw new Error(res.message || 'Not applied');
-            if (typeof showNotification === 'function') {
-                const msg = outcome === 'ec'
-                            ? (ecTypical ? 'EC (typical): Machining (EC) set, work continues' : 'EC: post-NDT held, Machining (EC) set')
-                          : outcome === 'finish' ? 'Finish: plan proceeds'
-                          : 'Order New';
-                showNotification(msg, 'success');
-            }
-            if (gateModal) gateModal.hide();
-            refreshActive();
-        } catch (e) {
-            err.textContent = e.message;
-            err.classList.remove('d-none');
-        }
     }
 
     function refreshActive() {
@@ -1434,7 +1302,7 @@
             const hdr = row.querySelector('.ms-acc-hdr');
             hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
                 <span class="ms-tab-param-desc">${esc(freshParam.description)}</span>
-                ${hasMatingRepairParam(freshParam.inspection_component_id) ? '<span class="ms-fc-badge">OVS</span>' : ''}
+                ${ovsBadgeHtml(freshParam)}
                 ${buildParamHintHtml(freshParam)}
                 ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
                 ${lastHtml}`;
@@ -1752,55 +1620,8 @@
         openTdrModal(firstFailParam, allFailMeas);
     });
 
-    // B1 — change decision: revert TDR (only if work not started), then choose again
-    document.getElementById('ms-revert-tdr-btn')?.addEventListener('click', async function () {
-        const part = partsTree.find(p => p.id === activePartId);
-        if (!part) return;
-        if (!confirm('Revert the current TDR decision for "' + part.label + '" and choose again?\n(Allowed only if work has not started.)')) return;
-        this.disabled = true;
-        try {
-            await apiFetch('/workorders/' + WO_ID + '/revert-part-tdr', {
-                method: 'POST',
-                body: JSON.stringify({ inspection_component_id: part.id }),
-            });
-            icsWithTdr.delete(part.id);
-            icsMissingTdr.delete(part.id);
-            document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
-
-            // For Missing Part: also delete the Missing measurements to fully restore state
-            const missingIds = MISSING_CODE_ID
-                ? part.params.flatMap(p =>
-                    paramMeasurements(p).filter(m => m.codes_id == MISSING_CODE_ID).map(m => m.id))
-                : [];
-            for (const id of missingIds) {
-                await apiFetch('/measurements/' + id, { method: 'DELETE' });
-                measurements = measurements.filter(m => m.id !== id);
-            }
-
-            if (missingIds.length) {
-                // Was a Missing Part TDR — state fully reset, no modal needed
-                if (typeof showNotification === 'function') showNotification('Missing cancelled — part restored', 'success');
-                renderPartsList();
-                renderComponentPanel(part);  // full re-render so Missing badge clears
-            } else {
-                // Regular Repair/Order New — reopen modal to pick a new decision
-                if (typeof showNotification === 'function') showNotification('TDR reverted — choose a new decision', 'success');
-                const allFailMeas = [];
-                let firstFailParam = null;
-                part.params.forEach(param => {
-                    const fails = paramMeasurements(param).filter(m => m.result === 'FAIL');
-                    if (fails.length && !firstFailParam) firstFailParam = param;
-                    allFailMeas.push(...fails);
-                });
-                if (firstFailParam && allFailMeas.length) openTdrModal(firstFailParam, allFailMeas);
-                else refreshActive();
-            }
-        } catch (e) {
-            alert(e.message);
-        } finally {
-            this.disabled = false;
-        }
-    });
+    // B1 — Change decision (revert TDR) is intentionally disabled in Measurements tab.
+    // The action is available in the TDR tab only, where role/state checks are enforced.
 
     document.getElementById('tab-measurements')?.addEventListener('shown.bs.tab', async function(){
         if(!loaded){ loaded=true; loadData(); }

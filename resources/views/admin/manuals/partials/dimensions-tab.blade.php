@@ -1025,9 +1025,28 @@
                                 <option value="static">Static value</option>
                                 <option value="measurement">From measurement (WO)</option>
                                 <option value="calc">Calc from mating (F&amp;C)</option>
+                                <option value="formula">Formula</option>
                             </select>
                             <input id="pdw-ef-static" type="number" step="0.0001" class="form-control form-control-sm" style="width:120px;font-size:12px" placeholder="0.0000">
                             <select id="pdw-ef-param" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
+                            {{-- formula fields --}}
+                            <div id="pdw-ef-formula" class="d-none d-flex gap-2 align-items-center flex-wrap w-100 mt-1">
+                                <div class="d-flex gap-1 align-items-center flex-grow-1">
+                                    <input id="pdw-ef-fexpr" type="text" class="form-control form-control-sm font-monospace"
+                                           style="font-size:12px;min-width:220px" placeholder="e.g. 0.7128 - [p:45]">
+                                    <button type="button" id="pdw-ef-fpick" class="btn btn-outline-secondary btn-sm" style="font-size:11px;white-space:nowrap">+ param</button>
+                                </div>
+                                <div class="d-flex gap-1 align-items-center">
+                                    <span style="font-size:12px;color:#198754">+</span>
+                                    <input id="pdw-ef-ftol-plus" type="number" step="0.0001" min="0" class="form-control form-control-sm"
+                                           style="width:90px;font-size:12px" placeholder="0.0000">
+                                    <span style="font-size:12px;color:#dc3545">−</span>
+                                    <input id="pdw-ef-ftol-minus" type="number" step="0.0001" min="0" class="form-control form-control-sm"
+                                           style="width:90px;font-size:12px" placeholder="0.0000">
+                                </div>
+                            </div>
+                            {{-- param picker for formula (hidden popover) --}}
+                            <select id="pdw-ef-fparam-pick" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
                         </div>
                         {{-- label fields --}}
                         <div id="pdw-ef-lbl" class="d-none d-flex gap-2 align-items-center flex-wrap">
@@ -1037,7 +1056,11 @@
                                 <option value="placeholder">Placeholder (WO data)</option>
                                 <option value="parameter">Parameter (point · dim)</option>
                             </select>
-                            <input id="pdw-ef-text" type="text" class="form-control form-control-sm" style="width:200px;font-size:12px" placeholder="text">
+                            <div id="pdw-ef-text-wrap" class="d-flex gap-1 align-items-center">
+                                <input id="pdw-ef-text" type="text" class="form-control form-control-sm font-monospace" style="width:220px;font-size:12px" placeholder="text or {manual_number} …">
+                                <button type="button" id="pdw-ef-tpick" class="btn btn-outline-secondary btn-sm" style="font-size:11px;white-space:nowrap">+ token</button>
+                                <select id="pdw-ef-token-pick" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
+                            </div>
                             <select id="pdw-ef-placeholder" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
                             <select id="pdw-ef-lblparam" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
                         </div>
@@ -1045,6 +1068,7 @@
                         <input id="pdw-ef-fontsize" type="number" min="5" max="72" class="form-control form-control-sm" style="width:62px;font-size:12px" placeholder="pt" title="Font size (pt) — blank = default">
                         <button id="pdw-ef-save" class="btn btn-primary btn-sm ms-2" style="font-size:12px">Add</button>
                         <button id="pdw-ef-cancel" class="btn btn-secondary btn-sm" style="font-size:12px">Cancel</button>
+                        <button id="pdw-ef-delete" class="btn btn-outline-danger btn-sm d-none ms-auto" style="font-size:12px"><i class="bi bi-trash3"></i> Delete</button>
                     </div>
                     <div id="pdw-canvas">
                         <div id="pdw-empty" class="d-flex align-items-center justify-content-center h-100 text-secondary" style="font-size:13px">
@@ -5128,6 +5152,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     const pname = sp ? (sp.description || 'param') : (e.value_source === 'calc' ? 'mating' : 'measure');
                     valTxt = (e.value_source === 'calc' ? '≈⟨' : '⟨') + pname + '⟩';
                     el.style.borderStyle = 'dashed';
+                } else if (e.value_source === 'formula') {
+                    const expr = e.formula_expression || '?';
+                    const p = e.formula_tol_plus  ? '+' + pdwFmt(e.formula_tol_plus)  : '';
+                    const m = e.formula_tol_minus ? '-' + pdwFmt(e.formula_tol_minus) : '';
+                    const tol = (p || m) ? ' (' + [p, m].filter(Boolean).join('/') + ')' : '';
+                    valTxt = 'ƒ(' + expr + ')' + tol;
+                    el.style.borderStyle = 'dashed';
+                    el.style.borderColor = '#6f42c1';
+                    el.style.color       = '#6f42c1';
                 } else {
                     valTxt = pdwFmt(e.static_value);
                 }
@@ -5169,17 +5202,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function pdwFinishElement(el, e, coord) {
         el.dataset.elId = e.id;
         if (e.font_size && !el.classList.contains('pdw-anchor-dot')) el.style.fontSize = e.font_size + 'pt';
-        if (!el.title) el.title = 'Drag to move · double-click to delete';
+        if (!el.title) el.title = 'Click to edit · drag to move';
         pdwAddElementDrag(el, e, coord);
-        el.addEventListener('dblclick', async function (ev) {
-            ev.stopPropagation();
-            if (!confirm('Delete this element?')) return;
-            try {
-                await apiFetch('/process-document-elements/' + e.id, { method: 'DELETE' });
-                pdwPage.elements = pdwPage.elements.filter(function (x) { return x.id !== e.id; });
-                pdwRenderElements();
-            } catch (err) { alert(err.message); }
-        });
         pdwOverlay.appendChild(el);
     }
 
@@ -5200,7 +5224,7 @@ document.addEventListener('DOMContentLoaded', function () {
             async function up(ev2) {
                 document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
                 el.style.transform = '';
-                if (!moved) return;
+                if (!moved) { pdwOpenEditForm(e); return; }
                 const iw = pdwImg.naturalWidth, ih = pdwImg.naturalHeight;
                 const dxp = (ev2.clientX - sx) / (iw * pdwScale) * 100;
                 const dyp = (ev2.clientY - sy) / (ih * pdwScale) * 100;
@@ -5369,15 +5393,18 @@ document.addEventListener('DOMContentLoaded', function () {
             psel.innerHTML = pdwParamOptions();
             document.getElementById('pdw-ef-source').value = 'static';
             document.getElementById('pdw-ef-static').value = '';
-            document.getElementById('pdw-ef-static').classList.remove('d-none');
-            psel.classList.add('d-none');
+            document.getElementById('pdw-ef-fexpr').value = '';
+            document.getElementById('pdw-ef-ftol-plus').value = '';
+            document.getElementById('pdw-ef-ftol-minus').value = '';
+            pdwSyncDimFields('static');
         } else {
             const plsel = document.getElementById('pdw-ef-placeholder');
             plsel.innerHTML = PDW_PLACEHOLDERS.map(function (p) { return `<option value="${p.value}">${escHtml(p.label)}</option>`; }).join('');
             document.getElementById('pdw-ef-lblparam').innerHTML = pdwParamOptions();
             document.getElementById('pdw-ef-lbltype').value = 'text';
             document.getElementById('pdw-ef-text').value = '';
-            document.getElementById('pdw-ef-text').classList.remove('d-none');
+            document.getElementById('pdw-ef-text-wrap').classList.remove('d-none');
+            document.getElementById('pdw-ef-token-pick').classList.add('d-none');
             plsel.classList.add('d-none');
             document.getElementById('pdw-ef-lblparam').classList.add('d-none');
         }
@@ -5402,20 +5429,129 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function pdwHideElemForm() {
         document.getElementById('pdw-elem-form').classList.add('d-none');
+        document.getElementById('pdw-ef-save').textContent = 'Add';
+        document.getElementById('pdw-ef-delete').classList.add('d-none');
         pdwPending = null;
         pdwClearLabelPreview();
     }
+
+    function pdwOpenEditForm(e) {
+        // Set pending with existing element id so Save uses PATCH
+        pdwPending = Object.assign({}, e);
+
+        if (e.element_type === 'dimension') {
+            document.getElementById('pdw-ef-param').innerHTML = pdwParamOptions();
+            const src = e.value_source || 'static';
+            document.getElementById('pdw-ef-source').value = src;
+            document.getElementById('pdw-ef-static').value = e.static_value != null ? e.static_value : '';
+            document.getElementById('pdw-ef-param').value  = e.source_parameter_id || '';
+            document.getElementById('pdw-ef-fexpr').value  = e.formula_expression || '';
+            document.getElementById('pdw-ef-ftol-plus').value  = e.formula_tol_plus  != null ? e.formula_tol_plus  : '';
+            document.getElementById('pdw-ef-ftol-minus').value = e.formula_tol_minus != null ? e.formula_tol_minus : '';
+            pdwSyncDimFields(src);
+            document.getElementById('pdw-ef-dim').classList.remove('d-none');
+            document.getElementById('pdw-ef-lbl').classList.add('d-none');
+        } else {
+            document.getElementById('pdw-ef-placeholder').innerHTML = PDW_PLACEHOLDERS.map(function (p) {
+                return `<option value="${p.value}">${escHtml(p.label)}</option>`;
+            }).join('');
+            document.getElementById('pdw-ef-lblparam').innerHTML = pdwParamOptions();
+            let lbltype = 'text';
+            if (e.placeholder)         { lbltype = 'placeholder'; }
+            else if (e.source_parameter_id) { lbltype = 'parameter'; }
+            document.getElementById('pdw-ef-lbltype').value = lbltype;
+            document.getElementById('pdw-ef-text').value    = e.text || '';
+            document.getElementById('pdw-ef-placeholder').value = e.placeholder || '';
+            document.getElementById('pdw-ef-lblparam').value    = e.source_parameter_id || '';
+            document.getElementById('pdw-ef-text-wrap').classList.toggle('d-none', lbltype !== 'text');
+            document.getElementById('pdw-ef-token-pick').classList.add('d-none');
+            document.getElementById('pdw-ef-placeholder').classList.toggle('d-none', lbltype !== 'placeholder');
+            document.getElementById('pdw-ef-lblparam').classList.toggle('d-none', lbltype !== 'parameter');
+            document.getElementById('pdw-ef-dim').classList.add('d-none');
+            document.getElementById('pdw-ef-lbl').classList.remove('d-none');
+        }
+        document.getElementById('pdw-ef-fontsize').value = e.font_size || '';
+        document.getElementById('pdw-ef-save').textContent   = 'Save';
+        document.getElementById('pdw-ef-delete').classList.remove('d-none');
+        document.getElementById('pdw-elem-form').classList.remove('d-none');
+    }
     document.getElementById('pdw-ef-source').addEventListener('change', function () {
-        const needsParam = this.value === 'measurement' || this.value === 'calc';
-        document.getElementById('pdw-ef-static').classList.toggle('d-none', needsParam);
-        document.getElementById('pdw-ef-param').classList.toggle('d-none', !needsParam);
+        pdwSyncDimFields(this.value);
     });
+    function pdwSyncDimFields(src) {
+        const needsParam  = src === 'measurement' || src === 'calc';
+        const isFormula   = src === 'formula';
+        document.getElementById('pdw-ef-static').classList.toggle('d-none', needsParam || isFormula);
+        document.getElementById('pdw-ef-param').classList.toggle('d-none', !needsParam);
+        document.getElementById('pdw-ef-formula').classList.toggle('d-none', !isFormula);
+        if (isFormula) {
+            document.getElementById('pdw-ef-fparam-pick').innerHTML = pdwParamOptions();
+        }
+    }
     document.getElementById('pdw-ef-lbltype').addEventListener('change', function () {
         const v = this.value;
-        document.getElementById('pdw-ef-text').classList.toggle('d-none', v !== 'text');
+        document.getElementById('pdw-ef-text-wrap').classList.toggle('d-none', v !== 'text');
         document.getElementById('pdw-ef-placeholder').classList.toggle('d-none', v !== 'placeholder');
         document.getElementById('pdw-ef-lblparam').classList.toggle('d-none', v !== 'parameter');
+        // hide token picker when switching away from free text
+        if (v !== 'text') {
+            document.getElementById('pdw-ef-token-pick').classList.add('d-none');
+        }
     });
+
+    // Free-text: "+ token" button inserts {placeholder} at cursor
+    document.getElementById('pdw-ef-tpick').addEventListener('click', function () {
+        const pick = document.getElementById('pdw-ef-token-pick');
+        if (pick.classList.contains('d-none')) {
+            pick.innerHTML = PDW_PLACEHOLDERS.map(function (p) {
+                return '<option value="' + p.value + '">' + escHtml(p.label) + '</option>';
+            }).join('');
+            pick.value = '';
+        }
+        pick.classList.toggle('d-none');
+    });
+    document.getElementById('pdw-ef-token-pick').addEventListener('change', function () {
+        if (!this.value) return;
+        const inp = document.getElementById('pdw-ef-text');
+        const token = this.value; // already in {braces}
+        const start = inp.selectionStart ?? inp.value.length;
+        const end   = inp.selectionEnd   ?? inp.value.length;
+        inp.value = inp.value.slice(0, start) + token + inp.value.slice(end);
+        inp.focus();
+        inp.setSelectionRange(start + token.length, start + token.length);
+        this.value = '';
+        this.classList.add('d-none');
+    });
+    // Delete element from edit form
+    document.getElementById('pdw-ef-delete').addEventListener('click', async function () {
+        if (!pdwPending?.id) return;
+        if (!confirm('Delete this element?')) return;
+        try {
+            await apiFetch('/process-document-elements/' + pdwPending.id, { method: 'DELETE' });
+            pdwPage.elements = pdwPage.elements.filter(function (x) { return x.id !== pdwPending.id; });
+            pdwHideElemForm();
+            pdwRenderElements();
+        } catch (err) { alert(err.message); }
+    });
+
+    // Formula: "+ param" button inserts [p:ID] token at cursor position
+    document.getElementById('pdw-ef-fpick').addEventListener('click', function () {
+        const pick = document.getElementById('pdw-ef-fparam-pick');
+        pick.classList.toggle('d-none');
+    });
+    document.getElementById('pdw-ef-fparam-pick').addEventListener('change', function () {
+        if (!this.value) return;
+        const inp = document.getElementById('pdw-ef-fexpr');
+        const token = '[p:' + this.value + ']';
+        const start = inp.selectionStart ?? inp.value.length;
+        const end   = inp.selectionEnd   ?? inp.value.length;
+        inp.value = inp.value.slice(0, start) + token + inp.value.slice(end);
+        inp.focus();
+        inp.setSelectionRange(start + token.length, start + token.length);
+        this.value = '';
+        this.classList.add('d-none');
+    });
+
     document.getElementById('pdw-ef-cancel').addEventListener('click', pdwHideElemForm);
     document.getElementById('pdw-ef-save').addEventListener('click', async function () {
         if (!pdwPending) return;
@@ -5425,6 +5561,12 @@ document.addEventListener('DOMContentLoaded', function () {
             body.value_source = src;
             if (src === 'measurement' || src === 'calc') {
                 body.source_parameter_id = parseInt(document.getElementById('pdw-ef-param').value) || null;
+            } else if (src === 'formula') {
+                body.formula_expression = document.getElementById('pdw-ef-fexpr').value.trim() || null;
+                const tolP = document.getElementById('pdw-ef-ftol-plus').value;
+                const tolM = document.getElementById('pdw-ef-ftol-minus').value;
+                body.formula_tol_plus  = tolP !== '' ? parseFloat(tolP) : null;
+                body.formula_tol_minus = tolM !== '' ? parseFloat(tolM) : null;
             } else {
                 const v = document.getElementById('pdw-ef-static').value;
                 body.static_value = v !== '' ? parseFloat(v) : null;
@@ -5443,9 +5585,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const fs = parseInt(document.getElementById('pdw-ef-fontsize').value);
         body.font_size = (fs >= 5 && fs <= 72) ? fs : null;
-        await pdwCreateElement(body);
+        if (pdwPending.id) {
+            await pdwUpdateElement(pdwPending.id, body);
+        } else {
+            await pdwCreateElement(body);
+        }
         pdwHideElemForm();
     });
+
+    async function pdwUpdateElement(id, body) {
+        if (!pdwPage) return;
+        try {
+            const saved = await apiFetch('/process-document-elements/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+            const idx = pdwPage.elements.findIndex(function (x) { return x.id === id; });
+            if (idx !== -1) pdwPage.elements[idx] = saved;
+            pdwRenderElements();
+        } catch (err) { alert(err.message); }
+    }
 
     async function pdwCreateElement(body) {
         if (!pdwPage) return;

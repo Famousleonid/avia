@@ -2616,4 +2616,41 @@ class TdrController extends Controller
         return array_values(array_unique($keys));
     }
 
+    // -------------------------------------------------------------------------
+    // B2 Scrap & Order New
+    // -------------------------------------------------------------------------
+
+    /**
+     * Mark a component TDR as scrapped.
+     *
+     * Infrastructure only — no UI button wired up yet.
+     * The button will be added later in the TDR tab with role-based visibility.
+     *
+     * PATCH /tdrs/{tdr}/scrap
+     */
+    public function scrap(Request $request, Tdr $tdr)
+    {
+        abort_unless($tdr->isComponentTdr(), 422, 'Only component TDRs can be scrapped.');
+        abort_if($tdr->isScrapped(), 422, 'This TDR is already marked as scrapped.');
+
+        $data = $request->validate([
+            'scrap_reason' => 'required|string|max:1000',
+        ]);
+
+        $tdr->update([
+            'result_status' => Tdr::RESULT_SCRAPPED,
+            'scrap_reason'  => $data['scrap_reason'],
+        ]);
+
+        activity()
+            ->performedOn($tdr)
+            ->withProperties(['scrap_reason' => $data['scrap_reason']])
+            ->log('scrapped');
+
+        return response()->json([
+            'success'       => true,
+            'result_status' => $tdr->result_status,
+            'scrap_reason'  => $tdr->scrap_reason,
+        ]);
+    }
 }

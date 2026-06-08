@@ -308,6 +308,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('tdrs/specProcessForm/{id}', [TdrPrintFormController::class, 'specProcessForm'])->name('tdrs.specProcessForm');
     Route::get('tdrs/specProcessFormEmp/{id}', [TdrPrintFormController::class, 'specProcessFormEmp'])->name('tdrs.specProcessFormEmp');
         Route::post('tdrs/update-part-field/{id}', [TdrController::class, 'updatePartField'])->name('tdrs.updatePartField');
+        Route::patch('tdrs/{tdr}/scrap', [TdrController::class, 'scrap'])->name('tdrs.scrap');
 
         Route::get('transfers/{workorder}', [TransferController::class, 'show'])->name('transfers.show');
         Route::get('transfers/transferForm/{id}', [TransferController::class, 'transferForm'])->name('transfers.transferForm');
@@ -374,6 +375,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'storePhaseDocument'])->name('phase-rule-processes.documents.store');
     // Part-level (inspection component) documents — EC dimensions sheet
     Route::get('/inspection-components/{manualInspectionComponent}/document-tree', [ProcessDocumentController::class, 'documentTree'])->name('inspection-components.document-tree');
+    Route::get('/inspection-components/{manualInspectionComponent}/bushing-sketch-image', [ProcessDocumentController::class, 'bushingSketchImage'])->name('inspection-components.bushing-sketch-image');
+    Route::get('/workorders/{workorder}/inspection-components/{manualInspectionComponent}/bushing-sketch-view', [ProcessDocumentController::class, 'bushingSketchView'])->name('inspection-components.bushing-sketch-view');
     Route::patch('/process-documents/{processDocument}', [ProcessDocumentController::class, 'updateDocument'])->name('process-documents.update');
     Route::delete('/process-documents/{processDocument}', [ProcessDocumentController::class, 'destroyDocument'])->name('process-documents.destroy');
     // generate concrete PDF for a WO (2c.1)

@@ -20,6 +20,12 @@ class Tdr extends Model
     public const TYPE_TRANSFER_CLONE = 'transfer_clone';
     public const TYPE_UNKNOWN = 'unknown';
 
+    public const RESULT_SCRAPPED = 'scrapped';
+
+    public const RESULT_OPTIONS = [
+        self::RESULT_SCRAPPED,
+    ];
+
     public const TYPE_OPTIONS = [
         self::TYPE_COMPONENT_TDR,
         self::TYPE_UNIT_INSPECTION,
@@ -48,12 +54,16 @@ class Tdr extends Model
         'received',
         'use_tdr',
         'use_process_forms',
+        'result_status',
+        'scrap_reason',
+        'replaced_by_tdr_id',
     ];
 
     protected $casts = [
-        'received' => 'date',
-        'use_tdr' => 'boolean',
-        'use_process_forms' => 'boolean',
+        'received'           => 'date',
+        'use_tdr'            => 'boolean',
+        'use_process_forms'  => 'boolean',
+        'replaced_by_tdr_id' => 'integer',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -234,7 +244,22 @@ class Tdr extends Model
         return $this->hasMany(TdrProcess::class, 'tdrs_id')->orderBy('sort_order');
     }
 
+    /** The replacement "Order New" TDR created after this component was scrapped. */
+    public function replacedByTdr()
+    {
+        return $this->belongsTo(Tdr::class, 'replaced_by_tdr_id');
+    }
 
+    /** The original component TDR that this "Order New" TDR replaces (inverse). */
+    public function replacesScrapTdr()
+    {
+        return $this->hasOne(Tdr::class, 'replaced_by_tdr_id');
+    }
+
+    public function isScrapped(): bool
+    {
+        return $this->result_status === self::RESULT_SCRAPPED;
+    }
 }
 
 
