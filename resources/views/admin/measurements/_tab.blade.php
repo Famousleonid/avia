@@ -1179,9 +1179,9 @@
             return;
         }
 
-        const isCalculatedOd = (param.repair_steps||[]).length > 0 || param.interference_value != null;
+        const isCalculatedOd = param.interference_value != null;
         if (isCalculatedOd) {
-            // Bushing OD — only final measurement (size is calculated, not measured before machining)
+            // Bushing OD — only final measurement (size is calculated from bore + interference)
             if (!lastFin) {
                 frm.appendChild(buildForm(param, 'final', null));
             }
@@ -1271,7 +1271,11 @@
 
     function buildForm(param, stage, replacesId) {
         const uid = param.id+'_'+stage;
-        const hasMeas = param.orig_dim_min !== null || param.orig_dim_max !== null;
+        const rSide = param.repair_surface_side || null;
+        const showDepthA = stage === 'final' && (rSide === 'A' || rSide === 'both');
+        const showDepthB = stage === 'final' && (rSide === 'B' || rSide === 'both');
+        const hasMeas = param.orig_dim_min !== null || param.orig_dim_max !== null || !!param.requires_value;
+        const showFlange = stage === 'final' && rSide != null && param.flange_clearance != null;
         const inspCodes = (param.codes||[]).filter(c => c.finding_context !== 'measurement');
         const hasInsp = stage !== 'final' && inspCodes.length > 0;
         const codesOpts = inspCodes.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
@@ -1284,6 +1288,24 @@
                 <div class="ms-flabel">Actual value</div>
                 <input type="number" class="form-control form-control-sm" step="0.0001" id="mst-val-${uid}" placeholder="0.0000" style="font-family:monospace;font-size:13px">
             </div>`:''}
+            ${showDepthA?`
+            <div class="ms-frow">
+                <div class="ms-flabel">Spotface depth — End A</div>
+                <input type="number" class="form-control form-control-sm" step="0.0001" id="mst-da-${uid}" placeholder="0.0000" style="font-family:monospace;font-size:13px">
+            </div>`:''}
+            ${showDepthB?`
+            <div class="ms-frow">
+                <div class="ms-flabel">Spotface depth — End B</div>
+                <input type="number" class="form-control form-control-sm" step="0.0001" id="mst-db-${uid}" placeholder="0.0000" style="font-family:monospace;font-size:13px">
+            </div>`:''}
+            ${showFlange?`
+            <div id="mst-flange-${uid}" class="rounded p-2 mt-1 mb-1" style="background:rgba(255,255,255,0.05);font-size:11px">
+                <div class="fw-semibold mb-1" style="color:var(--bs-secondary-color)">Calculated flange widths</div>
+                <div class="d-flex gap-3">
+                    <div>End A: <span id="mst-fa-${uid}" class="fw-bold font-monospace">—</span></div>
+                    <div>End B: <span id="mst-fb-${uid}" class="fw-bold font-monospace">—</span></div>
+                </div>
+            </div>`:''}
             ${hasInsp?`
             <div class="ms-frow"><div class="ms-flabel">Finding</div>
                 <select class="form-select form-select-sm" id="mst-code-${uid}"><option value="">— None —</option>${codesOpts}</select></div>`:''}
@@ -1292,22 +1314,50 @@
             <div class="text-danger small d-none mb-1" id="mst-err-${uid}"></div>
             <button class="btn btn-primary btn-sm w-100" style="font-size:12px" id="mst-save-${uid}"><i class="bi bi-check2"></i> Save</button>`;
 
+        // Live flange calculation
+        if (showFlange) {
+            const calcFlange = () => {
+                const A  = parseFloat(d.querySelector('#mst-val-'+uid)?.value) || null;
+                const dA = showDepthA ? (parseFloat(d.querySelector('#mst-da-'+uid)?.value) || 0) : 0;
+                const dB = showDepthB ? (parseFloat(d.querySelector('#mst-db-'+uid)?.value) || 0) : 0;
+                const B  = parseFloat(param.flange_clearance);
+                const faEl = d.querySelector('#mst-fa-'+uid);
+                const fbEl = d.querySelector('#mst-fb-'+uid);
+                if (A !== null && !isNaN(B)) {
+                    const base = (A - B) / 2;
+                    const fA = base + dA / 2 - dB / 2;
+                    const fB = base + dB / 2 - dA / 2;
+                    if (faEl) faEl.textContent = fA.toFixed(4);
+                    if (fbEl) fbEl.textContent = fB.toFixed(4);
+                } else {
+                    if (faEl) faEl.textContent = '—';
+                    if (fbEl) fbEl.textContent = '—';
+                }
+            };
+            d.querySelector('#mst-val-'+uid)?.addEventListener('input', calcFlange);
+            if (showDepthA) d.querySelector('#mst-da-'+uid)?.addEventListener('input', calcFlange);
+            if (showDepthB) d.querySelector('#mst-db-'+uid)?.addEventListener('input', calcFlange);
+        }
+
         d.querySelector('#mst-save-'+uid).addEventListener('click',async()=>{
             const err=d.querySelector('#mst-err-'+uid); err.classList.add('d-none');
             const btn=d.querySelector('#mst-save-'+uid); btn.disabled=true;
             const valRaw=hasMeas?(d.querySelector('#mst-val-'+uid)?.value||''):'';
+            const daRaw=showDepthA?(d.querySelector('#mst-da-'+uid)?.value||''):'';
+            const dbRaw=showDepthB?(d.querySelector('#mst-db-'+uid)?.value||''):'';
             const body={
                 manual_parameter_id: param.id,
                 stage,
                 replaces_id: replacesId||null,
                 actual_value: hasMeas?(valRaw!==''?parseFloat(valRaw):null):null,
+                repair_depth_a: showDepthA?(daRaw!==''?parseFloat(daRaw):null):null,
+                repair_depth_b: showDepthB?(dbRaw!==''?parseFloat(dbRaw):null):null,
                 codes_id: hasInsp?(d.querySelector('#mst-code-'+uid)?.value||null):null,
                 notes: d.querySelector('#mst-notes-'+uid)?.value.trim()||null,
             };
             try {
                 const saved=await apiFetch('/workorders/'+WO_ID+'/measurements',{method:'POST',body:JSON.stringify(body)});
                 measurements.push(saved); refreshActive();
-                // gate removed — NDT is a separate workflow step
             } catch(e){ err.textContent=e.message; err.classList.remove('d-none'); btn.disabled=false; }
         });
         return d;

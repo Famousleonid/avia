@@ -45,6 +45,7 @@ class ManualParameterController extends Controller
             'description'            => 'required_without:manual_parameter_id|string|max:255',
             'inspection_component_id'=> 'nullable|exists:manual_inspection_components,id',
             'is_required'            => 'boolean',
+            'requires_value'         => 'boolean',
             'orig_dim_min'           => 'nullable|numeric',
             'orig_dim_max'           => 'nullable|numeric',
             'wear_dim_min'           => 'nullable|numeric',
@@ -53,6 +54,9 @@ class ManualParameterController extends Controller
             'repair_dim_max'         => 'nullable|numeric',
             'interference_value'     => 'nullable|numeric',
             'flange_clearance'       => 'nullable|numeric',
+            'repair_surface_side'    => 'nullable|in:A,B,both',
+            'max_repair_depth_a'     => 'nullable|numeric',
+            'max_repair_depth_b'     => 'nullable|numeric',
             'inspection'             => 'nullable|string',
             'sort_order'             => 'nullable|integer',
             'codes_ids'              => 'nullable|array',
@@ -100,6 +104,7 @@ class ManualParameterController extends Controller
             'description'            => 'sometimes|string|max:255',
             'inspection_component_id'=> 'nullable|exists:manual_inspection_components,id',
             'is_required'            => 'boolean',
+            'requires_value'         => 'boolean',
             'orig_dim_min'           => 'nullable|numeric',
             'orig_dim_max'           => 'nullable|numeric',
             'wear_dim_min'           => 'nullable|numeric',
@@ -108,6 +113,9 @@ class ManualParameterController extends Controller
             'repair_dim_max'         => 'nullable|numeric',
             'interference_value'     => 'nullable|numeric',
             'flange_clearance'       => 'nullable|numeric',
+            'repair_surface_side'    => 'nullable|in:A,B,both',
+            'max_repair_depth_a'     => 'nullable|numeric',
+            'max_repair_depth_b'     => 'nullable|numeric',
             'inspection'             => 'nullable|string',
             'sort_order'             => 'nullable|integer',
         ]);
@@ -134,21 +142,6 @@ class ManualParameterController extends Controller
         }
 
         return response()->json(['ok' => true, 'deleted' => false]);
-    }
-
-    public function updatePointRepair(Request $request, ManualParameter $manualParameter, ManualDimensionPoint $manualDimensionPoint)
-    {
-        $data = $request->validate([
-            'is_repair_surface' => 'required|boolean',
-            'max_repair_depth'  => 'nullable|numeric',
-        ]);
-
-        $manualParameter->points()->updateExistingPivot($manualDimensionPoint->id, [
-            'is_repair_surface' => $data['is_repair_surface'],
-            'max_repair_depth'  => $data['is_repair_surface'] ? ($data['max_repair_depth'] ?? null) : null,
-        ]);
-
-        return response()->json($this->parameterPayload($manualParameter->fresh()));
     }
 
     // ── Codes ─────────────────────────────────────────────────────
@@ -356,6 +349,7 @@ class ManualParameterController extends Controller
             'inspection_component_id' => $parameter->inspection_component_id,
             'description'             => $parameter->description,
             'is_required'             => $parameter->is_required,
+            'requires_value'          => $parameter->requires_value,
             'orig_dim_min'            => $parameter->orig_dim_min,
             'orig_dim_max'            => $parameter->orig_dim_max,
             'wear_dim_min'            => $parameter->wear_dim_min,
@@ -364,6 +358,9 @@ class ManualParameterController extends Controller
             'repair_dim_max'          => $parameter->repair_dim_max,
             'interference_value'      => $parameter->interference_value,
             'flange_clearance'        => $parameter->flange_clearance,
+            'repair_surface_side'     => $parameter->repair_surface_side,
+            'max_repair_depth_a'      => $parameter->max_repair_depth_a,
+            'max_repair_depth_b'      => $parameter->max_repair_depth_b,
             'inspection'              => $parameter->inspection,
             'sort_order'              => $parameter->sort_order,
             'codes'                   => $parameter->codes->map(fn($c) => [
@@ -374,10 +371,8 @@ class ManualParameterController extends Controller
             ])->filter(fn($c) => $c['name'] !== null)->values(),
             'repair_rules'            => $parameter->repairRules->map(fn($r) => $this->rulePayload($r)),
             'points'                  => $parameter->points->map(fn($pt) => [
-                'id'                => $pt->id,
-                'pivot_id'          => $pt->pivot->id,
-                'is_repair_surface' => (bool) $pt->pivot->is_repair_surface,
-                'max_repair_depth'  => $pt->pivot->max_repair_depth,
+                'id'       => $pt->id,
+                'pivot_id' => $pt->pivot->id,
             ])->values(),
         ];
     }

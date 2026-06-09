@@ -14,6 +14,7 @@ class ManualParameter extends Model
         'inspection_component_id',
         'description',
         'is_required',
+        'requires_value',
         'orig_dim_min',
         'orig_dim_max',
         'wear_dim_min',
@@ -22,6 +23,9 @@ class ManualParameter extends Model
         'repair_dim_max',
         'interference_value',
         'flange_clearance',
+        'repair_surface_side',
+        'max_repair_depth_a',
+        'max_repair_depth_b',
         'inspection',
         'sort_order',
     ];
@@ -29,6 +33,7 @@ class ManualParameter extends Model
     protected $casts = [
         'inspection_component_id' => 'integer',
         'is_required'             => 'boolean',
+        'requires_value'          => 'boolean',
         'orig_dim_min'            => 'decimal:4',
         'orig_dim_max'            => 'decimal:4',
         'wear_dim_min'            => 'decimal:4',
@@ -37,6 +42,8 @@ class ManualParameter extends Model
         'repair_dim_max'          => 'decimal:4',
         'interference_value'      => 'decimal:4',
         'flange_clearance'        => 'decimal:4',
+        'max_repair_depth_a'      => 'decimal:4',
+        'max_repair_depth_b'      => 'decimal:4',
     ];
 
     public function manual(): BelongsTo
@@ -71,7 +78,7 @@ class ManualParameter extends Model
             'manual_parameter_points',
             'manual_parameter_id',
             'manual_dimension_point_id'
-        )->withPivot('id', 'is_repair_surface', 'max_repair_depth');
+        )->withPivot('id');
     }
 
     public function effectiveLimits(bool $useWear): array

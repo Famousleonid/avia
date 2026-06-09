@@ -725,6 +725,10 @@
                         <input class="form-check-input" type="checkbox" id="dimSpecRequired" checked>
                         <label class="form-check-label form-label-sm" for="dimSpecRequired">Required</label>
                     </div>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="dimSpecRequiresValue">
+                        <label class="form-check-label form-label-sm" for="dimSpecRequiresValue">Record actual value</label>
+                    </div>
                 </div>
 
                 <div class="row g-2 mb-2">
@@ -820,10 +824,10 @@
                     </div>
                 </div>
 
-                {{-- Points: repair surfaces (only shown when editing a parameter with ≥2 points) --}}
-                <div id="dimSpecPointsSection" class="d-none mb-3">
-                    <div class="fw-semibold mb-2" style="font-size:12px;color:var(--bs-secondary-color)">POINTS — Repair Surfaces</div>
-                    <div id="dimSpecPointsList"></div>
+                {{-- Repair surface: shown only for line-type parameters --}}
+                <div id="dimSpecRepairSurfaceSection" class="d-none mb-3">
+                    <div class="fw-semibold mb-2" style="font-size:12px;color:var(--bs-secondary-color)">REPAIR SURFACE — Linear Endpoints</div>
+                    <div id="dimSpecRepairSurfaceList"></div>
                 </div>
 
                 <div class="row g-2 mb-3">
@@ -1440,7 +1444,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         // Pre-fill from existing parameter
         document.getElementById('dimSpecId').value          = match.id;
-        document.getElementById('dimSpecRequired').checked  = !!match.is_required;
+        document.getElementById('dimSpecRequired').checked       = !!match.is_required;
+        document.getElementById('dimSpecRequiresValue').checked  = !!match.requires_value;
         document.getElementById('dimSpecOrigMin').value      = match.orig_dim_min      || '';
         document.getElementById('dimSpecOrigMax').value      = match.orig_dim_max      || '';
         document.getElementById('dimSpecWearMin').value      = match.wear_dim_min      || '';
@@ -3058,7 +3063,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!activePoint) return;
         document.getElementById('dimSpecId').value          = '';
         document.getElementById('dimSpecDescription').value = '';
-        document.getElementById('dimSpecRequired').checked  = true;
+        document.getElementById('dimSpecRequired').checked       = true;
+        document.getElementById('dimSpecRequiresValue').checked  = false;
         document.getElementById('dimSpecOrigMin').value      = '';
         document.getElementById('dimSpecOrigMax').value      = '';
         document.getElementById('dimSpecWearMin').value      = '';
@@ -3069,7 +3075,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecFlangeClr').value    = '';
         document.getElementById('dimSpecInspection').value   = '';
         document.getElementById('dimSpecSort').value         = '0';
-        document.getElementById('dimSpecPointsSection').classList.add('d-none');
+        document.getElementById('dimSpecRepairSurfaceSection').classList.add('d-none');
         dimSpecCodes = [];
         renderSpecCodesList();
         refreshSpecComponentSelect(inspCompId || '');
@@ -3087,7 +3093,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecId').value          = param.id;
         document.getElementById('dimSpecDescription').value = param.description || '';
         refreshSpecComponentSelect(param.inspection_component_id || '');
-        document.getElementById('dimSpecRequired').checked  = !!param.is_required;
+        document.getElementById('dimSpecRequired').checked       = !!param.is_required;
+        document.getElementById('dimSpecRequiresValue').checked  = !!param.requires_value;
         document.getElementById('dimSpecOrigMin').value      = param.orig_dim_min       || '';
         document.getElementById('dimSpecOrigMax').value      = param.orig_dim_max       || '';
         document.getElementById('dimSpecWearMin').value      = param.wear_dim_min       || '';
@@ -3106,7 +3113,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecDetachBtn').classList.toggle('d-none', paramPoints.length <= 1);
         document.getElementById('dimSpecError').classList.add('d-none');
         updateBushingFields();
-        renderParamPointsSection(param);
+        renderRepairSurfaceSection(param);
         // Load repair steps for this parameter (independent per part)
         closeRepairStepForm();
         loadRepairSteps(param.id);
@@ -3114,63 +3121,80 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ==========================
-    // Points — Repair Surfaces (inside Edit Parameter modal)
+    // Repair Surface — Linear Endpoints (inside Edit Parameter modal)
     // ==========================
 
-    function renderParamPointsSection(param) {
-        const section = document.getElementById('dimSpecPointsSection');
-        const list    = document.getElementById('dimSpecPointsList');
-        const pts     = param.points || [];
-        if (pts.length < 2) { section.classList.add('d-none'); return; }
-        section.classList.remove('d-none');
-
-        list.innerHTML = pts.map(function (pt) {
-            const figPt  = (activeFigure && activeFigure.points || []).find(function (p) { return p.id === pt.id; });
-            const label  = figPt ? (figPt.code + (figPt.description ? ' — ' + figPt.description : '')) : ('Point #' + pt.id);
-            const chk    = pt.is_repair_surface ? 'checked' : '';
-            const depth  = pt.max_repair_depth != null ? pt.max_repair_depth : '';
-            const dNone  = pt.is_repair_surface ? '' : 'd-none';
-            return `<div class="border rounded p-2 mb-1 d-flex align-items-center gap-2" style="font-size:12px">
-                <span class="flex-grow-1 fw-semibold">${escHtml(label)}</span>
-                <div class="form-check form-switch mb-0">
-                    <input class="form-check-input dim-pt-repair-chk" type="checkbox" ${chk}
-                        data-param-id="${param.id}" data-point-id="${pt.id}" title="Repair surface">
-                    <label class="form-check-label text-secondary" style="font-size:11px">Repair surface</label>
-                </div>
-                <input type="number" step="0.0001" placeholder="Max depth"
-                    class="form-control form-control-sm dim-pt-depth-inp ${dNone}"
-                    style="width:110px" value="${escHtml(String(depth))}"
-                    data-param-id="${param.id}" data-point-id="${pt.id}">
-            </div>`;
-        }).join('');
-
-        list.querySelectorAll('.dim-pt-repair-chk').forEach(function (chk) {
-            chk.addEventListener('change', async function () {
-                const paramId = chk.dataset.paramId;
-                const pointId = chk.dataset.pointId;
-                const isRepair = chk.checked;
-                const row   = chk.closest('.border');
-                const depInp = row.querySelector('.dim-pt-depth-inp');
-                depInp.classList.toggle('d-none', !isRepair);
-                await savePointRepair(paramId, pointId, isRepair, isRepair ? (depInp.value || null) : null);
-            });
-        });
-
-        list.querySelectorAll('.dim-pt-depth-inp').forEach(function (inp) {
-            inp.addEventListener('change', async function () {
-                const paramId = inp.dataset.paramId;
-                const pointId = inp.dataset.pointId;
-                await savePointRepair(paramId, pointId, true, inp.value || null);
-            });
+    function paramIsLinear(param) {
+        const pts = param.points || [];
+        return pts.some(function (pt) {
+            const figPt = (activeFigure && activeFigure.points || []).find(function (p) { return p.id === pt.id; });
+            return figPt && figPt.x2_pct != null;
         });
     }
 
-    async function savePointRepair(paramId, pointId, isRepairSurface, maxDepth) {
-        try {
-            const saved = await apiFetch('/parameters/' + paramId + '/points/' + pointId + '/repair', {
-                method: 'PATCH',
-                body: JSON.stringify({ is_repair_surface: isRepairSurface, max_repair_depth: maxDepth }),
+    function renderRepairSurfaceSection(param) {
+        const section = document.getElementById('dimSpecRepairSurfaceSection');
+        const list    = document.getElementById('dimSpecRepairSurfaceList');
+
+        if (!paramIsLinear(param)) { section.classList.add('d-none'); return; }
+        section.classList.remove('d-none');
+
+        const side   = param.repair_surface_side || null;
+        const depthA = param.max_repair_depth_a != null ? param.max_repair_depth_a : '';
+        const depthB = param.max_repair_depth_b != null ? param.max_repair_depth_b : '';
+
+        const endpointRow = function (endId, label, isActive, depth) {
+            const chk   = isActive ? 'checked' : '';
+            const dNone = isActive ? '' : 'd-none';
+            return `<div class="border rounded p-2 mb-1 d-flex align-items-center gap-2" style="font-size:12px">
+                <span class="flex-grow-1 fw-semibold">${label}</span>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input dim-rs-chk" type="checkbox" ${chk}
+                        data-end="${endId}" data-param-id="${param.id}" title="Repair surface">
+                    <label class="form-check-label text-secondary" style="font-size:11px">Repair surface</label>
+                </div>
+                <input type="number" step="0.0001" placeholder="Max depth"
+                    class="form-control form-control-sm dim-rs-depth ${dNone}"
+                    style="width:110px" value="${escHtml(String(depth))}"
+                    data-end="${endId}" data-param-id="${param.id}">
+            </div>`;
+        };
+
+        const aActive = side === 'A' || side === 'both';
+        const bActive = side === 'B' || side === 'both';
+        list.innerHTML = endpointRow('A', 'End A (start)', aActive, depthA)
+                       + endpointRow('B', 'End B (end)',   bActive, depthB);
+
+        list.querySelectorAll('.dim-rs-chk').forEach(function (chk) {
+            chk.addEventListener('change', function () {
+                const row   = chk.closest('.border');
+                const depInp = row.querySelector('.dim-rs-depth');
+                depInp.classList.toggle('d-none', !chk.checked);
+                saveRepairSurface(param.id);
             });
+        });
+
+        list.querySelectorAll('.dim-rs-depth').forEach(function (inp) {
+            inp.addEventListener('change', function () { saveRepairSurface(param.id); });
+        });
+    }
+
+    async function saveRepairSurface(paramId) {
+        const list  = document.getElementById('dimSpecRepairSurfaceList');
+        const chkA  = list.querySelector('.dim-rs-chk[data-end="A"]');
+        const chkB  = list.querySelector('.dim-rs-chk[data-end="B"]');
+        const inpA  = list.querySelector('.dim-rs-depth[data-end="A"]');
+        const inpB  = list.querySelector('.dim-rs-depth[data-end="B"]');
+        const aOn   = chkA && chkA.checked;
+        const bOn   = chkB && chkB.checked;
+        const side  = (aOn && bOn) ? 'both' : (aOn ? 'A' : (bOn ? 'B' : null));
+        const body  = {
+            repair_surface_side: side,
+            max_repair_depth_a:  aOn && inpA && inpA.value ? parseFloat(inpA.value) : null,
+            max_repair_depth_b:  bOn && inpB && inpB.value ? parseFloat(inpB.value) : null,
+        };
+        try {
+            const saved = await apiFetch('/parameters/' + paramId, { method: 'PATCH', body: JSON.stringify(body) });
             const idx = parameters.findIndex(function (p) { return p.id == paramId; });
             if (idx !== -1) parameters[idx] = saved;
         } catch (e) {
@@ -4116,6 +4140,7 @@ document.addEventListener('DOMContentLoaded', function () {
             description:             desc || undefined,
             inspection_component_id: $('#dimSpecComponent').val() || null,
             is_required:             document.getElementById('dimSpecRequired').checked,
+            requires_value:          document.getElementById('dimSpecRequiresValue').checked,
             orig_dim_min:            document.getElementById('dimSpecOrigMin').value || null,
             orig_dim_max:            document.getElementById('dimSpecOrigMax').value || null,
             wear_dim_min:            document.getElementById('dimSpecWearMin').value || null,

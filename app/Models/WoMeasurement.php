@@ -17,7 +17,9 @@ class WoMeasurement extends Model
         'actual_value',
         'limits_source',
         'result',
-        'repair_step_no', // оверсайз-ступень, в которую попал final-замер (PASS по ремонту)
+        'repair_step_no',
+        'repair_depth_a',
+        'repair_depth_b',
         'codes_id',
         'finding_notes',
         'repair_required',
@@ -32,6 +34,8 @@ class WoMeasurement extends Model
     protected $casts = [
         'actual_value'        => 'decimal:4',
         'calculated_oversize' => 'decimal:4',
+        'repair_depth_a'      => 'decimal:4',
+        'repair_depth_b'      => 'decimal:4',
         'repair_required'     => 'boolean',
     ];
 

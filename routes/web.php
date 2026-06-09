@@ -357,7 +357,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/parameters/{manualParameter}', [ManualParameterController::class, 'update'])->name('parameters.update');
     Route::delete('/parameters/{manualParameter}', [ManualParameterController::class, 'destroy'])->name('parameters.destroy');
     Route::delete('/parameters/{manualParameter}/points/{manualDimensionPoint}', [ManualParameterController::class, 'detachPoint'])->name('parameters.points.detach');
-    Route::patch('/parameters/{manualParameter}/points/{manualDimensionPoint}/repair', [ManualParameterController::class, 'updatePointRepair'])->name('parameters.points.repair');
 
     // --- Parameter Codes ---
     Route::post('/parameters/{manualParameter}/codes', [ManualParameterController::class, 'storeCode'])->name('parameters.codes.store');
