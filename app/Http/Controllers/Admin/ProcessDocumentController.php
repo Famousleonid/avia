@@ -358,56 +358,82 @@ class ProcessDocumentController extends Controller
      */
     public function bushingSketchView(Request $request, Workorder $workorder, ManualInspectionComponent $manualInspectionComponent)
     {
-        // ── 1. Find OD parameters (have repair steps) for this IC ──────────
-        $odParams = ManualParameter::where('inspection_component_id', $manualInspectionComponent->id)
+        // ── 1. Find OD parameters for this IC (repair steps OR interference) ─
+        $allOdParams = ManualParameter::where('inspection_component_id', $manualInspectionComponent->id)
             ->with(['repairSteps.component', 'points:id,code'])
-            ->get()
-            ->filter(fn($p) => $p->repairSteps->isNotEmpty());
+            ->get();
 
-        // ── 2. Replicate getMatingRepairInfo: find mating bore measurement ──
+        $odParamsWithSteps        = $allOdParams->filter(fn($p) => $p->repairSteps->isNotEmpty());
+        $odParamsWithInterference = $allOdParams->filter(fn($p) => $p->interference_value !== null);
+
+        // ── 2. Replicate getMatingRepairInfo logic ─────────────────────────
         $repairInfo = null;
 
-        foreach ($odParams as $odParam) {
+        $findMatingBore = function ($odParam, bool $requireStepNo) use ($workorder, $manualInspectionComponent) {
             $odPointIds = $odParam->points->pluck('id')->all();
-            if (empty($odPointIds)) continue;
-
-            // Find parameters in OTHER ICs that share a point with this OD
-            $matingParam = ManualParameter::whereHas('points', fn($q) =>
+            if (empty($odPointIds)) return null;
+            return ManualParameter::whereHas('points', fn($q) =>
                     $q->whereIn('manual_dimension_points.id', $odPointIds)
                 )
                 ->where('inspection_component_id', '!=', $manualInspectionComponent->id)
                 ->with('points:id,code')
                 ->get()
-                ->first(function ($p) use ($workorder) {
-                    // Must have a final measurement with repair_step_no
-                    return WoMeasurement::where('workorder_id', $workorder->id)
+                ->first(function ($p) use ($workorder, $requireStepNo) {
+                    $q = WoMeasurement::where('workorder_id', $workorder->id)
                         ->where('manual_parameter_id', $p->id)
                         ->where('stage', 'final')
-                        ->whereNotNull('repair_step_no')
-                        ->whereNotNull('actual_value')
-                        ->exists();
+                        ->whereNotNull('actual_value');
+                    if ($requireStepNo) $q->whereNotNull('repair_step_no');
+                    return $q->exists();
                 });
+        };
 
+        // Case A: discrete repair steps
+        foreach ($odParamsWithSteps as $odParam) {
+            $matingParam = $findMatingBore($odParam, true);
             if (!$matingParam) continue;
-
-            $matingMeasurement = WoMeasurement::where('workorder_id', $workorder->id)
+            $meas = WoMeasurement::where('workorder_id', $workorder->id)
                 ->where('manual_parameter_id', $matingParam->id)
-                ->where('stage', 'final')
-                ->whereNotNull('repair_step_no')
-                ->whereNotNull('actual_value')
+                ->where('stage', 'final')->whereNotNull('repair_step_no')
                 ->latest('id')->first();
-
-            $stepNo   = $matingMeasurement->repair_step_no;
-            $stepModel = $odParam->repairSteps->first(fn($s) => $s->step_no === $stepNo);
-
             $repairInfo = [
-                'odParam'        => $odParam,
-                'matingParam'    => $matingParam,
-                'stepNo'         => $stepNo,
-                'step'           => $stepModel,
-                'measuredValue'  => (float) $matingMeasurement->actual_value,
+                'useTolerance'  => false,
+                'odParam'       => $odParam,
+                'matingParam'   => $matingParam,
+                'stepNo'        => $meas->repair_step_no,
+                'step'          => $odParam->repairSteps->first(fn($s) => $s->step_no === $meas->repair_step_no),
+                'measuredValue' => (float) $meas->actual_value,
             ];
             break;
+        }
+
+        // Case B: interference_value → continuous calculation
+        if (!$repairInfo) {
+            foreach ($odParamsWithInterference as $odParam) {
+                $matingParam = $findMatingBore($odParam, false);
+                if (!$matingParam) continue;
+                $meas = WoMeasurement::where('workorder_id', $workorder->id)
+                    ->where('manual_parameter_id', $matingParam->id)
+                    ->where('stage', 'final')->whereNotNull('actual_value')
+                    ->latest('id')->first();
+                $bore        = (float) $meas->actual_value;
+                $interference = (float) $odParam->interference_value;
+                $tolSpread   = ($odParam->orig_dim_min !== null && $odParam->orig_dim_max !== null)
+                    ? round((float)$odParam->orig_dim_max - (float)$odParam->orig_dim_min, 4)
+                    : 0;
+                $repairInfo = [
+                    'useTolerance'    => true,
+                    'odParam'         => $odParam,
+                    'matingParam'     => $matingParam,
+                    'stepNo'          => null,
+                    'step'            => null,
+                    'measuredValue'   => $bore,
+                    'interference'    => $interference,
+                    'calculatedOdMin' => round($bore + $interference, 4),
+                    'calculatedOdMax' => round($bore + $interference + $tolSpread, 4),
+                ];
+                break;
+            }
         }
 
         // ── 3. Find the ProcessDocumentPage for this IC ────────────────────
@@ -441,7 +467,8 @@ class ProcessDocumentController extends Controller
 
         $titleText = $icLabel . ($repairInfo ? ' — Oversize ' . $repairInfo['stepNo'] : '');
 
-        if ($repairInfo) {
+        if ($repairInfo && !$repairInfo['useTolerance']) {
+            // ── Case A: discrete step ──────────────────────────────────────
             $step = $repairInfo['step'];
             $comp = $step?->component;
 
@@ -468,6 +495,25 @@ class ProcessDocumentController extends Controller
               <tr><td style="color:#6c757d;padding:3px 12px 3px 0">Repair step</td><td><span style="color:#0d6efd;font-weight:700">' . e($repairInfo['stepNo']) . '</span></td></tr>
               ' . $boreRow . $pnRow . $odRows . '
             </table>';
+
+        } elseif ($repairInfo && $repairInfo['useTolerance']) {
+            // ── Case B: continuous tolerance ───────────────────────────────
+            $boreRow = '<tr><td>Bore measured</td><td><strong>'
+                . number_format($repairInfo['measuredValue'], 4) . ' in</strong>'
+                . ' <span style="color:#6c757d">(' . e($repairInfo['matingParam']->description ?? '') . ')</span></td></tr>';
+
+            $intRow = '<tr><td style="color:#6c757d">+ Interference</td><td>' . number_format($repairInfo['interference'], 4) . ' in</td></tr>';
+
+            $odRows = '<tr style="border-top:1px solid #dee2e6"><td style="padding-top:10px">OD required min</td><td style="padding-top:10px;font-size:14px;font-weight:700">' . number_format($repairInfo['calculatedOdMin'], 4) . ' in</td></tr>'
+                    . '<tr><td>OD required max</td><td style="font-size:14px;font-weight:700">' . number_format($repairInfo['calculatedOdMax'], 4) . ' in</td></tr>';
+
+            $dataHtml = '
+            <table style="border-collapse:collapse;width:100%;font-size:12px">
+              <tr><td style="color:#6c757d;padding:3px 12px 3px 0;white-space:nowrap">W/O</td><td><strong>' . e('W' . $workorder->number) . '</strong></td></tr>
+              <tr><td style="color:#6c757d;padding:3px 12px 3px 0">Part</td><td>' . $partCell . '</td></tr>
+              ' . $boreRow . $intRow . $odRows . '
+            </table>';
+
         } else {
             $dataHtml = '
             <table style="border-collapse:collapse;width:100%;font-size:12px">
@@ -478,17 +524,24 @@ class ProcessDocumentController extends Controller
         }
 
         // ── 5. Render drawing with overlays ────────────────────────────────
+        if ($request->boolean('check') && !$page) {
+            return response()->json(['no_document' => true]);
+        }
+
         $drawingHtml = '<div style="color:#aaa;padding:40px;text-align:center">No drawing attached</div>';
         if ($page) {
             $docParam    = $page->document?->documentable?->rule?->parameter;
             $processName = $page->document?->documentable?->manualProcess?->process?->process_name?->name;
             $renderer    = new ProcessDocumentRenderer();
 
-            // Pass repair-step OD range as fallback for OD dimension elements
+            // Pass OD range as fallback for OD dimension elements in the drawing
             $drawingContext = [];
-            if ($repairInfo && $repairInfo['step']) {
+            if ($repairInfo && !$repairInfo['useTolerance'] && $repairInfo['step']) {
                 $drawingContext['od_dim_min'] = (float) $repairInfo['step']->dim_min;
                 $drawingContext['od_dim_max'] = (float) $repairInfo['step']->dim_max;
+            } elseif ($repairInfo && $repairInfo['useTolerance']) {
+                $drawingContext['od_dim_min'] = $repairInfo['calculatedOdMin'];
+                $drawingContext['od_dim_max'] = $repairInfo['calculatedOdMax'];
             }
 
             // ── Missing measurements check ───────────────────────────────────

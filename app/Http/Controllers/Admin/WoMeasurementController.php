@@ -97,6 +97,9 @@ class WoMeasurementController extends Controller
                 'orig_dim_max'            => $p->orig_dim_max,
                 'wear_dim_min'            => $p->wear_dim_min,
                 'wear_dim_max'            => $p->wear_dim_max,
+                'repair_dim_min'          => $p->repair_dim_min,
+                'repair_dim_max'          => $p->repair_dim_max,
+                'interference_value'      => $p->interference_value,
                 'codes'                   => $p->codes
                     ->filter(fn($c) => $c->code !== null)
                     ->map(fn($c) => [
@@ -1061,7 +1064,7 @@ class WoMeasurementController extends Controller
         $started = TdrProcess::whereIn('tdrs_id', $tdrIds)->whereNotNull('date_start')->exists();
         if ($started) {
             return response()->json([
-                'error' => 'Work has already started on this TDR — it cannot be reverted. Use Scrap & Order New instead.',
+                'error' => 'Work has already started on this TDR — it cannot be reverted.',
             ], 422);
         }
 

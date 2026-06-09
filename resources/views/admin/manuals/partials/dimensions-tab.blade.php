@@ -771,6 +771,14 @@
                             <div class="col"><label class="form-label form-label-sm">Wear Min</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecWearMin" placeholder="—"></div>
                             <div class="col"><label class="form-label form-label-sm">Wear Max</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecWearMax" placeholder="—"></div>
                         </div>
+                        <div class="fw-semibold mb-1" style="font-size:11px;color:var(--bs-secondary-color)">Repair limits — machined size after repair (leave empty if repair steps used or no repair)</div>
+                        <div class="row g-2 mb-2">
+                            <div class="col"><label class="form-label form-label-sm">Repair Min</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecRepairMin" placeholder="—"></div>
+                            <div class="col"><label class="form-label form-label-sm">Repair Max</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecRepairMax" placeholder="—"></div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6"><label class="form-label form-label-sm">Interference (bushing OD only)</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecInterference" placeholder="—"></div>
+                        </div>
 
                         <div class="fw-semibold mb-1" style="font-size:11px;color:var(--bs-secondary-color)">
                             Repair Steps <span class="fw-normal">(oversize, in)</span>
@@ -1426,12 +1434,15 @@ document.addEventListener('DOMContentLoaded', function () {
         // Pre-fill from existing parameter
         document.getElementById('dimSpecId').value          = match.id;
         document.getElementById('dimSpecRequired').checked  = !!match.is_required;
-        document.getElementById('dimSpecOrigMin').value     = match.orig_dim_min  || '';
-        document.getElementById('dimSpecOrigMax').value     = match.orig_dim_max  || '';
-        document.getElementById('dimSpecWearMin').value     = match.wear_dim_min  || '';
-        document.getElementById('dimSpecWearMax').value     = match.wear_dim_max  || '';
-        document.getElementById('dimSpecInspection').value  = match.inspection    || '';
-        document.getElementById('dimSpecSort').value        = match.sort_order    || 0;
+        document.getElementById('dimSpecOrigMin').value      = match.orig_dim_min      || '';
+        document.getElementById('dimSpecOrigMax').value      = match.orig_dim_max      || '';
+        document.getElementById('dimSpecWearMin').value      = match.wear_dim_min      || '';
+        document.getElementById('dimSpecWearMax').value      = match.wear_dim_max      || '';
+        document.getElementById('dimSpecRepairMin').value    = match.repair_dim_min    || '';
+        document.getElementById('dimSpecRepairMax').value    = match.repair_dim_max    || '';
+        document.getElementById('dimSpecInterference').value = match.interference_value || '';
+        document.getElementById('dimSpecInspection').value   = match.inspection         || '';
+        document.getElementById('dimSpecSort').value         = match.sort_order         || 0;
         dimSpecCodes = (match.codes || []).map(function (c) { return { id: c.codes_id, name: c.name || '' }; });
         renderSpecCodesList();
         // Show hint in modal title
@@ -2914,6 +2925,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         ${param.wear_dim_min !== null ? `
                         <div class="dim-dim-cell" style="background:rgba(255,193,7,.08)"><div class="dim-dim-cell-label">wear min</div><div class="dim-dim-cell-val">${fmtDim(param.wear_dim_min)}</div></div>
                         <div class="dim-dim-cell" style="background:rgba(255,193,7,.08)"><div class="dim-dim-cell-label">wear max</div><div class="dim-dim-cell-val">${fmtDim(param.wear_dim_max)}</div></div>` : ''}
+                        ${param.repair_dim_min !== null || param.repair_dim_max !== null ? `
+                        <div class="dim-dim-cell" style="background:rgba(13,110,253,.06)"><div class="dim-dim-cell-label">repair min</div><div class="dim-dim-cell-val">${fmtDim(param.repair_dim_min)}</div></div>
+                        <div class="dim-dim-cell" style="background:rgba(13,110,253,.06)"><div class="dim-dim-cell-label">repair max</div><div class="dim-dim-cell-val">${fmtDim(param.repair_dim_max)}</div></div>` : ''}
+                        ${param.interference_value !== null ? `
+                        <div class="dim-dim-cell" style="background:rgba(25,135,84,.06)"><div class="dim-dim-cell-label">interference</div><div class="dim-dim-cell-val">${fmtDim(param.interference_value)}</div></div>` : ''}
                     </div>`;
                 }
 
@@ -3023,12 +3039,15 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecId').value          = '';
         document.getElementById('dimSpecDescription').value = '';
         document.getElementById('dimSpecRequired').checked  = true;
-        document.getElementById('dimSpecOrigMin').value     = '';
-        document.getElementById('dimSpecOrigMax').value     = '';
-        document.getElementById('dimSpecWearMin').value     = '';
-        document.getElementById('dimSpecWearMax').value     = '';
-        document.getElementById('dimSpecInspection').value  = '';
-        document.getElementById('dimSpecSort').value        = '0';
+        document.getElementById('dimSpecOrigMin').value      = '';
+        document.getElementById('dimSpecOrigMax').value      = '';
+        document.getElementById('dimSpecWearMin').value      = '';
+        document.getElementById('dimSpecWearMax').value      = '';
+        document.getElementById('dimSpecRepairMin').value    = '';
+        document.getElementById('dimSpecRepairMax').value    = '';
+        document.getElementById('dimSpecInterference').value = '';
+        document.getElementById('dimSpecInspection').value   = '';
+        document.getElementById('dimSpecSort').value         = '0';
         dimSpecCodes = [];
         renderSpecCodesList();
         refreshSpecComponentSelect(inspCompId || '');
@@ -3046,11 +3065,14 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecDescription').value = param.description || '';
         refreshSpecComponentSelect(param.inspection_component_id || '');
         document.getElementById('dimSpecRequired').checked  = !!param.is_required;
-        document.getElementById('dimSpecOrigMin').value     = param.orig_dim_min || '';
-        document.getElementById('dimSpecOrigMax').value     = param.orig_dim_max || '';
-        document.getElementById('dimSpecWearMin').value     = param.wear_dim_min || '';
-        document.getElementById('dimSpecWearMax').value     = param.wear_dim_max || '';
-        document.getElementById('dimSpecInspection').value  = param.inspection || '';
+        document.getElementById('dimSpecOrigMin').value      = param.orig_dim_min       || '';
+        document.getElementById('dimSpecOrigMax').value      = param.orig_dim_max       || '';
+        document.getElementById('dimSpecWearMin').value      = param.wear_dim_min       || '';
+        document.getElementById('dimSpecWearMax').value      = param.wear_dim_max       || '';
+        document.getElementById('dimSpecRepairMin').value    = param.repair_dim_min     || '';
+        document.getElementById('dimSpecRepairMax').value    = param.repair_dim_max     || '';
+        document.getElementById('dimSpecInterference').value = param.interference_value  || '';
+        document.getElementById('dimSpecInspection').value   = param.inspection          || '';
         document.getElementById('dimSpecSort').value        = param.sort_order || '0';
         dimSpecCodes = (param.codes || []).map(function (c) { return { id: c.codes_id, name: c.name || '', finding_context: c.finding_context || 'inspection' }; });
         renderSpecCodesList();
@@ -4007,6 +4029,9 @@ document.addEventListener('DOMContentLoaded', function () {
             orig_dim_max:            document.getElementById('dimSpecOrigMax').value || null,
             wear_dim_min:            document.getElementById('dimSpecWearMin').value || null,
             wear_dim_max:            document.getElementById('dimSpecWearMax').value || null,
+            repair_dim_min:          document.getElementById('dimSpecRepairMin').value || null,
+            repair_dim_max:          document.getElementById('dimSpecRepairMax').value || null,
+            interference_value:      document.getElementById('dimSpecInterference').value || null,
             inspection:              document.getElementById('dimSpecInspection').value.trim() || null,
             sort_order:              parseInt(document.getElementById('dimSpecSort').value) || 0,
         };

@@ -18,6 +18,9 @@ class ManualParameter extends Model
         'orig_dim_max',
         'wear_dim_min',
         'wear_dim_max',
+        'repair_dim_min',
+        'repair_dim_max',
+        'interference_value',
         'inspection',
         'sort_order',
     ];
@@ -29,6 +32,9 @@ class ManualParameter extends Model
         'orig_dim_max'            => 'decimal:4',
         'wear_dim_min'            => 'decimal:4',
         'wear_dim_max'            => 'decimal:4',
+        'repair_dim_min'          => 'decimal:4',
+        'repair_dim_max'          => 'decimal:4',
+        'interference_value'      => 'decimal:4',
     ];
 
     public function manual(): BelongsTo

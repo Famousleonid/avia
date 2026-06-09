@@ -179,7 +179,7 @@
                     <i class="bi bi-arrow-counterclockwise"></i> Change decision
                 </button>
                 <button id="ms-print-sketch-btn" class="btn btn-outline-info btn-sm d-none" style="font-size:11px">
-                    <i class="bi bi-printer"></i> Print Sketch
+                    <i class="bi bi-printer"></i> Sketch
                 </button>
                 {{-- Missing measurements popup --}}
                 <div id="ms-sketch-missing-modal" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center">
@@ -876,60 +876,71 @@
     function hasMatingRepairParam(icId) {
         const ic = inspComponents.find(c => c.id === icId);
         if (!ic || !ic.is_bush) return false;
-        // Bushing has at least one parameter with repair steps configured
         return parameters.some(p =>
-            p.inspection_component_id === ic.id && (p.repair_steps || []).length > 0
+            p.inspection_component_id === ic.id &&
+            ((p.repair_steps || []).length > 0 || p.interference_value != null)
         );
     }
 
     /**
-     * For a bushing IC, find the mating parameter (the one whose repair_step
-     * component_id matches one of this IC's component_ids) and return current step info.
+     * For a bushing IC, find the mating bore parameter and return repair info.
      *
-     * If multiple candidates exist (same component used in several repair_steps),
-     * prefer the parameter that already has a final measurement with a repair_step_no —
-     * that is the actual mating surface that was measured.
+     * Case A — discrete steps: OD param has repair_steps, mating bore has
+     *   a final measurement with repair_step_no.
+     *   Returns: { matingParam, odParam, stepNo, step, measuredValue, useTolerance: false }
      *
-     * Returns {matingParam, stepNo, step} or null.
+     * Case B — repair tolerance: OD param has interference_value, mating bore
+     *   has any final measurement.
+     *   Returns: { matingParam, odParam, stepNo: null, step: null, measuredValue,
+     *              useTolerance: true, interference, calculatedOdMin, calculatedOdMax }
      */
     function getMatingRepairInfo(icId) {
         const ic = inspComponents.find(c => c.id === icId);
         if (!ic || !ic.is_bush) return null;
 
-        // Step 1: find OD parameters of this bushing that have repair_steps configured
-        const odParams = parameters.filter(p =>
-            p.inspection_component_id === ic.id && (p.repair_steps || []).length > 0
-        );
-        if (!odParams.length) return null;
-
-        // Step 2: for each OD param, find the mating bore parameter:
-        //   - belongs to a DIFFERENT IC
-        //   - shares at least one point with the OD param
-        //   - has a final measurement with repair_step_no set
-        for (const odParam of odParams) {
+        function findMatingWithFinal(odParam, requireStepNo) {
             const odPointSet = new Set(odParam.point_ids || []);
-            if (!odPointSet.size) continue;
-
-            const matingCandidates = parameters.filter(p =>
+            if (!odPointSet.size) return null;
+            const candidates = parameters.filter(p =>
                 p.inspection_component_id !== ic.id &&
                 (p.point_ids || []).some(pid => odPointSet.has(pid))
             );
-
-            // Prefer the one whose final measurement already has a repair_step_no
-            const withStep = matingCandidates.find(p => {
+            return candidates.find(p => {
                 const fins = paramMeasurements(p).filter(m => m.stage === 'final');
-                return fins.length && fins[fins.length - 1].repair_step_no;
-            });
-            if (!withStep) continue;
+                if (!fins.length) return false;
+                return requireStepNo ? !!fins[fins.length - 1].repair_step_no : true;
+            }) || null;
+        }
 
-            const matingFinals = paramMeasurements(withStep).filter(m => m.stage === 'final');
-            const stepNo = matingFinals[matingFinals.length - 1].repair_step_no;
-            const measuredValue = matingFinals[matingFinals.length - 1].actual_value;
+        // ── Case A: discrete repair steps ────────────────────────────────
+        for (const odParam of parameters.filter(p =>
+            p.inspection_component_id === ic.id && (p.repair_steps || []).length > 0
+        )) {
+            const mating = findMatingWithFinal(odParam, true);
+            if (!mating) continue;
+            const fins = paramMeasurements(mating).filter(m => m.stage === 'final');
+            const last  = fins[fins.length - 1];
+            const step  = odParam.repair_steps.find(s => s.step_no === last.repair_step_no) || null;
+            return { matingParam: mating, odParam, stepNo: last.repair_step_no,
+                     step, measuredValue: last.actual_value, useTolerance: false };
+        }
 
-            // Step 3: look up the step in the bushing OD's repair_steps
-            const step = odParam.repair_steps.find(s => s.step_no === stepNo) || null;
-
-            return { matingParam: withStep, odParam, stepNo, step, measuredValue };
+        // ── Case B: interference_value → continuous calculation ───────────
+        for (const odParam of parameters.filter(p =>
+            p.inspection_component_id === ic.id && p.interference_value != null
+        )) {
+            const mating = findMatingWithFinal(odParam, false);
+            if (!mating) continue;
+            const fins = paramMeasurements(mating).filter(m => m.stage === 'final');
+            const measuredValue = parseFloat(fins[fins.length - 1].actual_value);
+            const interference  = parseFloat(odParam.interference_value);
+            const tolSpread = (odParam.orig_dim_min != null && odParam.orig_dim_max != null)
+                ? Math.round((parseFloat(odParam.orig_dim_max) - parseFloat(odParam.orig_dim_min)) * 10000) / 10000
+                : 0;
+            return { matingParam: mating, odParam, stepNo: null, step: null,
+                     measuredValue, useTolerance: true, interference,
+                     calculatedOdMin: Math.round((measuredValue + interference) * 10000) / 10000,
+                     calculatedOdMax: Math.round((measuredValue + interference + tolSpread) * 10000) / 10000 };
         }
 
         return null;
@@ -939,13 +950,15 @@
         return getMatingRepairInfo(part.id);
     }
 
-    /** OVS badge for a param row — only on OD param (the one with repair_steps configured) */
+    /** OVS badge for a param row — only on OD param (repair_steps or interference_value) */
     function ovsBadgeHtml(param) {
         if (!param?.inspection_component_id) return '';
-        // Only show on the parameter that HAS repair_steps (i.e. the bushing OD, not ID)
-        if (!(param.repair_steps || []).length) return '';
+        const hasSteps       = (param.repair_steps || []).length > 0;
+        const hasInterference = param.interference_value != null;
+        if (!hasSteps && !hasInterference) return '';
         const mi = getMatingRepairInfo(param.inspection_component_id);
-        if (mi) return `<span class="ms-fc-badge">OVS ${esc(String(mi.stepNo))}</span>`;
+        if (mi && !mi.useTolerance) return `<span class="ms-fc-badge">OVS ${esc(String(mi.stepNo))}</span>`;
+        if (mi &&  mi.useTolerance) return `<span class="ms-fc-badge">OVS</span>`;
         if (hasMatingRepairParam(param.inspection_component_id)) return '<span class="ms-fc-badge">OVS</span>';
         return '';
     }
@@ -969,7 +982,11 @@
         fetch(base + '?check=1')
             .then(r => r.json())
             .then(data => {
-                if (data.missing && data.missing.length > 0) {
+                if (data.no_document) {
+                    document.getElementById('ms-sketch-missing-body').innerHTML =
+                        '⚠ No sketch document configured for this bushing.';
+                    document.getElementById('ms-sketch-missing-modal').style.display = 'flex';
+                } else if (data.missing && data.missing.length > 0) {
                     document.getElementById('ms-sketch-missing-body').innerHTML =
                         data.missing.map(m => '• ' + m).join('<br>');
                     document.getElementById('ms-sketch-missing-modal').style.display = 'flex';
@@ -1070,10 +1087,13 @@
             let reqStepHtml = '';
             let reqStepPnHtml = '';
             const paramIc = inspComponents.find(c => c.id === param.inspection_component_id);
-            // req step dims only on the OD param (has repair_steps) — not on ID or other bushing params
-            if (paramIc && paramIc.is_bush && (param.repair_steps || []).length > 0) {
+            // req dims only on the OD param (has repair_steps or interference_value)
+            const isOdParam = paramIc && paramIc.is_bush &&
+                ((param.repair_steps || []).length > 0 || param.interference_value != null);
+            if (isOdParam) {
                 const matingInfo = getMatingRepairInfo(param.inspection_component_id);
-                if (matingInfo && matingInfo.step) {
+                if (matingInfo && !matingInfo.useTolerance && matingInfo.step) {
+                    // Case A: discrete step
                     const { stepNo, step } = matingInfo;
                     reqStepHtml = `
                         <div class="ms-lim-cell" style="background:rgba(13,110,253,.1);border-left:2px solid #0d6efd">
@@ -1094,6 +1114,22 @@
                             ${iplText ? `<span class="text-secondary">${iplText}</span>` : ''}
                         </div>`;
                     }
+                } else if (matingInfo && matingInfo.useTolerance) {
+                    // Case B: continuous — show calculated OD range from bore measurement
+                    const { calculatedOdMin, calculatedOdMax, measuredValue } = matingInfo;
+                    reqStepHtml = `
+                        <div class="ms-lim-cell" style="background:rgba(13,110,253,.1);border-left:2px solid #0d6efd">
+                            <div class="ms-lim-lbl" style="color:#0d6efd">req OD min</div>
+                            <div class="ms-lim-val" style="color:#0d6efd">${fmtDim(calculatedOdMin)}</div>
+                        </div>
+                        <div class="ms-lim-cell" style="background:rgba(13,110,253,.1)">
+                            <div class="ms-lim-lbl" style="color:#0d6efd">req OD max</div>
+                            <div class="ms-lim-val" style="color:#0d6efd">${fmtDim(calculatedOdMax)}</div>
+                        </div>`;
+                    reqStepPnHtml = `<div class="mt-1 px-1 py-1 rounded" style="background:rgba(13,110,253,.08);border:1px solid rgba(13,110,253,.2);font-size:11px;color:#6c757d">
+                        Bore measured: <strong style="color:#212529">${fmtDim(measuredValue)}</strong>
+                        &nbsp;+&nbsp;interference: <strong style="color:#212529">${fmtDim(matingInfo.interference)}</strong>
+                    </div>`;
                 }
             }
 
@@ -1102,6 +1138,7 @@
                 <div class="ms-lim-cell"><div class="ms-lim-lbl">orig min</div><div class="ms-lim-val">${fmtDim(param.orig_dim_min)}</div></div>
                 <div class="ms-lim-cell"><div class="ms-lim-lbl">orig max</div><div class="ms-lim-val">${fmtDim(param.orig_dim_max)}</div></div>
                 ${param.wear_dim_min != null ? `<div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear min</div><div class="ms-lim-val">${fmtDim(param.wear_dim_min)}</div></div><div class="ms-lim-cell ms-wear-cell"><div class="ms-lim-lbl">wear max</div><div class="ms-lim-val">${fmtDim(param.wear_dim_max)}</div></div>` : ''}
+                ${param.repair_dim_min != null || param.repair_dim_max != null ? `<div class="ms-lim-cell" style="background:rgba(13,110,253,.08);border-left:2px solid #0d6efd"><div class="ms-lim-lbl" style="color:#0d6efd">repair min</div><div class="ms-lim-val" style="color:#0d6efd">${fmtDim(param.repair_dim_min)}</div></div><div class="ms-lim-cell" style="background:rgba(13,110,253,.08)"><div class="ms-lim-lbl" style="color:#0d6efd">repair max</div><div class="ms-lim-val" style="color:#0d6efd">${fmtDim(param.repair_dim_max)}</div></div>` : ''}
                 ${reqStepHtml}`;
             body.appendChild(limDiv);
             if (reqStepPnHtml) {
