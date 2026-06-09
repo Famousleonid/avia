@@ -4185,7 +4185,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 const param = parameters.find(function (p) { return p.id == id; });
                 if (param) {
-                    param.point_ids = (param.point_ids || []).filter(function (pid) { return pid !== activePoint.id; });
+                    param.points = (param.points || []).filter(function (pt) { return pt.id !== activePoint.id; });
                 }
             }
             specModal.hide();
@@ -4289,12 +4289,12 @@ document.addEventListener('DOMContentLoaded', function () {
         parameters.filter(function (p) {
             return p.orig_dim_min !== null || p.orig_dim_max !== null;
         }).forEach(function (param) {
-            (param.point_ids || []).forEach(function (pid) {
-                var pf = pointFigureMap[pid];
+            (param.points || []).forEach(function (pt) {
+                var pf = pointFigureMap[pt.id];
                 if (!pf) return;
                 allRows.push({ figure: pf.figure, point: pf.point, param: param });
-                if (!pointParamMap[pid]) pointParamMap[pid] = [];
-                pointParamMap[pid].push(param);
+                if (!pointParamMap[pt.id]) pointParamMap[pt.id] = [];
+                pointParamMap[pt.id].push(param);
             });
         });
 

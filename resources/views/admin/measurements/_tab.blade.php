@@ -369,7 +369,7 @@
                 .filter(p=>p.inspection_component_id===ic.id)
                 .map(p=>({
                     ...p,
-                    locations: (p.point_ids||[]).map(pid=>pointMap.get(pid)).filter(Boolean),
+                    locations: (p.points||[]).map(pt=>pointMap.get(pt.id)).filter(Boolean),
                 }));
             return {...ic, params};
         }).filter(ic=>ic.params.length>0);
@@ -899,11 +899,11 @@
         if (!ic || !ic.is_bush) return null;
 
         function findMatingWithFinal(odParam, requireStepNo) {
-            const odPointSet = new Set(odParam.point_ids || []);
+            const odPointSet = new Set((odParam.points || []).map(pt => pt.id));
             if (!odPointSet.size) return null;
             const candidates = parameters.filter(p =>
                 p.inspection_component_id !== ic.id &&
-                (p.point_ids || []).some(pid => odPointSet.has(pid))
+                (p.points || []).some(pt => odPointSet.has(pt.id))
             );
             return candidates.find(p => {
                 const fins = paramMeasurements(p).filter(m => m.stage === 'final');
