@@ -566,13 +566,17 @@ class ProcessDocumentController extends Controller
                                 $q->whereIn('manual_dimension_points.id', $odPointIds)
                             )
                             ->where('inspection_component_id', '!=', $manualInspectionComponent->id)
-                            ->with('points:id,code')
+                            ->with(['points:id,code', 'inspectionComponent:id,label,description'])
                             ->first();
                         if ($matingBore) {
                             $borePointCode = $matingBore->points->first()?->code ?? '';
+                            $icLabel = $matingBore->inspectionComponent?->label
+                                ?? $matingBore->inspectionComponent?->description
+                                ?? '';
                             $prefix = 'Ø';
                             $parts  = [($prefix . $matingBore->description)];
                             if ($borePointCode) $parts[] = 'point ' . $borePointCode;
+                            if ($icLabel)       $parts[] = $icLabel;
                             $boreMissingMessages[] = implode(' · ', $parts) . ' (required for OD calculation)';
                         }
                     }
