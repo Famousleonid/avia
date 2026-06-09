@@ -1179,12 +1179,20 @@
             return;
         }
 
-        if(!lastInit){ frm.appendChild(buildForm(param,'initial',null)); }
-        else if(lastInit.result==='FAIL'&&!lastFin){
-            const w=document.createElement('div'); w.className='mt-2';
-            w.innerHTML=`<button class="btn btn-outline-warning btn-sm w-100" style="font-size:11px"><i class="bi bi-plus-circle"></i> Add Final measurement (after repair)</button>`;
-            w.querySelector('button').addEventListener('click',()=>w.replaceWith(buildForm(param,'final',lastInit.id)));
-            frm.appendChild(w);
+        const isCalculatedOd = (param.repair_steps||[]).length > 0 || param.interference_value != null;
+        if (isCalculatedOd) {
+            // Bushing OD — only final measurement (size is calculated, not measured before machining)
+            if (!lastFin) {
+                frm.appendChild(buildForm(param, 'final', null));
+            }
+        } else {
+            if(!lastInit){ frm.appendChild(buildForm(param,'initial',null)); }
+            else if(lastInit.result==='FAIL'&&!lastFin){
+                const w=document.createElement('div'); w.className='mt-2';
+                w.innerHTML=`<button class="btn btn-outline-warning btn-sm w-100" style="font-size:11px"><i class="bi bi-plus-circle"></i> Add Final measurement (after repair)</button>`;
+                w.querySelector('button').addEventListener('click',()=>w.replaceWith(buildForm(param,'final',lastInit.id)));
+                frm.appendChild(w);
+            }
         }
     }
 
