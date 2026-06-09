@@ -776,7 +776,7 @@
                             <div class="col"><label class="form-label form-label-sm">Repair Min</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecRepairMin" placeholder="—"></div>
                             <div class="col"><label class="form-label form-label-sm">Repair Max</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecRepairMax" placeholder="—"></div>
                         </div>
-                        <div class="row g-2 mb-3">
+                        <div class="row g-2 mb-3" id="dimSpecBushingFields" style="display:none">
                             <div class="col-6"><label class="form-label form-label-sm">Interference (bushing OD only)</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecInterference" placeholder="—"></div>
                             <div class="col-6"><label class="form-label form-label-sm">Flange clearance (B nominal)</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecFlangeClr" placeholder="—"></div>
                         </div>
@@ -1573,6 +1573,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     $('#dimSpecComponent').on('change', autoFillParamFromExisting);
+
+    function updateBushingFields() {
+        const icId = parseInt($('#dimSpecComponent').val());
+        const ic   = inspComponents.find(function (c) { return c.id === icId; });
+        const show = !!(ic && ic.is_bush);
+        document.getElementById('dimSpecBushingFields').style.display = show ? '' : 'none';
+        if (!show) {
+            document.getElementById('dimSpecInterference').value = '';
+            document.getElementById('dimSpecFlangeClr').value    = '';
+        }
+    }
+    $('#dimSpecComponent').on('change', updateBushingFields);
 
     // ---- Spec defect codes list ----
     let dimSpecCodes = []; // [{id, name, finding_context}]
@@ -3061,6 +3073,7 @@ document.addEventListener('DOMContentLoaded', function () {
         dimSpecCodes = [];
         renderSpecCodesList();
         refreshSpecComponentSelect(inspCompId || '');
+        updateBushingFields();
         document.getElementById('dimSpecModalTitle').textContent = 'Add Parameter — ' + activePoint.code;
         document.getElementById('dimSpecDeleteBtn').classList.add('d-none');
         document.getElementById('dimSpecDetachBtn').classList.add('d-none');
@@ -3092,6 +3105,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const paramPoints = param.points || [];
         document.getElementById('dimSpecDetachBtn').classList.toggle('d-none', paramPoints.length <= 1);
         document.getElementById('dimSpecError').classList.add('d-none');
+        updateBushingFields();
         renderParamPointsSection(param);
         // Load repair steps for this parameter (independent per part)
         closeRepairStepForm();

@@ -22,6 +22,7 @@ class ManualInspectionComponentController extends Controller
             'id'         => $ic->id,
             'label'      => $ic->label,
             'sort_order' => $ic->sort_order,
+            'is_bush'    => $ic->variants->contains(fn($v) => $v->component?->is_bush),
             'variants'   => $ic->variants->map(fn($v) => [
                 'id'           => $v->id,
                 'component_id' => $v->component_id,
