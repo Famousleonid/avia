@@ -549,14 +549,47 @@ class ProcessDocumentController extends Controller
 
             // ?check=1 — JS pre-flight: return JSON only, don't build full page
             if ($request->boolean('check')) {
-                $items = array_map(function ($mv) {
+                // Collect calculated OD param ids so we can replace their missing messages
+                // with the mating bore message (bore must be measured first).
+                $calculatedOdParamIds = $odParamsWithSteps->pluck('id')
+                    ->merge($odParamsWithInterference->pluck('id'))
+                    ->unique()->flip()->all(); // id => true map
+
+                // Find mating bore for each unmeasured calculated OD param (no measurement required).
+                $boreMissingMessages = [];
+                if ($repairInfo === null) {
+                    $allOdForBore = $odParamsWithSteps->merge($odParamsWithInterference)->unique('id');
+                    foreach ($allOdForBore as $odParam) {
+                        $odPointIds = $odParam->points->pluck('id')->all();
+                        if (empty($odPointIds)) continue;
+                        $matingBore = ManualParameter::whereHas('points', fn($q) =>
+                                $q->whereIn('manual_dimension_points.id', $odPointIds)
+                            )
+                            ->where('inspection_component_id', '!=', $manualInspectionComponent->id)
+                            ->with('points:id,code')
+                            ->first();
+                        if ($matingBore) {
+                            $borePointCode = $matingBore->points->first()?->code ?? '';
+                            $prefix = 'Ø';
+                            $parts  = [($prefix . $matingBore->description)];
+                            if ($borePointCode) $parts[] = 'point ' . $borePointCode;
+                            $boreMissingMessages[] = implode(' · ', $parts) . ' (required for OD calculation)';
+                        }
+                    }
+                }
+
+                $items = array_values(array_filter(array_map(function ($mv) use ($calculatedOdParamIds) {
+                    // Skip OD params that are calculated — replaced by bore messages below
+                    if (isset($mv['param_id']) && isset($calculatedOdParamIds[$mv['param_id']])) return null;
                     $prefix = $mv['mask'] === 'diameter' ? 'Ø' : ($mv['mask'] === 'radius' ? 'R' : '');
                     $parts  = [];
                     if ($mv['param_desc']) $parts[] = ($prefix . $mv['param_desc']);
                     if ($mv['point_code']) $parts[] = 'point ' . $mv['point_code'];
                     if ($mv['ic_label'])   $parts[] = $mv['ic_label'];
                     return implode(' · ', $parts);
-                }, $missingValues);
+                }, $missingValues)));
+
+                $items = array_merge($boreMissingMessages, $items);
                 return response()->json(['missing' => $items]);
             }
 
