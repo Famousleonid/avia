@@ -52,6 +52,7 @@ class ManualParameterController extends Controller
             'repair_dim_min'         => 'nullable|numeric',
             'repair_dim_max'         => 'nullable|numeric',
             'interference_value'     => 'nullable|numeric',
+            'flange_clearance'       => 'nullable|numeric',
             'inspection'             => 'nullable|string',
             'sort_order'             => 'nullable|integer',
             'codes_ids'              => 'nullable|array',
@@ -75,6 +76,7 @@ class ManualParameterController extends Controller
                 'repair_dim_min'          => $data['repair_dim_min'] ?? null,
                 'repair_dim_max'          => $data['repair_dim_max'] ?? null,
                 'interference_value'      => $data['interference_value'] ?? null,
+                'flange_clearance'        => $data['flange_clearance'] ?? null,
                 'inspection'              => $data['inspection'] ?? null,
                 'sort_order'              => $data['sort_order'] ?? 0,
             ]);
@@ -105,6 +107,7 @@ class ManualParameterController extends Controller
             'repair_dim_min'         => 'nullable|numeric',
             'repair_dim_max'         => 'nullable|numeric',
             'interference_value'     => 'nullable|numeric',
+            'flange_clearance'       => 'nullable|numeric',
             'inspection'             => 'nullable|string',
             'sort_order'             => 'nullable|integer',
         ]);
@@ -131,6 +134,21 @@ class ManualParameterController extends Controller
         }
 
         return response()->json(['ok' => true, 'deleted' => false]);
+    }
+
+    public function updatePointRepair(Request $request, ManualParameter $manualParameter, ManualDimensionPoint $manualDimensionPoint)
+    {
+        $data = $request->validate([
+            'is_repair_surface' => 'required|boolean',
+            'max_repair_depth'  => 'nullable|numeric',
+        ]);
+
+        $manualParameter->points()->updateExistingPivot($manualDimensionPoint->id, [
+            'is_repair_surface' => $data['is_repair_surface'],
+            'max_repair_depth'  => $data['is_repair_surface'] ? ($data['max_repair_depth'] ?? null) : null,
+        ]);
+
+        return response()->json($this->parameterPayload($manualParameter->fresh()));
     }
 
     // ── Codes ─────────────────────────────────────────────────────
@@ -345,6 +363,7 @@ class ManualParameterController extends Controller
             'repair_dim_min'          => $parameter->repair_dim_min,
             'repair_dim_max'          => $parameter->repair_dim_max,
             'interference_value'      => $parameter->interference_value,
+            'flange_clearance'        => $parameter->flange_clearance,
             'inspection'              => $parameter->inspection,
             'sort_order'              => $parameter->sort_order,
             'codes'                   => $parameter->codes->map(fn($c) => [
@@ -354,7 +373,12 @@ class ManualParameterController extends Controller
                 'finding_context' => $c->finding_context,
             ])->filter(fn($c) => $c['name'] !== null)->values(),
             'repair_rules'            => $parameter->repairRules->map(fn($r) => $this->rulePayload($r)),
-            'point_ids'               => $parameter->points->pluck('id'),
+            'points'                  => $parameter->points->map(fn($pt) => [
+                'id'                => $pt->id,
+                'pivot_id'          => $pt->pivot->id,
+                'is_repair_surface' => (bool) $pt->pivot->is_repair_surface,
+                'max_repair_depth'  => $pt->pivot->max_repair_depth,
+            ])->values(),
         ];
     }
 }

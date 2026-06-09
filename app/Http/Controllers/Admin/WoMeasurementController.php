@@ -100,6 +100,7 @@ class WoMeasurementController extends Controller
                 'repair_dim_min'          => $p->repair_dim_min,
                 'repair_dim_max'          => $p->repair_dim_max,
                 'interference_value'      => $p->interference_value,
+                'flange_clearance'        => $p->flange_clearance,
                 'codes'                   => $p->codes
                     ->filter(fn($c) => $c->code !== null)
                     ->map(fn($c) => [
@@ -125,7 +126,12 @@ class WoMeasurementController extends Controller
                         ),
                     ])->values(),
                 ])->values(),
-                'point_ids'           => $p->points->pluck('id')->values(),
+                'points'              => $p->points->map(fn($pt) => [
+                    'id'                => $pt->id,
+                    'pivot_id'          => $pt->pivot->id,
+                    'is_repair_surface' => (bool) $pt->pivot->is_repair_surface,
+                    'max_repair_depth'  => $pt->pivot->max_repair_depth,
+                ])->values(),
                 'repair_steps'        => $p->repairSteps->map(fn($s) => [
                     'step_no'        => $s->step_no,
                     'dim_min'        => $s->dim_min,

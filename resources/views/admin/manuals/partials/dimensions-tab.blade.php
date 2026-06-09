@@ -778,6 +778,7 @@
                         </div>
                         <div class="row g-2 mb-3">
                             <div class="col-6"><label class="form-label form-label-sm">Interference (bushing OD only)</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecInterference" placeholder="—"></div>
+                            <div class="col-6"><label class="form-label form-label-sm">Flange clearance (B nominal)</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecFlangeClr" placeholder="—"></div>
                         </div>
 
                         <div class="fw-semibold mb-1" style="font-size:11px;color:var(--bs-secondary-color)">
@@ -817,6 +818,12 @@
                             <i class="bi bi-plus-lg"></i> Add Repair Step
                         </button>
                     </div>
+                </div>
+
+                {{-- Points: repair surfaces (only shown when editing a parameter with ≥2 points) --}}
+                <div id="dimSpecPointsSection" class="d-none mb-3">
+                    <div class="fw-semibold mb-2" style="font-size:12px;color:var(--bs-secondary-color)">POINTS — Repair Surfaces</div>
+                    <div id="dimSpecPointsList"></div>
                 </div>
 
                 <div class="row g-2 mb-3">
@@ -1403,7 +1410,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function parametersForPoint(pt) {
         return parameters.filter(function (p) {
-            return (p.point_ids || []).indexOf(pt.id) !== -1;
+            return (p.points || []).some(function (pp) { return pp.id === pt.id; });
         });
     }
 
@@ -1441,6 +1448,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecRepairMin').value    = match.repair_dim_min    || '';
         document.getElementById('dimSpecRepairMax').value    = match.repair_dim_max    || '';
         document.getElementById('dimSpecInterference').value = match.interference_value || '';
+        document.getElementById('dimSpecFlangeClr').value    = match.flange_clearance   || '';
         document.getElementById('dimSpecInspection').value   = match.inspection         || '';
         document.getElementById('dimSpecSort').value         = match.sort_order         || 0;
         dimSpecCodes = (match.codes || []).map(function (c) { return { id: c.codes_id, name: c.name || '' }; });
@@ -3046,8 +3054,10 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecRepairMin').value    = '';
         document.getElementById('dimSpecRepairMax').value    = '';
         document.getElementById('dimSpecInterference').value = '';
+        document.getElementById('dimSpecFlangeClr').value    = '';
         document.getElementById('dimSpecInspection').value   = '';
         document.getElementById('dimSpecSort').value         = '0';
+        document.getElementById('dimSpecPointsSection').classList.add('d-none');
         dimSpecCodes = [];
         renderSpecCodesList();
         refreshSpecComponentSelect(inspCompId || '');
@@ -3072,19 +3082,86 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecRepairMin').value    = param.repair_dim_min     || '';
         document.getElementById('dimSpecRepairMax').value    = param.repair_dim_max     || '';
         document.getElementById('dimSpecInterference').value = param.interference_value  || '';
+        document.getElementById('dimSpecFlangeClr').value    = param.flange_clearance    || '';
         document.getElementById('dimSpecInspection').value   = param.inspection          || '';
         document.getElementById('dimSpecSort').value        = param.sort_order || '0';
         dimSpecCodes = (param.codes || []).map(function (c) { return { id: c.codes_id, name: c.name || '', finding_context: c.finding_context || 'inspection' }; });
         renderSpecCodesList();
         document.getElementById('dimSpecModalTitle').textContent = 'Edit Parameter — ' + (param.description || '');
         document.getElementById('dimSpecDeleteBtn').classList.remove('d-none');
-        const multiPoint = (param.point_ids || []).length > 1;
-        document.getElementById('dimSpecDetachBtn').classList.toggle('d-none', !multiPoint);
+        const paramPoints = param.points || [];
+        document.getElementById('dimSpecDetachBtn').classList.toggle('d-none', paramPoints.length <= 1);
         document.getElementById('dimSpecError').classList.add('d-none');
+        renderParamPointsSection(param);
         // Load repair steps for this parameter (independent per part)
         closeRepairStepForm();
         loadRepairSteps(param.id);
         specModal.show();
+    }
+
+    // ==========================
+    // Points — Repair Surfaces (inside Edit Parameter modal)
+    // ==========================
+
+    function renderParamPointsSection(param) {
+        const section = document.getElementById('dimSpecPointsSection');
+        const list    = document.getElementById('dimSpecPointsList');
+        const pts     = param.points || [];
+        if (pts.length < 2) { section.classList.add('d-none'); return; }
+        section.classList.remove('d-none');
+
+        list.innerHTML = pts.map(function (pt) {
+            const figPt  = (activeFigure && activeFigure.points || []).find(function (p) { return p.id === pt.id; });
+            const label  = figPt ? (figPt.code + (figPt.description ? ' — ' + figPt.description : '')) : ('Point #' + pt.id);
+            const chk    = pt.is_repair_surface ? 'checked' : '';
+            const depth  = pt.max_repair_depth != null ? pt.max_repair_depth : '';
+            const dNone  = pt.is_repair_surface ? '' : 'd-none';
+            return `<div class="border rounded p-2 mb-1 d-flex align-items-center gap-2" style="font-size:12px">
+                <span class="flex-grow-1 fw-semibold">${escHtml(label)}</span>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input dim-pt-repair-chk" type="checkbox" ${chk}
+                        data-param-id="${param.id}" data-point-id="${pt.id}" title="Repair surface">
+                    <label class="form-check-label text-secondary" style="font-size:11px">Repair surface</label>
+                </div>
+                <input type="number" step="0.0001" placeholder="Max depth"
+                    class="form-control form-control-sm dim-pt-depth-inp ${dNone}"
+                    style="width:110px" value="${escHtml(String(depth))}"
+                    data-param-id="${param.id}" data-point-id="${pt.id}">
+            </div>`;
+        }).join('');
+
+        list.querySelectorAll('.dim-pt-repair-chk').forEach(function (chk) {
+            chk.addEventListener('change', async function () {
+                const paramId = chk.dataset.paramId;
+                const pointId = chk.dataset.pointId;
+                const isRepair = chk.checked;
+                const row   = chk.closest('.border');
+                const depInp = row.querySelector('.dim-pt-depth-inp');
+                depInp.classList.toggle('d-none', !isRepair);
+                await savePointRepair(paramId, pointId, isRepair, isRepair ? (depInp.value || null) : null);
+            });
+        });
+
+        list.querySelectorAll('.dim-pt-depth-inp').forEach(function (inp) {
+            inp.addEventListener('change', async function () {
+                const paramId = inp.dataset.paramId;
+                const pointId = inp.dataset.pointId;
+                await savePointRepair(paramId, pointId, true, inp.value || null);
+            });
+        });
+    }
+
+    async function savePointRepair(paramId, pointId, isRepairSurface, maxDepth) {
+        try {
+            const saved = await apiFetch('/parameters/' + paramId + '/points/' + pointId + '/repair', {
+                method: 'PATCH',
+                body: JSON.stringify({ is_repair_surface: isRepairSurface, max_repair_depth: maxDepth }),
+            });
+            const idx = parameters.findIndex(function (p) { return p.id == paramId; });
+            if (idx !== -1) parameters[idx] = saved;
+        } catch (e) {
+            console.error('Failed to save repair surface', e);
+        }
     }
 
     // ==========================
@@ -4032,6 +4109,7 @@ document.addEventListener('DOMContentLoaded', function () {
             repair_dim_min:          document.getElementById('dimSpecRepairMin').value || null,
             repair_dim_max:          document.getElementById('dimSpecRepairMax').value || null,
             interference_value:      document.getElementById('dimSpecInterference').value || null,
+            flange_clearance:        document.getElementById('dimSpecFlangeClr').value || null,
             inspection:              document.getElementById('dimSpecInspection').value.trim() || null,
             sort_order:              parseInt(document.getElementById('dimSpecSort').value) || 0,
         };
