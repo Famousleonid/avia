@@ -1273,7 +1273,7 @@
         const uid = param.id+'_'+stage;
         const hasMeas = param.orig_dim_min !== null || param.orig_dim_max !== null;
         const inspCodes = (param.codes||[]).filter(c => c.finding_context !== 'measurement');
-        const hasInsp = inspCodes.length > 0;
+        const hasInsp = stage !== 'final' && inspCodes.length > 0;
         const codesOpts = inspCodes.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
 
         const d=document.createElement('div'); d.className='ms-form-wrap mt-2';
