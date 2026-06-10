@@ -729,6 +729,10 @@
                         <input class="form-check-input" type="checkbox" id="dimSpecRequiresValue">
                         <label class="form-check-label form-label-sm" for="dimSpecRequiresValue">Record actual value</label>
                     </div>
+                    <div class="d-flex align-items-center gap-1 ms-auto">
+                        <label class="form-label form-label-sm mb-0" for="dimSpecQty" title="Parts installed at this position (e.g. 2 bushings per lug)">Qty</label>
+                        <input type="number" class="form-control form-control-sm" id="dimSpecQty" value="1" min="1" max="99" style="width:60px">
+                    </div>
                 </div>
 
                 <div class="row g-2 mb-2">
@@ -1454,6 +1458,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecId').value          = match.id;
         document.getElementById('dimSpecRequired').checked       = !!match.is_required;
         document.getElementById('dimSpecRequiresValue').checked  = !!match.requires_value;
+        document.getElementById('dimSpecQty').value              = match.qty || 1;
         document.getElementById('dimSpecOrigMin').value      = match.orig_dim_min      || '';
         document.getElementById('dimSpecOrigMax').value      = match.orig_dim_max      || '';
         document.getElementById('dimSpecWearMin').value      = match.wear_dim_min      || '';
@@ -3092,6 +3097,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecDescription').value = '';
         document.getElementById('dimSpecRequired').checked       = true;
         document.getElementById('dimSpecRequiresValue').checked  = false;
+        document.getElementById('dimSpecQty').value              = 1;
         document.getElementById('dimSpecOrigMin').value      = '';
         document.getElementById('dimSpecOrigMax').value      = '';
         document.getElementById('dimSpecWearMin').value      = '';
@@ -3122,6 +3128,7 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshSpecComponentSelect(param.inspection_component_id || '');
         document.getElementById('dimSpecRequired').checked       = !!param.is_required;
         document.getElementById('dimSpecRequiresValue').checked  = !!param.requires_value;
+        document.getElementById('dimSpecQty').value              = param.qty || 1;
         document.getElementById('dimSpecOrigMin').value      = param.orig_dim_min       || '';
         document.getElementById('dimSpecOrigMax').value      = param.orig_dim_max       || '';
         document.getElementById('dimSpecWearMin').value      = param.wear_dim_min       || '';
@@ -4168,6 +4175,7 @@ document.addEventListener('DOMContentLoaded', function () {
             inspection_component_id: $('#dimSpecComponent').val() || null,
             is_required:             document.getElementById('dimSpecRequired').checked,
             requires_value:          document.getElementById('dimSpecRequiresValue').checked,
+            qty:                     parseInt(document.getElementById('dimSpecQty').value) || 1,
             orig_dim_min:            document.getElementById('dimSpecOrigMin').value || null,
             orig_dim_max:            document.getElementById('dimSpecOrigMax').value || null,
             wear_dim_min:            document.getElementById('dimSpecWearMin').value || null,

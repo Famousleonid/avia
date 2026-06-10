@@ -94,6 +94,7 @@ class WoMeasurementController extends Controller
                 'description'             => $p->description,
                 'is_required'             => $p->is_required,
                 'requires_value'          => $p->requires_value,
+                'qty'                     => $p->qty,
                 'orig_dim_min'            => $p->orig_dim_min,
                 'orig_dim_max'            => $p->orig_dim_max,
                 'wear_dim_min'            => $p->wear_dim_min,

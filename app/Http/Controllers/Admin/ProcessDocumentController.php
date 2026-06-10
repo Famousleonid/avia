@@ -363,8 +363,22 @@ class ProcessDocumentController extends Controller
             ->with(['repairSteps.component', 'points:id,code'])
             ->get();
 
-        $odParamsWithSteps        = $allOdParams->filter(fn($p) => $p->repairSteps->isNotEmpty());
-        $odParamsWithInterference = $allOdParams->filter(fn($p) => $p->interference_value !== null);
+        $odParamsWithSteps = $allOdParams->filter(fn($p) => $p->repairSteps->isNotEmpty());
+
+        // Case B candidates: fit derived from pair limits — OD param with orig
+        // limits whose point is shared with another component's param that also
+        // has orig limits (mirrors hasMatingBore() in measurements JS).
+        $odParamsWithFit = $allOdParams->filter(function ($p) use ($manualInspectionComponent) {
+            if ($p->orig_dim_min === null || $p->orig_dim_max === null) return false;
+            $ptIds = $p->points->pluck('id')->all();
+            if (empty($ptIds)) return false;
+            return ManualParameter::whereHas('points', fn($q) =>
+                    $q->whereIn('manual_dimension_points.id', $ptIds)
+                )
+                ->where('inspection_component_id', '!=', $manualInspectionComponent->id)
+                ->whereNotNull('orig_dim_min')->whereNotNull('orig_dim_max')
+                ->exists();
+        });
 
         // ── 2. Replicate getMatingRepairInfo logic ─────────────────────────
         $repairInfo = null;
@@ -388,6 +402,10 @@ class ProcessDocumentController extends Controller
                 });
         };
 
+        // Collect repair info PER OD param — two bushing positions on different
+        // lugs may have different repairs (different steps / different req OD).
+        $repairInfos = [];
+
         // Case A: discrete repair steps
         foreach ($odParamsWithSteps as $odParam) {
             $matingParam = $findMatingBore($odParam, true);
@@ -396,7 +414,7 @@ class ProcessDocumentController extends Controller
                 ->where('manual_parameter_id', $matingParam->id)
                 ->where('stage', 'final')->whereNotNull('repair_step_no')
                 ->latest('id')->first();
-            $repairInfo = [
+            $repairInfos[] = [
                 'useTolerance'  => false,
                 'odParam'       => $odParam,
                 'matingParam'   => $matingParam,
@@ -404,37 +422,60 @@ class ProcessDocumentController extends Controller
                 'step'          => $odParam->repairSteps->first(fn($s) => $s->step_no === $meas->repair_step_no),
                 'measuredValue' => (float) $meas->actual_value,
             ];
-            break;
         }
 
-        // Case B: interference_value → continuous calculation
-        if (!$repairInfo) {
-            foreach ($odParamsWithInterference as $odParam) {
-                $matingParam = $findMatingBore($odParam, false);
-                if (!$matingParam) continue;
-                $meas = WoMeasurement::where('workorder_id', $workorder->id)
-                    ->where('manual_parameter_id', $matingParam->id)
-                    ->where('stage', 'final')->whereNotNull('actual_value')
-                    ->latest('id')->first();
-                $bore        = (float) $meas->actual_value;
-                $interference = (float) $odParam->interference_value;
-                $tolSpread   = ($odParam->orig_dim_min !== null && $odParam->orig_dim_max !== null)
-                    ? round((float)$odParam->orig_dim_max - (float)$odParam->orig_dim_min, 4)
-                    : 0;
-                $repairInfo = [
-                    'useTolerance'    => true,
-                    'odParam'         => $odParam,
-                    'matingParam'     => $matingParam,
-                    'stepNo'          => null,
-                    'step'            => null,
-                    'measuredValue'   => $bore,
-                    'interference'    => $interference,
-                    'calculatedOdMin' => round($bore + $interference, 4),
-                    'calculatedOdMax' => round($bore + $interference + $tolSpread, 4),
-                ];
-                break;
-            }
+        // Case B: continuous — fit derived from the pair's factory limits:
+        //   fit_min = OD_orig_min − ID_orig_max; fit_max = OD_orig_max − ID_orig_min
+        //   req OD  = [ID_final + fit_min, ID_final + fit_max]
+        $caseAIds = collect($repairInfos)->pluck('odParam.id')->flip();
+        foreach ($odParamsWithFit as $odParam) {
+            if ($caseAIds->has($odParam->id)) continue;
+            $matingParam = $findMatingBore($odParam, false);
+            if (!$matingParam) continue;
+            if ($matingParam->orig_dim_min === null || $matingParam->orig_dim_max === null) continue;
+            $meas = WoMeasurement::where('workorder_id', $workorder->id)
+                ->where('manual_parameter_id', $matingParam->id)
+                ->where('stage', 'final')->whereNotNull('actual_value')
+                ->latest('id')->first();
+            $bore   = (float) $meas->actual_value;
+            $fitMin = round((float)$odParam->orig_dim_min - (float)$matingParam->orig_dim_max, 4);
+            $fitMax = round((float)$odParam->orig_dim_max - (float)$matingParam->orig_dim_min, 4);
+            $repairInfos[] = [
+                'useTolerance'    => true,
+                'odParam'         => $odParam,
+                'matingParam'     => $matingParam,
+                'stepNo'          => null,
+                'step'            => null,
+                'measuredValue'   => $bore,
+                'fitMin'          => $fitMin,
+                'fitMax'          => $fitMax,
+                'calculatedOdMin' => round($bore + $fitMin, 4),
+                'calculatedOdMax' => round($bore + $fitMax, 4),
+            ];
         }
+
+        // Group positions with an IDENTICAL repair result onto one sheet
+        // (same lug pair / same repair → one P/N, qty 2). Different results
+        // print as separate sheets.
+        $groups = [];
+        foreach ($repairInfos as $info) {
+            $key = $info['useTolerance']
+                ? 'B|' . $info['calculatedOdMin'] . '|' . $info['calculatedOdMax']
+                : 'A|' . $info['stepNo'] . '|' . ($info['step']?->component?->part_number ?? '');
+            if (!isset($groups[$key])) {
+                $groups[$key] = ['info' => $info, 'points' => [], 'qty' => 0];
+            }
+            foreach ($info['odParam']->points as $pt) {
+                if ($pt->code && !in_array($pt->code, $groups[$key]['points'])) {
+                    $groups[$key]['points'][] = $pt->code;
+                }
+            }
+            // qty per position lives on the parameter (e.g. 2 bushings per lug)
+            $groups[$key]['qty'] += max(1, (int) ($info['odParam']->qty ?? 1));
+        }
+        $groups = array_values($groups);
+
+        $repairInfo = $repairInfos[0] ?? null; // back-compat (title, check logic)
 
         // ── 3. Find the ProcessDocumentPage for this IC ────────────────────
         $rpIds = ManualParameter::where('inspection_component_id', $manualInspectionComponent->id)
@@ -467,61 +508,64 @@ class ProcessDocumentController extends Controller
 
         $titleText = $icLabel . ($repairInfo ? ' — Oversize ' . $repairInfo['stepNo'] : '');
 
-        if ($repairInfo && !$repairInfo['useTolerance']) {
-            // ── Case A: discrete step ──────────────────────────────────────
-            $step = $repairInfo['step'];
-            $comp = $step?->component;
+        $buildDataPanel = function (array $info, array $pointCodes, int $qty) use ($workorder, $partCell): string {
+            $posRow = $pointCodes
+                ? '<tr><td style="color:#6c757d;padding:3px 12px 3px 0">Position</td><td><strong>' . e(implode(', ', $pointCodes)) . '</strong>'
+                    . ($qty > 1 ? ' <span style="color:#0d6efd;font-weight:700">· Qty ' . $qty . '</span>' : '') . '</td></tr>'
+                : '';
 
             $boreRow = '<tr><td>Bore measured</td><td><strong>'
-                . number_format($repairInfo['measuredValue'], 4) . ' in</strong>'
-                . ' <span style="color:#6c757d">(' . e($repairInfo['matingParam']->description ?? '') . ')</span></td></tr>';
+                . number_format($info['measuredValue'], 4) . ' in</strong>'
+                . ' <span style="color:#6c757d">(' . e($info['matingParam']->description ?? '') . ')</span></td></tr>';
 
-            $pnRow = $comp
-                ? '<tr><td>Required P/N</td><td><strong>' . e($comp->part_number ?? '—') . '</strong>'
-                    . ($comp->ipl_num ? ' <span style="color:#6c757d">(IPL# ' . e($comp->ipl_num) . ')</span>' : '') . '</td></tr>'
-                : '<tr><td>Required P/N</td><td style="color:#dc3545">— not configured —</td></tr>';
+            if (!$info['useTolerance']) {
+                // ── Case A: discrete step ──────────────────────────────────
+                $step = $info['step'];
+                $comp = $step?->component;
 
-            $odRows = $step
-                ? '<tr style="border-top:1px solid #dee2e6"><td style="padding-top:10px">OD required min</td><td style="padding-top:10px;font-size:14px;font-weight:700">' . number_format((float)$step->dim_min, 4) . ' in</td></tr>'
-                  . '<tr><td>OD required max</td><td style="font-size:14px;font-weight:700">' . number_format((float)$step->dim_max, 4) . ' in</td></tr>'
-                  . ($step->after_dim_min !== null ? '<tr><td style="color:#6c757d">After plate min</td><td style="color:#6c757d">' . number_format((float)$step->after_dim_min, 4) . '</td></tr>' : '')
-                  . ($step->after_dim_max !== null ? '<tr><td style="color:#6c757d">After plate max</td><td style="color:#6c757d">' . number_format((float)$step->after_dim_max, 4) . '</td></tr>' : '')
-                : '<tr style="border-top:1px solid #dee2e6"><td colspan="2" style="color:#dc3545;padding-top:10px">Step ' . e($repairInfo['stepNo']) . ' not configured in OD steps</td></tr>';
+                $pnRow = $comp
+                    ? '<tr><td>Required P/N</td><td><strong>' . e($comp->part_number ?? '—') . '</strong>'
+                        . ($comp->ipl_num ? ' <span style="color:#6c757d">(IPL# ' . e($comp->ipl_num) . ')</span>' : '') . '</td></tr>'
+                    : '<tr><td>Required P/N</td><td style="color:#dc3545">— not configured —</td></tr>';
 
-            $dataHtml = '
+                $odRows = $step
+                    ? '<tr style="border-top:1px solid #dee2e6"><td style="padding-top:10px">OD required min</td><td style="padding-top:10px;font-size:14px;font-weight:700">' . number_format((float)$step->dim_min, 4) . ' in</td></tr>'
+                      . '<tr><td>OD required max</td><td style="font-size:14px;font-weight:700">' . number_format((float)$step->dim_max, 4) . ' in</td></tr>'
+                      . ($step->after_dim_min !== null ? '<tr><td style="color:#6c757d">After plate min</td><td style="color:#6c757d">' . number_format((float)$step->after_dim_min, 4) . '</td></tr>' : '')
+                      . ($step->after_dim_max !== null ? '<tr><td style="color:#6c757d">After plate max</td><td style="color:#6c757d">' . number_format((float)$step->after_dim_max, 4) . '</td></tr>' : '')
+                    : '<tr style="border-top:1px solid #dee2e6"><td colspan="2" style="color:#dc3545;padding-top:10px">Step ' . e($info['stepNo']) . ' not configured in OD steps</td></tr>';
+
+                return '
+                <table style="border-collapse:collapse;width:100%;font-size:12px">
+                  <tr><td style="color:#6c757d;padding:3px 12px 3px 0;white-space:nowrap">W/O</td><td><strong>' . e('W' . $workorder->number) . '</strong></td></tr>
+                  <tr><td style="color:#6c757d;padding:3px 12px 3px 0">Part</td><td>' . $partCell . '</td></tr>
+                  ' . $posRow . '
+                  <tr><td style="color:#6c757d;padding:3px 12px 3px 0">Repair step</td><td><span style="color:#0d6efd;font-weight:700">' . e($info['stepNo']) . '</span></td></tr>
+                  ' . $boreRow . $pnRow . $odRows . '
+                </table>';
+            }
+
+            // ── Case B: continuous fit ─────────────────────────────────────
+            $intRow = '<tr><td style="color:#6c757d">+ Fit</td><td>'
+                . number_format($info['fitMin'], 4) . ' … ' . number_format($info['fitMax'], 4) . ' in</td></tr>';
+
+            $odRows = '<tr style="border-top:1px solid #dee2e6"><td style="padding-top:10px">OD required min</td><td style="padding-top:10px;font-size:14px;font-weight:700">' . number_format($info['calculatedOdMin'], 4) . ' in</td></tr>'
+                    . '<tr><td>OD required max</td><td style="font-size:14px;font-weight:700">' . number_format($info['calculatedOdMax'], 4) . ' in</td></tr>';
+
+            return '
             <table style="border-collapse:collapse;width:100%;font-size:12px">
               <tr><td style="color:#6c757d;padding:3px 12px 3px 0;white-space:nowrap">W/O</td><td><strong>' . e('W' . $workorder->number) . '</strong></td></tr>
               <tr><td style="color:#6c757d;padding:3px 12px 3px 0">Part</td><td>' . $partCell . '</td></tr>
-              <tr><td style="color:#6c757d;padding:3px 12px 3px 0">Repair step</td><td><span style="color:#0d6efd;font-weight:700">' . e($repairInfo['stepNo']) . '</span></td></tr>
-              ' . $boreRow . $pnRow . $odRows . '
+              ' . $posRow . $boreRow . $intRow . $odRows . '
             </table>';
+        };
 
-        } elseif ($repairInfo && $repairInfo['useTolerance']) {
-            // ── Case B: continuous tolerance ───────────────────────────────
-            $boreRow = '<tr><td>Bore measured</td><td><strong>'
-                . number_format($repairInfo['measuredValue'], 4) . ' in</strong>'
-                . ' <span style="color:#6c757d">(' . e($repairInfo['matingParam']->description ?? '') . ')</span></td></tr>';
-
-            $intRow = '<tr><td style="color:#6c757d">+ Interference</td><td>' . number_format($repairInfo['interference'], 4) . ' in</td></tr>';
-
-            $odRows = '<tr style="border-top:1px solid #dee2e6"><td style="padding-top:10px">OD required min</td><td style="padding-top:10px;font-size:14px;font-weight:700">' . number_format($repairInfo['calculatedOdMin'], 4) . ' in</td></tr>'
-                    . '<tr><td>OD required max</td><td style="font-size:14px;font-weight:700">' . number_format($repairInfo['calculatedOdMax'], 4) . ' in</td></tr>';
-
-            $dataHtml = '
-            <table style="border-collapse:collapse;width:100%;font-size:12px">
-              <tr><td style="color:#6c757d;padding:3px 12px 3px 0;white-space:nowrap">W/O</td><td><strong>' . e('W' . $workorder->number) . '</strong></td></tr>
-              <tr><td style="color:#6c757d;padding:3px 12px 3px 0">Part</td><td>' . $partCell . '</td></tr>
-              ' . $boreRow . $intRow . $odRows . '
-            </table>';
-
-        } else {
-            $dataHtml = '
+        $emptyDataHtml = '
             <table style="border-collapse:collapse;width:100%;font-size:12px">
               <tr><td style="color:#6c757d;padding:3px 12px 3px 0">W/O</td><td><strong>' . e('W' . $workorder->number) . '</strong></td></tr>
               <tr><td style="color:#6c757d;padding:3px 12px 3px 0">Part</td><td>' . $partCell . '</td></tr>
               <tr><td style="color:#6c757d;padding:3px 12px 3px 0">Repair step</td><td style="color:#6c757d">— mating not measured yet —</td></tr>
             </table>';
-        }
 
         // ── 5. Render drawing with overlays ────────────────────────────────
         if ($request->boolean('check') && !$page) {
@@ -535,7 +579,7 @@ class ProcessDocumentController extends Controller
             $renderer    = new ProcessDocumentRenderer();
 
             // Pass OD range as fallback for OD dimension elements in the drawing
-            $drawingContext = [];
+            $drawingContext = ['od_override' => true];
             if ($repairInfo && !$repairInfo['useTolerance'] && $repairInfo['step']) {
                 $drawingContext['od_dim_min'] = (float) $repairInfo['step']->dim_min;
                 $drawingContext['od_dim_max'] = (float) $repairInfo['step']->dim_max;
@@ -552,13 +596,16 @@ class ProcessDocumentController extends Controller
                 // Collect calculated OD param ids so we can replace their missing messages
                 // with the mating bore message (bore must be measured first).
                 $calculatedOdParamIds = $odParamsWithSteps->pluck('id')
-                    ->merge($odParamsWithInterference->pluck('id'))
+                    ->merge($odParamsWithFit->pluck('id'))
                     ->unique()->flip()->all(); // id => true map
 
-                // Find mating bore for each unmeasured calculated OD param (no measurement required).
+                // Find mating bore for each unmeasured calculated OD param (no measurement
+                // required). Per-position: one lug measured + another not → still warn.
                 $boreMissingMessages = [];
-                if ($repairInfo === null) {
-                    $allOdForBore = $odParamsWithSteps->merge($odParamsWithInterference)->unique('id');
+                $measuredOdIds = collect($repairInfos)->pluck('odParam.id')->flip();
+                {
+                    $allOdForBore = $odParamsWithSteps->merge($odParamsWithFit)->unique('id')
+                        ->reject(fn($p) => $measuredOdIds->has($p->id));
                     foreach ($allOdForBore as $odParam) {
                         $odPointIds = $odParam->points->pluck('id')->all();
                         if (empty($odPointIds)) continue;
@@ -598,11 +645,40 @@ class ProcessDocumentController extends Controller
             // Always render the drawing — missing elements are silently skipped.
             // The ?check=1 pre-flight (called by JS before opening this tab) already
             // guards against opening when measurements are absent.
-            $innerHtml   = $renderer->renderSinglePageHtml($page, $workorder, $drawingContext, $docParam);
-            $labelHtml   = $processName
+            $labelHtml = $processName
                 ? '<div style="font-size:10px;color:#6c757d;margin-bottom:6px">' . e($processName) . '</div>'
                 : '';
-            $drawingHtml = $labelHtml . $innerHtml;
+
+            if ($groups) {
+                // One section per distinct repair result — each with its own
+                // OD values substituted into the drawing (page break in print).
+                $sections = [];
+                foreach ($groups as $g) {
+                    $info = $g['info'];
+                    $ctx  = ['od_override' => true];
+                    if (!$info['useTolerance'] && $info['step']) {
+                        $ctx['od_dim_min'] = (float) $info['step']->dim_min;
+                        $ctx['od_dim_max'] = (float) $info['step']->dim_max;
+                    } elseif ($info['useTolerance']) {
+                        $ctx['od_dim_min'] = $info['calculatedOdMin'];
+                        $ctx['od_dim_max'] = $info['calculatedOdMax'];
+                    }
+                    $sections[] = [
+                        'data'    => $buildDataPanel($info, $g['points'], $g['qty']),
+                        'drawing' => $labelHtml . $renderer->renderSinglePageHtml($page, $workorder, $ctx, $docParam),
+                    ];
+                }
+            } else {
+                $sections = [[
+                    'data'    => $emptyDataHtml,
+                    'drawing' => $labelHtml . $renderer->renderSinglePageHtml($page, $workorder, $drawingContext, $docParam),
+                ]];
+            }
+        } else {
+            $sections = [[
+                'data'    => $groups ? $buildDataPanel($groups[0]['info'], $groups[0]['points'], $groups[0]['qty']) : $emptyDataHtml,
+                'drawing' => $drawingHtml,
+            ]];
         }
 
         // ── 6. Assemble 2-column page ──────────────────────────────────────
@@ -636,10 +712,12 @@ class ProcessDocumentController extends Controller
   .btn-edit{background:#fff;color:#6c757d;border-color:#dee2e6}
   .btn-edit.active{background:#fff3cd;color:#856404;border-color:#ffc107}
   .save-indicator{font-size:11px;color:#6c757d;min-width:80px;text-align:right}
+  .wrap + .wrap{border-top:2px dashed #dee2e6}
   @media print{
     .toolbar{display:none!important}
     .left{display:none!important}
-    .wrap{display:block!important}
+    .wrap{display:block!important;min-height:0}
+    .wrap + .wrap{page-break-before:always;border-top:none}
     .right{padding:0}
     body{background:#fff}
     .pdw-el{cursor:default!important;outline:none!important}
@@ -651,13 +729,19 @@ class ProcessDocumentController extends Controller
   <button class="btn btn-edit" id="editBtn" onclick="toggleEdit()">✎ Edit labels</button>
   <button class="btn btn-secondary" onclick="window.close()">✕ Cancel</button>
   <button class="btn btn-primary" onclick="window.print()">⎙ Print</button>
-</div>
+</div>';
+
+        foreach ($sections as $s) {
+            $html .= '
 <div class="wrap">
   <div class="left">
-    ' . $dataHtml . '
+    ' . $s['data'] . '
   </div>
-  <div class="right">' . $drawingHtml . '</div>
-</div>
+  <div class="right">' . $s['drawing'] . '</div>
+</div>';
+        }
+
+        $html .= '
 <script>
 const CSRF = \'' . csrf_token() . '\';
 let editMode = false;

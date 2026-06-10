@@ -263,6 +263,13 @@ class ProcessDocumentRenderer
                 return $prefix . $result;
             }
             if ($e->value_source === 'measurement') {
+                // Bushing sketch: the required OD range from context takes
+                // precedence — the drawing must show the size to MAKE, not the
+                // raw mating bore measurement.
+                if (!empty($context['od_override'])) {
+                    $fb = $this->odStepFallback($context, $docParam, $e);
+                    if ($fb !== '—') return $prefix . $fb;
+                }
                 $v = $this->measurementValue($workorder->id, $e->source_parameter_id);
                 if ($v === null) {
                     $fallback = $this->odStepFallback($context, $docParam, $e);
