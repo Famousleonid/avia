@@ -781,8 +781,10 @@
                             <div class="col"><label class="form-label form-label-sm">Repair Max</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecRepairMax" placeholder="—"></div>
                         </div>
                         <div class="row g-2 mb-3" id="dimSpecBushingFields" style="display:none">
-                            <div class="col-6"><label class="form-label form-label-sm">Interference (bushing OD only)</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecInterference" placeholder="—"></div>
-                            <div class="col-6"><label class="form-label form-label-sm">Flange clearance (B nominal)</label><input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecFlangeClr" placeholder="—"></div>
+                            <div class="col-6">
+                                <label class="form-label form-label-sm">Fit — derived from pair limits (− = clearance)</label>
+                                <div class="form-control form-control-sm font-monospace" id="dimSpecIntRange" style="background:rgba(0,0,0,.06)">—</div>
+                            </div>
                         </div>
 
                         <div class="fw-semibold mb-1" style="font-size:11px;color:var(--bs-secondary-color)">
@@ -828,6 +830,12 @@
                 <div id="dimSpecRepairSurfaceSection" class="d-none mb-3">
                     <div class="fw-semibold mb-2" style="font-size:12px;color:var(--bs-secondary-color)">REPAIR SURFACE — Linear Endpoints</div>
                     <div id="dimSpecRepairSurfaceList"></div>
+                    <div class="row g-2 mt-1">
+                        <div class="col-6">
+                            <label class="form-label form-label-sm">Flange clearance (B nominal)</label>
+                            <input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecFlangeClr" placeholder="—">
+                        </div>
+                    </div>
                 </div>
 
                 <div class="row g-2 mb-3">
@@ -1452,8 +1460,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecWearMax').value      = match.wear_dim_max      || '';
         document.getElementById('dimSpecRepairMin').value    = match.repair_dim_min    || '';
         document.getElementById('dimSpecRepairMax').value    = match.repair_dim_max    || '';
-        document.getElementById('dimSpecInterference').value = match.interference_value || '';
         document.getElementById('dimSpecFlangeClr').value    = match.flange_clearance   || '';
+        updateIntRangeDisplay(match);
         document.getElementById('dimSpecInspection').value   = match.inspection         || '';
         document.getElementById('dimSpecSort').value         = match.sort_order         || 0;
         dimSpecCodes = (match.codes || []).map(function (c) { return { id: c.codes_id, name: c.name || '' }; });
@@ -1585,11 +1593,30 @@ document.addEventListener('DOMContentLoaded', function () {
         const show = !!(ic && ic.is_bush);
         document.getElementById('dimSpecBushingFields').style.display = show ? '' : 'none';
         if (!show) {
-            document.getElementById('dimSpecInterference').value = '';
-            document.getElementById('dimSpecFlangeClr').value    = '';
+            document.getElementById('dimSpecIntRange').textContent = '—';
         }
     }
     $('#dimSpecComponent').on('change', updateBushingFields);
+
+    // Derived interference fit: int_min = OD_min − ID_max, int_max = OD_max − ID_min
+    // (OD = this param, ID = mating bore sharing the same point)
+    function updateIntRangeDisplay(param) {
+        const el = document.getElementById('dimSpecIntRange');
+        el.textContent = '—';
+        if (!param || param.orig_dim_min == null || param.orig_dim_max == null) return;
+        const ptIds = new Set((param.points || []).map(function (pt) { return pt.id; }));
+        if (!ptIds.size) return;
+        const mating = parameters.find(function (p) {
+            return p.id !== param.id &&
+                   p.inspection_component_id !== param.inspection_component_id &&
+                   p.orig_dim_min != null && p.orig_dim_max != null &&
+                   (p.points || []).some(function (pt) { return ptIds.has(pt.id); });
+        });
+        if (!mating) { el.textContent = 'no mating bore found'; return; }
+        const intMin = (parseFloat(param.orig_dim_min) - parseFloat(mating.orig_dim_max)).toFixed(4);
+        const intMax = (parseFloat(param.orig_dim_max) - parseFloat(mating.orig_dim_min)).toFixed(4);
+        el.textContent = intMin + ' … ' + intMax;
+    }
 
     // ---- Spec defect codes list ----
     let dimSpecCodes = []; // [{id, name, finding_context}]
@@ -3071,7 +3098,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecWearMax').value      = '';
         document.getElementById('dimSpecRepairMin').value    = '';
         document.getElementById('dimSpecRepairMax').value    = '';
-        document.getElementById('dimSpecInterference').value = '';
+        document.getElementById('dimSpecIntRange').textContent = '—';
         document.getElementById('dimSpecFlangeClr').value    = '';
         document.getElementById('dimSpecInspection').value   = '';
         document.getElementById('dimSpecSort').value         = '0';
@@ -3101,8 +3128,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecWearMax').value      = param.wear_dim_max       || '';
         document.getElementById('dimSpecRepairMin').value    = param.repair_dim_min     || '';
         document.getElementById('dimSpecRepairMax').value    = param.repair_dim_max     || '';
-        document.getElementById('dimSpecInterference').value = param.interference_value  || '';
         document.getElementById('dimSpecFlangeClr').value    = param.flange_clearance    || '';
+        updateIntRangeDisplay(param);
         document.getElementById('dimSpecInspection').value   = param.inspection          || '';
         document.getElementById('dimSpecSort').value        = param.sort_order || '0';
         dimSpecCodes = (param.codes || []).map(function (c) { return { id: c.codes_id, name: c.name || '', finding_context: c.finding_context || 'inspection' }; });
@@ -4147,7 +4174,6 @@ document.addEventListener('DOMContentLoaded', function () {
             wear_dim_max:            document.getElementById('dimSpecWearMax').value || null,
             repair_dim_min:          document.getElementById('dimSpecRepairMin').value || null,
             repair_dim_max:          document.getElementById('dimSpecRepairMax').value || null,
-            interference_value:      document.getElementById('dimSpecInterference').value || null,
             flange_clearance:        document.getElementById('dimSpecFlangeClr').value || null,
             inspection:              document.getElementById('dimSpecInspection').value.trim() || null,
             sort_order:              parseInt(document.getElementById('dimSpecSort').value) || 0,

@@ -826,8 +826,11 @@
         if (hasRepairTdr) {
             hint.classList.add('d-none');
             updateBtn.classList.remove('d-none');
-            updateBtn.disabled = !hasAnyRealMeasurements;
-            updateBtn.title = hasAnyRealMeasurements ? '' : 'Введите замеры/инспекцию перед обновлением процессов';
+            // Not using `disabled` — an inactive button must still catch clicks
+            // to explain why it is inactive.
+            updateBtn.dataset.inactive = hasAnyRealMeasurements ? '' : '1';
+            updateBtn.style.opacity = hasAnyRealMeasurements ? '' : '0.45';
+            updateBtn.title = hasAnyRealMeasurements ? '' : 'Enter measurements/inspection data before updating processes';
         } else if (hasRepairFail) {
             hint.classList.remove('d-none');
             updateBtn.classList.add('d-none');
@@ -838,6 +841,12 @@
     }
 
     document.getElementById('ms-update-processes-btn')?.addEventListener('click', async function () {
+        if (this.dataset.inactive === '1') {
+            const msg = 'No measurement/inspection data — enter measurements before updating processes';
+            if (typeof showNotification === 'function') showNotification(msg, 'warning');
+            else alert(msg);
+            return;
+        }
         const part = partsTree.find(p => p.id === activePartId);
         if (!part) return;
         this.disabled = true;
@@ -870,15 +879,31 @@
     }
 
     /**
-     * Returns true if any parameter in the manual has a repair_step whose
-     * component_id belongs to this bushing IC's variants.
+     * Bushing OD is "calculated" when a mating bore parameter exists:
+     * another component's parameter sharing the same point, both with orig
+     * limits. The fit range (interference or clearance) is derived from
+     * those limits — no manual input needed.
      */
+    function hasMatingBore(param) {
+        if (!param || param.orig_dim_min == null || param.orig_dim_max == null) return false;
+        const ic = inspComponents.find(c => c.id === param.inspection_component_id);
+        if (!ic || !ic.is_bush) return false;
+        const ptIds = new Set((param.points || []).map(pt => pt.id));
+        if (!ptIds.size) return false;
+        return parameters.some(p =>
+            p.id !== param.id &&
+            p.inspection_component_id !== param.inspection_component_id &&
+            p.orig_dim_min != null && p.orig_dim_max != null &&
+            (p.points || []).some(pt => ptIds.has(pt.id))
+        );
+    }
+
     function hasMatingRepairParam(icId) {
         const ic = inspComponents.find(c => c.id === icId);
         if (!ic || !ic.is_bush) return false;
         return parameters.some(p =>
             p.inspection_component_id === ic.id &&
-            ((p.repair_steps || []).length > 0 || p.interference_value != null)
+            ((p.repair_steps || []).length > 0 || hasMatingBore(p))
         );
     }
 
@@ -925,22 +950,28 @@
                      step, measuredValue: last.actual_value, useTolerance: false };
         }
 
-        // ── Case B: interference_value → continuous calculation ───────────
+        // ── Case B: continuous calculation ────────────────────────────────
+        // Fit (interference or clearance) is DERIVED from the factory limits:
+        //   fit_min = OD_orig_min − ID_orig_max
+        //   fit_max = OD_orig_max − ID_orig_min   (negative = clearance fit)
+        //   req OD  = [ID_final + fit_min, ID_final + fit_max]
         for (const odParam of parameters.filter(p =>
-            p.inspection_component_id === ic.id && p.interference_value != null
+            p.inspection_component_id === ic.id && hasMatingBore(p)
         )) {
             const mating = findMatingWithFinal(odParam, false);
             if (!mating) continue;
+            if (odParam.orig_dim_min == null || odParam.orig_dim_max == null ||
+                mating.orig_dim_min  == null || mating.orig_dim_max  == null) continue;
             const fins = paramMeasurements(mating).filter(m => m.stage === 'final');
             const measuredValue = parseFloat(fins[fins.length - 1].actual_value);
-            const interference  = parseFloat(odParam.interference_value);
-            const tolSpread = (odParam.orig_dim_min != null && odParam.orig_dim_max != null)
-                ? Math.round((parseFloat(odParam.orig_dim_max) - parseFloat(odParam.orig_dim_min)) * 10000) / 10000
-                : 0;
+            const intMin = parseFloat(odParam.orig_dim_min) - parseFloat(mating.orig_dim_max);
+            const intMax = parseFloat(odParam.orig_dim_max) - parseFloat(mating.orig_dim_min);
             return { matingParam: mating, odParam, stepNo: null, step: null,
-                     measuredValue, useTolerance: true, interference,
-                     calculatedOdMin: Math.round((measuredValue + interference) * 10000) / 10000,
-                     calculatedOdMax: Math.round((measuredValue + interference + tolSpread) * 10000) / 10000 };
+                     measuredValue, useTolerance: true,
+                     interferenceMin: Math.round(intMin * 10000) / 10000,
+                     interferenceMax: Math.round(intMax * 10000) / 10000,
+                     calculatedOdMin: Math.round((measuredValue + intMin) * 10000) / 10000,
+                     calculatedOdMax: Math.round((measuredValue + intMax) * 10000) / 10000 };
         }
 
         return null;
@@ -950,12 +981,11 @@
         return getMatingRepairInfo(part.id);
     }
 
-    /** OVS badge for a param row — only on OD param (repair_steps or interference_value) */
+    /** OVS badge for a param row — only on OD param (repair_steps or calculated fit) */
     function ovsBadgeHtml(param) {
         if (!param?.inspection_component_id) return '';
-        const hasSteps       = (param.repair_steps || []).length > 0;
-        const hasInterference = param.interference_value != null;
-        if (!hasSteps && !hasInterference) return '';
+        const hasSteps = (param.repair_steps || []).length > 0;
+        if (!hasSteps && !hasMatingBore(param)) return '';
         const mi = getMatingRepairInfo(param.inspection_component_id);
         if (mi && !mi.useTolerance) return `<span class="ms-fc-badge">OVS ${esc(String(mi.stepNo))}</span>`;
         if (mi &&  mi.useTolerance) return `<span class="ms-fc-badge">OVS</span>`;
@@ -1087,9 +1117,9 @@
             let reqStepHtml = '';
             let reqStepPnHtml = '';
             const paramIc = inspComponents.find(c => c.id === param.inspection_component_id);
-            // req dims only on the OD param (has repair_steps or interference_value)
+            // req dims only on the OD param (has repair_steps or a calculated fit)
             const isOdParam = paramIc && paramIc.is_bush &&
-                ((param.repair_steps || []).length > 0 || param.interference_value != null);
+                ((param.repair_steps || []).length > 0 || hasMatingBore(param));
             if (isOdParam) {
                 const matingInfo = getMatingRepairInfo(param.inspection_component_id);
                 if (matingInfo && !matingInfo.useTolerance && matingInfo.step) {
@@ -1128,7 +1158,7 @@
                         </div>`;
                     reqStepPnHtml = `<div class="mt-1 px-1 py-1 rounded" style="background:rgba(13,110,253,.08);border:1px solid rgba(13,110,253,.2);font-size:11px;color:#6c757d">
                         Bore measured: <strong style="color:#212529">${fmtDim(measuredValue)}</strong>
-                        &nbsp;+&nbsp;interference: <strong style="color:#212529">${fmtDim(matingInfo.interference)}</strong>
+                        &nbsp;+&nbsp;interference: <strong style="color:#212529">${fmtDim(matingInfo.interferenceMin)} … ${fmtDim(matingInfo.interferenceMax)}</strong>
                     </div>`;
                 }
             }
@@ -1179,7 +1209,7 @@
             return;
         }
 
-        const isCalculatedOd = param.interference_value != null;
+        const isCalculatedOd = hasMatingBore(param);
         if (isCalculatedOd) {
             // Bushing OD — only final measurement (size is calculated from bore + interference)
             if (!lastFin) {
