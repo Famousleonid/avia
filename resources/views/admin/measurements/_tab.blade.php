@@ -160,6 +160,36 @@
         </div>
     </div>
 
+    {{-- Gate outcome modal: final out of repair limits → EC / Order New --}}
+    <div class="modal fade" id="msGateModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0">Out of repair limits — choose outcome</h6>
+                    <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2" style="font-size:12px" id="msGateFailedList"></div>
+                    <div style="font-size:11px;color:var(--bs-secondary-color)" class="mb-2">
+                        Completed work (machining, strip — everything before the gate anchor) is kept.
+                        <strong>EC</strong> relabels the failed machining for OEM concession and holds post-gate processes.
+                        <strong>Order New</strong> condemns the part and raises an Order New TDR.
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="msGateTypical">
+                        <label class="form-check-label" for="msGateTypical" style="font-size:12px">Typical EC (pre-approved) — don't hold post-gate processes</label>
+                    </div>
+                    <div class="text-danger small d-none mt-2" id="msGateErr"></div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning btn-sm" id="msGateEcBtn">EC — save the part</button>
+                    <button type="button" class="btn btn-danger btn-sm" id="msGateOrderNewBtn">Order New</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Component panel --}}
     <div id="ms-tab-entry">
         <div id="ms-comp-hdr" style="display:none">
@@ -823,14 +853,27 @@
             paramMeasurements(p).some(m => !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID))
         );
 
+        // Gate state: some final (post-repair) measurement is FAIL → repair
+        // exceeded limits, the Update button turns red and offers EC / Order New.
+        const hasGateFail = part.params.some(p => {
+            const fins = paramMeasurements(p).filter(m => m.stage === 'final');
+            const last = fins[fins.length - 1];
+            return last && last.result === 'FAIL';
+        });
+
         if (hasRepairTdr) {
             hint.classList.add('d-none');
             updateBtn.classList.remove('d-none');
             // Not using `disabled` — an inactive button must still catch clicks
             // to explain why it is inactive.
             updateBtn.dataset.inactive = hasAnyRealMeasurements ? '' : '1';
+            updateBtn.dataset.gate = hasGateFail ? '1' : '';
+            updateBtn.classList.toggle('btn-outline-primary', !hasGateFail);
+            updateBtn.classList.toggle('btn-danger', hasGateFail);
             updateBtn.style.opacity = hasAnyRealMeasurements ? '' : '0.45';
-            updateBtn.title = hasAnyRealMeasurements ? '' : 'Enter measurements/inspection data before updating processes';
+            updateBtn.title = hasGateFail
+                ? 'Final measurement out of repair limits — choose EC or Order New'
+                : (hasAnyRealMeasurements ? '' : 'Enter measurements/inspection data before updating processes');
         } else if (hasRepairFail) {
             hint.classList.remove('d-none');
             updateBtn.classList.add('d-none');
@@ -847,6 +890,10 @@
             else alert(msg);
             return;
         }
+        if (this.dataset.gate === '1') {
+            openGateModal();
+            return;
+        }
         const part = partsTree.find(p => p.id === activePartId);
         if (!part) return;
         this.disabled = true;
@@ -860,6 +907,70 @@
         } catch (e) { alert(e.message); }
         finally { this.disabled = false; }
     });
+
+    /* ── Gate modal: final out of repair limits → EC / Order New ────── */
+    let gateModal = null;
+    function getGateModal() {
+        if (!gateModal) gateModal = new bootstrap.Modal(document.getElementById('msGateModal'));
+        return gateModal;
+    }
+
+    async function openGateModal() {
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part) return;
+        const list = document.getElementById('msGateFailedList');
+        const err  = document.getElementById('msGateErr');
+        err.classList.add('d-none');
+        list.innerHTML = '<span class="text-secondary">Evaluating…</span>';
+        getGateModal().show();
+        try {
+            const eval_ = await apiFetch('/workorders/' + WO_ID + '/gate/evaluate', {
+                method: 'POST',
+                body: JSON.stringify({ inspection_component_id: part.id }),
+            });
+            const failed = (eval_.points || []).filter(p => !p.pass);
+            list.innerHTML = failed.length
+                ? failed.map(p => `<div class="border rounded px-2 py-1 mb-1" style="border-color:#dc3545!important">
+                        <span class="text-danger fw-bold">FAIL</span>
+                        ${p.pt_codes ? `<span class="ms-pt-code">${esc(p.pt_codes)}</span>` : ''}
+                        ${esc(p.description || '')}
+                        ${p.final_value != null ? `<span class="font-monospace"> = ${fmtDim(p.final_value)}</span>` : ''}
+                    </div>`).join('')
+                : '<span class="text-secondary">No failed points found</span>';
+        } catch (e) {
+            list.innerHTML = '';
+            err.textContent = e.message;
+            err.classList.remove('d-none');
+        }
+    }
+
+    async function applyGateOutcome(outcome) {
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part) return;
+        const err = document.getElementById('msGateErr');
+        err.classList.add('d-none');
+        try {
+            await apiFetch('/workorders/' + WO_ID + '/gate/apply', {
+                method: 'POST',
+                body: JSON.stringify({
+                    inspection_component_id: part.id,
+                    outcome,
+                    ec_typical: document.getElementById('msGateTypical').checked,
+                }),
+            });
+            getGateModal().hide();
+            document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
+            const msg = outcome === 'ec' ? 'EC applied — machining relabelled, post-gate processes held' : 'Order New TDR created';
+            if (typeof showNotification === 'function') showNotification(msg, 'success');
+            await loadData();
+        } catch (e) {
+            err.textContent = e.message;
+            err.classList.remove('d-none');
+        }
+    }
+
+    document.getElementById('msGateEcBtn')?.addEventListener('click', () => applyGateOutcome('ec'));
+    document.getElementById('msGateOrderNewBtn')?.addEventListener('click', () => applyGateOutcome('order_new'));
 
     function updateTdrBtnState(part) {
         const btn = document.getElementById('ms-add-tdr-btn');
@@ -993,6 +1104,16 @@
         return getMatingRepairInfo(part.id);
     }
 
+    /** Red EC badge when the FINAL (post-repair) measurement failed — repair
+     *  exceeded limits, the part can only be saved via EC (or Order New). */
+    function gateFailBadgeHtml(param) {
+        const ms   = paramMeasurements(param);
+        const fin  = ms.filter(m => m.stage === 'final');
+        const last = fin[fin.length - 1];
+        if (!last || last.result !== 'FAIL') return '';
+        return '<span class="ms-fc-badge" style="background:#dc3545;color:#fff" title="Final measurement out of repair limits — EC or Order New required">EC?</span>';
+    }
+
     /** OVS badge for a param row — only on OD param (repair_steps or calculated fit) */
     function ovsBadgeHtml(param) {
         if (!param?.inspection_component_id) return '';
@@ -1064,6 +1185,7 @@
         hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
             <span class="ms-tab-param-desc">${esc(param.description)}</span>
             ${ovsBadgeHtml(param)}
+            ${gateFailBadgeHtml(param)}
             ${buildParamHintHtml(param)}
             ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
             ${lastHtml}`;
@@ -1331,13 +1453,15 @@
             </div>`:''}
             ${showDepthA?`
             <div class="ms-frow">
-                <div class="ms-flabel">Spotface depth — End A</div>
-                <input type="number" class="form-control form-control-sm" step="0.0001" id="mst-da-${uid}" placeholder="0.0000" style="font-family:monospace;font-size:13px">
+                <div class="ms-flabel">Spotface depth — End A${param.max_repair_depth_a!=null?` <span style="color:#6c757d">(max ${fmtDim(param.max_repair_depth_a)})</span>`:''}</div>
+                <input type="number" class="form-control form-control-sm mst-depth-inp" step="0.0001" id="mst-da-${uid}" placeholder="0.0000" data-max="${param.max_repair_depth_a??''}" style="font-family:monospace;font-size:13px">
+                <div class="text-danger d-none" id="mst-da-warn-${uid}" style="font-size:11px">Exceeds max repair depth — lug cannot be saved by spotface</div>
             </div>`:''}
             ${showDepthB?`
             <div class="ms-frow">
-                <div class="ms-flabel">Spotface depth — End B</div>
-                <input type="number" class="form-control form-control-sm" step="0.0001" id="mst-db-${uid}" placeholder="0.0000" style="font-family:monospace;font-size:13px">
+                <div class="ms-flabel">Spotface depth — End B${param.max_repair_depth_b!=null?` <span style="color:#6c757d">(max ${fmtDim(param.max_repair_depth_b)})</span>`:''}</div>
+                <input type="number" class="form-control form-control-sm mst-depth-inp" step="0.0001" id="mst-db-${uid}" placeholder="0.0000" data-max="${param.max_repair_depth_b??''}" style="font-family:monospace;font-size:13px">
+                <div class="text-danger d-none" id="mst-db-warn-${uid}" style="font-size:11px">Exceeds max repair depth — lug cannot be saved by spotface</div>
             </div>`:''}
             ${showFlange?`
             <div id="mst-flange-${uid}" class="rounded p-2 mt-1 mb-1" style="background:rgba(255,255,255,0.05);font-size:11px">
@@ -1354,6 +1478,18 @@
                 <textarea class="form-control form-control-sm" id="mst-notes-${uid}" rows="2"></textarea></div>
             <div class="text-danger small d-none mb-1" id="mst-err-${uid}"></div>
             <button class="btn btn-primary btn-sm w-100" style="font-size:12px" id="mst-save-${uid}"><i class="bi bi-check2"></i> Save</button>`;
+
+        // Live max-depth check on spotface inputs
+        d.querySelectorAll('.mst-depth-inp').forEach(inp => {
+            inp.addEventListener('input', () => {
+                const max = parseFloat(inp.dataset.max);
+                const v   = parseFloat(inp.value);
+                const over = !isNaN(max) && !isNaN(v) && v > max;
+                inp.classList.toggle('is-invalid', over);
+                const warn = d.querySelector('#' + inp.id.replace(/^(mst-d[ab]-)/, '$1warn-'));
+                if (warn) warn.classList.toggle('d-none', !over);
+            });
+        });
 
         // Live flange calculation
         if (showFlange) {
@@ -1439,6 +1575,7 @@
             hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
                 <span class="ms-tab-param-desc">${esc(freshParam.description)}</span>
                 ${ovsBadgeHtml(freshParam)}
+                ${gateFailBadgeHtml(freshParam)}
                 ${buildParamHintHtml(freshParam)}
                 ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
                 ${lastHtml}`;

@@ -3604,6 +3604,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // "Part — Parameter (point)" context for the rule modal header
+    function ruleModalContext(param) {
+        const ic  = inspComponents.find(c => c.id === param.inspection_component_id);
+        const pts = (param.points || [])
+            .map(pp => { const fp = (activeFigure && activeFigure.points || []).find(p => p.id === pp.id); return fp ? fp.code : null; })
+            .filter(Boolean).join(', ');
+        return (ic ? ic.label + ' — ' : '') + (param.description || '') + (pts ? ' (' + pts + ')' : '');
+    }
+
     function openAddRuleModal(param) {
         activeRuleParam  = param;
         dimRuleProcesses = [];
@@ -3618,7 +3627,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimRuleTriggerAddBtn').classList.add('d-none');
         document.getElementById('dimRuleError').classList.add('d-none');
         document.getElementById('dimRuleDeleteBtn').classList.add('d-none');
-        document.getElementById('dimRepairRuleModalTitle').textContent = 'Add Rule · ' + (param.description || '');
+        document.getElementById('dimRepairRuleModalTitle').textContent = 'Add Rule · ' + ruleModalContext(param);
         fillTriggerCodeSelect(param);
         renderRuleTriggerList();
         renderRuleProcessList();
@@ -3652,7 +3661,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimRuleTriggerAddBtn').classList.add('d-none');
         document.getElementById('dimRuleError').classList.add('d-none');
         document.getElementById('dimRuleDeleteBtn').classList.remove('d-none');
-        document.getElementById('dimRepairRuleModalTitle').textContent = 'Edit Rule · ' + (param.description || '');
+        document.getElementById('dimRepairRuleModalTitle').textContent = 'Edit Rule · ' + ruleModalContext(param);
         fillTriggerCodeSelect(param);
         renderRuleTriggerList();
         renderRuleProcessList();

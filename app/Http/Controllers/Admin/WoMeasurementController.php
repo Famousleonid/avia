@@ -285,6 +285,14 @@ class WoMeasurementController extends Controller
                     break;
                 }
             }
+            // Continuous repair (no steps): final within the repair limits
+            // (machined size after repair, e.g. bore machined to fit) = PASS.
+            if ($storedResult === 'FAIL'
+                && ($parameter->repair_dim_min !== null || $parameter->repair_dim_max !== null)
+                && ($parameter->repair_dim_min === null || $v >= (float) $parameter->repair_dim_min)
+                && ($parameter->repair_dim_max === null || $v <= (float) $parameter->repair_dim_max)) {
+                $storedResult = 'PASS';
+            }
         }
         $data['repair_step_no'] = $stepNo;
 
@@ -302,6 +310,34 @@ class WoMeasurementController extends Controller
             $data['result'] = 'PASS';
         } else {
             $data['result'] = null;
+        }
+
+        // Repair-surface (spotface) final control. The machined gap legitimately
+        // exceeds the orig tolerance — the governing limits are:
+        //   - repair_dim_min/max (max allowed TOTAL gap after repair), when set
+        //   - max_repair_depth per endpoint (spotface depth)
+        if (($data['stage'] ?? null) === 'final'
+            && $parameter->repair_surface_side !== null
+            && empty($data['codes_id'])) {
+            $overA = ($data['repair_depth_a'] ?? null) !== null
+                && $parameter->max_repair_depth_a !== null
+                && (float) $data['repair_depth_a'] > (float) $parameter->max_repair_depth_a;
+            $overB = ($data['repair_depth_b'] ?? null) !== null
+                && $parameter->max_repair_depth_b !== null
+                && (float) $data['repair_depth_b'] > (float) $parameter->max_repair_depth_b;
+
+            $value   = ($data['actual_value'] ?? null) !== null ? (float) $data['actual_value'] : null;
+            $widthOk = true;
+            if ($value !== null) {
+                if ($parameter->repair_dim_max !== null && $value > (float) $parameter->repair_dim_max) $widthOk = false;
+                if ($parameter->repair_dim_min !== null && $value < (float) $parameter->repair_dim_min) $widthOk = false;
+            }
+
+            if ($overA || $overB || !$widthOk) {
+                $data['result'] = 'FAIL';
+            } elseif ($value !== null || ($data['repair_depth_a'] ?? null) !== null || ($data['repair_depth_b'] ?? null) !== null) {
+                $data['result'] = 'PASS';
+            }
         }
 
         $data['user_id']       = auth()->id();
@@ -770,7 +806,11 @@ class WoMeasurementController extends Controller
             }
             $value  = $final->actual_value !== null ? (float) $final->actual_value : null;
             $limits = $param->effectiveLimits($useWear);
-            $pass   = $this->gatePass($value, $limits, $param->repairSteps);
+            // Stored final result already encodes repair-surface logic (repair_dim
+            // limits + spotface depth control) — trust it when present.
+            $pass = $final->result !== null
+                ? $final->result === 'PASS'
+                : $this->gatePass($value, $limits, $param->repairSteps);
             if (!$pass) {
                 $allPass = false;
             }
@@ -828,6 +868,8 @@ class WoMeasurementController extends Controller
             $eval   = $this->evaluateGate($workorder, $icId);
             $failed = array_values(array_filter($eval['points'], fn ($p) => !$p['pass']));
             $failedRuleIds = array_values(array_filter(array_map(fn ($p) => $p['rule_id'], $failed)));
+            $ecProcesses   = []; // mirror of the relabelled Machining (EC) processes
+            $ecRuleProcIds = [];
             if (!empty($failedRuleIds)) {
                 $failedRpIds = \App\Models\ManualParameterRuleProcess::whereIn('repair_rule_id', $failedRuleIds)
                     ->pluck('id')->map(fn ($i) => (int) $i)->all();
@@ -836,12 +878,16 @@ class WoMeasurementController extends Controller
                     ?? \App\Models\ProcessName::where('name', 'Machining(EC)')->value('id');
                 if ($machiningId && $machiningEcId) {
                     $rows = TdrProcess::where('tdrs_id', $tdr->id)
-                        ->where('process_names_id', $machiningId)
+                        ->whereIn('process_names_id', [$machiningId, $machiningEcId])
                         ->get();
                     foreach ($rows as $row) {
                         $rp = array_map('intval', $row->rule_process_ids ?? []);
                         if (array_intersect($rp, $failedRpIds)) {
-                            $row->update(['process_names_id' => $machiningEcId]);
+                            if ((int) $row->process_names_id === (int) $machiningId) {
+                                $row->update(['process_names_id' => $machiningEcId]);
+                            }
+                            $ecProcesses   = array_values(array_unique(array_merge($ecProcesses, array_map('intval', $row->processes ?? []))));
+                            $ecRuleProcIds = array_values(array_unique(array_merge($ecRuleProcIds, $rp)));
                         }
                     }
                 }
@@ -872,19 +918,30 @@ class WoMeasurementController extends Controller
             }
             // Add the EC process (companion to Machining (EC); read by SP Form / TDR-print).
             $ecNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
-            if ($ecNameId && !TdrProcess::where('tdrs_id', $tdr->id)->where('process_names_id', $ecNameId)->exists()) {
-                $maxSort = TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0;
-                TdrProcess::create([
-                    'tdrs_id'            => $tdr->id,
-                    'process_names_id'   => $ecNameId,
-                    'processes'          => [],
-                    'rule_process_ids'   => [],
-                    'description'        => $typical ? ('Typical EC — ' . $reasonNote) : $reasonNote,
-                    'sort_order'         => $maxSort + 1,
-                    'in_traveler'        => false,
-                    'ec'                 => 1,
-                    'standalone_ec_only' => false,
-                ]);
+            if ($ecNameId) {
+                $existingEc = TdrProcess::where('tdrs_id', $tdr->id)->where('process_names_id', $ecNameId)->first();
+                if ($existingEc) {
+                    // keep the EC row mirroring its Machining (EC) processes
+                    $existingEc->update([
+                        'processes'        => $ecProcesses,
+                        'rule_process_ids' => $ecRuleProcIds,
+                    ]);
+                } else {
+                    $maxSort = TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0;
+                    TdrProcess::create([
+                        'tdrs_id'            => $tdr->id,
+                        'process_names_id'   => $ecNameId,
+                        // mirror the Machining (EC) processes so SP Form / traveler
+                        // show WHAT is being conceded, not an empty row
+                        'processes'          => $ecProcesses,
+                        'rule_process_ids'   => $ecRuleProcIds,
+                        'description'        => $typical ? ('Typical EC — ' . $reasonNote) : $reasonNote,
+                        'sort_order'         => $maxSort + 1,
+                        'in_traveler'        => false,
+                        'ec'                 => 1,
+                        'standalone_ec_only' => false,
+                    ]);
+                }
             }
             return response()->json(['ok' => true, 'outcome' => 'ec', 'tdr_id' => $tdr->id, 'typical' => $typical]);
         }
