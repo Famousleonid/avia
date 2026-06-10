@@ -54,17 +54,25 @@ td.na { color: #bbb; text-align: center; background: #fafafa; }
 .stage-tag { font-size: 9px; color: #888; }
 tr.row-hidden { display: none; }
 
+
 @media print {
     .sidebar, .action-bar { display: none !important; }
     .page-wrap { display: block; height: auto; }
     .content   { padding: 0; overflow: visible; }
     tr.row-hidden { display: none !important; }
-    @page { size: A4 landscape; margin: 10mm; }
+    /* keep the table clear of the QR print-mark (top-right corner) */
+    .doc-meta  { margin-bottom: 6mm; }
+    @page { size: letter landscape; margin: 10mm; }
+    /* F&C filter prints portrait — shrink the table to fit the page width */
+    body.fc-print-vertical table  { font-size: 9px; }
+    body.fc-print-vertical th,
+    body.fc-print-vertical td     { padding: 1px 3px; }
+    body.fc-print-vertical .col-figure { display: none !important; }
 }
 </style>
 </head>
 <body>
-@include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null])
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null, 'printMarkQrSize' => 32])
 <div class="page-wrap">
 
 <aside class="sidebar">
@@ -111,20 +119,20 @@ function figLabel($fig) {
 <table>
     <thead>
         <tr>
-            <th rowspan="3">Figure</th>
-            <th rowspan="3">Ref.<br>No.</th>
-            <th rowspan="3">Part</th>
+            <th rowspan="3" class="col-figure">Figure</th>
+            <th rowspan="3" id="th-ref">Ref.<br>No.</th>
+            <th rowspan="3" id="th-part">Part</th>
             <th colspan="4">Original Manufacturer Limits</th>
             <th colspan="3">In-Service Wear Limits</th>
             <th colspan="3">Actual (WO)</th>
         </tr>
         <tr>
-            <th colspan="2">Dimension <span style="font-weight:normal;color:#666">mm</span></th>
-            <th colspan="2">Assembly Clearance <span style="font-weight:normal;color:#666">mm</span></th>
-            <th colspan="2">Dimension <span style="font-weight:normal;color:#666">mm</span></th>
-            <th>Permitted<br>Clearance <span style="font-weight:normal;color:#666">mm</span></th>
-            <th>Value <span style="font-weight:normal;color:#666">mm</span></th>
-            <th>Clearance <span style="font-weight:normal;color:#666">mm</span></th>
+            <th colspan="2">Dimension <span style="font-weight:normal;color:#666">(in)</span></th>
+            <th colspan="2">Assembly Clearance <span style="font-weight:normal;color:#666">(in)</span></th>
+            <th colspan="2">Dimension <span style="font-weight:normal;color:#666">(in)</span></th>
+            <th>Permitted<br>Clearance <span style="font-weight:normal;color:#666">(in)</span></th>
+            <th>Value <span style="font-weight:normal;color:#666">(in)</span></th>
+            <th>Clearance <span style="font-weight:normal;color:#666">(in)</span></th>
             <th>Result</th>
         </tr>
         <tr>
@@ -152,7 +160,7 @@ function figLabel($fig) {
         $stB   = $row['measB'] ? ' <span class="stage-tag">('.e($row['measB']->stage).')</span>' : '';
     @endphp
     <tr data-ref="{{ $row['pt']->code }}" data-type="fc">
-        <td rowspan="2" class="c" style="color:#666;font-size:10px">{{ figLabel($row['fig']) }}</td>
+        <td rowspan="2" class="c col-figure" style="color:#666;font-size:10px">{{ figLabel($row['fig']) }}</td>
         <td rowspan="2" class="c" style="font-weight:700">{{ $row['pt']->code }}</td>
         <td>{{ $row['pA']->description }}@if($iplA) <span style="color:#888">({{ $iplA }})</span>@endif</td>
         <td class="r">{{ wfmt($row['pA']->orig_dim_min) }}</td>
@@ -186,7 +194,7 @@ function figLabel($fig) {
         $st   = $row['meas'] ? ' <span class="stage-tag">('.e($row['meas']->stage).')</span>' : '';
     @endphp
     <tr data-ref="{{ $row['pt']->code }}" data-type="extra">
-        <td class="c" style="color:#666;font-size:10px">{{ figLabel($row['fig']) }}</td>
+        <td class="c col-figure" style="color:#666;font-size:10px">{{ figLabel($row['fig']) }}</td>
         <td class="c" style="font-weight:700">{{ $row['pt']->code }}</td>
         <td>{{ $row['param']->description }}@if($ipl) <span style="color:#888">({{ $ipl }})</span>@endif</td>
         <td class="r">{{ wfmt($row['param']->orig_dim_min) }}</td>
@@ -204,6 +212,7 @@ function figLabel($fig) {
 
     </tbody>
 </table>
+
 @endif
 </main>
 </div>
@@ -250,11 +259,40 @@ function figLabel($fig) {
         });
     }
 
+    // F&C filter → print portrait (table shrunk to fit); otherwise landscape.
+    function applyLayout() {
+        const fc = currentType === 'fc';
+        document.body.classList.toggle('fc-print-vertical', fc);
+        let st = document.getElementById('page-orient');
+        if (!st) { st = document.createElement('style'); st.id = 'page-orient'; document.head.appendChild(st); }
+        st.textContent = '@media print{@page{size:letter ' + (fc ? 'portrait' : 'landscape') + ';margin:10mm}}';
+
+        // F&C headers per CMM wording: Figure column hidden (CSS); Ref. No. →
+        // "FIGURE <num> NUMBER" (numeric refs) / "FIGURE <num> REF LTR" (letter
+        // refs); Part → "IPL FIG. \ ITEM NUMBER".
+        const thRef  = document.getElementById('th-ref');
+        const thPart = document.getElementById('th-part');
+        if (thRef && thPart) {
+            if (fc) {
+                const fcTrs = Array.from(document.querySelectorAll('tr[data-type="fc"]'))
+                    .filter(tr => !tr.classList.contains('row-hidden'));
+                const codes = [...new Set(fcTrs.map(tr => tr.dataset.ref))];
+                const allNumeric = codes.length > 0 && codes.every(c => /^\d+$/.test(c));
+                // 8001 = standard CMM F&C table figure number (same in every CMM)
+                thRef.innerHTML  = 'FIGURE 8001<br>' + (allNumeric ? 'NUMBER' : 'REF LTR');
+                thPart.textContent = 'IPL FIG. \\ ITEM NUMBER';
+            } else {
+                thRef.innerHTML  = 'Ref.<br>No.';
+                thPart.textContent = 'Part';
+            }
+        }
+    }
+
     window.setType = function (type) {
         currentType = type;
         ['all','fc','extra'].forEach(t =>
             document.getElementById('btn-'+t)?.classList.toggle('active', t === type));
-        buildRefList(); applyFilter();
+        buildRefList(); applyFilter(); applyLayout();
     };
     window.selectAll = function () {
         document.querySelectorAll('#ref-list input').forEach(cb => {
@@ -267,7 +305,7 @@ function figLabel($fig) {
         }); applyFilter();
     };
 
-    buildRefList(); applyFilter();
+    buildRefList(); applyFilter(); applyLayout();
 })();
 </script>
 </body>
