@@ -919,11 +919,16 @@
      *   Returns: { matingParam, odParam, stepNo: null, step: null, measuredValue,
      *              useTolerance: true, interference, calculatedOdMin, calculatedOdMax }
      */
-    function getMatingRepairInfo(icId) {
-        const ic = inspComponents.find(c => c.id === icId);
+    /**
+     * Repair info for ONE specific OD param. Each bushing position is its
+     * own param↔point↔bore pair — two bushings on different lugs may end
+     * up with different repairs and different ODs.
+     */
+    function getParamRepairInfo(odParam) {
+        const ic = inspComponents.find(c => c.id === odParam.inspection_component_id);
         if (!ic || !ic.is_bush) return null;
 
-        function findMatingWithFinal(odParam, requireStepNo) {
+        function findMatingWithFinal(requireStepNo) {
             const odPointSet = new Set((odParam.points || []).map(pt => pt.id));
             if (!odPointSet.size) return null;
             const candidates = parameters.filter(p =>
@@ -938,16 +943,15 @@
         }
 
         // ── Case A: discrete repair steps ────────────────────────────────
-        for (const odParam of parameters.filter(p =>
-            p.inspection_component_id === ic.id && (p.repair_steps || []).length > 0
-        )) {
-            const mating = findMatingWithFinal(odParam, true);
-            if (!mating) continue;
-            const fins = paramMeasurements(mating).filter(m => m.stage === 'final');
-            const last  = fins[fins.length - 1];
-            const step  = odParam.repair_steps.find(s => s.step_no === last.repair_step_no) || null;
-            return { matingParam: mating, odParam, stepNo: last.repair_step_no,
-                     step, measuredValue: last.actual_value, useTolerance: false };
+        if ((odParam.repair_steps || []).length > 0) {
+            const mating = findMatingWithFinal(true);
+            if (mating) {
+                const fins = paramMeasurements(mating).filter(m => m.stage === 'final');
+                const last  = fins[fins.length - 1];
+                const step  = odParam.repair_steps.find(s => s.step_no === last.repair_step_no) || null;
+                return { matingParam: mating, odParam, stepNo: last.repair_step_no,
+                         step, measuredValue: last.actual_value, useTolerance: false };
+            }
         }
 
         // ── Case B: continuous calculation ────────────────────────────────
@@ -955,25 +959,33 @@
         //   fit_min = OD_orig_min − ID_orig_max
         //   fit_max = OD_orig_max − ID_orig_min   (negative = clearance fit)
         //   req OD  = [ID_final + fit_min, ID_final + fit_max]
-        for (const odParam of parameters.filter(p =>
-            p.inspection_component_id === ic.id && hasMatingBore(p)
-        )) {
-            const mating = findMatingWithFinal(odParam, false);
-            if (!mating) continue;
-            if (odParam.orig_dim_min == null || odParam.orig_dim_max == null ||
-                mating.orig_dim_min  == null || mating.orig_dim_max  == null) continue;
-            const fins = paramMeasurements(mating).filter(m => m.stage === 'final');
-            const measuredValue = parseFloat(fins[fins.length - 1].actual_value);
-            const intMin = parseFloat(odParam.orig_dim_min) - parseFloat(mating.orig_dim_max);
-            const intMax = parseFloat(odParam.orig_dim_max) - parseFloat(mating.orig_dim_min);
-            return { matingParam: mating, odParam, stepNo: null, step: null,
-                     measuredValue, useTolerance: true,
-                     interferenceMin: Math.round(intMin * 10000) / 10000,
-                     interferenceMax: Math.round(intMax * 10000) / 10000,
-                     calculatedOdMin: Math.round((measuredValue + intMin) * 10000) / 10000,
-                     calculatedOdMax: Math.round((measuredValue + intMax) * 10000) / 10000 };
+        if (hasMatingBore(odParam)) {
+            const mating = findMatingWithFinal(false);
+            if (mating && mating.orig_dim_min != null && mating.orig_dim_max != null) {
+                const fins = paramMeasurements(mating).filter(m => m.stage === 'final');
+                const measuredValue = parseFloat(fins[fins.length - 1].actual_value);
+                const intMin = parseFloat(odParam.orig_dim_min) - parseFloat(mating.orig_dim_max);
+                const intMax = parseFloat(odParam.orig_dim_max) - parseFloat(mating.orig_dim_min);
+                return { matingParam: mating, odParam, stepNo: null, step: null,
+                         measuredValue, useTolerance: true,
+                         interferenceMin: Math.round(intMin * 10000) / 10000,
+                         interferenceMax: Math.round(intMax * 10000) / 10000,
+                         calculatedOdMin: Math.round((measuredValue + intMin) * 10000) / 10000,
+                         calculatedOdMax: Math.round((measuredValue + intMax) * 10000) / 10000 };
+            }
         }
 
+        return null;
+    }
+
+    /** Part-level: info of the first OD param that has repair data (back-compat). */
+    function getMatingRepairInfo(icId) {
+        const ic = inspComponents.find(c => c.id === icId);
+        if (!ic || !ic.is_bush) return null;
+        for (const odParam of parameters.filter(p => p.inspection_component_id === ic.id)) {
+            const info = getParamRepairInfo(odParam);
+            if (info) return info;
+        }
         return null;
     }
 
@@ -986,11 +998,10 @@
         if (!param?.inspection_component_id) return '';
         const hasSteps = (param.repair_steps || []).length > 0;
         if (!hasSteps && !hasMatingBore(param)) return '';
-        const mi = getMatingRepairInfo(param.inspection_component_id);
+        const mi = getParamRepairInfo(param);
         if (mi && !mi.useTolerance) return `<span class="ms-fc-badge">OVS ${esc(String(mi.stepNo))}</span>`;
         if (mi &&  mi.useTolerance) return `<span class="ms-fc-badge">OVS</span>`;
-        if (hasMatingRepairParam(param.inspection_component_id)) return '<span class="ms-fc-badge">OVS</span>';
-        return '';
+        return '<span class="ms-fc-badge">OVS</span>';
     }
 
     function updatePrintSketchBtnState(part) {
@@ -1121,7 +1132,7 @@
             const isOdParam = paramIc && paramIc.is_bush &&
                 ((param.repair_steps || []).length > 0 || hasMatingBore(param));
             if (isOdParam) {
-                const matingInfo = getMatingRepairInfo(param.inspection_component_id);
+                const matingInfo = getParamRepairInfo(param);
                 if (matingInfo && !matingInfo.useTolerance && matingInfo.step) {
                     // Case A: discrete step
                     const { stepNo, step } = matingInfo;
