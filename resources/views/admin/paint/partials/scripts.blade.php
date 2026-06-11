@@ -55,7 +55,9 @@
         if (!row) return;
         var start = row.querySelector('input[name="date_start"].js-paint-date-ymd');
         var finish = row.querySelector('input[name="date_finish"].js-paint-date-ymd');
+        var hasDateStart = !!(start && start.value);
         var closed = !!(start && start.value && finish && finish.value);
+        row.setAttribute('data-paint-has-date-start', hasDateStart ? '1' : '0');
         row.setAttribute('data-paint-closed', closed ? '1' : '0');
         row.classList.toggle('paint-row-closed', closed);
         row.classList.toggle('paint-row-open', !closed);
@@ -227,6 +229,9 @@
                 }
                 syncPaintRowClosedState(row);
                 syncPaintQueueAddControl(row);
+                if (typeof window.paintApplyTableFilter === 'function') {
+                    window.paintApplyTableFilter();
+                }
                 if (typeof window.showNotification === 'function') {
                     var okText = (data && data.message) ? data.message : (form.getAttribute('data-success') || 'Saved');
                     window.showNotification(okText, 'success', 2000);
@@ -283,8 +288,20 @@
 
     function initPaintTableSearch() {
         var inp = document.getElementById('paintTableSearch');
+        var onlyDateStart = document.getElementById('paintOnlyDateStartRows');
         var hideClosed = document.getElementById('paintHideClosedRows');
-        if (!inp) return;
+        var tableState = document.getElementById('paintTableState');
+
+        function revealTable() {
+            if (!tableState) return;
+            tableState.classList.remove('is-loading');
+            tableState.classList.add('is-ready');
+        }
+
+        if (!inp) {
+            revealTable();
+            return;
+        }
 
         var KEY = 'paint_hide_closed_rows';
         if (hideClosed) {
@@ -297,17 +314,25 @@
 
         function applyFilter() {
             var q = String(inp.value || '').trim().toLowerCase();
+            var needOnlyDateStart = !!(onlyDateStart && onlyDateStart.checked);
             var needHideClosed = !!(hideClosed && hideClosed.checked);
             document.querySelectorAll('#paint-sortable-tbody tr[data-paint-search]').forEach(function (tr) {
                 var hay = tr.getAttribute('data-paint-search') || '';
+                var hasDateStart = tr.getAttribute('data-paint-has-date-start') === '1';
                 var isClosed = tr.getAttribute('data-paint-closed') === '1';
                 var hideBySearch = q !== '' && hay.indexOf(q) === -1;
+                var hideByDateStart = needOnlyDateStart && !hasDateStart;
                 var hideByClosed = needHideClosed && isClosed;
-                tr.classList.toggle('d-none', hideBySearch || hideByClosed);
+                tr.classList.toggle('d-none', hideBySearch || hideByDateStart || hideByClosed);
             });
         }
 
+        window.paintApplyTableFilter = applyFilter;
+
         inp.addEventListener('input', applyFilter);
+        if (onlyDateStart) {
+            onlyDateStart.addEventListener('change', applyFilter);
+        }
         if (hideClosed) {
             hideClosed.addEventListener('change', function () {
                 try {
@@ -318,6 +343,7 @@
         }
 
         applyFilter();
+        revealTable();
     }
 
     function initPaintLostSearch() {

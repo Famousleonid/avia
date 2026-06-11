@@ -522,7 +522,7 @@
                         $result = ($hasA && $hasB) ? ((int)$a + (int)$b) : (($hasA ? (int)$a : ($hasB ? (int)$b : null)));
                     @endphp
                     @if($isFirstPage && $current_wo->instruction_id==1)
-                        {{ ($result !== null && $result > 0) ? $result : ' rr' }}
+                        {{ ($result !== null && $result > 0) ? $result : ' ' }}
                     @elseif($isFirstPage)
                         {{ ($cadSum_ex > 0) ? $cadSum_ex : ' '}}
                     @endif

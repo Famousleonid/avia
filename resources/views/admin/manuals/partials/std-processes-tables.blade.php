@@ -9,6 +9,7 @@
         'paint' => collect($stdProcessPicklists['paint'] ?? [])->map(fn ($v) => ['value' => $v, 'label' => $v])->values()->all(),
     ];
     $stdExistingPartKeysByStd = $stdExistingPartKeysByStd ?? [];
+    $stdProcessAuditWarnings = $stdProcessAuditWarnings ?? [];
     $stdActiveInner = request('std_inner');
     if (! in_array($stdActiveInner, \App\Models\StdProcess::validStdValues(), true)) {
         $stdActiveInner = \App\Models\StdProcess::STD_NDT;
@@ -20,6 +21,13 @@
     }
     .std-process-edit-cell:hover {
         text-decoration: underline;
+    }
+    .std-process-action-cell {
+        white-space: nowrap;
+    }
+    .std-process-audit-badge {
+        letter-spacing: 0;
+        white-space: nowrap;
     }
 </style>
 <div class="std-processes-nested-wrap">
@@ -71,15 +79,31 @@
                             <th>Description</th>
                             <th class="text-center">Process</th>
                             <th class="text-center">Qty</th>
-                            <th class="text-center">EFF</th>
+                            <th class="text-center d-none" style="width: 96px;" aria-label="{{ __('Action') }}">
+                                <span class="visually-hidden">{{ __('Action') }}</span>
+                            </th>
                         </tr>
                         </thead>
                         <tbody>
                         @forelse($rows as $row)
-                            @php $part = $row->component; @endphp
-                            <tr data-std-process-row="{{ $row->id }}">
+                            @php
+                                $part = $row->component;
+                                $auditWarning = $stdProcessAuditWarnings[(int) $row->id] ?? null;
+                            @endphp
+                            <tr data-std-process-row="{{ $row->id }}" @class(['table-warning' => $auditWarning])>
                                 <td class="text-center text-muted">{{ $loop->iteration }}</td>
-                                <td class="text-center">{{ $part?->ipl_num }}</td>
+                                <td class="text-center">
+                                    <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap">
+                                        <span>{{ $part?->ipl_num }}</span>
+                                        @if($auditWarning)
+                                            <span class="badge text-bg-warning std-process-audit-badge"
+                                                  data-bs-toggle="tooltip"
+                                                  title="{{ $auditWarning['message'] }}">
+                                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Mixed process
+                                            </span>
+                                        @endif
+                                    </div>
+                                </td>
                                 <td class="text-center">{{ $part?->part_number }}</td>
                                 <td class="small text-start">{{ \Illuminate\Support\Str::limit($part?->name ?? '', 96) }}</td>
                                 <td class="text-center small std-process-edit-cell"
@@ -92,7 +116,6 @@
                                     data-std="{{ e($row->std) }}"
                                     data-process="{{ e($row->process) }}"
                                     data-qty="{{ (int) $row->qty }}"
-                                    data-eff-code="{{ e($row->eff_code ?? '') }}"
                                     data-ipl="{{ e($part?->ipl_num ?? '') }}"
                                     data-description="{{ e($part?->name ?? '') }}">{{ $row->process }}</td>
                                 <td class="text-center std-process-edit-cell"
@@ -105,10 +128,34 @@
                                     data-std="{{ e($row->std) }}"
                                     data-process="{{ e($row->process) }}"
                                     data-qty="{{ (int) $row->qty }}"
-                                    data-eff-code="{{ e($row->eff_code ?? '') }}"
                                     data-ipl="{{ e($part?->ipl_num ?? '') }}"
                                     data-description="{{ e($part?->name ?? '') }}">{{ $row->qty }}</td>
-                                <td class="text-center small text-muted" data-std-process-eff="{{ $row->id }}">{{ $row->eff_code !== null && $row->eff_code !== '' ? $row->eff_code : '-' }}</td>
+                                <td class="text-center std-process-action-cell d-none">
+                                    <div class="d-inline-flex align-items-center justify-content-center gap-1">
+                                        <button type="button"
+                                                class="btn btn-outline-primary btn-sm"
+                                                data-std-process-edit
+                                                title="{{ __('Edit STD row') }}"
+                                                data-std-process-id="{{ $row->id }}"
+                                                data-std="{{ e($row->std) }}"
+                                                data-process="{{ e($row->process) }}"
+                                                data-qty="{{ (int) $row->qty }}"
+                                                data-ipl="{{ e($part?->ipl_num ?? '') }}"
+                                                data-description="{{ e($part?->name ?? '') }}">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <form action="{{ route('manuals.std-processes.destroy', ['manual' => $cmm->id, 'stdProcess' => $row->id]) }}"
+                                              method="POST"
+                                              class="m-0"
+                                              data-std-process-delete-form>
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="{{ __('Delete STD row') }}">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
                             </tr>
                         @empty
                             <tr>
@@ -158,10 +205,6 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small mb-0">EFF Code</label>
-                            <input type="text" name="eff_code" id="add_std_eff_code" class="form-control form-control-sm" placeholder="{{ __('A / A,B - blank = all') }}" autocomplete="off">
-                        </div>
-                        <div class="col-md-6">
                             <label class="form-label small mb-0">Qty</label>
                             <input type="number" name="qty" id="add_std_qty" class="form-control form-control-sm" value="1" min="1" required>
                         </div>
@@ -199,10 +242,6 @@
                     <div class="mb-2">
                         <label class="form-label">Qty</label>
                         <input type="number" name="qty" id="edit_std_qty" class="form-control" min="1" required>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label">EFF Code</label>
-                        <input type="text" name="eff_code" id="edit_std_eff_code" class="form-control" placeholder="{{ __('Blank = all; A or A,B') }}">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -269,8 +308,6 @@
         form.action = baseUpdateUrl + '/' + id;
         fillEditProcessSelect(trigger.getAttribute('data-std') || '', trigger.getAttribute('data-process') || '');
         document.getElementById('edit_std_qty').value = trigger.getAttribute('data-qty') || '1';
-        var effEl = document.getElementById('edit_std_eff_code');
-        if (effEl) effEl.value = trigger.getAttribute('data-eff-code') || '';
         var titleEl = document.getElementById('editStdProcessModalTitle');
         if (titleEl) {
             var ipl = trigger.getAttribute('data-ipl') || '-';
@@ -297,7 +334,6 @@
         row.querySelectorAll('[data-std-process-edit]').forEach(function (cell) {
             cell.setAttribute('data-process', data.process || '');
             cell.setAttribute('data-qty', String(data.qty || 1));
-            cell.setAttribute('data-eff-code', data.eff_code || '');
         });
 
         var processCell = row.querySelector('[data-field="process"]');
@@ -306,8 +342,6 @@
         var qtyCell = row.querySelector('[data-field="qty"]');
         if (qtyCell) qtyCell.textContent = String(data.qty || 1);
 
-        var effCell = row.querySelector('[data-std-process-eff="' + data.id + '"]');
-        if (effCell) effCell.textContent = data.eff_code || '-';
     }
 
     document.addEventListener('click', function (e) {
@@ -374,6 +408,32 @@
             });
         });
     }
+
+    document.addEventListener('submit', async function (e) {
+        var form = e.target.closest('form[data-std-process-delete-form]');
+        if (!form || form.dataset.projectConfirmAccepted === '1') return;
+
+        e.preventDefault();
+
+        if (typeof window.confirmDialog !== 'function') {
+            if (typeof showNotification === 'function') {
+                showNotification('{{ __("Delete confirmation dialog is not available.") }}', 'error');
+            }
+            return;
+        }
+
+        var confirmed = await window.confirmDialog({
+            title: '{{ __("Delete STD row?") }}',
+            message: '{{ __("This STD row will be removed from the manual.") }}',
+            okText: '{{ __("Delete") }}',
+            cancelText: '{{ __("Cancel") }}',
+            danger: true,
+        });
+        if (!confirmed) return;
+
+        form.dataset.projectConfirmAccepted = '1';
+        HTMLFormElement.prototype.submit.call(form);
+    });
 })();
 
 (function () {

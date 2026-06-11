@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Code;
 use App\Models\Component;
 use App\Models\ExtraProcess;
+use App\Models\Instruction;
 use App\Models\LogCard;
 use App\Models\Manual;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\Transfer;
 use App\Models\Unit;
+use App\Models\User;
+use App\Models\UserUiSetting;
 use App\Models\Workorder;
 use App\Models\WorkorderStdProcess;
 use App\Models\WorkorderUnitInspection;
@@ -265,15 +268,22 @@ class QualityAssuranceController extends Controller
         $workorder->loadMissing('unit');
 
         $field = (string) $request->input('field');
-        abort_unless(in_array($field, ['unit_id', 'modified', 'serial'], true), 422);
+        abort_unless(in_array($field, ['unit_id', 'instruction_id', 'description', 'component_name', 'modified', 'serial'], true), 422);
 
         $rules = [
-            'field' => ['required', 'in:unit_id,modified,serial'],
+            'field' => ['required', 'in:unit_id,instruction_id,description,component_name,modified,serial'],
             'value' => ['nullable', 'string', 'max:255'],
         ];
 
         if ($field === 'unit_id') {
             $rules['value'] = ['required', 'integer', 'exists:units,id'];
+        }
+        if ($field === 'instruction_id') {
+            $rules['value'] = ['required', 'integer', 'exists:instructions,id'];
+        }
+        if ($field === 'component_name') {
+            $rules['value'] = ['required', 'string', 'max:250'];
+            $rules['component_id'] = ['required', 'integer', 'exists:components,id'];
         }
 
         $data = $request->validate($rules);
@@ -281,6 +291,22 @@ class QualityAssuranceController extends Controller
 
         match ($field) {
             'unit_id' => $workorder->forceFill(['unit_id' => (int) $value])->save(),
+            'instruction_id' => $workorder->forceFill(['instruction_id' => (int) $value])->save(),
+            'description' => tap($workorder->unit, function (?Unit $unit) use ($value): void {
+                abort_unless($unit, 422, 'Workorder unit is missing.');
+
+                $unit->forceFill(['name' => $value !== '' ? $value : null])->save();
+            }),
+            'component_name' => tap(Component::query()->findOrFail((int) $data['component_id']), function (Component $component) use ($workorder, $value): void {
+                abort_unless(
+                    $workorder->unit?->manual_id !== null
+                    && (int) $component->manual_id === (int) $workorder->unit->manual_id,
+                    422,
+                    'Selected part does not belong to this workorder manual.'
+                );
+
+                $component->forceFill(['name' => $value])->save();
+            }),
             'modified' => $workorder->forceFill(['modified' => $value !== '' ? $value : null])->save(),
             'serial' => $workorder->forceFill(['serial_number' => $value !== '' ? $value : null])->save(),
         };
@@ -364,6 +390,127 @@ class QualityAssuranceController extends Controller
             'componentData' => $componentData,
             'componentDataOut' => $componentDataOut,
             'codes' => Code::all(),
+        ]);
+    }
+
+    public function certificateForm(Request $request, Workorder $workorder)
+    {
+        $workorder->loadMissing([
+            'customer',
+            'instruction',
+            'tdrs',
+            'unit.manual.revisionChecks',
+            'user.role',
+            'doneUser.role',
+            'serviceBulletinLogs.serviceBulletin',
+            'unitInspections',
+        ]);
+
+        $logCard = LogCard::query()
+            ->where('workorder_id', $workorder->id)
+            ->first();
+        $decodeCertificateLogRows = static function (mixed $value): array {
+            if (is_string($value)) {
+                $value = json_decode($value, true);
+            }
+
+            if (! is_array($value)) {
+                return [];
+            }
+
+            return collect($value)
+                ->filter(fn ($row, $key) => is_int($key) && is_array($row))
+                ->values()
+                ->all();
+        };
+        $certificateLogRows = $decodeCertificateLogRows($logCard?->component_data_out ?: $logCard?->component_data);
+        $certificateLogComponentIds = collect($certificateLogRows)
+            ->map(fn (array $row): int => (int) ($row['component_id'] ?? 0))
+            ->filter()
+            ->unique()
+            ->values();
+        $certificateLogComponents = $certificateLogComponentIds->isNotEmpty()
+            ? Component::query()
+                ->whereIn('id', $certificateLogComponentIds)
+                ->get(['id', 'name', 'part_number', 'assy_part_number'])
+                ->keyBy('id')
+            : collect();
+        $user = $request->user();
+        $managerOptions = User::query()
+            ->with('role')
+            ->whereHas('role', fn ($query) => $query->where('name', 'Manager'))
+            ->orderBy('name')
+            ->get(['id', 'name', 'role_id']);
+        $certificateSettingsScope = 'quality.certificate.wo.' . $workorder->id;
+        $certificateSettings = UserUiSetting::query()
+            ->where('user_id', $user?->id)
+            ->where('scope', $certificateSettingsScope)
+            ->get()
+            ->mapWithKeys(fn (UserUiSetting $setting): array => [$setting->key => $setting->value]);
+        $certificateStringSetting = static function (string $key, string $default = '') use ($certificateSettings): string {
+            if (! $certificateSettings->has($key)) {
+                return $default;
+            }
+
+            $value = $certificateSettings->get($key);
+
+            return is_scalar($value) ? trim((string) $value) : $default;
+        };
+        $certificateBoolSetting = static function (string $key, bool $default) use ($certificateSettings): bool {
+            if (! $certificateSettings->has($key)) {
+                return $default;
+            }
+
+            return filter_var($certificateSettings->get($key), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default;
+        };
+        $canEditCertificateManager = (bool) $user?->canAccessQualityAssurancePage();
+        $requestedManagerId = (int) $request->query('certificate_manager_id');
+        $savedManagerId = (int) $certificateStringSetting('certificate_manager_id');
+        $selectedManager = $canEditCertificateManager
+            ? $managerOptions->firstWhere('id', $requestedManagerId ?: $savedManagerId)
+            : null;
+        $defaultCertificateDate = $workorder->doneDate() ?? $workorder->approve_at ?? now();
+        $defaultCertificateDateIso = Carbon::parse($defaultCertificateDate)->format('Y-m-d');
+        $certificateDateIso = $defaultCertificateDateIso;
+        $savedCertificateDate = $certificateStringSetting('certificate_date');
+        if ($savedCertificateDate !== '') {
+            try {
+                $certificateDateIso = parse_project_date($savedCertificateDate) ?: $defaultCertificateDateIso;
+            } catch (\Throwable) {
+                $certificateDateIso = $defaultCertificateDateIso;
+            }
+        }
+        $includeLandingGearLogCard = $certificateBoolSetting('include_landing_gear_log_card', true);
+        $includeRoycoService = $certificateBoolSetting('include_royco_service', false);
+        $certificateStatusOptions = Instruction::query()
+            ->where('name', '!=', 'Draft')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->values();
+        $certificateManagerName = trim((string) (
+            $selectedManager?->name
+            ?: ($canEditCertificateManager ? $user?->name : null)
+            ?: $this->resolveCertificateManagerName($workorder, $user)
+        ));
+
+        return view('admin.quality.forms.certificateForm', [
+            'current_wo' => $workorder,
+            'certificateLogCard' => $logCard,
+            'managerOptions' => $managerOptions,
+            'canEditCertificateManager' => $canEditCertificateManager,
+            'selectedCertificateManagerId' => $canEditCertificateManager
+                ? (int) ($selectedManager?->id ?? $user?->id)
+                : null,
+            'certificateDateIso' => $certificateDateIso,
+            'includeLandingGearLogCard' => $includeLandingGearLogCard,
+            'includeRoycoService' => $includeRoycoService,
+            'certificateStatusOptions' => $certificateStatusOptions,
+            'selectedCertificateInstructionId' => $workorder->instruction_id ? (int) $workorder->instruction_id : null,
+            'selectedCertificateItemSource' => $certificateStringSetting('certificate_item_source', 'main'),
+            'selectedCertificateTrackingMode' => $certificateStringSetting('certificate_tracking_mode'),
+            'certificateLogComponents' => $certificateLogComponents,
+            'certificateSettingsScope' => $certificateSettingsScope,
+            'certificateManagerName' => $certificateManagerName,
         ]);
     }
 
@@ -677,6 +824,24 @@ class QualityAssuranceController extends Controller
         );
     }
 
+    private function resolveCertificateManagerName(Workorder $workorder, ?User $user): string
+    {
+        $approvedBy = trim((string) ($workorder->approve_name ?? ''));
+        if ($approvedBy !== '') {
+            return $approvedBy;
+        }
+
+        if ($workorder->doneUser?->roleIs('Manager')) {
+            return (string) $workorder->doneUser->name;
+        }
+
+        if ($workorder->user?->roleIs('Manager')) {
+            return (string) $workorder->user->name;
+        }
+
+        return (string) ($user?->name ?? '');
+    }
+
     private function normalizeWorkorderSearch(string $query): string
     {
         $query = trim($query);
@@ -733,6 +898,7 @@ class QualityAssuranceController extends Controller
         $submittedRows = collect($qaRow['submitted_inspections']['pending'] ?? []);
         $stdProcessRows = collect($this->buildStdProcessPayload($workorder));
         $completedTaskUrl = $this->completedTaskUrl($workorder);
+        $requiresStdProcesses = $this->isOverhaulWorkorder($workorder);
 
         return [
             [
@@ -761,7 +927,7 @@ class QualityAssuranceController extends Controller
             ],
             [
                 'label' => 'STD processes complete',
-                'ok' => $stdProcessRows->whereIn('type', ['ndt', 'cad'])
+                'ok' => ! $requiresStdProcesses || $stdProcessRows->whereIn('type', ['ndt', 'cad'])
                     ->reject(fn (array $row) => (bool) ($row['ignored'] ?? false))
                     ->every(fn (array $row) => (bool) ($row['complete'] ?? false)),
                 'target' => 'qaStdProcessBlock',
@@ -790,7 +956,7 @@ class QualityAssuranceController extends Controller
             'done' => (bool) $qaRow['is_done'],
             'status' => strtoupper($qaRow['status']),
             'customer_po' => $workorder->customer_po ?: '-',
-            'description' => $workorder->description ?: '-',
+            'description' => $workorder->unit?->name ?: ($workorder->unit?->description ?: ($workorder->description ?: '-')),
         ];
     }
 
@@ -938,6 +1104,10 @@ class QualityAssuranceController extends Controller
 
     private function buildStdProcessPayload(Workorder $workorder): array
     {
+        if (! $this->isOverhaulWorkorder($workorder)) {
+            return [];
+        }
+
         $rows = ($workorder->stdProcesses ?? collect())
             ->whereIn('std_type', ['ndt', 'cad'])
             ->keyBy('std_type');
@@ -959,6 +1129,11 @@ class QualityAssuranceController extends Controller
                 'complete' => $row !== null && ! $row->ignore_row && $row->date_finish !== null,
             ];
         })->values()->all();
+    }
+
+    private function isOverhaulWorkorder(Workorder $workorder): bool
+    {
+        return strcasecmp((string) ($workorder->instruction?->name ?? ''), 'Overhaul') === 0;
     }
 
     private function completedTaskUrl(Workorder $workorder): string
@@ -1005,18 +1180,13 @@ class QualityAssuranceController extends Controller
         return collect([
             [
                 'key' => 'log_card',
-                'title' => 'Log card',
+                'title' => 'Log Card',
                 'url' => route('quality.forms.log_card', ['workorder' => $workorder->id]),
             ],
             [
-                'key' => 'certificate_of_destruction',
-                'title' => 'Certificate of Destruction',
-                'url' => route('log_card.sertDistrForm', ['id' => $workorder->id]),
-            ],
-            [
-                'key' => 'shipment',
-                'title' => 'Shipment',
-                'url' => route('quality.forms.shipment_release', ['workorder' => $workorder->id]),
+                'key' => 'service_bulletin_log',
+                'title' => 'SB log',
+                'url' => route('tdrs.serviceBulletinLog', ['workorder' => $workorder->id]),
             ],
             [
                 'key' => 'sp_form',
@@ -1026,9 +1196,19 @@ class QualityAssuranceController extends Controller
                     : route('tdrs.specProcessFormEmp', ['id' => $workorder->id]),
             ],
             [
-                'key' => 'service_bulletin_log',
-                'title' => 'SB Log',
-                'url' => route('tdrs.serviceBulletinLog', ['workorder' => $workorder->id]),
+                'key' => 'certificate',
+                'title' => 'Certificate',
+                'url' => route('quality.forms.certificate', ['workorder' => $workorder->id]),
+            ],
+            [
+                'key' => 'shipment',
+                'title' => 'Shipment',
+                'url' => route('quality.forms.shipment_release', ['workorder' => $workorder->id]),
+            ],
+            [
+                'key' => 'certificate_of_destruction',
+                'title' => 'Certificate of destruction',
+                'url' => route('log_card.sertDistrForm', ['id' => $workorder->id]),
             ],
         ])->map(fn ($form) => $form + [
             'workorder_number' => (string) $workorder->number,

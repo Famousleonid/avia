@@ -43,6 +43,11 @@
                 padding: 0;
             }
 
+            .container-fluid {
+                max-height: none !important;
+                overflow: visible !important;
+            }
+
             /* Отключаем разрывы страниц внутри элементов */
             table, h1, p {
                 page-break-inside: avoid;
@@ -256,6 +261,63 @@
             grid-template-columns: repeat(12, 1fr);
             grid-template-rows: repeat(5, 27px); /* Фиксированная высота строк */
             gap: 0px;
+        }
+
+        .log-card-record-row {
+            display: grid;
+            grid-column: 1 / -1;
+            grid-template-columns: repeat(12, 1fr);
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .log-card-print-page {
+            position: relative;
+            display: block;
+            height: 7.55in;
+            min-height: 0;
+            padding-bottom: 0.34in;
+            box-sizing: border-box;
+            overflow: hidden;
+            break-after: page;
+            page-break-after: always;
+        }
+
+        .log-card-print-page:last-of-type {
+            break-after: auto;
+            page-break-after: auto;
+        }
+
+        .log-card-page-body {
+            height: 100%;
+            overflow: visible;
+        }
+
+        .log-card-page-footer {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            width: 100%;
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 5px 5px;
+            font-size: 12px;
+            background-color: #fff;
+            box-sizing: border-box;
+        }
+
+        @media print {
+            .log-card-record-row {
+                break-inside: avoid-page;
+                page-break-inside: avoid;
+            }
+
+            .log-card-continuation-section {
+                break-before: page;
+                page-break-before: always;
+            }
         }
 
         .div1 {
@@ -481,6 +543,8 @@
     </button>
 </div>
 <div class="container-fluid">
+    <section class="log-card-print-page">
+        <div class="log-card-page-body">
     <div class="row " style="height: 80px">
         <div class="col-4">
             <div>
@@ -604,14 +668,20 @@
         @foreach($componentData_1 as $item)
             @php
                 if (($item['row_type'] ?? '') === 'manual') {
-                    $manualLabel = $item['manual_label'] ?? trim((string) (($item['manual_number'] ?? '').' '.($item['manual_title'] ?? '')));
+                    $manualForRow = !empty($item['manual_id'] ?? null) ? $manuals->firstWhere('id', (int) $item['manual_id']) : null;
+                    $manualLabel = trim((string) ($manualForRow->number ?? ($item['manual_number'] ?? '')));
+                    if ($manualLabel === '') {
+                        $manualLabel = trim(strtok((string) ($item['manual_label'] ?? ''), ' ') ?: '');
+                    }
                 } else {
                     $manualLabel = null;
                 }
             @endphp
             @if(($item['row_type'] ?? '') === 'manual')
-                <div class="border-l-b-r text-start align-content-center ps-2 pt-1 fs-7" style="grid-column: 1 / -1; min-height: 27px;">
-                    <strong>MANUAL:</strong> {{ $manualLabel ?: 'Manual' }}
+                <div class="log-card-record-row">
+                    <div class="border-l-b-r text-start align-content-center ps-2 pt-1 fs-7" style="grid-column: 1 / -1; min-height: 27px;">
+                        {{ $manualLabel }}
+                    </div>
                 </div>
                 @continue
             @endif
@@ -624,6 +694,7 @@
                 $displayName = $item['name'] ?? $item['description'] ?? ($comp->name ?? '');
                 $displayPartNumber = $item['part_number'] ?? ($comp->part_number ?? '');
             @endphp
+            <div class="log-card-record-row">
             <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">
                 {{ $displayName }}
 {{--                --}}
@@ -703,14 +774,17 @@
                 <div class="div21 border-b-r" > </div>
                 <div class="div22 border-b-r text-center pt-1 fs-75" >
                     @php
-                        $reasonCode = $codes->firstWhere('id', $item['reason']);
+                        $reasonValue = $item['reason'] ?? '';
+                        $reasonCode = $codes->firstWhere('id', $reasonValue);
                     @endphp
-                    {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
+                    {{ $reasonCode ? $reasonCode->name : $reasonValue }}
                 </div>
 {{--            @endif--}}
+            </div>
         @endforeach
 
-        @for($i=0; $i<12-$log_count_1; $i++)
+        @for($i=0; $i<$firstPrintPageRows-$log_count_1; $i++)
+            <div class="log-card-record-row">
             <div class="div13 border-l-b-r" style="height: 27px"></div>
             <div class="div14 border-b-r" > </div>
             <div class="div15 border-b-r" > </div>
@@ -721,10 +795,21 @@
             <div class="div20 border-b-r" > </div>
             <div class="div21 border-b-r" > </div>
             <div class="div22 border-b-r" > </div>
+            </div>
         @endfor
         <div class="mb-2"></div>
     </div>
+        </div>
+        <footer class="log-card-page-footer">
+            <div class="text-start">{{__("Form #008")}}</div>
+            <div class="text-center">1 of {{$totalPrintPages}}</div>
+            <div class="text-end pe-4">{{__('Rev#0, 15/Dec/2012   ')}}</div>
+        </footer>
+    </section>
     {{--    <div style="page-break-before: always;"></div>--}}
+    @foreach($continuationPrintPages as $continuationPageIndex => $componentDataPage)
+    <section class="log-card-print-page log-card-continuation-section">
+        <div class="log-card-page-body">
     <div class="mt-3">
         <div class="border-l-t-r ">
             <div class="row">
@@ -748,17 +833,23 @@
             <div class="div41 text-center fs-8 border-r-b pt-1">C.S.O.</div>
             <div class="div42 text-center fs-8 border-r-b pt-1">C.S.N.</div>
 
-            @foreach($componentData_2 as $item)
+            @foreach($componentDataPage as $item)
                 @php
                     if (($item['row_type'] ?? '') === 'manual') {
-                        $manualLabel = $item['manual_label'] ?? trim((string) (($item['manual_number'] ?? '').' '.($item['manual_title'] ?? '')));
+                        $manualForRow = !empty($item['manual_id'] ?? null) ? $manuals->firstWhere('id', (int) $item['manual_id']) : null;
+                        $manualLabel = trim((string) ($manualForRow->number ?? ($item['manual_number'] ?? '')));
+                        if ($manualLabel === '') {
+                            $manualLabel = trim(strtok((string) ($item['manual_label'] ?? ''), ' ') ?: '');
+                        }
                     } else {
                         $manualLabel = null;
                     }
                 @endphp
                 @if(($item['row_type'] ?? '') === 'manual')
-                    <div class="border-l-b-r text-start align-content-center ps-2 pt-1 fs-7" style="grid-column: 1 / -1; min-height: 27px;">
-                        <strong>MANUAL:</strong> {{ $manualLabel ?: 'Manual' }}
+                    <div class="log-card-record-row">
+                        <div class="border-l-b-r text-start align-content-center ps-2 pt-1 fs-7" style="grid-column: 1 / -1; min-height: 27px;">
+                            {{ $manualLabel }}
+                        </div>
                     </div>
                     @continue
                 @endif
@@ -771,6 +862,7 @@
                     $displayName = $item['name'] ?? $item['description'] ?? ($comp->name ?? '');
                     $displayPartNumber = $item['part_number'] ?? ($comp->part_number ?? '');
                 @endphp
+                <div class="log-card-record-row">
                 <div class="div13 border-l-b-r text-center pt-1 fs-7" style="height: 27px">
 
                     {{ $displayName }}
@@ -848,14 +940,17 @@
                     <div class="div21 border-b-r" > </div>
                     <div class="div22 border-b-r text-center pt-1 fs-75" >
                         @php
-                            $reasonCode = $codes->firstWhere('id', $item['reason']);
+                            $reasonValue = $item['reason'] ?? '';
+                            $reasonCode = $codes->firstWhere('id', $reasonValue);
                         @endphp
-                        {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
+                        {{ $reasonCode ? $reasonCode->name : $reasonValue }}
                     </div>
 {{--                @endif--}}
+                </div>
             @endforeach
 
-            @for($i=0; $i<22-$log_count_2; $i++)
+            @for($i=0; $i<$continuationPrintPageRows-count($componentDataPage); $i++)
+                <div class="log-card-record-row">
                 <div class="div13 border-l-b-r" style="height: 27px"></div>
                 <div class="div14 border-b-r" > </div>
                 <div class="div15 border-b-r" > </div>
@@ -866,8 +961,10 @@
                 <div class="div20 border-b-r" > </div>
                 <div class="div21 border-b-r" > </div>
                 <div class="div22 border-b-r" > </div>
+                </div>
             @endfor
 
+            @if($loop->last)
             <div class="div51 mt-2" style="height: auto; page-break-inside: avoid;">NOTES:</div>
             <div class="div52 fs-7 mt-2" style="grid-column: span 10">
                 <div>
@@ -893,20 +990,18 @@
                     5. If the Part No. is changed a new Log Card must be completed, transferring relevant information from the previous Card.
                 </div> <!-- Содержимое NOTES -->
             </div>
+            @endif
 
         </div>
     </div>
+        </div>
+        <footer class="log-card-page-footer">
+            <div class="text-start">{{__("Form #008")}}</div>
+            <div class="text-center">{{$continuationPageIndex + 2}} of {{$totalPrintPages}}</div>
+            <div class="text-end pe-4">{{__('Rev#0, 15/Dec/2012   ')}}</div>
+        </footer>
+    </section>
+    @endforeach
 </div>
-<footer >
-    <div class="row" style="width: 100%; padding: 5px 5px;">
-        <div class="col-6 text-start">
-            {{__("Form #008")}}
-        </div>
-
-        <div class="col-6 text-end pe-4 ">
-            {{__('Rev#0, 15/Dec/2012   ')}}
-        </div>
-    </div>
-</footer>
 </body>
 </html>

@@ -231,9 +231,11 @@
             return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day ? date : null;
         }
 
-        function formatProjectDate(date) {
+        function formatProjectDate(date, capitalizeMonth = true) {
             if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
-            return String(date.getDate()).padStart(2, '0') + '/' + projectDateMonths[date.getMonth()] + '/' + date.getFullYear();
+            const month = projectDateMonths[date.getMonth()];
+            const displayMonth = capitalizeMonth ? month.charAt(0).toUpperCase() + month.slice(1) : month;
+            return String(date.getDate()).padStart(2, '0') + '/' + displayMonth + '/' + date.getFullYear();
         }
 
         window.initProjectDatePickers = function (root = document) {
@@ -241,21 +243,22 @@
 
             root.querySelectorAll('input[data-project-date]').forEach(input => {
                 if (input._projectDatePicker) return;
+                const capitalizeMonth = !input.hasAttribute('data-project-date-lower');
 
                 input._projectDatePicker = flatpickr(input, {
                     allowInput: true,
                     dateFormat: 'd/M/Y',
                     defaultDate: parseProjectDate(input.value) || null,
                     disableMobile: true,
-                    formatDate: formatProjectDate,
+                    formatDate: date => formatProjectDate(date, capitalizeMonth),
                     parseDate: parseProjectDate,
                     onChange(selectedDates, dateStr, instance) {
-                        input.value = selectedDates[0] ? formatProjectDate(selectedDates[0]) : '';
+                        input.value = selectedDates[0] ? formatProjectDate(selectedDates[0], capitalizeMonth) : '';
                     },
                     onClose(selectedDates) {
                         const parsed = parseProjectDate(input.value);
                         if (parsed) {
-                            input.value = formatProjectDate(parsed);
+                            input.value = formatProjectDate(parsed, capitalizeMonth);
                         }
                     },
                 });

@@ -256,6 +256,31 @@ class ManualsTest extends TestCase
         $response->assertSee(route('processes.create', ['manual_id' => $manual->id, 'return_to' => route('manuals.show', ['manual' => $manual->id, 'tab' => 'processes'])]), false);
     }
 
+    public function test_manual_parts_delete_uses_project_confirm_dialog(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '1-10',
+            'part_number' => 'PART-DELETE-1',
+            'name' => 'Delete Confirm Part',
+            'units_assy' => 1,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('manuals.show', [
+            'manual' => $manual->id,
+            'tab' => 'parts',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('data-manual-part-delete-form', false);
+        $response->assertSee('data-manual-part-delete-button', false);
+        $response->assertSee('initManualPartDeleteConfirm', false);
+        $response->assertDontSee("onclick=\"return confirm('Are you sure you want to delete this component?');\"", false);
+    }
+
     public function test_manual_show_uses_saved_tab_on_first_render(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -313,6 +338,67 @@ class ManualsTest extends TestCase
             'revision_date' => '2026-01-01',
             'status' => ManualRevisionCheck::STATUS_UNCHANGED,
             'notes' => 'No change',
+        ]);
+    }
+
+    public function test_manual_revision_tab_dates_use_capital_month_project_format(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual([
+            'number' => 'CMM-REV-DATE',
+            'title' => 'Revision Date Manual',
+            'revision_date' => '2026-06-07',
+        ]);
+
+        ManualRevisionCheck::query()->create([
+            'manual_id' => $manual->id,
+            'revision_number' => '10',
+            'revision_date' => '2026-06-07',
+            'checked_at' => '2026-06-08',
+            'checked_by_user_id' => $admin->id,
+            'checked_by_stamp' => $admin->stamp,
+            'status' => ManualRevisionCheck::STATUS_UNCHANGED,
+            'notes' => 'No change',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('manuals.show', [
+            'manual' => $manual->id,
+            'tab' => 'revision',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Current revision date', false);
+        $response->assertSee('07/Jun/2026', false);
+        $response->assertSee('08/Jun/2026', false);
+        $response->assertSee('name="revision_date" class="form-control form-control-sm"', false);
+        $response->assertSee('value="07/Jun/2026"', false);
+        $response->assertSee('name="checked_at" class="form-control form-control-sm"', false);
+        $response->assertSee('data-project-date-capital', false);
+    }
+
+    public function test_manual_revision_check_accepts_capital_month_project_dates(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual([
+            'number' => 'CMM-REV-INPUT-DATE',
+            'title' => 'Revision Input Date Manual',
+            'revision_date' => '2026-06-01',
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('manuals.revision-checks.store', $manual), [
+            'status' => ManualRevisionCheck::STATUS_UNCHANGED,
+            'revision_number' => '11',
+            'revision_date' => '07/Jun/2026',
+            'checked_at' => '08/Jun/2026',
+            'notes' => 'No change',
+        ]);
+
+        $response->assertRedirect(route('manuals.show', ['manual' => $manual->id, 'tab' => 'revision']));
+        $this->assertDatabaseHas('manual_revision_checks', [
+            'manual_id' => $manual->id,
+            'revision_number' => '11',
+            'revision_date' => '2026-06-07',
+            'checked_at' => '2026-06-08',
         ]);
     }
 

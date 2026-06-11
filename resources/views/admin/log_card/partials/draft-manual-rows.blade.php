@@ -40,8 +40,7 @@
                        data-component-id="{{ $component->id }}"
                        data-group-key="{{ $rowGroupKey }}"
                        data-ipl-group="{{ $group['ipl_group'] }}"
-                       @disabled($logCardTdrReadOnly)
-                       checked>
+                       @disabled($logCardTdrReadOnly)>
             </td>
             <td>
                 <input type="hidden"
@@ -109,8 +108,7 @@
                    value="1"
                    data-component-id="{{ $component->id }}"
                    data-group-key="{{ $rowGroupKey }}"
-                   @disabled($logCardTdrReadOnly)
-                   checked>
+                   @disabled($logCardTdrReadOnly)>
         </td>
         <td>
             <input type="hidden"

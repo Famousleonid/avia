@@ -36,6 +36,32 @@ class WorkordersIndexTest extends TestCase
         $response->assertOk();
         $response->assertSee((string) $workorder->number);
         $response->assertSee('Visible workorder');
+        $response->assertSee('workorders-customer-filter-wrapper', false);
+        $response->assertSee('workorders-technik-filter-wrapper', false);
+        $response->assertSee('initCustomerSelect2', false);
+        $response->assertSee('initTechnikSelect2', false);
+        $response->assertSee("'- All customers -'", false);
+        $response->assertSee("'- All technicians -'", false);
+        $response->assertSee("theme: 'bootstrap-5'", false);
+        $response->assertSee('dropdownParent: $dropdownParent', false);
+        $response->assertSee('select2:select.workordersFilterBridge', false);
+        $response->assertSee("dispatchEvent(new Event('change'", false);
+        $response->assertSee('handleTechnikFilterChange', false);
+        $response->assertSee('handleCustomerFilterChange', false);
+        $response->assertSee("select2:open", false);
+        $response->assertSee('workorders-filter-select-dropdown', false);
+        $response->assertSee('width: max-content', false);
+        $response->assertSee('min-width: 100%', false);
+        $response->assertSee('max-height: min(440px', false);
+        $response->assertSee('white-space: nowrap', false);
+        $response->assertSee('overscroll-behavior: contain', false);
+        $response->assertSee('workorder-description-tooltip', false);
+        $response->assertSee('data-bs-title="Visible workorder"', false);
+        $response->assertSee('const tooltipText', false);
+        $response->assertSee('delay: { show: 700, hide: 100 }', false);
+        $response->assertDontSee('data-bs-title=""', false);
+        $response->assertDontSee(' title="Visible workorder"', false);
+        $response->assertDontSee('dropdownCssClass', false);
     }
 
     /**

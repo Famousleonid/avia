@@ -115,7 +115,7 @@
                                    class="form-control bg-black text-light border-secondary @error('open_at') is-invalid @enderror"
                                    maxlength="11"
                                    value="{{ old('open_at', $defaultOpenDate) }}"
-                                   placeholder="10/Aug/2026"
+                                   placeholder=".... /.... /......"
                                    data-project-date
                                    autocomplete="off">
                             @error('open_at') <div class="invalid-feedback">{{ $message }}</div> @enderror

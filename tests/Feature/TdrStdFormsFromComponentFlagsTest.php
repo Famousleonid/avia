@@ -642,6 +642,74 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response->assertSeeInOrder(['Cat #1', '7', 'RO', '3'], false);
     }
 
+    public function test_empty_spec_process_form_uses_std_ndt_and_cad_totals_for_overhaul(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'instruction_id' => 1,
+        ]);
+
+        $mpi = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-10',
+            'part_number' => 'PN-SP-EMP-MPI',
+            'name' => 'SP Emp MPI Part',
+            'units_assy' => 2,
+            'ndt_list' => true,
+        ]);
+        $fpi = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-20',
+            'part_number' => 'PN-SP-EMP-FPI',
+            'name' => 'SP Emp FPI Part',
+            'units_assy' => 3,
+            'ndt_list' => true,
+        ]);
+        $cad = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-30',
+            'part_number' => 'PN-SP-EMP-CAD',
+            'name' => 'SP Emp CAD Part',
+            'units_assy' => 4,
+            'cad_list' => true,
+        ]);
+
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $mpi->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '1',
+            'qty' => 2,
+        ]);
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $fpi->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '4',
+            'qty' => 3,
+        ]);
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $cad->id,
+            'std' => StdProcess::STD_CAD,
+        ], [
+            'process' => 'CAD',
+            'qty' => 4,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.specProcessFormEmp', $workorder->id));
+
+        $response->assertOk();
+        $response->assertDontSee('N/A', false);
+        $response->assertSeeInOrder(['Cat #1', '2', 'RO No.', '3', 'RO No.', '4'], false);
+    }
+
     public function test_cad_std_form_total_uses_qty_for_all_rows_without_dedup_by_ipl(): void
     {
         $admin = $this->createUserWithRole('Admin');

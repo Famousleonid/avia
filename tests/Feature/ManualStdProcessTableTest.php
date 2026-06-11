@@ -73,6 +73,7 @@ class ManualStdProcessTableTest extends TestCase
             'component_id' => $component->id,
             'qty' => 1,
             'process' => ['1'],
+            'eff_code' => 'SHOULD-NOT-SAVE',
         ]);
 
         $response->assertRedirect(route('manuals.show', [
@@ -81,6 +82,12 @@ class ManualStdProcessTableTest extends TestCase
             'std_inner' => StdProcess::STD_NDT,
         ]));
         $this->assertTrue((bool) $component->refresh()->ndt_list);
+        $this->assertDatabaseHas('std_processes', [
+            'manual_id' => $manual->id,
+            'component_id' => $component->id,
+            'std' => StdProcess::STD_NDT,
+            'eff_code' => null,
+        ]);
     }
 
     public function test_manual_std_process_picklist_includes_ndt_manual_processes(): void
@@ -270,7 +277,7 @@ class ManualStdProcessTableTest extends TestCase
         ]);
     }
 
-    public function test_manual_std_table_uses_cells_for_editing_without_action_column(): void
+    public function test_manual_std_table_uses_action_column_for_editing_and_deleting_without_eff_code(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual();
@@ -293,13 +300,22 @@ class ManualStdProcessTableTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('data-std-process-edit', false);
+        $response->assertSee('data-std-process-delete-form', false);
+        $response->assertSee('class="text-center small std-process-edit-cell"', false);
+        $response->assertSee('class="text-center std-process-edit-cell"', false);
         $response->assertSee('data-ipl="7-35"', false);
         $response->assertSee('data-description="Cell Edit Part"', false);
         $response->assertSee('editStdProcessModalTitle', false);
         $response->assertSee('<form id="editStdProcessForm" method="POST" data-no-spinner>', false);
         $response->assertSee("iplEl.className = 'text-info'", false);
-        $response->assertDontSee('btn-std-process-edit', false);
-        $response->assertDontSee('Delete row?', false);
+        $response->assertSee('<th class="text-center d-none" style="width: 96px;" aria-label="Action">', false);
+        $response->assertSee('std-process-action-cell d-none', false);
+        $response->assertSee('<span class="visually-hidden">Action</span>', false);
+        $response->assertDontSee('<th class="text-center" style="width: 96px;">Action</th>', false);
+        $response->assertSee('Delete STD row?', false);
+        $response->assertDontSee('id="add_std_eff_code"', false);
+        $response->assertDontSee('id="edit_std_eff_code"', false);
+        $response->assertDontSee('<th class="text-center">EFF</th>', false);
         $response->assertSee('PN-CELL-EDIT', false);
     }
 
@@ -323,6 +339,7 @@ class ManualStdProcessTableTest extends TestCase
             ->where('component_id', $component->id)
             ->where('std', StdProcess::STD_CAD)
             ->firstOrFail();
+        $stdRow->forceFill(['eff_code' => 'A, B'])->save();
 
         $response = $this->actingAs($admin)->putJson(route('manuals.std-processes.update', [
             'manual' => $manual->id,
@@ -330,14 +347,17 @@ class ManualStdProcessTableTest extends TestCase
         ]), [
             'qty' => 5,
             'process' => '2',
-            'eff_code' => 'A,B',
         ]);
 
         $response->assertOk();
         $response->assertJsonPath('success', true);
         $response->assertJsonPath('row.qty', 5);
         $response->assertJsonPath('row.process', '2');
-        $response->assertJsonPath('row.eff_code', 'A, B');
+        $response->assertJsonMissingPath('row.eff_code');
+        $this->assertDatabaseHas('std_processes', [
+            'id' => $stdRow->id,
+            'eff_code' => null,
+        ]);
     }
 
     public function test_manual_std_ajax_update_allows_full_manuals_access_user(): void
@@ -369,7 +389,6 @@ class ManualStdProcessTableTest extends TestCase
         ]), [
             'qty' => 2,
             'process' => '2',
-            'eff_code' => '',
         ]);
 
         $response->assertOk();

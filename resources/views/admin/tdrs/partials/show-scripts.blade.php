@@ -102,7 +102,8 @@ document.addEventListener('DOMContentLoaded', function() {
         'tab-log-card',
         'tab-bushing',
         'tab-rm-reports',
-        'tab-transfers'
+        'tab-transfers',
+        'tab-measurements'
     ];
 
     window.UserUiSettings.get(USER_UI_SCOPE, NOTIFICATION_STORAGE_KEY, null).then(function(pendingTdrNotification) {
@@ -125,6 +126,40 @@ document.addEventListener('DOMContentLoaded', function() {
         if (tdrShowTabsLoadingEl) {
             tdrShowTabsLoadingEl.style.display = 'none';
         }
+    }
+
+    function showRestoredTabBeforeReveal(tabButton) {
+        return new Promise(function(resolve) {
+            if (!tabButton) {
+                resolve();
+                return;
+            }
+
+            if (tabButton.classList.contains('active')) {
+                resolve();
+                return;
+            }
+
+            var resolved = false;
+            var fallbackTimer = null;
+
+            function done() {
+                if (resolved) return;
+                resolved = true;
+                if (fallbackTimer) window.clearTimeout(fallbackTimer);
+                tabButton.removeEventListener('shown.bs.tab', done);
+                resolve();
+            }
+
+            tabButton.addEventListener('shown.bs.tab', done, { once: true });
+            fallbackTimer = window.setTimeout(done, 350);
+
+            try {
+                bootstrap.Tab.getOrCreateInstance(tabButton).show();
+            } catch (_) {
+                done();
+            }
+        });
     }
     var editTdrModal = document.getElementById('editTdrModal');
     var processesBodyUrl = '{{ route("tdr-processes.processesBody", ["tdrId" => "__ID__"]) }}';
@@ -455,13 +490,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.setAttribute('data-has-log', '1');
                 btn.classList.remove('btn-success');
                 btn.classList.add('btn-danger');
-                btn.innerHTML = '<i class="fas fa-undo"></i> {{ __("Reset Log card") }}';
+                btn.innerHTML = '<i class="fas fa-undo"></i> {{ __("Reset Log Card") }}';
             } else {
                 btn.setAttribute('data-log-card-id', '');
                 btn.setAttribute('data-has-log', '0');
                 btn.classList.remove('btn-danger');
                 btn.classList.add('btn-success');
-                btn.innerHTML = '<i class="fas fa-keyboard"></i> {{ __("Create Log card") }}';
+                btn.innerHTML = '<i class="fas fa-keyboard"></i> {{ __("Create Log Card") }}';
             }
 
             btn.dataset.readonly = readOnly ? '1' : '0';
@@ -2086,7 +2121,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function logCardTabPersistPayload(payload, options) {
         options = options || {};
         if (!payload || payload.length < 1) {
-            var warning = '{{ __("Отметьте хотя бы один компонент для Log Card.") }}';
+            var warning = '{{ __("Select at least one component for Log Card.") }}';
             if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(warning, 'warning');
             else if (window.showNotification) window.showNotification(warning, 'warning');
             return Promise.resolve(false);
@@ -2290,11 +2325,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            var payload = logCardTabBuildPayload();
+            if (!payload || payload.length < 1) {
+                logCardTabPersistPayload(payload, { reload: true, notify: true });
+                syncLogCardToolbarFromPartial();
+                return;
+            }
+
             logCardEnterBtn.disabled = true;
             logCardEnterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Creating...") }}';
-            logCardTabPersistPayload(logCardTabBuildPayload(), { reload: true, notify: true }).finally(function() {
-                logCardEnterBtn.disabled = false;
-            });
+            logCardTabPersistPayload(payload, { reload: true, notify: true })
+                .then(function(saved) {
+                    if (!saved) syncLogCardToolbarFromPartial();
+                })
+                .finally(function() {
+                    logCardEnterBtn.disabled = logCardTabIsReadOnly();
+                });
         });
     }
 
@@ -2623,14 +2669,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        try {
-            var tabInstance = bootstrap.Tab.getOrCreateInstance(savedTabBtn);
-            tabInstance.show();
-        } catch (_) {
-            // keep default tab
-        } finally {
-            revealTabsContent();
-        }
+        await showRestoredTabBeforeReveal(savedTabBtn);
+        revealTabsContent();
     })();
 
     if (bushingTabBody && typeof loadBushingPartial === 'function') {

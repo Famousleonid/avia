@@ -292,7 +292,7 @@
 
         @systemadmin
             @php
-                $systemMenuOpen = request()->routeIs('admin.activity.*', 'mobile.*', 'admin.project-settings.*');
+                $systemMenuOpen = request()->routeIs('admin.activity.*', 'mobile.*', 'admin.project-settings.*', 'admin.std-process-audit.*');
             @endphp
             <li class="nav-item">
                 <button class="nav-link w-100 d-flex align-items-center flex-nowrap text-start"
@@ -336,6 +336,12 @@
                     <li class="nav-item press-spinner">
                         <a href="{{ route('admin.project-settings.index') }}" class="nav-link {{ request()->routeIs('admin.project-settings.*') ? 'active' : '' }}">
                             <i class="bi bi-sliders me-2"></i> <span>Settings</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item press-spinner">
+                        <a href="{{ route('admin.std-process-audit.index') }}" class="nav-link {{ request()->routeIs('admin.std-process-audit.*') ? 'active' : '' }}">
+                            <i class="bi bi-exclamation-triangle me-2"></i> <span>STD audit</span>
                         </a>
                     </li>
                 </ul>

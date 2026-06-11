@@ -8,11 +8,15 @@ use App\Models\Component;
 use App\Models\GeneralTask;
 use App\Models\LogCard;
 use App\Models\Main;
+use App\Models\ManualServiceBulletin;
+use App\Models\ManualRevisionCheck;
 use App\Models\ProcessName;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
+use App\Models\UserUiSetting;
 use App\Models\Workorder;
+use App\Models\WorkorderServiceBulletinLog;
 use App\Models\WorkorderStdProcess;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -100,6 +104,7 @@ class QualityAssuranceTest extends TestCase
     public function test_workorder_lookup_requires_full_normalized_number_and_returns_single_payload(): void
     {
         $manager = $this->createUserWithRole('Manager', [
+            'name' => 'Current Release Manager',
             'qa_access' => true,
         ]);
         $workorder = $this->createWorkorder(['number' => 988801]);
@@ -134,8 +139,28 @@ class QualityAssuranceTest extends TestCase
                 'forms',
             ],
         ]);
-        $this->assertSame('log_card', $response->json('workorder.forms.0.key'));
         $forms = collect($response->json('workorder.forms'));
+        $this->assertSame([
+            'log_card',
+            'service_bulletin_log',
+            'sp_form',
+            'certificate',
+            'shipment',
+            'certificate_of_destruction',
+        ], $forms->pluck('key')->all());
+        $this->assertSame([
+            'Log Card',
+            'SB log',
+            'SP Form',
+            'Certificate',
+            'Shipment',
+            'Certificate of destruction',
+        ], $forms->pluck('title')->all());
+        $this->assertContains('certificate', $forms->pluck('key')->all());
+        $this->assertSame(
+            route('quality.forms.certificate', ['workorder' => $workorder->id]),
+            $forms->firstWhere('key', 'certificate')['url']
+        );
         $this->assertContains('sp_form', $forms->pluck('key')->all());
         $this->assertSame(
             route('tdrs.specProcessFormEmp', ['id' => $workorder->id]),
@@ -146,6 +171,7 @@ class QualityAssuranceTest extends TestCase
     public function test_shipment_release_form_defaults_shipset_to_no(): void
     {
         $manager = $this->createUserWithRole('Manager', [
+            'name' => 'Current Release Manager',
             'qa_access' => true,
         ]);
         $workorder = $this->createWorkorder(['number' => 988802]);
@@ -159,6 +185,346 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('<option value="No" selected>No</option>', false);
         $response->assertSee('<span class="shipset-print-value" id="shipsetPrintValue">No</span>', false);
         $response->assertDontSee('<option value="Yes" selected>Yes</option>', false);
+    }
+
+    public function test_certificate_form_opens_from_quality(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $manual = $this->createManual([
+            'number' => '32-11-08',
+            'revision_date' => '2025-06-15',
+        ]);
+        ManualRevisionCheck::query()->create([
+            'manual_id' => $manual->id,
+            'revision_number' => '12',
+            'revision_date' => '2025-06-15',
+            'checked_at' => '2025-06-15',
+            'status' => ManualRevisionCheck::STATUS_UNCHANGED,
+        ]);
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'part_number' => '190-70260-407',
+            'name' => 'Lower Stay Assy',
+        ]);
+        $workorder = $this->createWorkorder([
+            'number' => 988803,
+            'unit_id' => $unit->id,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+            'description' => 'Lower Stay Assy',
+            'customer_po' => '500013602',
+            'serial_number' => '1464362/001',
+            'modified' => '190-70262-007',
+            'approve_at' => '2025-10-28',
+        ]);
+        Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'serial_number' => '1464362/001',
+            'assy_serial_number' => '1453146/005',
+            'qty' => 1,
+        ]);
+        LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                [
+                    'qa_fit_csn' => '13931',
+                    'qa_fit_cso' => '0',
+                ],
+            ]),
+        ]);
+        $firstBulletin = ManualServiceBulletin::query()->create([
+            'manual_id' => $manual->id,
+            'sort_order' => 1,
+            'ac_mfg_service_bulletin_no' => '170-32-0060 R1',
+            'oem_service_bulletin_no' => '2801A-32-09 R2',
+            'awd_no' => '11/7/2019',
+            'default_requirement' => ManualServiceBulletin::REQUIREMENT_MANDATORY,
+            'is_active' => true,
+        ]);
+        $secondBulletin = ManualServiceBulletin::query()->create([
+            'manual_id' => $manual->id,
+            'sort_order' => 2,
+            'ac_mfg_service_bulletin_no' => '170-32-A94 R2',
+            'oem_service_bulletin_no' => 'N/A',
+            'awd_no' => 'E2024-05-09 R1',
+            'default_requirement' => ManualServiceBulletin::REQUIREMENT_MANDATORY,
+            'is_active' => true,
+        ]);
+        $notCarriedOutBulletin = ManualServiceBulletin::query()->create([
+            'manual_id' => $manual->id,
+            'sort_order' => 3,
+            'ac_mfg_service_bulletin_no' => 'IGNORE-SB',
+            'oem_service_bulletin_no' => 'N/A',
+            'awd_no' => 'N/A',
+            'default_requirement' => ManualServiceBulletin::REQUIREMENT_RECOMMENDED,
+            'is_active' => true,
+        ]);
+        WorkorderServiceBulletinLog::query()->create([
+            'workorder_id' => $workorder->id,
+            'manual_service_bulletin_id' => $firstBulletin->id,
+            'status' => WorkorderServiceBulletinLog::STATUS_PREVIOUSLY_CARRIED_OUT,
+        ]);
+        WorkorderServiceBulletinLog::query()->create([
+            'workorder_id' => $workorder->id,
+            'manual_service_bulletin_id' => $secondBulletin->id,
+            'status' => WorkorderServiceBulletinLog::STATUS_AT_CARRIED_OUT,
+        ]);
+        WorkorderServiceBulletinLog::query()->create([
+            'workorder_id' => $workorder->id,
+            'manual_service_bulletin_id' => $notCarriedOutBulletin->id,
+            'status' => WorkorderServiceBulletinLog::STATUS_NOT_CARRIED_OUT,
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('<title>CERTIFICATE</title>', false);
+        $response->assertSee('AUTHORIZED RELEASE CERTIFICATE');
+        $response->assertSee('Form One');
+        $response->assertSee('W988803');
+        $response->assertSee('500013602');
+        $response->assertSee($manager->name);
+        $response->assertDontSee('Alexey Baydalia');
+        $response->assertSee('28/Oct/2025');
+        $response->assertDontSee('28/oct/2025');
+        $response->assertSee('arc-date-hint');
+        $response->assertSee('Date (dd/mmm/yyyy)');
+        $response->assertSee('Lower Stay Assy');
+        $response->assertSee('190-70260-407');
+        $response->assertSee('190-70262-007');
+        $response->assertSee('1464362/001');
+        $response->assertSee('1453146/005');
+        $response->assertSee('Rev # 12 dated');
+        $response->assertSee('For the replacement parts refer to Teardown Report.');
+        $response->assertSee('Airworthiness Directives 2019-11-07, E2024-05-09 R1 and Service Bulletins: 170-32-0060 R1, 170-32-A94 R2 incorporated.');
+        $response->assertDontSee('IGNORE-SB');
+        $response->assertSee('Landing Gear Log Card attached');
+        $response->assertSee('CSN-13931; CSO-0');
+        $response->assertSee('Serviced with ROYCO LGF (Yellow)');
+        $response->assertSee('CAR 571.10 Maintenance Release.');
+    }
+
+    public function test_certificate_description_uses_unit_name_before_workorder_description(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $unit = $this->createUnit([
+            'name' => 'PIN',
+            'description' => 'Unit fallback description',
+        ]);
+        $workorder = $this->createWorkorder([
+            'number' => 107616,
+            'unit_id' => $unit->id,
+            'description' => 'Pin, Torque Arm',
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('data-certificate-item-description', false);
+        $response->assertSee('value="PIN"', false);
+        $response->assertDontSee('value="Pin, Torque Arm"', false);
+    }
+
+    public function test_certificate_can_use_selected_log_card_detail_item(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder([
+            'number' => 107736,
+            'description' => 'Main Detail',
+            'serial_number' => 'MAIN-SN',
+        ]);
+        $workorder->unit->forceFill(['name' => 'Main Detail'])->save();
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'LOG-PN',
+            'name' => 'Log Card Detail',
+            'ipl_num' => '7-42',
+            'eff_code' => null,
+        ]);
+        LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data_out' => [
+                [
+                    'component_id' => $component->id,
+                    'serial_number' => 'LOG-SN',
+                ],
+            ],
+        ]);
+        UserUiSetting::query()->create([
+            'user_id' => $manager->id,
+            'scope' => 'quality.certificate.wo.' . $workorder->id,
+            'key' => 'certificate_item_source',
+            'value' => 'log:0',
+        ]);
+        UserUiSetting::query()->create([
+            'user_id' => $manager->id,
+            'scope' => 'quality.certificate.wo.' . $workorder->id,
+            'key' => 'certificate_tracking_mode',
+            'value' => 'c',
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('data-certificate-detail-main', false);
+        $response->assertSee('data-certificate-detail-toggle', false);
+        $response->assertSee('data-certificate-detail-select', false);
+        $response->assertSee('Log Card Detail | LOG-PN | LOG-SN');
+        $response->assertSee('<div class="arc-tracking-no" data-certificate-tracking-number>W107736-1</div>', false);
+        $response->assertSee('value="Log Card Detail"', false);
+        $response->assertSee('<td class="arc-item-multiline" data-certificate-item-part>LOG-PN</td>', false);
+        $response->assertSee('<td class="arc-item-multiline" data-certificate-item-serial>LOG-SN</td>', false);
+        $response->assertSee('Main Detail');
+    }
+
+    public function test_certificate_tracking_c_suffix_applies_to_main_detail_only(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $unit = $this->createUnit([
+            'name' => 'Main Detail',
+        ]);
+        $workorder = $this->createWorkorder([
+            'number' => 107736,
+            'unit_id' => $unit->id,
+            'description' => 'Old Workorder Description',
+        ]);
+
+        UserUiSetting::query()->create([
+            'user_id' => $manager->id,
+            'scope' => 'quality.certificate.wo.' . $workorder->id,
+            'key' => 'certificate_tracking_mode',
+            'value' => 'c',
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('data-certificate-tracking-c-toggle', false);
+        $response->assertSee('<div class="arc-tracking-no" data-certificate-tracking-number>W107736-C</div>', false);
+        $response->assertSee('value="Main Detail"', false);
+        $response->assertDontSee('value="Old Workorder Description"', false);
+    }
+
+    public function test_certificate_status_work_updates_workorder_instruction_and_prints_past_tense(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $repairInstruction = $this->createInstruction(['name' => 'Repair']);
+        $testInspectInstruction = $this->createInstruction(['name' => 'Test & inspect']);
+        $manual = $this->createManual(['number' => '32-21-06']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'instruction_id' => $repairInstruction->id,
+        ]);
+
+        $updateResponse = $this->actingAs($manager)
+            ->patchJson(route('quality.workorder.top_fields.update', $workorder), [
+                'field' => 'instruction_id',
+                'value' => (string) $testInspectInstruction->id,
+            ]);
+
+        $updateResponse->assertOk();
+        $updateResponse->assertJson(['ok' => true]);
+        $this->assertSame($testInspectInstruction->id, (int) $workorder->fresh()->instruction_id);
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('data-certificate-status-select', false);
+        $response->assertSee('value="' . $repairInstruction->id . '"', false);
+        $response->assertSee('data-status-display="Repaired"', false);
+        $response->assertSee('value="' . $testInspectInstruction->id . '"', false);
+        $response->assertSee('data-status-display="Tested &amp; inspected"', false);
+        $response->assertSee('<div class="arc-status-work-print-value" data-certificate-status-output>Tested &amp; inspected</div>', false);
+        $response->assertSee('Tested &amp; inspected in accordance with CMM # 32-21-06', false);
+    }
+
+    public function test_certificate_manager_name_switch_is_limited_to_manager_role(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'name' => 'Current Manager',
+            'qa_access' => true,
+        ]);
+        $selectedManager = $this->createUserWithRole('Manager', [
+            'name' => 'Selected Certificate Manager',
+            'qa_access' => true,
+        ]);
+        $admin = $this->createUserWithRole('Admin', [
+            'name' => 'System Admin',
+        ]);
+        $workorder = $this->createWorkorder();
+        $workorder->forceFill(['approve_name' => 'Approved Manager'])->save();
+        $settingsScope = 'quality.certificate.wo.' . $workorder->id;
+        UserUiSetting::query()->create([
+            'user_id' => $manager->id,
+            'scope' => $settingsScope,
+            'key' => 'include_landing_gear_log_card',
+            'value' => false,
+        ]);
+        UserUiSetting::query()->create([
+            'user_id' => $manager->id,
+            'scope' => $settingsScope,
+            'key' => 'include_royco_service',
+            'value' => true,
+        ]);
+        UserUiSetting::query()->create([
+            'user_id' => $manager->id,
+            'scope' => $settingsScope,
+            'key' => 'certificate_manager_id',
+            'value' => (string) $selectedManager->id,
+        ]);
+        UserUiSetting::query()->create([
+            'user_id' => $manager->id,
+            'scope' => $settingsScope,
+            'key' => 'certificate_date',
+            'value' => '2025-11-03',
+        ]);
+
+        $managerResponse = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $managerResponse->assertOk();
+        $managerResponse->assertSee('Selected Certificate Manager');
+        $managerResponse->assertSee('03/Nov/2025');
+        $managerResponse->assertSee('data-certificate-manager-select', false);
+        $managerResponse->assertSee('data-certificate-date-input', false);
+        $managerResponse->assertSee('data-certificate-date-picker', false);
+        $managerResponse->assertSee('value="03/Nov/2025"', false);
+        $managerResponse->assertSee('value="2025-11-03"', false);
+        $managerResponse->assertSee('Replacement parts: none');
+        $managerResponse->assertSee('Landing Gear Log Card attached');
+        $managerResponse->assertSee('CSN-19453; CSO-0.');
+        $managerResponse->assertSee('data-setting-key="include_landing_gear_log_card"', false);
+        $managerResponse->assertSee('is-print-disabled');
+        $managerResponse->assertSee('Serviced with ROYCO LGF (Yellow)');
+        $managerResponse->assertSee('data-setting-key="include_royco_service"', false);
+        $managerResponse->assertSee('arc-remark-print-toggle');
+        $managerResponse->assertDontSee('arc-toolbar-form', false);
+        $managerResponse->assertDontSee('Apply');
+
+        $adminResponse = $this->actingAs($admin)
+            ->get(route('quality.forms.certificate', [
+                'workorder' => $workorder,
+                'certificate_manager_id' => $selectedManager->id,
+            ]));
+
+        $adminResponse->assertOk();
+        $adminResponse->assertSee('data-certificate-manager-select', false);
+        $adminResponse->assertSee('Selected Certificate Manager');
     }
 
     public function test_serial_search_returns_workorder_links_from_tdr_and_log_card(): void
@@ -276,7 +642,10 @@ class QualityAssuranceTest extends TestCase
         $manager = $this->createUserWithRole('Manager', [
             'qa_access' => true,
         ]);
-        $workorder = $this->createWorkorder(['number' => 988802]);
+        $workorder = $this->createWorkorder([
+            'number' => 988802,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
         $component = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'QA-MISSING-DATES',
@@ -418,9 +787,9 @@ class QualityAssuranceTest extends TestCase
         $this->assertStringContainsString('general_task='.$finalInspectionGeneralTask->id, $finalInspectionRow['inspection_url']);
         $this->assertStringContainsString('task='.$finalInspectionTask->id, $finalInspectionRow['inspection_url']);
         $stdRows = collect($response->json('workorder.std_processes'));
-        $this->assertSame('01/may/2026', $stdRows->firstWhere('type', 'ndt')['date_start']);
-        $this->assertSame('02/may/2026', $stdRows->firstWhere('type', 'ndt')['date_finish']);
-        $this->assertSame('03/may/2026', $stdRows->firstWhere('type', 'cad')['date_start']);
+        $this->assertSame('01/May/2026', $stdRows->firstWhere('type', 'ndt')['date_start']);
+        $this->assertSame('02/May/2026', $stdRows->firstWhere('type', 'ndt')['date_finish']);
+        $this->assertSame('03/May/2026', $stdRows->firstWhere('type', 'cad')['date_start']);
         $this->assertSame('-', $stdRows->firstWhere('type', 'cad')['date_finish']);
         $this->assertSame(1, collect($response->json('workorder.repair_orders'))->where('ok', false)->count());
     }
@@ -430,7 +799,10 @@ class QualityAssuranceTest extends TestCase
         $manager = $this->createUserWithRole('Manager', [
             'qa_access' => true,
         ]);
-        $workorder = $this->createWorkorder(['number' => 988803]);
+        $workorder = $this->createWorkorder([
+            'number' => 988803,
+            'instruction_id' => $this->createOverhaulInstruction()->id,
+        ]);
         $ndtProcessName = ProcessName::query()->create([
             'name' => 'STD NDT Ignored Check',
             'process_sheet_name' => 'NDT',
@@ -477,6 +849,44 @@ class QualityAssuranceTest extends TestCase
         $this->assertFalse($stdRows->firstWhere('type', 'ndt')['ignored']);
         $this->assertTrue($stdRows->firstWhere('type', 'cad')['ignored']);
         $this->assertSame('CAD', $stdRows->firstWhere('type', 'cad')['short_label']);
+    }
+
+    public function test_quality_std_processes_are_complete_and_hidden_for_non_overhaul_instruction(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder([
+            'number' => 988805,
+            'instruction_id' => $this->createInstruction(['name' => 'Repair'])->id,
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'STD CAD Non Overhaul Check',
+            'process_sheet_name' => 'CAD',
+            'form_number' => 'CAD',
+            'print_form' => false,
+            'show_in_process_picker' => false,
+        ]);
+        WorkorderStdProcess::query()->create([
+            'workorder_id' => $workorder->id,
+            'std_type' => 'cad',
+            'process_name_id' => $processName->id,
+            'date_start' => '2026-05-03',
+            'date_finish' => null,
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('quality.workorder', [
+            'q' => '988805',
+        ]));
+
+        $response->assertOk();
+
+        $stdProcessesCheck = collect($response->json('workorder.checks'))
+            ->firstWhere('label', 'STD processes complete');
+
+        $this->assertNotNull($stdProcessesCheck);
+        $this->assertTrue($stdProcessesCheck['ok']);
+        $this->assertSame([], $response->json('workorder.std_processes'));
     }
 
     public function test_quality_main_links_target_general_task_when_main_row_is_missing(): void
@@ -535,13 +945,18 @@ class QualityAssuranceTest extends TestCase
         ]);
         $unit = $this->createUnit([
             'part_number' => 'OLD-PN',
+            'name' => 'Old Unit Name',
+            'description' => 'Old Unit Description',
         ]);
         $newUnit = $this->createUnit([
             'manual_id' => $unit->manual_id,
             'part_number' => 'NEW-PN',
+            'name' => 'New Unit Name',
+            'description' => 'New Unit Description',
         ]);
         $workorder = $this->createWorkorder([
             'unit_id' => $unit->id,
+            'description' => 'Original Workorder Description',
             'modified' => null,
             'serial_number' => 'OLD-SN',
         ]);
@@ -572,9 +987,62 @@ class QualityAssuranceTest extends TestCase
         $serialResponse->assertOk();
         $serialResponse->assertJsonPath('top.serial', 'NEW-SN');
 
+        $descriptionResponse = $this->actingAs($manager)->patchJson(route('quality.workorder.top_fields.update', $workorder), [
+            'field' => 'description',
+            'value' => 'Edited QA Description',
+        ]);
+
+        $descriptionResponse->assertOk();
+        $descriptionResponse->assertJsonPath('top.description', 'Edited QA Description');
+
         $workorder->refresh();
+        $unit->refresh();
+        $newUnit->refresh();
         $this->assertSame('MOD-7', $workorder->modified);
         $this->assertSame('NEW-SN', $workorder->serial_number);
+        $this->assertSame('Original Workorder Description', $workorder->description);
+        $this->assertSame('Old Unit Name', $unit->name);
+        $this->assertSame('Old Unit Description', $unit->description);
+        $this->assertSame('Edited QA Description', $newUnit->name);
+        $this->assertSame('New Unit Description', $newUnit->description);
+
+        $component = Component::query()->create([
+            'manual_id' => $newUnit->manual_id,
+            'part_number' => 'QA-COMP-PN',
+            'name' => 'Old Component Name',
+            'ipl_num' => '9-99',
+            'eff_code' => null,
+        ]);
+
+        $componentResponse = $this->actingAs($manager)->patchJson(route('quality.workorder.top_fields.update', $workorder), [
+            'field' => 'component_name',
+            'component_id' => $component->id,
+            'value' => 'Edited Component Name',
+        ]);
+
+        $componentResponse->assertOk();
+        $component->refresh();
+        $workorder->refresh();
+        $newUnit->refresh();
+        $this->assertSame('Edited Component Name', $component->name);
+        $this->assertSame('Original Workorder Description', $workorder->description);
+        $this->assertSame('Edited QA Description', $newUnit->name);
+
+        $otherManualComponent = Component::query()->create([
+            'manual_id' => $this->createManual()->id,
+            'part_number' => 'QA-OTHER-PN',
+            'name' => 'Other Manual Component',
+            'ipl_num' => '1-01',
+            'eff_code' => null,
+        ]);
+
+        $this->actingAs($manager)->patchJson(route('quality.workorder.top_fields.update', $workorder), [
+            'field' => 'component_name',
+            'component_id' => $otherManualComponent->id,
+            'value' => 'Should Not Save',
+        ])->assertStatus(422);
+
+        $this->assertSame('Other Manual Component', $otherManualComponent->fresh()->name);
     }
 
     public function test_technician_cannot_open_quality_dashboard(): void

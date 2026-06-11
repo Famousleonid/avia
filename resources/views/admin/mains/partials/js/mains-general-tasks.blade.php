@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             flatpickr(src, {
                 altInput: true,
-                altFormat: "d.M.y",
+                altFormat: "d/M/Y",
                 dateFormat: "Y-m-d",
                // allowInput: true,
                 disableMobile: true,

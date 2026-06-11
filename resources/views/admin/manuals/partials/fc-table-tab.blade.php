@@ -47,10 +47,12 @@ foreach ($dimensionFigures as $figure) {
     }
 }
 
+if (! function_exists('fcFmt')) {
 function fcFmt($v, $d = 4) {
     if ($v === null || $v === '') return '—';
     $f = round((float)$v, $d);
     return number_format($f, $d);
+}
 }
 @endphp
 

@@ -515,6 +515,11 @@
             grid-row: auto;
         }
 
+        .qa-info-item-description {
+            grid-column: 1 / -1;
+            grid-row: auto;
+        }
+
         .qa-info-item-instruction {
             grid-column: 1 / -1;
             grid-row: auto;
@@ -549,6 +554,7 @@
             max-width: none;
         }
 
+        .qa-info-item-description .qa-info-edit,
         .qa-info-item-modified .qa-info-edit {
             width: 100%;
         }
@@ -829,13 +835,13 @@
             flex-wrap: wrap;
             align-items: flex-start;
             justify-content: flex-end;
-            gap: .3rem;
-            padding: .45rem .6rem;
+            gap: .2rem;
+            padding: .3rem .42rem;
         }
 
         .qa-form-paper {
-            width: 74px;
-            height: 99px;
+            width: 66px;
+            height: 89px;
             flex: 0 0 auto;
             cursor: default;
             text-decoration: none;
@@ -843,8 +849,8 @@
 
         .qa-form-paper svg {
             display: block;
-            width: 74px;
-            height: 99px;
+            width: 66px;
+            height: 89px;
             --paper: #d5d5d5;
             --fold: #0d6efd;
             --stroke: #0d6efd;
@@ -885,7 +891,7 @@
         .qa-form-paper foreignObject div {
             color: var(--text);
             font-weight: 700;
-            line-height: 1.02;
+            line-height: .96;
             text-align: center;
             overflow-wrap: anywhere;
             hyphens: auto;
@@ -1429,6 +1435,7 @@
                     ]),
                     columnHtml([
                         fieldHtml('Customer', top.customer, false, 'qa-info-item-customer'),
+                        editableFieldHtml('Description', top.description, 'description', 'qa-info-item-description'),
                         fieldHtml('Manual Rev.', top.manual_revision, false, 'qa-info-item-manual-revision'),
                     ]),
                     columnHtml([
@@ -1606,9 +1613,9 @@
 
             const fitPaperLabels = (root = document) => {
                 root.querySelectorAll('.qa-form-paper-label').forEach((label) => {
-                    label.style.fontSize = '24px';
+                    label.style.fontSize = '27px';
 
-                    for (let size = 24; size >= 9; size -= 1) {
+                    for (let size = 27; size >= 8; size -= 1) {
                         label.style.fontSize = `${size}px`;
 
                         if (label.scrollWidth <= label.clientWidth && label.scrollHeight <= label.clientHeight) {
@@ -1631,7 +1638,7 @@
                             <path class="paper" d="M10 10 H140 L180 50 V240 H10 Z"></path>
                             <polygon class="fold" points="140,10 140,50 180,50"></polygon>
                             <path class="line" d="M140 12 V50 H180"></path>
-                            <foreignObject x="14" y="56" width="162" height="150">
+                            <foreignObject x="6" y="52" width="178" height="160">
                                 <div class="qa-form-paper-label" xmlns="http://www.w3.org/1999/xhtml">${escapeHtml(title)}</div>
                             </foreignObject>
                         </svg>

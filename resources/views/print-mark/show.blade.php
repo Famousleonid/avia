@@ -1,8 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    @php
+        $blankIcon = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22180%22 height=%22180%22 viewBox=%220 0 180 180%22%3E%3C/svg%3E';
+    @endphp
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#050505">
+    <link rel="icon" href="{{ $blankIcon }}" type="image/svg+xml">
+    <link rel="shortcut icon" href="{{ $blankIcon }}" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="{{ $blankIcon }}">
+    <meta property="og:image" content="{{ $blankIcon }}">
+    <meta name="twitter:image" content="{{ $blankIcon }}">
     <title>System Print Mark</title>
     <style>
         :root {

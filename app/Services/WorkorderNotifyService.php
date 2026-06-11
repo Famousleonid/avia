@@ -148,6 +148,64 @@ class WorkorderNotifyService
         $this->notifyByRules('workorder.draft_created', $workorder, $msg);
     }
 
+    public function shippingLogUpdated(Workorder $workorder, int $byUserId, string $byUserName, array $changedFields): void
+    {
+        $workorder->loadMissing(['unit', 'customer', 'user']);
+
+        $fieldLabels = [
+            'shipping_shipment_at' => 'Shipment',
+            'shipping_freight_forwarder' => 'Freight Forwarder',
+            'shipping_awb_no' => 'AWB No.',
+            'shipping_notes' => 'Notes',
+        ];
+        $changedLabels = collect($changedFields)
+            ->map(fn (string $field): string => $fieldLabels[$field] ?? $field)
+            ->values()
+            ->all();
+        $changedLabel = implode(', ', $changedLabels);
+
+        $msg = [
+            'fromUserId' => $byUserId,
+            'fromName' => $byUserName,
+            'type' => 'workorder',
+            'event' => 'shipping_log_updated',
+            'severity' => 'info',
+            'title' => 'Shipping Log Book updated',
+            'text' => "WO {$workorder->number}: Shipping Log Book updated by {$byUserName}.",
+            'url' => route('shipping-log-book.index', ['q' => $workorder->number]),
+            'ui' => [
+                'workorder' => [
+                    'id' => $workorder->id,
+                    'no' => $workorder->number,
+                ],
+                'actor' => [
+                    'id' => $byUserId,
+                    'name' => $byUserName,
+                ],
+                'part' => [
+                    'number' => $workorder->unit?->part_number,
+                ],
+                'customer' => [
+                    'id' => $workorder->customer_id,
+                    'name' => $workorder->customer?->name,
+                ],
+                'shipping' => [
+                    'changed_fields' => $changedFields,
+                    'changed_fields_label' => $changedLabel,
+                ],
+            ],
+            'payload' => [
+                'workorder_id' => $workorder->id,
+                'workorder_no' => $workorder->number,
+                'updated_by_user_id' => $byUserId,
+                'shipping_changed_fields' => $changedFields,
+                'shipping_changed_fields_label' => $changedLabel,
+            ],
+        ];
+
+        $this->notifyByRules('workorder.shipping_log_updated', $workorder, $msg);
+    }
+
     protected function notifyByRules(string $eventKey, Workorder $workorder, array $msg): bool
     {
         $resolver = app(NotificationEventRuleResolver::class);

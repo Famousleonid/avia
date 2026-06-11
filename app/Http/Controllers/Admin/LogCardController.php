@@ -57,9 +57,12 @@ class LogCardController extends Controller
         $ctx['components'] = $this->componentsForSavedLogCardRows($ctx['components'], is_array($componentData) ? $componentData : []);
         $availableLogCardManuals = Manual::query()
             ->whereKeyNot((int) ($current_wo->unit->manual_id ?? 0))
-            ->whereHas('components', fn ($query) => $query->where('log_card', 1))
-            ->orderBy('number')
-            ->get(['id', 'number', 'title']);
+            ->get(['id', 'number', 'title'])
+            ->sortBy(
+                fn (Manual $manual): string => (string) $manual->number,
+                SORT_NATURAL | SORT_FLAG_CASE
+            )
+            ->values();
 
 
         [$presetByIplGroup, $separateQueue] = $this->splitLogCardComponentPresets(is_array($componentData) ? $componentData : []);
@@ -343,15 +346,19 @@ class LogCardController extends Controller
         $components = Component::whereIn('id', $componentIds)->get();
 
         $log_count= count($componentData);
+        $firstPrintPageRows = 9;
+        $continuationPrintPageRows = 20;
 
         // Разделяем на две части
         $componentData_1 = [];
         $componentData_2 = [];
 
         if ($log_count > 9) {
-            $componentData_1 = array_slice($componentData, 0, 12); // первые 11 элементов
-            $componentData_2 = array_slice($componentData, 12);    // оставшиеся элементы
+            $componentData_1 = array_slice($componentData, 0, $firstPrintPageRows);
+            $componentData_2 = array_slice($componentData, $firstPrintPageRows);
         }
+        $continuationPrintPages = array_chunk($componentData_2, $continuationPrintPageRows);
+        $totalPrintPages = 1 + count($continuationPrintPages);
         $log_count_1= count($componentData_1);
         $log_count_2= count($componentData_2);
 
@@ -362,7 +369,9 @@ class LogCardController extends Controller
 
             return view('admin.log_card.logCardForm2', compact('current_wo','manuals', 'builders',  'log_card',
                 'components' ,'componentData_1',
-                'componentData_2', 'log_count_1', 'log_count_2', 'codes'
+                'componentData_2', 'log_count_1', 'log_count_2', 'codes',
+                'firstPrintPageRows', 'continuationPrintPageRows',
+                'continuationPrintPages', 'totalPrintPages'
             ));
 
         }else {

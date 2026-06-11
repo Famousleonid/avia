@@ -30,6 +30,7 @@
                         <input class="form-check-input component-checkbox" type="checkbox"
                             value="{{ ($component['ipl_num'] ?? '') . '_' . ($component['part_number'] ?? '') . '_' . ($component['serial_number'] ?? '') }}"
                             data-component-id="{{ $component['id'] }}"
+                            data-tdr-id="{{ $component['tdr_id'] ?? '' }}"
                             data-ipl-num="{{ $component['ipl_num'] ?? '' }}"
                             data-part-number="{{ $component['part_number'] ?? '' }}"
                             data-serial-number="{{ $component['serial_number'] ?? '' }}"

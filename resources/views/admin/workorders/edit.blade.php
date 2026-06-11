@@ -189,7 +189,7 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_open_at">Open date</label>
-                                            <input type="text" name="open_at" id="open_at" maxlength="11" value="{{ old('open_at', $open_at) }}" class="form-control @error('open_at') is-invalid @enderror" placeholder="10.aug.2026" data-project-date autocomplete="off">
+                                            <input type="text" name="open_at" id="open_at" maxlength="11" value="{{ old('open_at', $open_at) }}" class="form-control @error('open_at') is-invalid @enderror" placeholder=".... /.... /......" data-project-date autocomplete="off">
                                             @error('open_at')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                             @enderror

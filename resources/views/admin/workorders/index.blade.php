@@ -297,6 +297,10 @@
             min-width: 210px;
         }
 
+        .workorders-filter-select-wrapper {
+            position: relative;
+        }
+
         .filter-select-wrapper .form-label {
             font-size: .75rem;
             margin-bottom: .2rem;
@@ -307,6 +311,64 @@
             padding-top: 2px;
             padding-bottom: 2px;
             font-size: .8rem;
+        }
+
+        .filter-select-wrapper .select2-container {
+            min-width: 0;
+            width: 100% !important;
+        }
+
+        .workorders-filter-select-wrapper .select2-container--bootstrap-5 .select2-selection--single,
+        .workorders-filter-select-wrapper .select2-container--default .select2-selection--single {
+            height: 32px !important;
+            min-height: 32px !important;
+            padding: 0 !important;
+            border-radius: .2rem;
+            font-size: .8rem;
+        }
+
+        .workorders-filter-select-wrapper .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered,
+        .workorders-filter-select-wrapper .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 30px !important;
+            padding-left: .5rem;
+            padding-right: 1.75rem;
+        }
+
+        .workorders-filter-select-wrapper .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow,
+        .workorders-filter-select-wrapper .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 30px !important;
+        }
+
+        .select2-dropdown.workorders-filter-select-dropdown {
+            width: max-content !important;
+            min-width: 100%;
+            max-width: calc(100vw - 24px);
+            z-index: 3000;
+        }
+
+        .select2-dropdown.workorders-filter-select-dropdown .select2-search--dropdown {
+            padding: 4px;
+        }
+
+        .select2-dropdown.workorders-filter-select-dropdown .select2-search__field {
+            height: 30px;
+            padding: 3px 7px;
+            font-size: .85rem;
+        }
+
+        .select2-dropdown.workorders-filter-select-dropdown .select2-results > .select2-results__options {
+            max-height: min(440px, calc(100vh - 160px)) !important;
+            overflow-y: auto !important;
+            overscroll-behavior: contain;
+        }
+
+        .select2-dropdown.workorders-filter-select-dropdown .select2-results__option {
+            padding: 4px 9px;
+            line-height: 1.3;
+            font-size: .85rem;
+            white-space: nowrap;
+            word-break: normal;
+            overflow-wrap: normal;
         }
 
         .btn-clear-select {
@@ -459,7 +521,7 @@
             <div class="d-flex flex-wrap align-items-center gap-5">
 
                 @roles("Admin|Manager")
-                <div class="d-flex align-items-end filter-select-wrapper">
+                <div class="d-flex align-items-end filter-select-wrapper workorders-filter-select-wrapper workorders-customer-filter-wrapper">
                     <div class="flex-grow-1">
                         <select id="customerFilter" class="form-control form-control-sm">
                             <option value="">- All customers -</option>
@@ -475,7 +537,7 @@
                     </button>
                 </div>
 
-                <div class="d-flex align-items-end filter-select-wrapper">
+                <div class="d-flex align-items-end filter-select-wrapper workorders-filter-select-wrapper workorders-technik-filter-wrapper">
                     <div class="flex-grow-1">
                         <select id="technikFilter" class="form-control form-control-sm">
                             <option value="">- All technicians -</option>
@@ -678,7 +740,16 @@
             const initialUrlParams = new URLSearchParams(window.location.search);
 
             function initializeTooltips(root = document) {
-                root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => bootstrap.Tooltip.getOrCreateInstance(el));
+                root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                    const tooltipText = (el.getAttribute('data-bs-title') || el.getAttribute('title') || '').trim();
+                    if (!tooltipText) return;
+
+                    const options = el.classList.contains('workorder-description-tooltip')
+                        ? { container: 'body', delay: { show: 700, hide: 100 } }
+                        : {};
+
+                    bootstrap.Tooltip.getOrCreateInstance(el, options);
+                });
             }
 
             function updateSelectClearButton(selectEl, buttonEl) {
@@ -691,6 +762,85 @@
                     buttonEl.classList.add('btn-outline-secondary');
                     buttonEl.classList.remove('btn-primary', 'text-white');
                 }
+            }
+
+            function hasSelect2() {
+                return window.jQuery && window.jQuery.fn && window.jQuery.fn.select2;
+            }
+
+            function initWorkordersFilterSelect2(selectEl, placeholder, wrapperSelector) {
+                if (!selectEl || !hasSelect2()) return;
+
+                const $select = window.jQuery(selectEl);
+                if ($select.hasClass('select2-hidden-accessible')) return;
+
+                const $dropdownParent = $select.closest(wrapperSelector);
+
+                $select.select2({
+                    placeholder,
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    dropdownParent: $dropdownParent,
+                    dropdownAutoWidth: false
+                });
+
+                $select.on('select2:select.workordersFilterBridge select2:clear.workordersFilterBridge', () => {
+                    selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+
+                $select.on('select2:open', () => {
+                    window.requestAnimationFrame(() => {
+                        const dropdown = $dropdownParent[0]?.querySelector('.select2-dropdown');
+                        if (!dropdown) return;
+
+                        dropdown.classList.add('workorders-filter-select-dropdown');
+                        if (!dropdown.dataset.workordersWheelGuard) {
+                            dropdown.addEventListener('wheel', event => event.stopPropagation(), { passive: true });
+                            dropdown.dataset.workordersWheelGuard = '1';
+                        }
+                    });
+                });
+            }
+
+            function initCustomerSelect2() {
+                initWorkordersFilterSelect2(customerFilter, '- All customers -', '.workorders-customer-filter-wrapper');
+            }
+
+            function initTechnikSelect2() {
+                initWorkordersFilterSelect2(technikFilter, '- All technicians -', '.workorders-technik-filter-wrapper');
+            }
+
+            function syncSelect2(selectEl) {
+                if (!selectEl || !hasSelect2()) return;
+
+                const $select = window.jQuery(selectEl);
+                if (!$select.hasClass('select2-hidden-accessible')) return;
+
+                $select.trigger('change.select2');
+            }
+
+            function handleCustomerFilterChange() {
+                if (!customerFilter) return;
+
+                const nextValue = customerFilter.value || '';
+                updateSelectClearButton(customerFilter, clearCustomerBtn);
+
+                if (state.customerId === nextValue) return;
+
+                state.customerId = nextValue;
+                resetAndReload();
+            }
+
+            function handleTechnikFilterChange() {
+                if (!technikFilter) return;
+
+                const nextValue = technikFilter.value || '';
+                updateSelectClearButton(technikFilter, clearTechnikBtn);
+
+                if (state.technikId === nextValue) return;
+
+                state.technikId = nextValue;
+                resetAndReload();
             }
 
             function updateSearchClearButton() {
@@ -750,10 +900,12 @@
 
                 if (customerFilter) {
                     customerFilter.value = state.customerId;
+                    syncSelect2(customerFilter);
                 }
 
                 if (technikFilter) {
                     technikFilter.value = state.technikId;
+                    syncSelect2(technikFilter);
                 }
 
                 updateSearchClearButton();
@@ -1143,6 +1295,8 @@
             }
 
             readStoredState();
+            initCustomerSelect2();
+            initTechnikSelect2();
             applyStateToControls();
             initializeTooltips(document);
             updateCounters();
@@ -1202,32 +1356,26 @@
                 resetAndReload();
             });
 
-            customerFilter?.addEventListener('change', () => {
-                state.customerId = customerFilter.value;
-                updateSelectClearButton(customerFilter, clearCustomerBtn);
-                resetAndReload();
-            });
+            if (customerFilter) {
+                customerFilter.addEventListener('change', handleCustomerFilterChange);
+            }
 
-            technikFilter?.addEventListener('change', () => {
-                state.technikId = technikFilter.value;
-                updateSelectClearButton(technikFilter, clearTechnikBtn);
-                resetAndReload();
-            });
+            if (technikFilter) {
+                technikFilter.addEventListener('change', handleTechnikFilterChange);
+            }
 
             clearCustomerBtn?.addEventListener('click', () => {
                 if (!customerFilter) return;
                 customerFilter.value = '';
-                state.customerId = '';
-                updateSelectClearButton(customerFilter, clearCustomerBtn);
-                resetAndReload();
+                syncSelect2(customerFilter);
+                customerFilter.dispatchEvent(new Event('change', { bubbles: true }));
             });
 
             clearTechnikBtn?.addEventListener('click', () => {
                 if (!technikFilter) return;
                 technikFilter.value = '';
-                state.technikId = '';
-                updateSelectClearButton(technikFilter, clearTechnikBtn);
-                resetAndReload();
+                syncSelect2(technikFilter);
+                technikFilter.dispatchEvent(new Event('change', { bubbles: true }));
             });
 
             deleteModal.addEventListener('show.bs.modal', event => {

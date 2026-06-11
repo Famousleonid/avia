@@ -42,6 +42,38 @@ class WorkordersWriteTest extends TestCase
         ]);
     }
 
+    public function test_open_date_placeholder_uses_neutral_mask_on_workorder_forms(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        $this->actingAs($admin)
+            ->get(route('workorders.create'))
+            ->assertOk()
+            ->assertSee('placeholder=".... /.... /......"', false)
+            ->assertDontSee('placeholder="10.aug.2026"', false)
+            ->assertDontSee('placeholder="10/Aug/2026"', false);
+
+        $this->actingAs($admin)
+            ->get(route('workorders.edit', $workorder))
+            ->assertOk()
+            ->assertSee('placeholder=".... /.... /......"', false)
+            ->assertDontSee('placeholder="10.aug.2026"', false)
+            ->assertDontSee('placeholder="10/Aug/2026"', false);
+    }
+
+    public function test_mobile_draft_open_date_placeholder_uses_neutral_mask(): void
+    {
+        $shipper = $this->createUserWithRole('Shipping');
+
+        $this->actingAs($shipper)
+            ->get(route('mobile.draft'))
+            ->assertOk()
+            ->assertSee('placeholder=".... /.... /......"', false)
+            ->assertDontSee('placeholder="10.aug.2026"', false)
+            ->assertDontSee('placeholder="10/Aug/2026"', false);
+    }
+
     /**
      * @group smoke
      */

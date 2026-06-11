@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RmReportController;
 use App\Http\Controllers\Admin\ServiceBulletinLogController;
 use App\Http\Controllers\Admin\ShippingLogBookController;
+use App\Http\Controllers\Admin\StdProcessAuditController;
 use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\TdrController;
 use App\Http\Controllers\Admin\TdrPrintFormController;
@@ -567,6 +568,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         ->name('quality.forms.log_card');
     Route::post('/quality-assurance/workorders/{workorder}/log-card-form', [QualityAssuranceController::class, 'updateLogCardForm'])
         ->name('quality.forms.log_card.update');
+    Route::get('/quality-assurance/workorders/{workorder}/certificate-form', [QualityAssuranceController::class, 'certificateForm'])
+        ->name('quality.forms.certificate');
     Route::post('/quality-assurance/workorders/{workorder}/quality-documents', [QualityAssuranceController::class, 'storeQualityDocuments'])
         ->name('quality.documents.store');
     Route::delete('/quality-assurance/workorders/{workorder}/quality-documents/{media}', [QualityAssuranceController::class, 'destroyQualityDocument'])
@@ -649,6 +652,7 @@ Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin')->group(funct
     Route::middleware('systemAdmin')->group(function () {
         Route::get('/project-settings', [ProjectSettingController::class, 'index'])->name('admin.project-settings.index');
         Route::post('/project-settings', [ProjectSettingController::class, 'update'])->name('admin.project-settings.update');
+        Route::get('/std-process-audit', [StdProcessAuditController::class, 'index'])->name('admin.std-process-audit.index');
     });
 
     Route::get('/ai-agent/history', [AiAgentController::class, 'history'])->name('admin.ai.history');

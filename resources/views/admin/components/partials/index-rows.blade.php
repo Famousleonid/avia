@@ -5,6 +5,7 @@
     $showKitChoiceGroupColumn = $showKitChoiceGroupColumn ?? false;
     $editButtonClass = $editButtonClass ?? 'open-edit-component-drawer';
     $deleteRedirect = $deleteRedirect ?? null;
+    $useProjectDeleteConfirm = $useProjectDeleteConfirm ?? false;
     $componentFlags = [
         'log_card' => 'LC',
         'is_bush' => 'Bush',
@@ -169,13 +170,17 @@
                         @if($partMutationLocked) title="{{ __('Manual parts are locked') }}" @endif>
                     <i class="bi bi-pencil-square"></i>
                 </button>
-                <form action="{{ route('components.destroy', $component->id) }}" method="POST" class="m-0">
+                <form action="{{ route('components.destroy', $component->id) }}" method="POST" class="m-0" @if($useProjectDeleteConfirm) data-manual-part-delete-form @endif>
                     @csrf
                     @method('DELETE')
                     @if($deleteRedirect)
                         <input type="hidden" name="redirect" value="{{ $deleteRedirect }}">
                     @endif
-                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to delete this component?');" @disabled($partMutationLocked) @if($partMutationLocked) title="{{ __('Manual parts are locked') }}" @endif>
+                    <button type="submit"
+                            class="btn btn-outline-danger btn-sm"
+                            @if($useProjectDeleteConfirm) data-manual-part-delete-button @else onclick="return confirm('Are you sure you want to delete this component?');" @endif
+                            @disabled($partMutationLocked)
+                            @if($partMutationLocked) title="{{ __('Manual parts are locked') }}" @endif>
                         <i class="bi bi-trash"></i>
                     </button>
                 </form>

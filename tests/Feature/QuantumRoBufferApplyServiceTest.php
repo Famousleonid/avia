@@ -346,6 +346,174 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame($secondRo, $secondInOrder->repair_order);
     }
 
+    public function test_detail_part_ref_t_writes_to_traveler_group_one_including_null_group_rows(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Traveler One Vendor']);
+        $firstProcessName = ProcessName::query()->create([
+            'name' => 'Quantum Traveler One A',
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $secondProcessName = ProcessName::query()->create([
+            'name' => 'Quantum Traveler One B',
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => '170-70172-001',
+            'name' => 'Quantum Traveler One Component',
+            'ipl_num' => '1-4',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'Q-TR1-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $nullGroupRow = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstProcessName->id,
+            'in_traveler' => true,
+            'traveler_group' => null,
+            'sort_order' => 10,
+        ]);
+        $groupOneRow = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $secondProcessName->id,
+            'in_traveler' => true,
+            'traveler_group' => 1,
+            'sort_order' => 20,
+        ]);
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => $component->part_number,
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'T',
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['applied']);
+
+        $line->refresh();
+        $nullGroupRow->refresh();
+        $groupOneRow->refresh();
+
+        $this->assertSame('applied', $line->apply_status);
+        $this->assertSame('tdr_processes', $line->applied_target_table);
+        $this->assertSame($nullGroupRow->id, $line->applied_target_id);
+
+        foreach ([$nullGroupRow, $groupOneRow] as $target) {
+            $this->assertSame($line->ro_number, $target->repair_order);
+            $this->assertSame($vendor->id, $target->vendor_id);
+            $this->assertSame('2026-06-01', $target->date_start?->format('Y-m-d'));
+            $this->assertSame('2026-06-03', $target->date_finish?->format('Y-m-d'));
+            $this->assertSame('Quantum', $target->date_start_user);
+            $this->assertSame('Quantum', $target->date_finish_user);
+        }
+    }
+
+    public function test_detail_part_ref_t2_writes_to_traveler_group_two_only(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Traveler Two Vendor']);
+        $outsideProcessName = ProcessName::query()->create([
+            'name' => 'Quantum Traveler Outside',
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $firstProcessName = ProcessName::query()->create([
+            'name' => 'Quantum Traveler Two A',
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $secondProcessName = ProcessName::query()->create([
+            'name' => 'Quantum Traveler Two B',
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => '170-70173-001',
+            'name' => 'Quantum Traveler Two Component',
+            'ipl_num' => '1-5',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'Q-TR2-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $groupOneRow = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $outsideProcessName->id,
+            'in_traveler' => true,
+            'traveler_group' => 1,
+            'sort_order' => 5,
+        ]);
+        $firstGroupTwoRow = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $firstProcessName->id,
+            'in_traveler' => true,
+            'traveler_group' => 2,
+            'sort_order' => 10,
+        ]);
+        $secondGroupTwoRow = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $secondProcessName->id,
+            'in_traveler' => true,
+            'traveler_group' => 2,
+            'sort_order' => 20,
+        ]);
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => $component->part_number,
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 't2',
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['applied']);
+
+        $line->refresh();
+        $groupOneRow->refresh();
+        $firstGroupTwoRow->refresh();
+        $secondGroupTwoRow->refresh();
+
+        $this->assertSame('applied', $line->apply_status);
+        $this->assertSame('tdr_processes', $line->applied_target_table);
+        $this->assertSame($firstGroupTwoRow->id, $line->applied_target_id);
+
+        $this->assertNull($groupOneRow->repair_order);
+        $this->assertNull($groupOneRow->vendor_id);
+        $this->assertNull($groupOneRow->date_start);
+        $this->assertNull($groupOneRow->date_finish);
+
+        foreach ([$firstGroupTwoRow, $secondGroupTwoRow] as $target) {
+            $this->assertSame($line->ro_number, $target->repair_order);
+            $this->assertSame($vendor->id, $target->vendor_id);
+            $this->assertSame('2026-06-01', $target->date_start?->format('Y-m-d'));
+            $this->assertSame('2026-06-03', $target->date_finish?->format('Y-m-d'));
+            $this->assertSame('Quantum', $target->date_start_user);
+            $this->assertSame('Quantum', $target->date_finish_user);
+        }
+    }
+
     public function test_bushing_pn_writes_to_batch_selected_by_ref(): void
     {
         $workorder = $this->createWorkorder();

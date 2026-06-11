@@ -258,6 +258,21 @@
             gap: 0px;
         }
 
+        .log-card-record-row {
+            display: grid;
+            grid-column: 1 / -1;
+            grid-template-columns: repeat(12, 1fr);
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        @media print {
+            .log-card-record-row {
+                break-inside: avoid-page;
+                page-break-inside: avoid;
+            }
+        }
+
         .div1 {
             grid-column: span 2 / span 2;
             grid-row: span 2 / span 2;
@@ -584,14 +599,20 @@
         @foreach($componentData as $item)
             @php
                 if (($item['row_type'] ?? '') === 'manual') {
-                    $manualLabel = $item['manual_label'] ?? trim((string) (($item['manual_number'] ?? '').' '.($item['manual_title'] ?? '')));
+                    $manualForRow = !empty($item['manual_id'] ?? null) ? $manuals->firstWhere('id', (int) $item['manual_id']) : null;
+                    $manualLabel = trim((string) ($manualForRow->number ?? ($item['manual_number'] ?? '')));
+                    if ($manualLabel === '') {
+                        $manualLabel = trim(strtok((string) ($item['manual_label'] ?? ''), ' ') ?: '');
+                    }
                 } else {
                     $manualLabel = null;
                 }
             @endphp
             @if(($item['row_type'] ?? '') === 'manual')
-                <div class="border-l-b-r text-start align-content-center ps-2 pt-1 fs-7" style="grid-column: 1 / -1; min-height: 27px;">
-                    <strong>MANUAL:</strong> {{ $manualLabel ?: 'Manual' }}
+                <div class="log-card-record-row">
+                    <div class="border-l-b-r text-start align-content-center ps-2 pt-1 fs-7" style="grid-column: 1 / -1; min-height: 27px;">
+                        {{ $manualLabel }}
+                    </div>
                 </div>
                 @continue
             @endif
@@ -605,6 +626,7 @@
                 $displayPartNumber = $item['part_number'] ?? ($comp->part_number ?? '');
             @endphp
 
+            <div class="log-card-record-row">
             <div class="div13 border-l-b-r text-start align-content-center ps-2 pt-1 fs-7" style="min-height: 30px" >
                 {{ $displayName }}
 {{--                {{ $comp ? $comp->name : '' }}--}}
@@ -680,15 +702,18 @@
 <div class="div21 border-b-r" > </div>
 <div class="div22 border-b-r text-center align-content-center pt-1 fs-75" >
     @php
-        $reasonCode = $codes->firstWhere('id', $item['reason']);
+        $reasonValue = $item['reason'] ?? '';
+        $reasonCode = $codes->firstWhere('id', $reasonValue);
     @endphp
-    {{ $reasonCode ? $reasonCode->name : $item['reason'] }}
+    {{ $reasonCode ? $reasonCode->name : $reasonValue }}
 </div>
 {{--@endif--}}
+            </div>
 
 @endforeach
 
 @for($i=0; $i<8-$log_count; $i++)
+<div class="log-card-record-row">
 <div class="div13 border-l-b-r" style="height: 27px"></div>
 <div class="div14 border-b-r" > </div>
 <div class="div15 border-b-r" > </div>
@@ -699,6 +724,7 @@
 <div class="div20 border-b-r" > </div>
 <div class="div21 border-b-r" > </div>
 <div class="div22 border-b-r" > </div>
+</div>
 @endfor
 
 </div>

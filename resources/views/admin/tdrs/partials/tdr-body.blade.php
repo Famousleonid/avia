@@ -595,6 +595,14 @@
                     @endforeach
                 </select>
             </div>
+            @if(count($processGroups ?? []) > 0)
+                <button type="button"
+                        class="btn btn-outline-primary btn-sm ms-auto"
+                        data-bs-toggle="modal"
+                        data-bs-target="#tdrGroupProcessModal">
+                    <i class="fas fa-print"></i> {{ __('Group Process') }}
+                </button>
+            @endif
         </div>
         <div class="table-wrapper p-1 tdr-show-right-table-wrapper">
             <table id="tdr_process_Table" class="table table-sm table-hover align-middle dir-table small shadow-lg">

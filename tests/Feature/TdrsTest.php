@@ -7,8 +7,11 @@ use App\Models\Component;
 use App\Models\ComponentAssembly;
 use App\Models\Condition;
 use App\Models\LogCard;
+use App\Models\ManualProcess;
 use App\Models\ManualIplBranchRule;
 use App\Models\Necessary;
+use App\Models\Process;
+use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\WoBushing;
@@ -405,6 +408,22 @@ class TdrsTest extends TestCase
         $draft->assertSee('name="lc_include[2-10]"', false);
         $draft->assertSee('value="'.$component->id.'"', false);
         $draft->assertSee('value="'.$componentTwo->id.'"', false);
+        $draftContent = $draft->getContent();
+        $this->assertDoesNotMatchRegularExpression(
+            '/class="form-check-input lc-include-toggle-all"[^>]*\bchecked\b/s',
+            $draftContent
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/class="form-check-input lc-include-checkbox"[^>]*\bchecked\b/s',
+            $draftContent
+        );
+
+        $show = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+        $show->assertOk();
+        $show->assertSee('Create Log Card', false);
+        $show->assertSee('Select at least one component for Log Card.', false);
+        $show->assertSee('if (!saved) syncLogCardToolbarFromPartial();', false);
+        $show->assertDontSee('Отметьте хотя бы один компонент для Log Card.', false);
 
         LogCard::query()->create([
             'workorder_id' => $workorder->id,
@@ -422,6 +441,23 @@ class TdrsTest extends TestCase
         $saved->assertOk();
         $saved->assertDontSee('name="included"', false);
         $saved->assertDontSee('lc-include-toggle-all', false);
+    }
+
+    public function test_tdr_show_persists_measurements_tab_id(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+
+        $response->assertOk();
+        $this->assertMatchesRegularExpression(
+            '~var PERSISTENT_TAB_IDS = \[[\s\S]*\'tab-measurements\'[\s\S]*\];~',
+            $response->getContent()
+        );
+        $response->assertSee('function showRestoredTabBeforeReveal(tabButton)', false);
+        $response->assertSee("tabButton.addEventListener('shown.bs.tab', done, { once: true });", false);
+        $response->assertSee('await showRestoredTabBeforeReveal(savedTabBtn);', false);
     }
 
     public function test_log_card_can_load_components_from_another_manual(): void
@@ -457,6 +493,56 @@ class TdrsTest extends TestCase
         $response->assertSee('Extra Manual Log Part', false);
         $response->assertSee('value="'.$extraComponent->id.'"', false);
         $response->assertDontSee('Extra Manual No Log Part', false);
+    }
+
+    public function test_log_card_extra_manual_select_lists_manuals_without_log_card_components(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualWithoutLogRows = $this->createManual([
+            'number' => '32-51-03',
+            'title' => 'Steering Actuator Assy NLG',
+        ]);
+        Component::query()->create([
+            'manual_id' => $manualWithoutLogRows->id,
+            'part_number' => 'NO-LOG-100',
+            'name' => 'No Log Card Part',
+            'ipl_num' => '1-10',
+            'log_card' => false,
+        ]);
+
+        $partial = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
+
+        $partial->assertOk();
+        $partial->assertSee('32-51-03 Steering Actuator Assy NLG', false);
+
+        $manualRows = $this->actingAs($admin)->get(route('log_card.manual-components', [
+            'workorder' => $workorder->id,
+            'manual' => $manualWithoutLogRows->id,
+        ]));
+
+        $manualRows->assertOk();
+        $manualRows->assertSee('Manual: 32-51-03 Steering Actuator Assy NLG', false);
+        $manualRows->assertDontSee('No Log Card Part', false);
+    }
+
+    public function test_log_card_extra_manual_select_sorts_manuals_by_manual_number_naturally(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        $this->createManual(['number' => '32-51-03', 'title' => 'Manual Fifty One']);
+        $this->createManual(['number' => '32-2-10', 'title' => 'Manual Two']);
+        $this->createManual(['number' => '32-11-05', 'title' => 'Manual Eleven']);
+
+        $response = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSeeInOrder([
+            '32-2-10 Manual Two',
+            '32-11-05 Manual Eleven',
+            '32-51-03 Manual Fifty One',
+        ], false);
     }
 
     public function test_log_card_store_accepts_manual_separator_rows(): void
@@ -525,6 +611,63 @@ class TdrsTest extends TestCase
         $saved->assertOk();
         $saved->assertSee('Manual: LC-EXTRA Extra Log Manual', false);
         $saved->assertSee('Extra Manual Log Part', false);
+
+        $print = $this->actingAs($admin)->get(route('log_card.logCardForm', $workorder->id));
+        $print->assertOk();
+        $print->assertSee('LC-EXTRA', false);
+        $print->assertDontSee('MANUAL:', false);
+        $print->assertDontSee('Extra Log Manual', false);
+    }
+
+    public function test_log_card_print_keeps_record_rows_together_for_page_breaks(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $rows = [];
+
+        for ($i = 1; $i <= 30; $i++) {
+            $component = Component::query()->create([
+                'manual_id' => $workorder->unit->manual_id,
+                'part_number' => 'LC-PAGE-'.$i,
+                'name' => 'Long Print Row '.$i,
+                'ipl_num' => '1-'.$i,
+                'log_card' => true,
+            ]);
+
+            $rows[] = [
+                'component_id' => (string) $component->id,
+                'manual_id' => (string) $workorder->unit->manual_id,
+                'included' => '1',
+                'serial_number' => 'SN-'.$i,
+            ];
+        }
+
+        LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode($rows),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('log_card.logCardForm', $workorder->id));
+        $html = $response->getContent();
+
+        $response->assertOk();
+        $this->assertStringContainsString('.log-card-record-row', $html);
+        $this->assertStringContainsString('log-card-continuation-section', $html);
+        $this->assertStringContainsString('break-inside: avoid-page;', $html);
+        $this->assertStringContainsString('page-break-inside: avoid;', $html);
+        $this->assertGreaterThanOrEqual(30, substr_count($html, 'class="log-card-record-row"'));
+        $this->assertStringContainsString('1 of 3', $html);
+        $this->assertStringContainsString('2 of 3', $html);
+        $this->assertStringContainsString('3 of 3', $html);
+
+        $firstContinuationPosition = strpos($html, '<section class="log-card-print-page log-card-continuation-section">');
+        $secondContinuationPosition = strpos($html, '<section class="log-card-print-page log-card-continuation-section">', $firstContinuationPosition + 1);
+        $this->assertNotFalse($firstContinuationPosition);
+        $this->assertNotFalse($secondContinuationPosition);
+        $this->assertLessThan($firstContinuationPosition, strpos($html, 'Long Print Row 9'));
+        $this->assertGreaterThan($firstContinuationPosition, strpos($html, 'Long Print Row 10'));
+        $this->assertLessThan($secondContinuationPosition, strpos($html, 'Long Print Row 29'));
+        $this->assertGreaterThan($secondContinuationPosition, strpos($html, 'Long Print Row 30'));
     }
 
     public function test_log_card_partial_filters_components_by_ipl_branch_rule(): void
@@ -1190,6 +1333,24 @@ class TdrsTest extends TestCase
             ]);
         }
 
+        $csv = implode("\n", [
+            'part_number,name,ipl_num,kit',
+            '170-70165-901,BEARING SPHERICAL UPDATED,1-320,1',
+        ]);
+
+        $csvResponse = $this->actingAs($admin)->postJson(route('components.upload-csv'), [
+            'manual_id' => $manual->id,
+            'csv_file' => $this->makeUploadedFile('parts.csv', $csv, 'text/csv'),
+        ]);
+
+        $csvResponse->assertOk();
+        $csvResponse->assertJsonPath('success', true);
+        $this->assertDatabaseHas('components', [
+            'id' => $parts->first()->id,
+            'name' => 'BEARING SPHERICAL UPDATED',
+            'kit_prl_choice_group' => $generatedGroup,
+        ]);
+
         $manualResponse = $this->actingAs($admin)->get(route('manuals.show', ['manual' => $manual, 'tab' => 'parts']));
 
         $manualResponse->assertOk();
@@ -1203,6 +1364,138 @@ class TdrsTest extends TestCase
         $kitResponse->assertOk();
         $kitResponse->assertSee('320<br />' . "\n" . '321<br />' . "\n" . '321A', false);
         $this->assertSame(1, substr_count($kitResponse->getContent(), 'BEARING, SPHERICAL'));
+    }
+
+    public function test_tdr_show_renders_group_process_modal_for_groupable_process_details(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $suffix = uniqid();
+
+        $processName = ProcessName::query()->create([
+            'name' => 'Group Process Test ' . $suffix,
+            'process_sheet_name' => 'CAD',
+            'form_number' => 'GP-' . $suffix,
+            'print_form' => true,
+            'show_in_process_picker' => true,
+        ]);
+        $process = Process::query()->create([
+            'process_names_id' => $processName->id,
+            'process' => 'Grouped operation ' . $suffix,
+        ]);
+        ManualProcess::query()->create([
+            'manual_id' => $manualId,
+            'processes_id' => $process->id,
+        ]);
+
+        $firstComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'GP-PN-1-' . $suffix,
+            'name' => 'Group part one',
+            'ipl_num' => '1-10',
+        ]);
+        $secondComponent = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'GP-PN-2-' . $suffix,
+            'name' => 'Group part two',
+            'ipl_num' => '1-20',
+        ]);
+
+        $firstTdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $firstComponent->id,
+            'serial_number' => 'GP-SN-1-' . $suffix,
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $secondTdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $secondComponent->id,
+            'serial_number' => 'GP-SN-2-' . $suffix,
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        foreach ([$firstTdr, $secondTdr] as $index => $tdr) {
+            TdrProcess::query()->create([
+                'tdrs_id' => $tdr->id,
+                'process_names_id' => $processName->id,
+                'processes' => [$process->id],
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSee('tdrGroupProcessModal', false);
+        $response->assertSee('data-tdr-id="' . $firstTdr->id . '"', false);
+        $response->assertSee('data-tdr-id="' . $secondTdr->id . '"', false);
+        $response->assertSee('GP-PN-1-' . $suffix);
+        $response->assertSee('GP-PN-2-' . $suffix);
+    }
+
+    public function test_group_process_form_filters_by_selected_tdr_ids(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $suffix = uniqid();
+
+        $processName = ProcessName::query()->create([
+            'name' => 'Selected Group Process ' . $suffix,
+            'process_sheet_name' => 'CAD',
+            'form_number' => 'SGP-' . $suffix,
+            'print_form' => true,
+            'show_in_process_picker' => true,
+        ]);
+        $process = Process::query()->create([
+            'process_names_id' => $processName->id,
+            'process' => 'Selected grouped operation ' . $suffix,
+        ]);
+        ManualProcess::query()->create([
+            'manual_id' => $manualId,
+            'processes_id' => $process->id,
+        ]);
+
+        $tdrs = collect([1, 2, 3])->map(function (int $number) use ($manualId, $workorder, $processName, $process, $suffix): Tdr {
+            $component = Component::query()->create([
+                'manual_id' => $manualId,
+                'part_number' => 'SGP-PN-' . $number . '-' . $suffix,
+                'name' => 'Selected group part ' . $number,
+                'ipl_num' => '2-' . $number . '0',
+            ]);
+            $tdr = Tdr::query()->create([
+                'workorder_id' => $workorder->id,
+                'component_id' => $component->id,
+                'serial_number' => 'SGP-SN-' . $number . '-' . $suffix,
+                'qty' => 1,
+                'use_tdr' => true,
+                'use_process_forms' => true,
+            ]);
+            TdrProcess::query()->create([
+                'tdrs_id' => $tdr->id,
+                'process_names_id' => $processName->id,
+                'processes' => [$process->id],
+                'sort_order' => $number,
+            ]);
+
+            return $tdr;
+        });
+
+        $response = $this->actingAs($admin)->get(route('tdrs.show_group_forms', [
+            'id' => $workorder->id,
+            'processNameId' => $processName->id,
+            'tdr_ids' => $tdrs->take(2)->pluck('id')->implode(','),
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('SGP-PN-1-' . $suffix);
+        $response->assertSee('SGP-PN-2-' . $suffix);
+        $response->assertDontSee('SGP-PN-3-' . $suffix);
     }
 
     private function htmlBetween(string $html, string $startNeedle, string $endNeedle): string

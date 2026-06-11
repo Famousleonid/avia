@@ -26,7 +26,6 @@ class ManualStdProcessController extends Controller
             'std' => 'required|in:ndt,cad,stress,paint',
             'component_id' => 'required|integer|exists:components,id',
             'qty' => 'required|integer|min:1',
-            'eff_code' => 'nullable|string|max:255',
         ]);
 
         $component = Component::query()->with('manual')->findOrFail($data['component_id']);
@@ -58,7 +57,7 @@ class ManualStdProcessController extends Controller
             'std' => $std,
             'process' => $processVal,
             'qty' => $data['qty'],
-            'eff_code' => StdProcess::normalizeEffCodeForStorage($data['eff_code'] ?? null),
+            'eff_code' => null,
         ]);
 
         $flagColumn = StdProcess::componentFlagColumnForStd($std);
@@ -119,14 +118,13 @@ class ManualStdProcessController extends Controller
 
         $data = $request->validate([
             'qty' => 'required|integer|min:1',
-            'eff_code' => 'nullable|string|max:255',
         ]);
         $processVal = $this->validatedProcessValue($request, $stdProcess->std, $allowed);
 
         $stdProcess->update([
             'process' => $processVal,
             'qty' => $data['qty'],
-            'eff_code' => StdProcess::normalizeEffCodeForStorage($data['eff_code'] ?? null),
+            'eff_code' => null,
         ]);
         $this->invalidateWorkorderStdSnapshots($manual);
 
@@ -139,7 +137,6 @@ class ManualStdProcessController extends Controller
                     'std' => $stdProcess->std,
                     'process' => (string) $stdProcess->process,
                     'qty' => (int) $stdProcess->qty,
-                    'eff_code' => StdProcess::normalizeEffCodeForStorage($stdProcess->eff_code) ?? '',
                 ],
             ]);
         }

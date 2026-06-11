@@ -1059,6 +1059,7 @@
                                     'showKitChoiceGroupColumn' => true,
                                     'editButtonClass' => 'open-manual-edit-component-drawer',
                                     'deleteRedirect' => $manualUrlParts,
+                                    'useProjectDeleteConfirm' => true,
                                 ])
                                 @if($parts->isEmpty())
                                     <tr class="components-empty-row">
@@ -1200,6 +1201,7 @@
                             'stdAddSourceManuals' => $stdAddSourceManuals ?? collect(),
                             'stdProcessPicklists' => $stdProcessPicklists ?? ['ndt' => [], 'cad' => [], 'stress' => [], 'paint' => []],
                             'stdProcessPicklistOptions' => $stdProcessPicklistOptions ?? ['ndt' => [], 'cad' => [], 'stress' => [], 'paint' => []],
+                            'stdProcessAuditWarnings' => $stdProcessAuditWarnings ?? [],
                         ])
                     </div>
                 </div>
@@ -1317,15 +1319,24 @@
                     </div>
                 </div>
                 <div class="tab-pane fade @if($manualShowTab === 'revision') show active @endif" id="nav-revision" role="tabpanel" aria-labelledby="nav-revision-tab" tabindex="0">
+                    @php
+                        $manualRevisionDateDisplay = static function ($date): ?string {
+                            if ($date === null || trim((string) $date) === '') {
+                                return null;
+                            }
+
+                            return \Illuminate\Support\Carbon::parse($date)->format('d/M/Y');
+                        };
+                    @endphp
                     <div class="m-2">
                         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                             <div>
                                 <h5 class="mb-1">{{ __('Revision Checks') }}</h5>
                                 <div class="d-flex flex-wrap gap-2 align-items-center">
                                     <span class="badge text-bg-{{ $revisionStatusBadge }}">{{ $revisionStatusText }}</span>
-                                    <span class="text-muted small">{{ __('Current revision date') }}: {{ format_project_date($cmm->revision_date) ?? '-' }}</span>
-                                    <span class="text-muted small">{{ __('Last check') }}: {{ format_project_date($latestRevisionCheck?->checked_at) ?? '-' }}</span>
-                                    <span class="text-muted small">{{ __('Next due') }}: {{ format_project_date($revisionStatus['next_due_at'] ?? null) ?? '-' }}</span>
+                                    <span class="text-muted small">{{ __('Current revision date') }}: {{ $manualRevisionDateDisplay($cmm->revision_date) ?? '-' }}</span>
+                                    <span class="text-muted small">{{ __('Last check') }}: {{ $manualRevisionDateDisplay($latestRevisionCheck?->checked_at) ?? '-' }}</span>
+                                    <span class="text-muted small">{{ __('Next due') }}: {{ $manualRevisionDateDisplay($revisionStatus['next_due_at'] ?? null) ?? '-' }}</span>
                                     <span class="text-muted small">{{ __('Days left') }}: {{ $revisionStatus['days_until_due'] ?? '-' }}</span>
                                 </div>
                             </div>
@@ -1348,13 +1359,15 @@
                                 </div>
                                 <div class="col-md-2">
                                     <label class="form-label small" for="manual_revision_date">{{ __('Revision Date') }}</label>
-                                    <input id="manual_revision_date" type="date" name="revision_date" class="form-control form-control-sm"
-                                           value="{{ old('revision_date', $cmm->revision_date ? \Illuminate\Support\Carbon::parse($cmm->revision_date)->format('Y-m-d') : '') }}" required>
+                                    <input id="manual_revision_date" type="text" name="revision_date" class="form-control form-control-sm"
+                                           maxlength="11" placeholder="07/Jun/2026" data-project-date data-project-date-capital autocomplete="off"
+                                           value="{{ old('revision_date', $manualRevisionDateDisplay($cmm->revision_date) ?? '') }}" required>
                                 </div>
                                 <div class="col-md-2">
                                     <label class="form-label small" for="manual_checked_at">{{ __('Checked At') }}</label>
-                                    <input id="manual_checked_at" type="date" name="checked_at" class="form-control form-control-sm"
-                                           value="{{ old('checked_at', now()->format('Y-m-d')) }}" max="{{ now()->format('Y-m-d') }}" required>
+                                    <input id="manual_checked_at" type="text" name="checked_at" class="form-control form-control-sm"
+                                           maxlength="11" placeholder="07/Jun/2026" data-project-date data-project-date-capital autocomplete="off"
+                                           value="{{ old('checked_at', $manualRevisionDateDisplay(now()) ?? '') }}" required>
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label small" for="manual_revision_notes">{{ __('Notes') }}</label>
@@ -1382,9 +1395,9 @@
                                 <tbody>
                                 @forelse($revisionChecks as $check)
                                     <tr>
-                                        <td class="text-center">{{ format_project_date($check->checked_at) ?? '-' }}</td>
+                                        <td class="text-center">{{ $manualRevisionDateDisplay($check->checked_at) ?? '-' }}</td>
                                         <td class="text-center">{{ $check->revision_number ?: '-' }}</td>
-                                        <td class="text-center">{{ format_project_date($check->revision_date) ?? '-' }}</td>
+                                        <td class="text-center">{{ $manualRevisionDateDisplay($check->revision_date) ?? '-' }}</td>
                                         <td>{{ $check->checkedBy?->name ?? '-' }}</td>
                                         <td class="text-center">{{ $check->checked_by_stamp ?: '-' }}</td>
                                         <td class="text-center">
@@ -2083,6 +2096,36 @@
             const input = document.getElementById('parts-search');
             const clearInput = document.getElementById('parts-search-clear');
             const table = document.getElementById('manualPartsTable');
+
+            function initManualPartDeleteConfirm() {
+                if (!table) return;
+
+                table.addEventListener('submit', async function (event) {
+                    var form = event.target.closest('form[data-manual-part-delete-form]');
+                    if (!form || form.dataset.projectConfirmAccepted === '1') return;
+
+                    event.preventDefault();
+
+                    if (typeof window.confirmDialog !== 'function') {
+                        showNotification('{{ __('Delete confirmation dialog is not available.') }}', 'error');
+                        return;
+                    }
+
+                    var confirmed = await window.confirmDialog({
+                        title: '{{ __('Delete part?') }}',
+                        message: '{{ __('This part will be removed from the manual.') }}',
+                        okText: '{{ __('Delete') }}',
+                        cancelText: '{{ __('Cancel') }}',
+                        danger: true,
+                    });
+                    if (!confirmed) return;
+
+                    form.dataset.projectConfirmAccepted = '1';
+                    HTMLFormElement.prototype.submit.call(form);
+                });
+            }
+
+            initManualPartDeleteConfirm();
 
             if (input && table) {
                 const tbody = table.querySelector('tbody');

@@ -217,6 +217,7 @@ class NotificationEventRuleResolver
             'manual_last_checked_at' => (string) (Arr::get($message, 'ui.manual.last_checked_at') ?? Arr::get($message, 'payload.manual_last_checked_at') ?? ''),
             'manual_next_due_at' => (string) (Arr::get($message, 'ui.manual.next_due_at') ?? Arr::get($message, 'payload.manual_next_due_at') ?? ''),
             'manual_days_until_due' => (string) (Arr::get($message, 'ui.manual.days_until_due') ?? Arr::get($message, 'payload.manual_days_until_due') ?? ''),
+            'shipping_changed_fields' => (string) (Arr::get($message, 'ui.shipping.changed_fields_label') ?? Arr::get($message, 'payload.shipping_changed_fields_label') ?? ''),
         ];
     }
 }

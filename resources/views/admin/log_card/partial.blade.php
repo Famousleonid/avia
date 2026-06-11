@@ -74,8 +74,7 @@
                             <label class="d-inline-flex align-items-center gap-1 mb-0">
                                 <input type="checkbox"
                                        class="form-check-input lc-include-toggle-all"
-                                       @disabled($logCardTdrReadOnly)
-                                       checked>
+                                       @disabled($logCardTdrReadOnly)>
                                 <span>{{ __('Include') }}</span>
                             </label>
                         </th>
@@ -93,7 +92,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="d-flex align-items-center justify-content-end gap-2 mt-2">
+        <div class="d-flex align-items-center justify-content-start gap-2 mt-2">
             <select class="form-select form-select-sm"
                     id="logCardExtraManualSelect"
                     style="max-width: 420px;"

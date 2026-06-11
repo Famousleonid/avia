@@ -18,6 +18,16 @@
         url.searchParams.delete('process_ids');
         var checkedBoxes = rowEl.querySelectorAll('.component-checkbox:checked:not([disabled])');
         if (checkedBoxes.length > 0) {
+            var selectedTdrIds = Array.prototype.map.call(checkedBoxes, function(c) {
+                return c.getAttribute('data-tdr-id') || '';
+            }).filter(function(value) {
+                return value !== '';
+            });
+            if (selectedTdrIds.length > 0) {
+                url.searchParams.set('tdr_ids', selectedTdrIds.join(','));
+            } else {
+                url.searchParams.delete('tdr_ids');
+            }
             url.searchParams.set('component_ids', Array.prototype.map.call(checkedBoxes, function(c) {
                 return c.getAttribute('data-component-id');
             }).join(','));
@@ -35,8 +45,11 @@
             url.searchParams.delete('serial_numbers');
             url.searchParams.delete('ipl_nums');
             url.searchParams.delete('part_numbers');
+            url.searchParams.delete('tdr_ids');
         }
         link.setAttribute('href', url.toString());
+        link.classList.toggle('disabled', checkedBoxes.length === 0);
+        link.setAttribute('aria-disabled', checkedBoxes.length === 0 ? 'true' : 'false');
 
         var badge = rowEl.querySelector('.process-qty-badge');
         if (!badge) {
@@ -51,7 +64,7 @@
         if (!container) {
             return;
         }
-        var rows = container.querySelectorAll('tr.process-group-form-row[data-group-form-row]');
+        var rows = container.querySelectorAll('.process-group-form-row[data-group-form-row]');
         Array.prototype.forEach.call(rows, function(rowEl) {
             function refresh() {
                 updateProcessGroupFormRow(rowEl);
@@ -63,7 +76,12 @@
                 c.addEventListener('change', refresh);
             });
             rowEl.querySelectorAll('.group-form-button').forEach(function(b) {
-                b.addEventListener('click', refresh);
+                b.addEventListener('click', function(event) {
+                    refresh();
+                    if (b.classList.contains('disabled')) {
+                        event.preventDefault();
+                    }
+                });
             });
             refresh();
         });

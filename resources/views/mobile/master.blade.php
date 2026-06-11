@@ -180,7 +180,9 @@
 
     function formatProjectDate(date) {
         if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
-        return String(date.getDate()).padStart(2, '0') + '/' + projectDateMonths[date.getMonth()] + '/' + date.getFullYear();
+        const month = projectDateMonths[date.getMonth()];
+        const displayMonth = month.charAt(0).toUpperCase() + month.slice(1);
+        return String(date.getDate()).padStart(2, '0') + '/' + displayMonth + '/' + date.getFullYear();
     }
 
     function initProjectDatePickers(root = document) {

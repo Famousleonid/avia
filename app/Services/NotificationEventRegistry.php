@@ -117,6 +117,25 @@ class NotificationEventRegistry
                     'customer_name',
                 ],
             ],
+            'workorder.shipping_log_updated' => [
+                'label' => 'Shipping Log Book updated',
+                'description' => 'Shipping Log Book fields were entered or edited for a workorder.',
+                'default_severity' => 'info',
+                'default_title' => 'Shipping Log Book updated',
+                'default_message' => 'WO {workorder_no}: Shipping Log Book updated by {actor_name}. Fields: {shipping_changed_fields}.',
+                'dynamic_recipients' => [
+                    'workorder_technician' => 'Workorder technician',
+                    'system_admins' => 'System admins',
+                ],
+                'variables' => [
+                    'workorder_no',
+                    'workorder_id',
+                    'actor_name',
+                    'part_number',
+                    'customer_name',
+                    'shipping_changed_fields',
+                ],
+            ],
             'user.birthday_2days' => [
                 'label' => 'Birthday in 2 days',
                 'description' => 'A user has a birthday in 2 days.',

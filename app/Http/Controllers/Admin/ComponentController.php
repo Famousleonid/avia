@@ -1296,6 +1296,8 @@ class ComponentController extends Controller
                         }
                     }
 
+                    $rowHasKitPrlChoiceGroup = array_key_exists('kit_prl_choice_group', $rowData);
+
                     // Prepare component data
                     $componentData = [
                         'manual_id' => $manualId,
@@ -1307,15 +1309,17 @@ class ComponentController extends Controller
                         'units_assy' => isset($rowData['units_assy']) ? trim($rowData['units_assy']) : null,
                         'log_card' => isset($rowData['log_card']) ? (int)($rowData['log_card'] == '1' || $rowData['log_card'] == 'true') : 0,
                         'is_bush' => isset($rowData['is_bush']) ? (int)($rowData['is_bush'] == '1' || $rowData['is_bush'] == 'true') : 0,
-            'kit' => isset($rowData['kit']) ? (int)($rowData['kit'] == '1' || $rowData['kit'] == 'true') : 0,
-            'kit_prl_choice_group' => isset($rowData['kit_prl_choice_group']) ? $this->normalizeKitPrlChoiceGroup($rowData['kit_prl_choice_group']) : null,
-            'kit_e' => isset($rowData['kit_e']) ? (int)($rowData['kit_e'] == '1' || $rowData['kit_e'] == 'true') : 0,
+                        'kit' => isset($rowData['kit']) ? (int)($rowData['kit'] == '1' || $rowData['kit'] == 'true') : 0,
+                        'kit_e' => isset($rowData['kit_e']) ? (int)($rowData['kit_e'] == '1' || $rowData['kit_e'] == 'true') : 0,
                         'ndt_list' => isset($rowData['ndt_list']) ? (int)($rowData['ndt_list'] == '1' || $rowData['ndt_list'] == 'true') : 0,
                         'cad_list' => isset($rowData['cad_list']) ? (int)($rowData['cad_list'] == '1' || $rowData['cad_list'] == 'true') : 0,
                         'stress_relief_list' => isset($rowData['stress_relief_list']) ? (int)($rowData['stress_relief_list'] == '1' || $rowData['stress_relief_list'] == 'true') : 0,
                         'paint_list' => isset($rowData['paint_list']) ? (int)($rowData['paint_list'] == '1' || $rowData['paint_list'] == 'true') : 0,
                         'bush_ipl_num' => isset($rowData['bush_ipl_num']) ? trim($rowData['bush_ipl_num']) : null,
                     ];
+                    if ($rowHasKitPrlChoiceGroup) {
+                        $componentData['kit_prl_choice_group'] = $this->normalizeKitPrlChoiceGroup($rowData['kit_prl_choice_group']);
+                    }
 
                     // Дополнительная проверка на минимальную полноту данных
                     $hasMinimalData = !empty($componentData['part_number']) &&

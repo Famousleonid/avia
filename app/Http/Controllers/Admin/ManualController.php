@@ -20,8 +20,10 @@ use App\Models\User;
 use App\Models\UserUiSetting;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\ManualRevisionCheckService;
+use App\Services\StdProcessAuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ManualController extends Controller
 {
@@ -324,6 +326,8 @@ class ManualController extends Controller
 
             return [$std => $keys];
         })->all();
+        $stdProcessAuditWarnings = app(StdProcessAuditService::class)
+            ->warningsByStdProcessIdForManual((int) $cmm->id);
 
         $stdAddSourceManuals = Manual::query()
             ->where('planes_id', $cmm->planes_id)
@@ -385,7 +389,7 @@ class ManualController extends Controller
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
         'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','stdProcessPicklistOptions','serviceBulletins',
         'revisionChecks', 'latestRevisionCheck', 'revisionStatus', 'canRecordRevisionCheck', 'manualShowTab',
-        'dimensionFigures', 'dimManualProcesses', 'codes'
+        'dimensionFigures', 'dimManualProcesses', 'codes', 'stdProcessAuditWarnings'
         ));
 
     }
@@ -394,6 +398,18 @@ class ManualController extends Controller
     {
         $this->ensureManualAccess($manual);
         abort_unless(auth()->user()?->can('manuals.update', $manual), 403);
+
+        try {
+            $request->merge([
+                'revision_date' => parse_project_date($request->input('revision_date')),
+                'checked_at' => parse_project_date($request->input('checked_at')),
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages([
+                'revision_date' => $e->getMessage(),
+                'checked_at' => $e->getMessage(),
+            ]);
+        }
 
         $validated = $request->validate([
             'status' => ['required', 'in:'.ManualRevisionCheck::STATUS_UNCHANGED.','.ManualRevisionCheck::STATUS_CHANGED],

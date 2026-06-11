@@ -13,6 +13,12 @@
             max-height: calc(100dvh - 120px);
             min-width: 0;
         }
+        .paint-page-root {
+            --paint-sidebar-bg: var(--sidebar-bg, #343A40);
+            --paint-sidebar-text: #fff;
+            --paint-sidebar-text-strong: #fff;
+            --paint-sidebar-muted: rgba(255, 255, 255, .82);
+        }
         .paint-table-scroll {
             max-height: calc(100dvh - 130px);
         }
@@ -129,8 +135,18 @@
             max-width: 100%;
             overflow-x: hidden;
             overflow-y: auto;
+            background: var(--paint-sidebar-bg) !important;
         }
         #paint-wo-table {
+            --dir-table-bg: var(--paint-sidebar-bg);
+            --dir-text: var(--paint-sidebar-text);
+            --dir-muted: var(--paint-sidebar-muted);
+            --bs-table-bg: var(--paint-sidebar-bg);
+            --bs-table-color: var(--paint-sidebar-text);
+            --bs-table-hover-color: var(--paint-sidebar-text);
+            --bs-table-active-color: var(--paint-sidebar-text);
+            background: var(--paint-sidebar-bg) !important;
+            color: var(--paint-sidebar-text) !important;
             table-layout: fixed;
             width: 100%;
             max-width: 100%;
@@ -159,6 +175,11 @@
             overflow: hidden;
             vertical-align: middle;
         }
+        #paint-wo-table tbody > tr > td,
+        #paint-wo-table tbody > tr > th {
+            background: var(--paint-sidebar-bg) !important;
+            color: var(--paint-sidebar-text) !important;
+        }
         #paint-wo-table tbody tr {
             transition: background-color .18s ease, box-shadow .18s ease, opacity .18s ease;
         }
@@ -166,7 +187,7 @@
             border-top-color: rgba(13, 202, 240, .18);
         }
         #paint-wo-table tbody tr.paint-row-master:hover td {
-            background: rgba(13, 202, 240, .045) !important;
+            background: rgba(73, 80, 87, .72) !important;
         }
         #paint-wo-table tbody tr.paint-row-closed {
             opacity: .72;
@@ -175,7 +196,7 @@
             opacity: .92;
         }
         #paint-wo-table tbody tr.paint-row-unqueued td {
-            color: rgba(226, 232, 240, .78);
+            color: var(--paint-sidebar-muted) !important;
         }
         #paint-wo-table .paint-col-wrap {
             white-space: normal;
@@ -273,15 +294,21 @@
             letter-spacing: 0.02em;
         }
         .paint-wo-prefix {
-            color: #8D9197 !important;
+            color: var(--paint-sidebar-muted) !important;
         }
         .paint-wo-label {
             font-weight: 700;
         }
+        #paint-wo-table .paint-wo-label,
+        #paint-wo-table .paint-wo-label .text-light {
+            color: var(--paint-sidebar-text-strong) !important;
+        }
         html[data-bs-theme="light"] #paint-wo-table .paint-wo-label,
-        html[data-bs-theme="light"] #paint-wo-table .paint-wo-label .text-light,
+        html[data-bs-theme="light"] #paint-wo-table .paint-wo-label .text-light {
+            color: var(--paint-sidebar-text-strong) !important;
+        }
         html[data-bs-theme="light"] #paint-wo-table .paint-wo-label .paint-wo-prefix {
-            color: #000 !important;
+            color: var(--paint-sidebar-muted) !important;
         }
         .paint-detail-pill {
             display: inline-flex;
@@ -296,9 +323,9 @@
             border: 1px solid rgba(148, 163, 184, .12);
         }
         html[data-bs-theme="light"] #paint-wo-table .paint-detail-pill {
-            background: rgba(13, 110, 253, .06);
-            border-color: rgba(13, 110, 253, .16);
-            color: #000 !important;
+            background: rgba(148, 163, 184, .08);
+            border-color: rgba(148, 163, 184, .12);
+            color: rgba(226, 232, 240, .9) !important;
         }
         .paint-row-master .paint-detail-pill {
             background: rgba(13, 202, 240, .08);
@@ -447,6 +474,62 @@
             font-size: .86rem;
             color: var(--dir-muted, #adb5bd);
         }
+        .paint-header-filter-col + .paint-header-filter-col {
+            margin-left: .75rem;
+        }
+        .paint-table-state {
+            position: relative;
+            min-width: 0;
+            min-height: 12rem;
+            background: var(--paint-sidebar-bg);
+        }
+        .paint-table-state .paint-table-outer {
+            transition: opacity .14s ease;
+        }
+        .paint-table-state.is-loading .paint-table-outer {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .paint-table-state:not(.is-loading) .paint-table-loading {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .paint-table-loading {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 12rem;
+            gap: .35rem;
+            color: var(--bs-info);
+            font-size: .95rem;
+            font-weight: 600;
+            letter-spacing: 0;
+            background: var(--paint-sidebar-bg);
+            transition: opacity .14s ease;
+        }
+        .paint-loading-dots {
+            display: inline-flex;
+            align-items: flex-end;
+            gap: .08rem;
+            min-width: 1.05rem;
+        }
+        .paint-loading-dots span {
+            display: inline-block;
+            animation: paintLoadingDot .85s ease-in-out infinite;
+        }
+        .paint-loading-dots span:nth-child(2) {
+            animation-delay: .12s;
+        }
+        .paint-loading-dots span:nth-child(3) {
+            animation-delay: .24s;
+        }
+        @keyframes paintLoadingDot {
+            0%, 80%, 100% { transform: translateY(0); opacity: .45; }
+            40% { transform: translateY(-.28rem); opacity: 1; }
+        }
         #paint-wo-table .paint-col-owner .btn-link {
             display: inline-block;
             max-width: 100%;
@@ -491,7 +574,13 @@
                                    placeholder="Search (WO, customer, P/N, owner, dates…)"
                                    autocomplete="off">
                         </div>
-                        <div class="col-auto flex-shrink-0">
+                        <div class="col-auto flex-shrink-0 paint-header-filter-col">
+                            <label class="d-inline-flex align-items-center gap-2 m-0 paint-header-hide-closed" for="paintOnlyDateStartRows">
+                                <input type="checkbox" id="paintOnlyDateStartRows" checked>
+                                <span>Date start only</span>
+                            </label>
+                        </div>
+                        <div class="col-auto flex-shrink-0 paint-header-filter-col">
                             <label class="d-inline-flex align-items-center gap-2 m-0 paint-header-hide-closed" for="paintHideClosedRows">
                                 <input type="checkbox" id="paintHideClosedRows">
                                 <span>Hide closed</span>
@@ -503,7 +592,14 @@
 
             <div class="card-body pt-1 px-3 m-0 flex-grow-1 d-flex flex-column">
                 <div class="dir-panel border p-0 px-2 pb-2">
-                    <div class="dir-table-wrap paint-table-scroll paint-table-outer">
+                    <div id="paintTableState" class="paint-table-state is-loading">
+                        <div class="paint-table-loading" role="status" aria-live="polite">
+                            <span>Loading</span>
+                            <span class="paint-loading-dots" aria-hidden="true">
+                                <span>.</span><span>.</span><span>.</span>
+                            </span>
+                        </div>
+                        <div class="dir-table-wrap paint-table-scroll paint-table-outer">
                         <table class="table table-sm table-hover align-middle mb-0 dir-table paint-dir-table {{ ($canReorderPaint ?? false) ? 'paint-table-has-drag' : '' }} " id="paint-wo-table">
                             <colgroup>
                                 @if($canReorderPaint ?? false)
@@ -579,6 +675,7 @@
                                 @endphp
                                 <tr data-wo-id="{{ (int) $wo->id }}"
                                     data-paint-search="{{ $paintSearch }}"
+                                    data-paint-has-date-start="{{ $startStr !== '' ? '1' : '0' }}"
                                     data-paint-closed="{{ $isClosed ? '1' : '0' }}"
                                     class="{{ $isQueued ? 'paint-row-queued' : 'paint-row-unqueued' }} {{ $isMaster ? 'paint-row-master' : '' }} {{ $isClosed ? 'paint-row-closed' : 'paint-row-open' }}">
                                     @if($canReorderPaint ?? false)
@@ -746,6 +843,7 @@
                             @endforelse
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
                 @include('admin.paint.partials.lost-parts', ['lostParts' => $lostParts ?? collect()])

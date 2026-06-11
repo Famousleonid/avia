@@ -130,18 +130,28 @@ class QuantumRoBufferApplyService
         }
 
         /** @var TdrProcess|WorkorderStdProcess|WoBushingBatch $model */
-        $model = $target['model'];
+        $models = collect($target['models'] ?? [$target['model']])->values();
+        $model = $models->first();
         $table = $model->getTable();
-        $before = $model->getAttributes();
+        $before = $models->mapWithKeys(fn (Model $targetModel): array => [
+            (int) $targetModel->getKey() => $targetModel->getAttributes(),
+        ]);
 
-        $this->fillTarget($model, $line, $vendor);
+        foreach ($models as $targetModel) {
+            $this->fillTarget($targetModel, $line, $vendor);
 
-        if (! $dryRun && $model->isDirty()) {
-            $model->save();
+            if (! $dryRun && $targetModel->isDirty()) {
+                $targetModel->save();
+            }
         }
 
-        $changed = $model->isDirty() || $before != $model->getAttributes();
-        $message = ($changed ? 'Applied' : 'Already current') . " to {$table}:{$model->getKey()}";
+        $changed = $models->contains(fn (Model $targetModel): bool => $targetModel->isDirty()
+            || ($before->get((int) $targetModel->getKey()) ?? []) != $targetModel->getAttributes());
+        $targetLabel = "{$table}:{$model->getKey()}";
+        if ($models->count() > 1) {
+            $targetLabel .= ' (' . $models->count() . ' traveler rows)';
+        }
+        $message = ($changed ? 'Applied' : 'Already current') . " to {$targetLabel}";
 
         $this->markLine($line, self::STATUS_APPLIED, $message, $table, (int) $model->getKey(), $dryRun);
 
@@ -354,6 +364,11 @@ class QuantumRoBufferApplyService
             ];
         }
 
+        $travelerGroup = $this->travelerGroupFromRef($ref);
+        if ($travelerGroup !== null) {
+            return $this->findTdrTravelerTarget($line, $workorder, $travelerGroup);
+        }
+
         $normalizedCode = $this->normalizeCode($ref);
         $processNames = $codeMap->get($normalizedCode, collect());
 
@@ -406,6 +421,133 @@ class QuantumRoBufferApplyService
             'status' => 'unresolved',
             'message' => "No TDR process target for WO {$line->wo_number}, REF {$line->bom_ref}, PN {$line->pn}, process {$processName->name}",
         ];
+    }
+
+    private function findTdrTravelerTarget(QuantumRoLine $line, Workorder $workorder, int $travelerGroup): array
+    {
+        $matches = TdrProcess::query()
+            ->select('tdr_processes.*')
+            ->join('tdrs', 'tdrs.id', '=', 'tdr_processes.tdrs_id')
+            ->join('components', 'components.id', '=', 'tdrs.component_id')
+            ->where('tdrs.workorder_id', $workorder->id)
+            ->where('tdr_processes.in_traveler', true)
+            ->where(function ($query) use ($travelerGroup): void {
+                $query->where('tdr_processes.traveler_group', $travelerGroup);
+
+                if ($travelerGroup === 1) {
+                    $query->orWhereNull('tdr_processes.traveler_group');
+                }
+            })
+            ->whereRaw(
+                "REPLACE(UPPER(TRIM(components.part_number)), ' ', '') = ?",
+                [$this->normalizePartNumber($line->pn)]
+            )
+            ->orderBy('tdr_processes.sort_order')
+            ->orderBy('tdr_processes.id')
+            ->get();
+
+        if ($matches->isEmpty()) {
+            return [
+                'status' => 'unresolved',
+                'message' => "No Traveler {$travelerGroup} target for WO {$line->wo_number}, REF {$line->bom_ref}, PN {$line->pn}",
+            ];
+        }
+
+        $groups = $matches->groupBy(fn (TdrProcess $match): string => implode(':', [
+            (int) $match->tdrs_id,
+            (int) ($match->traveler_group ?: 1),
+        ]));
+
+        if ($groups->count() === 1) {
+            $models = $groups->first()->values();
+
+            return ['status' => 'ok', 'model' => $models->first(), 'models' => $models];
+        }
+
+        $resolvedGroup = $this->resolveMultipleTdrTravelerTarget($groups, $line);
+        if ($resolvedGroup) {
+            $models = $resolvedGroup->values();
+
+            return ['status' => 'ok', 'model' => $models->first(), 'models' => $models];
+        }
+
+        return [
+            'status' => 'unresolved',
+            'message' => "Multiple Traveler {$travelerGroup} targets for WO {$line->wo_number}, REF {$line->bom_ref}, PN {$line->pn}",
+        ];
+    }
+
+    /**
+     * @param  Collection<string, Collection<int, TdrProcess>>  $groups
+     */
+    private function resolveMultipleTdrTravelerTarget(Collection $groups, QuantumRoLine $line): ?Collection
+    {
+        $lineRo = trim((string) $line->ro_number);
+        if ($lineRo !== '') {
+            $sameRo = $groups
+                ->filter(fn (Collection $group): bool => $group->contains(
+                    fn (TdrProcess $match): bool => trim((string) $match->repair_order) === $lineRo
+                ))
+                ->values();
+
+            if ($sameRo->count() === 1) {
+                return $sameRo->first();
+            }
+
+            if ($line->returned_date) {
+                return null;
+            }
+        }
+
+        $outDate = $line->out_date ? Carbon::parse($line->out_date)->startOfDay() : null;
+        $returnedDate = $line->returned_date ? Carbon::parse($line->returned_date)->startOfDay() : null;
+
+        $dateWindowGroups = $groups
+            ->filter(function (Collection $group) use ($outDate, $returnedDate): bool {
+                $starts = $group
+                    ->map(fn (TdrProcess $match) => $match->date_start ? Carbon::parse($match->date_start)->startOfDay() : null)
+                    ->filter();
+                $finishes = $group
+                    ->map(fn (TdrProcess $match) => $match->date_finish ? Carbon::parse($match->date_finish)->startOfDay() : null)
+                    ->filter();
+
+                $earliestStart = $starts->isNotEmpty() ? $starts->sort()->first() : null;
+                $latestFinish = $finishes->isNotEmpty() ? $finishes->sortDesc()->first() : null;
+
+                if ($outDate && $latestFinish && $latestFinish->lt($outDate)) {
+                    return false;
+                }
+
+                if ($returnedDate && $earliestStart && $earliestStart->gt($returnedDate)) {
+                    return false;
+                }
+
+                return true;
+            })
+            ->values();
+
+        if ($lineRo !== '') {
+            return $dateWindowGroups
+                ->first(fn (Collection $group): bool => $group->every(
+                    fn (TdrProcess $match): bool => trim((string) $match->repair_order) === ''
+                ));
+        }
+
+        if ($dateWindowGroups->count() === 1) {
+            return $dateWindowGroups->first();
+        }
+
+        $openGroups = $dateWindowGroups
+            ->filter(fn (Collection $group): bool => ! $group->every(
+                fn (TdrProcess $match): bool => ! empty($match->date_finish)
+            ))
+            ->values();
+
+        if ($openGroups->count() === 1) {
+            return $openGroups->first();
+        }
+
+        return null;
     }
 
     private function resolveMultipleTdrTarget(Collection $matches, QuantumRoLine $line): ?TdrProcess
@@ -549,6 +691,19 @@ class QuantumRoBufferApplyService
 
         return $pn !== ''
             && ((string) $line->class === 'DETAIL_PART' || preg_match('/\d/', $pn) === 1);
+    }
+
+    private function travelerGroupFromRef(?string $ref): ?int
+    {
+        $normalized = $this->normalizeCode($ref);
+
+        if (! preg_match('/^T(\d*)$/', $normalized, $matches)) {
+            return null;
+        }
+
+        $group = ($matches[1] ?? '') === '' ? 1 : (int) $matches[1];
+
+        return $group > 0 ? $group : null;
     }
 
     private function normalizeCode(?string $value): string

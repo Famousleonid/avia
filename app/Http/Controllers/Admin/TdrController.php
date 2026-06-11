@@ -1082,7 +1082,8 @@ class TdrController extends Controller
                     continue;
                 }
                 $ck = sprintf(
-                    '%s_%s_%s',
+                    '%s_%s_%s_%s',
+                    $tdr->id,
                     $tdr->component->ipl_num ?? '',
                     $tdr->component->part_number ?? '',
                     $tdr->serial_number ?? ''
@@ -1168,7 +1169,8 @@ class TdrController extends Controller
                         continue;
                     }
                     $ck = sprintf(
-                        '%s_%s_%s',
+                        '%s_%s_%s_%s',
+                        $tdr->id,
                         $tdr->component->ipl_num ?? '',
                         $tdr->component->part_number ?? '',
                         $tdr->serial_number ?? ''
@@ -1290,6 +1292,8 @@ class TdrController extends Controller
         // Проверяем, передан ли tdrId для фильтрации по конкретному компоненту
         $tdrId = $request->input('tdrId');
 
+        $tdrIdsInput = $request->input('tdr_ids');
+
         if ($tdrId) {
             // Если передан tdrId, фильтруем только процессы для этого компонента
             $tdr = Tdr::findOrFail($tdrId);
@@ -1298,6 +1302,27 @@ class TdrController extends Controller
                 abort(403, 'TDR does not belong to this workorder');
             }
             $tdrIds = collect([$tdrId]);
+        } elseif ($tdrIdsInput !== null) {
+            $requestedTdrIds = is_array($tdrIdsInput)
+                ? array_map('intval', $tdrIdsInput)
+                : array_map('intval', array_filter(explode(',', (string) $tdrIdsInput), static fn ($value) => $value !== ''));
+
+            if (empty($requestedTdrIds)) {
+                abort(400, 'No TDRs selected');
+            }
+
+            $tdrIds = Tdr::where('workorder_id', $current_wo->id)
+                ->whereIn('id', array_values(array_unique($requestedTdrIds)))
+                ->where('component_id', '!=', null)
+                ->when($necessary, function ($query) use ($necessary) {
+                    return $query->where('necessaries_id', '!=', $necessary->id);
+                })
+                ->where('use_process_forms', true)
+                ->pluck('id');
+
+            if ($tdrIds->isEmpty()) {
+                abort(404, 'Selected TDRs not found for this workorder');
+            }
         } else {
             // Получаем все TDR для этого work order
             $tdrIds = Tdr::where('workorder_id', $current_wo->id)
@@ -1367,8 +1392,8 @@ class TdrController extends Controller
         $iplNums = $request->input('ipl_nums');
         $partNumbers = $request->input('part_numbers');
 
-        // Если передан tdrId, пропускаем фильтрацию по component_ids, так как уже фильтруем по одному компоненту
-        if ($componentIds && !$tdrId) {
+        // Если передан tdrId/tdr_ids, пропускаем фильтрацию по component_ids: точный набор TDR уже выбран выше.
+        if ($componentIds && !$tdrId && $tdrIdsInput === null) {
             // Разбиваем строки на массивы
             $filteredComponentIds = is_array($componentIds)
                 ? array_map('intval', $componentIds)
@@ -1770,6 +1795,28 @@ class TdrController extends Controller
             ->get();
 
         $tdr_proc = TdrProcess::where('ec', 1)->get();
+        $vendors = Vendor::all();
+
+        $groupFormTdrs = Tdr::where('workorder_id', $current_wo->id)
+            ->where('component_id', '!=', null)
+            ->when($necessary, function ($query) use ($necessary) {
+                return $query->where('necessaries_id', '!=', $necessary->id);
+            })
+            ->where('use_process_forms', true)
+            ->with('component')
+            ->get();
+
+        $groupFormTdrProcessQuery = TdrProcess::query()
+            ->whereIn('tdrs_id', $groupFormTdrs->pluck('id'));
+        $this->applyStdListProcessesVisibilityForWorkorder($current_wo, $groupFormTdrProcessQuery);
+        $groupFormTdrProcesses = $groupFormTdrProcessQuery
+            ->with('processName')
+            ->orderBy('sort_order')
+            ->get();
+
+        $builtProcessGroups = $this->buildProcessGroupModalRows($groupFormTdrs, $groupFormTdrProcesses);
+        $processGroups = $builtProcessGroups['processGroups'];
+        $totalQty = $builtProcessGroups['totalQty'];
 
         $hasTransfers = Transfer::where('workorder_id', $current_wo->id)
             ->orWhere('workorder_source', $current_wo->id)
@@ -1796,7 +1843,7 @@ class TdrController extends Controller
             'manuals', 'builders', 'planes', 'instruction', 'necessary',
             'necessaries', 'unit_conditions', 'component_conditions',
             'codes', 'conditions', 'missingParts', 'ordersParts', 'inspectsUnit',
-            'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'hasBushings', 'bushingPrlCount', 'kitPrlCount', 'prl_parts', 'tdr_proc', 'hasTransfers',
+            'processParts', 'ordersPartsNew', 'trainings', 'user_wo', 'manual_id', 'log_card', 'woBushing', 'hasBushings', 'bushingPrlCount', 'kitPrlCount', 'prl_parts', 'tdr_proc', 'vendors', 'processGroups', 'totalQty', 'hasTransfers',
             'transfersIncomingGroupsWithMultiple', 'transfersHasOutgoingGroup',
             'hasMissingParts', 'missingCondition', 'missingPartsCount', 'orderedPartsCount', 'hasOrderedParts', 'hasProcessFormTdrs',
             'stdFormCounts', 'spFormColumnsCount', 'bushingSpFormColumnsCount', 'rmFormRowsCount', 'tdrFormRowsCount',

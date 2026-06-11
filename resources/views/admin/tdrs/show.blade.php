@@ -770,7 +770,7 @@
                                     data-readonly-message="{{ $logCardTdrAccess['message'] ?? '' }}"
                                     @disabled($logCardTdrAccess['read_only'] ?? false)
                                     title="{{ $logCardTdrAccess['message'] ?? '' }}">
-                                <i class="fas fa-{{ $log_card ? 'undo' : 'keyboard' }}"></i> {{ $log_card ? __('Reset Log card') : __('Create Log card') }}
+                                <i class="fas fa-{{ $log_card ? 'undo' : 'keyboard' }}"></i> {{ $log_card ? __('Reset Log Card') : __('Create Log Card') }}
                             </button>
                             <button type="button" id="logCardSaveBtn" class="btn btn-primary btn-sm d-none">
                                 <i class="fas fa-save"></i> {{ __('Save') }}
@@ -927,6 +927,7 @@
 
     {{-- Modals and scripts: reuse from show via stack or include show's modals section --}}
     @include('admin.tdrs.partials.show-modals')
+    @include('admin.tdrs.partials.group-process-modal')
     @include('admin.tdrs.partials.show-scripts')
 
 @endsection

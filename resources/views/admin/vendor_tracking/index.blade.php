@@ -3684,7 +3684,7 @@
                     allowInput: true,
                     dateFormat: 'Y-m-d',
                     altInput: true,
-                    altFormat: 'd.M.y',
+                    altFormat: 'd/M/Y',
                     clickOpens: true,
                     onReady: function (_, __, instance) {
                         instance.altInput.classList.add('finish-input');
