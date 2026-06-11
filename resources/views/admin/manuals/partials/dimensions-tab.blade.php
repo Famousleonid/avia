@@ -835,9 +835,13 @@
                     <div class="fw-semibold mb-2" style="font-size:12px;color:var(--bs-secondary-color)">REPAIR SURFACE — Linear Endpoints</div>
                     <div id="dimSpecRepairSurfaceList"></div>
                     <div class="row g-2 mt-1">
-                        <div class="col-6">
-                            <label class="form-label form-label-sm">Flange clearance (B nominal)</label>
-                            <input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecFlangeClr" placeholder="—">
+                        <div class="col-3">
+                            <label class="form-label form-label-sm">Flange clearance B min</label>
+                            <input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecFlangeClrMin" placeholder="—">
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label form-label-sm">B max</label>
+                            <input type="number" step="0.0001" class="form-control form-control-sm" id="dimSpecFlangeClrMax" placeholder="—">
                         </div>
                     </div>
                 </div>
@@ -1465,7 +1469,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecWearMax').value      = match.wear_dim_max      || '';
         document.getElementById('dimSpecRepairMin').value    = match.repair_dim_min    || '';
         document.getElementById('dimSpecRepairMax').value    = match.repair_dim_max    || '';
-        document.getElementById('dimSpecFlangeClr').value    = match.flange_clearance   || '';
+        document.getElementById('dimSpecFlangeClrMin').value = match.flange_clearance_min || '';
+        document.getElementById('dimSpecFlangeClrMax').value = match.flange_clearance_max || '';
         updateIntRangeDisplay(match);
         document.getElementById('dimSpecInspection').value   = match.inspection         || '';
         document.getElementById('dimSpecSort').value         = match.sort_order         || 0;
@@ -3105,7 +3110,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecRepairMin').value    = '';
         document.getElementById('dimSpecRepairMax').value    = '';
         document.getElementById('dimSpecIntRange').textContent = '—';
-        document.getElementById('dimSpecFlangeClr').value    = '';
+        document.getElementById('dimSpecFlangeClrMin').value = '';
+        document.getElementById('dimSpecFlangeClrMax').value = '';
         document.getElementById('dimSpecInspection').value   = '';
         document.getElementById('dimSpecSort').value         = '0';
         document.getElementById('dimSpecRepairSurfaceSection').classList.add('d-none');
@@ -3135,7 +3141,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimSpecWearMax').value      = param.wear_dim_max       || '';
         document.getElementById('dimSpecRepairMin').value    = param.repair_dim_min     || '';
         document.getElementById('dimSpecRepairMax').value    = param.repair_dim_max     || '';
-        document.getElementById('dimSpecFlangeClr').value    = param.flange_clearance    || '';
+        document.getElementById('dimSpecFlangeClrMin').value = param.flange_clearance_min || '';
+        document.getElementById('dimSpecFlangeClrMax').value = param.flange_clearance_max || '';
         updateIntRangeDisplay(param);
         document.getElementById('dimSpecInspection').value   = param.inspection          || '';
         document.getElementById('dimSpecSort').value        = param.sort_order || '0';
@@ -4191,7 +4198,8 @@ document.addEventListener('DOMContentLoaded', function () {
             wear_dim_max:            document.getElementById('dimSpecWearMax').value || null,
             repair_dim_min:          document.getElementById('dimSpecRepairMin').value || null,
             repair_dim_max:          document.getElementById('dimSpecRepairMax').value || null,
-            flange_clearance:        document.getElementById('dimSpecFlangeClr').value || null,
+            flange_clearance_min:    document.getElementById('dimSpecFlangeClrMin').value || null,
+            flange_clearance_max:    document.getElementById('dimSpecFlangeClrMax').value || null,
             inspection:              document.getElementById('dimSpecInspection').value.trim() || null,
             sort_order:              parseInt(document.getElementById('dimSpecSort').value) || 0,
         };

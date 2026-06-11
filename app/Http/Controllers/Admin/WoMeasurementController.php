@@ -102,7 +102,8 @@ class WoMeasurementController extends Controller
                 'repair_dim_min'          => $p->repair_dim_min,
                 'repair_dim_max'          => $p->repair_dim_max,
                 'interference_value'      => $p->interference_value,
-                'flange_clearance'        => $p->flange_clearance,
+                'flange_clearance_min'    => $p->flange_clearance_min,
+                'flange_clearance_max'    => $p->flange_clearance_max,
                 'codes'                   => $p->codes
                     ->filter(fn($c) => $c->code !== null)
                     ->map(fn($c) => [

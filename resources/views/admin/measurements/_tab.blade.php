@@ -1438,7 +1438,8 @@
         const showDepthA = stage === 'final' && (rSide === 'A' || rSide === 'both');
         const showDepthB = stage === 'final' && (rSide === 'B' || rSide === 'both');
         const hasMeas = param.orig_dim_min !== null || param.orig_dim_max !== null || !!param.requires_value;
-        const showFlange = stage === 'final' && rSide != null && param.flange_clearance != null;
+        const showFlange = stage === 'final' && rSide != null
+            && (param.flange_clearance_min != null || param.flange_clearance_max != null);
         const inspCodes = (param.codes||[]).filter(c => c.finding_context !== 'measurement');
         const hasInsp = stage !== 'final' && inspCodes.length > 0;
         const codesOpts = inspCodes.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
@@ -1491,21 +1492,27 @@
             });
         });
 
-        // Live flange calculation
+        // Live flange calculation. B is a tolerance range → flange widths are a
+        // range too: bigger B = thinner flanges, so
+        //   flange_min uses B_max, flange_max uses B_min.
         if (showFlange) {
             const calcFlange = () => {
                 const A  = parseFloat(d.querySelector('#mst-val-'+uid)?.value) || null;
                 const dA = showDepthA ? (parseFloat(d.querySelector('#mst-da-'+uid)?.value) || 0) : 0;
                 const dB = showDepthB ? (parseFloat(d.querySelector('#mst-db-'+uid)?.value) || 0) : 0;
-                const B  = parseFloat(param.flange_clearance);
+                const Bmin = param.flange_clearance_min != null ? parseFloat(param.flange_clearance_min) : null;
+                const Bmax = param.flange_clearance_max != null ? parseFloat(param.flange_clearance_max) : null;
+                const bLo  = Bmin ?? Bmax;   // one-sided B: use it for both bounds
+                const bHi  = Bmax ?? Bmin;
                 const faEl = d.querySelector('#mst-fa-'+uid);
                 const fbEl = d.querySelector('#mst-fb-'+uid);
-                if (A !== null && !isNaN(B)) {
-                    const base = (A - B) / 2;
-                    const fA = base + dA / 2 - dB / 2;
-                    const fB = base + dB / 2 - dA / 2;
-                    if (faEl) faEl.textContent = fA.toFixed(4);
-                    if (fbEl) fbEl.textContent = fB.toFixed(4);
+                if (A !== null && bLo !== null) {
+                    const offA =  dA / 2 - dB / 2;
+                    const fmt  = (lo, hi) => lo === hi ? lo.toFixed(4) : lo.toFixed(4) + ' – ' + hi.toFixed(4);
+                    const fAlo = (A - bHi) / 2 + offA, fAhi = (A - bLo) / 2 + offA;
+                    const fBlo = (A - bHi) / 2 - offA, fBhi = (A - bLo) / 2 - offA;
+                    if (faEl) faEl.textContent = fmt(fAlo, fAhi);
+                    if (fbEl) fbEl.textContent = fmt(fBlo, fBhi);
                 } else {
                     if (faEl) faEl.textContent = '—';
                     if (fbEl) fbEl.textContent = '—';
