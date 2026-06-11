@@ -375,20 +375,35 @@ class WoMeasurementController extends Controller
                 'parentFigure',
                 'points' => fn($q) => $q->where('point_type', 'measurement')->orderBy('sort_order'),
                 'points.parameters.inspectionComponent.variants.component',
+                'points.parameters.repairSteps',
             ])
             ->orderBy('sort_order')
             ->get();
 
-        // Latest measurement per parameter (prefer final over initial)
-        $measByParam = WoMeasurement::where('workorder_id', $workorder->id)
+        $allMeas = WoMeasurement::where('workorder_id', $workorder->id)
             ->get()
-            ->groupBy('manual_parameter_id')
-            ->map(function ($ms) {
-                $finals = $ms->where('stage', 'final');
-                return $finals->isNotEmpty()
-                    ? $finals->sortBy('id')->last()
-                    : $ms->sortBy('id')->last();
-            });
+            ->groupBy('manual_parameter_id');
+
+        // Latest measurement per parameter (prefer final over initial)
+        $measByParam = $allMeas->map(function ($ms) {
+            $finals = $ms->where('stage', 'final');
+            return $finals->isNotEmpty()
+                ? $finals->sortBy('id')->last()
+                : $ms->sortBy('id')->last();
+        });
+
+        // Recorded defect per parameter: latest finding code; a dimensional
+        // out-of-limit initial without a code is implicitly "Worn".
+        $codeNames      = Code::pluck('name', 'id');
+        $findingByParam = $allMeas->map(function ($ms) use ($codeNames) {
+            $m = $ms->filter(fn($x) => $x->codes_id !== null)->sortBy('id')->last();
+            if ($m) {
+                return $codeNames[$m->codes_id] ?? null;
+            }
+            $dimFail = $ms->first(fn($x) =>
+                $x->stage === 'initial' && $x->result === 'FAIL' && $x->actual_value !== null);
+            return $dimFail ? 'Worn' : null;
+        });
 
         $fcRows    = [];
         $extraRows = [];
@@ -451,22 +466,61 @@ class WoMeasurementController extends Controller
                         'bWearMax'     => $bWearMax,
                         'permClearMax' => $permClearMax,
                         'actualClear'  => $actualClear,
-                        'resultA'      => $this->computeResult($measA?->actual_value, $limA),
-                        'resultB'      => $this->computeResult($measB?->actual_value, $limB),
+                        'findingA'     => $findingByParam[$pA->id] ?? null,
+                        'findingB'     => $findingByParam[$pB->id] ?? null,
+                        // stored result is stage-aware (final → repair steps/limits)
+                        'resultA'      => $measA?->result ?? $this->computeResult($measA?->actual_value, $limA),
+                        'resultB'      => $measB?->result ?? $this->computeResult($measB?->actual_value, $limB),
                     ];
 
                 } elseif (!$pt->is_fits_clearance && $params->isNotEmpty()) {
                     foreach ($params as $param) {
                         $meas = $measByParam[$param->id] ?? null;
                         $lim  = $param->effectiveLimits($useWear);
+
+                        // Repair limits column: explicit repair_dim, otherwise from
+                        // oversize steps — the step the final landed in, or the
+                        // full step span when nothing is machined yet.
+                        $repMin = $param->repair_dim_min;
+                        $repMax = $param->repair_dim_max;
+                        $repLbl = null;
+                        // Repair-surface param without explicit repair_dim: the min
+                        // limit derives from orig min − allowed spotface depths.
+                        if ($repMin === null && $repMax === null
+                            && $param->repair_surface_side !== null
+                            && $param->orig_dim_min !== null) {
+                            $repMin = round((float) $param->orig_dim_min
+                                - (float) ($param->max_repair_depth_a ?? 0)
+                                - (float) ($param->max_repair_depth_b ?? 0), 4);
+                        }
+                        if ($repMin === null && $repMax === null && $param->repairSteps->isNotEmpty()) {
+                            $step = $meas?->repair_step_no
+                                ? $param->repairSteps->first(fn($s) => $s->step_no === $meas->repair_step_no)
+                                : null;
+                            if ($step) {
+                                $repMin = $step->dim_min;
+                                $repMax = $step->dim_max;
+                                $repLbl = $step->step_no;
+                            } else {
+                                $repMin = $param->repairSteps->min('dim_min');
+                                $repMax = $param->repairSteps->max('dim_max');
+                            }
+                        }
+
                         $extraRows[] = [
-                            'fig'    => $fig,
-                            'pt'     => $pt,
-                            'param'  => $param,
-                            'meas'   => $meas,
-                            'comp'   => $param->inspectionComponent?->variants->first()?->component,
-                            'lim'    => $lim,
-                            'result' => $this->computeResult($meas?->actual_value, $lim),
+                            'fig'        => $fig,
+                            'pt'         => $pt,
+                            'param'      => $param,
+                            'meas'       => $meas,
+                            'comp'       => $param->inspectionComponent?->variants->first()?->component,
+                            'lim'        => $lim,
+                            'repair_min' => $repMin,
+                            'repair_max' => $repMax,
+                            'repair_lbl' => $repLbl,
+                            'finding'    => $findingByParam[$param->id] ?? null,
+                            // stored result is stage-aware (initial → orig/wear,
+                            // final → repair limits / steps / spotface depths)
+                            'result'     => $meas?->result ?? $this->computeResult($meas?->actual_value, $lim),
                         ];
                     }
                 }
@@ -1155,11 +1209,16 @@ class WoMeasurementController extends Controller
     {
         if ($value === null) return null;
 
-        if ($limits['min'] !== null && $limits['max'] !== null) {
-            return ($value >= $limits['min'] && $value <= $limits['max']) ? 'PASS' : 'FAIL';
+        // One-sided limits are valid (e.g. lug thickness has min only,
+        // bore has max only) — each bound is checked only when set.
+        if ($limits['min'] === null && $limits['max'] === null) {
+            return null; // inspection-only, no dimensional judgement
         }
 
-        return null;
+        if ($limits['min'] !== null && $value < (float) $limits['min']) return 'FAIL';
+        if ($limits['max'] !== null && $value > (float) $limits['max']) return 'FAIL';
+
+        return 'PASS';
     }
 
     /**
