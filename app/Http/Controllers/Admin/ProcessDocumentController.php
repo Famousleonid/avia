@@ -540,6 +540,12 @@ class ProcessDocumentController extends Controller
             ];
         }
 
+        // Optional ?param_id= — limit the sketch to ONE position (used by the
+        // per-row Sketch buttons of the Required Bushings report).
+        if ($pid = (int) $request->query('param_id')) {
+            $repairInfos = array_values(array_filter($repairInfos, fn($i) => $i['odParam']->id === $pid));
+        }
+
         // Group positions with an IDENTICAL repair result onto one sheet
         // (same lug pair / same repair → one P/N, qty 2). Different results
         // print as separate sheets.

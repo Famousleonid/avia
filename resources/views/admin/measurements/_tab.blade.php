@@ -98,7 +98,14 @@
 <div id="ms-tab-body">
     {{-- Parts --}}
     <div id="ms-tab-parts">
-        <div class="px-2 py-1 border-bottom" style="font-size:10px;font-weight:600;flex-shrink:0;color:var(--bs-secondary-color)">PARTS</div>
+        <div class="px-2 py-2 border-bottom d-flex align-items-center" style="font-size:13px;font-weight:700;flex-shrink:0;color:var(--bs-secondary-color)">
+            <span>PARTS</span>
+            <button type="button" id="ms-req-bush-btn"
+               class="btn btn-outline-secondary btn-sm ms-auto py-1 px-2" style="font-size:12px"
+               title="Required bushings — P/N per position from bore measurements">
+                <i class="bi bi-nut"></i> Req. Bushings
+            </button>
+        </div>
         <div id="ms-tab-parts-list">
             <div class="text-center text-secondary py-3" style="font-size:11px" id="ms-tab-loading">Loading…</div>
         </div>
@@ -971,6 +978,20 @@
 
     document.getElementById('msGateEcBtn')?.addEventListener('click', () => applyGateOutcome('ec'));
     document.getElementById('msGateOrderNewBtn')?.addEventListener('click', () => applyGateOutcome('order_new'));
+
+    /* ── Required Bushings: dynamic WO tab next to Measurements ─────── */
+    document.getElementById('ms-req-bush-btn')?.addEventListener('click', function () {
+        const li    = document.getElementById('tab-req-bushings-li');
+        const btn   = document.getElementById('tab-req-bushings');
+        const frame = document.getElementById('req-bushings-frame');
+        if (!li || !btn || !frame) {
+            window.open('/workorders/' + WO_ID + '/measurements/required-bushings', '_blank');
+            return;
+        }
+        frame.src = '/workorders/' + WO_ID + '/measurements/required-bushings';
+        li.classList.remove('d-none');
+        new bootstrap.Tab(btn).show();
+    });
 
     function updateTdrBtnState(part) {
         const btn = document.getElementById('ms-add-tdr-btn');

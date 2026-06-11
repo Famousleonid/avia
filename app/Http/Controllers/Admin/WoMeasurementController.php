@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Code;
 use App\Models\Component;
 use App\Models\Condition;
+use App\Models\ManualInspectionComponent;
 use App\Models\ManualInspectionComponentVariant;
 use App\Models\ManualParameter;
 use App\Models\ManualParameterRepairRule;
@@ -529,6 +530,120 @@ class WoMeasurementController extends Controller
         }
 
         return view('admin.measurements._fc-table', compact('fcRows', 'extraRows', 'workorder', 'useWear'));
+    }
+
+    /**
+     * Required Bushings report: every bushing position with the P/N to install,
+     * derived from the bore measurements. At overhaul ALL bushings are renewed —
+     * the P/N depends on the bore state:
+     *   bore final in an oversize step → the step's component P/N
+     *   bore initial PASS (no repair)  → the initial (standard) P/N
+     *   bore final, continuous fit     → manufacture per sketch (req OD shown)
+     *   bore not measured              → pending inspection
+     */
+    public function requiredBushings(Workorder $workorder)
+    {
+        $manual  = $workorder->unit->manuals;
+        $useWear = $workorder->usesWearLimits();
+
+        $bushIcs = ManualInspectionComponent::where('manual_id', $manual->id)
+            ->with('variants.component')
+            ->get()
+            ->filter(fn($ic) => $ic->variants->contains(fn($v) => $v->component?->is_bush));
+
+        $params = ManualParameter::where('manual_id', $manual->id)
+            ->with(['points:id,code', 'repairSteps.component'])
+            ->get();
+
+        $measByParam = WoMeasurement::where('workorder_id', $workorder->id)
+            ->get()
+            ->groupBy('manual_parameter_id');
+
+        $rows = [];
+        foreach ($bushIcs as $ic) {
+            // One row per bushing POSITION = its OD parameter (the bore side
+            // determines the P/N); the bushing's own ID (pin side) is skipped.
+            $odParams = $params->where('inspection_component_id', $ic->id)
+                ->filter(fn($p) =>
+                    ($p->orig_dim_min !== null || $p->repairSteps->isNotEmpty())
+                    && preg_match('/\bOD\b/i', (string) $p->description) === 1);
+            $stdComp = $ic->variants->first()?->component;
+
+            foreach ($odParams as $od) {
+                $ptIds  = $od->points->pluck('id')->all();
+                $codes  = $od->points->pluck('code')->filter()->implode(', ');
+                $mating = $params->first(fn($p) =>
+                    $p->inspection_component_id !== $ic->id &&
+                    $p->points->pluck('id')->intersect($ptIds)->isNotEmpty() &&
+                    ($p->orig_dim_min !== null || $p->orig_dim_max !== null));
+                if (!$mating && $ptIds === []) continue;
+
+                $row = [
+                    'point'   => $codes,
+                    'bushing' => $ic->label,
+                    'param'   => $od->description,
+                    'qty'     => max(1, (int) ($od->qty ?? 1)),
+                    'bore'    => 'not inspected',
+                    'pn'      => null,
+                    'ipl'     => null,
+                    'note'    => null,
+                    'ic_id'    => $ic->id,
+                    'param_id' => $od->id,
+                    'sketch'   => false, // true when the bore final exists → drawing is renderable
+                ];
+
+                $ms = $mating ? ($measByParam[$mating->id] ?? collect()) : collect();
+                $final = $ms->where('stage', 'final')->sortBy('id')->last();
+                $init  = $ms->where('stage', 'initial')->sortBy('id')->last();
+
+                if ($final && $final->repair_step_no) {
+                    // bore repaired into an oversize step
+                    $step = $od->repairSteps->first(fn($s) => $s->step_no === $final->repair_step_no);
+                    $row['bore']   = $final->repair_step_no;
+                    $row['pn']     = $step?->component?->part_number ?? '— step P/N not configured —';
+                    $row['ipl']    = $step?->component?->ipl_num;
+                    $row['sketch'] = true;
+                } elseif ($final && $final->actual_value !== null) {
+                    // continuous repair → bushing is manufactured to fit
+                    $row['bore'] = 'machined ' . number_format((float) $final->actual_value, 4);
+                    if ($od->orig_dim_min !== null && $od->orig_dim_max !== null
+                        && $mating->orig_dim_min !== null && $mating->orig_dim_max !== null) {
+                        $fitMin = (float) $od->orig_dim_min - (float) $mating->orig_dim_max;
+                        $fitMax = (float) $od->orig_dim_max - (float) $mating->orig_dim_min;
+                        $row['note'] = 'manufacture per sketch · req OD '
+                            . number_format((float) $final->actual_value + $fitMin, 4) . '–'
+                            . number_format((float) $final->actual_value + $fitMax, 4);
+                    } else {
+                        $row['note'] = 'manufacture per sketch';
+                    }
+                    $row['pn']     = $stdComp?->part_number;
+                    $row['ipl']    = $stdComp?->ipl_num;
+                    $row['sketch'] = true;
+                } elseif ($init && $init->result === 'PASS') {
+                    // bore within limits — standard (initial) bushing
+                    $row['bore'] = 'OK (initial)';
+                    $row['pn']   = $stdComp?->part_number;
+                    $row['ipl']  = $stdComp?->ipl_num;
+                } elseif ($init && ($init->result === 'FAIL' || $init->codes_id !== null)) {
+                    // bore goes to repair (out of limits OR a defect finding) →
+                    // the bushing WILL be oversize. Order the LAST (largest)
+                    // repair-step P/N; the exact step is known after machining.
+                    $row['bore'] = 'repair → OVS';
+                    $lastStep = $od->repairSteps->sortBy('sort_order')->last();
+                    if ($lastStep?->component) {
+                        $row['pn']   = $lastStep->component->part_number;
+                        $row['ipl']  = $lastStep->component->ipl_num;
+                        $row['note'] = 'last oversize (' . $lastStep->step_no . ') — exact step after machining';
+                    } else {
+                        $row['note'] = 'P/N after final machining';
+                    }
+                }
+
+                $rows[] = $row;
+            }
+        }
+
+        return view('admin.measurements._required-bushings', compact('rows', 'workorder'));
     }
 
     public function componentByIpl(Request $request, Workorder $workorder)

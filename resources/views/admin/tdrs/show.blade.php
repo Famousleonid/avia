@@ -741,6 +741,12 @@
                                     data-bs-target="#content-measurements" type="button"
                                     role="tab">{{ __('Measurements') }}</button>
                         </li>
+                        {{-- dynamic tab: shown by the Req. Bushings button, hidden on leaving --}}
+                        <li class="nav-item d-none" role="presentation" id="tab-req-bushings-li">
+                            <button class="nav-link" id="tab-req-bushings" data-bs-toggle="tab"
+                                    data-bs-target="#content-req-bushings" type="button"
+                                    role="tab"><i class="bi bi-nut"></i> {{ __('Required Bushings') }}</button>
+                        </li>
                     </ul>
                     <div id="ms-fc-btn-wrap" class="d-none align-items-center ms-auto" style="margin-right:50px">
                         <a href="{{ route('workorders.measurements.fc-table', $current_wo->id) }}"
@@ -905,6 +911,23 @@
                     <div class="tab-pane fade" id="content-measurements" role="tabpanel">
                         @include('admin.measurements._tab', ['wo' => $current_wo])
                     </div>
+                    {{-- Required Bushings (dynamic, opened from Measurements) --}}
+                    <div class="tab-pane fade" id="content-req-bushings" role="tabpanel">
+                        <iframe id="req-bushings-frame" src="about:blank"
+                                style="width:100%;height:calc(100vh - 220px);border:0;background:transparent"></iframe>
+                    </div>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            // leaving the Required Bushings tab hides it again
+                            document.querySelectorAll('#tdrShowTabList .nav-link').forEach(function (btn) {
+                                btn.addEventListener('shown.bs.tab', function (e) {
+                                    if (e.target.id !== 'tab-req-bushings') {
+                                        document.getElementById('tab-req-bushings-li')?.classList.add('d-none');
+                                    }
+                                });
+                            });
+                        });
+                    </script>
                     @endrole
                 </div>
             </div>
