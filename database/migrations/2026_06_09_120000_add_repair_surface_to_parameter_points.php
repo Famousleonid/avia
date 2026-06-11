@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('manual_parameters', function (Blueprint $table) {
-            $table->decimal('flange_clearance', 8, 4)->nullable()->after('interference_value');
+            $table->decimal('flange_clearance', 8, 4)->nullable()->after('repair_dim_max');
             $table->string('repair_surface_side', 4)->nullable()->after('flange_clearance'); // 'A','B','both'
             $table->decimal('max_repair_depth_a', 8, 4)->nullable()->after('repair_surface_side');
             $table->decimal('max_repair_depth_b', 8, 4)->nullable()->after('max_repair_depth_a');

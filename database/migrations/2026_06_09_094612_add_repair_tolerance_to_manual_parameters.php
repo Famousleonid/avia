@@ -11,14 +11,13 @@ return new class extends Migration
         Schema::table('manual_parameters', function (Blueprint $table) {
             $table->decimal('repair_dim_min', 8, 4)->nullable()->after('wear_dim_max');
             $table->decimal('repair_dim_max', 8, 4)->nullable()->after('repair_dim_min');
-            $table->decimal('interference_value', 8, 4)->nullable()->after('repair_dim_max');
         });
     }
 
     public function down()
     {
         Schema::table('manual_parameters', function (Blueprint $table) {
-            $table->dropColumn(['repair_dim_min', 'repair_dim_max', 'interference_value']);
+            $table->dropColumn(['repair_dim_min', 'repair_dim_max']);
         });
     }
 };

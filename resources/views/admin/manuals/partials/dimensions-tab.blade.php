@@ -3092,8 +3092,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         ${param.repair_dim_min !== null || param.repair_dim_max !== null ? `
                         <div class="dim-dim-cell" style="background:rgba(13,110,253,.06)"><div class="dim-dim-cell-label">repair min</div><div class="dim-dim-cell-val">${fmtDim(param.repair_dim_min)}</div></div>
                         <div class="dim-dim-cell" style="background:rgba(13,110,253,.06)"><div class="dim-dim-cell-label">repair max</div><div class="dim-dim-cell-val">${fmtDim(param.repair_dim_max)}</div></div>` : ''}
-                        ${param.interference_value !== null ? `
-                        <div class="dim-dim-cell" style="background:rgba(25,135,84,.06)"><div class="dim-dim-cell-label">interference</div><div class="dim-dim-cell-val">${fmtDim(param.interference_value)}</div></div>` : ''}
                     </div>`;
                 }
 

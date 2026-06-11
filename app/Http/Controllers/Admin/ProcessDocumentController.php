@@ -906,10 +906,12 @@ document.addEventListener(\'mousemove\', function (e) {
   dragged.style.left = newLeft.toFixed(2) + \'%\';
   dragged.style.top  = newTop.toFixed(2)  + \'%\';
 
-  // Move leader line: x2/y2 = text position (follows label)
+  // Move leader line: x2/y2 = text position (follows label).
+  // Multi-sheet sketch renders the same element ids per section — look the
+  // leader up inside the dragged element\'s OWN page, not document-wide.
   const id = dragged.dataset.elementId;
   if (id) {
-    const leader = document.getElementById(\'dim-leader-\' + id);
+    const leader = page.querySelector(\'[id="dim-leader-\' + id + \'"]\');
     if (leader) {
       leader.setAttribute(\'x2\', newLeft.toFixed(2));
       leader.setAttribute(\'y2\', newTop.toFixed(2));

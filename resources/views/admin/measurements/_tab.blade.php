@@ -1046,7 +1046,7 @@
      *   a final measurement with repair_step_no.
      *   Returns: { matingParam, odParam, stepNo, step, measuredValue, useTolerance: false }
      *
-     * Case B — repair tolerance: OD param has interference_value, mating bore
+     * Case B — repair tolerance: OD param has a mating bore (derived fit), mating bore
      *   has any final measurement.
      *   Returns: { matingParam, odParam, stepNo: null, step: null, measuredValue,
      *              useTolerance: true, interference, calculatedOdMin, calculatedOdMax }
