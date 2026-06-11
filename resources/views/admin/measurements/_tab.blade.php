@@ -98,7 +98,14 @@
 <div id="ms-tab-body">
     {{-- Parts --}}
     <div id="ms-tab-parts">
-        <div class="px-2 py-1 border-bottom" style="font-size:10px;font-weight:600;flex-shrink:0;color:var(--bs-secondary-color)">PARTS</div>
+        <div class="px-2 py-2 border-bottom d-flex align-items-center" style="font-size:13px;font-weight:700;flex-shrink:0;color:var(--bs-secondary-color)">
+            <span>PARTS</span>
+            <button type="button" id="ms-req-bush-btn"
+               class="btn btn-outline-secondary btn-sm ms-auto py-1 px-2" style="font-size:12px"
+               title="Required bushings — P/N per position from bore measurements">
+                <i class="bi bi-nut"></i> Req. Bushings
+            </button>
+        </div>
         <div id="ms-tab-parts-list">
             <div class="text-center text-secondary py-3" style="font-size:11px" id="ms-tab-loading">Loading…</div>
         </div>
@@ -155,6 +162,36 @@
                 <div class="modal-footer py-2">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-danger btn-sm" id="msTdrSaveBtn">Add to TDR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Gate outcome modal: final out of repair limits → EC / Order New --}}
+    <div class="modal fade" id="msGateModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0">Out of repair limits — choose outcome</h6>
+                    <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2" style="font-size:12px" id="msGateFailedList"></div>
+                    <div style="font-size:11px;color:var(--bs-secondary-color)" class="mb-2">
+                        Completed work (machining, strip — everything before the gate anchor) is kept.
+                        <strong>EC</strong> relabels the failed machining for OEM concession and holds post-gate processes.
+                        <strong>Order New</strong> condemns the part and raises an Order New TDR.
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="msGateTypical">
+                        <label class="form-check-label" for="msGateTypical" style="font-size:12px">Typical EC (pre-approved) — don't hold post-gate processes</label>
+                    </div>
+                    <div class="text-danger small d-none mt-2" id="msGateErr"></div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning btn-sm" id="msGateEcBtn">EC — save the part</button>
+                    <button type="button" class="btn btn-danger btn-sm" id="msGateOrderNewBtn">Order New</button>
                 </div>
             </div>
         </div>
@@ -823,11 +860,27 @@
             paramMeasurements(p).some(m => !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID))
         );
 
+        // Gate state: some final (post-repair) measurement is FAIL → repair
+        // exceeded limits, the Update button turns red and offers EC / Order New.
+        const hasGateFail = part.params.some(p => {
+            const fins = paramMeasurements(p).filter(m => m.stage === 'final');
+            const last = fins[fins.length - 1];
+            return last && last.result === 'FAIL';
+        });
+
         if (hasRepairTdr) {
             hint.classList.add('d-none');
             updateBtn.classList.remove('d-none');
-            updateBtn.disabled = !hasAnyRealMeasurements;
-            updateBtn.title = hasAnyRealMeasurements ? '' : 'Введите замеры/инспекцию перед обновлением процессов';
+            // Not using `disabled` — an inactive button must still catch clicks
+            // to explain why it is inactive.
+            updateBtn.dataset.inactive = hasAnyRealMeasurements ? '' : '1';
+            updateBtn.dataset.gate = hasGateFail ? '1' : '';
+            updateBtn.classList.toggle('btn-outline-primary', !hasGateFail);
+            updateBtn.classList.toggle('btn-danger', hasGateFail);
+            updateBtn.style.opacity = hasAnyRealMeasurements ? '' : '0.45';
+            updateBtn.title = hasGateFail
+                ? 'Final measurement out of repair limits — choose EC or Order New'
+                : (hasAnyRealMeasurements ? '' : 'Enter measurements/inspection data before updating processes');
         } else if (hasRepairFail) {
             hint.classList.remove('d-none');
             updateBtn.classList.add('d-none');
@@ -838,6 +891,16 @@
     }
 
     document.getElementById('ms-update-processes-btn')?.addEventListener('click', async function () {
+        if (this.dataset.inactive === '1') {
+            const msg = 'No measurement/inspection data — enter measurements before updating processes';
+            if (typeof showNotification === 'function') showNotification(msg, 'warning');
+            else alert(msg);
+            return;
+        }
+        if (this.dataset.gate === '1') {
+            openGateModal();
+            return;
+        }
         const part = partsTree.find(p => p.id === activePartId);
         if (!part) return;
         this.disabled = true;
@@ -850,6 +913,84 @@
             if (typeof showNotification === 'function') showNotification('Repair processes updated', 'success');
         } catch (e) { alert(e.message); }
         finally { this.disabled = false; }
+    });
+
+    /* ── Gate modal: final out of repair limits → EC / Order New ────── */
+    let gateModal = null;
+    function getGateModal() {
+        if (!gateModal) gateModal = new bootstrap.Modal(document.getElementById('msGateModal'));
+        return gateModal;
+    }
+
+    async function openGateModal() {
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part) return;
+        const list = document.getElementById('msGateFailedList');
+        const err  = document.getElementById('msGateErr');
+        err.classList.add('d-none');
+        list.innerHTML = '<span class="text-secondary">Evaluating…</span>';
+        getGateModal().show();
+        try {
+            const eval_ = await apiFetch('/workorders/' + WO_ID + '/gate/evaluate', {
+                method: 'POST',
+                body: JSON.stringify({ inspection_component_id: part.id }),
+            });
+            const failed = (eval_.points || []).filter(p => !p.pass);
+            list.innerHTML = failed.length
+                ? failed.map(p => `<div class="border rounded px-2 py-1 mb-1" style="border-color:#dc3545!important">
+                        <span class="text-danger fw-bold">FAIL</span>
+                        ${p.pt_codes ? `<span class="ms-pt-code">${esc(p.pt_codes)}</span>` : ''}
+                        ${esc(p.description || '')}
+                        ${p.final_value != null ? `<span class="font-monospace"> = ${fmtDim(p.final_value)}</span>` : ''}
+                    </div>`).join('')
+                : '<span class="text-secondary">No failed points found</span>';
+        } catch (e) {
+            list.innerHTML = '';
+            err.textContent = e.message;
+            err.classList.remove('d-none');
+        }
+    }
+
+    async function applyGateOutcome(outcome) {
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part) return;
+        const err = document.getElementById('msGateErr');
+        err.classList.add('d-none');
+        try {
+            await apiFetch('/workorders/' + WO_ID + '/gate/apply', {
+                method: 'POST',
+                body: JSON.stringify({
+                    inspection_component_id: part.id,
+                    outcome,
+                    ec_typical: document.getElementById('msGateTypical').checked,
+                }),
+            });
+            getGateModal().hide();
+            document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
+            const msg = outcome === 'ec' ? 'EC applied — machining relabelled, post-gate processes held' : 'Order New TDR created';
+            if (typeof showNotification === 'function') showNotification(msg, 'success');
+            await loadData();
+        } catch (e) {
+            err.textContent = e.message;
+            err.classList.remove('d-none');
+        }
+    }
+
+    document.getElementById('msGateEcBtn')?.addEventListener('click', () => applyGateOutcome('ec'));
+    document.getElementById('msGateOrderNewBtn')?.addEventListener('click', () => applyGateOutcome('order_new'));
+
+    /* ── Required Bushings: dynamic WO tab next to Measurements ─────── */
+    document.getElementById('ms-req-bush-btn')?.addEventListener('click', function () {
+        const li    = document.getElementById('tab-req-bushings-li');
+        const btn   = document.getElementById('tab-req-bushings');
+        const frame = document.getElementById('req-bushings-frame');
+        if (!li || !btn || !frame) {
+            window.open('/workorders/' + WO_ID + '/measurements/required-bushings', '_blank');
+            return;
+        }
+        frame.src = '/workorders/' + WO_ID + '/measurements/required-bushings';
+        li.classList.remove('d-none');
+        new bootstrap.Tab(btn).show();
     });
 
     function updateTdrBtnState(part) {
@@ -870,15 +1011,31 @@
     }
 
     /**
-     * Returns true if any parameter in the manual has a repair_step whose
-     * component_id belongs to this bushing IC's variants.
+     * Bushing OD is "calculated" when a mating bore parameter exists:
+     * another component's parameter sharing the same point, both with orig
+     * limits. The fit range (interference or clearance) is derived from
+     * those limits — no manual input needed.
      */
+    function hasMatingBore(param) {
+        if (!param || param.orig_dim_min == null || param.orig_dim_max == null) return false;
+        const ic = inspComponents.find(c => c.id === param.inspection_component_id);
+        if (!ic || !ic.is_bush) return false;
+        const ptIds = new Set((param.points || []).map(pt => pt.id));
+        if (!ptIds.size) return false;
+        return parameters.some(p =>
+            p.id !== param.id &&
+            p.inspection_component_id !== param.inspection_component_id &&
+            p.orig_dim_min != null && p.orig_dim_max != null &&
+            (p.points || []).some(pt => ptIds.has(pt.id))
+        );
+    }
+
     function hasMatingRepairParam(icId) {
         const ic = inspComponents.find(c => c.id === icId);
         if (!ic || !ic.is_bush) return false;
         return parameters.some(p =>
             p.inspection_component_id === ic.id &&
-            ((p.repair_steps || []).length > 0 || p.interference_value != null)
+            ((p.repair_steps || []).length > 0 || hasMatingBore(p))
         );
     }
 
@@ -889,16 +1046,21 @@
      *   a final measurement with repair_step_no.
      *   Returns: { matingParam, odParam, stepNo, step, measuredValue, useTolerance: false }
      *
-     * Case B — repair tolerance: OD param has interference_value, mating bore
+     * Case B — repair tolerance: OD param has a mating bore (derived fit), mating bore
      *   has any final measurement.
      *   Returns: { matingParam, odParam, stepNo: null, step: null, measuredValue,
      *              useTolerance: true, interference, calculatedOdMin, calculatedOdMax }
      */
-    function getMatingRepairInfo(icId) {
-        const ic = inspComponents.find(c => c.id === icId);
+    /**
+     * Repair info for ONE specific OD param. Each bushing position is its
+     * own param↔point↔bore pair — two bushings on different lugs may end
+     * up with different repairs and different ODs.
+     */
+    function getParamRepairInfo(odParam) {
+        const ic = inspComponents.find(c => c.id === odParam.inspection_component_id);
         if (!ic || !ic.is_bush) return null;
 
-        function findMatingWithFinal(odParam, requireStepNo) {
+        function findMatingWithFinal(requireStepNo) {
             const odPointSet = new Set((odParam.points || []).map(pt => pt.id));
             if (!odPointSet.size) return null;
             const candidates = parameters.filter(p =>
@@ -913,36 +1075,49 @@
         }
 
         // ── Case A: discrete repair steps ────────────────────────────────
-        for (const odParam of parameters.filter(p =>
-            p.inspection_component_id === ic.id && (p.repair_steps || []).length > 0
-        )) {
-            const mating = findMatingWithFinal(odParam, true);
-            if (!mating) continue;
-            const fins = paramMeasurements(mating).filter(m => m.stage === 'final');
-            const last  = fins[fins.length - 1];
-            const step  = odParam.repair_steps.find(s => s.step_no === last.repair_step_no) || null;
-            return { matingParam: mating, odParam, stepNo: last.repair_step_no,
-                     step, measuredValue: last.actual_value, useTolerance: false };
+        if ((odParam.repair_steps || []).length > 0) {
+            const mating = findMatingWithFinal(true);
+            if (mating) {
+                const fins = paramMeasurements(mating).filter(m => m.stage === 'final');
+                const last  = fins[fins.length - 1];
+                const step  = odParam.repair_steps.find(s => s.step_no === last.repair_step_no) || null;
+                return { matingParam: mating, odParam, stepNo: last.repair_step_no,
+                         step, measuredValue: last.actual_value, useTolerance: false };
+            }
         }
 
-        // ── Case B: interference_value → continuous calculation ───────────
-        for (const odParam of parameters.filter(p =>
-            p.inspection_component_id === ic.id && p.interference_value != null
-        )) {
-            const mating = findMatingWithFinal(odParam, false);
-            if (!mating) continue;
-            const fins = paramMeasurements(mating).filter(m => m.stage === 'final');
-            const measuredValue = parseFloat(fins[fins.length - 1].actual_value);
-            const interference  = parseFloat(odParam.interference_value);
-            const tolSpread = (odParam.orig_dim_min != null && odParam.orig_dim_max != null)
-                ? Math.round((parseFloat(odParam.orig_dim_max) - parseFloat(odParam.orig_dim_min)) * 10000) / 10000
-                : 0;
-            return { matingParam: mating, odParam, stepNo: null, step: null,
-                     measuredValue, useTolerance: true, interference,
-                     calculatedOdMin: Math.round((measuredValue + interference) * 10000) / 10000,
-                     calculatedOdMax: Math.round((measuredValue + interference + tolSpread) * 10000) / 10000 };
+        // ── Case B: continuous calculation ────────────────────────────────
+        // Fit (interference or clearance) is DERIVED from the factory limits:
+        //   fit_min = OD_orig_min − ID_orig_max
+        //   fit_max = OD_orig_max − ID_orig_min   (negative = clearance fit)
+        //   req OD  = [ID_final + fit_min, ID_final + fit_max]
+        if (hasMatingBore(odParam)) {
+            const mating = findMatingWithFinal(false);
+            if (mating && mating.orig_dim_min != null && mating.orig_dim_max != null) {
+                const fins = paramMeasurements(mating).filter(m => m.stage === 'final');
+                const measuredValue = parseFloat(fins[fins.length - 1].actual_value);
+                const intMin = parseFloat(odParam.orig_dim_min) - parseFloat(mating.orig_dim_max);
+                const intMax = parseFloat(odParam.orig_dim_max) - parseFloat(mating.orig_dim_min);
+                return { matingParam: mating, odParam, stepNo: null, step: null,
+                         measuredValue, useTolerance: true,
+                         interferenceMin: Math.round(intMin * 10000) / 10000,
+                         interferenceMax: Math.round(intMax * 10000) / 10000,
+                         calculatedOdMin: Math.round((measuredValue + intMin) * 10000) / 10000,
+                         calculatedOdMax: Math.round((measuredValue + intMax) * 10000) / 10000 };
+            }
         }
 
+        return null;
+    }
+
+    /** Part-level: info of the first OD param that has repair data (back-compat). */
+    function getMatingRepairInfo(icId) {
+        const ic = inspComponents.find(c => c.id === icId);
+        if (!ic || !ic.is_bush) return null;
+        for (const odParam of parameters.filter(p => p.inspection_component_id === ic.id)) {
+            const info = getParamRepairInfo(odParam);
+            if (info) return info;
+        }
         return null;
     }
 
@@ -950,17 +1125,25 @@
         return getMatingRepairInfo(part.id);
     }
 
-    /** OVS badge for a param row — only on OD param (repair_steps or interference_value) */
+    /** Red EC badge when the FINAL (post-repair) measurement failed — repair
+     *  exceeded limits, the part can only be saved via EC (or Order New). */
+    function gateFailBadgeHtml(param) {
+        const ms   = paramMeasurements(param);
+        const fin  = ms.filter(m => m.stage === 'final');
+        const last = fin[fin.length - 1];
+        if (!last || last.result !== 'FAIL') return '';
+        return '<span class="ms-fc-badge" style="background:#dc3545;color:#fff" title="Final measurement out of repair limits — EC or Order New required">EC?</span>';
+    }
+
+    /** OVS badge for a param row — only on OD param (repair_steps or calculated fit) */
     function ovsBadgeHtml(param) {
         if (!param?.inspection_component_id) return '';
-        const hasSteps       = (param.repair_steps || []).length > 0;
-        const hasInterference = param.interference_value != null;
-        if (!hasSteps && !hasInterference) return '';
-        const mi = getMatingRepairInfo(param.inspection_component_id);
+        const hasSteps = (param.repair_steps || []).length > 0;
+        if (!hasSteps && !hasMatingBore(param)) return '';
+        const mi = getParamRepairInfo(param);
         if (mi && !mi.useTolerance) return `<span class="ms-fc-badge">OVS ${esc(String(mi.stepNo))}</span>`;
         if (mi &&  mi.useTolerance) return `<span class="ms-fc-badge">OVS</span>`;
-        if (hasMatingRepairParam(param.inspection_component_id)) return '<span class="ms-fc-badge">OVS</span>';
-        return '';
+        return '<span class="ms-fc-badge">OVS</span>';
     }
 
     function updatePrintSketchBtnState(part) {
@@ -1023,6 +1206,7 @@
         hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
             <span class="ms-tab-param-desc">${esc(param.description)}</span>
             ${ovsBadgeHtml(param)}
+            ${gateFailBadgeHtml(param)}
             ${buildParamHintHtml(param)}
             ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
             ${lastHtml}`;
@@ -1087,11 +1271,11 @@
             let reqStepHtml = '';
             let reqStepPnHtml = '';
             const paramIc = inspComponents.find(c => c.id === param.inspection_component_id);
-            // req dims only on the OD param (has repair_steps or interference_value)
+            // req dims only on the OD param (has repair_steps or a calculated fit)
             const isOdParam = paramIc && paramIc.is_bush &&
-                ((param.repair_steps || []).length > 0 || param.interference_value != null);
+                ((param.repair_steps || []).length > 0 || hasMatingBore(param));
             if (isOdParam) {
-                const matingInfo = getMatingRepairInfo(param.inspection_component_id);
+                const matingInfo = getParamRepairInfo(param);
                 if (matingInfo && !matingInfo.useTolerance && matingInfo.step) {
                     // Case A: discrete step
                     const { stepNo, step } = matingInfo;
@@ -1128,7 +1312,7 @@
                         </div>`;
                     reqStepPnHtml = `<div class="mt-1 px-1 py-1 rounded" style="background:rgba(13,110,253,.08);border:1px solid rgba(13,110,253,.2);font-size:11px;color:#6c757d">
                         Bore measured: <strong style="color:#212529">${fmtDim(measuredValue)}</strong>
-                        &nbsp;+&nbsp;interference: <strong style="color:#212529">${fmtDim(matingInfo.interference)}</strong>
+                        &nbsp;+&nbsp;interference: <strong style="color:#212529">${fmtDim(matingInfo.interferenceMin)} … ${fmtDim(matingInfo.interferenceMax)}</strong>
                     </div>`;
                 }
             }
@@ -1179,7 +1363,7 @@
             return;
         }
 
-        const isCalculatedOd = param.interference_value != null;
+        const isCalculatedOd = hasMatingBore(param);
         if (isCalculatedOd) {
             // Bushing OD — only final measurement (size is calculated from bore + interference)
             if (!lastFin) {
@@ -1275,7 +1459,8 @@
         const showDepthA = stage === 'final' && (rSide === 'A' || rSide === 'both');
         const showDepthB = stage === 'final' && (rSide === 'B' || rSide === 'both');
         const hasMeas = param.orig_dim_min !== null || param.orig_dim_max !== null || !!param.requires_value;
-        const showFlange = stage === 'final' && rSide != null && param.flange_clearance != null;
+        const showFlange = stage === 'final' && rSide != null
+            && (param.flange_clearance_min != null || param.flange_clearance_max != null);
         const inspCodes = (param.codes||[]).filter(c => c.finding_context !== 'measurement');
         const hasInsp = stage !== 'final' && inspCodes.length > 0;
         const codesOpts = inspCodes.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
@@ -1290,13 +1475,15 @@
             </div>`:''}
             ${showDepthA?`
             <div class="ms-frow">
-                <div class="ms-flabel">Spotface depth — End A</div>
-                <input type="number" class="form-control form-control-sm" step="0.0001" id="mst-da-${uid}" placeholder="0.0000" style="font-family:monospace;font-size:13px">
+                <div class="ms-flabel">Spotface depth — End A${param.max_repair_depth_a!=null?` <span style="color:#6c757d">(max ${fmtDim(param.max_repair_depth_a)})</span>`:''}</div>
+                <input type="number" class="form-control form-control-sm mst-depth-inp" step="0.0001" id="mst-da-${uid}" placeholder="0.0000" data-max="${param.max_repair_depth_a??''}" style="font-family:monospace;font-size:13px">
+                <div class="text-danger d-none" id="mst-da-warn-${uid}" style="font-size:11px">Exceeds max repair depth — lug cannot be saved by spotface</div>
             </div>`:''}
             ${showDepthB?`
             <div class="ms-frow">
-                <div class="ms-flabel">Spotface depth — End B</div>
-                <input type="number" class="form-control form-control-sm" step="0.0001" id="mst-db-${uid}" placeholder="0.0000" style="font-family:monospace;font-size:13px">
+                <div class="ms-flabel">Spotface depth — End B${param.max_repair_depth_b!=null?` <span style="color:#6c757d">(max ${fmtDim(param.max_repair_depth_b)})</span>`:''}</div>
+                <input type="number" class="form-control form-control-sm mst-depth-inp" step="0.0001" id="mst-db-${uid}" placeholder="0.0000" data-max="${param.max_repair_depth_b??''}" style="font-family:monospace;font-size:13px">
+                <div class="text-danger d-none" id="mst-db-warn-${uid}" style="font-size:11px">Exceeds max repair depth — lug cannot be saved by spotface</div>
             </div>`:''}
             ${showFlange?`
             <div id="mst-flange-${uid}" class="rounded p-2 mt-1 mb-1" style="background:rgba(255,255,255,0.05);font-size:11px">
@@ -1314,21 +1501,39 @@
             <div class="text-danger small d-none mb-1" id="mst-err-${uid}"></div>
             <button class="btn btn-primary btn-sm w-100" style="font-size:12px" id="mst-save-${uid}"><i class="bi bi-check2"></i> Save</button>`;
 
-        // Live flange calculation
+        // Live max-depth check on spotface inputs
+        d.querySelectorAll('.mst-depth-inp').forEach(inp => {
+            inp.addEventListener('input', () => {
+                const max = parseFloat(inp.dataset.max);
+                const v   = parseFloat(inp.value);
+                const over = !isNaN(max) && !isNaN(v) && v > max;
+                inp.classList.toggle('is-invalid', over);
+                const warn = d.querySelector('#' + inp.id.replace(/^(mst-d[ab]-)/, '$1warn-'));
+                if (warn) warn.classList.toggle('d-none', !over);
+            });
+        });
+
+        // Live flange calculation. B is a tolerance range → flange widths are a
+        // range too: bigger B = thinner flanges, so
+        //   flange_min uses B_max, flange_max uses B_min.
         if (showFlange) {
             const calcFlange = () => {
                 const A  = parseFloat(d.querySelector('#mst-val-'+uid)?.value) || null;
                 const dA = showDepthA ? (parseFloat(d.querySelector('#mst-da-'+uid)?.value) || 0) : 0;
                 const dB = showDepthB ? (parseFloat(d.querySelector('#mst-db-'+uid)?.value) || 0) : 0;
-                const B  = parseFloat(param.flange_clearance);
+                const Bmin = param.flange_clearance_min != null ? parseFloat(param.flange_clearance_min) : null;
+                const Bmax = param.flange_clearance_max != null ? parseFloat(param.flange_clearance_max) : null;
+                const bLo  = Bmin ?? Bmax;   // one-sided B: use it for both bounds
+                const bHi  = Bmax ?? Bmin;
                 const faEl = d.querySelector('#mst-fa-'+uid);
                 const fbEl = d.querySelector('#mst-fb-'+uid);
-                if (A !== null && !isNaN(B)) {
-                    const base = (A - B) / 2;
-                    const fA = base + dA / 2 - dB / 2;
-                    const fB = base + dB / 2 - dA / 2;
-                    if (faEl) faEl.textContent = fA.toFixed(4);
-                    if (fbEl) fbEl.textContent = fB.toFixed(4);
+                if (A !== null && bLo !== null) {
+                    const offA =  dA / 2 - dB / 2;
+                    const fmt  = (lo, hi) => lo === hi ? lo.toFixed(4) : lo.toFixed(4) + ' – ' + hi.toFixed(4);
+                    const fAlo = (A - bHi) / 2 + offA, fAhi = (A - bLo) / 2 + offA;
+                    const fBlo = (A - bHi) / 2 - offA, fBhi = (A - bLo) / 2 - offA;
+                    if (faEl) faEl.textContent = fmt(fAlo, fAhi);
+                    if (fbEl) fbEl.textContent = fmt(fBlo, fBhi);
                 } else {
                     if (faEl) faEl.textContent = '—';
                     if (fbEl) fbEl.textContent = '—';
@@ -1398,6 +1603,7 @@
             hdr.innerHTML = `<span class="ms-sdot ${st}"></span>
                 <span class="ms-tab-param-desc">${esc(freshParam.description)}</span>
                 ${ovsBadgeHtml(freshParam)}
+                ${gateFailBadgeHtml(freshParam)}
                 ${buildParamHintHtml(freshParam)}
                 ${ptCodes ? `<span class="ms-pt-code">${esc(ptCodes)}</span>` : ''}
                 ${lastHtml}`;

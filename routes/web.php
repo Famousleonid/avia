@@ -355,6 +355,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     // --- Parameters ---
     Route::get('/manuals/{manual}/parameters', [ManualParameterController::class, 'index'])->name('manuals.parameters.index');
     Route::post('/dimension-points/{manualDimensionPoint}/parameters', [ManualParameterController::class, 'store'])->name('dimension-points.parameters.store');
+    Route::post('/dimension-points/{manualDimensionPoint}/copy-from/{sourcePoint}', [ManualParameterController::class, 'copyPointSetup'])->name('dimension-points.copy-from');
     Route::patch('/parameters/{manualParameter}', [ManualParameterController::class, 'update'])->name('parameters.update');
     Route::delete('/parameters/{manualParameter}', [ManualParameterController::class, 'destroy'])->name('parameters.destroy');
     Route::delete('/parameters/{manualParameter}/points/{manualDimensionPoint}', [ManualParameterController::class, 'detachPoint'])->name('parameters.points.detach');
@@ -371,9 +372,12 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     // --- Process Documents (per process in a point rule: documents -> pages -> elements) ---
     Route::get('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'index'])->name('rule-processes.documents.index');
     Route::post('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'storeDocument'])->name('rule-processes.documents.store');
+    Route::post('/rule-processes/{manualParameterRuleProcess}/documents/attach-existing', [ProcessDocumentController::class, 'attachExisting'])->name('rule-processes.documents.attach-existing');
+    Route::get('/manuals/{manual}/process-documents', [ProcessDocumentController::class, 'manualDocuments'])->name('manuals.process-documents.index');
     // Start/Finish (master-rule phase) process documents
     Route::get('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'indexPhase'])->name('phase-rule-processes.documents.index');
     Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'storePhaseDocument'])->name('phase-rule-processes.documents.store');
+    Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents/attach-existing', [ProcessDocumentController::class, 'attachExistingPhase'])->name('phase-rule-processes.documents.attach-existing');
     // Part-level (inspection component) documents — EC dimensions sheet
     Route::get('/inspection-components/{manualInspectionComponent}/document-tree', [ProcessDocumentController::class, 'documentTree'])->name('inspection-components.document-tree');
     Route::get('/inspection-components/{manualInspectionComponent}/bushing-sketch-image', [ProcessDocumentController::class, 'bushingSketchImage'])->name('inspection-components.bushing-sketch-image');
@@ -425,6 +429,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
     // --- WO Measurements ---
     Route::get('/workorders/{workorder}/measurements/fc-table', [WoMeasurementController::class, 'fcTable'])->name('workorders.measurements.fc-table');
+    Route::get('/workorders/{workorder}/measurements/required-bushings', [WoMeasurementController::class, 'requiredBushings'])->name('workorders.measurements.required-bushings');
     Route::get('/workorders/{workorder}/measurements/data', [WoMeasurementController::class, 'data'])->name('workorders.measurements.data');
     Route::post('/workorders/{workorder}/measurements', [WoMeasurementController::class, 'store'])->name('workorders.measurements.store');
     Route::patch('/measurements/{woMeasurement}', [WoMeasurementController::class, 'update'])->name('measurements.update');

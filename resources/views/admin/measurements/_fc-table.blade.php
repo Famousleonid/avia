@@ -53,18 +53,31 @@ td.na { color: #bbb; text-align: center; background: #fafafa; }
 .val-fail { color: #dc3545; font-weight: 700; }
 .stage-tag { font-size: 9px; color: #888; }
 tr.row-hidden { display: none; }
+/* F&C mode: Part column ("IPL FIG. \ ITEM NUMBER") is centered */
+body.fc-print-vertical td.col-part { text-align: center; }
+
 
 @media print {
     .sidebar, .action-bar { display: none !important; }
     .page-wrap { display: block; height: auto; }
     .content   { padding: 0; overflow: visible; }
     tr.row-hidden { display: none !important; }
-    @page { size: A4 landscape; margin: 10mm; }
+    /* keep the table clear of the QR print-mark (top-right corner) */
+    .doc-meta  { margin-bottom: 6mm; }
+    @page { size: letter landscape; margin: 10mm; }
+    /* F&C filter prints portrait — shrink the table to fit the page width */
+    body.fc-print-vertical table  { font-size: 9px; }
+    body.fc-print-vertical th,
+    body.fc-print-vertical td     { padding: 1px 3px; }
+    body.fc-print-vertical .col-figure,
+    body.fc-print-vertical .col-defect,
+    body.fc-print-vertical .col-result { display: none !important; }
+    body.fc-print-vertical .stage-tag  { display: none !important; }
 }
 </style>
 </head>
 <body>
-@include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null])
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null, 'printMarkQrSize' => 32])
 <div class="page-wrap">
 
 <aside class="sidebar">
@@ -111,28 +124,28 @@ function figLabel($fig) {
 <table>
     <thead>
         <tr>
-            <th rowspan="3">Figure</th>
-            <th rowspan="3">Ref.<br>No.</th>
-            <th rowspan="3">Part</th>
+            <th rowspan="3" class="col-figure">Figure</th>
+            <th rowspan="3" id="th-ref">Ref.<br>No.</th>
+            <th rowspan="3" id="th-part">Part</th>
             <th colspan="4">Original Manufacturer Limits</th>
-            <th colspan="3">In-Service Wear Limits</th>
-            <th colspan="3">Actual (WO)</th>
+            <th colspan="3" id="th-wear">In-Service Wear / Repair Limits</th>
+            <th colspan="3" id="th-actual">Actual (WO)</th>
         </tr>
         <tr>
-            <th colspan="2">Dimension <span style="font-weight:normal;color:#666">mm</span></th>
-            <th colspan="2">Assembly Clearance <span style="font-weight:normal;color:#666">mm</span></th>
-            <th colspan="2">Dimension <span style="font-weight:normal;color:#666">mm</span></th>
-            <th>Permitted<br>Clearance <span style="font-weight:normal;color:#666">mm</span></th>
-            <th>Value <span style="font-weight:normal;color:#666">mm</span></th>
-            <th>Clearance <span style="font-weight:normal;color:#666">mm</span></th>
-            <th>Result</th>
+            <th colspan="2">Dimension <span style="font-weight:normal;color:#666">(in)</span></th>
+            <th colspan="2">Assembly Clearance <span style="font-weight:normal;color:#666">(in)</span></th>
+            <th colspan="2">Dimension <span style="font-weight:normal;color:#666">(in)</span></th>
+            <th>Permitted<br>Clearance <span style="font-weight:normal;color:#666">(in)</span></th>
+            <th colspan="2">Value</th>
+            <th class="col-result">Result</th>
         </tr>
         <tr>
             <th>Min.</th><th>Max.</th>
             <th>Min.</th><th>Max.</th>
             <th>Min.</th><th>Max.</th>
             <th>Max.</th>
-            <th></th><th></th><th></th>
+            <th><span style="font-weight:normal;color:#666">(in)</span></th><th class="col-defect">Defect</th>
+            <th class="col-result"></th>
         </tr>
     </thead>
     <tbody>
@@ -150,11 +163,13 @@ function figLabel($fig) {
         $acFail = $ac !== null && $row['permClearMax'] !== null && $ac > $row['permClearMax'];
         $stA   = $row['measA'] ? ' <span class="stage-tag">('.e($row['measA']->stage).')</span>' : '';
         $stB   = $row['measB'] ? ' <span class="stage-tag">('.e($row['measB']->stage).')</span>' : '';
+        $fixA  = $row['measA'] && $row['measA']->stage === 'final' && $rA === 'PASS';
+        $fixB  = $row['measB'] && $row['measB']->stage === 'final' && $rB === 'PASS';
     @endphp
     <tr data-ref="{{ $row['pt']->code }}" data-type="fc">
-        <td rowspan="2" class="c" style="color:#666;font-size:10px">{{ figLabel($row['fig']) }}</td>
+        <td rowspan="2" class="c col-figure" style="color:#666;font-size:10px">{{ figLabel($row['fig']) }}</td>
         <td rowspan="2" class="c" style="font-weight:700">{{ $row['pt']->code }}</td>
-        <td>{{ $row['pA']->description }}@if($iplA) <span style="color:#888">({{ $iplA }})</span>@endif</td>
+        <td class="col-part">{{ $row['pA']->description }}@if($iplA) <span style="color:#888">({{ $iplA }})</span>@endif</td>
         <td class="r">{{ wfmt($row['pA']->orig_dim_min) }}</td>
         <td class="r">{{ wfmt($row['pA']->orig_dim_max) }}</td>
         <td rowspan="2" class="r{{ $row['clearOrigMin'] !== null && $row['clearOrigMin'] < 0 ? ' neg' : '' }}">{{ wfmt($row['clearOrigMin']) }}</td>
@@ -163,17 +178,18 @@ function figLabel($fig) {
         <td class="r">{{ wfmt($row['aWearMax']) }}</td>
         <td rowspan="2" class="r{{ $row['permClearMax'] !== null && $row['permClearMax'] < 0 ? ' neg' : '' }}">{{ wfmt($row['permClearMax']) }}</td>
         <td class="r {{ $rA === 'FAIL' ? 'val-fail' : ($rA === 'PASS' ? 'val-pass' : '') }}">{!! $valA !== null ? wfmt($valA).$stA : '—' !!}</td>
-        <td rowspan="2" class="r {{ $acFail ? 'val-fail' : ($ac !== null ? 'val-pass' : '') }}">{{ $ac !== null ? wfmt($ac) : '—' }}</td>
-        <td class="c">@if($rA)<span class="{{ strtolower($rA) }}">{{ $rA }}</span>@else —@endif</td>
+        <td class="c col-defect" style="color:#dc3545;font-size:10px">{{ $row['findingA'] ?? '—' }}@if($row['findingA'] && $fixA) <span style="color:#198754;font-weight:700">/ OK</span>@endif</td>
+        <td class="c col-result">@if($rA)<span class="{{ strtolower($rA) }}">{{ $rA }}</span>@else —@endif</td>
     </tr>
     <tr data-ref="{{ $row['pt']->code }}" data-type="fc">
-        <td>{{ $row['pB']->description }}@if($iplB) <span style="color:#888">({{ $iplB }})</span>@endif</td>
+        <td class="col-part">{{ $row['pB']->description }}@if($iplB) <span style="color:#888">({{ $iplB }})</span>@endif</td>
         <td class="r">{{ wfmt($row['pB']->orig_dim_min) }}</td>
         <td class="r">{{ wfmt($row['pB']->orig_dim_max) }}</td>
         <td class="r">{{ wfmt($row['bWearMin']) }}</td>
         <td class="r">{{ wfmt($row['bWearMax']) }}</td>
         <td class="r {{ $rB === 'FAIL' ? 'val-fail' : ($rB === 'PASS' ? 'val-pass' : '') }}">{!! $valB !== null ? wfmt($valB).$stB : '—' !!}</td>
-        <td class="c">@if($rB)<span class="{{ strtolower($rB) }}">{{ $rB }}</span>@else —@endif</td>
+        <td class="c col-defect" style="color:#dc3545;font-size:10px">{{ $row['findingB'] ?? '—' }}@if($row['findingB'] && $fixB) <span style="color:#198754;font-weight:700">/ OK</span>@endif</td>
+        <td class="c col-result">@if($rB)<span class="{{ strtolower($rB) }}">{{ $rB }}</span>@else —@endif</td>
     </tr>
     @endforeach
 
@@ -184,26 +200,34 @@ function figLabel($fig) {
         $r    = $row['result'];
         $val  = $row['meas']?->actual_value;
         $st   = $row['meas'] ? ' <span class="stage-tag">('.e($row['meas']->stage).')</span>' : '';
+        $fix  = $row['meas'] && $row['meas']->stage === 'final' && $r === 'PASS';
     @endphp
     <tr data-ref="{{ $row['pt']->code }}" data-type="extra">
-        <td class="c" style="color:#666;font-size:10px">{{ figLabel($row['fig']) }}</td>
+        <td class="c col-figure" style="color:#666;font-size:10px">{{ figLabel($row['fig']) }}</td>
         <td class="c" style="font-weight:700">{{ $row['pt']->code }}</td>
-        <td>{{ $row['param']->description }}@if($ipl) <span style="color:#888">({{ $ipl }})</span>@endif</td>
+        <td class="col-part">{{ $row['param']->description }}@if($ipl) <span style="color:#888">({{ $ipl }})</span>@endif</td>
         <td class="r">{{ wfmt($row['param']->orig_dim_min) }}</td>
         <td class="r">{{ wfmt($row['param']->orig_dim_max) }}</td>
         <td class="na">—</td>
         <td class="na">—</td>
+        {{-- repair limits when set (post-repair judge), otherwise wear --}}
+        @if($row['repair_min'] !== null || $row['repair_max'] !== null)
+        <td class="r" style="color:#0d6efd">@if($row['repair_lbl'])<span style="color:#888;font-size:9px">{{ $row['repair_lbl'] }}:</span> @endif{{ wfmt($row['repair_min']) }}</td>
+        <td class="r" style="color:#0d6efd">{{ wfmt($row['repair_max']) }}</td>
+        @else
         <td class="r">{{ wfmt($row['param']->wear_dim_min) }}</td>
         <td class="r">{{ wfmt($row['param']->wear_dim_max) }}</td>
+        @endif
         <td class="na">—</td>
         <td class="r {{ $r === 'FAIL' ? 'val-fail' : ($r === 'PASS' ? 'val-pass' : '') }}">{!! $val !== null ? wfmt($val).$st : '—' !!}</td>
-        <td class="na">—</td>
-        <td class="c">@if($r)<span class="{{ strtolower($r) }}">{{ $r }}</span>@else —@endif</td>
+        <td class="c col-defect" style="color:#dc3545;font-size:10px">{{ $row['finding'] ?? '—' }}@if($row['finding'] && $fix) <span style="color:#198754;font-weight:700">/ OK</span>@endif</td>
+        <td class="c col-result">@if($r)<span class="{{ strtolower($r) }}">{{ $r }}</span>@else —@endif</td>
     </tr>
     @endforeach
 
     </tbody>
 </table>
+
 @endif
 </main>
 </div>
@@ -250,11 +274,52 @@ function figLabel($fig) {
         });
     }
 
+    // F&C filter → print portrait (table shrunk to fit); otherwise landscape.
+    function applyLayout() {
+        const fc = currentType === 'fc';
+        document.body.classList.toggle('fc-print-vertical', fc);
+        let st = document.getElementById('page-orient');
+        if (!st) { st = document.createElement('style'); st.id = 'page-orient'; document.head.appendChild(st); }
+        st.textContent = '@media print{@page{size:letter ' + (fc ? 'portrait' : 'landscape') + ';margin:10mm}}';
+
+        // F&C headers per CMM wording: Figure column hidden (CSS); Ref. No. →
+        // "FIGURE <num> NUMBER" (numeric refs) / "FIGURE <num> REF LTR" (letter
+        // refs); Part → "IPL FIG. \ ITEM NUMBER".
+        const thActual = document.getElementById('th-actual');
+        if (thActual) {
+            thActual.textContent = fc ? @json('W' . ($workorder->number ?? $workorder->id)) : 'Actual (WO)';
+        }
+
+        const thWear = document.getElementById('th-wear');
+        if (thWear) {
+            thWear.textContent = currentType === 'extra' ? 'Repair Limits'
+                               : currentType === 'fc'    ? 'In-Service Wear Limits'
+                               : 'In-Service Wear / Repair Limits';
+        }
+
+        const thRef  = document.getElementById('th-ref');
+        const thPart = document.getElementById('th-part');
+        if (thRef && thPart) {
+            if (fc) {
+                const fcTrs = Array.from(document.querySelectorAll('tr[data-type="fc"]'))
+                    .filter(tr => !tr.classList.contains('row-hidden'));
+                const codes = [...new Set(fcTrs.map(tr => tr.dataset.ref))];
+                const allNumeric = codes.length > 0 && codes.every(c => /^\d+$/.test(c));
+                // 8001 = standard CMM F&C table figure number (same in every CMM)
+                thRef.innerHTML  = 'FIGURE 8001<br>' + (allNumeric ? 'NUMBER' : 'REF LTR');
+                thPart.textContent = 'IPL FIG. \\ ITEM NUMBER';
+            } else {
+                thRef.innerHTML  = 'Ref.<br>No.';
+                thPart.textContent = 'Part';
+            }
+        }
+    }
+
     window.setType = function (type) {
         currentType = type;
         ['all','fc','extra'].forEach(t =>
             document.getElementById('btn-'+t)?.classList.toggle('active', t === type));
-        buildRefList(); applyFilter();
+        buildRefList(); applyFilter(); applyLayout();
     };
     window.selectAll = function () {
         document.querySelectorAll('#ref-list input').forEach(cb => {
@@ -267,7 +332,7 @@ function figLabel($fig) {
         }); applyFilter();
     };
 
-    buildRefList(); applyFilter();
+    buildRefList(); applyFilter(); applyLayout();
 })();
 </script>
 </body>

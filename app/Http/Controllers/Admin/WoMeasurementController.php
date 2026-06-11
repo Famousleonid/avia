@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Code;
 use App\Models\Component;
 use App\Models\Condition;
+use App\Models\ManualInspectionComponent;
 use App\Models\ManualInspectionComponentVariant;
 use App\Models\ManualParameter;
 use App\Models\ManualParameterRepairRule;
@@ -94,14 +95,15 @@ class WoMeasurementController extends Controller
                 'description'             => $p->description,
                 'is_required'             => $p->is_required,
                 'requires_value'          => $p->requires_value,
+                'qty'                     => $p->qty,
                 'orig_dim_min'            => $p->orig_dim_min,
                 'orig_dim_max'            => $p->orig_dim_max,
                 'wear_dim_min'            => $p->wear_dim_min,
                 'wear_dim_max'            => $p->wear_dim_max,
                 'repair_dim_min'          => $p->repair_dim_min,
                 'repair_dim_max'          => $p->repair_dim_max,
-                'interference_value'      => $p->interference_value,
-                'flange_clearance'        => $p->flange_clearance,
+                'flange_clearance_min'    => $p->flange_clearance_min,
+                'flange_clearance_max'    => $p->flange_clearance_max,
                 'codes'                   => $p->codes
                     ->filter(fn($c) => $c->code !== null)
                     ->map(fn($c) => [
@@ -284,6 +286,14 @@ class WoMeasurementController extends Controller
                     break;
                 }
             }
+            // Continuous repair (no steps): final within the repair limits
+            // (machined size after repair, e.g. bore machined to fit) = PASS.
+            if ($storedResult === 'FAIL'
+                && ($parameter->repair_dim_min !== null || $parameter->repair_dim_max !== null)
+                && ($parameter->repair_dim_min === null || $v >= (float) $parameter->repair_dim_min)
+                && ($parameter->repair_dim_max === null || $v <= (float) $parameter->repair_dim_max)) {
+                $storedResult = 'PASS';
+            }
         }
         $data['repair_step_no'] = $stepNo;
 
@@ -301,6 +311,34 @@ class WoMeasurementController extends Controller
             $data['result'] = 'PASS';
         } else {
             $data['result'] = null;
+        }
+
+        // Repair-surface (spotface) final control. The machined gap legitimately
+        // exceeds the orig tolerance — the governing limits are:
+        //   - repair_dim_min/max (max allowed TOTAL gap after repair), when set
+        //   - max_repair_depth per endpoint (spotface depth)
+        if (($data['stage'] ?? null) === 'final'
+            && $parameter->repair_surface_side !== null
+            && empty($data['codes_id'])) {
+            $overA = ($data['repair_depth_a'] ?? null) !== null
+                && $parameter->max_repair_depth_a !== null
+                && (float) $data['repair_depth_a'] > (float) $parameter->max_repair_depth_a;
+            $overB = ($data['repair_depth_b'] ?? null) !== null
+                && $parameter->max_repair_depth_b !== null
+                && (float) $data['repair_depth_b'] > (float) $parameter->max_repair_depth_b;
+
+            $value   = ($data['actual_value'] ?? null) !== null ? (float) $data['actual_value'] : null;
+            $widthOk = true;
+            if ($value !== null) {
+                if ($parameter->repair_dim_max !== null && $value > (float) $parameter->repair_dim_max) $widthOk = false;
+                if ($parameter->repair_dim_min !== null && $value < (float) $parameter->repair_dim_min) $widthOk = false;
+            }
+
+            if ($overA || $overB || !$widthOk) {
+                $data['result'] = 'FAIL';
+            } elseif ($value !== null || ($data['repair_depth_a'] ?? null) !== null || ($data['repair_depth_b'] ?? null) !== null) {
+                $data['result'] = 'PASS';
+            }
         }
 
         $data['user_id']       = auth()->id();
@@ -338,20 +376,35 @@ class WoMeasurementController extends Controller
                 'parentFigure',
                 'points' => fn($q) => $q->where('point_type', 'measurement')->orderBy('sort_order'),
                 'points.parameters.inspectionComponent.variants.component',
+                'points.parameters.repairSteps',
             ])
             ->orderBy('sort_order')
             ->get();
 
-        // Latest measurement per parameter (prefer final over initial)
-        $measByParam = WoMeasurement::where('workorder_id', $workorder->id)
+        $allMeas = WoMeasurement::where('workorder_id', $workorder->id)
             ->get()
-            ->groupBy('manual_parameter_id')
-            ->map(function ($ms) {
-                $finals = $ms->where('stage', 'final');
-                return $finals->isNotEmpty()
-                    ? $finals->sortBy('id')->last()
-                    : $ms->sortBy('id')->last();
-            });
+            ->groupBy('manual_parameter_id');
+
+        // Latest measurement per parameter (prefer final over initial)
+        $measByParam = $allMeas->map(function ($ms) {
+            $finals = $ms->where('stage', 'final');
+            return $finals->isNotEmpty()
+                ? $finals->sortBy('id')->last()
+                : $ms->sortBy('id')->last();
+        });
+
+        // Recorded defect per parameter: latest finding code; a dimensional
+        // out-of-limit initial without a code is implicitly "Worn".
+        $codeNames      = Code::pluck('name', 'id');
+        $findingByParam = $allMeas->map(function ($ms) use ($codeNames) {
+            $m = $ms->filter(fn($x) => $x->codes_id !== null)->sortBy('id')->last();
+            if ($m) {
+                return $codeNames[$m->codes_id] ?? null;
+            }
+            $dimFail = $ms->first(fn($x) =>
+                $x->stage === 'initial' && $x->result === 'FAIL' && $x->actual_value !== null);
+            return $dimFail ? 'Worn' : null;
+        });
 
         $fcRows    = [];
         $extraRows = [];
@@ -414,22 +467,61 @@ class WoMeasurementController extends Controller
                         'bWearMax'     => $bWearMax,
                         'permClearMax' => $permClearMax,
                         'actualClear'  => $actualClear,
-                        'resultA'      => $this->computeResult($measA?->actual_value, $limA),
-                        'resultB'      => $this->computeResult($measB?->actual_value, $limB),
+                        'findingA'     => $findingByParam[$pA->id] ?? null,
+                        'findingB'     => $findingByParam[$pB->id] ?? null,
+                        // stored result is stage-aware (final → repair steps/limits)
+                        'resultA'      => $measA?->result ?? $this->computeResult($measA?->actual_value, $limA),
+                        'resultB'      => $measB?->result ?? $this->computeResult($measB?->actual_value, $limB),
                     ];
 
                 } elseif (!$pt->is_fits_clearance && $params->isNotEmpty()) {
                     foreach ($params as $param) {
                         $meas = $measByParam[$param->id] ?? null;
                         $lim  = $param->effectiveLimits($useWear);
+
+                        // Repair limits column: explicit repair_dim, otherwise from
+                        // oversize steps — the step the final landed in, or the
+                        // full step span when nothing is machined yet.
+                        $repMin = $param->repair_dim_min;
+                        $repMax = $param->repair_dim_max;
+                        $repLbl = null;
+                        // Repair-surface param without explicit repair_dim: the min
+                        // limit derives from orig min − allowed spotface depths.
+                        if ($repMin === null && $repMax === null
+                            && $param->repair_surface_side !== null
+                            && $param->orig_dim_min !== null) {
+                            $repMin = round((float) $param->orig_dim_min
+                                - (float) ($param->max_repair_depth_a ?? 0)
+                                - (float) ($param->max_repair_depth_b ?? 0), 4);
+                        }
+                        if ($repMin === null && $repMax === null && $param->repairSteps->isNotEmpty()) {
+                            $step = $meas?->repair_step_no
+                                ? $param->repairSteps->first(fn($s) => $s->step_no === $meas->repair_step_no)
+                                : null;
+                            if ($step) {
+                                $repMin = $step->dim_min;
+                                $repMax = $step->dim_max;
+                                $repLbl = $step->step_no;
+                            } else {
+                                $repMin = $param->repairSteps->min('dim_min');
+                                $repMax = $param->repairSteps->max('dim_max');
+                            }
+                        }
+
                         $extraRows[] = [
-                            'fig'    => $fig,
-                            'pt'     => $pt,
-                            'param'  => $param,
-                            'meas'   => $meas,
-                            'comp'   => $param->inspectionComponent?->variants->first()?->component,
-                            'lim'    => $lim,
-                            'result' => $this->computeResult($meas?->actual_value, $lim),
+                            'fig'        => $fig,
+                            'pt'         => $pt,
+                            'param'      => $param,
+                            'meas'       => $meas,
+                            'comp'       => $param->inspectionComponent?->variants->first()?->component,
+                            'lim'        => $lim,
+                            'repair_min' => $repMin,
+                            'repair_max' => $repMax,
+                            'repair_lbl' => $repLbl,
+                            'finding'    => $findingByParam[$param->id] ?? null,
+                            // stored result is stage-aware (initial → orig/wear,
+                            // final → repair limits / steps / spotface depths)
+                            'result'     => $meas?->result ?? $this->computeResult($meas?->actual_value, $lim),
                         ];
                     }
                 }
@@ -437,6 +529,120 @@ class WoMeasurementController extends Controller
         }
 
         return view('admin.measurements._fc-table', compact('fcRows', 'extraRows', 'workorder', 'useWear'));
+    }
+
+    /**
+     * Required Bushings report: every bushing position with the P/N to install,
+     * derived from the bore measurements. At overhaul ALL bushings are renewed —
+     * the P/N depends on the bore state:
+     *   bore final in an oversize step → the step's component P/N
+     *   bore initial PASS (no repair)  → the initial (standard) P/N
+     *   bore final, continuous fit     → manufacture per sketch (req OD shown)
+     *   bore not measured              → pending inspection
+     */
+    public function requiredBushings(Workorder $workorder)
+    {
+        $manual  = $workorder->unit->manuals;
+        $useWear = $workorder->usesWearLimits();
+
+        $bushIcs = ManualInspectionComponent::where('manual_id', $manual->id)
+            ->with('variants.component')
+            ->get()
+            ->filter(fn($ic) => $ic->variants->contains(fn($v) => $v->component?->is_bush));
+
+        $params = ManualParameter::where('manual_id', $manual->id)
+            ->with(['points:id,code', 'repairSteps.component'])
+            ->get();
+
+        $measByParam = WoMeasurement::where('workorder_id', $workorder->id)
+            ->get()
+            ->groupBy('manual_parameter_id');
+
+        $rows = [];
+        foreach ($bushIcs as $ic) {
+            // One row per bushing POSITION = its OD parameter (the bore side
+            // determines the P/N); the bushing's own ID (pin side) is skipped.
+            $odParams = $params->where('inspection_component_id', $ic->id)
+                ->filter(fn($p) =>
+                    ($p->orig_dim_min !== null || $p->repairSteps->isNotEmpty())
+                    && preg_match('/\bOD\b/i', (string) $p->description) === 1);
+            $stdComp = $ic->variants->first()?->component;
+
+            foreach ($odParams as $od) {
+                $ptIds  = $od->points->pluck('id')->all();
+                $codes  = $od->points->pluck('code')->filter()->implode(', ');
+                $mating = $params->first(fn($p) =>
+                    $p->inspection_component_id !== $ic->id &&
+                    $p->points->pluck('id')->intersect($ptIds)->isNotEmpty() &&
+                    ($p->orig_dim_min !== null || $p->orig_dim_max !== null));
+                if (!$mating && $ptIds === []) continue;
+
+                $row = [
+                    'point'   => $codes,
+                    'bushing' => $ic->label,
+                    'param'   => $od->description,
+                    'qty'     => max(1, (int) ($od->qty ?? 1)),
+                    'bore'    => 'not inspected',
+                    'pn'      => null,
+                    'ipl'     => null,
+                    'note'    => null,
+                    'ic_id'    => $ic->id,
+                    'param_id' => $od->id,
+                    'sketch'   => false, // true when the bore final exists → drawing is renderable
+                ];
+
+                $ms = $mating ? ($measByParam[$mating->id] ?? collect()) : collect();
+                $final = $ms->where('stage', 'final')->sortBy('id')->last();
+                $init  = $ms->where('stage', 'initial')->sortBy('id')->last();
+
+                if ($final && $final->repair_step_no) {
+                    // bore repaired into an oversize step
+                    $step = $od->repairSteps->first(fn($s) => $s->step_no === $final->repair_step_no);
+                    $row['bore']   = $final->repair_step_no;
+                    $row['pn']     = $step?->component?->part_number ?? '— step P/N not configured —';
+                    $row['ipl']    = $step?->component?->ipl_num;
+                    $row['sketch'] = true;
+                } elseif ($final && $final->actual_value !== null) {
+                    // continuous repair → bushing is manufactured to fit
+                    $row['bore'] = 'machined ' . number_format((float) $final->actual_value, 4);
+                    if ($od->orig_dim_min !== null && $od->orig_dim_max !== null
+                        && $mating->orig_dim_min !== null && $mating->orig_dim_max !== null) {
+                        $fitMin = (float) $od->orig_dim_min - (float) $mating->orig_dim_max;
+                        $fitMax = (float) $od->orig_dim_max - (float) $mating->orig_dim_min;
+                        $row['note'] = 'manufacture per sketch · req OD '
+                            . number_format((float) $final->actual_value + $fitMin, 4) . '–'
+                            . number_format((float) $final->actual_value + $fitMax, 4);
+                    } else {
+                        $row['note'] = 'manufacture per sketch';
+                    }
+                    $row['pn']     = $stdComp?->part_number;
+                    $row['ipl']    = $stdComp?->ipl_num;
+                    $row['sketch'] = true;
+                } elseif ($init && $init->result === 'PASS') {
+                    // bore within limits — standard (initial) bushing
+                    $row['bore'] = 'OK (initial)';
+                    $row['pn']   = $stdComp?->part_number;
+                    $row['ipl']  = $stdComp?->ipl_num;
+                } elseif ($init && ($init->result === 'FAIL' || $init->codes_id !== null)) {
+                    // bore goes to repair (out of limits OR a defect finding) →
+                    // the bushing WILL be oversize. Order the LAST (largest)
+                    // repair-step P/N; the exact step is known after machining.
+                    $row['bore'] = 'repair → OVS';
+                    $lastStep = $od->repairSteps->sortBy('sort_order')->last();
+                    if ($lastStep?->component) {
+                        $row['pn']   = $lastStep->component->part_number;
+                        $row['ipl']  = $lastStep->component->ipl_num;
+                        $row['note'] = 'last oversize (' . $lastStep->step_no . ') — exact step after machining';
+                    } else {
+                        $row['note'] = 'P/N after final machining';
+                    }
+                }
+
+                $rows[] = $row;
+            }
+        }
+
+        return view('admin.measurements._required-bushings', compact('rows', 'workorder'));
     }
 
     public function componentByIpl(Request $request, Workorder $workorder)
@@ -769,7 +975,11 @@ class WoMeasurementController extends Controller
             }
             $value  = $final->actual_value !== null ? (float) $final->actual_value : null;
             $limits = $param->effectiveLimits($useWear);
-            $pass   = $this->gatePass($value, $limits, $param->repairSteps);
+            // Stored final result already encodes repair-surface logic (repair_dim
+            // limits + spotface depth control) — trust it when present.
+            $pass = $final->result !== null
+                ? $final->result === 'PASS'
+                : $this->gatePass($value, $limits, $param->repairSteps);
             if (!$pass) {
                 $allPass = false;
             }
@@ -827,6 +1037,8 @@ class WoMeasurementController extends Controller
             $eval   = $this->evaluateGate($workorder, $icId);
             $failed = array_values(array_filter($eval['points'], fn ($p) => !$p['pass']));
             $failedRuleIds = array_values(array_filter(array_map(fn ($p) => $p['rule_id'], $failed)));
+            $ecProcesses   = []; // mirror of the relabelled Machining (EC) processes
+            $ecRuleProcIds = [];
             if (!empty($failedRuleIds)) {
                 $failedRpIds = \App\Models\ManualParameterRuleProcess::whereIn('repair_rule_id', $failedRuleIds)
                     ->pluck('id')->map(fn ($i) => (int) $i)->all();
@@ -835,12 +1047,16 @@ class WoMeasurementController extends Controller
                     ?? \App\Models\ProcessName::where('name', 'Machining(EC)')->value('id');
                 if ($machiningId && $machiningEcId) {
                     $rows = TdrProcess::where('tdrs_id', $tdr->id)
-                        ->where('process_names_id', $machiningId)
+                        ->whereIn('process_names_id', [$machiningId, $machiningEcId])
                         ->get();
                     foreach ($rows as $row) {
                         $rp = array_map('intval', $row->rule_process_ids ?? []);
                         if (array_intersect($rp, $failedRpIds)) {
-                            $row->update(['process_names_id' => $machiningEcId]);
+                            if ((int) $row->process_names_id === (int) $machiningId) {
+                                $row->update(['process_names_id' => $machiningEcId]);
+                            }
+                            $ecProcesses   = array_values(array_unique(array_merge($ecProcesses, array_map('intval', $row->processes ?? []))));
+                            $ecRuleProcIds = array_values(array_unique(array_merge($ecRuleProcIds, $rp)));
                         }
                     }
                 }
@@ -871,19 +1087,30 @@ class WoMeasurementController extends Controller
             }
             // Add the EC process (companion to Machining (EC); read by SP Form / TDR-print).
             $ecNameId = \App\Models\ProcessName::where('name', 'EC')->value('id');
-            if ($ecNameId && !TdrProcess::where('tdrs_id', $tdr->id)->where('process_names_id', $ecNameId)->exists()) {
-                $maxSort = TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0;
-                TdrProcess::create([
-                    'tdrs_id'            => $tdr->id,
-                    'process_names_id'   => $ecNameId,
-                    'processes'          => [],
-                    'rule_process_ids'   => [],
-                    'description'        => $typical ? ('Typical EC — ' . $reasonNote) : $reasonNote,
-                    'sort_order'         => $maxSort + 1,
-                    'in_traveler'        => false,
-                    'ec'                 => 1,
-                    'standalone_ec_only' => false,
-                ]);
+            if ($ecNameId) {
+                $existingEc = TdrProcess::where('tdrs_id', $tdr->id)->where('process_names_id', $ecNameId)->first();
+                if ($existingEc) {
+                    // keep the EC row mirroring its Machining (EC) processes
+                    $existingEc->update([
+                        'processes'        => $ecProcesses,
+                        'rule_process_ids' => $ecRuleProcIds,
+                    ]);
+                } else {
+                    $maxSort = TdrProcess::where('tdrs_id', $tdr->id)->max('sort_order') ?? 0;
+                    TdrProcess::create([
+                        'tdrs_id'            => $tdr->id,
+                        'process_names_id'   => $ecNameId,
+                        // mirror the Machining (EC) processes so SP Form / traveler
+                        // show WHAT is being conceded, not an empty row
+                        'processes'          => $ecProcesses,
+                        'rule_process_ids'   => $ecRuleProcIds,
+                        'description'        => $typical ? ('Typical EC — ' . $reasonNote) : $reasonNote,
+                        'sort_order'         => $maxSort + 1,
+                        'in_traveler'        => false,
+                        'ec'                 => 1,
+                        'standalone_ec_only' => false,
+                    ]);
+                }
             }
             return response()->json(['ok' => true, 'outcome' => 'ec', 'tdr_id' => $tdr->id, 'typical' => $typical]);
         }
@@ -1097,11 +1324,16 @@ class WoMeasurementController extends Controller
     {
         if ($value === null) return null;
 
-        if ($limits['min'] !== null && $limits['max'] !== null) {
-            return ($value >= $limits['min'] && $value <= $limits['max']) ? 'PASS' : 'FAIL';
+        // One-sided limits are valid (e.g. lug thickness has min only,
+        // bore has max only) — each bound is checked only when set.
+        if ($limits['min'] === null && $limits['max'] === null) {
+            return null; // inspection-only, no dimensional judgement
         }
 
-        return null;
+        if ($limits['min'] !== null && $value < (float) $limits['min']) return 'FAIL';
+        if ($limits['max'] !== null && $value > (float) $limits['max']) return 'FAIL';
+
+        return 'PASS';
     }
 
     /**

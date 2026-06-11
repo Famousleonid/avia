@@ -159,6 +159,12 @@ class ProcessDocumentRenderer
         $lines = '';
         $hasDimLine = false;
         foreach ($page->elements as $e) {
+            // Oversize steps table — rendered as its own block
+            if ($e->element_type === 'steps_table') {
+                $els .= $this->stepsTableHtml($e, $workorder, $context);
+                continue;
+            }
+
             // Resolve value first — skip element entirely if nothing to show
             $rawText = $this->resolveValue($e, $workorder, $context, $docParam);
             if ($e->element_type === 'dimension' && $this->isEmptyDimValue($rawText)) {
@@ -263,6 +269,15 @@ class ProcessDocumentRenderer
                 return $prefix . $result;
             }
             if ($e->value_source === 'measurement') {
+                // Bushing sketch: the required OD range from context takes
+                // precedence — the drawing must show the size to MAKE, not the
+                // raw mating bore measurement. Applies regardless of which
+                // parameter the element is bound to (cloned documents keep the
+                // source position's parameter id).
+                if (!empty($context['od_override'])
+                    && isset($context['od_dim_min'], $context['od_dim_max'])) {
+                    return $prefix . $this->fmt($context['od_dim_min']) . '–' . $this->fmt($context['od_dim_max']);
+                }
                 $v = $this->measurementValue($workorder->id, $e->source_parameter_id);
                 if ($v === null) {
                     $fallback = $this->odStepFallback($context, $docParam, $e);
@@ -274,8 +289,9 @@ class ProcessDocumentRenderer
         }
 
         // label / text
+        $phParam = $e->source_parameter_id ? ManualParameter::find($e->source_parameter_id) : $docParam;
         if (!empty($e->placeholder)) {
-            return $this->resolvePlaceholder($e->placeholder, $workorder, $context);
+            return $this->resolvePlaceholder($e->placeholder, $workorder, $context, $phParam);
         }
         // label bound to a parameter → its identifier "code · description" (e.g. AA3 · ID 11-10)
         if (!empty($e->source_parameter_id)) {
@@ -284,8 +300,8 @@ class ProcessDocumentRenderer
         // Free text — also resolve any embedded {placeholder} tokens
         $text = (string) ($e->text ?? '');
         if ($text !== '' && str_contains($text, '{')) {
-            $text = preg_replace_callback('/\{[a-z_]+\}/', function ($m) use ($workorder, $context) {
-                return $this->resolvePlaceholder($m[0], $workorder, $context);
+            $text = preg_replace_callback('/\{[a-z_]+\}/', function ($m) use ($workorder, $context, $phParam) {
+                return $this->resolvePlaceholder($m[0], $workorder, $context, $phParam);
             }, $text);
         }
 
@@ -412,7 +428,7 @@ class ProcessDocumentRenderer
         return $codes !== '' ? trim($codes . ' · ' . $desc) : $desc;
     }
 
-    private function resolvePlaceholder(string $ph, Workorder $workorder, array $context): string
+    private function resolvePlaceholder(string $ph, Workorder $workorder, array $context, ?ManualParameter $param = null): string
     {
         switch ($ph) {
             case '{wo_number}':       return $workorder->number ? 'W' . $workorder->number : '';
@@ -423,8 +439,59 @@ class ProcessDocumentRenderer
             case '{manual_number}':   return (string) ($workorder->unit?->manuals?->number ?? '');
             case '{manual_lib}':      return (string) ($workorder->unit?->manuals?->lib ?? '');
             case '{date}':            return now()->format('d/M/Y');
+            // position data: from the render context (bushing sketch) or the doc parameter
+            case '{qty}':             return (string) ($context['qty'] ?? $param?->qty ?? '');
+            case '{point}':           return (string) ($context['point']
+                                          ?? $param?->points?->pluck('code')->filter()->implode(', ') ?? '');
             default:                  return $ph;
         }
+    }
+
+    /**
+     * steps_table element: oversize repair-step table of the bound parameter.
+     * The REQUIRED step row (the one the mating bore landed in / context) is
+     * highlighted so the machinist sees the size to make at a glance.
+     */
+    private function stepsTableHtml($e, Workorder $workorder, array $context): string
+    {
+        if (!$e->source_parameter_id || $e->x_pct === null) return '';
+        $param = ManualParameter::with('repairSteps')->find($e->source_parameter_id);
+        if (!$param || $param->repairSteps->isEmpty()) return '';
+
+        // Column header: OD / ID from the parameter description
+        $dimLabel = preg_match('/\bOD\b/i', (string) $param->description) ? 'OD'
+                  : (preg_match('/\bID\b/i', (string) $param->description) ? 'ID' : 'Dim.');
+
+        // Required step: render context (bushing sketch) → own final → none
+        $hlStep = $context['hl_step_no'] ?? null;
+        if ($hlStep === null) {
+            $hlStep = WoMeasurement::where('workorder_id', $workorder->id)
+                ->where('manual_parameter_id', $param->id)
+                ->where('stage', 'final')->whereNotNull('repair_step_no')
+                ->latest('id')->value('repair_step_no');
+        }
+
+        $fs   = $e->font_size ? (int) $e->font_size : 8;
+        $rows = '';
+        foreach ($param->repairSteps as $s) {
+            $hl = $hlStep !== null && $s->step_no === $hlStep;
+            $st = $hl ? 'background:#cfe2ff;font-weight:700;color:#084298' : '';
+            $rows .= '<tr style="' . $st . '">'
+                . '<td style="border:0.5px solid #888;padding:1px 4px">' . e($s->step_no) . ($hl ? ' ◀' : '') . '</td>'
+                . '<td style="border:0.5px solid #888;padding:1px 4px;text-align:right">' . ($s->dim_min !== null ? $this->fmt($s->dim_min) : '—') . '</td>'
+                . '<td style="border:0.5px solid #888;padding:1px 4px;text-align:right">' . ($s->dim_max !== null ? $this->fmt($s->dim_max) : '—') . '</td>'
+                . '</tr>';
+        }
+
+        // anchor point = TOP-LEFT corner of the table (no centering transform)
+        return '<div class="pdw-el" data-element-id="' . (int) $e->id . '"'
+            . ' style="left:' . (float) $e->x_pct . '%;top:' . (float) $e->y_pct . '%;transform:none;font-size:' . $fs . 'pt;font-weight:normal">'
+            . '<table style="border-collapse:collapse;background:rgba(255,255,255,0.95)">'
+            . '<tr style="background:#e9ecef;font-weight:700">'
+            . '<td style="border:0.5px solid #888;padding:1px 4px">Step</td>'
+            . '<td style="border:0.5px solid #888;padding:1px 4px">' . e($dimLabel) . ' min</td>'
+            . '<td style="border:0.5px solid #888;padding:1px 4px">' . e($dimLabel) . ' max</td>'
+            . '</tr>' . $rows . '</table></div>';
     }
 
     /**
