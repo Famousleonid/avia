@@ -194,6 +194,92 @@ class ProcessDocumentController extends Controller
         return response()->json($this->docPayload($doc->load('pages.elements')), 201);
     }
 
+    /**
+     * Picker list for "Attach existing": every process document of this manual
+     * (rule-process and component owned), labelled with its owner.
+     */
+    public function manualDocuments(\App\Models\Manual $manual)
+    {
+        $rpIds = ManualParameterRuleProcess::whereHas('rule.parameter', fn($q) =>
+            $q->where('manual_id', $manual->id))->pluck('id');
+        $icIds = ManualInspectionComponent::where('manual_id', $manual->id)->pluck('id');
+
+        $docs = ProcessDocument::with([
+                'pages:id,document_id,image_path',
+                'documentable',
+            ])
+            ->where(fn($q) => $q
+                ->where(fn($q2) => $q2->where('documentable_type', ManualParameterRuleProcess::class)->whereIn('documentable_id', $rpIds))
+                ->orWhere(fn($q2) => $q2->where('documentable_type', ManualInspectionComponent::class)->whereIn('documentable_id', $icIds)))
+            ->get()
+            ->map(function ($d) {
+                $owner = $d->documentable;
+                $ownerLabel = $owner instanceof ManualParameterRuleProcess
+                    ? trim(($owner->manualProcess?->process?->process_name?->name ?? '') . ' · ' . ($owner->rule?->parameter?->description ?? ''))
+                    : ($owner->label ?? '');
+                return [
+                    'id'          => $d->id,
+                    'doc_type'    => $d->doc_type,
+                    'title'       => $d->title,
+                    'pages'       => $d->pages->count(),
+                    'owner_label' => $ownerLabel,
+                ];
+            })->values();
+
+        return response()->json($docs);
+    }
+
+    /**
+     * "Attach existing document": clone a document onto another process —
+     * pages reuse the SAME image files (no re-upload), elements are duplicated
+     * so each process can adjust its own labels/dimensions independently.
+     */
+    public function attachExisting(Request $request, ManualParameterRuleProcess $manualParameterRuleProcess)
+    {
+        return $this->cloneDocumentTo($request, $manualParameterRuleProcess);
+    }
+
+    public function attachExistingPhase(Request $request, MasterRulePhaseRuleProcess $masterRulePhaseRuleProcess)
+    {
+        return $this->cloneDocumentTo($request, $masterRulePhaseRuleProcess);
+    }
+
+    private function cloneDocumentTo(Request $request, Model $documentable)
+    {
+        $data = $request->validate([
+            'source_document_id' => 'required|exists:process_documents,id',
+        ]);
+
+        $src = ProcessDocument::with('pages.elements')->findOrFail($data['source_document_id']);
+
+        $doc = \Illuminate\Support\Facades\DB::transaction(function () use ($src, $documentable) {
+            $maxOrder = $documentable->documents()->max('sort_order') ?? -1;
+            $doc = $documentable->documents()->create([
+                'doc_type'   => $src->doc_type,
+                'title'      => $src->title,
+                'sort_order' => $maxOrder + 1,
+            ]);
+            foreach ($src->pages as $page) {
+                $pageCopy = $doc->pages()->create([
+                    'parameter_id' => $page->parameter_id,
+                    'page_no'      => $page->page_no,
+                    'image_path'   => $page->image_path, // same file on disk — not duplicated
+                    'image_width'  => $page->image_width,
+                    'image_height' => $page->image_height,
+                    'sort_order'   => $page->sort_order,
+                ]);
+                foreach ($page->elements as $el) {
+                    $attrs = $el->getAttributes();
+                    unset($attrs['id'], $attrs['page_id'], $attrs['created_at'], $attrs['updated_at']);
+                    $pageCopy->elements()->create($attrs);
+                }
+            }
+            return $doc;
+        });
+
+        return response()->json($this->docPayload($doc->load('pages.elements')), 201);
+    }
+
     public function updateDocument(Request $request, ProcessDocument $processDocument)
     {
         $data = $request->validate([
@@ -478,23 +564,34 @@ class ProcessDocumentController extends Controller
         $repairInfo = $repairInfos[0] ?? null; // back-compat (title, check logic)
 
         // ── 3. Find the ProcessDocumentPage for this IC ────────────────────
-        $rpIds = ManualParameter::where('inspection_component_id', $manualInspectionComponent->id)
-            ->with('repairRules.processes:id,repair_rule_id')
-            ->get()
-            ->flatMap(fn($p) => $p->repairRules->flatMap(fn($r) => $r->processes->pluck('id')))
-            ->unique()->values();
-
-        $page = $rpIds->isNotEmpty()
-            ? ProcessDocumentPage::whereHas('document', fn($q) =>
+        $findPage = function ($ruleProcessIds) {
+            $ids = collect($ruleProcessIds)->unique()->values();
+            if ($ids->isEmpty()) return null;
+            return ProcessDocumentPage::whereHas('document', fn($q) =>
                     $q->where('documentable_type', ManualParameterRuleProcess::class)
-                      ->whereIn('documentable_id', $rpIds)
+                      ->whereIn('documentable_id', $ids)
                 )
                 ->whereNotNull('image_path')
                 ->orderBy('sort_order')
                 ->with(['elements', 'document.documentable.rule.parameter',
                         'document.documentable.manualProcess.process.process_name'])
-                ->first()
-            : null;
+                ->first();
+        };
+
+        $paramsWithRules = ManualParameter::where('inspection_component_id', $manualInspectionComponent->id)
+            ->with('repairRules.processes:id,repair_rule_id')
+            ->get();
+
+        // rule-process ids per parameter — each bushing position may have its OWN
+        // document copy (with its own labels), so sections pick their own page
+        $rpIdsByParam = $paramsWithRules->mapWithKeys(fn($p) => [
+            $p->id => $p->repairRules->flatMap(fn($r) => $r->processes->pluck('id'))->all(),
+        ]);
+        $rpIds = $paramsWithRules
+            ->flatMap(fn($p) => $p->repairRules->flatMap(fn($r) => $r->processes->pluck('id')))
+            ->unique()->values();
+
+        $page = $findPage($rpIds);
 
         // ── 4. Build data panel HTML ───────────────────────────────────────
         $ic       = $manualInspectionComponent;
@@ -652,10 +749,18 @@ class ProcessDocumentController extends Controller
             if ($groups) {
                 // One section per distinct repair result — each with its own
                 // OD values substituted into the drawing (page break in print).
+                // Each section prefers the document of ITS position's processes
+                // (cloned copies carry their own labels), falling back to the
+                // IC-wide first page.
                 $sections = [];
                 foreach ($groups as $g) {
                     $info = $g['info'];
-                    $ctx  = ['od_override' => true];
+                    $ctx  = [
+                        'od_override' => true,
+                        'qty'         => $g['qty'],
+                        'point'       => implode(', ', $g['points']),
+                        'hl_step_no'  => $info['stepNo'], // null for Case B
+                    ];
                     if (!$info['useTolerance'] && $info['step']) {
                         $ctx['od_dim_min'] = (float) $info['step']->dim_min;
                         $ctx['od_dim_max'] = (float) $info['step']->dim_max;
@@ -663,9 +768,13 @@ class ProcessDocumentController extends Controller
                         $ctx['od_dim_min'] = $info['calculatedOdMin'];
                         $ctx['od_dim_max'] = $info['calculatedOdMax'];
                     }
+                    $groupPage     = $findPage($rpIdsByParam[$info['odParam']->id] ?? []) ?? $page;
+                    $groupDocParam = $groupPage->document?->documentable?->rule?->parameter;
+                    $groupLabel    = $groupPage->document?->documentable?->manualProcess?->process?->process_name?->name;
                     $sections[] = [
                         'data'    => $buildDataPanel($info, $g['points'], $g['qty']),
-                        'drawing' => $labelHtml . $renderer->renderSinglePageHtml($page, $workorder, $ctx, $docParam),
+                        'drawing' => ($groupLabel ? '<div style="font-size:10px;color:#6c757d;margin-bottom:6px">' . e($groupLabel) . '</div>' : '')
+                                     . $renderer->renderSinglePageHtml($groupPage, $workorder, $ctx, $groupDocParam),
                     ];
                 }
             } else {
@@ -848,7 +957,7 @@ document.addEventListener(\'mouseup\', function (e) {
         $req = $partial ? 'sometimes|required' : 'required';
 
         return $request->validate([
-            'element_type'        => "$req|in:dimension,label,text",
+            'element_type'        => "$req|in:dimension,label,text,steps_table",
             'x_pct'               => 'nullable|numeric',
             'y_pct'               => 'nullable|numeric',
             'x2_pct'              => 'nullable|numeric',

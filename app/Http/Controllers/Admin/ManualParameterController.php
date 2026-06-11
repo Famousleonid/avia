@@ -133,9 +133,134 @@ class ManualParameterController extends Controller
 
     public function destroy(ManualParameter $manualParameter)
     {
+        $used = \App\Models\WoMeasurement::where('manual_parameter_id', $manualParameter->id)->count();
+        if ($used > 0) {
+            return response()->json([
+                'message' => 'Cannot delete "' . $manualParameter->description . '" — '
+                    . $used . ' workorder measurement(s) reference it. Remove those measurements first.',
+            ], 409);
+        }
+
         $manualParameter->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Deep-copy the full setup of one dimension point onto another: every
+     * parameter with its defect codes, repair rules (triggers + processes,
+     * incl. the gate anchor), oversize repair steps and repair-surface
+     * settings. Used for identical bushings on different lugs — configure
+     * one position, copy to the other. Copies are independent parameters.
+     */
+    public function copyPointSetup(Request $request, ManualDimensionPoint $manualDimensionPoint, ManualDimensionPoint $sourcePoint)
+    {
+        if ($manualDimensionPoint->id === $sourcePoint->id) {
+            return response()->json(['error' => 'Source and target are the same point'], 422);
+        }
+
+        $data = $request->validate([
+            // Optional per-parameter names for the copies: { source_param_id: "new name" }
+            'names'                   => 'nullable|array',
+            'names.*'                 => 'string|max:255',
+            // Optional: copy only the parameters of one part
+            'inspection_component_id' => 'nullable|integer|exists:manual_inspection_components,id',
+        ]);
+        $names = $data['names'] ?? [];
+
+        $sourceParams = $sourcePoint->parameters()
+            ->with(['codes', 'repairRules.triggers', 'repairRules.processes', 'repairSteps'])
+            ->when($data['inspection_component_id'] ?? null, fn($q, $icId) =>
+                $q->where('inspection_component_id', $icId))
+            ->get();
+
+        if ($sourceParams->isEmpty()) {
+            return response()->json(['error' => 'Source point has no parameters'], 422);
+        }
+
+        $created = DB::transaction(function () use ($sourceParams, $manualDimensionPoint, $names) {
+            $out = [];
+            foreach ($sourceParams as $src) {
+                $copy = ManualParameter::create([
+                    'manual_id'               => $src->manual_id,
+                    'inspection_component_id' => $src->inspection_component_id,
+                    'description'             => $names[$src->id] ?? $src->description,
+                    'is_required'             => $src->is_required,
+                    'requires_value'          => $src->requires_value,
+                    'qty'                     => $src->qty,
+                    'orig_dim_min'            => $src->orig_dim_min,
+                    'orig_dim_max'            => $src->orig_dim_max,
+                    'wear_dim_min'            => $src->wear_dim_min,
+                    'wear_dim_max'            => $src->wear_dim_max,
+                    'repair_dim_min'          => $src->repair_dim_min,
+                    'repair_dim_max'          => $src->repair_dim_max,
+                    'interference_value'      => $src->interference_value,
+                    'flange_clearance_min'    => $src->flange_clearance_min,
+                    'flange_clearance_max'    => $src->flange_clearance_max,
+                    'repair_surface_side'     => $src->repair_surface_side,
+                    'max_repair_depth_a'      => $src->max_repair_depth_a,
+                    'max_repair_depth_b'      => $src->max_repair_depth_b,
+                    'inspection'              => $src->inspection,
+                    'sort_order'              => $src->sort_order,
+                ]);
+
+                foreach ($src->codes as $c) {
+                    ManualParameterCode::create([
+                        'manual_parameter_id' => $copy->id,
+                        'codes_id'            => $c->codes_id,
+                        'finding_context'     => $c->finding_context,
+                    ]);
+                }
+
+                foreach ($src->repairRules as $rule) {
+                    $ruleCopy = ManualParameterRepairRule::create([
+                        'manual_parameter_id' => $copy->id,
+                        'name'                => $rule->name,
+                        'order_replacement'   => $rule->order_replacement,
+                        'action'              => $rule->action,
+                        'notes'               => $rule->notes,
+                    ]);
+                    foreach ($rule->triggers as $t) {
+                        ManualParameterRuleTrigger::create([
+                            'repair_rule_id' => $ruleCopy->id,
+                            'trigger'        => $t->trigger,
+                            'codes_id'       => $t->codes_id,
+                        ]);
+                    }
+                    foreach ($rule->processes as $p) {
+                        ManualParameterRuleProcess::create([
+                            'repair_rule_id'    => $ruleCopy->id,
+                            'manual_process_id' => $p->manual_process_id,
+                            'description'       => $p->description,
+                            'is_gate'           => $p->is_gate,
+                            'sort_order'        => $p->sort_order,
+                        ]);
+                    }
+                }
+
+                foreach ($src->repairSteps as $s) {
+                    \App\Models\ManualRepairStep::create([
+                        'manual_parameter_id' => $copy->id,
+                        'step_no'             => $s->step_no,
+                        'component_id'        => $s->component_id,
+                        'dim_min'             => $s->dim_min,
+                        'dim_max'             => $s->dim_max,
+                        'after_dim_min'       => $s->after_dim_min,
+                        'after_dim_max'       => $s->after_dim_max,
+                        'sort_order'          => $s->sort_order,
+                    ]);
+                }
+
+                $copy->points()->attach($manualDimensionPoint->id);
+                $out[] = $copy->fresh(['codes.code', 'repairRules.triggers', 'repairRules.processes', 'points']);
+            }
+            return $out;
+        });
+
+        return response()->json([
+            'ok'         => true,
+            'parameters' => collect($created)->map(fn($p) => $this->parameterPayload($p))->values(),
+        ], 201);
     }
 
     public function detachPoint(ManualParameter $manualParameter, ManualDimensionPoint $manualDimensionPoint)
@@ -143,6 +268,12 @@ class ManualParameterController extends Controller
         $manualParameter->points()->detach($manualDimensionPoint->id);
 
         if ($manualParameter->points()->count() === 0) {
+            $used = \App\Models\WoMeasurement::where('manual_parameter_id', $manualParameter->id)->count();
+            if ($used > 0) {
+                // keep the orphaned parameter — measurements reference it
+                return response()->json(['ok' => true, 'deleted' => false,
+                    'message' => 'Parameter kept: ' . $used . ' workorder measurement(s) reference it.']);
+            }
             $manualParameter->delete();
             return response()->json(['ok' => true, 'deleted' => true]);
         }

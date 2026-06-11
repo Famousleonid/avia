@@ -469,6 +469,17 @@
             <button class="btn btn-outline-primary btn-sm w-100" id="dimAddSpecBtn" style="font-size:12px">
                 <i class="bi bi-plus-lg"></i> Add Parameter
             </button>
+            <div class="d-flex gap-1 mt-1">
+                <select class="form-select form-select-sm" id="dimCopyFromSelect" style="font-size:11px">
+                    <option value="">Copy setup from point…</option>
+                </select>
+                <select class="form-select form-select-sm d-none" id="dimCopyIcSelect" style="font-size:11px;max-width:45%">
+                    <option value="">All parts</option>
+                </select>
+                <button class="btn btn-outline-secondary btn-sm" id="dimCopyFromBtn" style="font-size:11px;white-space:nowrap" title="Deep-copy parameters (codes, rules, steps) from the selected point onto this point">
+                    <i class="bi bi-copy"></i>
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -1003,7 +1014,17 @@
                     <div class="d-flex align-items-center mb-3">
                         <button class="btn btn-outline-secondary btn-sm me-2 d-none" id="pdwTreeBackBtn"><i class="bi bi-arrow-left"></i> Tree</button>
                         <span class="fw-semibold" id="pdwDocScreenTitle">Documents</span>
-                        <button class="btn btn-outline-primary btn-sm ms-auto" id="pdwAddDocBtn"><i class="bi bi-plus-lg"></i> Add document</button>
+                        <button class="btn btn-outline-secondary btn-sm ms-auto me-1" id="pdwAttachDocBtn" title="Attach a copy of an existing document (same scan, own labels)"><i class="bi bi-link-45deg"></i> Attach existing</button>
+                        <button class="btn btn-outline-primary btn-sm" id="pdwAddDocBtn"><i class="bi bi-plus-lg"></i> Add document</button>
+                    </div>
+                    {{-- attach-existing picker --}}
+                    <div id="pdw-attach-wrap" class="d-none border rounded p-2 mb-3" style="background:rgba(0,0,0,.04)">
+                        <div class="d-flex gap-2 align-items-center">
+                            <select id="pdwAttachSelect" class="form-select form-select-sm" style="font-size:12px"></select>
+                            <button class="btn btn-primary btn-sm" id="pdwAttachConfirm" style="white-space:nowrap">Attach</button>
+                            <button class="btn btn-secondary btn-sm" id="pdwAttachCancel">Cancel</button>
+                        </div>
+                        <div class="text-secondary mt-1" style="font-size:11px">The scan is shared; labels and dimensions are copied and editable independently for this process.</div>
                     </div>
                     {{-- inline add/edit document form --}}
                     <div id="pdw-doc-form" class="d-none border rounded p-2 mb-3" style="background:rgba(0,0,0,.04)">
@@ -1011,11 +1032,13 @@
                         <div class="row g-2 align-items-end">
                             <div class="col-auto">
                                 <label class="form-label form-label-sm">Type</label>
-                                <select id="pdwDocType" class="form-select form-select-sm">
+                                <input id="pdwDocType" class="form-control form-control-sm" list="pdwDocTypeList"
+                                       placeholder="drawing" style="min-width:130px">
+                                <datalist id="pdwDocTypeList">
                                     <option value="drawing">Drawing</option>
                                     <option value="manual_page">Manual page</option>
                                     <option value="test_report">Test report</option>
-                                </select>
+                                </datalist>
                             </div>
                             <div class="col">
                                 <label class="form-label form-label-sm">Title</label>
@@ -1049,6 +1072,7 @@
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="radius" title="Radius R (start → end → value)"><i class="bi bi-record-circle"></i> R</button>
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="linear" title="Linear (start → end → value)"><i class="bi bi-rulers"></i> Linear</button>
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="label" title="Label (anchor + leader)"><i class="bi bi-tag"></i> Label</button>
+                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="steps" title="Oversize steps table (click to place)"><i class="bi bi-table"></i> Steps</button>
                         <span class="text-secondary ms-auto" id="pdwHint" style="font-size:11px"></span>
                         <button class="btn btn-outline-secondary btn-sm py-0 px-2" id="pdwZoomReset" title="Reset zoom">↺</button>
                     </div>
@@ -1082,6 +1106,12 @@
                             </div>
                             {{-- param picker for formula (hidden popover) --}}
                             <select id="pdw-ef-fparam-pick" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
+                        </div>
+                        {{-- steps table fields --}}
+                        <div id="pdw-ef-steps" class="d-none d-flex gap-2 align-items-center flex-wrap">
+                            <span style="font-size:12px;font-weight:600">Steps of:</span>
+                            <select id="pdw-ef-steps-param" class="form-select form-select-sm" style="width:auto;font-size:12px"></select>
+                            <span class="text-secondary" style="font-size:11px">required step is highlighted on the WO render</span>
                         </div>
                         {{-- label fields --}}
                         <div id="pdw-ef-lbl" class="d-none d-flex gap-2 align-items-center flex-wrap">
@@ -2891,6 +2921,77 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // ---- Copy point setup (all parameters incl. codes/rules/steps) ----
+    function fillCopyFromSelect(targetPt) {
+        const sel = document.getElementById('dimCopyFromSelect');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Copy setup from point…</option>';
+        const withParams = new Set();
+        parameters.forEach(p => (p.points || []).forEach(pp => withParams.add(pp.id)));
+        figures.forEach(fig => (fig.points || []).forEach(p => {
+            if (p.id === targetPt.id || !withParams.has(p.id)) return;
+            if (p.point_type && p.point_type !== 'measurement') return;
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.code + (fig.title ? ' — ' + fig.title : '');
+            sel.appendChild(opt);
+        }));
+    }
+
+    // When a source point is picked, offer its parts: copy everything or one part only
+    document.getElementById('dimCopyFromSelect')?.addEventListener('change', function () {
+        const icSel = document.getElementById('dimCopyIcSelect');
+        const srcId = parseInt(this.value);
+        icSel.classList.add('d-none');
+        icSel.innerHTML = '<option value="">All parts</option>';
+        if (!srcId) return;
+        const icIds = [...new Set(parameters
+            .filter(p => (p.points || []).some(pp => pp.id === srcId))
+            .map(p => p.inspection_component_id).filter(id => id != null))];
+        if (icIds.length > 1) {
+            icIds.forEach(id => {
+                const ic = inspComponents.find(c => c.id === id);
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = ic ? ic.label : ('Part #' + id);
+                icSel.appendChild(opt);
+            });
+            icSel.classList.remove('d-none');
+        }
+    });
+
+    document.getElementById('dimCopyFromBtn')?.addEventListener('click', async function () {
+        const sel = document.getElementById('dimCopyFromSelect');
+        const srcId = parseInt(sel?.value);
+        if (!srcId || !activePoint) return;
+        const icId = parseInt(document.getElementById('dimCopyIcSelect')?.value) || null;
+
+        // Ask the name for each copy right away — otherwise it's easy to forget
+        // to rename later and end up with two identical-looking parameters.
+        const srcParams = parameters.filter(p =>
+            (p.points || []).some(pp => pp.id === srcId) &&
+            (icId == null || p.inspection_component_id === icId));
+        if (!srcParams.length) return;
+        const names = {};
+        for (const p of srcParams) {
+            const name = prompt('Name for the copy of "' + (p.description || '') + '":', p.description || '');
+            if (name === null) return; // cancelled → abort the whole copy
+            names[p.id] = name.trim() || p.description;
+        }
+
+        this.disabled = true;
+        try {
+            await apiFetch('/dimension-points/' + activePoint.id + '/copy-from/' + srcId, {
+                method: 'POST',
+                body: JSON.stringify({ names, inspection_component_id: icId }),
+            });
+            await loadParameters();
+            renderSpecsPanel(activePoint);
+        } catch (e) {
+            alert(e.message);
+        } finally { this.disabled = false; }
+    });
+
     // ---- Select point ----
     function selectPoint(pt) {
         activePoint = pt;
@@ -2924,6 +3025,7 @@ document.addEventListener('DOMContentLoaded', function () {
         specsList.classList.remove('d-none');
         specsFooter.classList.remove('d-none');
         editPointBtn.classList.remove('d-none');
+        fillCopyFromSelect(pt);
 
         specsList.innerHTML = '';
         const params = parametersForPoint(pt);
@@ -3267,11 +3369,13 @@ document.addEventListener('DOMContentLoaded', function () {
             return `<div class="d-flex align-items-center gap-2 py-1 border-bottom" style="font-size:12px">
                 <span class="fw-semibold text-info" style="min-width:36px">${escHtml(s.step_no)}</span>
                 <span class="font-monospace flex-grow-1">${escHtml(dimStr)}</span>
+                <span class="dim-rs-fit text-secondary font-monospace" data-step-no="${escHtml(s.step_no)}" style="font-size:10px"></span>
                 <span class="text-secondary" style="font-size:11px">${escHtml(compStr)}</span>
                 <button type="button" class="btn btn-link btn-sm p-0 dim-rs-edit-btn" data-id="${s.id}" title="Edit" style="color:var(--bs-secondary-color);font-size:11px"><i class="bi bi-pencil"></i></button>
                 <button type="button" class="btn btn-link btn-sm p-0 dim-rs-del-btn" data-id="${s.id}" title="Delete" style="color:#dc3545;font-size:11px"><i class="bi bi-trash3"></i></button>
             </div>`;
         }).join('');
+        annotateStepFits(list);
         list.querySelectorAll('.dim-rs-edit-btn').forEach(function (btn) {
             btn.addEventListener('click', function () { openRepairStepForm(parseInt(btn.dataset.id)); });
         });
@@ -3290,6 +3394,47 @@ document.addEventListener('DOMContentLoaded', function () {
                     renderRepairSteps();
                 } catch (e) { alert(e.message); }
             });
+        });
+    }
+
+    // Reference fit per step (data-entry check): step fit = OD_step_min − ID_step_max …
+    // OD_step_max − ID_step_min, compared against the orig-limits fit of the pair.
+    const matingStepsCache = {}; // mating param id → steps[]
+    async function annotateStepFits(list) {
+        const param = parameters.find(p => p.id === dimRsParamId);
+        if (!param || param.orig_dim_min == null || param.orig_dim_max == null) return;
+        const ptIds = new Set((param.points || []).map(pp => pp.id));
+        if (!ptIds.size) return;
+        const mating = parameters.find(p =>
+            p.id !== param.id &&
+            p.inspection_component_id !== param.inspection_component_id &&
+            p.orig_dim_min != null && p.orig_dim_max != null &&
+            (p.points || []).some(pp => ptIds.has(pp.id)));
+        if (!mating) return;
+
+        if (!matingStepsCache[mating.id]) {
+            try { matingStepsCache[mating.id] = await apiFetch('/parameters/' + mating.id + '/repair-steps'); }
+            catch (e) { return; }
+        }
+        const mSteps = matingStepsCache[mating.id] || [];
+        if (!mSteps.length) return;
+
+        const origFitMin = parseFloat(param.orig_dim_min) - parseFloat(mating.orig_dim_max);
+        const origFitMax = parseFloat(param.orig_dim_max) - parseFloat(mating.orig_dim_min);
+        const EPS = 0.00005;
+
+        list.querySelectorAll('.dim-rs-fit').forEach(el => {
+            const own = dimRsSteps.find(s => s.step_no === el.dataset.stepNo);
+            const m   = mSteps.find(s => s.step_no === el.dataset.stepNo);
+            if (!own || !m || own.dim_min == null || own.dim_max == null
+                || m.dim_min == null || m.dim_max == null) return;
+            const fMin = parseFloat(own.dim_min) - parseFloat(m.dim_max);
+            const fMax = parseFloat(own.dim_max) - parseFloat(m.dim_min);
+            const ok = Math.abs(fMin - origFitMin) < EPS && Math.abs(fMax - origFitMax) < EPS;
+            el.textContent = 'fit ' + fMin.toFixed(4) + '…' + fMax.toFixed(4);
+            el.style.color = ok ? '' : '#dc3545';
+            el.title = ok ? 'Matches the orig-limits fit of the pair'
+                          : 'Differs from orig fit (' + origFitMin.toFixed(4) + '…' + origFitMax.toFixed(4) + ') — check step dims of ' + (mating.description || 'mating');
         });
     }
 
@@ -4978,6 +5123,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <span class="text-secondary" style="font-size:10px">${pr.has_document ? 'edit' : 'add'} ›</span>
         </div>`;
     }
+    const pdwCollapsedRules = new Set(); // rule keys with a hidden process list
     function pdwRuleHtml(r, editable, paramId) {
         const procs = (r.processes || []).map(pdwProcHtml).join('')
             || '<div style="font-size:11px;color:var(--bs-secondary-color);padding-left:8px">no processes</div>';
@@ -4985,9 +5131,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const editBtn = editable
             ? `<button class="pdw-tree-rule-edit btn btn-link btn-sm p-0 ms-1" data-param="${paramId}" data-rule="${r.rule_id}" title="Edit rule (processes / descriptions)" style="font-size:11px;color:var(--bs-info)"><i class="bi bi-pencil"></i></button>`
             : '';
+        const key = (paramId || 'ph') + ':' + r.rule_id;
+        const collapsed = pdwCollapsedRules.has(key);
         return `<div style="margin-left:16px;margin-top:3px">
-            <div style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-wrench"></i> ${escHtml(r.label)} ${badge}${editBtn}</div>
-            ${procs}
+            <div style="font-size:11px;color:var(--bs-secondary-color)">
+                <span class="pdw-rule-toggle" data-key="${key}" style="cursor:pointer;text-decoration:underline" title="Show/hide processes">
+                    <i class="bi bi-chevron-${collapsed ? 'right' : 'down'}" style="font-size:9px"></i>
+                    <i class="bi bi-wrench"></i> ${escHtml(r.label)}
+                </span> ${badge}${editBtn}</div>
+            <div class="pdw-rule-procs" data-key="${key}" style="${collapsed ? 'display:none' : ''}">${procs}</div>
         </div>`;
     }
     function pdwPhaseSection(title, rules) {
@@ -5027,6 +5179,19 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
         pdwApplyTreeActive(); // re-highlight the open process after a re-render
+        // collapse/expand a rule's process list
+        wrap.querySelectorAll('.pdw-rule-toggle').forEach(function (t) {
+            t.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                const key   = t.dataset.key;
+                const procs = wrap.querySelector('.pdw-rule-procs[data-key="' + CSS.escape(key) + '"]');
+                const icon  = t.querySelector('.bi-chevron-down, .bi-chevron-right');
+                const hide  = !pdwCollapsedRules.has(key);
+                if (hide) pdwCollapsedRules.add(key); else pdwCollapsedRules.delete(key);
+                if (procs) procs.style.display = hide ? 'none' : '';
+                if (icon)  icon.className = 'bi bi-chevron-' + (hide ? 'right' : 'down');
+            });
+        });
         // edit a rule (add process / change description) without leaving the hub
         wrap.querySelectorAll('.pdw-tree-rule-edit').forEach(function (b) {
             b.addEventListener('click', function (ev) {
@@ -5099,10 +5264,61 @@ document.addEventListener('DOMContentLoaded', function () {
             pdwDocs = data.documents || [];
             pdwSourceParams = data.source_parameters || [];
             renderDocList();
+            // doc_type is a free string — suggest the types already in use
+            const dl = document.getElementById('pdwDocTypeList');
+            if (dl) {
+                const known = new Set([...dl.options].map(o => o.value));
+                pdwDocs.forEach(d => {
+                    if (d.doc_type && !known.has(d.doc_type)) {
+                        const opt = document.createElement('option');
+                        opt.value = d.doc_type;
+                        dl.appendChild(opt);
+                        known.add(d.doc_type);
+                    }
+                });
+            }
         } catch (e) {
             document.getElementById('pdw-doc-list').innerHTML = '<div class="text-danger" style="font-size:12px">' + escHtml(e.message) + '</div>';
         }
     }
+
+    // ---- attach existing document (clone with shared scan) ----
+    document.getElementById('pdwAttachDocBtn')?.addEventListener('click', async function () {
+        const wrap = document.getElementById('pdw-attach-wrap');
+        const sel  = document.getElementById('pdwAttachSelect');
+        wrap.classList.remove('d-none');
+        sel.innerHTML = '<option value="">Loading…</option>';
+        try {
+            const docs = await apiFetch('/manuals/' + MANUAL_ID + '/process-documents');
+            const others = docs.filter(d => !pdwDocs.some(x => x.id === d.id));
+            sel.innerHTML = others.length
+                ? '<option value="">Select document…</option>' + others.map(d =>
+                    `<option value="${d.id}">${escHtml((d.title || '(untitled)') + ' · ' + (d.owner_label || d.doc_type) + ' · ' + d.pages + ' pg')}</option>`).join('')
+                : '<option value="">No other documents in this manual</option>';
+        } catch (e) { sel.innerHTML = '<option value="">' + escHtml(e.message) + '</option>'; }
+    });
+
+    document.getElementById('pdwAttachCancel')?.addEventListener('click', function () {
+        document.getElementById('pdw-attach-wrap').classList.add('d-none');
+    });
+
+    document.getElementById('pdwAttachConfirm')?.addEventListener('click', async function () {
+        const srcId = parseInt(document.getElementById('pdwAttachSelect').value);
+        if (!srcId) return;
+        this.disabled = true;
+        try {
+            const base = pdwProcKind === 'phase'
+                ? '/phase-rule-processes/' + pdwRuleProcessId + '/documents/attach-existing'
+                : '/rule-processes/' + pdwRuleProcessId + '/documents/attach-existing';
+            const doc = await apiFetch(base, { method: 'POST', body: JSON.stringify({ source_document_id: srcId }) });
+            pdwDocs.push(doc);
+            document.getElementById('pdw-attach-wrap').classList.add('d-none');
+            renderDocList();
+            pdwUpdateProcessFlag();
+            pdwTreeMarkDocs();
+        } catch (e) { alert(e.message); }
+        finally { this.disabled = false; }
+    });
 
     function pdwProcessHasImage() {
         return pdwDocs.some(function (d) { return (d.pages || []).some(function (p) { return p.image_path; }); });
@@ -5335,6 +5551,17 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwOverlay.innerHTML = '';
         if (!pdwPage) return;
         (pdwPage.elements || []).forEach(function (e) {
+            if (e.element_type === 'steps_table') {
+                const box = document.createElement('div');
+                box.className = 'pdw-text-label';
+                box.style.borderStyle = 'dashed';
+                box.style.transform = 'none'; // click point = TOP-LEFT corner of the table
+                const sp = (pdwSourceParams || []).find(function (p) { return p.id == e.source_parameter_id; });
+                box.innerHTML = '<i class="bi bi-table"></i> Steps: ' + escHtml(sp ? (sp.description || '#' + sp.id) : '⟨param⟩');
+                box.dataset.xp = e.x_pct; box.dataset.yp = e.y_pct;
+                pdwFinishElement(box, e, 'anchor');
+                return;
+            }
             if (e.element_type === 'dimension') {
                 const el = document.createElement('div');
                 el.className = 'pdw-dim-label';
@@ -5519,6 +5746,8 @@ document.addEventListener('DOMContentLoaded', function () {
         { value: '{manual_number}',    label: 'Manual Number' },
         { value: '{manual_lib}',       label: 'Manual Library #' },
         { value: '{date}',             label: 'Date' },
+        { value: '{qty}',              label: 'Qty (per position)' },
+        { value: '{point}',            label: 'Point Number' },
     ];
     let pdwPending = null; // {element_type, coords...} awaiting form fill
 
@@ -5555,6 +5784,9 @@ document.addEventListener('DOMContentLoaded', function () {
             pdwPending = { element_type: 'label', x_pct: xp, y_pct: yp };
             pdwShowLabelPreview(xp, yp); // teal dot while form is open
             pdwShowElemForm('label');
+        } else if (pdwMode === 'steps') {
+            pdwPending = { element_type: 'steps_table', x_pct: xp, y_pct: yp };
+            pdwShowElemForm('steps');
         }
         pdwSetMode(null);
     });
@@ -5580,6 +5812,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('pdw-elem-form');
         document.getElementById('pdw-ef-dim').classList.toggle('d-none', type !== 'dimension');
         document.getElementById('pdw-ef-lbl').classList.toggle('d-none', type !== 'label');
+        document.getElementById('pdw-ef-steps').classList.toggle('d-none', type !== 'steps');
+        if (type === 'steps') {
+            document.getElementById('pdw-ef-steps-param').innerHTML = pdwParamOptions();
+        }
         if (type === 'dimension') {
             // populate source params
             const psel = document.getElementById('pdw-ef-param');
@@ -5631,6 +5867,19 @@ document.addEventListener('DOMContentLoaded', function () {
     function pdwOpenEditForm(e) {
         // Set pending with existing element id so Save uses PATCH
         pdwPending = Object.assign({}, e);
+
+        if (e.element_type === 'steps_table') {
+            document.getElementById('pdw-ef-steps-param').innerHTML = pdwParamOptions(e.source_parameter_id);
+            document.getElementById('pdw-ef-steps').classList.remove('d-none');
+            document.getElementById('pdw-ef-dim').classList.add('d-none');
+            document.getElementById('pdw-ef-lbl').classList.add('d-none');
+            document.getElementById('pdw-ef-fontsize').value = e.font_size || '';
+            document.getElementById('pdw-ef-save').textContent = 'Save';
+            document.getElementById('pdw-ef-delete').classList.remove('d-none');
+            document.getElementById('pdw-elem-form').classList.remove('d-none');
+            return;
+        }
+        document.getElementById('pdw-ef-steps').classList.add('d-none');
 
         if (e.element_type === 'dimension') {
             document.getElementById('pdw-ef-param').innerHTML = pdwParamOptions();
@@ -5749,7 +5998,9 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('pdw-ef-save').addEventListener('click', async function () {
         if (!pdwPending) return;
         const body = Object.assign({}, pdwPending);
-        if (pdwPending.element_type === 'dimension') {
+        if (pdwPending.element_type === 'steps_table') {
+            body.source_parameter_id = parseInt(document.getElementById('pdw-ef-steps-param').value) || null;
+        } else if (pdwPending.element_type === 'dimension') {
             const src = document.getElementById('pdw-ef-source').value;
             body.value_source = src;
             if (src === 'measurement' || src === 'calc') {
