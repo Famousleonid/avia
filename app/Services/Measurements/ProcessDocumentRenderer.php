@@ -167,8 +167,16 @@ class ProcessDocumentRenderer
 
             // Resolve value first — skip element entirely if nothing to show
             $rawText = $this->resolveValue($e, $workorder, $context, $docParam);
-            if ($e->element_type === 'dimension' && $this->isEmptyDimValue($rawText)) {
-                continue; // no value — skip
+            $stageClass = '';
+            if ($e->element_type === 'dimension') {
+                if (!empty($context['stage_colors'])) {
+                    // color the mark by data state: final / initial / missing
+                    $stageClass = ' st-' . $this->measurementStage($e, $workorder, $rawText);
+                }
+                if ($this->isEmptyDimValue($rawText)) {
+                    if (empty($context['show_missing'])) continue; // no value — skip
+                    $rawText = ($e->mask === 'diameter' ? 'Ø' : ($e->mask === 'radius' ? 'R' : '')) . '—';
+                }
             }
 
             // leader (label) / dimension lines → SVG overlay; anchor dot for labels
@@ -216,7 +224,7 @@ class ProcessDocumentRenderer
             if ($xp === null) {
                 continue;
             }
-            $cls = $e->element_type === 'dimension' ? 'pdw-el pdw-dim' : 'pdw-el pdw-label';
+            $cls = $e->element_type === 'dimension' ? 'pdw-el pdw-dim' . $stageClass : 'pdw-el pdw-label';
             $fs   = $e->font_size ? ';font-size:' . (int) $e->font_size . 'pt' : '';
             $text = htmlspecialchars($rawText, ENT_QUOTES, 'UTF-8');
             $els .= '<div class="' . $cls . '" data-element-id="' . (int) $e->id . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">' . $text . '</div>';
@@ -538,6 +546,41 @@ class ProcessDocumentRenderer
             return '—'; // element references a different parameter — don't override
         }
         return $this->fmt($context['od_dim_min']) . '–' . $this->fmt($context['od_dim_max']);
+    }
+
+    /**
+     * Data state of a dimension mark for stage coloring:
+     * 'final' — a final measurement exists, 'initial' — initial only,
+     * 'missing' — no measurement (or the value could not be resolved).
+     */
+    private function measurementStage($e, Workorder $workorder, string $resolvedText): string
+    {
+        if ($this->isEmptyDimValue($resolvedText)) return 'missing';
+        if ($e->value_source === 'static') return 'final';
+
+        // which parameters feed this mark
+        $paramIds = [];
+        if ($e->value_source === 'formula') {
+            preg_match_all('/\[p:(\d+)\]/', (string) ($e->formula_expression ?? ''), $m);
+            $paramIds = array_map('intval', $m[1]);
+        } elseif ($e->source_parameter_id) {
+            $paramIds = [(int) $e->source_parameter_id];
+        }
+        if (!$paramIds) return 'final';
+
+        $stages = WoMeasurement::where('workorder_id', $workorder->id)
+            ->whereIn('manual_parameter_id', $paramIds)
+            ->whereNotNull('actual_value')
+            ->get(['manual_parameter_id', 'stage'])
+            ->groupBy('manual_parameter_id');
+
+        $allFinal = true;
+        foreach ($paramIds as $pid) {
+            $ms = $stages[$pid] ?? collect();
+            if ($ms->isEmpty()) return 'missing';
+            if (!$ms->contains(fn($x) => $x->stage === 'final')) $allFinal = false;
+        }
+        return $allFinal ? 'final' : 'initial';
     }
 
     private function fmt($v): string

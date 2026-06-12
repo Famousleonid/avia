@@ -374,6 +374,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'storeDocument'])->name('rule-processes.documents.store');
     Route::post('/rule-processes/{manualParameterRuleProcess}/documents/attach-existing', [ProcessDocumentController::class, 'attachExisting'])->name('rule-processes.documents.attach-existing');
     Route::get('/manuals/{manual}/process-documents', [ProcessDocumentController::class, 'manualDocuments'])->name('manuals.process-documents.index');
+    Route::get('/manuals/{manual}/documents', [ProcessDocumentController::class, 'indexManual'])->name('manuals.documents.index');
+    Route::post('/manuals/{manual}/documents', [ProcessDocumentController::class, 'storeManualDocument'])->name('manuals.documents.store');
+    Route::get('/workorders/{workorder}/fc-document', [ProcessDocumentController::class, 'fcDocumentView'])->name('workorders.fc-document');
     // Start/Finish (master-rule phase) process documents
     Route::get('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'indexPhase'])->name('phase-rule-processes.documents.index');
     Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'storePhaseDocument'])->name('phase-rule-processes.documents.store');

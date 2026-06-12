@@ -435,6 +435,9 @@
                 </select>
                 <span class="text-secondary ms-1" style="font-size:11px;user-select:none;min-width:38px;text-align:right" id="dimZoomLabel">100%</span>
                 <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="dimZoomResetBtn" title="Reset zoom (100%)" style="font-size:12px">↺</button>
+                <button class="btn btn-outline-secondary btn-sm" id="dimFcDocBtn" title="F&C Document — filled manual page copies (WO labels + ID/OD value marks)">
+                    <i class="bi bi-file-earmark-richtext"></i> F&amp;C Doc
+                </button>
                 <button class="btn btn-outline-warning btn-sm" id="dimEditFigureBtn" title="Edit figure">
                     <i class="bi bi-pencil"></i>
                 </button>
@@ -1073,8 +1076,8 @@
                         <button class="btn btn-outline-danger btn-sm py-0 px-2 d-none" id="pdwDelPageBtn" title="Remove current page"><i class="bi bi-trash3"></i></button>
                         <span class="border-start ps-2 ms-1"></span>
                         {{-- tools --}}
-                        <button class="btn btn-outline-secondary btn-sm" id="pdwUploadBtn"><i class="bi bi-upload"></i> Image</button>
-                        <input type="file" id="pdwFileInput" accept="image/png,image/jpeg,image/webp,image/gif" class="d-none">
+                        <button class="btn btn-outline-secondary btn-sm" id="pdwUploadBtn" title="Image for this page, or a PDF — its pages become document pages"><i class="bi bi-upload"></i> Image / PDF</button>
+                        <input type="file" id="pdwFileInput" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf" class="d-none">
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="diameter" title="Diameter Ø (start → end → value)"><i class="bi bi-circle"></i> Ø</button>
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="radius" title="Radius R (start → end → value)"><i class="bi bi-record-circle"></i> R</button>
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="linear" title="Linear (start → end → value)"><i class="bi bi-rulers"></i> Linear</button>
@@ -2024,6 +2027,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ---- Render points overlay ----
+    // ---- F&C Document: manual-level document (filled manual page copies) ----
+    document.getElementById('dimFcDocBtn')?.addEventListener('click', function () {
+        openProcessDocumentsModal(null, 'F&C Document', 'manual', false);
+    });
+
     // ---- Find point: dropdown of the figure's points → select + pulse marker ----
     function refreshPointFinder(points) {
         const sel = document.getElementById('dimPointFinder');
@@ -5330,6 +5338,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ---- open: load documents, show list ----
     let pdwProcKind = 'main'; // 'main' (point rule) | 'phase' (Start/Finish)
     function pdwDocsBase() {
+        if (pdwProcKind === 'manual') return '/manuals/' + MANUAL_ID + '/documents';
         return pdwProcKind === 'phase'
             ? '/phase-rule-processes/' + pdwRuleProcessId + '/documents'
             : '/rule-processes/' + pdwRuleProcessId + '/documents';
@@ -5337,7 +5346,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function openProcessDocumentsModal(ruleProcessId, label, kind, fromTree) {
         pdwRuleProcessId = ruleProcessId;
-        pdwProcKind = (kind === 'phase') ? 'phase' : 'main';
+        pdwProcKind = (kind === 'phase') ? 'phase' : (kind === 'manual' ? 'manual' : 'main');
+        // manual-level doc: "Attach existing" is process-only — hide it
+        document.getElementById('pdwAttachDocBtn')?.classList.toggle('d-none', kind === 'manual');
         pdwFromTree = !!fromTree;
         pdwDocs = []; pdwSourceParams = []; pdwDoc = null; pdwPage = null;
         document.getElementById('pdwDocScreenTitle').textContent = label || 'Documents';
@@ -5411,6 +5422,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return pdwDocs.some(function (d) { return (d.pages || []).some(function (p) { return p.image_path; }); });
     }
     function pdwUpdateProcessFlag() {
+        if (pdwProcKind === 'manual') return; // manual-level doc — no process row to flag
         const hasImg = pdwProcessHasImage();
         if (pdwProcKind === 'phase') {
             const rp = dimMrProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
@@ -6148,22 +6160,95 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('pdwUploadBtn').addEventListener('click', function () { document.getElementById('pdwFileInput').click(); });
     document.getElementById('pdwFileInput').addEventListener('change', async function () {
         const file = this.files[0]; if (!file || !pdwPage) return;
-        const fd = new FormData(); fd.append('image', file); fd.append('_token', CSRF);
+        this.value = '';
+        if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+            await pdwUploadPdf(file);
+            return;
+        }
         try {
-            const res = await fetch('/process-document-pages/' + pdwPage.id + '/image', { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } });
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.message || 'Upload failed');
+            await pdwUploadImageBlob(pdwPage, file);
+            pdwShowImage(pdwPage.image_path);
+            pdwUpdateProcessFlag();
+        } catch (e) { alert(e.message); }
+    });
+
+    // Upload one image blob/file to a page; updates the page record + local state
+    async function pdwUploadImageBlob(page, blob, filename) {
+        const fd = new FormData();
+        fd.append('image', blob, filename || (blob.name || 'page.png'));
+        fd.append('_token', CSRF);
+        const res = await fetch('/process-document-pages/' + page.id + '/image', { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || 'Upload failed');
+        await new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = async function () {
-                await apiFetch('/process-document-pages/' + pdwPage.id, { method: 'PATCH', body: JSON.stringify({ image_path: json.path, image_width: img.naturalWidth, image_height: img.naturalHeight }) });
-                pdwPage.image_path = json.path;
-                pdwShowImage(json.path);
-                pdwUpdateProcessFlag();
+                try {
+                    await apiFetch('/process-document-pages/' + page.id, { method: 'PATCH', body: JSON.stringify({ image_path: json.path, image_width: img.naturalWidth, image_height: img.naturalHeight }) });
+                    page.image_path = json.path;
+                    resolve();
+                } catch (err) { reject(err); }
             };
+            img.onerror = () => reject(new Error('Image load failed'));
             img.src = json.path;
-        } catch (e) { alert(e.message); }
-        this.value = '';
-    });
+        });
+    }
+
+    // PDF upload: render every page client-side (pdf.js) → PNG → document pages.
+    // Page 1 goes to the CURRENT page, the rest auto-create new pages.
+    let pdfjsReady = null;
+    function loadPdfJs() {
+        if (pdfjsReady) return pdfjsReady;
+        pdfjsReady = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = '/assets/pdfjs/pdf.min.js';
+            s.onload = () => {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdfjs/pdf.worker.min.js';
+                resolve(window.pdfjsLib);
+            };
+            s.onerror = () => reject(new Error('pdf.js failed to load'));
+            document.head.appendChild(s);
+        });
+        return pdfjsReady;
+    }
+
+    async function pdwUploadPdf(file) {
+        const hint = document.getElementById('pdwHint');
+        try {
+            hint.textContent = 'Reading PDF…';
+            const pdfjs = await loadPdfJs();
+            const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+            const total = pdf.numPages;
+
+            for (let n = 1; n <= total; n++) {
+                hint.textContent = 'PDF page ' + n + ' / ' + total + '…';
+                const pg = await pdf.getPage(n);
+                const viewport = pg.getViewport({ scale: 2 }); // ~150 dpi quality
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width; canvas.height = viewport.height;
+                await pg.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+
+                let target;
+                if (n === 1) target = pdwPage;
+                else {
+                    target = await apiFetch('/process-documents/' + pdwDoc.id + '/pages', { method: 'POST' });
+                    pdwDoc.pages.push(target);
+                }
+                await pdwUploadImageBlob(target, blob, 'pdf-page-' + n + '.png');
+            }
+
+            hint.textContent = 'PDF: ' + total + ' page(s) added ✓';
+            setTimeout(() => { if (hint.textContent.startsWith('PDF:')) hint.textContent = ''; }, 4000);
+            renderPageTabs();
+            selectPage(pdwPage);
+            pdwShowImage(pdwPage.image_path);
+            pdwUpdateProcessFlag();
+        } catch (e) {
+            hint.textContent = '';
+            alert('PDF import failed: ' + e.message);
+        }
+    }
 
     // ==========================
     // Init

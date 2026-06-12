@@ -197,8 +197,8 @@ function figLabel($fig) {
         $rB    = $row['resultB'];
         $ac    = $row['actualClear'];
         $acFail = $ac !== null && $row['permClearMax'] !== null && $ac > $row['permClearMax'];
-        $stA   = $row['measA'] ? ' <span class="stage-tag">('.e($row['measA']->stage).')</span>' : '';
-        $stB   = $row['measB'] ? ' <span class="stage-tag">('.e($row['measB']->stage).')</span>' : '';
+        $stA   = $row['measA'] ? ' <span class="stage-tag">('.($row['measA']->new_part ? 'new' : e($row['measA']->stage)).')</span>' : '';
+        $stB   = $row['measB'] ? ' <span class="stage-tag">('.($row['measB']->new_part ? 'new' : e($row['measB']->stage)).')</span>' : '';
         $fixA  = $row['measA'] && $row['measA']->stage === 'final' && $rA === 'PASS';
         $fixB  = $row['measB'] && $row['measB']->stage === 'final' && $rB === 'PASS';
     @endphp
@@ -235,7 +235,7 @@ function figLabel($fig) {
         $ipl  = $row['comp']?->ipl_num;
         $r    = $row['result'];
         $val  = $row['meas']?->actual_value;
-        $st   = $row['meas'] ? ' <span class="stage-tag">('.e($row['meas']->stage).')</span>' : '';
+        $st   = $row['meas'] ? ' <span class="stage-tag">('.($row['meas']->new_part ? 'new' : e($row['meas']->stage)).')</span>' : '';
         $fix  = $row['meas'] && $row['meas']->stage === 'final' && $r === 'PASS';
     @endphp
     <tr data-ref="{{ $row['pt']->code }}" data-type="extra">

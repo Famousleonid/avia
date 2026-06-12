@@ -698,6 +698,13 @@
                             <button class="nav-link active" id="tab-tdr" data-bs-toggle="tab"
                                     data-bs-target="#content-tdr" type="button" role="tab">{{ __('TDR') }}</button>
                         </li>
+                        {{-- Temporary Inspect tab (opened by the 📏 button on a TDR row; reuses the measurements pane in single-part mode) --}}
+                        <li class="nav-item d-none" role="presentation" id="tab-ms-inspect-li">
+                            <button class="nav-link" id="tab-ms-inspect" data-bs-toggle="tab"
+                                    data-bs-target="#content-measurements" type="button" role="tab">
+                                <i class="bi bi-rulers"></i> {{ __('Inspect') }}
+                            </button>
+                        </li>
                         {{-- Temporary Part Processes tab (shown when user clicks Component Processes, hidden when switching to another tab) --}}
                         <li class="nav-item d-none" role="presentation" id="tab-part-processes-li">
                             <button class="nav-link" id="tab-part-processes" data-bs-toggle="tab"
@@ -740,6 +747,13 @@
                             <button class="nav-link" id="tab-measurements" data-bs-toggle="tab"
                                     data-bs-target="#content-measurements" type="button"
                                     role="tab">{{ __('Measurements') }}</button>
+                        </li>
+                        {{-- Temporary Ordered-parts tab (opened by the Ordered button in Measurements; reuses the measurements pane) --}}
+                        <li class="nav-item d-none" role="presentation" id="tab-ms-new-li">
+                            <button class="nav-link" id="tab-ms-new" data-bs-toggle="tab"
+                                    data-bs-target="#content-measurements" type="button" role="tab">
+                                <i class="bi bi-box-seam"></i> {{ __('Ordered Parts') }}
+                            </button>
                         </li>
                         {{-- dynamic tab: shown by the Req. Bushings button, hidden on leaving --}}
                         <li class="nav-item d-none" role="presentation" id="tab-req-bushings-li">
@@ -952,7 +966,9 @@
                             var dynTabs = {
                                 'tab-req-bushings': 'tab-req-bushings-li',
                                 'tab-final-report': 'tab-final-report-li',
-                                'tab-fc-table':     'tab-fc-table-li'
+                                'tab-fc-table':     'tab-fc-table-li',
+                                'tab-ms-inspect':   'tab-ms-inspect-li',
+                                'tab-ms-new':       'tab-ms-new-li'
                             };
                             document.querySelectorAll('#tdrShowTabList .nav-link').forEach(function (btn) {
                                 btn.addEventListener('shown.bs.tab', function (e) {

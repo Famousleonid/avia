@@ -157,6 +157,7 @@ class WoMeasurementController extends Controller
                 'id'                           => $m->id,
                 'manual_parameter_id'          => $m->manual_parameter_id,
                 'stage'                        => $m->stage,
+                'new_part'                     => (bool) $m->new_part,
                 'replaces_id'                  => $m->replaces_id,
                 'actual_value'                 => $m->actual_value,
                 'limits_source'                => $m->limits_source,
@@ -182,17 +183,24 @@ class WoMeasurementController extends Controller
         $icsTdrLabel = [];
         $priority    = ['missing' => 3, 'order new' => 2, 'repair' => 1, 'tdr' => 0];
 
+        $icsSyncedMeas = []; // ic_id → last_synced_measurement_id (Update button state)
+
         if (count($tdrComponentIds) > 0) {
             $tdrs = Tdr::where('workorder_id', $workorder->id)
                 ->whereIn('component_id', $tdrComponentIds)
-                ->get(['tdr_type', 'codes_id', 'component_id']);
+                ->get(['tdr_type', 'codes_id', 'component_id', 'last_synced_measurement_id']);
 
             $codeNamesById = Code::whereIn('id', $tdrs->pluck('codes_id')->filter()->unique())
                 ->pluck('name', 'id');
 
             // Step 1: label per component_id (highest priority wins per comp)
             $tdrLabelByComponent = [];
+            $tdrSyncByComponent  = [];
             foreach ($tdrs as $tdr) {
+                $tdrSyncByComponent[$tdr->component_id] = max(
+                    $tdrSyncByComponent[$tdr->component_id] ?? 0,
+                    (int) $tdr->last_synced_measurement_id
+                );
                 $isMissingTdr = $missingCodeId && (int)$tdr->codes_id === (int)$missingCodeId
                                 && $tdr->tdr_type === Tdr::TYPE_ORDER_NEW;
                 $codeName  = $tdr->codes_id ? ($codeNamesById[$tdr->codes_id] ?? null) : null;
@@ -211,6 +219,7 @@ class WoMeasurementController extends Controller
                 ->pluck('ipl_num', 'id');
 
             $tdrLabelByIpl = [];
+            $tdrSyncByIpl  = [];
             foreach ($tdrLabelByComponent as $compId => $label) {
                 $ipl = $iplByTdrComp[$compId] ?? null;
                 if (!$ipl) continue;
@@ -218,6 +227,7 @@ class WoMeasurementController extends Controller
                     ($priority[$label] ?? 0) > ($priority[$tdrLabelByIpl[$ipl]] ?? 0)) {
                     $tdrLabelByIpl[$ipl] = $label;
                 }
+                $tdrSyncByIpl[$ipl] = max($tdrSyncByIpl[$ipl] ?? 0, $tdrSyncByComponent[$compId] ?? 0);
             }
 
             // Step 3: find component_ids in THIS manual with those ipl_nums
@@ -238,6 +248,7 @@ class WoMeasurementController extends Controller
                     ($priority[$label] ?? 0) > ($priority[$icsTdrLabel[$icId]] ?? 0)) {
                     $icsTdrLabel[$icId] = $label;
                 }
+                $icsSyncedMeas[$icId] = max($icsSyncedMeas[$icId] ?? 0, $ipl ? ($tdrSyncByIpl[$ipl] ?? 0) : 0);
             }
         }
 
@@ -252,6 +263,7 @@ class WoMeasurementController extends Controller
             'ics_with_tdr'         => array_keys($icsTdrLabel),
             'ics_missing_tdr'      => array_keys(array_filter($icsTdrLabel, fn($l) => $l === 'missing')),
             'ics_tdr_label'        => $icsTdrLabel,   // ic_id → 'repair'|'order new'|'missing'|'tdr'
+            'ics_synced_meas'      => $icsSyncedMeas, // ic_id → last measurement id processes were built from
         ]);
     }
 
@@ -260,6 +272,7 @@ class WoMeasurementController extends Controller
         $data = $request->validate([
             'manual_parameter_id' => 'required|exists:manual_parameters,id',
             'stage'               => 'required|in:initial,final',
+            'new_part'            => 'nullable|boolean',
             'replaces_id'         => 'nullable|exists:wo_measurements,id',
             'actual_value'        => 'nullable|numeric',
             'repair_depth_a'      => 'nullable|numeric',
@@ -272,13 +285,21 @@ class WoMeasurementController extends Controller
         $useWear   = $workorder->usesWearLimits();
         $limits    = $parameter->effectiveLimits($useWear);
 
+        // New-part verification (Order New position): a replacement part must
+        // meet the ORIGINAL factory limits — wear/repair limits don't apply.
+        $isNewPart = (bool) ($data['new_part'] ?? false);
+        if ($isNewPart) {
+            $useWear = false;
+            $limits  = $parameter->effectiveLimits(false);
+        }
+
         $data['limits_source'] = $limits['source'];
         // Rule resolution uses the orig/wear result. The STORED result for a FINAL
         // measurement also accepts oversize repair steps (PASS + which step).
         $dimensionalResult = $this->computeResult($data['actual_value'] ?? null, $limits);
         $storedResult      = $dimensionalResult;
         $stepNo            = null;
-        if (($data['stage'] ?? null) === 'final' && $storedResult === 'FAIL' && $data['actual_value'] !== null) {
+        if (!$isNewPart && ($data['stage'] ?? null) === 'final' && $storedResult === 'FAIL' && $data['actual_value'] !== null) {
             $v = (float) $data['actual_value'];
             foreach ($parameter->repairSteps as $s) {
                 if ($s->dim_min !== null && $s->dim_max !== null
@@ -319,7 +340,8 @@ class WoMeasurementController extends Controller
         // exceeds the orig tolerance — the governing limits are:
         //   - repair_dim_min/max (max allowed TOTAL gap after repair), when set
         //   - max_repair_depth per endpoint (spotface depth)
-        if (($data['stage'] ?? null) === 'final'
+        if (!$isNewPart
+            && ($data['stage'] ?? null) === 'final'
             && $parameter->repair_surface_side !== null
             && empty($data['codes_id'])) {
             $overA = ($data['repair_depth_a'] ?? null) !== null
@@ -355,7 +377,8 @@ class WoMeasurementController extends Controller
 
         // Auto-select repair rule — use dimensional result so inspection
         // findings on passing dimensions don't match dimensional-FAIL rules.
-        $data['manual_parameter_repair_rule_id'] = $this->resolveRepairRule(
+        // A failed NEW part is not "repaired" — it's rejected/reordered manually.
+        $data['manual_parameter_repair_rule_id'] = $isNewPart ? null : $this->resolveRepairRule(
             $parameter,
             $dimensionalResult,
             $data['codes_id'] ?? null,
@@ -1142,6 +1165,12 @@ class WoMeasurementController extends Controller
             return response()->json(['error' => 'No repair TDR found for this part'], 404);
         }
 
+        // Gate decision consumes the current measurements — re-arm the Update
+        // button only when newer measurements appear.
+        $gateSyncParamIds = ManualParameter::where('inspection_component_id', (int) $data['inspection_component_id'])->pluck('id');
+        $tdr->update(['last_synced_measurement_id' => WoMeasurement::where('workorder_id', $workorder->id)
+            ->whereIn('manual_parameter_id', $gateSyncParamIds)->max('id')]);
+
         if ($data['outcome'] === 'finish') {
             return response()->json(['ok' => true, 'outcome' => 'finish']);
         }
@@ -1349,6 +1378,13 @@ class WoMeasurementController extends Controller
             TdrProcess::where('tdrs_id', $tdr->id)->delete();
             $baseSort = 0;
         }
+
+        // Mark the sync point: the Update button stays inactive until newer
+        // measurements of this part appear.
+        $syncId = WoMeasurement::where('workorder_id', $workorder->id)
+            ->whereIn('manual_parameter_id', $paramIds)
+            ->max('id');
+        $tdr->update(['last_synced_measurement_id' => $syncId]);
 
         if (empty($ruleIds)) {
             return response()->json(['ok' => true, 'message' => 'No repair rules matched — processes cleared']);

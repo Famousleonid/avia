@@ -595,15 +595,30 @@
                     @endforeach
                 </select>
             </div>
+            <a href="{{ route('workorders.fc-document', $current_wo->id) }}" target="_blank"
+               class="btn btn-outline-info btn-sm {{ count($processGroups ?? []) > 0 ? 'ms-auto me-2' : 'ms-auto' }}"
+               title="{{ __('F&C Document — filled manual pages with this WO measurements') }}">
+                <i class="bi bi-file-earmark-richtext"></i> {{ __('F&C Doc') }}
+            </a>
             @if(count($processGroups ?? []) > 0)
                 <button type="button"
-                        class="btn btn-outline-primary btn-sm ms-auto"
+                        class="btn btn-outline-primary btn-sm"
                         data-bs-toggle="modal"
                         data-bs-target="#tdrGroupProcessModal">
                     <i class="fas fa-print"></i> {{ __('Group Process') }}
                 </button>
             @endif
         </div>
+        @php
+            // Inspect button: map TDR component → inspection component (Dimensions part)
+            $tdrInspectCompIds = collect($tdrs)
+                ->filter(fn($t) => $t->use_tdr && $t->use_process_forms)
+                ->pluck('component_id')->filter()->unique();
+            $tdrInspectIcByComp = $tdrInspectCompIds->isNotEmpty()
+                ? \App\Models\ManualInspectionComponentVariant::whereIn('component_id', $tdrInspectCompIds)
+                    ->pluck('inspection_component_id', 'component_id')
+                : collect();
+        @endphp
         <div class="table-wrapper p-1 tdr-show-right-table-wrapper">
             <table id="tdr_process_Table" class="table table-sm table-hover align-middle dir-table small shadow-lg">
                 <colgroup>
@@ -672,6 +687,14 @@
                                              alt=""
                                              class="tdr-process-icon">
                                     </button>
+                                    @php $tdrInspectIcId = $tdrInspectIcByComp[$tdr->component_id] ?? null; @endphp
+                                    @if($tdrInspectIcId)
+                                        <button type="button" class="btn btn-outline-info btn-sm me-2 tdr-inspect-part"
+                                                title="{{ __('Inspect — measure this part') }}"
+                                                data-ic-id="{{ $tdrInspectIcId }}">
+                                            <i class="bi bi-rulers"></i>
+                                        </button>
+                                    @endif
                                     <button type="button" class="btn btn-outline-primary btn-sm me-2" title="{{ __('Edit') }}"
                                             data-bs-toggle="modal" data-bs-target="#editTdrModal"
                                             data-tdr-id="{{ $tdr->id }}">
@@ -812,3 +835,18 @@
 </div>
 
 @include('components.delete')
+
+<script>
+// Inspect (📏) on a TDR row → temporary Inspect tab (measurements pane, single part)
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.tdr-inspect-part');
+    if (!btn) return;
+    const icId   = parseInt(btn.dataset.icId);
+    const li     = document.getElementById('tab-ms-inspect-li');
+    const tabBtn = document.getElementById('tab-ms-inspect');
+    if (!icId || !li || !tabBtn) return;
+    if (window.msInspectPart) window.msInspectPart(icId);
+    li.classList.remove('d-none');
+    bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+});
+</script>
