@@ -344,6 +344,10 @@
     .dim-callout-label.active { border-color: #dc3545; color: #dc3545; background: #fff7f7; }
     #dim-figure-canvas-wrap.add-callout-mode { cursor: crosshair; }
     #dim-figure-canvas-wrap.line-label-mode  { cursor: crosshair; }
+    @keyframes dimPointPing {
+        0%   { transform: scale(1);   opacity: 1; box-shadow: 0 0 0 0 rgba(255,193,7,.6); }
+        100% { transform: scale(3.5); opacity: 0; box-shadow: 0 0 0 12px rgba(255,193,7,0); }
+    }
     #dim-figure-canvas-wrap.add-text-mode    { cursor: crosshair; }
     #dim-figure-canvas-wrap.pan-ready { cursor: grab; }
     #dim-figure-canvas-wrap.panning  { cursor: grabbing; }
@@ -426,6 +430,9 @@
                 <button class="btn btn-outline-secondary btn-sm dim-mode-btn" id="dimAddTextModeBtn" title="Add part label: 1st click = dot on part, 2nd click = label position">
                     <i class="bi bi-tag"></i> Add Label
                 </button>
+                <select class="form-select form-select-sm" id="dimPointFinder" style="width:auto;font-size:11px" title="Find a point on the figure">
+                    <option value="">Find point…</option>
+                </select>
                 <span class="text-secondary ms-1" style="font-size:11px;user-select:none;min-width:38px;text-align:right" id="dimZoomLabel">100%</span>
                 <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="dimZoomResetBtn" title="Reset zoom (100%)" style="font-size:12px">↺</button>
                 <button class="btn btn-outline-warning btn-sm" id="dimEditFigureBtn" title="Edit figure">
@@ -1949,7 +1956,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     setTimeout(function () { isNavigating = false; }, 500);
                 });
             };
-            figureImg.src = fig.image_path;
+            // cache-buster: the figure scan can be replaced under the same url
+            figureImg.src = fig.image_path + (fig._imgRev ? (fig.image_path.includes('?') ? '&' : '?') + 'v=' + fig._imgRev : '');
             figureImg.alt = fig.title;
         }, 500);
     }
@@ -2016,6 +2024,42 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ---- Render points overlay ----
+    // ---- Find point: dropdown of the figure's points → select + pulse marker ----
+    function refreshPointFinder(points) {
+        const sel = document.getElementById('dimPointFinder');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Find point…</option>';
+        points.forEach(function (pt) {
+            const opt = document.createElement('option');
+            opt.value = pt.id;
+            const ic  = pt.point_type === 'text' ? inspComponents.find(c => c.id === pt.child_ic_id) : null;
+            opt.textContent = (pt.code || (ic ? ic.label : '#' + pt.id))
+                + (pt.description ? ' — ' + pt.description : '');
+            sel.appendChild(opt);
+        });
+    }
+
+    function flashPoint(pt) {
+        // center of the marker regardless of its type
+        let x = parseFloat(pt.x_pct), y = parseFloat(pt.y_pct);
+        if (pt.x2_pct != null) { x = (x + parseFloat(pt.x2_pct)) / 2; y = (y + parseFloat(pt.y2_pct)) / 2; }
+        else if (pt.point_type === 'navigation' && pt.width_pct) { x += parseFloat(pt.width_pct) / 2; y += parseFloat(pt.height_pct) / 2; }
+        const ring = document.createElement('div');
+        ring.style.cssText = 'position:absolute;left:' + x + '%;top:' + y + '%;width:14px;height:14px;'
+            + 'margin:-7px 0 0 -7px;border:3px solid #ffc107;border-radius:50%;pointer-events:none;z-index:50;'
+            + 'animation:dimPointPing 0.8s ease-out 4';
+        pointsOverlay.appendChild(ring);
+        setTimeout(function () { ring.remove(); }, 3300);
+    }
+
+    document.getElementById('dimPointFinder')?.addEventListener('change', function () {
+        const pt = (activeFigure?.points || []).find(p => p.id == this.value);
+        this.value = '';
+        if (!pt) return;
+        if (pt.point_type !== 'text') selectPoint(pt); else renderPoints(activeFigure.points || []);
+        flashPoint(pt);
+    });
+
     function renderPoints(points) {
         const ns = 'http://www.w3.org/2000/svg';
         pointsOverlay.innerHTML = '';
@@ -2028,6 +2072,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<path d="M0,0 L0,5 L6,2.5 z" fill="context-stroke"/>' +
             '</marker>';
         linesSvg.appendChild(defsEl);
+        refreshPointFinder(points || []);
         (points || []).forEach(function (pt) {
             if (pt.point_type === 'text') {
                 renderTextLabel(pt);
@@ -2203,6 +2248,48 @@ document.addEventListener('DOMContentLoaded', function () {
             openEditPointModal(pt);
         });
         addDragBehavior(g, pt);
+
+        // Selected line: endpoint handles — drag to change the arrow length/angle
+        if (isActive) {
+            [['x_pct', 'y_pct', 'x1', 'y1'], ['x2_pct', 'y2_pct', 'x2', 'y2']].forEach(function (m) {
+                const kx = m[0], ky = m[1], ax = m[2], ay = m[3];
+                const h = document.createElementNS(ns, 'circle');
+                h.setAttribute('cx', pt[kx] + '%'); h.setAttribute('cy', pt[ky] + '%');
+                h.setAttribute('r', '6');
+                h.setAttribute('fill', '#fff'); h.setAttribute('stroke', '#0d6efd'); h.setAttribute('stroke-width', '2');
+                h.style.cursor = 'move'; h.style.pointerEvents = 'all';
+                h.addEventListener('mousedown', function (e) {
+                    if (e.button !== 0) return;
+                    e.stopPropagation(); e.preventDefault();
+                    let movedEp = false;
+                    function onMove(ev) {
+                        movedEp = true;
+                        const r  = figureImg.getBoundingClientRect();
+                        const nx = Math.min(100, Math.max(0, (ev.clientX - r.left) / r.width  * 100)).toFixed(2);
+                        const ny = Math.min(100, Math.max(0, (ev.clientY - r.top)  / r.height * 100)).toFixed(2);
+                        pt[kx] = nx; pt[ky] = ny;
+                        h.setAttribute('cx', nx + '%');   h.setAttribute('cy', ny + '%');
+                        line.setAttribute(ax, nx + '%');  line.setAttribute(ay, ny + '%');
+                        hit.setAttribute(ax, nx + '%');   hit.setAttribute(ay, ny + '%');
+                        document.body.style.userSelect = 'none';
+                    }
+                    function onUp() {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        document.body.style.userSelect = '';
+                        if (movedEp) {
+                            justDragged = true; setTimeout(function () { justDragged = false; }, 80);
+                            savePointPosition(pt);
+                            renderPoints(activeFigure.points || []); // refresh label/leader positions
+                        }
+                    }
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                });
+                g.appendChild(h);
+            });
+        }
+
         linesSvg.appendChild(g);
 
         if (hasExtLabel) {
@@ -4043,6 +4130,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 saved = await apiFetch('/dimension-figures/' + id, { method: 'PATCH', body: JSON.stringify(body) });
                 const idx = figures.findIndex(f => f.id == id);
                 if (idx !== -1) { figures[idx] = Object.assign(figures[idx], saved); }
+                // image may be replaced under the SAME url — bust the browser cache
+                figures[idx]._imgRev = Date.now();
                 if (activeFigure && activeFigure.id == id) activeFigure = figures[idx];
             } else {
                 saved = await apiFetch('/manuals/' + MANUAL_ID + '/dimension-figures', { method: 'POST', body: JSON.stringify(body) });
@@ -4052,7 +4141,7 @@ document.addEventListener('DOMContentLoaded', function () {
             figureModal.hide();
             renderFiguresList();
             if (activeFigure && activeFigure.id == saved.id) {
-                viewerTitle.textContent = activeFigure.title;
+                selectFigure(activeFigure); // re-render immediately (title, image, points)
             }
         } catch (e) {
             errEl.textContent = e.message;

@@ -57,7 +57,6 @@ try {
 
 <div class="action-bar">
     <button class="btn-print" onclick="window.print()">&#128438; Print</button>
-    <button class="btn-close" onclick="window.close()">Close</button>
 </div>
 <div class="doc-title">Required Bushings</div>
 <div class="doc-meta">

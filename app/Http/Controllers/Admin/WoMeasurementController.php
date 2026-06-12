@@ -73,6 +73,8 @@ class WoMeasurementController extends Controller
                     'y_pct'       => $pt->y_pct,
                     'x2_pct'      => $pt->x2_pct,
                     'y2_pct'      => $pt->y2_pct,
+                    'width_pct'   => $pt->width_pct,
+                    'height_pct'  => $pt->height_pct,
                     'label_x_pct' => $pt->label_x_pct,
                     'label_y_pct' => $pt->label_y_pct,
                 ])->values(),
@@ -643,6 +645,120 @@ class WoMeasurementController extends Controller
         }
 
         return view('admin.measurements._required-bushings', compact('rows', 'workorder'));
+    }
+
+    /**
+     * Final Dimensional Report — bushing fits: per position the FINAL bore
+     * size, the FINAL bushing OD, the resulting actual fit and the allowed
+     * fit (step pair or derived from the orig limits). QA/package document.
+     */
+    public function finalFitReport(Workorder $workorder)
+    {
+        $manual = $workorder->unit->manuals;
+
+        $bushIcs = ManualInspectionComponent::where('manual_id', $manual->id)
+            ->with('variants.component')
+            ->get()
+            ->filter(fn($ic) => $ic->variants->contains(fn($v) => $v->component?->is_bush));
+
+        $params = ManualParameter::where('manual_id', $manual->id)
+            ->with(['points:id,code', 'repairSteps'])
+            ->get();
+
+        $measByParam = WoMeasurement::where('workorder_id', $workorder->id)
+            ->get()
+            ->groupBy('manual_parameter_id');
+
+        $lastFinal = fn($pid) => ($measByParam[$pid] ?? collect())
+            ->where('stage', 'final')->sortBy('id')->last();
+
+        $rows = [];
+        foreach ($bushIcs as $ic) {
+            $pos = $ic->variants->first()?->component?->ipl_num ?? $ic->label;
+
+            $odParams = $params->where('inspection_component_id', $ic->id)
+                ->filter(fn($p) =>
+                    ($p->orig_dim_min !== null || $p->repairSteps->isNotEmpty())
+                    && preg_match('/\bOD\b/i', (string) $p->description) === 1);
+
+            foreach ($odParams as $od) {
+                $ptIds  = $od->points->pluck('id');
+                $bore   = $params->first(fn($p) =>
+                    $p->inspection_component_id !== $ic->id &&
+                    $p->points->pluck('id')->intersect($ptIds)->isNotEmpty() &&
+                    ($p->orig_dim_min !== null || $p->orig_dim_max !== null));
+                if (!$bore) continue;
+
+                $boreIcLabel = ManualInspectionComponent::find($bore->inspection_component_id)?->label;
+
+                $boreFin = $lastFinal($bore->id);
+                $odFin   = $lastFinal($od->id);
+
+                $boreVal = $boreFin?->actual_value !== null ? (float) $boreFin->actual_value : null;
+                $odVal   = $odFin?->actual_value   !== null ? (float) $odFin->actual_value   : null;
+
+                // Allowed fit: matching oversize step pair when the bore landed in a
+                // step, otherwise derived from the pair's orig limits.
+                $allowMin = $allowMax = null;
+                $allowSrc = null;
+                if ($boreFin?->repair_step_no) {
+                    $odStep   = $od->repairSteps->first(fn($s) => $s->step_no === $boreFin->repair_step_no);
+                    $boreStep = $bore->repairSteps->first(fn($s) => $s->step_no === $boreFin->repair_step_no);
+                    if ($odStep && $boreStep && $odStep->dim_min !== null && $boreStep->dim_min !== null) {
+                        $allowMin = round((float) $odStep->dim_min - (float) $boreStep->dim_max, 4);
+                        $allowMax = round((float) $odStep->dim_max - (float) $boreStep->dim_min, 4);
+                        $allowSrc = $boreFin->repair_step_no;
+                    }
+                }
+                if ($allowMin === null
+                    && $od->orig_dim_min !== null && $od->orig_dim_max !== null
+                    && $bore->orig_dim_min !== null && $bore->orig_dim_max !== null) {
+                    $allowMin = round((float) $od->orig_dim_min - (float) $bore->orig_dim_max, 4);
+                    $allowMax = round((float) $od->orig_dim_max - (float) $bore->orig_dim_min, 4);
+                    $allowSrc = 'orig';
+                }
+
+                $fit = ($boreVal !== null && $odVal !== null) ? round($odVal - $boreVal, 4) : null;
+
+                $result = null;
+                if ($fit !== null && $allowMin !== null && $allowMax !== null) {
+                    $result = ($fit >= $allowMin && $fit <= $allowMax) ? 'PASS' : 'FAIL';
+                }
+
+                $rows[] = [
+                    'pos'       => $pos,
+                    'bore_part' => trim(($boreIcLabel ? $boreIcLabel . ' ' : '') . $bore->description),
+                    'bore_val'  => $boreVal,
+                    'bore_step' => $boreFin?->repair_step_no,
+                    'bushing'   => $ic->label,
+                    'od_val'    => $odVal,
+                    'fit'       => $fit,
+                    'allow_min' => $allowMin,
+                    'allow_max' => $allowMax,
+                    'allow_src' => $allowSrc,
+                    'result'    => $result,
+                    'qty'       => max(1, (int) ($od->qty ?? 1)),
+                ];
+            }
+        }
+
+        // Identical positions (same bushing, same final sizes and fit) collapse
+        // into one row with the quantities summed.
+        $merged = [];
+        foreach ($rows as $r) {
+            $key = implode('|', [
+                $r['pos'], $r['bore_val'], $r['bore_step'], $r['od_val'],
+                $r['fit'], $r['allow_min'], $r['allow_max'], $r['result'],
+            ]);
+            if (isset($merged[$key])) {
+                $merged[$key]['qty'] += $r['qty'];
+            } else {
+                $merged[$key] = $r;
+            }
+        }
+        $rows = array_values($merged);
+
+        return view('admin.measurements._final-fit-report', compact('rows', 'workorder'));
     }
 
     public function componentByIpl(Request $request, Workorder $workorder)

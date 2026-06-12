@@ -430,6 +430,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     // --- WO Measurements ---
     Route::get('/workorders/{workorder}/measurements/fc-table', [WoMeasurementController::class, 'fcTable'])->name('workorders.measurements.fc-table');
     Route::get('/workorders/{workorder}/measurements/required-bushings', [WoMeasurementController::class, 'requiredBushings'])->name('workorders.measurements.required-bushings');
+    Route::get('/workorders/{workorder}/measurements/final-fit-report', [WoMeasurementController::class, 'finalFitReport'])->name('workorders.measurements.final-fit-report');
     Route::get('/workorders/{workorder}/measurements/data', [WoMeasurementController::class, 'data'])->name('workorders.measurements.data');
     Route::post('/workorders/{workorder}/measurements', [WoMeasurementController::class, 'store'])->name('workorders.measurements.store');
     Route::patch('/measurements/{woMeasurement}', [WoMeasurementController::class, 'update'])->name('measurements.update');
