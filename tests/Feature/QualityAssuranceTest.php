@@ -325,8 +325,9 @@ class QualityAssuranceTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('data-certificate-item-description', false);
-        $response->assertSee('value="PIN"', false);
-        $response->assertDontSee('value="Pin, Torque Arm"', false);
+        $response->assertSee('contenteditable="true"', false);
+        $response->assertSee('>PIN</div>', false);
+        $response->assertDontSee('>Pin, Torque Arm</div>', false);
     }
 
     public function test_certificate_can_use_selected_log_card_detail_item(): void
@@ -372,7 +373,7 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('data-certificate-detail-select', false);
         $response->assertSee('Log Card Detail | LOG-PN | LOG-SN');
         $response->assertSee('<div class="arc-tracking-no" data-certificate-tracking-number>W107736-1</div>', false);
-        $response->assertSee('value="Log Card Detail"', false);
+        $response->assertSee('>Log Card Detail</div>', false);
         $response->assertSee('<td class="arc-item-multiline" data-certificate-item-part>LOG-PN</td>', false);
         $response->assertSee('<td class="arc-item-multiline" data-certificate-item-serial>LOG-SN</td>', false);
         $response->assertSee('Main Detail');
@@ -404,8 +405,8 @@ class QualityAssuranceTest extends TestCase
         $response->assertOk();
         $response->assertSee('data-certificate-tracking-c-toggle', false);
         $response->assertSee('<div class="arc-tracking-no" data-certificate-tracking-number>W107736-C</div>', false);
-        $response->assertSee('value="Main Detail"', false);
-        $response->assertDontSee('value="Old Workorder Description"', false);
+        $response->assertSee('>Main Detail</div>', false);
+        $response->assertDontSee('>Old Workorder Description</div>', false);
     }
 
     public function test_certificate_status_work_updates_workorder_instruction_and_prints_past_tense(): void
