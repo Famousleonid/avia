@@ -234,6 +234,17 @@
                                 <label for="ec_access" class="form-check-label">EC</label>
                             </div>
                         </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="can_sign_certificates"
+                                       id="can_sign_certificates"
+                                       class="form-check-input"
+                                       value="1"
+                                    {{ old('can_sign_certificates', $user->canSignCertificates()) ? 'checked' : '' }}>
+                                <label for="can_sign_certificates" class="form-check-label">Can sign certificates</label>
+                            </div>
+                        </div>
                     </div>
 
 

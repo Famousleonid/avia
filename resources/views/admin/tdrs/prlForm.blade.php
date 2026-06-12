@@ -381,15 +381,46 @@
             margin: 0 5px; /* Отступы вокруг изображения */
         }
 
-        /* Единая сетка PRL-таблицы по ширине колонок (в процентах) */
-        .prl-col-fig   { flex: 0 0 5%;  max-width: 5%; }
-        .prl-col-item  { flex: 0 0 7%;  max-width: 7%; }
-        .prl-col-desc  { flex: 0 0 25%; max-width: 25%; }
-        .prl-col-part  { flex: 0 0 35%; max-width: 35%; }
-        .prl-col-qty   { flex: 0 0 6%; max-width: 6%; }
-        .prl-col-code  { flex: 0 0 6%; max-width: 6%; }
-        .prl-col-po    { flex: 0 0 8%; max-width: 8%; }
-        .prl-col-notes { flex: 0 0 8%; max-width: 8%; }
+        /* Единая сетка PRL-таблицы: узкие поля по содержимому, остаток в PO/Notes */
+        :root {
+            --prl-fig-col-width: 52px;
+            --prl-item-col-width: 60px;
+            --prl-qty-col-width: 40px;
+            --prl-code-col-width: 50px;
+            --prl-main-col-width: 25%;
+            --prl-side-col-width: calc(
+                (
+                    100%
+                    - var(--prl-fig-col-width)
+                    - var(--prl-item-col-width)
+                    - var(--prl-qty-col-width)
+                    - var(--prl-code-col-width)
+                    - var(--prl-main-col-width)
+                    - var(--prl-main-col-width)
+                ) / 2
+            );
+        }
+
+        .prl-col-fig   { flex: 0 0 var(--prl-fig-col-width); max-width: var(--prl-fig-col-width); }
+        .prl-col-item  { flex: 0 0 var(--prl-item-col-width); max-width: var(--prl-item-col-width); }
+        .prl-col-desc  { flex: 0 0 var(--prl-main-col-width); max-width: var(--prl-main-col-width); }
+        .prl-col-part  { flex: 0 0 var(--prl-main-col-width); max-width: var(--prl-main-col-width); }
+        .prl-col-qty   { flex: 0 0 var(--prl-qty-col-width); max-width: var(--prl-qty-col-width); }
+        .prl-col-code  { flex: 0 0 var(--prl-code-col-width); max-width: var(--prl-code-col-width); }
+        .prl-col-po    { flex: 0 0 var(--prl-side-col-width); max-width: var(--prl-side-col-width); }
+        .prl-col-notes { flex: 0 0 var(--prl-side-col-width); max-width: var(--prl-side-col-width); }
+
+        .prl-col-fig,
+        .prl-col-item,
+        .prl-col-desc,
+        .prl-col-part,
+        .prl-col-qty,
+        .prl-col-code,
+        .prl-col-po,
+        .prl-col-notes {
+            box-sizing: border-box;
+            min-width: 0;
+        }
 
         /* Минимальная высота для строк PRL (в т.ч. пустых) — настраивается в Print Settings */
         .data-row-prl {

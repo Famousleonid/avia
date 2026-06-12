@@ -201,9 +201,11 @@
                                     <button class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1"
                                             data-bs-toggle="modal"
                                             data-bs-target="#trainingModal{{ $trainingList['first_training']->manuals_id }}"
-                                            data-tippy-content="{{ __('Update') }}"
-                                            data-tippy-placement="top">
-                                        <i class="bi bi-arrow-repeat"></i>
+                                            data-tippy-content="{{ __('add Date & Print') }}"
+                                            data-tippy-placement="top"
+                                            title="{{ __('add Date & Print') }}"
+                                            aria-label="{{ __('add Date & Print') }}">
+                                        <i class="bi bi-plus-lg"></i>
                                     </button>
 
                                     <button class="btn btn-warning btn-sm d-inline-flex align-items-center gap-1"

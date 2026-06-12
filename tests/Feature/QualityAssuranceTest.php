@@ -151,7 +151,7 @@ class QualityAssuranceTest extends TestCase
             'Log Card',
             'SB log',
             'SP Form',
-            'Certificate',
+            'Form ONE',
             'Shipment',
             'Certificate of destruction',
         ], $forms->pluck('title')->all());
@@ -190,6 +190,7 @@ class QualityAssuranceTest extends TestCase
     {
         $manager = $this->createUserWithRole('Manager', [
             'qa_access' => true,
+            'can_sign_certificates' => true,
         ]);
         $manual = $this->createManual([
             'number' => '32-11-08',
@@ -309,6 +310,7 @@ class QualityAssuranceTest extends TestCase
     {
         $manager = $this->createUserWithRole('Manager', [
             'qa_access' => true,
+            'can_sign_certificates' => true,
         ]);
         $unit = $this->createUnit([
             'name' => 'PIN',
@@ -414,8 +416,11 @@ class QualityAssuranceTest extends TestCase
         $manager = $this->createUserWithRole('Manager', [
             'qa_access' => true,
         ]);
+        $overhaulInstruction = $this->createOverhaulInstruction();
         $repairInstruction = $this->createInstruction(['name' => 'Repair']);
         $testInspectInstruction = $this->createInstruction(['name' => 'Test & inspect']);
+        $this->createInstruction(['name' => 'Draft']);
+        $this->createInstruction(['name' => 'Custom']);
         $manual = $this->createManual(['number' => '32-21-06']);
         $unit = $this->createUnit(['manual_id' => $manual->id]);
         $workorder = $this->createWorkorder([
@@ -438,15 +443,24 @@ class QualityAssuranceTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('data-certificate-status-select', false);
-        $response->assertSee('value="' . $repairInstruction->id . '"', false);
+        $response->assertSeeInOrder([
+            'value="' . $testInspectInstruction->id . '"',
+            'Tested/Inspected',
+            'value="' . $repairInstruction->id . '"',
+            'Repaired',
+            'value="' . $overhaulInstruction->id . '"',
+            'Overhauled',
+        ], false);
         $response->assertSee('data-status-display="Repaired"', false);
-        $response->assertSee('value="' . $testInspectInstruction->id . '"', false);
-        $response->assertSee('data-status-display="Tested &amp; inspected"', false);
-        $response->assertSee('<div class="arc-status-work-print-value" data-certificate-status-output>Tested &amp; inspected</div>', false);
-        $response->assertSee('Tested &amp; inspected in accordance with CMM # 32-21-06', false);
+        $response->assertSee('data-status-display="Tested/Inspected"', false);
+        $response->assertSee('data-status-display="Overhauled"', false);
+        $response->assertDontSee('Draft');
+        $response->assertDontSee('Custom');
+        $response->assertSee('<div class="arc-status-work-print-value" data-certificate-status-output>Tested/Inspected</div>', false);
+        $response->assertSee('Tested/Inspected in accordance with CMM # 32-21-06', false);
     }
 
-    public function test_certificate_manager_name_switch_is_limited_to_manager_role(): void
+    public function test_certificate_manager_name_switch_is_limited_to_certificate_signers(): void
     {
         $manager = $this->createUserWithRole('Manager', [
             'name' => 'Current Manager',
@@ -454,6 +468,11 @@ class QualityAssuranceTest extends TestCase
         ]);
         $selectedManager = $this->createUserWithRole('Manager', [
             'name' => 'Selected Certificate Manager',
+            'qa_access' => true,
+            'can_sign_certificates' => true,
+        ]);
+        $ordinaryManager = $this->createUserWithRole('Manager', [
+            'name' => 'Ordinary Manager',
             'qa_access' => true,
         ]);
         $admin = $this->createUserWithRole('Admin', [
@@ -479,6 +498,7 @@ class QualityAssuranceTest extends TestCase
 
         $managerResponse->assertOk();
         $managerResponse->assertSee('Selected Certificate Manager');
+        $managerResponse->assertDontSee('Ordinary Manager');
         $managerResponse->assertSee('03/Nov/2025');
         $managerResponse->assertSee('data-certificate-manager-select', false);
         $managerResponse->assertSee('data-certificate-date-input', false);
@@ -507,6 +527,13 @@ class QualityAssuranceTest extends TestCase
         $adminResponse->assertOk();
         $adminResponse->assertSee('data-certificate-manager-select', false);
         $adminResponse->assertSee('Selected Certificate Manager');
+
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_manager_id',
+                'value' => $ordinaryManager->id,
+            ])
+            ->assertNotFound();
     }
 
     public function test_certificate_state_is_saved_on_workorder_certificate_data(): void
@@ -550,6 +577,29 @@ class QualityAssuranceTest extends TestCase
         $certificateData = $workorder->fresh()->certificate_data;
         $this->assertTrue($certificateData['item_settings']['log:0']['include_royco_service']);
         $this->assertArrayNotHasKey('include_royco_service', $certificateData);
+
+        $signer = $this->createUserWithRole('Manager', [
+            'can_sign_certificates' => true,
+        ]);
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_manager_id',
+                'value' => $signer->id,
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_date',
+                'value' => '2026-05-12',
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+
+        $certificateData = $workorder->fresh()->certificate_data;
+        $this->assertSame((string) $signer->id, $certificateData['item_settings']['main:c']['certificate_manager_id']);
+        $this->assertSame('2026-05-12', $certificateData['item_settings']['main:c']['certificate_date']);
+        $this->assertArrayNotHasKey('certificate_manager_id', $certificateData);
     }
 
     public function test_serial_search_returns_workorder_links_from_tdr_and_log_card(): void

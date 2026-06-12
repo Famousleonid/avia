@@ -43,6 +43,7 @@ class UsersTest extends TestCase
             'team_id' => $team->id,
             'is_admin' => '1',
             'can_manage_locked_manual_processes' => '1',
+            'can_sign_certificates' => '1',
             'email_verified_at' => '1',
         ]);
 
@@ -56,6 +57,7 @@ class UsersTest extends TestCase
             'team_id' => $team->id,
             'is_admin' => 1,
             'can_manage_locked_manual_processes' => 1,
+            'can_sign_certificates' => 1,
         ]);
 
         $this->assertNotNull(User::query()->where('email', 'created.user@example.test')->value('email_verified_at'));

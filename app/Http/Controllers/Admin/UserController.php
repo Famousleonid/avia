@@ -60,6 +60,7 @@ class UserController extends Controller
         $user->can_manage_locked_manual_parts = $request->boolean('can_manage_locked_manual_parts');
         $user->qa_access = $request->boolean('qa_access');
         $user->ec_access = $request->boolean('ec_access');
+        $user->can_sign_certificates = $request->boolean('can_sign_certificates');
         $user->email_verified_at = $request->has('email_verified_at') ? now() : null;
         $notificationPrefs = array_merge($user->notification_prefs ?? [], [
             'manuals_full_access' => $request->boolean('manuals_full_access'),
@@ -135,6 +136,7 @@ class UserController extends Controller
         $validated['can_manage_locked_manual_parts'] = $request->boolean('can_manage_locked_manual_parts');
         $validated['qa_access'] = $request->boolean('qa_access');
         $validated['ec_access'] = $request->boolean('ec_access');
+        $validated['can_sign_certificates'] = $request->boolean('can_sign_certificates');
         $validated['email_verified_at'] = $request->has('email_verified_at') ? now() : null;
         $notificationPrefs = array_merge($user->notification_prefs ?? [], [
             'manuals_full_access' => $request->boolean('manuals_full_access'),

@@ -20,8 +20,8 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
 {
     use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers, LogsActivity, softDeletes;
 
-    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'can_manage_locked_manual_processes', 'can_manage_locked_manual_parts', 'qa_access', 'ec_access', 'role_id', 'phone', 'stamp', 'team_id', 'birthday', 'notification_prefs'];
-    protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date', 'can_manage_locked_manual_processes' => 'boolean', 'can_manage_locked_manual_parts' => 'boolean', 'qa_access' => 'boolean', 'ec_access' => 'boolean'];
+    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'can_manage_locked_manual_processes', 'can_manage_locked_manual_parts', 'qa_access', 'ec_access', 'can_sign_certificates', 'role_id', 'phone', 'stamp', 'team_id', 'birthday', 'notification_prefs'];
+    protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date', 'can_manage_locked_manual_processes' => 'boolean', 'can_manage_locked_manual_parts' => 'boolean', 'qa_access' => 'boolean', 'ec_access' => 'boolean', 'can_sign_certificates' => 'boolean'];
     protected $hidden = ['password', 'remember_token'];
     protected static $logAttributes = ['name',  'phone', 'stamp'];
     protected $dates = ['deleted_at'];
@@ -43,6 +43,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
                 'can_manage_locked_manual_parts',
                 'qa_access',
                 'ec_access',
+                'can_sign_certificates',
                 'email',
                 'birthday',
             ])
@@ -106,6 +107,11 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     public function canAccessEcPage(): bool
     {
         return $this->isAdmin() || $this->hasEcAccess();
+    }
+
+    public function canSignCertificates(): bool
+    {
+        return (bool) $this->can_sign_certificates;
     }
 
     public function roleIs(string|array $roles): bool

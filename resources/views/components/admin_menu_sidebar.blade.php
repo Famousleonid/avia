@@ -163,6 +163,10 @@
             </li>
 
             <li class="nav-item press-spinner">
+                <a href="{{ route('library.units.index') }}" class="nav-link {{ request()->routeIs('library.units.*') ? 'active' : '' }}"><i class="bi bi-dot"></i><span>Units</span></a>
+            </li>
+
+            <li class="nav-item press-spinner">
                 <a href="{{route('roles.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Roles</span></a>
             </li>
             @endif

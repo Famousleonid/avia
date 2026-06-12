@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\DirectoryController;
 use App\Http\Controllers\Admin\ExtraProcessController;
 use App\Http\Controllers\Admin\GeneralTaskController;
 use App\Http\Controllers\Admin\LogCardController;
+use App\Http\Controllers\Admin\LibraryUnitController;
 use App\Http\Controllers\Admin\ManualProcessController;
 use App\Http\Controllers\Admin\ManualProcessLockController;
 use App\Http\Controllers\Admin\ManualPartLockController;
@@ -497,6 +498,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::resource('/customers',  CustomerController::class);
     Route::resource('/tasks',  TaskController::class);
     Route::resource('/general-tasks',  GeneralTaskController::class);
+    Route::resource('/library/units', LibraryUnitController::class)
+        ->names('library.units')
+        ->except(['create', 'edit', 'show']);
 
     Route::post('/units', [UnitController::class, 'store'])->name('units.store');
     Route::get('/units/{manualId}', [UnitController::class, 'show'])->name('units.show');

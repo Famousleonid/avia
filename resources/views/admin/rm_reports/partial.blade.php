@@ -236,7 +236,7 @@
                     <h5 class="modal-title">{{ __('ADD Repair OR Modification') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form id="addRmRecordForm">
+                <form id="addRmRecordForm" data-no-spinner>
                     @csrf
                     <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
                     <div class="modal-body">
@@ -286,7 +286,7 @@
                     <h5 class="modal-title">{{ __('Edit Repair OR Modification') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form id="editRmRecordForm">
+                <form id="editRmRecordForm" data-no-spinner>
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="workorder_id" value="{{ $current_wo->id }}">
@@ -401,6 +401,63 @@
         saveTimeout = setTimeout(performSave, DEBOUNCE_MS);
     }
 
+    function rmPartialConfirmDelete(message) {
+        if (typeof window.tdrShowConfirm === 'function') {
+            return window.tdrShowConfirm(message, '{{ __("Delete Confirmation") }}', '{{ __("Delete") }}');
+        }
+
+        return new Promise(function(resolve) {
+            var modal = document.getElementById('rmPartialDeleteConfirmModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.id = 'rmPartialDeleteConfirmModal';
+                modal.tabIndex = -1;
+                modal.innerHTML =
+                    '<div class="modal-dialog modal-dialog-centered">' +
+                        '<div class="modal-content bg-gradient">' +
+                            '<div class="modal-header">' +
+                                '<h5 class="modal-title">{{ __("Delete Confirmation") }}</h5>' +
+                                '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+                            '</div>' +
+                            '<div class="modal-body"></div>' +
+                            '<div class="modal-footer">' +
+                                '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __("Cancel") }}</button>' +
+                                '<button type="button" class="btn btn-danger" data-rm-confirm-delete>{{ __("Delete") }}</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>';
+                document.body.appendChild(modal);
+            }
+
+            modal.querySelector('.modal-body').textContent = message;
+            var confirmBtn = modal.querySelector('[data-rm-confirm-delete]');
+            var confirmed = false;
+            var instance = bootstrap.Modal.getOrCreateInstance(modal);
+
+            function cleanup() {
+                confirmBtn.removeEventListener('click', onConfirm);
+                modal.removeEventListener('hidden.bs.modal', onHidden);
+            }
+
+            function onConfirm() {
+                confirmed = true;
+                cleanup();
+                instance.hide();
+                resolve(true);
+            }
+
+            function onHidden() {
+                cleanup();
+                resolve(confirmed);
+            }
+
+            confirmBtn.addEventListener('click', onConfirm, { once: true });
+            modal.addEventListener('hidden.bs.modal', onHidden, { once: true });
+            instance.show();
+        });
+    }
+
     function performSave() {
         saveTimeout = null;
         var selectedRecords = [];
@@ -499,11 +556,11 @@
             method: 'POST',
             body: fd,
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            spinner: false
         })
         .then(function(r) { return r.json().catch(function() { return {}; }); })
         .then(function(res) {
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
             if (res.success && res.data) {
                 var d = res.data;
                 var tbody = document.getElementById('rmRecordsTableBody');
@@ -528,6 +585,11 @@
             }
         })
         .catch(function() {
+            if (typeof showNotification === 'function') {
+                showNotification('{{ __("Error creating record.") }}', 'error');
+            }
+        })
+        .finally(function() {
             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
         });
     });
@@ -546,11 +608,11 @@
             method: 'POST',
             body: fd,
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            spinner: false
         })
         .then(function(r) { return r.json().catch(function() { return {}; }); })
         .then(function(res) {
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
             if (res.success && res.data) {
                 var d = res.data;
                 var row = document.querySelector('tr[data-record-id="' + d.id + '"]');
@@ -570,6 +632,11 @@
             }
         })
         .catch(function() {
+            if (typeof showNotification === 'function') {
+                showNotification('{{ __("Error updating record.") }}', 'error');
+            }
+        })
+        .finally(function() {
             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
         });
     });
@@ -594,27 +661,35 @@
     };
 
     window.rmPartialDeleteRecord = function(recordId) {
-        if (!confirm('{{ __("Are you sure you want to delete this record?") }}')) return;
-        var fd = new FormData();
-        fd.append('_token', csrfToken);
-        fd.append('_method', 'DELETE');
-        fd.append('workorder_id', workorderId);
-        fetch(destroyUrl.replace(':id', recordId), {
-            method: 'POST',
-            body: fd,
-            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-            credentials: 'same-origin'
-        })
-        .then(function(r) { return r.json().catch(function() { return {}; }); })
-        .then(function(res) {
-            if (res.success) {
-                var row = document.querySelector('tr[data-record-id="' + recordId + '"]');
-                if (row) row.remove();
-                updatePreview();
-                triggerDebouncedSave();
-            } else if (res.message && typeof showNotification === 'function') {
-                showNotification(res.message, 'error');
-            }
+        rmPartialConfirmDelete('{{ __("Are you sure you want to delete this record?") }}').then(function(confirmed) {
+            if (!confirmed) return;
+            var fd = new FormData();
+            fd.append('_token', csrfToken);
+            fd.append('_method', 'DELETE');
+            fd.append('workorder_id', workorderId);
+            fetch(destroyUrl.replace(':id', recordId), {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                spinner: false
+            })
+            .then(function(r) { return r.json().catch(function() { return {}; }); })
+            .then(function(res) {
+                if (res.success) {
+                    var row = document.querySelector('tr[data-record-id="' + recordId + '"]');
+                    if (row) row.remove();
+                    updatePreview();
+                    triggerDebouncedSave();
+                } else if (res.message && typeof showNotification === 'function') {
+                    showNotification(res.message, 'error');
+                }
+            })
+            .catch(function() {
+                if (typeof showNotification === 'function') {
+                    showNotification('{{ __("Delete failed.") }}', 'error');
+                }
+            });
         });
     };
 

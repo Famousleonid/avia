@@ -437,9 +437,9 @@ class QualityAssuranceController extends Controller
         $user = $request->user();
         $managerOptions = User::query()
             ->with('role')
-            ->whereHas('role', fn ($query) => $query->where('name', 'Manager'))
+            ->where('can_sign_certificates', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'role_id']);
+            ->get(['id', 'name', 'role_id', 'can_sign_certificates']);
         $certificateData = is_array($workorder->certificate_data) ? $workorder->certificate_data : [];
         $certificateStringSetting = static function (string $key, string $default = '') use ($certificateData): string {
             if (! array_key_exists($key, $certificateData)) {
@@ -458,16 +458,41 @@ class QualityAssuranceController extends Controller
             return filter_var($certificateData[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default;
         };
         $certificateItemSettings = is_array($certificateData['item_settings'] ?? null) ? $certificateData['item_settings'] : [];
+        $savedCertificateItemSource = $certificateStringSetting('certificate_item_source', 'main');
+        $savedCertificateTrackingMode = $certificateStringSetting('certificate_tracking_mode');
+        $certificateStateKey = $savedCertificateItemSource === 'main' && strcasecmp($savedCertificateTrackingMode, 'c') === 0
+            ? 'main:c'
+            : $savedCertificateItemSource;
+        $selectedCertificateStateSettings = is_array($certificateItemSettings[$certificateStateKey] ?? null)
+            ? $certificateItemSettings[$certificateStateKey]
+            : [];
+        $certificateStateStringSetting = static function (string $key, string $default = '') use ($selectedCertificateStateSettings, $certificateData): string {
+            $value = $selectedCertificateStateSettings[$key] ?? $certificateData[$key] ?? null;
+
+            return is_scalar($value) ? trim((string) $value) : $default;
+        };
+        $certificateStateBoolSetting = static function (string $key, bool $default) use ($selectedCertificateStateSettings, $certificateData): bool {
+            $value = $selectedCertificateStateSettings[$key] ?? $certificateData[$key] ?? null;
+            if ($value === null) {
+                return $default;
+            }
+
+            return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default;
+        };
         $canEditCertificateManager = (bool) $user?->canAccessQualityAssurancePage();
         $requestedManagerId = (int) $request->query('certificate_manager_id');
-        $savedManagerId = (int) $certificateStringSetting('certificate_manager_id');
+        $savedManagerId = (int) $certificateStateStringSetting('certificate_manager_id');
         $selectedManager = $canEditCertificateManager
-            ? $managerOptions->firstWhere('id', $requestedManagerId ?: $savedManagerId)
+            ? (
+                $managerOptions->firstWhere('id', $requestedManagerId ?: $savedManagerId)
+                ?: $managerOptions->firstWhere('id', $user?->id)
+                ?: $managerOptions->first()
+            )
             : null;
         $defaultCertificateDate = $workorder->doneDate() ?? $workorder->approve_at ?? now();
         $defaultCertificateDateIso = Carbon::parse($defaultCertificateDate)->format('Y-m-d');
         $certificateDateIso = $defaultCertificateDateIso;
-        $savedCertificateDate = $certificateStringSetting('certificate_date');
+        $savedCertificateDate = $certificateStateStringSetting('certificate_date');
         if ($savedCertificateDate !== '') {
             try {
                 $certificateDateIso = parse_project_date($savedCertificateDate) ?: $defaultCertificateDateIso;
@@ -475,16 +500,16 @@ class QualityAssuranceController extends Controller
                 $certificateDateIso = $defaultCertificateDateIso;
             }
         }
-        $includeLandingGearLogCard = $certificateBoolSetting('include_landing_gear_log_card', true);
-        $includeRoycoService = $certificateBoolSetting('include_royco_service', false);
+        $includeLandingGearLogCard = $certificateStateBoolSetting('include_landing_gear_log_card', true);
+        $includeRoycoService = $certificateStateBoolSetting('include_royco_service', false);
+        $certificateInstructionNames = ['Test & inspect', 'Repair', 'Overhaul'];
         $certificateStatusOptions = Instruction::query()
-            ->where('name', '!=', 'Draft')
-            ->orderBy('name')
+            ->whereIn('name', $certificateInstructionNames)
             ->get(['id', 'name'])
+            ->sortBy(fn (Instruction $instruction): int => array_search($instruction->name, $certificateInstructionNames, true))
             ->values();
         $certificateManagerName = trim((string) (
             $selectedManager?->name
-            ?: ($canEditCertificateManager ? $user?->name : null)
             ?: $this->resolveCertificateManagerName($workorder, $user)
         ));
 
@@ -502,8 +527,8 @@ class QualityAssuranceController extends Controller
             'certificateItemSettings' => $certificateItemSettings,
             'certificateStatusOptions' => $certificateStatusOptions,
             'selectedCertificateInstructionId' => $workorder->instruction_id ? (int) $workorder->instruction_id : null,
-            'selectedCertificateItemSource' => $certificateStringSetting('certificate_item_source', 'main'),
-            'selectedCertificateTrackingMode' => $certificateStringSetting('certificate_tracking_mode'),
+            'selectedCertificateItemSource' => $savedCertificateItemSource,
+            'selectedCertificateTrackingMode' => $savedCertificateTrackingMode,
             'certificateDetailOpen' => $certificateBoolSetting('certificate_detail_open', false),
             'certificateLogComponents' => $certificateLogComponents,
             'certificateManagerName' => $certificateManagerName,
@@ -541,7 +566,7 @@ class QualityAssuranceController extends Controller
             $value = trim((string) $value);
             if ($value !== '') {
                 User::query()
-                    ->whereHas('role', fn ($query) => $query->where('name', 'Manager'))
+                    ->where('can_sign_certificates', true)
                     ->findOrFail((int) $value);
             }
         } elseif ($key === 'certificate_date') {
@@ -556,9 +581,9 @@ class QualityAssuranceController extends Controller
         }
 
         $certificateData = is_array($workorder->certificate_data) ? $workorder->certificate_data : [];
-        if (in_array($key, ['include_landing_gear_log_card', 'include_royco_service'], true)) {
+        if (in_array($key, ['certificate_manager_id', 'certificate_date', 'include_landing_gear_log_card', 'include_royco_service'], true)) {
             $itemSource = trim((string) ($data['item_source'] ?? 'main')) ?: 'main';
-            abort_unless($itemSource === 'main' || str_starts_with($itemSource, 'log:'), 422, 'Invalid certificate detail source.');
+            abort_unless($itemSource === 'main' || $itemSource === 'main:c' || str_starts_with($itemSource, 'log:'), 422, 'Invalid certificate detail source.');
 
             $itemSettings = is_array($certificateData['item_settings'] ?? null) ? $certificateData['item_settings'] : [];
             $itemSettings[$itemSource] = is_array($itemSettings[$itemSource] ?? null) ? $itemSettings[$itemSource] : [];
@@ -897,15 +922,15 @@ class QualityAssuranceController extends Controller
             return $approvedBy;
         }
 
-        if ($workorder->doneUser?->roleIs('Manager')) {
+        if ($workorder->doneUser?->canSignCertificates()) {
             return (string) $workorder->doneUser->name;
         }
 
-        if ($workorder->user?->roleIs('Manager')) {
+        if ($workorder->user?->canSignCertificates()) {
             return (string) $workorder->user->name;
         }
 
-        return (string) ($user?->name ?? '');
+        return $user?->canSignCertificates() ? (string) $user->name : '';
     }
 
     private function normalizeWorkorderSearch(string $query): string
@@ -1263,7 +1288,7 @@ class QualityAssuranceController extends Controller
             ],
             [
                 'key' => 'certificate',
-                'title' => 'Certificate',
+                'title' => 'Form ONE',
                 'url' => route('quality.forms.certificate', ['workorder' => $workorder->id]),
             ],
             [
