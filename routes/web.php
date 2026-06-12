@@ -459,7 +459,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::post('/trainings/updateToToday', [TrainingController::class, 'updateToToday'])->name('trainings.updateToToday');
         Route::post('/trainings/delete-all', [TrainingController::class, 'deleteAll'])->name('trainings.deleteAll');
         Route::post('/trainings/exists', [TrainingController::class, 'exists'])->name('trainings.exists');
-        Route::resource('/trainings', TrainingController::class);
+        Route::resource('/trainings', TrainingController::class)->except(['show', 'edit']);
 
 
     // Components CSV routes - must be before resource route

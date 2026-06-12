@@ -14,6 +14,26 @@ use Illuminate\Support\Facades\Auth;
 
 class TrainingController extends Controller
 {
+    /**
+     * Любая введённая дата определяет НЕДЕЛЮ обучения: в БД и на формах
+     * (112 и 132) дата хранится пятницей — формы печатают период Пн–Пт
+     * и подпись пятницей. Будущей пятница быть не может: если пятница
+     * недели ещё не наступила (сегодня вторник) — берётся ПРОШЕДШАЯ.
+     */
+    private function fridayOf($date): string
+    {
+        $friday = \Carbon\Carbon::parse($date)
+            ->startOfWeek(\Carbon\Carbon::MONDAY)
+            ->addDays(4)
+            ->startOfDay();
+
+        if ($friday->isAfter(\Carbon\Carbon::today())) {
+            $friday->subWeek();
+        }
+
+        return $friday->format('Y-m-d');
+    }
+
 
     public function index(Request $request)
     {
@@ -39,7 +59,7 @@ class TrainingController extends Controller
         $planes = Plane::pluck('type', 'id');
         $builders = Builder::pluck('name', 'id');
         $scopes = Scope::pluck('scope', 'id');
-        $renewalThresholdDays = (int) config('trainings.renewal_threshold_days', 340);
+        $renewalThresholdDays = (int) config('trainings.renewal_threshold_days', 180);
 
         foreach ($trainingLists as $manualId => $trainings) {
             $sortedTrainings = $trainings->sortBy('date_training');
@@ -139,15 +159,16 @@ class TrainingController extends Controller
         ]);
 
         $manualId = (int)$validatedData['manuals_id'];
-        $firstDate = \Carbon\Carbon::parse($validatedData['date_training'])->startOfDay();
+        // даты нормализуются к пятнице своей недели (см. fridayOf)
+        $firstDate = \Carbon\Carbon::parse($this->fridayOf($validatedData['date_training']));
         $trainingDates = $validatedData['training_dates'] ?? [];
         $trainingDates = array_unique(array_filter(array_map(function ($d) {
-            return \Carbon\Carbon::parse($d)->format('Y-m-d');
+            return $this->fridayOf($d);
         }, $trainingDates)));
         sort($trainingDates);
 
         $additionalDate = isset($validatedData['additional_training_date'])
-            ? \Carbon\Carbon::parse($validatedData['additional_training_date'])->format('Y-m-d')
+            ? $this->fridayOf($validatedData['additional_training_date'])
             : null;
 
         // Form 132 — одна на первую дату (если ещё нет для этого юнита)
@@ -155,9 +176,6 @@ class TrainingController extends Controller
             ->where('manuals_id', $manualId)
             ->where('form_type', 132)
             ->first();
-
-       // dd($existingForm132);
-
 
         if (!$existingForm132) {
             Training::create([
@@ -184,11 +202,8 @@ class TrainingController extends Controller
             }
         };
 
-        // Form 112 на «следующую пятницу» после первой даты
-        $nextFriday = $firstDate->copy()->next(\Carbon\Carbon::FRIDAY);
-        if ($nextFriday->lte(now())) {
-            $ensureTraining112($nextFriday->format('Y-m-d'));
-        }
+        // Первый тренинг = 132 + 112 на ОДНУ пятницу (неделя первой даты)
+        $ensureTraining112($firstDate->format('Y-m-d'));
 
         // Form 112 на каждую введённую последующую дату
         foreach ($trainingDates as $dateYmd) {
@@ -199,6 +214,9 @@ class TrainingController extends Controller
         if ($additionalDate) {
             $ensureTraining112($additionalDate);
         }
+
+        // Догенерация ежегодных 112 за пропущенные годы (та же неделя, пятница)
+        $this->createMissingTrainings($userId, $manualId, $firstDate->format('Y-m-d'));
 
         $returnUrl = $request->input('return_url');
         if ($returnUrl && (str_contains($returnUrl, '/tdrs/') || str_contains($returnUrl, '/mains/'))) {
@@ -264,43 +282,6 @@ class TrainingController extends Controller
         return $monday->addDays(4);
     }
 
-    /**
-     * Создает недостающие тренировки между двумя датами
-     */
-    private function createMissingTrainingsBetweenDates($userId, $manualId, $firstTrainingDate, $lastTrainingDate)
-    {
-        $firstTraining = \Carbon\Carbon::parse($firstTrainingDate);
-        $lastTraining = \Carbon\Carbon::parse($lastTrainingDate);
-        $firstTrainingYear = $firstTraining->year;
-        $firstTrainingWeek = $firstTraining->weekOfYear;
-        $lastTrainingYear = $lastTraining->year;
-
-        // Создаем тренировки за все годы начиная со следующего года после первой тренировки до года последнего тренинга
-        for ($year = $firstTrainingYear + 1; $year <= $lastTrainingYear; $year++) {
-            // Для формы 112 используем ту же неделю, но в следующем году
-            $trainingDate = $this->getDateFromWeekAndYear($firstTrainingWeek, $year);
-
-            // Проверяем, что дата тренировки не позже последнего тренинга
-            if ($trainingDate <= $lastTraining) {
-                // Проверяем существование формы 112 для этого года
-                $existingTraining112 = Training::where('user_id', $userId)
-                    ->where('manuals_id', $manualId)
-                    ->where('date_training', $trainingDate->format('Y-m-d'))
-                    ->where('form_type', '112')
-                    ->first();
-
-                if (!$existingTraining112) {
-                    Training::create([
-                        'user_id' => $userId,
-                        'manuals_id' => $manualId,
-                        'date_training' => $trainingDate->format('Y-m-d'),
-                        'form_type' => '112',
-                    ]);
-                }
-            }
-        }
-    }
-
     public function createTraining(Request $request)
     {
         try {
@@ -326,7 +307,7 @@ class TrainingController extends Controller
                 ->first();
 
             foreach ($validatedData['manuals_id'] as $key => $manualId) {
-                $trainingDate = $validatedData['date_training'][$key];
+                $trainingDate = $this->fridayOf($validatedData['date_training'][$key]);
 
                 // Проверяем существование тренировки формы 112
                 $existingTraining112 = Training::where('user_id', $userId)
@@ -352,7 +333,7 @@ class TrainingController extends Controller
             // Создаем форму 132 только если её еще нет для этого юнита
             if (!$existingForm132) {
                 // Берем дату первой тренировки для формы 132
-                $firstTrainingDate = $validatedData['date_training'][0];
+                $firstTrainingDate = $this->fridayOf($validatedData['date_training'][0]);
 
                 Training::create([
                     'user_id' => $userId,
@@ -422,7 +403,7 @@ class TrainingController extends Controller
             $skippedCount = 0;
 
             foreach ($validatedData['manuals_id'] as $key => $manualId) {
-                $trainingDate = $validatedData['date_training'][$key];
+                $trainingDate = $this->fridayOf($validatedData['date_training'][$key]);
 
                 // Проверяем существование тренировки формы 112 на сегодняшнюю дату
                 $existingTraining112 = Training::where('user_id', $userId)
@@ -481,16 +462,6 @@ class TrainingController extends Controller
         return view('admin.trainings.form132', compact('training', 'showImage', 'user'));
     }
 
-    public function show(string $id)
-    {
-        //
-    }
-
-    public function edit(string $id)
-    {
-        //
-    }
-
     public function update(Request $request, string $id)
     {
         $training = Training::findOrFail($id);
@@ -513,7 +484,7 @@ class TrainingController extends Controller
             'date_training' => 'required|date|before_or_equal:today',
         ]);
 
-        $training->date_training = \Carbon\Carbon::parse($validated['date_training'])->format('Y-m-d');
+        $training->date_training = $this->fridayOf($validated['date_training']);
         $training->save();
 
         return response()->json([

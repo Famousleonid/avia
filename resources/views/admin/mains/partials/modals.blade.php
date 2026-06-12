@@ -198,3 +198,5 @@
         </div>
     </div>
 </div>
+
+@include('admin.trainings.partials.friday-snap')
