@@ -344,6 +344,10 @@
     .dim-callout-label.active { border-color: #dc3545; color: #dc3545; background: #fff7f7; }
     #dim-figure-canvas-wrap.add-callout-mode { cursor: crosshair; }
     #dim-figure-canvas-wrap.line-label-mode  { cursor: crosshair; }
+    @keyframes dimPointPing {
+        0%   { transform: scale(1);   opacity: 1; box-shadow: 0 0 0 0 rgba(255,193,7,.6); }
+        100% { transform: scale(3.5); opacity: 0; box-shadow: 0 0 0 12px rgba(255,193,7,0); }
+    }
     #dim-figure-canvas-wrap.add-text-mode    { cursor: crosshair; }
     #dim-figure-canvas-wrap.pan-ready { cursor: grab; }
     #dim-figure-canvas-wrap.panning  { cursor: grabbing; }
@@ -426,8 +430,14 @@
                 <button class="btn btn-outline-secondary btn-sm dim-mode-btn" id="dimAddTextModeBtn" title="Add part label: 1st click = dot on part, 2nd click = label position">
                     <i class="bi bi-tag"></i> Add Label
                 </button>
+                <select class="form-select form-select-sm" id="dimPointFinder" style="width:auto;font-size:11px" title="Find a point on the figure">
+                    <option value="">Find point…</option>
+                </select>
                 <span class="text-secondary ms-1" style="font-size:11px;user-select:none;min-width:38px;text-align:right" id="dimZoomLabel">100%</span>
                 <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="dimZoomResetBtn" title="Reset zoom (100%)" style="font-size:12px">↺</button>
+                <button class="btn btn-outline-secondary btn-sm" id="dimFcDocBtn" title="F&C Document — filled manual page copies (WO labels + ID/OD value marks)">
+                    <i class="bi bi-file-earmark-richtext"></i> F&amp;C Doc
+                </button>
                 <button class="btn btn-outline-warning btn-sm" id="dimEditFigureBtn" title="Edit figure">
                     <i class="bi bi-pencil"></i>
                 </button>
@@ -1066,8 +1076,8 @@
                         <button class="btn btn-outline-danger btn-sm py-0 px-2 d-none" id="pdwDelPageBtn" title="Remove current page"><i class="bi bi-trash3"></i></button>
                         <span class="border-start ps-2 ms-1"></span>
                         {{-- tools --}}
-                        <button class="btn btn-outline-secondary btn-sm" id="pdwUploadBtn"><i class="bi bi-upload"></i> Image</button>
-                        <input type="file" id="pdwFileInput" accept="image/png,image/jpeg,image/webp,image/gif" class="d-none">
+                        <button class="btn btn-outline-secondary btn-sm" id="pdwUploadBtn" title="Image for this page, or a PDF — its pages become document pages"><i class="bi bi-upload"></i> Image / PDF</button>
+                        <input type="file" id="pdwFileInput" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf" class="d-none">
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="diameter" title="Diameter Ø (start → end → value)"><i class="bi bi-circle"></i> Ø</button>
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="radius" title="Radius R (start → end → value)"><i class="bi bi-record-circle"></i> R</button>
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="linear" title="Linear (start → end → value)"><i class="bi bi-rulers"></i> Linear</button>
@@ -1949,7 +1959,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     setTimeout(function () { isNavigating = false; }, 500);
                 });
             };
-            figureImg.src = fig.image_path;
+            // cache-buster: the figure scan can be replaced under the same url
+            figureImg.src = fig.image_path + (fig._imgRev ? (fig.image_path.includes('?') ? '&' : '?') + 'v=' + fig._imgRev : '');
             figureImg.alt = fig.title;
         }, 500);
     }
@@ -2016,6 +2027,47 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ---- Render points overlay ----
+    // ---- F&C Document: manual-level document (filled manual page copies) ----
+    document.getElementById('dimFcDocBtn')?.addEventListener('click', function () {
+        openProcessDocumentsModal(null, 'F&C Document', 'manual', false);
+    });
+
+    // ---- Find point: dropdown of the figure's points → select + pulse marker ----
+    function refreshPointFinder(points) {
+        const sel = document.getElementById('dimPointFinder');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Find point…</option>';
+        points.forEach(function (pt) {
+            const opt = document.createElement('option');
+            opt.value = pt.id;
+            const ic  = pt.point_type === 'text' ? inspComponents.find(c => c.id === pt.child_ic_id) : null;
+            opt.textContent = (pt.code || (ic ? ic.label : '#' + pt.id))
+                + (pt.description ? ' — ' + pt.description : '');
+            sel.appendChild(opt);
+        });
+    }
+
+    function flashPoint(pt) {
+        // center of the marker regardless of its type
+        let x = parseFloat(pt.x_pct), y = parseFloat(pt.y_pct);
+        if (pt.x2_pct != null) { x = (x + parseFloat(pt.x2_pct)) / 2; y = (y + parseFloat(pt.y2_pct)) / 2; }
+        else if (pt.point_type === 'navigation' && pt.width_pct) { x += parseFloat(pt.width_pct) / 2; y += parseFloat(pt.height_pct) / 2; }
+        const ring = document.createElement('div');
+        ring.style.cssText = 'position:absolute;left:' + x + '%;top:' + y + '%;width:14px;height:14px;'
+            + 'margin:-7px 0 0 -7px;border:3px solid #ffc107;border-radius:50%;pointer-events:none;z-index:50;'
+            + 'animation:dimPointPing 0.8s ease-out 4';
+        pointsOverlay.appendChild(ring);
+        setTimeout(function () { ring.remove(); }, 3300);
+    }
+
+    document.getElementById('dimPointFinder')?.addEventListener('change', function () {
+        const pt = (activeFigure?.points || []).find(p => p.id == this.value);
+        this.value = '';
+        if (!pt) return;
+        if (pt.point_type !== 'text') selectPoint(pt); else renderPoints(activeFigure.points || []);
+        flashPoint(pt);
+    });
+
     function renderPoints(points) {
         const ns = 'http://www.w3.org/2000/svg';
         pointsOverlay.innerHTML = '';
@@ -2028,6 +2080,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<path d="M0,0 L0,5 L6,2.5 z" fill="context-stroke"/>' +
             '</marker>';
         linesSvg.appendChild(defsEl);
+        refreshPointFinder(points || []);
         (points || []).forEach(function (pt) {
             if (pt.point_type === 'text') {
                 renderTextLabel(pt);
@@ -2203,6 +2256,48 @@ document.addEventListener('DOMContentLoaded', function () {
             openEditPointModal(pt);
         });
         addDragBehavior(g, pt);
+
+        // Selected line: endpoint handles — drag to change the arrow length/angle
+        if (isActive) {
+            [['x_pct', 'y_pct', 'x1', 'y1'], ['x2_pct', 'y2_pct', 'x2', 'y2']].forEach(function (m) {
+                const kx = m[0], ky = m[1], ax = m[2], ay = m[3];
+                const h = document.createElementNS(ns, 'circle');
+                h.setAttribute('cx', pt[kx] + '%'); h.setAttribute('cy', pt[ky] + '%');
+                h.setAttribute('r', '6');
+                h.setAttribute('fill', '#fff'); h.setAttribute('stroke', '#0d6efd'); h.setAttribute('stroke-width', '2');
+                h.style.cursor = 'move'; h.style.pointerEvents = 'all';
+                h.addEventListener('mousedown', function (e) {
+                    if (e.button !== 0) return;
+                    e.stopPropagation(); e.preventDefault();
+                    let movedEp = false;
+                    function onMove(ev) {
+                        movedEp = true;
+                        const r  = figureImg.getBoundingClientRect();
+                        const nx = Math.min(100, Math.max(0, (ev.clientX - r.left) / r.width  * 100)).toFixed(2);
+                        const ny = Math.min(100, Math.max(0, (ev.clientY - r.top)  / r.height * 100)).toFixed(2);
+                        pt[kx] = nx; pt[ky] = ny;
+                        h.setAttribute('cx', nx + '%');   h.setAttribute('cy', ny + '%');
+                        line.setAttribute(ax, nx + '%');  line.setAttribute(ay, ny + '%');
+                        hit.setAttribute(ax, nx + '%');   hit.setAttribute(ay, ny + '%');
+                        document.body.style.userSelect = 'none';
+                    }
+                    function onUp() {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        document.body.style.userSelect = '';
+                        if (movedEp) {
+                            justDragged = true; setTimeout(function () { justDragged = false; }, 80);
+                            savePointPosition(pt);
+                            renderPoints(activeFigure.points || []); // refresh label/leader positions
+                        }
+                    }
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                });
+                g.appendChild(h);
+            });
+        }
+
         linesSvg.appendChild(g);
 
         if (hasExtLabel) {
@@ -4043,6 +4138,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 saved = await apiFetch('/dimension-figures/' + id, { method: 'PATCH', body: JSON.stringify(body) });
                 const idx = figures.findIndex(f => f.id == id);
                 if (idx !== -1) { figures[idx] = Object.assign(figures[idx], saved); }
+                // image may be replaced under the SAME url — bust the browser cache
+                figures[idx]._imgRev = Date.now();
                 if (activeFigure && activeFigure.id == id) activeFigure = figures[idx];
             } else {
                 saved = await apiFetch('/manuals/' + MANUAL_ID + '/dimension-figures', { method: 'POST', body: JSON.stringify(body) });
@@ -4052,7 +4149,7 @@ document.addEventListener('DOMContentLoaded', function () {
             figureModal.hide();
             renderFiguresList();
             if (activeFigure && activeFigure.id == saved.id) {
-                viewerTitle.textContent = activeFigure.title;
+                selectFigure(activeFigure); // re-render immediately (title, image, points)
             }
         } catch (e) {
             errEl.textContent = e.message;
@@ -5241,6 +5338,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ---- open: load documents, show list ----
     let pdwProcKind = 'main'; // 'main' (point rule) | 'phase' (Start/Finish)
     function pdwDocsBase() {
+        if (pdwProcKind === 'manual') return '/manuals/' + MANUAL_ID + '/documents';
         return pdwProcKind === 'phase'
             ? '/phase-rule-processes/' + pdwRuleProcessId + '/documents'
             : '/rule-processes/' + pdwRuleProcessId + '/documents';
@@ -5248,7 +5346,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function openProcessDocumentsModal(ruleProcessId, label, kind, fromTree) {
         pdwRuleProcessId = ruleProcessId;
-        pdwProcKind = (kind === 'phase') ? 'phase' : 'main';
+        pdwProcKind = (kind === 'phase') ? 'phase' : (kind === 'manual' ? 'manual' : 'main');
+        // manual-level doc: "Attach existing" is process-only — hide it
+        document.getElementById('pdwAttachDocBtn')?.classList.toggle('d-none', kind === 'manual');
         pdwFromTree = !!fromTree;
         pdwDocs = []; pdwSourceParams = []; pdwDoc = null; pdwPage = null;
         document.getElementById('pdwDocScreenTitle').textContent = label || 'Documents';
@@ -5322,6 +5422,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return pdwDocs.some(function (d) { return (d.pages || []).some(function (p) { return p.image_path; }); });
     }
     function pdwUpdateProcessFlag() {
+        if (pdwProcKind === 'manual') return; // manual-level doc — no process row to flag
         const hasImg = pdwProcessHasImage();
         if (pdwProcKind === 'phase') {
             const rp = dimMrProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
@@ -6059,22 +6160,95 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('pdwUploadBtn').addEventListener('click', function () { document.getElementById('pdwFileInput').click(); });
     document.getElementById('pdwFileInput').addEventListener('change', async function () {
         const file = this.files[0]; if (!file || !pdwPage) return;
-        const fd = new FormData(); fd.append('image', file); fd.append('_token', CSRF);
+        this.value = '';
+        if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+            await pdwUploadPdf(file);
+            return;
+        }
         try {
-            const res = await fetch('/process-document-pages/' + pdwPage.id + '/image', { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } });
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.message || 'Upload failed');
+            await pdwUploadImageBlob(pdwPage, file);
+            pdwShowImage(pdwPage.image_path);
+            pdwUpdateProcessFlag();
+        } catch (e) { alert(e.message); }
+    });
+
+    // Upload one image blob/file to a page; updates the page record + local state
+    async function pdwUploadImageBlob(page, blob, filename) {
+        const fd = new FormData();
+        fd.append('image', blob, filename || (blob.name || 'page.png'));
+        fd.append('_token', CSRF);
+        const res = await fetch('/process-document-pages/' + page.id + '/image', { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || 'Upload failed');
+        await new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = async function () {
-                await apiFetch('/process-document-pages/' + pdwPage.id, { method: 'PATCH', body: JSON.stringify({ image_path: json.path, image_width: img.naturalWidth, image_height: img.naturalHeight }) });
-                pdwPage.image_path = json.path;
-                pdwShowImage(json.path);
-                pdwUpdateProcessFlag();
+                try {
+                    await apiFetch('/process-document-pages/' + page.id, { method: 'PATCH', body: JSON.stringify({ image_path: json.path, image_width: img.naturalWidth, image_height: img.naturalHeight }) });
+                    page.image_path = json.path;
+                    resolve();
+                } catch (err) { reject(err); }
             };
+            img.onerror = () => reject(new Error('Image load failed'));
             img.src = json.path;
-        } catch (e) { alert(e.message); }
-        this.value = '';
-    });
+        });
+    }
+
+    // PDF upload: render every page client-side (pdf.js) → PNG → document pages.
+    // Page 1 goes to the CURRENT page, the rest auto-create new pages.
+    let pdfjsReady = null;
+    function loadPdfJs() {
+        if (pdfjsReady) return pdfjsReady;
+        pdfjsReady = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = '/assets/pdfjs/pdf.min.js';
+            s.onload = () => {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdfjs/pdf.worker.min.js';
+                resolve(window.pdfjsLib);
+            };
+            s.onerror = () => reject(new Error('pdf.js failed to load'));
+            document.head.appendChild(s);
+        });
+        return pdfjsReady;
+    }
+
+    async function pdwUploadPdf(file) {
+        const hint = document.getElementById('pdwHint');
+        try {
+            hint.textContent = 'Reading PDF…';
+            const pdfjs = await loadPdfJs();
+            const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+            const total = pdf.numPages;
+
+            for (let n = 1; n <= total; n++) {
+                hint.textContent = 'PDF page ' + n + ' / ' + total + '…';
+                const pg = await pdf.getPage(n);
+                const viewport = pg.getViewport({ scale: 2 }); // ~150 dpi quality
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width; canvas.height = viewport.height;
+                await pg.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+
+                let target;
+                if (n === 1) target = pdwPage;
+                else {
+                    target = await apiFetch('/process-documents/' + pdwDoc.id + '/pages', { method: 'POST' });
+                    pdwDoc.pages.push(target);
+                }
+                await pdwUploadImageBlob(target, blob, 'pdf-page-' + n + '.png');
+            }
+
+            hint.textContent = 'PDF: ' + total + ' page(s) added ✓';
+            setTimeout(() => { if (hint.textContent.startsWith('PDF:')) hint.textContent = ''; }, 4000);
+            renderPageTabs();
+            selectPage(pdwPage);
+            pdwShowImage(pdwPage.image_path);
+            pdwUpdateProcessFlag();
+        } catch (e) {
+            hint.textContent = '';
+            alert('PDF import failed: ' + e.message);
+        }
+    }
 
     // ==========================
     // Init

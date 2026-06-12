@@ -13,6 +13,7 @@ class WoMeasurement extends Model
         'manual_parameter_id',
         'manual_dimension_spec_id',
         'stage',
+        'new_part',
         'replaces_id',
         'actual_value',
         'limits_source',
@@ -37,6 +38,7 @@ class WoMeasurement extends Model
         'repair_depth_a'      => 'decimal:4',
         'repair_depth_b'      => 'decimal:4',
         'repair_required'     => 'boolean',
+        'new_part'            => 'boolean',
     ];
 
     public function workorder(): BelongsTo

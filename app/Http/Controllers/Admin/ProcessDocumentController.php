@@ -194,6 +194,107 @@ class ProcessDocumentController extends Controller
         return response()->json($this->docPayload($doc->load('pages.elements')), 201);
     }
 
+    // ── Documents (manual level — the F&C document) ───────────────
+
+    public function indexManual(\App\Models\Manual $manual)
+    {
+        return $this->listDocuments($manual, $this->manualParamOptions($manual->id));
+    }
+
+    public function storeManualDocument(Request $request, \App\Models\Manual $manual)
+    {
+        return $this->createDocument($request, $manual, 'manual_page');
+    }
+
+    /**
+     * F&C document view for a WO: every page of the manual's document with the
+     * WO measurements substituted. Value marks are colored by data state:
+     * red — no measurement, yellow — initial only, green — final entered.
+     */
+    public function fcDocumentView(Workorder $workorder)
+    {
+        $manual = $workorder->unit->manuals;
+        $doc = $manual->documents()->with('pages.elements')->first();
+
+        if (!$doc || $doc->pages->isEmpty()) {
+            return response('<div style="font-family:Arial;padding:40px;color:#888">No F&C document prepared for this manual. Create it in the manual\'s Dimensions tab ("F&C Document").</div>', 200)
+                ->header('Content-Type', 'text/html; charset=utf-8');
+        }
+
+        $renderer = new ProcessDocumentRenderer();
+        $ctx = ['show_missing' => true, 'stage_colors' => true];
+
+        $pagesHtml = '';
+        foreach ($doc->pages as $page) {
+            $pagesHtml .= '<div class="fc-doc-page">'
+                . $renderer->renderSinglePageHtml($page, $workorder, $ctx, null)
+                . '</div>';
+        }
+
+        $title = 'F&C Document — W' . ($workorder->number ?? $workorder->id);
+        $saveUrl = route('process-documents.generate', ['workorder' => $workorder->id, 'processDocument' => $doc->id]);
+
+        $html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>' . e($title) . '</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:12px;background:#f8f9fa;color:#212529}
+.toolbar{display:flex;align-items:center;gap:8px;padding:8px 16px;background:#fff;border-bottom:1px solid #dee2e6;position:sticky;top:0;z-index:50}
+.toolbar h1{font-size:13px;font-weight:700;flex:1;margin:0}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:4px;font-size:12px;cursor:pointer;border:1px solid transparent}
+.btn-primary{background:#0d6efd;color:#fff}
+.btn-success{background:#198754;color:#fff}
+.legend{font-size:10px;color:#6c757d;display:flex;gap:10px;align-items:center}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:3px;vertical-align:-1px}
+.fc-doc-page{background:#fff;max-width:980px;margin:14px auto;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.pdw-page{position:relative}
+.pdw-page img{width:100%;display:block}
+.pdw-svg{position:absolute;top:0;left:0;width:100%;height:100%}
+.pdw-dot{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;background:#0d9488;border-radius:50%}
+.pdw-el{position:absolute;transform:translate(-50%,-50%);font-size:8.5pt;font-weight:700;white-space:nowrap;line-height:1.2}
+.pdw-dim{color:#0d6efd;background:rgba(255,255,255,0.92);border:0.75px solid #0d6efd;border-radius:2px;padding:1px 4px}
+.pdw-dim.st-final{color:#198754;border-color:#198754}
+.pdw-dim.st-initial{color:#b58900;border-color:#b58900}
+.pdw-dim.st-missing{color:#dc3545;border-color:#dc3545}
+.pdw-label{color:#0d9488;background:rgba(255,255,255,0.85);padding:0 3px}
+@media print{
+  .toolbar{display:none!important}
+  body{background:#fff}
+  .fc-doc-page{box-shadow:none;margin:0;max-width:none;page-break-after:always}
+  .fc-doc-page:last-child{page-break-after:auto}
+  @page{size:letter portrait;margin:8mm}
+}
+</style></head><body>
+<div class="toolbar">
+  <h1>' . e($title) . '</h1>
+  <span class="legend">
+    <span><i style="background:#198754"></i>final</span>
+    <span><i style="background:#b58900"></i>initial</span>
+    <span><i style="background:#dc3545"></i>no data</span>
+  </span>
+  <button class="btn btn-success" id="savePdfBtn">&#128190; Save PDF</button>
+  <button class="btn btn-primary" onclick="window.print()" title="Select «Print on both sides» (duplex) in the print dialog">&#9112; Print</button>
+  <span style="font-size:10px;color:#6c757d">two-sided: enable duplex in the print dialog</span>
+</div>
+' . $pagesHtml . '
+<script>
+document.getElementById("savePdfBtn").addEventListener("click", async function () {
+    this.disabled = true; this.textContent = "Saving…";
+    try {
+        const r = await fetch(' . json_encode($saveUrl) . ', {
+            method: "POST",
+            headers: { "X-CSRF-TOKEN": ' . json_encode(csrf_token()) . ', "Accept": "application/json" },
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.message || "Save failed");
+        this.textContent = "Saved to WO library ✓";
+    } catch (e) { alert(e.message); this.disabled = false; this.textContent = "\u{1F4BE} Save PDF"; }
+});
+</script>
+</body></html>';
+
+        return response($html)->header('Content-Type', 'text/html; charset=utf-8');
+    }
+
     /**
      * Picker list for "Attach existing": every process document of this manual
      * (rule-process and component owned), labelled with its owner.
@@ -1021,6 +1122,9 @@ document.addEventListener(\'mouseup\', function (e) {
     private function resolveManual(?ProcessDocument $doc)
     {
         $d = $doc?->documentable;
+        if ($d instanceof \App\Models\Manual) {
+            return $d; // manual-level document (F&C document)
+        }
         if ($d instanceof ManualInspectionComponent) {
             return $d->manual;
         }

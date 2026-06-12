@@ -57,6 +57,7 @@ class Tdr extends Model
         'result_status',
         'scrap_reason',
         'replaced_by_tdr_id',
+        'last_synced_measurement_id',
     ];
 
     protected $casts = [

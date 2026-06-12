@@ -847,4 +847,5 @@
             }
         });
     </script>
+    @include('admin.trainings.partials.friday-snap')
 @endsection

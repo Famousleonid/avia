@@ -56,6 +56,27 @@ tr.row-hidden { display: none; }
 /* F&C mode: Part column ("IPL FIG. \ ITEM NUMBER") is centered */
 body.fc-print-vertical td.col-part { text-align: center; }
 
+/* ── dark theme (inherited from the parent app) ───────────── */
+html[data-bs-theme="dark"] body { background: #1a1d21; color: #dee2e6; }
+html[data-bs-theme="dark"] .sidebar { background: #212529; border-color: #495057; }
+html[data-bs-theme="dark"] .sidebar-hdr { border-color: #495057; color: #9aa0a6; }
+html[data-bs-theme="dark"] .type-btn,
+html[data-bs-theme="dark"] .sel-btn { background: #2b3035; color: #dee2e6; border-color: #495057; }
+html[data-bs-theme="dark"] .type-btn.active { background: #0d6efd; border-color: #0d6efd; color: #fff; }
+html[data-bs-theme="dark"] .sel-btn:hover { background: #343a40; }
+html[data-bs-theme="dark"] .ref-item { border-color: #343a40; }
+html[data-bs-theme="dark"] .ref-type-tag { background: #343a40; color: #adb5bd; }
+html[data-bs-theme="dark"] .ref-type-tag.fc    { background: #032830; color: #6edff6; }
+html[data-bs-theme="dark"] .ref-type-tag.extra { background: #051b11; color: #75b798; }
+html[data-bs-theme="dark"] .doc-meta { color: #9aa0a6; }
+html[data-bs-theme="dark"] th, html[data-bs-theme="dark"] td { border-color: #495057; }
+html[data-bs-theme="dark"] thead th { background: #2b3035; color: #dee2e6; }
+html[data-bs-theme="dark"] td.na { background: #212529; color: #555; }
+html[data-bs-theme="dark"] .val-pass { color: #75b798; }
+html[data-bs-theme="dark"] .val-fail,
+html[data-bs-theme="dark"] .neg { color: #ea868f; }
+html[data-bs-theme="dark"] .stage-tag { color: #6c757d; }
+
 
 @media print {
     .sidebar, .action-bar { display: none !important; }
@@ -65,6 +86,14 @@ body.fc-print-vertical td.col-part { text-align: center; }
     /* keep the table clear of the QR print-mark (top-right corner) */
     .doc-meta  { margin-bottom: 6mm; }
     @page { size: letter landscape; margin: 10mm; }
+    /* print is always light regardless of the screen theme */
+    html[data-bs-theme="dark"] body { background: #fff !important; color: #000 !important; }
+    html[data-bs-theme="dark"] thead th { background: #e9ecef !important; color: #000 !important; }
+    html[data-bs-theme="dark"] th, html[data-bs-theme="dark"] td { border-color: #aaa !important; }
+    html[data-bs-theme="dark"] td.na { background: #fafafa !important; color: #bbb !important; }
+    html[data-bs-theme="dark"] .val-pass { color: #198754 !important; }
+    html[data-bs-theme="dark"] .val-fail,
+    html[data-bs-theme="dark"] .neg { color: #dc3545 !important; }
     /* F&C filter prints portrait — shrink the table to fit the page width */
     body.fc-print-vertical table  { font-size: 9px; }
     body.fc-print-vertical th,
@@ -75,6 +104,14 @@ body.fc-print-vertical td.col-part { text-align: center; }
     body.fc-print-vertical .stage-tag  { display: none !important; }
 }
 </style>
+<script>
+// inherit the app theme when opened inside the WO tab iframe
+try {
+    var t = (window.parent && window.parent.document.documentElement.getAttribute('data-bs-theme'))
+         || localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-bs-theme', t);
+} catch (e) { /* standalone — keep light */ }
+</script>
 </head>
 <body>
 @include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null, 'printMarkQrSize' => 32])
@@ -99,7 +136,6 @@ body.fc-print-vertical td.col-part { text-align: center; }
 <main class="content">
     <div class="action-bar">
         <button class="btn-print" onclick="window.print()">&#128438; Print</button>
-        <button class="btn-close" onclick="window.close()">Close</button>
     </div>
     <div class="doc-title">Fits &amp; Clearances / Measurements</div>
     <div class="doc-meta">
@@ -161,8 +197,8 @@ function figLabel($fig) {
         $rB    = $row['resultB'];
         $ac    = $row['actualClear'];
         $acFail = $ac !== null && $row['permClearMax'] !== null && $ac > $row['permClearMax'];
-        $stA   = $row['measA'] ? ' <span class="stage-tag">('.e($row['measA']->stage).')</span>' : '';
-        $stB   = $row['measB'] ? ' <span class="stage-tag">('.e($row['measB']->stage).')</span>' : '';
+        $stA   = $row['measA'] ? ' <span class="stage-tag">('.($row['measA']->new_part ? 'new' : e($row['measA']->stage)).')</span>' : '';
+        $stB   = $row['measB'] ? ' <span class="stage-tag">('.($row['measB']->new_part ? 'new' : e($row['measB']->stage)).')</span>' : '';
         $fixA  = $row['measA'] && $row['measA']->stage === 'final' && $rA === 'PASS';
         $fixB  = $row['measB'] && $row['measB']->stage === 'final' && $rB === 'PASS';
     @endphp
@@ -199,7 +235,7 @@ function figLabel($fig) {
         $ipl  = $row['comp']?->ipl_num;
         $r    = $row['result'];
         $val  = $row['meas']?->actual_value;
-        $st   = $row['meas'] ? ' <span class="stage-tag">('.e($row['meas']->stage).')</span>' : '';
+        $st   = $row['meas'] ? ' <span class="stage-tag">('.($row['meas']->new_part ? 'new' : e($row['meas']->stage)).')</span>' : '';
         $fix  = $row['meas'] && $row['meas']->stage === 'final' && $r === 'PASS';
     @endphp
     <tr data-ref="{{ $row['pt']->code }}" data-type="extra">

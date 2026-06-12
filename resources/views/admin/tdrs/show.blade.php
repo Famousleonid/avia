@@ -698,6 +698,13 @@
                             <button class="nav-link active" id="tab-tdr" data-bs-toggle="tab"
                                     data-bs-target="#content-tdr" type="button" role="tab">{{ __('TDR') }}</button>
                         </li>
+                        {{-- Temporary Inspect tab (opened by the 📏 button on a TDR row; reuses the measurements pane in single-part mode) --}}
+                        <li class="nav-item d-none" role="presentation" id="tab-ms-inspect-li">
+                            <button class="nav-link" id="tab-ms-inspect" data-bs-toggle="tab"
+                                    data-bs-target="#content-measurements" type="button" role="tab">
+                                <i class="bi bi-rulers"></i> {{ __('Inspect') }}
+                            </button>
+                        </li>
                         {{-- Temporary Part Processes tab (shown when user clicks Component Processes, hidden when switching to another tab) --}}
                         <li class="nav-item d-none" role="presentation" id="tab-part-processes-li">
                             <button class="nav-link" id="tab-part-processes" data-bs-toggle="tab"
@@ -741,18 +748,45 @@
                                     data-bs-target="#content-measurements" type="button"
                                     role="tab">{{ __('Measurements') }}</button>
                         </li>
+                        {{-- Temporary Ordered-parts tab (opened by the Ordered button in Measurements; reuses the measurements pane) --}}
+                        <li class="nav-item d-none" role="presentation" id="tab-ms-new-li">
+                            <button class="nav-link" id="tab-ms-new" data-bs-toggle="tab"
+                                    data-bs-target="#content-measurements" type="button" role="tab">
+                                <i class="bi bi-box-seam"></i> {{ __('Ordered Parts') }}
+                            </button>
+                        </li>
                         {{-- dynamic tab: shown by the Req. Bushings button, hidden on leaving --}}
                         <li class="nav-item d-none" role="presentation" id="tab-req-bushings-li">
                             <button class="nav-link" id="tab-req-bushings" data-bs-toggle="tab"
                                     data-bs-target="#content-req-bushings" type="button"
                                     role="tab"><i class="bi bi-nut"></i> {{ __('Required Bushings') }}</button>
                         </li>
+                        {{-- dynamic tab: Final Dimensional Report (bushing fits) --}}
+                        <li class="nav-item d-none" role="presentation" id="tab-final-report-li">
+                            <button class="nav-link" id="tab-final-report" data-bs-toggle="tab"
+                                    data-bs-target="#content-final-report" type="button"
+                                    role="tab"><i class="bi bi-clipboard-data"></i> {{ __('Final Report') }}</button>
+                        </li>
+                        {{-- dynamic tab: F&C Table --}}
+                        <li class="nav-item d-none" role="presentation" id="tab-fc-table-li">
+                            <button class="nav-link" id="tab-fc-table" data-bs-toggle="tab"
+                                    data-bs-target="#content-fc-table" type="button"
+                                    role="tab">&#128438; {{ __('F&C Table') }}</button>
+                        </li>
                     </ul>
-                    <div id="ms-fc-btn-wrap" class="d-none align-items-center ms-auto" style="margin-right:50px">
-                        <a href="{{ route('workorders.measurements.fc-table', $current_wo->id) }}"
-                           target="_blank" class="btn btn-outline-secondary btn-sm" style="font-size:11px">
+                    <div id="ms-fc-btn-wrap" class="d-none align-items-center gap-1 ms-auto" style="margin-right:50px">
+                        <button type="button" id="ms-fc-table-btn" class="btn btn-outline-secondary btn-sm" style="font-size:11px"
+                                data-url="{{ route('workorders.measurements.fc-table', $current_wo->id) }}">
                             &#128438; F&amp;C Table
-                        </a>
+                        </button>
+                        <button type="button" id="ms-req-bush-btn" class="btn btn-outline-secondary btn-sm" style="font-size:11px"
+                                title="Required bushings — P/N per position from bore measurements">
+                            <i class="bi bi-nut"></i> Req. Bushings
+                        </button>
+                        <button type="button" id="ms-final-report-btn" class="btn btn-outline-secondary btn-sm" style="font-size:11px"
+                                title="Final dimensional report — bore / bushing OD finals and resulting fit">
+                            <i class="bi bi-clipboard-data"></i> Final Report
+                        </button>
                     </div>
                     <div id="partProcessesShortcutActions" class="d-none d-flex gap-2 align-items-center ms-auto"
                          style="margin-right: 50px;">
@@ -916,15 +950,45 @@
                         <iframe id="req-bushings-frame" src="about:blank"
                                 style="width:100%;height:calc(100vh - 220px);border:0;background:transparent"></iframe>
                     </div>
+                    {{-- Final Dimensional Report (dynamic, opened from Measurements) --}}
+                    <div class="tab-pane fade" id="content-final-report" role="tabpanel">
+                        <iframe id="final-report-frame" src="about:blank"
+                                style="width:100%;height:calc(100vh - 220px);border:0;background:transparent"></iframe>
+                    </div>
+                    {{-- F&C Table (dynamic, opened from Measurements) --}}
+                    <div class="tab-pane fade" id="content-fc-table" role="tabpanel">
+                        <iframe id="fc-table-frame" src="about:blank"
+                                style="width:100%;height:calc(100vh - 220px);border:0;background:transparent"></iframe>
+                    </div>
                     <script>
                         document.addEventListener('DOMContentLoaded', function () {
-                            // leaving the Required Bushings tab hides it again
+                            // leaving a dynamic tab hides it again
+                            var dynTabs = {
+                                'tab-req-bushings': 'tab-req-bushings-li',
+                                'tab-final-report': 'tab-final-report-li',
+                                'tab-fc-table':     'tab-fc-table-li',
+                                'tab-ms-inspect':   'tab-ms-inspect-li',
+                                'tab-ms-new':       'tab-ms-new-li'
+                            };
                             document.querySelectorAll('#tdrShowTabList .nav-link').forEach(function (btn) {
                                 btn.addEventListener('shown.bs.tab', function (e) {
-                                    if (e.target.id !== 'tab-req-bushings') {
-                                        document.getElementById('tab-req-bushings-li')?.classList.add('d-none');
-                                    }
+                                    Object.keys(dynTabs).forEach(function (tabId) {
+                                        if (e.target.id !== tabId) {
+                                            document.getElementById(dynTabs[tabId])?.classList.add('d-none');
+                                        }
+                                    });
                                 });
+                            });
+
+                            // F&C Table opens as a dynamic tab (same pattern as the report tabs)
+                            document.getElementById('ms-fc-table-btn')?.addEventListener('click', function () {
+                                var li    = document.getElementById('tab-fc-table-li');
+                                var btn   = document.getElementById('tab-fc-table');
+                                var frame = document.getElementById('fc-table-frame');
+                                if (!li || !btn || !frame) { window.open(this.dataset.url, '_blank'); return; }
+                                frame.src = this.dataset.url;
+                                li.classList.remove('d-none');
+                                bootstrap.Tab.getOrCreateInstance(btn).show();
                             });
                         });
                     </script>

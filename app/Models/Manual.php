@@ -118,6 +118,12 @@ class Manual extends Model implements HasMedia
         return $this->hasMany(ManualDimensionFigure::class, 'manual_id')->orderBy('sort_order');
     }
 
+    /** Manual-level documents (e.g. the F&C document — filled manual page copies). */
+    public function documents()
+    {
+        return $this->morphMany(ProcessDocument::class, 'documentable')->orderBy('sort_order');
+    }
+
     public function parameters()
     {
         return $this->hasMany(ManualParameter::class, 'manual_id');

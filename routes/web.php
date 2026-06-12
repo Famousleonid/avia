@@ -375,6 +375,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/rule-processes/{manualParameterRuleProcess}/documents', [ProcessDocumentController::class, 'storeDocument'])->name('rule-processes.documents.store');
     Route::post('/rule-processes/{manualParameterRuleProcess}/documents/attach-existing', [ProcessDocumentController::class, 'attachExisting'])->name('rule-processes.documents.attach-existing');
     Route::get('/manuals/{manual}/process-documents', [ProcessDocumentController::class, 'manualDocuments'])->name('manuals.process-documents.index');
+    Route::get('/manuals/{manual}/documents', [ProcessDocumentController::class, 'indexManual'])->name('manuals.documents.index');
+    Route::post('/manuals/{manual}/documents', [ProcessDocumentController::class, 'storeManualDocument'])->name('manuals.documents.store');
+    Route::get('/workorders/{workorder}/fc-document', [ProcessDocumentController::class, 'fcDocumentView'])->name('workorders.fc-document');
     // Start/Finish (master-rule phase) process documents
     Route::get('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'indexPhase'])->name('phase-rule-processes.documents.index');
     Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'storePhaseDocument'])->name('phase-rule-processes.documents.store');
@@ -431,6 +434,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     // --- WO Measurements ---
     Route::get('/workorders/{workorder}/measurements/fc-table', [WoMeasurementController::class, 'fcTable'])->name('workorders.measurements.fc-table');
     Route::get('/workorders/{workorder}/measurements/required-bushings', [WoMeasurementController::class, 'requiredBushings'])->name('workorders.measurements.required-bushings');
+    Route::get('/workorders/{workorder}/measurements/final-fit-report', [WoMeasurementController::class, 'finalFitReport'])->name('workorders.measurements.final-fit-report');
     Route::get('/workorders/{workorder}/measurements/data', [WoMeasurementController::class, 'data'])->name('workorders.measurements.data');
     Route::post('/workorders/{workorder}/measurements', [WoMeasurementController::class, 'store'])->name('workorders.measurements.store');
     Route::patch('/measurements/{woMeasurement}', [WoMeasurementController::class, 'update'])->name('measurements.update');
@@ -459,7 +463,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::post('/trainings/updateToToday', [TrainingController::class, 'updateToToday'])->name('trainings.updateToToday');
         Route::post('/trainings/delete-all', [TrainingController::class, 'deleteAll'])->name('trainings.deleteAll');
         Route::post('/trainings/exists', [TrainingController::class, 'exists'])->name('trainings.exists');
-        Route::resource('/trainings', TrainingController::class);
+        Route::resource('/trainings', TrainingController::class)->except(['show', 'edit']);
 
 
     // Components CSV routes - must be before resource route

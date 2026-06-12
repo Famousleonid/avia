@@ -100,10 +100,11 @@
     <div id="ms-tab-parts">
         <div class="px-2 py-2 border-bottom d-flex align-items-center" style="font-size:13px;font-weight:700;flex-shrink:0;color:var(--bs-secondary-color)">
             <span>PARTS</span>
-            <button type="button" id="ms-req-bush-btn"
-               class="btn btn-outline-secondary btn-sm ms-auto py-1 px-2" style="font-size:12px"
-               title="Required bushings — P/N per position from bore measurements">
-                <i class="bi bi-nut"></i> Req. Bushings
+            <span id="ms-parts-mode" class="d-none ms-2" style="font-size:10px;font-weight:600;color:var(--bs-info)"></span>
+            <button type="button" id="ms-new-parts-btn"
+               class="btn btn-outline-info btn-sm ms-auto py-0 px-2" style="font-size:11px;font-weight:700"
+               title="Order New positions — verify the replacement parts (orig limits)">
+                Ordered
             </button>
         </div>
         <div id="ms-tab-parts-list">
@@ -218,6 +219,10 @@
                 <button id="ms-print-sketch-btn" class="btn btn-outline-info btn-sm d-none" style="font-size:11px">
                     <i class="bi bi-printer"></i> Sketch
                 </button>
+                <button id="ms-print-figures-btn" class="btn btn-outline-secondary btn-sm" style="font-size:11px"
+                        title="Print the figures with this part's points highlighted">
+                    <i class="bi bi-printer"></i> Figures
+                </button>
                 {{-- Missing measurements popup --}}
                 <div id="ms-sketch-missing-modal" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center">
                     <div style="position:absolute;inset:0;background:rgba(0,0,0,.35)" onclick="document.getElementById('ms-sketch-missing-modal').style.display='none'"></div>
@@ -254,7 +259,7 @@
     let inspComponents = [], figures = [], parameters = [], measurements = [], USE_WEAR = false;
     let allCodes = [], MISSING_CODE_ID = null;
     let partsTree = [];
-    let icsWithTdr = new Set(), icsMissingTdr = new Set(), icsTdrLabel = new Map();
+    let icsWithTdr = new Set(), icsMissingTdr = new Set(), icsTdrLabel = new Map(), icsSyncedMeas = new Map();
     let activePartId = null, activeParam = null, activeFigure = null;
     let callouts = [];
     let loaded = false;
@@ -416,6 +421,79 @@
         return measurements.filter(m=>m.manual_parameter_id===param.id).sort((a,b)=>a.id-b.id);
     }
 
+    /* ── Part TDR flags / view modes ──────────────────────────── */
+    // The measurements pane serves three tabs:
+    //   'all'    — Measurements: clean parts (+ bushings)
+    //   'single' — Inspect (from a TDR row): one repaired part
+    //   'new'    — NEW Parts: Order New positions, replacement verification
+    let msViewMode        = 'all';
+    let msSingleIc        = null;
+    let msPendingSingleIc = null;
+
+    function partTdrFlags(part) {
+        const lbl = icsTdrLabel.get(part.id) || null;
+        return {
+            lbl,
+            repair:   !!lbl && /repair/i.test(lbl),
+            orderNew: !!lbl && (lbl === 'missing' || /order new/i.test(lbl)),
+        };
+    }
+
+    // Order New position (non-bushing): the REPLACEMENT part is verified here
+    // against the ORIG limits. Bushings keep their own calculated-OD flow.
+    function partIsNewMode(part) {
+        const f = partTdrFlags(part);
+        return !part.is_bush && f.orderNew && !f.repair;
+    }
+
+    window.msInspectPart = function (icId) {
+        msPendingSingleIc = parseInt(icId);
+        msViewMode = 'single';
+        if (typeof partsTree !== 'undefined' && partsTree.length) applyPendingSingleIc();
+    };
+
+    function applyPendingSingleIc() {
+        if (msPendingSingleIc == null) return;
+        msSingleIc = msPendingSingleIc;
+        msPendingSingleIc = null;
+        renderPartsList();
+        const part = partsTree.find(p => p.id === msSingleIc);
+        if (part) selectComponent(part);
+    }
+
+    // Is the part visible in the current view mode?
+    function partVisibleInMode(part) {
+        if (msViewMode === 'single') return part.id === msSingleIc;
+        if (msViewMode === 'new')    return partIsNewMode(part);
+        return part.is_bush || !(partTdrFlags(part).repair || partIsNewMode(part));
+    }
+
+    function msClearSelection() {
+        activePartId = null;
+        activeParam  = null;
+        compHdr.style.display = 'none';
+        entryEmpty.style.display = '';
+        entryBody.style.display  = 'none';
+        accWrap.innerHTML = '';
+        overlay.innerHTML = ''; if (typeof svgEl !== 'undefined') svgEl.innerHTML = '';
+        emptyViewer.style.display = ''; figContainer.style.display = 'none';
+        figNav.classList.remove('visible');
+        figLabel.textContent = '—';
+    }
+
+    function msSetViewMode(mode) {
+        msViewMode = mode;
+        if (mode !== 'single') msSingleIc = null;
+        // selected part may not belong to this view — drop the stale panel
+        const active = partsTree.find(p => p.id === activePartId);
+        if (active && !partVisibleInMode(active)) msClearSelection();
+        renderPartsList();
+        if (mode === 'new' && activePartId === null) {
+            const first = partsTree.find(p => partIsNewMode(p));
+            if (first) selectComponent(first);
+        }
+    }
+
     /* ── Status ───────────────────────────────────────────────── */
     function paramStatus(param) {
         const ms=paramMeasurements(param);
@@ -521,7 +599,29 @@
             partsList.innerHTML = '<div class="px-3 py-2 text-secondary" style="font-size:11px">No parts defined</div>';
             return;
         }
+        // header: mode label next to PARTS; Ordered button only in the default list
+        const modeEl = document.getElementById('ms-parts-mode');
+        if (modeEl) {
+            modeEl.classList.toggle('d-none', msViewMode === 'all');
+            modeEl.innerHTML = msViewMode === 'single'
+                ? '<i class="bi bi-rulers"></i> Inspect — repaired part'
+                : msViewMode === 'new'
+                    ? '<i class="bi bi-box-seam"></i> Ordered — replacement verification (orig limits)'
+                    : '';
+        }
+        document.getElementById('ms-new-parts-btn')?.classList.toggle('d-none', msViewMode !== 'all');
+        let shown = 0;
         partsTree.forEach(part => {
+            if (msViewMode === 'single') {
+                if (part.id !== msSingleIc) return;
+            } else if (msViewMode === 'new') {
+                if (!partIsNewMode(part)) return;
+            } else {
+                // Measurements: clean parts only. Repaired → TDR Inspect tab;
+                // Order New (non-bush) → NEW Parts tab; bushings stay (own flow).
+                if (!part.is_bush && (partTdrFlags(part).repair || partIsNewMode(part))) return;
+            }
+            shown++;
             const isActive = activePartId === part.id;
             const isMissing = icsMissingTdr.has(part.id) || (MISSING_CODE_ID && part.params.some(p =>
                 paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
@@ -565,6 +665,10 @@
             el.addEventListener('click', () => selectComponent(part));
             partsList.appendChild(el);
         });
+        if (!shown && msViewMode === 'new') {
+            partsList.insertAdjacentHTML('beforeend',
+                '<div class="px-3 py-2 text-secondary" style="font-size:11px">No Order New parts yet</div>');
+        }
     }
 
     /* ── Viewer ───────────────────────────────────────────────── */
@@ -856,31 +960,46 @@
         const hasRepairFail = !isMissing && !icsWithTdr.has(part.id) && part.params.some(p =>
             paramMeasurements(p).some(m => m.result === 'FAIL' && !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID))
         );
-        const hasAnyRealMeasurements = part.params.some(p =>
-            paramMeasurements(p).some(m => !(MISSING_CODE_ID && m.codes_id == MISSING_CODE_ID))
-        );
-
-        // Gate state: some final (post-repair) measurement is FAIL → repair
-        // exceeded limits, the Update button turns red and offers EC / Order New.
-        const hasGateFail = part.params.some(p => {
-            const fins = paramMeasurements(p).filter(m => m.stage === 'final');
-            const last = fins[fins.length - 1];
-            return last && last.result === 'FAIL';
-        });
 
         if (hasRepairTdr) {
+            // Button lifecycle:
+            //   1) ALL initial measurements entered → active (build the processes)
+            //   2) after Update Processes → inactive until newer measurements
+            //   3) ALL finals of the repaired points entered → active (red) ONLY on EC
+            const allInitial = part.params.length > 0 && part.params.every(p => paramStatus(p) !== 'none');
+            const repairParams = part.params.filter(p =>
+                paramMeasurements(p).some(m => m.stage === 'initial' && m.result === 'FAIL'));
+            const allFinals = repairParams.length > 0 && repairParams.every(p =>
+                paramMeasurements(p).some(m => m.stage === 'final'));
+            const hasGateFail = part.params.some(p => {
+                const fins = paramMeasurements(p).filter(m => m.stage === 'final');
+                const last = fins[fins.length - 1];
+                return last && last.result === 'FAIL';
+            });
+            const syncedId = icsSyncedMeas.get(part.id) || 0;
+            const maxMeasId = Math.max(0, ...part.params.flatMap(p => paramMeasurements(p).map(m => m.id)));
+            const unsynced = maxMeasId > syncedId;
+
+            const gateActive   = allFinals && hasGateFail && unsynced;
+            const normalActive = !allFinals && allInitial && unsynced;
+
             hint.classList.add('d-none');
             updateBtn.classList.remove('d-none');
             // Not using `disabled` — an inactive button must still catch clicks
             // to explain why it is inactive.
-            updateBtn.dataset.inactive = hasAnyRealMeasurements ? '' : '1';
-            updateBtn.dataset.gate = hasGateFail ? '1' : '';
-            updateBtn.classList.toggle('btn-outline-primary', !hasGateFail);
-            updateBtn.classList.toggle('btn-danger', hasGateFail);
-            updateBtn.style.opacity = hasAnyRealMeasurements ? '' : '0.45';
-            updateBtn.title = hasGateFail
+            updateBtn.dataset.inactive = (gateActive || normalActive) ? '' : '1';
+            updateBtn.dataset.reason = (!gateActive && !normalActive && unsynced && !allInitial) ? 'initials' : '';
+            updateBtn.dataset.gate = gateActive ? '1' : '';
+            updateBtn.classList.toggle('btn-outline-primary', !gateActive);
+            updateBtn.classList.toggle('btn-danger', gateActive);
+            updateBtn.style.opacity = (gateActive || normalActive) ? '' : '0.45';
+            updateBtn.title = gateActive
                 ? 'Final measurement out of repair limits — choose EC or Order New'
-                : (hasAnyRealMeasurements ? '' : 'Enter measurements/inspection data before updating processes');
+                : normalActive ? ''
+                : !unsynced ? 'Processes are up to date'
+                : !allInitial ? 'Enter the initial measurement for EVERY point first'
+                : allFinals && !hasGateFail ? 'Repair complete — all finals within limits'
+                : 'Processes are up to date';
         } else if (hasRepairFail) {
             hint.classList.remove('d-none');
             updateBtn.classList.add('d-none');
@@ -892,7 +1011,25 @@
 
     document.getElementById('ms-update-processes-btn')?.addEventListener('click', async function () {
         if (this.dataset.inactive === '1') {
-            const msg = 'No measurement/inspection data — enter measurements before updating processes';
+            // Missing initials → list exactly WHICH points still need a measurement
+            if (this.dataset.reason === 'initials') {
+                const part = partsTree.find(p => p.id === activePartId);
+                const missing = (part?.params || [])
+                    .filter(p => paramStatus(p) === 'none')
+                    .map(p => {
+                        const pts = [...new Set((p.locations || []).map(l => l.pt.code).filter(Boolean))].join(', ');
+                        return '• ' + (pts ? pts + ' · ' : '') + (p.description || '');
+                    });
+                const modal = document.getElementById('ms-sketch-missing-modal');
+                const body  = document.getElementById('ms-sketch-missing-body');
+                if (modal && body && missing.length) {
+                    body.innerHTML = '<div style="margin-bottom:6px">Enter the initial measurement / inspection for:</div>'
+                        + missing.map(esc).join('<br>');
+                    modal.style.display = 'flex';
+                    return;
+                }
+            }
+            const msg = this.title || 'Processes are up to date';
             if (typeof showNotification === 'function') showNotification(msg, 'warning');
             else alert(msg);
             return;
@@ -909,6 +1046,10 @@
                 method: 'POST',
                 body: JSON.stringify({ inspection_component_id: part.id }),
             });
+            // sync point reached — the button goes inactive until newer measurements
+            const maxId = Math.max(0, ...part.params.flatMap(p => paramMeasurements(p).map(m => m.id)));
+            icsSyncedMeas.set(part.id, maxId);
+            updateRepairActionState(part);
             document.dispatchEvent(new CustomEvent('tdr-created-from-measurements'));
             if (typeof showNotification === 'function') showNotification('Repair processes updated', 'success');
         } catch (e) { alert(e.message); }
@@ -979,18 +1120,119 @@
     document.getElementById('msGateEcBtn')?.addEventListener('click', () => applyGateOutcome('ec'));
     document.getElementById('msGateOrderNewBtn')?.addEventListener('click', () => applyGateOutcome('order_new'));
 
-    /* ── Required Bushings: dynamic WO tab next to Measurements ─────── */
-    document.getElementById('ms-req-bush-btn')?.addEventListener('click', function () {
-        const li    = document.getElementById('tab-req-bushings-li');
-        const btn   = document.getElementById('tab-req-bushings');
-        const frame = document.getElementById('req-bushings-frame');
-        if (!li || !btn || !frame) {
-            window.open('/workorders/' + WO_ID + '/measurements/required-bushings', '_blank');
-            return;
-        }
-        frame.src = '/workorders/' + WO_ID + '/measurements/required-bushings';
+    /* ── Dynamic WO report tabs next to Measurements ─────────────────── */
+    function openReportTab(liId, btnId, frameId, url) {
+        const li    = document.getElementById(liId);
+        const btn   = document.getElementById(btnId);
+        const frame = document.getElementById(frameId);
+        if (!li || !btn || !frame) { window.open(url, '_blank'); return; }
+        frame.src = url;
         li.classList.remove('d-none');
         new bootstrap.Tab(btn).show();
+    }
+    document.getElementById('ms-req-bush-btn')?.addEventListener('click', () =>
+        openReportTab('tab-req-bushings-li', 'tab-req-bushings', 'req-bushings-frame',
+            '/workorders/' + WO_ID + '/measurements/required-bushings'));
+    document.getElementById('ms-final-report-btn')?.addEventListener('click', () =>
+        openReportTab('tab-final-report-li', 'tab-final-report', 'final-report-frame',
+            '/workorders/' + WO_ID + '/measurements/final-fit-report'));
+
+    /* ── Print figures with the selected part's points highlighted ───── */
+    document.getElementById('ms-print-figures-btn')?.addEventListener('click', function () {
+        const part = partsTree.find(p => p.id === activePartId);
+        if (!part) { alert('Select a part first'); return; }
+
+        // points of this part per figure: parameter-linked points + its text labels
+        const byFig = new Map(); // fig.id → {fig, pts: Map(ptId → pt)}
+        const addPt = (fig, pt) => {
+            if (!byFig.has(fig.id)) byFig.set(fig.id, { fig, pts: new Map() });
+            byFig.get(fig.id).pts.set(pt.id, pt);
+        };
+        part.params.forEach(p => (p.locations || []).forEach(({ fig, pt }) => addPt(fig, pt)));
+        figures.forEach(fig => (fig.points || []).forEach(pt => {
+            if (pt.point_type === 'text' && pt.child_ic_id === part.id) addPt(fig, pt);
+        }));
+        if (!byFig.size) { alert('This part has no points on any figure'); return; }
+
+        const C = '#dc3545';                 // marker color (location only, no status)
+        const esc2 = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        const lblBox = (x, y, text, color) =>
+            `<div style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);` +
+            `background:#fff;border:1.5px solid ${color};border-radius:3px;padding:0 4px;` +
+            `font-size:10px;font-weight:700;color:${color};white-space:nowrap">${esc2(text)}</div>`;
+
+        let sections = '';
+        byFig.forEach(({ fig, pts }) => {
+            if (!fig.image_path) return;
+            let svg = '', divs = '';
+            pts.forEach(pt => {
+                if (pt.x_pct == null) return;
+                const x = parseFloat(pt.x_pct), y = parseFloat(pt.y_pct);
+                if (pt.point_type === 'text') {
+                    const ic  = inspComponents.find(c => c.id === pt.child_ic_id);
+                    const txt = ic ? ic.label : (pt.description || pt.code);
+                    svg  += `<circle cx="${x}" cy="${y}" r="0.5" fill="#14b8a6"/>`;
+                    if (pt.label_x_pct != null) {
+                        svg  += `<line x1="${x}" y1="${y}" x2="${pt.label_x_pct}" y2="${pt.label_y_pct}" stroke="#14b8a6" stroke-width="0.15"/>`;
+                        divs += lblBox(pt.label_x_pct, pt.label_y_pct, txt, '#14b8a6');
+                    } else divs += lblBox(x, y - 3, txt, '#14b8a6');
+                    return;
+                }
+                const isLine = pt.x2_pct != null && pt.y2_pct != null;
+                if (isLine) {
+                    // линия с двумя концами, как на экране
+                    svg += `<line x1="${x}" y1="${y}" x2="${pt.x2_pct}" y2="${pt.y2_pct}" stroke="${C}" stroke-width="0.25"/>`;
+                    svg += `<circle cx="${x}" cy="${y}" r="0.5" fill="${C}"/><circle cx="${pt.x2_pct}" cy="${pt.y2_pct}" r="0.5" fill="${C}"/>`;
+                    const lx = pt.label_x_pct != null ? pt.label_x_pct : (x + parseFloat(pt.x2_pct)) / 2;
+                    const ly = pt.label_y_pct != null ? pt.label_y_pct : (y + parseFloat(pt.y2_pct)) / 2;
+                    if (pt.label_x_pct != null) {
+                        const mx = (x + parseFloat(pt.x2_pct)) / 2, my = (y + parseFloat(pt.y2_pct)) / 2;
+                        svg += `<line x1="${mx}" y1="${my}" x2="${lx}" y2="${ly}" stroke="${C}" stroke-width="0.12" stroke-dasharray="0.8,0.5"/>`;
+                    }
+                    divs += lblBox(lx, ly, pt.code, C);
+                } else if (pt.point_type === 'circle' && pt.width_pct != null) {
+                    svg  += `<ellipse cx="${x}" cy="${y}" rx="${pt.width_pct}" ry="${pt.height_pct ?? pt.width_pct}" fill="none" stroke="${C}" stroke-width="0.25" stroke-dasharray="1,0.6"/>`;
+                    divs += lblBox(x, y - parseFloat(pt.height_pct ?? pt.width_pct) - 2, pt.code, C);
+                } else if (pt.point_type === 'area' && pt.width_pct != null) {
+                    svg  += `<rect x="${x}" y="${y}" width="${pt.width_pct}" height="${pt.height_pct}" fill="rgba(220,53,69,.06)" stroke="${C}" stroke-width="0.25" stroke-dasharray="1,0.6"/>`;
+                    divs += lblBox(x + parseFloat(pt.width_pct) / 2, y - 2, pt.code, C);
+                } else {
+                    // dot (+ leader to the label when callout coords exist)
+                    svg += `<circle cx="${x}" cy="${y}" r="0.6" fill="${C}" stroke="#fff" stroke-width="0.15"/>`;
+                    if (pt.label_x_pct != null) {
+                        svg  += `<line x1="${x}" y1="${y}" x2="${pt.label_x_pct}" y2="${pt.label_y_pct}" stroke="${C}" stroke-width="0.15"/>`;
+                        divs += lblBox(pt.label_x_pct, pt.label_y_pct, pt.code, C);
+                    } else divs += lblBox(x, y - 3, pt.code, C);
+                }
+            });
+            sections += `<div class="fig-sheet">
+                <div class="fig-title">${esc2(part.label)} · ${esc2(fig.title || '')}</div>
+                <div class="fig-wrap">
+                    <img src="${esc2(fig.image_path)}">
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none"
+                         style="position:absolute;inset:0;width:100%;height:100%">${svg}</svg>
+                    ${divs}
+                </div>
+            </div>`;
+        });
+
+        const w = window.open('', '_blank');
+        w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Figures — ${esc2(part.label)} · W{{ $wo->number ?? $wo->id }}</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#fff;color:#000;padding:16px}
+.toolbar{margin-bottom:12px}
+.toolbar button{padding:5px 16px;font-size:12px;cursor:pointer;background:#0d6efd;color:#fff;border:none;border-radius:4px}
+.fig-sheet{margin-bottom:20px;page-break-inside:avoid}
+.fig-title{font-size:14px;font-weight:700;margin-bottom:6px}
+.fig-wrap{position:relative;width:fit-content;margin:0 auto}
+.fig-wrap img{display:block;max-width:100%;max-height:118mm;width:auto}
+@media print{.toolbar{display:none}body{padding:0}@page{size:letter portrait;margin:10mm}}
+</style></head><body>
+<div class="toolbar"><button onclick="window.print()">&#128438; Print</button></div>
+${sections}
+</body></html>`);
+        w.document.close();
     });
 
     function updateTdrBtnState(part) {
@@ -1349,6 +1591,14 @@
         ms.forEach(m=>rec.appendChild(buildMeasRow(m,param)));
 
         const part = partsTree.find(p => p.id === param.inspection_component_id);
+
+        // Order New position (non-bushing): verification of the REPLACEMENT part
+        if (part && partIsNewMode(part)) {
+            const lastNew = [...ms].reverse().find(m => m.new_part);
+            if (!lastNew) frm.appendChild(buildForm(param, 'initial', null, true));
+            return;
+        }
+
         const partIsMissing = MISSING_CODE_ID && part?.params.some(p =>
             paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID)
         );
@@ -1453,9 +1703,9 @@
         return d;
     }
 
-    function buildForm(param, stage, replacesId) {
+    function buildForm(param, stage, replacesId, newPart = false) {
         const uid = param.id+'_'+stage;
-        const rSide = param.repair_surface_side || null;
+        const rSide = newPart ? null : (param.repair_surface_side || null);
         const showDepthA = stage === 'final' && (rSide === 'A' || rSide === 'both');
         const showDepthB = stage === 'final' && (rSide === 'B' || rSide === 'both');
         const hasMeas = param.orig_dim_min !== null || param.orig_dim_max !== null || !!param.requires_value;
@@ -1467,7 +1717,7 @@
 
         const d=document.createElement('div'); d.className='ms-form-wrap mt-2';
         d.innerHTML=`
-            <div style="font-size:10px;font-weight:600;color:var(--bs-secondary-color);margin-bottom:6px">${stage==='final'?'Final measurement (after repair)':'Record measurement'}</div>
+            <div style="font-size:10px;font-weight:600;color:${newPart?'#0dcaf0':'var(--bs-secondary-color)'};margin-bottom:6px">${newPart?'New part verification — judged by ORIG limits':(stage==='final'?'Final measurement (after repair)':'Record measurement')}</div>
             ${hasMeas?`
             <div class="ms-frow">
                 <div class="ms-flabel">Actual value</div>
@@ -1553,6 +1803,7 @@
             const body={
                 manual_parameter_id: param.id,
                 stage,
+                new_part: newPart,
                 replaces_id: replacesId||null,
                 actual_value: hasMeas?(valRaw!==''?parseFloat(valRaw):null):null,
                 repair_depth_a: showDepthA?(daRaw!==''?parseFloat(daRaw):null):null,
@@ -1627,9 +1878,11 @@
             icsWithTdr=new Set(data.ics_with_tdr||[]);
             icsMissingTdr=new Set(data.ics_missing_tdr||[]);
             icsTdrLabel=new Map(Object.entries(data.ics_tdr_label||{}).map(([k,v])=>[parseInt(k),v]));
+            icsSyncedMeas=new Map(Object.entries(data.ics_synced_meas||{}).map(([k,v])=>[parseInt(k),parseInt(v)||0]));
             partsTree=buildPartsTree();
             if(loadingEl) loadingEl.style.display='none';
             renderPartsList();
+            applyPendingSingleIc(); // Inspect (single part) requested from the TDR tab
         } catch(e) {
             if(loadingEl){ loadingEl.style.display=''; loadingEl.textContent='Failed to load: '+e.message; }
         }
@@ -1924,8 +2177,8 @@
     // B1 — Change decision (revert TDR) is intentionally disabled in Measurements tab.
     // The action is available in the TDR tab only, where role/state checks are enforced.
 
-    document.getElementById('tab-measurements')?.addEventListener('shown.bs.tab', async function(){
-        if(!loaded){ loaded=true; loadData(); }
+    async function msOnPaneShown(mode) {
+        if(!loaded){ loaded=true; await loadData(); }
         else {
             // Lightweight TDR-labels refresh (keeps selected part / accordion state)
             try {
@@ -1933,17 +2186,33 @@
                 icsWithTdr   = new Set(data.ics_with_tdr||[]);
                 icsMissingTdr= new Set(data.ics_missing_tdr||[]);
                 icsTdrLabel  = new Map(Object.entries(data.ics_tdr_label||{}).map(([k,v])=>[parseInt(k),v]));
-                renderPartsList();
-                const part = partsTree.find(p => p.id === activePartId);
-                if (part) updateRepairActionState(part);
+                icsSyncedMeas= new Map(Object.entries(data.ics_synced_meas||{}).map(([k,v])=>[parseInt(k),parseInt(v)||0]));
             } catch(e) { /* silent — stale data is better than a crash */ }
         }
+        if (mode === 'single') { msViewMode = 'single'; applyPendingSingleIc(); renderPartsList(); }
+        else msSetViewMode(mode);
+        const part = partsTree.find(p => p.id === activePartId);
+        if (part) updateRepairActionState(part);
         const w = document.getElementById('ms-fc-btn-wrap');
         if (w) { w.classList.remove('d-none'); w.classList.add('d-flex'); }
-    });
-    document.getElementById('tab-measurements')?.addEventListener('hide.bs.tab', function(){
+    }
+    function msOnPaneHide() {
         const w = document.getElementById('ms-fc-btn-wrap');
         if (w) { w.classList.remove('d-flex'); w.classList.add('d-none'); }
+    }
+    document.getElementById('tab-measurements')?.addEventListener('shown.bs.tab', () => msOnPaneShown('all'));
+    document.getElementById('tab-ms-inspect') ?.addEventListener('shown.bs.tab', () => msOnPaneShown('single'));
+    document.getElementById('tab-ms-new')     ?.addEventListener('shown.bs.tab', () => msOnPaneShown('new'));
+    ['tab-measurements','tab-ms-inspect','tab-ms-new'].forEach(id =>
+        document.getElementById(id)?.addEventListener('hide.bs.tab', msOnPaneHide));
+
+    // NEW button (PARTS header) → NEW Parts tab
+    document.getElementById('ms-new-parts-btn')?.addEventListener('click', function () {
+        const li  = document.getElementById('tab-ms-new-li');
+        const btn = document.getElementById('tab-ms-new');
+        if (!li || !btn) return;
+        li.classList.remove('d-none');
+        bootstrap.Tab.getOrCreateInstance(btn).show();
     });
     if(document.getElementById('content-measurements')?.classList.contains('active')){
         loaded=true; loadData();
