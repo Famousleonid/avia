@@ -14,7 +14,6 @@ use App\Models\Tdr;
 use App\Models\Transfer;
 use App\Models\Unit;
 use App\Models\User;
-use App\Models\UserUiSetting;
 use App\Models\Workorder;
 use App\Models\WorkorderStdProcess;
 use App\Models\WorkorderUnitInspection;
@@ -441,28 +440,24 @@ class QualityAssuranceController extends Controller
             ->whereHas('role', fn ($query) => $query->where('name', 'Manager'))
             ->orderBy('name')
             ->get(['id', 'name', 'role_id']);
-        $certificateSettingsScope = 'quality.certificate.wo.' . $workorder->id;
-        $certificateSettings = UserUiSetting::query()
-            ->where('user_id', $user?->id)
-            ->where('scope', $certificateSettingsScope)
-            ->get()
-            ->mapWithKeys(fn (UserUiSetting $setting): array => [$setting->key => $setting->value]);
-        $certificateStringSetting = static function (string $key, string $default = '') use ($certificateSettings): string {
-            if (! $certificateSettings->has($key)) {
+        $certificateData = is_array($workorder->certificate_data) ? $workorder->certificate_data : [];
+        $certificateStringSetting = static function (string $key, string $default = '') use ($certificateData): string {
+            if (! array_key_exists($key, $certificateData)) {
                 return $default;
             }
 
-            $value = $certificateSettings->get($key);
+            $value = $certificateData[$key];
 
             return is_scalar($value) ? trim((string) $value) : $default;
         };
-        $certificateBoolSetting = static function (string $key, bool $default) use ($certificateSettings): bool {
-            if (! $certificateSettings->has($key)) {
+        $certificateBoolSetting = static function (string $key, bool $default) use ($certificateData): bool {
+            if (! array_key_exists($key, $certificateData)) {
                 return $default;
             }
 
-            return filter_var($certificateSettings->get($key), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default;
+            return filter_var($certificateData[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default;
         };
+        $certificateItemSettings = is_array($certificateData['item_settings'] ?? null) ? $certificateData['item_settings'] : [];
         $canEditCertificateManager = (bool) $user?->canAccessQualityAssurancePage();
         $requestedManagerId = (int) $request->query('certificate_manager_id');
         $savedManagerId = (int) $certificateStringSetting('certificate_manager_id');
@@ -504,13 +499,84 @@ class QualityAssuranceController extends Controller
             'certificateDateIso' => $certificateDateIso,
             'includeLandingGearLogCard' => $includeLandingGearLogCard,
             'includeRoycoService' => $includeRoycoService,
+            'certificateItemSettings' => $certificateItemSettings,
             'certificateStatusOptions' => $certificateStatusOptions,
             'selectedCertificateInstructionId' => $workorder->instruction_id ? (int) $workorder->instruction_id : null,
             'selectedCertificateItemSource' => $certificateStringSetting('certificate_item_source', 'main'),
             'selectedCertificateTrackingMode' => $certificateStringSetting('certificate_tracking_mode'),
+            'certificateDetailOpen' => $certificateBoolSetting('certificate_detail_open', false),
             'certificateLogComponents' => $certificateLogComponents,
-            'certificateSettingsScope' => $certificateSettingsScope,
             'certificateManagerName' => $certificateManagerName,
+        ]);
+    }
+
+    public function updateCertificateState(Request $request, Workorder $workorder)
+    {
+        $data = $request->validate([
+            'key' => [
+                'required',
+                'string',
+                Rule::in([
+                    'certificate_item_source',
+                    'certificate_detail_open',
+                    'certificate_tracking_mode',
+                    'certificate_manager_id',
+                    'certificate_date',
+                    'include_landing_gear_log_card',
+                    'include_royco_service',
+                ]),
+            ],
+            'value' => ['nullable'],
+            'item_source' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        $key = (string) $data['key'];
+        $value = $data['value'] ?? null;
+
+        if (in_array($key, ['certificate_detail_open', 'include_landing_gear_log_card', 'include_royco_service'], true)) {
+            $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+        } elseif ($key === 'certificate_tracking_mode') {
+            $value = strtolower(trim((string) $value)) === 'c' ? 'c' : '';
+        } elseif ($key === 'certificate_manager_id') {
+            $value = trim((string) $value);
+            if ($value !== '') {
+                User::query()
+                    ->whereHas('role', fn ($query) => $query->where('name', 'Manager'))
+                    ->findOrFail((int) $value);
+            }
+        } elseif ($key === 'certificate_date') {
+            $value = trim((string) $value);
+            if ($value !== '') {
+                $value = parse_project_date($value) ?: $value;
+                abort_unless((bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', $value), 422, 'Invalid certificate date.');
+            }
+        } else {
+            $value = trim((string) $value);
+            abort_unless($value === 'main' || str_starts_with($value, 'log:'), 422, 'Invalid certificate detail source.');
+        }
+
+        $certificateData = is_array($workorder->certificate_data) ? $workorder->certificate_data : [];
+        if (in_array($key, ['include_landing_gear_log_card', 'include_royco_service'], true)) {
+            $itemSource = trim((string) ($data['item_source'] ?? 'main')) ?: 'main';
+            abort_unless($itemSource === 'main' || str_starts_with($itemSource, 'log:'), 422, 'Invalid certificate detail source.');
+
+            $itemSettings = is_array($certificateData['item_settings'] ?? null) ? $certificateData['item_settings'] : [];
+            $itemSettings[$itemSource] = is_array($itemSettings[$itemSource] ?? null) ? $itemSettings[$itemSource] : [];
+            $itemSettings[$itemSource][$key] = $value;
+            $certificateData['item_settings'] = $itemSettings;
+        } else {
+            $certificateData[$key] = $value;
+        }
+
+        if ($key === 'certificate_item_source' && $value !== 'main') {
+            $certificateData['certificate_tracking_mode'] = '';
+        }
+
+        $workorder->forceFill(['certificate_data' => $certificateData])->save();
+
+        return response()->json([
+            'ok' => true,
+            'data' => $workorder->certificate_data,
         ]);
     }
 

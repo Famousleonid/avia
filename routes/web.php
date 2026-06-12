@@ -567,6 +567,8 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/quality-assurance/units', [QualityAssuranceController::class, 'storeUnit'])->name('quality.units.store');
     Route::patch('/quality-assurance/workorders/{workorder}/top-fields', [QualityAssuranceController::class, 'updateTopFields'])
         ->name('quality.workorder.top_fields.update');
+    Route::patch('/quality-assurance/workorders/{workorder}/certificate-state', [QualityAssuranceController::class, 'updateCertificateState'])
+        ->name('quality.forms.certificate.state.update');
     Route::get('/quality-assurance/workorders/{workorder}/shipment-release-form', [QualityAssuranceController::class, 'shipmentReleaseForm'])
         ->name('quality.forms.shipment_release');
     Route::get('/quality-assurance/workorders/{workorder}/log-card-form', [QualityAssuranceController::class, 'logCardForm'])

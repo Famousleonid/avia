@@ -14,7 +14,6 @@ use App\Models\ProcessName;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
-use App\Models\UserUiSetting;
 use App\Models\Workorder;
 use App\Models\WorkorderServiceBulletinLog;
 use App\Models\WorkorderStdProcess;
@@ -357,18 +356,12 @@ class QualityAssuranceTest extends TestCase
                 ],
             ],
         ]);
-        UserUiSetting::query()->create([
-            'user_id' => $manager->id,
-            'scope' => 'quality.certificate.wo.' . $workorder->id,
-            'key' => 'certificate_item_source',
-            'value' => 'log:0',
-        ]);
-        UserUiSetting::query()->create([
-            'user_id' => $manager->id,
-            'scope' => 'quality.certificate.wo.' . $workorder->id,
-            'key' => 'certificate_tracking_mode',
-            'value' => 'c',
-        ]);
+        $workorder->forceFill([
+            'certificate_data' => [
+                'certificate_item_source' => 'log:0',
+                'certificate_tracking_mode' => 'c',
+            ],
+        ])->save();
 
         $response = $this->actingAs($manager)
             ->get(route('quality.forms.certificate', $workorder));
@@ -399,12 +392,11 @@ class QualityAssuranceTest extends TestCase
             'description' => 'Old Workorder Description',
         ]);
 
-        UserUiSetting::query()->create([
-            'user_id' => $manager->id,
-            'scope' => 'quality.certificate.wo.' . $workorder->id,
-            'key' => 'certificate_tracking_mode',
-            'value' => 'c',
-        ]);
+        $workorder->forceFill([
+            'certificate_data' => [
+                'certificate_tracking_mode' => 'c',
+            ],
+        ])->save();
 
         $response = $this->actingAs($manager)
             ->get(route('quality.forms.certificate', $workorder));
@@ -468,31 +460,18 @@ class QualityAssuranceTest extends TestCase
         ]);
         $workorder = $this->createWorkorder();
         $workorder->forceFill(['approve_name' => 'Approved Manager'])->save();
-        $settingsScope = 'quality.certificate.wo.' . $workorder->id;
-        UserUiSetting::query()->create([
-            'user_id' => $manager->id,
-            'scope' => $settingsScope,
-            'key' => 'include_landing_gear_log_card',
-            'value' => false,
-        ]);
-        UserUiSetting::query()->create([
-            'user_id' => $manager->id,
-            'scope' => $settingsScope,
-            'key' => 'include_royco_service',
-            'value' => true,
-        ]);
-        UserUiSetting::query()->create([
-            'user_id' => $manager->id,
-            'scope' => $settingsScope,
-            'key' => 'certificate_manager_id',
-            'value' => (string) $selectedManager->id,
-        ]);
-        UserUiSetting::query()->create([
-            'user_id' => $manager->id,
-            'scope' => $settingsScope,
-            'key' => 'certificate_date',
-            'value' => '2025-11-03',
-        ]);
+        $workorder->forceFill([
+            'certificate_data' => [
+                'item_settings' => [
+                    'main' => [
+                        'include_landing_gear_log_card' => false,
+                        'include_royco_service' => true,
+                    ],
+                ],
+                'certificate_manager_id' => (string) $selectedManager->id,
+                'certificate_date' => '2025-11-03',
+            ],
+        ])->save();
 
         $managerResponse = $this->actingAs($manager)
             ->get(route('quality.forms.certificate', $workorder));
@@ -513,6 +492,8 @@ class QualityAssuranceTest extends TestCase
         $managerResponse->assertSee('Serviced with ROYCO LGF (Yellow)');
         $managerResponse->assertSee('data-setting-key="include_royco_service"', false);
         $managerResponse->assertSee('arc-remark-print-toggle');
+        $managerResponse->assertSee('certificate-state', false);
+        $managerResponse->assertDontSee('user-ui-settings', false);
         $managerResponse->assertDontSee('arc-toolbar-form', false);
         $managerResponse->assertDontSee('Apply');
 
@@ -525,6 +506,49 @@ class QualityAssuranceTest extends TestCase
         $adminResponse->assertOk();
         $adminResponse->assertSee('data-certificate-manager-select', false);
         $adminResponse->assertSee('Selected Certificate Manager');
+    }
+
+    public function test_certificate_state_is_saved_on_workorder_certificate_data(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder();
+
+        $response = $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_detail_open',
+                'value' => true,
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('ok', true);
+
+        $this->assertSame([
+            'certificate_detail_open' => true,
+        ], $workorder->fresh()->certificate_data);
+
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_item_source',
+                'value' => 'log:0',
+            ])
+            ->assertOk();
+
+        $this->assertSame('', $workorder->fresh()->certificate_data['certificate_tracking_mode']);
+        $this->assertSame('log:0', $workorder->fresh()->certificate_data['certificate_item_source']);
+
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'include_royco_service',
+                'value' => true,
+                'item_source' => 'log:0',
+            ])
+            ->assertOk();
+
+        $certificateData = $workorder->fresh()->certificate_data;
+        $this->assertTrue($certificateData['item_settings']['log:0']['include_royco_service']);
+        $this->assertArrayNotHasKey('include_royco_service', $certificateData);
     }
 
     public function test_serial_search_returns_workorder_links_from_tdr_and_log_card(): void
