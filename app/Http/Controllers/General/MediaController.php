@@ -254,11 +254,13 @@ class MediaController extends Controller
         $request->validate([
             'pdf' => 'required|mimes:pdf|max:10240', // максимум 10MB на файл
             'document_name' => 'nullable|string|max:255',
+            'doc_kind' => 'nullable|in:general,ec_approved',
         ]);
 
         if ($request->hasFile('pdf')) {
             $pdf = $request->file('pdf');
             $documentName = $request->input('document_name');
+            $docKind = $request->input('doc_kind', 'general');
 
             // Формируем уникальное читаемое имя файла
             $filename = 'wo_' . $workorder->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.pdf';
@@ -267,12 +269,14 @@ class MediaController extends Controller
                 ->usingFileName($filename)
                 ->toMediaCollection('pdfs');
 
+            // Категория документа (General / EC Approved)
+            $media->setCustomProperty('doc_kind', $docKind);
             // Сохраняем название документа в custom property
             if ($documentName) {
                 $media->setCustomProperty('document_name', $documentName);
                 $media->name = $documentName;
-                $media->save();
             }
+            $media->save();
         }
 
         // Формируем список загруженных PDF для фронта
@@ -359,6 +363,21 @@ class MediaController extends Controller
         $media->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    /** Rename a library PDF — stored as the display name (document_name property). */
+    public function rename_pdf(Request $request, $id)
+    {
+        $media = Media::findOrFail($id);
+        if ($media->collection_name !== 'pdfs') {
+            return response()->json(['error' => 'Invalid file type'], 400);
+        }
+        $data = $request->validate(['name' => 'required|string|max:255']);
+
+        $media->setCustomProperty('document_name', trim($data['name']));
+        $media->save();
+
+        return response()->json(['success' => true, 'name' => trim($data['name'])]);
     }
 
     public function move_workorder_media(Request $request, Media $media)

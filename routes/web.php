@@ -257,6 +257,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('/workorders/{workorderId}/pdf/{mediaId}/show', [MediaController::class, 'showPdf'])->name('workorders.pdf.show');
         Route::get('/workorders/{workorderId}/pdf/{mediaId}/download', [MediaController::class, 'downloadPdf'])->name('workorders.pdf.download');
         Route::delete('/workorders/pdf/delete/{id}', [MediaController::class, 'delete_pdf'])->name('workorders.pdf.delete');
+        Route::patch('/workorders/pdf/{id}/rename', [MediaController::class, 'rename_pdf'])->name('workorders.pdf.rename');
 
         Route::resource('/tdrs', TdrController::class)->except('create','edit', 'show');
 

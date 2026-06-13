@@ -1171,10 +1171,30 @@ class WorkorderController extends Controller
     {
         try {
             $workorder = Workorder::findOrFail($id);
+
+            // Document categories. Generated docs carry a 'source'; uploaded docs
+            // carry a 'doc_kind' chosen at upload time (default 'general').
+            $genBySource = [
+                'process_document' => ['kind' => 'ec_draft',  'label' => 'EC Draft'],
+                'fc_document'      => ['kind' => 'fc',         'label' => 'F&C'],
+                'machining_final'  => ['kind' => 'machining',  'label' => 'Machining'],
+            ];
+            $uploadLabels = ['ec_approved' => 'EC Approved', 'general' => 'General'];
+
             $pdfs = $workorder->getMedia('pdfs')
-                ->reject(fn ($media) => $media->getCustomProperty('source') === 'process_document')
-                ->map(function ($media) use ($workorder) {
+                ->map(function ($media) use ($workorder, $genBySource, $uploadLabels) {
                 $documentName = $media->getCustomProperty('document_name') ?: ($media->name ?? null);
+                $source = $media->getCustomProperty('source');
+
+                if (isset($genBySource[$source])) {
+                    $kind = $genBySource[$source]['kind'];
+                    $label = $genBySource[$source]['label'];
+                    $generated = true;
+                } else {
+                    $kind = $media->getCustomProperty('doc_kind') ?: 'general';
+                    $label = $uploadLabels[$kind] ?? 'General';
+                    $generated = false;
+                }
 
                 return [
                     'id' => $media->id,
@@ -1183,6 +1203,11 @@ class WorkorderController extends Controller
                     'size' => $media->size,
                     'mime_type' => $media->mime_type,
                     'created_at' => $media->created_at->format('Y-m-d H:i:s'),
+                    'kind' => $kind,
+                    'kind_label' => $label,
+                    // generated documents (EC drawings / F&C / Machining) — hidden unless "Show generated"
+                    'is_generated' => $generated,
+                    'gen_type' => $generated ? $label : null,
                     'url' => route('workorders.pdf.show', [
                         'workorderId' => $workorder->id,
                         'mediaId' => $media->id,

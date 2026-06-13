@@ -384,10 +384,26 @@
                             </label>
                             <input type="file" class="visually-hidden" id="pdfFileInput" name="pdf" accept="application/pdf,.pdf" required>
                         </div>
-                        <div class="pdf-upload-actions">
+                        <div class="pdf-upload-actions d-flex align-items-center gap-2">
+                            <select id="pdfUploadCategory" class="form-select form-select-sm" style="width:auto;font-size:12px" title="Document category">
+                                <option value="general" selected>General</option>
+                                <option value="ec_approved">EC Approved (OEM)</option>
+                            </select>
                             <button class="btn btn-outline-secondary d-none" type="button" id="clearPdfFileBtn">Cancel upload</button>
                         </div>
                     </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 mb-2 ms-1">
+                    <label class="form-label mb-0" for="pdfCategoryFilter" style="font-size:12px">Category:</label>
+                    <select id="pdfCategoryFilter" class="form-select form-select-sm" style="width:auto;font-size:12px">
+                        <option value="uploaded" selected>Uploaded only</option>
+                        <option value="all">All documents</option>
+                        <option value="general">General</option>
+                        <option value="ec_approved">EC Approved</option>
+                        <option value="ec_draft">EC Draft (generated)</option>
+                        <option value="fc">F&amp;C (generated)</option>
+                        <option value="machining">Machining (generated)</option>
+                    </select>
                 </div>
                 <div id="pdfListContainer" class="pdf-library-list"></div>
             </div>

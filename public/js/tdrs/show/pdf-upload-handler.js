@@ -124,6 +124,8 @@ const PdfUploadHandler = {
 
         const formData = new FormData();
         formData.append('pdf', file);
+        const catSel = document.getElementById('pdfUploadCategory');
+        if (catSel) formData.append('doc_kind', catSel.value || 'general');
 
         const request = new XMLHttpRequest();
         this.currentRequest = request;

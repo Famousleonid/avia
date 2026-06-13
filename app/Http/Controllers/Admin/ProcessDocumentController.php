@@ -144,11 +144,26 @@ class ProcessDocumentController extends Controller
         $safe     = preg_replace('/[^A-Za-z0-9_-]+/', '_', $title);
         $filename = 'wo_' . ($workorder->number ?? $workorder->id) . '_' . $safe . $placeTag . '_' . now()->format('Ymd_Hi') . '.pdf';
 
-        // Tagged as a process-document generation so it stays out of the PDF Library
-        // listing (still in 'pdfs' so show/download keep working).
+        // EC drawings are hidden from the PDF Library listing (source =
+        // process_document). The F&C document is meant to be visible there, so
+        // it is saved with a library-visible source + a friendly name.
+        $toLibrary = $request->boolean('to_library');
+        $props = $toLibrary
+            ? ['source' => 'fc_document', 'document_id' => $processDocument->id, 'document_name' => ($processDocument->title ?: 'F&C Document')]
+            : ['source' => 'process_document'];
+
+        // F&C document is one-per-document: replace the previous PDF instead of
+        // piling up duplicates each time it is saved.
+        if ($toLibrary) {
+            $workorder->getMedia('pdfs')
+                ->filter(fn ($m) => $m->getCustomProperty('source') === 'fc_document'
+                    && (int) $m->getCustomProperty('document_id') === $processDocument->id)
+                ->each->delete();
+        }
+
         $media = $workorder->addMediaFromString($pdf)
             ->usingFileName($filename)
-            ->withCustomProperties(['source' => 'process_document'])
+            ->withCustomProperties($props)
             ->toMediaCollection('pdfs');
 
         return response()->json([
@@ -289,7 +304,8 @@ document.getElementById("savePdfBtn").addEventListener("click", async function (
     try {
         const r = await fetch(' . json_encode($saveUrl) . ', {
             method: "POST",
-            headers: { "X-CSRF-TOKEN": ' . json_encode(csrf_token()) . ', "Accept": "application/json" },
+            headers: { "X-CSRF-TOKEN": ' . json_encode(csrf_token()) . ', "Accept": "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify({ to_library: 1 }),
         });
         const j = await r.json();
         if (!r.ok) throw new Error(j.message || "Save failed");
