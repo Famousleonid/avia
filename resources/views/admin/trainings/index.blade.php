@@ -107,6 +107,13 @@
                             </div>
                         @endif
                         @endroles
+
+                        <input type="search"
+                               id="trainingsSearch"
+                               class="form-control form-control-sm"
+                               style="min-width: 200px;"
+                               placeholder="{{ __('Search') }}…"
+                               aria-label="{{ __('Search') }}">
                     </div>
 
                     <div class="form-check form-switch pt-1">
@@ -127,10 +134,6 @@
 
             <div class="card-body">
                 <table id="trainingsTable"
-                       data-toggle="table"
-                       data-search="true"
-                       data-pagination="false"
-                       data-page-size="5"
                        class="table table-bordered table-hover dir-table">
                     <thead>
                     <tr>
@@ -699,22 +702,29 @@
                 });
             });
 
-            // Фильтр просроченных
+            // Согласованные клиентские фильтры: поиск + тумблёр «Not updated» (AND)
             const trainingNotUpdatedCheckbox = document.getElementById('trainingNotUpdated');
+            const trainingsSearchInput = document.getElementById('trainingsSearch');
             const trainingsTableBody = document.querySelector('#trainingsTable tbody');
 
-            if (trainingNotUpdatedCheckbox && trainingsTableBody) {
-                trainingNotUpdatedCheckbox.addEventListener('change', function () {
-                    const isChecked = this.checked;
+            if (trainingsTableBody) {
+                const applyTrainingFilters = function () {
+                    const onlyDue = trainingNotUpdatedCheckbox ? trainingNotUpdatedCheckbox.checked : false;
+                    const term = trainingsSearchInput ? trainingsSearchInput.value.trim().toLowerCase() : '';
 
                     Array.from(trainingsTableBody.rows).forEach(function (row) {
-                        if (isChecked) {
-                            row.style.display = row.dataset.isDue === '1' ? '' : 'none';
-                        } else {
-                            row.style.display = '';
-                        }
+                        const matchesDue = !onlyDue || row.dataset.isDue === '1';
+                        const matchesTerm = term === '' || row.textContent.toLowerCase().includes(term);
+                        row.style.display = (matchesDue && matchesTerm) ? '' : 'none';
                     });
-                });
+                };
+
+                if (trainingNotUpdatedCheckbox) {
+                    trainingNotUpdatedCheckbox.addEventListener('change', applyTrainingFilters);
+                }
+                if (trainingsSearchInput) {
+                    trainingsSearchInput.addEventListener('input', applyTrainingFilters);
+                }
             }
 
             // Удаление всех training records
