@@ -201,19 +201,11 @@
                                     <button class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1"
                                             data-bs-toggle="modal"
                                             data-bs-target="#trainingModal{{ $trainingList['first_training']->manuals_id }}"
-                                            data-tippy-content="{{ __('add Date & Print') }}"
+                                            data-tippy-content="{{ __('Training dates & forms') }}"
                                             data-tippy-placement="top"
-                                            title="{{ __('add Date & Print') }}"
-                                            aria-label="{{ __('add Date & Print') }}">
-                                        <i class="bi bi-plus-lg"></i>
-                                    </button>
-
-                                    <button class="btn btn-warning btn-sm d-inline-flex align-items-center gap-1"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editTrainingModal{{ $trainingList['first_training']->manuals_id }}"
-                                            data-tippy-content="{{ __('Edit training dates') }}"
-                                            data-tippy-placement="top">
-                                        <i class="bi bi-pencil"></i>
+                                            title="{{ __('Training dates & forms') }}"
+                                            aria-label="{{ __('Training dates & forms') }}">
+                                        <i class="bi bi-pencil-square"></i>
                                     </button>
 
                                     @roles("Admin|Manager")
@@ -239,22 +231,22 @@
     {{-- Все модалки вынесены из <tr> / <table> --}}
     @foreach($formattedTrainingLists as $trainingList)
 
-        <!-- Modal: Update training -->
+        <!-- Modal: Training (dates, forms, edit) -->
         <div class="modal fade"
              id="trainingModal{{ $trainingList['first_training']->manuals_id }}"
              tabindex="-1"
              aria-labelledby="trainingModalLabel{{ $trainingList['first_training']->manuals_id }}"
              aria-hidden="true">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header justify-content-between">
                         <h5 class="modal-title"
                             id="trainingModalLabel{{ $trainingList['first_training']->manuals_id }}">
-                            {{ __('Update training') }}: {{ $trainingList['first_training']->manual->title }}
+                            {{ __('Training') }}: {{ $trainingList['first_training']->manual->title }}
                             <br>
                             PN {{ $trainingList['first_training']->manual->unit_name_training }}
                         </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
                     </div>
 
                     <div class="modal-body">
@@ -264,110 +256,10 @@
                         </p>
 
                         @foreach($trainingList['trainings'] as $training)
-                            <div class="form-group">
-                                <div class="row d-flex">
-                                    <div class="col">
-                                        <label>
-                                            {{ Carbon::parse($training->date_training)->format('M.d.Y') }}
-                                            (Form: {{ $training->form_type }})
-                                        </label>
-                                    </div>
-
-                                    <div class="col">
-                                        @if($training->form_type == '112')
-                                            <a href="{{ route('trainings.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
-                                               class="btn btn-success mb-1 formLink"
-                                               target="_blank"
-                                               id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}">
-                                                View/Print Form 112
-                                            </a>
-                                        @elseif($training->form_type == '132')
-                                            <a href="{{ route('trainings.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
-                                               class="btn btn-info mb-1 formLink"
-                                               target="_blank"
-                                               id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}">
-                                                View/Print Form 132
-                                            </a>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
-
-                        <hr class="my-3">
-
-                        <div class="row mb-2 align-items-center add-training-row"
-                             data-manuals-id="{{ $trainingList['first_training']->manuals_id }}">
-                            <div class="col-auto">
-                                <span class="text-muted">{{ __('Add training') }}</span>
-                            </div>
-
-                            <div class="col">
-                                <input type="date"
-                                       class="form-control form-control-sm add-training-date-input"
-                                       @disabled(!$trainingList['is_due_for_update'])>
-                            </div>
-
-                            <div class="col-auto">
-                                <button type="button"
-                                        class="btn btn-outline-success btn-sm add-training-in-edit-btn"
-                                        @disabled(!$trainingList['is_due_for_update'])>
-                                    <i class="bi bi-plus-lg"></i> {{ __('Add') }}
-                                </button>
-                            </div>
-                        </div>
-
-                        @if(!$trainingList['is_due_for_update'])
-                            <p class="text-muted small mb-0">
-                                {{ __('Update becomes available after :days days since the last Form 112.', ['days' => $renewalThresholdDays]) }}
-                            </p>
-                        @endif
-                    </div>
-
-                    <div class="modal-footer">
-                        @roles("Admin|Team Leader|Manager|Shop Certifying Authority (SCA)")
-                        <div class="form-check">
-                            <input type="checkbox"
-                                   class="form-check-input sign-in-toggle"
-                                   id="showImage{{ $trainingList['first_training']->manuals_id }}"
-                                   data-manuals-id="{{ $trainingList['first_training']->manuals_id }}">
-                            <label class="form-check-label"
-                                   for="showImage{{ $trainingList['first_training']->manuals_id }}">
-                                {{ __('Sign In') }}
-                            </label>
-                        </div>
-                        @endroles
-
-                        <button type="button" class="btn btn-secondary ms-5" data-bs-dismiss="modal">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modal: Edit training dates -->
-        <div class="modal fade"
-             id="editTrainingModal{{ $trainingList['first_training']->manuals_id }}"
-             tabindex="-1"
-             aria-labelledby="editTrainingModalLabel{{ $trainingList['first_training']->manuals_id }}"
-             aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title"
-                            id="editTrainingModalLabel{{ $trainingList['first_training']->manuals_id }}">
-                            {{ __('Edit training dates') }} — {{ $trainingList['first_training']->manual->title ?? 'N/A' }}
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-
-                    <div class="modal-body">
-                        @foreach($trainingList['trainings'] as $training)
-                            <div class="row mb-2 align-items-center edit-training-row"
+                            <div class="row g-2 mb-2 align-items-center edit-training-row"
                                  data-training-id="{{ $training->id }}"
                                  data-original-date="{{ \Carbon\Carbon::parse($training->date_training)->format('Y-m-d') }}">
-                                <div class="col-auto">
+                                <div class="col-auto" style="min-width: 70px;">
                                     <span class="text-muted">{{ __('Form') }} {{ $training->form_type }}</span>
                                 </div>
 
@@ -386,9 +278,28 @@
 
                                 <div class="col-auto">
                                     @if($training->form_type == '112')
+                                        <a href="{{ route('trainings.form112', ['id'=> $training->id, 'showImage' => 'false']) }}"
+                                           class="btn btn-success btn-sm formLink"
+                                           target="_blank"
+                                           id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}">
+                                            {{ __('View/Print') }}
+                                        </a>
+                                    @elseif($training->form_type == '132')
+                                        <a href="{{ route('trainings.form132', ['id' => $training->id, 'showImage' => 'false']) }}"
+                                           class="btn btn-info btn-sm formLink"
+                                           target="_blank"
+                                           id="formLink{{ $trainingList['first_training']->manuals_id }}_{{ $training->id }}">
+                                            {{ __('View/Print') }}
+                                        </a>
+                                    @endif
+                                </div>
+
+                                <div class="col-auto">
+                                    @if($training->form_type == '112')
                                         <button type="button"
                                                 class="btn btn-outline-danger btn-sm delete-training-date-btn"
-                                                data-training-id="{{ $training->id }}">
+                                                data-training-id="{{ $training->id }}"
+                                                data-tippy-content="{{ __('Delete training date') }}">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     @endif
@@ -398,7 +309,7 @@
 
                         <hr class="my-3">
 
-                        <div class="row mb-2 align-items-center add-training-row"
+                        <div class="row g-2 mb-2 align-items-center add-training-row"
                              data-manuals-id="{{ $trainingList['first_training']->manuals_id }}">
                             <div class="col-auto">
                                 <span class="text-muted">{{ __('Add training') }}</span>
@@ -406,12 +317,12 @@
 
                             <div class="col">
                                 <input type="date"
-                                       class="form-control form-control-sm add-training-date-input"
-                                       placeholder="">
+                                       class="form-control form-control-sm add-training-date-input">
                             </div>
 
                             <div class="col-auto">
-                                <button type="button" class="btn btn-outline-success btn-sm add-training-in-edit-btn">
+                                <button type="button"
+                                        class="btn btn-outline-success btn-sm add-training-in-edit-btn">
                                     <i class="bi bi-plus-lg"></i> {{ __('Add') }}
                                 </button>
                             </div>
@@ -419,12 +330,25 @@
                     </div>
 
                     <div class="modal-footer">
+                        @roles("Admin|Team Leader|Manager|Shop Certifying Authority (SCA)")
+                        <div class="form-check me-auto">
+                            <input type="checkbox"
+                                   class="form-check-input sign-in-toggle"
+                                   id="showImage{{ $trainingList['first_training']->manuals_id }}"
+                                   data-manuals-id="{{ $trainingList['first_training']->manuals_id }}">
+                            <label class="form-check-label"
+                                   for="showImage{{ $trainingList['first_training']->manuals_id }}">
+                                {{ __('Sign In') }}
+                            </label>
+                        </div>
+                        @endroles
+
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             {{ __('Cancel') }}
                         </button>
                         <button type="button"
                                 class="btn btn-primary edit-training-save-btn"
-                                data-modal-id="editTrainingModal{{ $trainingList['first_training']->manuals_id }}">
+                                data-modal-id="trainingModal{{ $trainingList['first_training']->manuals_id }}">
                             {{ __('Save') }}
                         </button>
                     </div>
