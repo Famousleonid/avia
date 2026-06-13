@@ -358,6 +358,13 @@ class MobileApiController extends Controller
             $data['arrival_box_recorded_at'] = now();
         }
 
+        $unit = Unit::query()->find($data['unit_id']);
+        $submittedUnitName = trim((string) ($data['description'] ?? ''));
+        $existingUnitName = trim((string) ($unit?->name ?? ''));
+        $description = $submittedUnitName !== '' ? $submittedUnitName : $existingUnitName;
+        $data['description'] = $description !== '' ? $description : null;
+        $unit?->forceFill(['name' => $description !== '' ? $description : null])->save();
+
         $workorder = Workorder::createDraft($data);
         app(WorkorderNotifyService::class)->draftCreated(
             $workorder,
@@ -921,7 +928,7 @@ class MobileApiController extends Controller
         return array_merge($this->workorderMiniPayload($workorder), [
             'owner' => $workorder->user ? ['id' => $workorder->user->id, 'name' => $workorder->user->name] : null,
             'serial_number' => $workorder->serial_number,
-            'description' => $workorder->description,
+            'description' => $workorder->displayDescription(),
             'customer_po' => $workorder->customer_po,
             'customer' => $workorder->customer ? ['id' => $workorder->customer->id, 'name' => $workorder->customer->name] : null,
             'instruction' => $workorder->instruction ? ['id' => $workorder->instruction->id, 'name' => $workorder->instruction->name] : null,

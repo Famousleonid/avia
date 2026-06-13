@@ -25,7 +25,7 @@
             <div class="row" style="height: 32px">
                 <div class="col-6 pt-2 text-end"><strong>COMPONENT NAME</strong> :</div>
                 <div class="col-6 pt-2 border-b component-name-cell"><strong>
-                    @php($headerComponentName = $current_wo->description ?? '')
+                    @php($headerComponentName = $current_wo->displayDescription() ?? '')
                     <span class="component-name-value" @if(strlen($headerComponentName) > 30) data-long="1" @endif>{{ $headerComponentName }}</span>
                 </strong></div>
             </div>

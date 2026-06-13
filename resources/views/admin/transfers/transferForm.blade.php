@@ -365,7 +365,7 @@
             </div>
             <div class="field-row">
                 <div class="field-label ">*Description:</div>
-                <div class="field-value border-b">{{ optional($transfer->workorderSource)->description ?? '—' }}</div>
+                <div class="field-value border-b">{{ $transfer->workorderSource?->displayDescription() ?? '—' }}</div>
             </div>
         </div>
         <div class="col-4 mt-2">

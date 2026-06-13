@@ -83,7 +83,7 @@ class WorkordersWriteTest extends TestCase
         $draftInstruction = $this->createDraftInstruction();
         $instruction = $this->createInstruction(['name' => 'Inspection ' . uniqid()]);
         $customer = $this->createCustomer();
-        $unit = $this->createUnit();
+        $unit = $this->createUnit(['name' => 'Created Unit Name']);
 
         $response = $this->actingAs($admin)->post(route('workorders.store'), [
             'number' => 700001,
@@ -105,8 +105,10 @@ class WorkordersWriteTest extends TestCase
             'customer_id' => $customer->id,
             'unit_id' => $unit->id,
             'user_id' => $admin->id,
+            'description' => 'Created from test',
             'is_draft' => 0,
         ]);
+        $this->assertSame('Created from test', $unit->fresh()->name);
 
         $this->assertNotNull($draftInstruction->id);
     }
@@ -116,7 +118,7 @@ class WorkordersWriteTest extends TestCase
         $admin = $this->createUserWithRole('Admin');
         $draftInstruction = $this->createDraftInstruction();
         $customer = $this->createCustomer();
-        $unit = $this->createUnit();
+        $unit = $this->createUnit(['name' => 'Draft Unit Name']);
 
         $response = $this->actingAs($admin)->post(route('workorders.store'), [
             'unit_id' => $unit->id,
@@ -138,6 +140,7 @@ class WorkordersWriteTest extends TestCase
         $this->assertNotNull($workorder);
         $this->assertTrue((bool) $workorder->is_draft);
         $this->assertLessThan(100000, (int) $workorder->number);
+        $this->assertSame('Draft from test', $unit->fresh()->name);
     }
 
     public function test_mobile_can_create_pending_unit_for_draft_without_manual(): void
@@ -203,7 +206,7 @@ class WorkordersWriteTest extends TestCase
         $draftInstruction = $this->createDraftInstruction();
         $releasedInstruction = $this->createInstruction(['name' => 'Released ' . uniqid()]);
         $customer = $this->createCustomer();
-        $unit = $this->createUnit();
+        $unit = $this->createUnit(['name' => 'Next Draft Unit Name']);
         $draft = $this->createWorkorder([
             'number' => 7,
             'draft_number' => 7,
@@ -248,6 +251,7 @@ class WorkordersWriteTest extends TestCase
         $this->assertTrue((bool) $nextDraft->is_draft);
         $this->assertSame(8, (int) $nextDraft->number);
         $this->assertSame(8, (int) $nextDraft->draft_number);
+        $this->assertSame('Next draft after release', $unit->fresh()->name);
     }
 
     public function test_regular_creation_rejects_non_integer_number(): void
@@ -445,7 +449,9 @@ class WorkordersWriteTest extends TestCase
         $workorder->refresh();
 
         $this->assertSame(800001, (int) $workorder->number);
-        $this->assertSame('After update', $workorder->description);
+        $this->assertSame('Before update', $workorder->description);
+        $this->assertSame('After update', $unit->fresh()->name);
+        $this->assertSame('After update', $workorder->fresh(['unit'])->displayDescription());
     }
 
     public function test_manager_can_change_workorder_technik_on_edit(): void

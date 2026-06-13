@@ -2129,6 +2129,7 @@
                     if (!confirmed) return;
 
                     form.dataset.projectConfirmAccepted = '1';
+                    if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
                     HTMLFormElement.prototype.submit.call(form);
                 });
             }

@@ -61,7 +61,7 @@
                                     <select name="unit_id" id="unit_id" class="form-control">
                                         <option disabled selected value=""> -- select an option --</option>
                                         @foreach ($units as $unit)
-                                            <option value="{{$unit->id}}" data-lib="{{$unit->lib}}" data-description="{{$unit->description}}">{{$unit->partnumber}}</option>
+                                            <option value="{{$unit->id}}" data-lib="{{$unit->lib}}" data-name="{{$unit->name}}">{{$unit->partnumber}}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -144,7 +144,7 @@
         let selection = document.getElementById("unit_id");
         selection.onchange = function (event) {
             document.getElementById("lib").value = event.target.options[event.target.selectedIndex].dataset.lib;
-            document.getElementById("unit_description").value = event.target.options[event.target.selectedIndex].dataset.description;
+            document.getElementById("unit_description").value = event.target.options[event.target.selectedIndex].dataset.name;
         };
 
         function check1() {

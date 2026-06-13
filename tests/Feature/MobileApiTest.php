@@ -255,6 +255,7 @@ class MobileApiTest extends TestCase
         $workorder = Workorder::withDrafts()->findOrFail($workorderId);
         $this->assertSame('Draft', $workorder->instruction?->name);
         $this->assertNotNull($workorder->arrival_box_recorded_at);
+        $this->assertSame('API Draft', $unit->fresh()->name);
     }
 
     public function test_mobile_api_can_create_and_reuse_pending_draft_unit(): void

@@ -111,7 +111,7 @@
                     $isDone = false;
                 }
 
-                $description = $workorder->description ?? '';
+                $description = $workorder->displayDescription() ?? '';
                 $serial = $workorder->serial_number ?? '';
                 $amdt = $workorder->amdt ?? null;
                 $customerPo = $workorder->customer_po ?? '';

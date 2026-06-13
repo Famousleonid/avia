@@ -19,7 +19,7 @@
 
                         <div class="d-flex pt-2">
                             <div style="width: 150px">{{'Component Name: '}}</div>
-                            <div style="width: 150px">{{$current_wo->description}}</div>
+                            <div style="width: 150px">{{ $current_wo->displayDescription() }}</div>
                         </div>
                         <div class="d-flex ">
                             <div class="text-end pe-3" style="width: 150px">{{'Part Number: '}}</div>

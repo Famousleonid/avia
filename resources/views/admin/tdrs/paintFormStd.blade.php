@@ -4,7 +4,7 @@
     @include('partials.user-scoped-storage')
     @php
         $tdrFormConfig = config('tdr_forms.paintFormStd');
-        $componentName = (string) $current_wo->description;
+        $componentName = (string) $current_wo->displayDescription();
         $manualNumber = substr((string) ($manual->number ?? ''), 0, 8);
         $paint_table_pages = $paint_table_pages ?? [[]];
         $paint_total_pages = max(1, count($paint_table_pages));

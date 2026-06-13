@@ -471,7 +471,7 @@
 
         <div class="tdr-meta-row">
             <div class="tdr-meta-label">COMPONENT DESCRPTION:</div>
-            <div class="tdr-meta-value">{{ $current_wo->description }}</div>
+            <div class="tdr-meta-value">{{ $current_wo->displayDescription() }}</div>
             <div class="tdr-workorder-cell">W{{ $current_wo->number }}</div>
         </div>
 

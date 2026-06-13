@@ -331,7 +331,7 @@
             </div>
             <div class="field-row">
                 <div class="field-label ">*Description:</div>
-                <div class="field-value border-b">{{ $sourceWo->description ?? '—' }}</div>
+                <div class="field-value border-b">{{ $sourceWo->displayDescription() ?? '—' }}</div>
             </div>
         </div>
         <div class="col-4 mt-2">

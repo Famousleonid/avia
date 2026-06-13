@@ -54,7 +54,7 @@
                                     <select name="unit_id" id="unit_id" class="form-control">
                                         <option hidden selected value="{{$current_wo->unit_id}}">{{$current_wo->unit->partnumber}}</option>
                                         @foreach ($units as $unit)
-                                            <option value="{{$unit->id}}" data-lib="{{$unit->lib}}" data-description="{{$unit->description}}">{{$unit->partnumber}}</option>
+                                            <option value="{{$unit->id}}" data-lib="{{$unit->lib}}" data-name="{{$unit->name}}">{{$unit->partnumber}}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -105,7 +105,7 @@
                                 </div>
                                 <div class="form-group col-lg-12 mt-2">
                                     <label for="unit_description">Description</label>
-                                    <input type="text" name="description" id="unit_description" maxlength="30" value="{{$current_wo->description}}" class="form-control @error('description') is-invalid @enderror" placeholder="">
+                                    <input type="text" name="description" id="unit_description" maxlength="30" value="{{ $current_wo->unit?->name }}" class="form-control @error('description') is-invalid @enderror" placeholder="">
                                 </div>
 
 
@@ -150,7 +150,7 @@
         var selection = document.getElementById("unit_id");
         selection.onchange = function (event) {
             document.getElementById("lib").value = event.target.options[event.target.selectedIndex].dataset.lib;
-            document.getElementById("unit_description").value = event.target.options[event.target.selectedIndex].dataset.description;
+            document.getElementById("unit_description").value = event.target.options[event.target.selectedIndex].dataset.name;
         };
 
 

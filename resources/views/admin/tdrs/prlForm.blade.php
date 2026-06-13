@@ -383,11 +383,11 @@
 
         /* Единая сетка PRL-таблицы: узкие поля по содержимому, остаток в PO/Notes */
         :root {
-            --prl-fig-col-width: 52px;
-            --prl-item-col-width: 60px;
+            --prl-fig-col-width: 46px;
+            --prl-item-col-width: 54px;
             --prl-qty-col-width: 40px;
             --prl-code-col-width: 50px;
-            --prl-main-col-width: 25%;
+            --prl-main-col-width: 22%;
             --prl-side-col-width: calc(
                 (
                     100%

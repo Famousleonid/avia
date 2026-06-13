@@ -170,7 +170,7 @@
                         @if($partMutationLocked) title="{{ __('Manual parts are locked') }}" @endif>
                     <i class="bi bi-pencil-square"></i>
                 </button>
-                <form action="{{ route('components.destroy', $component->id) }}" method="POST" class="m-0" @if($useProjectDeleteConfirm) data-manual-part-delete-form @endif>
+                <form action="{{ route('components.destroy', $component->id) }}" method="POST" class="m-0" @if($useProjectDeleteConfirm) data-manual-part-delete-form data-no-spinner @endif>
                     @csrf
                     @method('DELETE')
                     @if($deleteRedirect)

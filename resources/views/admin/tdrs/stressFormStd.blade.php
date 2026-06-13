@@ -4,7 +4,7 @@
     @include('partials.user-scoped-storage')
     @php
         $tdrFormConfig = config('tdr_forms.stressFormStd');
-        $componentName = (string) $current_wo->description;
+        $componentName = (string) $current_wo->displayDescription();
         $manualNumber = substr((string) ($manual->number ?? ''), 0, 8);
         $stress_table_pages = $stress_table_pages ?? [[]];
         $stress_total_pages = max(1, count($stress_table_pages));

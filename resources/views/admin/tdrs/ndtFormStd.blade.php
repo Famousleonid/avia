@@ -4,8 +4,7 @@
     @include('partials.user-scoped-storage')
     @php
         $tdrFormConfig = config('tdr_forms.ndtFormStd');
-        $componentName = $current_wo->unit->name
-            ?: ($current_wo->unit->manuals->title ?? $current_wo->description);
+        $componentName = $current_wo->unit->name;
         $componentName = (string) $componentName;
         $manualNumber = substr((string) ($manual->number ?? ''), 0, 8);
         $findNdtProcess = function ($processNameId) use ($ndt_processes) {

@@ -1047,7 +1047,7 @@ class QualityAssuranceController extends Controller
             'done' => (bool) $qaRow['is_done'],
             'status' => strtoupper($qaRow['status']),
             'customer_po' => $workorder->customer_po ?: '-',
-            'description' => $workorder->unit?->name ?: ($workorder->unit?->description ?: ($workorder->description ?: '-')),
+            'description' => $workorder->displayDescription() ?: '-',
         ];
     }
 

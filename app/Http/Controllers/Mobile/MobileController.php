@@ -982,7 +982,7 @@ class MobileController extends Controller
     public function storeDraft(\Illuminate\Http\Request $request)
     {
         $data = $request->validate([
-            'unit_id'        => ['required','integer'],
+            'unit_id'        => ['required','integer','exists:units,id'],
             'customer_id'    => ['required','integer'],
             'instruction_id' => ['nullable','integer'],
             'serial_number'  => ['nullable','string','max:255'],
@@ -1022,6 +1022,12 @@ class MobileController extends Controller
             $data['arrival_box_recorded_at'] = now();
         }
 
+        $unit = Unit::query()->find($data['unit_id']);
+        $submittedUnitName = trim((string) ($data['description'] ?? ''));
+        $existingUnitName = trim((string) ($unit?->name ?? ''));
+        $description = $submittedUnitName !== '' ? $submittedUnitName : $existingUnitName;
+        $data['description'] = $description !== '' ? $description : null;
+        $unit?->forceFill(['name' => $description !== '' ? $description : null])->save();
 
         // createDraft сам присвоит number и is_draft=true
         $wo = Workorder::createDraft($data);

@@ -669,8 +669,9 @@ class WorkorderController extends Controller
         }
 
         // ✅ Чекбоксы (как у тебя)
+        $unit = Unit::find($data['unit_id']);
+
         if (!$isDraft) {
-            $unit = Unit::find($data['unit_id']);
             if (!$unit || !$unit->manual_id) {
                 return back()
                     ->withErrors(['unit_id' => 'Select a unit with assigned Manual before creating Workorder.'])
@@ -702,7 +703,10 @@ class WorkorderController extends Controller
 
         // ✅ остальные поля, которые ты отправляешь (description, serial_number, etc.)
         $data['serial_number'] = $request->input('serial_number');
-        $data['description'] = $request->input('description');
+        $submittedUnitName = trim((string) $request->input('description', ''));
+        $existingUnitName = trim((string) ($unit?->name ?? ''));
+        $description = $submittedUnitName !== '' ? $submittedUnitName : $existingUnitName;
+        $data['description'] = $description !== '' ? $description : null;
         $data['amdt'] = $request->input('amdt');
         $data['place'] = $request->input('place');
         $data['customer_po'] = $request->input('customer_po');
@@ -710,19 +714,14 @@ class WorkorderController extends Controller
 
         $workorder = Workorder::create($data);
 
+        if ($unit) {
+            $unit->forceFill(['name' => $description !== '' ? $description : null])->save();
+        }
+
         if (!$isDraft) {
             $overhaulId = Instruction::overhaulId();
             if ($overhaulId && (int) $workorder->instruction_id === (int) $overhaulId) {
                 app(WorkorderStdListProcessesService::class)->resolveForWorkorder($workorder);
-            }
-        }
-
-        // ✅ Если description заполнено и unit->name пустое — обновляем unit->name
-        if (!empty($request->description)) {
-            $unit = Unit::find($workorder->unit_id);
-            if ($unit && empty($unit->name)) {
-                $unit->name = $request->description;
-                $unit->save();
             }
         }
 
@@ -911,20 +910,18 @@ class WorkorderController extends Controller
         $newInstructionId = (int) $request->instruction_id;
         $isNowOverhaul = $overhaulId !== null && $newInstructionId === (int) $overhaulId;
 
-        $workorder->update($request->all());
+        $workorder->update($request->except('description'));
+
+        if ($request->has('description')) {
+            $description = trim((string) $request->input('description', ''));
+            $unit = Unit::find($request->input('unit_id', $workorder->unit_id));
+            if ($unit) {
+                $unit->forceFill(['name' => $description !== '' ? $description : null])->save();
+            }
+        }
 
         if ($wasOverhaul && ! $isNowOverhaul) {
             $this->deleteStdListTdrProcessesForWorkorder($workorder);
-        }
-
-        // Если description заполнено и unit->name пустое, обновляем unit->name
-        if (!empty($request->description)) {
-            $unitId = $request->unit_id ?? $workorder->unit_id;
-            $unit = Unit::find($unitId);
-            if ($unit && empty($unit->name)) {
-                $unit->name = $request->description;
-                $unit->save();
-            }
         }
 
         if (! $newIsDraft && $isNowOverhaul) {

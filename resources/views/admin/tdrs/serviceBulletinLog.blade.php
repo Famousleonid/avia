@@ -54,7 +54,7 @@
                             <h1>Service Bulletin Log</h1>
                             <div class="sb-meta-line"><span>Work Order No.:</span><strong>W{{ $current_wo->number }}</strong></div>
                             <div class="sb-meta-line"><span>Component Part No.:</span><strong>{{ $current_wo->unit?->part_number ?? 'N/A' }}</strong></div>
-                            <div class="sb-meta-line"><span>Component Description:</span><strong>{{ $current_wo->description ?: ($current_wo->unit?->description ?? 'N/A') }}</strong></div>
+                            <div class="sb-meta-line"><span>Component Description:</span><strong>{{ $current_wo->displayDescription() ?: 'N/A' }}</strong></div>
                         </div>
                     </header>
 

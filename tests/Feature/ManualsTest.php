@@ -277,6 +277,7 @@ class ManualsTest extends TestCase
         $response->assertOk();
         $response->assertSee('data-manual-part-delete-form', false);
         $response->assertSee('data-manual-part-delete-button', false);
+        $response->assertSee('data-no-spinner', false);
         $response->assertSee('initManualPartDeleteConfirm', false);
         $response->assertDontSee("onclick=\"return confirm('Are you sure you want to delete this component?');\"", false);
     }

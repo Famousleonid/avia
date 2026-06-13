@@ -139,12 +139,13 @@
 
         <td class="text-center">{{ data_get($workorder, 'unit.part_number', '-') }}</td>
 
-        <td class="text-center @if(filled($workorder->description)) workorder-description-tooltip @endif"
-            @if(filled($workorder->description))
+        @php($workorderDescription = $workorder->displayDescription())
+        <td class="text-center @if(filled($workorderDescription)) workorder-description-tooltip @endif"
+            @if(filled($workorderDescription))
                 data-bs-toggle="tooltip"
-                data-bs-title="{{ $workorder->description }}"
+                data-bs-title="{{ $workorderDescription }}"
             @endif>
-            {{ $workorder->description }}
+            {{ $workorderDescription }}
         </td>
 
         <td class="text-center">

@@ -172,7 +172,7 @@
 
                                         <div class="form-group col-lg-4 mt-2">
                                             <label for="unit_description">Description</label>
-                                            <input type="text" name="description" id="description" value="{{old('description', $current_wo->description)}}" class="form-control">
+                                            <input type="text" name="description" id="description" value="{{ old('description', $current_wo->unit?->name) }}" class="form-control">
                                         </div>
                                     </div>
 
@@ -419,6 +419,12 @@
                     syncUnitNameFromSelectedCmm();
                 });
 
+                $('#unit_id').on('change', function() {
+                    const selectedOption = $(this).find('option:selected');
+                    const unitName = selectedOption.attr('data-name');
+                    workorderDescriptionInput.value = unitName || '';
+                });
+
                 $('#assignManualSelect').select2({
                     placeholder: '{{ __('Select CMM') }}',
                     theme: 'bootstrap-5',
@@ -428,19 +434,6 @@
                     dropdownAutoWidth: true
                 });
 
-                // Инициализация description при загрузке страницы, если unit уже выбран
-                const initialSelectedOption = $('#unit_id option:selected');
-                const initialUnitName = initialSelectedOption.attr('data-name');
-                if (initialUnitName && !workorderDescriptionInput.value) {
-                    workorderDescriptionInput.value = initialUnitName;
-                }
-
-                // Обработчик изменения для Select2
-                $('#unit_id').on('change', function() {
-                    const selectedOption = $(this).find('option:selected');
-                    const unitName = selectedOption.attr('data-name');
-                    workorderDescriptionInput.value = unitName || '';
-                });
             });
             $(function () {
                 applyTheme();
@@ -520,7 +513,6 @@
                         option.setAttribute('data-verified', '0');
                         $('#unit_id').append(option).trigger('change');
 
-                        // Подставить name в description workorder, если name заполнено
                         if (data.name) {
                             workorderDescriptionInput.value = data.name;
                         }

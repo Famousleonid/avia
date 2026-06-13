@@ -397,14 +397,14 @@
                 }
             }
 
-            // --- Auto fill description from selected unit (only if empty)
+            // --- Auto fill description from selected unit
             const unitSelect = document.getElementById('unit_id');
             const desc = document.getElementById('description');
             if (unitSelect && desc) {
                 unitSelect.addEventListener('change', function () {
                     const opt = this.options[this.selectedIndex];
                     const name = opt?.getAttribute('data-name') || '';
-                    if (!desc.value) desc.value = name;
+                    desc.value = name;
                 });
             }
 

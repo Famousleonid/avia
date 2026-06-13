@@ -163,7 +163,7 @@
                                         $customerValue = (string)($current_workorder->customer->name ?? '—');
                                         $technikValue = (string)($current_workorder->user->name ?? '—');
                                         $manualValue = (string)(($manual->number ?? '—') . ' | Lib: ' . ($manual->lib ?? '—'));
-                                        $descriptionValue = (string)($current_workorder->description ?? '—');
+                                        $descriptionValue = (string)($current_workorder->displayDescription() ?? '—');
                                         $openedValue = (string)($current_workorder->open_at?->format('d-M-y') ?? '—');
                                     @endphp
 

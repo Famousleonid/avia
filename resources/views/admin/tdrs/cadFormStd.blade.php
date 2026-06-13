@@ -4,7 +4,7 @@
     @include('partials.user-scoped-storage')
     @php
         $tdrFormConfig = config('tdr_forms.cadFormStd');
-        $componentName = (string) $current_wo->description;
+        $componentName = (string) $current_wo->displayDescription();
         $manualNumber = substr((string) ($manual->number ?? ''), 0, 8);
         $cad_table_pages = $cad_table_pages ?? [[]];
         $cad_total_pages = max(1, count($cad_table_pages));
