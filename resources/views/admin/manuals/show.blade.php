@@ -764,6 +764,8 @@
         /* two columns: tree (left, fixed) always visible; doc-list / editor / empty (right) */
         #pdw-host > .pdw-body { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: row; }
         #pdw-host #pdw-tree-screen { width: 340px; flex-shrink: 0; border-right: 1px solid var(--bs-border-color); }
+        /* manual-level document (F&C) has no process tree — drop the left column */
+        #pdw-host.pdw-manual-mode #pdw-tree-screen { display: none; }
         #pdw-host #pdw-doc-screen,
         #pdw-host #pdw-editor-screen,
         #pdw-host #pdw-right-empty { flex: 1 1 auto; min-width: 0; }
@@ -866,7 +868,13 @@
                         <button class="nav-link d-none" id="nav-partdocs-tab" data-bs-toggle="tab" data-bs-target="#nav-partdocs"
                                 type="button" role="tab" aria-controls="nav-partdocs" aria-selected="false">Part Documents</button>
                     </div>
-                    <div class="ms-3 d-flex align-items-center gap-2" id="nav-tab-actions">
+                    <div class="ms-3 d-flex align-items-center gap-2" id="nav-tab-actions" style="margin-right:24px;flex-wrap:wrap">
+                        <button type="button" class="btn btn-sm d-none" id="dimFcDocBtn"
+                                data-tab-target="#nav-dimensions"
+                                style="margin-left:50px;background:#6f42c1;border-color:#6f42c1;color:#fff"
+                                title="F&C Document — filled manual page copies (WO labels + ID/OD value marks)">
+                            <i class="bi bi-file-earmark-richtext"></i> F&amp;C Doc
+                        </button>
                         <button type="button" class="btn btn-sm d-none" id="nav-fc-open-btn"
                                 data-tab-target="#nav-dimensions"
                                 style="font-size:inherit;border:1px solid #198754;color:#198754">F&amp;C</button>

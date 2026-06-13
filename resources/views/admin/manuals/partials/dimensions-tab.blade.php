@@ -435,9 +435,6 @@
                 </select>
                 <span class="text-secondary ms-1" style="font-size:11px;user-select:none;min-width:38px;text-align:right" id="dimZoomLabel">100%</span>
                 <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="dimZoomResetBtn" title="Reset zoom (100%)" style="font-size:12px">↺</button>
-                <button class="btn btn-outline-secondary btn-sm" id="dimFcDocBtn" title="F&C Document — filled manual page copies (WO labels + ID/OD value marks)">
-                    <i class="bi bi-file-earmark-richtext"></i> F&amp;C Doc
-                </button>
                 <button class="btn btn-outline-warning btn-sm" id="dimEditFigureBtn" title="Edit figure">
                     <i class="bi bi-pencil"></i>
                 </button>
@@ -1024,8 +1021,12 @@
                     <div class="d-flex align-items-center mb-3">
                         <button class="btn btn-outline-secondary btn-sm me-2 d-none" id="pdwTreeBackBtn"><i class="bi bi-arrow-left"></i> Tree</button>
                         <span class="fw-semibold" id="pdwDocScreenTitle">Documents</span>
-                        <button class="btn btn-outline-secondary btn-sm ms-auto me-1" id="pdwAttachDocBtn" title="Attach a copy of an existing document (same scan, own labels)"><i class="bi bi-link-45deg"></i> Attach existing</button>
-                        <button class="btn btn-outline-primary btn-sm" id="pdwAddDocBtn"><i class="bi bi-plus-lg"></i> Add document</button>
+                        <div class="ms-auto d-flex align-items-center gap-2">
+                            <button class="btn btn-outline-secondary btn-sm" id="pdwAttachDocBtn" title="Attach a copy of an existing document (same scan, own labels)"><i class="bi bi-link-45deg"></i> Attach existing</button>
+                            <button class="btn btn-outline-primary btn-sm" id="pdwAddPdfBtn" title="New document from a PDF — every PDF page becomes a document page"><i class="bi bi-file-earmark-pdf"></i> Add from PDF</button>
+                            <input type="file" id="pdwAddPdfInput" accept="application/pdf" class="d-none">
+                            <button class="btn btn-outline-primary btn-sm" id="pdwAddDocBtn"><i class="bi bi-plus-lg"></i> Add document</button>
+                        </div>
                     </div>
                     {{-- attach-existing picker --}}
                     <div id="pdw-attach-wrap" class="d-none border rounded p-2 mb-3" style="background:rgba(0,0,0,.04)">
@@ -1081,6 +1082,7 @@
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="diameter" title="Diameter Ø (start → end → value)"><i class="bi bi-circle"></i> Ø</button>
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="radius" title="Radius R (start → end → value)"><i class="bi bi-record-circle"></i> R</button>
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="linear" title="Linear (start → end → value)"><i class="bi bi-rulers"></i> Linear</button>
+                        <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="value" title="Value mark — one click, pick the parameter (no arrow)"><i class="bi bi-123"></i> Value</button>
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="label" title="Label (anchor + leader)"><i class="bi bi-tag"></i> Label</button>
                         <button class="btn btn-outline-secondary btn-sm pdw-mode-btn" data-mode="steps" title="Oversize steps table (click to place)"><i class="bi bi-table"></i> Steps</button>
                         <span class="text-secondary ms-auto" id="pdwHint" style="font-size:11px"></span>
@@ -5347,7 +5349,8 @@ document.addEventListener('DOMContentLoaded', function () {
     async function openProcessDocumentsModal(ruleProcessId, label, kind, fromTree) {
         pdwRuleProcessId = ruleProcessId;
         pdwProcKind = (kind === 'phase') ? 'phase' : (kind === 'manual' ? 'manual' : 'main');
-        // manual-level doc: "Attach existing" is process-only — hide it
+        // manual-level doc: no process tree, "Attach existing" is process-only
+        document.getElementById('pdw-host')?.classList.toggle('pdw-manual-mode', kind === 'manual');
         document.getElementById('pdwAttachDocBtn')?.classList.toggle('d-none', kind === 'manual');
         pdwFromTree = !!fromTree;
         pdwDocs = []; pdwSourceParams = []; pdwDoc = null; pdwPage = null;
@@ -5490,6 +5493,32 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     function pdwHideDocForm() { document.getElementById('pdw-doc-form').classList.add('d-none'); }
     document.getElementById('pdwAddDocBtn').addEventListener('click', function () { pdwShowDocForm(null); });
+
+    // ---- Add from PDF: create a document and fill its pages from the PDF ----
+    document.getElementById('pdwAddPdfBtn')?.addEventListener('click', function () {
+        document.getElementById('pdwAddPdfInput').click();
+    });
+    document.getElementById('pdwAddPdfInput')?.addEventListener('change', async function () {
+        const file = this.files[0]; this.value = '';
+        if (!file) return;
+        try {
+            const doc = await apiFetch(pdwDocsBase(), {
+                method: 'POST',
+                body: JSON.stringify({ doc_type: 'manual_page', title: file.name.replace(/\.pdf$/i, '') }),
+            });
+            pdwDocs.push(doc);
+            renderDocList();
+            openDocEditor(doc);
+            // ensure a first page exists — pdwUploadPdf fills page 1 then auto-adds the rest
+            if (!pdwDoc.pages.length) {
+                const page = await apiFetch('/process-documents/' + pdwDoc.id + '/pages', { method: 'POST' });
+                pdwDoc.pages.push(page);
+                renderPageTabs();
+                selectPage(page);
+            }
+            await pdwUploadPdf(file);
+        } catch (e) { alert(e.message); }
+    });
     document.getElementById('pdwDocCancelBtn').addEventListener('click', pdwHideDocForm);
     document.getElementById('pdwDocSaveBtn').addEventListener('click', async function () {
         const editId = document.getElementById('pdwDocEditId').value;
@@ -5690,7 +5719,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     else { xp = e.x_pct; yp = e.y_pct; }
                 }
                 el.dataset.xp = xp; el.dataset.yp = yp;
-                pdwFinishElement(el, e, 'label');
+                // one-click value marks have no leader/arrow — dragging moves the
+                // anchor itself, otherwise a leader would appear out of nowhere
+                pdwFinishElement(el, e, (e.label_x_pct != null || e.x2_pct != null) ? 'label' : 'anchor');
             } else {
                 // label: anchor dot (x/y) + text box on a leader (label_x/label_y)
                 const hasLeader = e.label_x_pct != null;
@@ -5886,6 +5917,12 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (pdwMode === 'steps') {
             pdwPending = { element_type: 'steps_table', x_pct: xp, y_pct: yp };
             pdwShowElemForm('steps');
+        } else if (pdwMode === 'value') {
+            // one-click value mark: dimension without an arrow/leader
+            pdwPending = { element_type: 'dimension', mask: null, x_pct: xp, y_pct: yp };
+            pdwShowElemForm('dimension');
+            document.getElementById('pdw-ef-source').value = 'measurement';
+            pdwSyncDimFields('measurement');
         }
         pdwSetMode(null);
     });
@@ -5936,7 +5973,13 @@ document.addEventListener('DOMContentLoaded', function () {
             plsel.classList.add('d-none');
             document.getElementById('pdw-ef-lblparam').classList.add('d-none');
         }
-        document.getElementById('pdw-ef-fontsize').value = '13';
+        // default font size per element type (editable afterwards)
+        const isValueMark = type === 'dimension' && !(pdwPending && pdwPending.mask);
+        const defFs = type === 'label' ? 14
+                    : type === 'steps' ? 12
+                    : isValueMark ? 11   // one-click value mark
+                    : 13;                // linear / Ø / R
+        document.getElementById('pdw-ef-fontsize').value = String(defFs);
         form.classList.remove('d-none');
     }
     function pdwShowLabelPreview(xp, yp) {

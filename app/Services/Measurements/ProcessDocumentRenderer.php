@@ -22,6 +22,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class ProcessDocumentRenderer
 {
+    /** Memoized TDR state per parameter for one render: paramId → 'missing'|'ordernew'|null. */
+    private array $tdrStateCache = [];
+
     /**
      * @param array    $context          optional ['repair_number' => string, 'component_pn' => string]
      * @param int|null $onlyParameterId  EC: render only the pages of this place (parameter) — one PDF per place
@@ -73,6 +76,52 @@ class ProcessDocumentRenderer
         $pageHtml = $this->renderPage($page, $workorder, $context, $docParam, true);
 
         return '<div class="pdw-page">' . $pageHtml . '</div>';
+    }
+
+    /**
+     * Aggregate result state of a manual's F&C document for a WO — drives the
+     * F&C Doc button color. Across every value mark:
+     *   'fail'   — at least one mark is out of tolerance (red)
+     *   'nodata' — none failed but at least one is unmeasured (yellow)
+     *   'pass'   — every mark is measured and in tolerance (green)
+     *   null     — no document / no value marks
+     */
+    public function fcDocumentStatus($manual, Workorder $workorder): ?string
+    {
+        $doc = $manual?->documents()->with('pages.elements')->first();
+        if (!$doc) {
+            return null;
+        }
+
+        $hasMark = false;
+        $anyFail = false;
+        $anyRepair = false;
+        $anyNoData = false;
+
+        foreach ($doc->pages as $page) {
+            foreach ($page->elements as $e) {
+                if ($e->element_type !== 'dimension') {
+                    continue;
+                }
+                // only value marks that pull from measurements count toward the status
+                if (!in_array($e->value_source, ['measurement', 'calc', 'formula'], true)) {
+                    continue;
+                }
+                $hasMark = true;
+                $resolved = $this->resolveValue($e, $workorder, [], null);
+                $stage = $this->measurementStage($e, $workorder, $resolved);
+                if ($stage === 'fail')        $anyFail = true;
+                elseif ($stage === 'repair')  $anyRepair = true;
+                elseif ($stage === 'nodata')  $anyNoData = true;
+            }
+        }
+
+        if (!$hasMark) {
+            return null;
+        }
+        if ($anyFail) return 'fail';
+        if ($anyRepair) return 'repair';
+        return $anyNoData ? 'nodata' : 'pass';
     }
 
     /**
@@ -170,8 +219,13 @@ class ProcessDocumentRenderer
             $stageClass = '';
             if ($e->element_type === 'dimension') {
                 if (!empty($context['stage_colors'])) {
-                    // color the mark by data state: final / initial / missing
-                    $stageClass = ' st-' . $this->measurementStage($e, $workorder, $rawText);
+                    // color the mark by result state, plus a B/W-readable suffix
+                    $stage = $this->measurementStage($e, $workorder, $rawText);
+                    $stageClass = ' st-' . $stage;
+                    if (!$this->isEmptyDimValue($rawText)) {
+                        $suffix = ['repair' => ' R', 'fail' => ' F'][$stage] ?? '';
+                        $rawText .= $suffix;
+                    }
                 }
                 if ($this->isEmptyDimValue($rawText)) {
                     if (empty($context['show_missing'])) continue; // no value — skip
@@ -224,7 +278,12 @@ class ProcessDocumentRenderer
             if ($xp === null) {
                 continue;
             }
-            $cls = $e->element_type === 'dimension' ? 'pdw-el pdw-dim' . $stageClass : 'pdw-el pdw-label';
+            // value mark = dimension with no arrow (x2) and no leader (label_x) → no frame
+            $isValueMark = $e->element_type === 'dimension'
+                && $e->x2_pct === null && $e->label_x_pct === null;
+            $cls = $e->element_type === 'dimension'
+                ? 'pdw-el pdw-dim' . $stageClass . ($isValueMark ? ' pdw-value' : '')
+                : 'pdw-el pdw-label';
             $fs   = $e->font_size ? ';font-size:' . (int) $e->font_size . 'pt' : '';
             $text = htmlspecialchars($rawText, ENT_QUOTES, 'UTF-8');
             $els .= '<div class="' . $cls . '" data-element-id="' . (int) $e->id . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">' . $text . '</div>';
@@ -263,6 +322,9 @@ class ProcessDocumentRenderer
     {
         if ($e->element_type === 'dimension') {
             $prefix = $e->mask === 'diameter' ? 'Ø' : ($e->mask === 'radius' ? 'R' : '');
+            // value mark (one-click, no arrow/leader) → fixed 4 decimals
+            $isValueMark = $e->x2_pct === null && $e->label_x_pct === null;
+            $fmt = $isValueMark ? fn($v) => $this->fmt4($v) : fn($v) => $this->fmt($v);
 
             // formula — arbitrary arithmetic expression with [p:ID] parameter refs
             if ($e->value_source === 'formula') {
@@ -288,12 +350,18 @@ class ProcessDocumentRenderer
                 }
                 $v = $this->measurementValue($workorder->id, $e->source_parameter_id);
                 if ($v === null) {
+                    // F&C document: label an unmeasured mark with the order status
+                    if (!empty($context['show_missing'])) {
+                        $tdrState = $this->tdrStateForParam((int) $e->source_parameter_id, $workorder);
+                        if ($tdrState === 'missing')  return 'Missing';
+                        if ($tdrState === 'ordernew') return 'Order New';
+                    }
                     $fallback = $this->odStepFallback($context, $docParam, $e);
                     return $prefix . $fallback;
                 }
-                return $prefix . $this->fmt($v);
+                return $prefix . $fmt($v);
             }
-            return $prefix . ($e->static_value !== null ? $this->fmt($e->static_value) : '');
+            return $prefix . ($e->static_value !== null ? $fmt($e->static_value) : '');
         }
 
         // label / text
@@ -553,10 +621,19 @@ class ProcessDocumentRenderer
      * 'final' — a final measurement exists, 'initial' — initial only,
      * 'missing' — no measurement (or the value could not be resolved).
      */
+    /**
+     * Color state of a value mark by its current measurement:
+     *   'pass'   — in tolerance, no defect (green)
+     *   'repair' — a finding defect is present → goes to repair (orange)
+     *   'fail'   — dimension out of tolerance, no defect (red)
+     *   'nodata' — not measured yet (yellow)
+     * The current measurement of a parameter is its latest final, or the
+     * latest initial when there is no final.
+     */
     private function measurementStage($e, Workorder $workorder, string $resolvedText): string
     {
-        if ($this->isEmptyDimValue($resolvedText)) return 'missing';
-        if ($e->value_source === 'static') return 'final';
+        if ($this->isEmptyDimValue($resolvedText)) return 'nodata';
+        if ($e->value_source === 'static') return 'pass';
 
         // which parameters feed this mark
         $paramIds = [];
@@ -566,26 +643,84 @@ class ProcessDocumentRenderer
         } elseif ($e->source_parameter_id) {
             $paramIds = [(int) $e->source_parameter_id];
         }
-        if (!$paramIds) return 'final';
+        if (!$paramIds) return 'pass';
 
-        $stages = WoMeasurement::where('workorder_id', $workorder->id)
+        $missingCodeId = \App\Models\Code::where('name', 'Missing')->value('id');
+
+        $byParam = WoMeasurement::where('workorder_id', $workorder->id)
             ->whereIn('manual_parameter_id', $paramIds)
             ->whereNotNull('actual_value')
-            ->get(['manual_parameter_id', 'stage'])
+            ->orderBy('id')
+            ->get(['manual_parameter_id', 'stage', 'result', 'codes_id'])
             ->groupBy('manual_parameter_id');
 
-        $allFinal = true;
+        $anyFail = false;
+        $anyDefect = false;
+        $anyMissing = false;
         foreach ($paramIds as $pid) {
-            $ms = $stages[$pid] ?? collect();
-            if ($ms->isEmpty()) return 'missing';
-            if (!$ms->contains(fn($x) => $x->stage === 'final')) $allFinal = false;
+            $ms = $byParam[$pid] ?? collect();
+            if ($ms->isEmpty()) { $anyMissing = true; continue; }
+            $finals = $ms->where('stage', 'final');
+            $cur = $finals->isNotEmpty() ? $finals->last() : $ms->last();
+            // a finding defect (Corroded/Worn/…, not Missing) → goes to repair
+            if ($cur->codes_id !== null && (int) $cur->codes_id !== (int) $missingCodeId) {
+                $anyDefect = true;
+            } elseif ($cur->result === 'FAIL') {
+                $anyFail = true; // dimension out of tolerance, no defect code
+            }
         }
-        return $allFinal ? 'final' : 'initial';
+
+        // Priority: dimensional fail → defect-repair → unmeasured → pass.
+        if ($anyFail) return 'fail';
+        if ($anyDefect) return 'repair';
+        return $anyMissing ? 'nodata' : 'pass';
     }
 
     private function fmt($v): string
     {
         return rtrim(rtrim(number_format((float) $v, 4, '.', ''), '0'), '.');
+    }
+
+    /** Fixed 4-decimal format (no trailing-zero trim) — for value marks. */
+    private function fmt4($v): string
+    {
+        return number_format((float) $v, 4, '.', '');
+    }
+
+    /**
+     * TDR state of a value mark's part in this WO: 'missing' (part absent) or
+     * 'ordernew' (replacement ordered), else null. Used to label marks that
+     * have no measurement with the order status instead of a blank value.
+     */
+    private function tdrStateForParam(?int $paramId, Workorder $workorder): ?string
+    {
+        if (!$paramId) return null;
+        if (array_key_exists($paramId, $this->tdrStateCache)) {
+            return $this->tdrStateCache[$paramId];
+        }
+
+        $param = ManualParameter::find($paramId);
+        $icId  = $param?->inspection_component_id;
+        if (!$icId) return $this->tdrStateCache[$paramId] = null;
+
+        // part component ids (bridge via ipl_num, same as WoMeasurementController::data)
+        $directIds = \App\Models\ManualInspectionComponentVariant::where('inspection_component_id', $icId)
+            ->pluck('component_id');
+        $ipls = \App\Models\Component::whereIn('id', $directIds)->pluck('ipl_num')->filter()->unique();
+        $allIds = \App\Models\Component::where('manual_id', $param->manual_id)
+            ->whereIn('ipl_num', $ipls)->pluck('id')->merge($directIds)->unique();
+
+        $tdr = \App\Models\Tdr::where('workorder_id', $workorder->id)
+            ->whereIn('component_id', $allIds)
+            ->where('tdr_type', \App\Models\Tdr::TYPE_ORDER_NEW)
+            ->latest('id')->first();
+
+        $state = null;
+        if ($tdr) {
+            $missingCodeId = \App\Models\Code::where('name', 'Missing')->value('id');
+            $state = ($missingCodeId && (int) $tdr->codes_id === (int) $missingCodeId) ? 'missing' : 'ordernew';
+        }
+        return $this->tdrStateCache[$paramId] = $state;
     }
 
     /** Convert a stored image route URL into a base64 data URI for reliable dompdf embedding. */

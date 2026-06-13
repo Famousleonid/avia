@@ -226,6 +226,7 @@ class ProcessDocumentController extends Controller
 
         $pagesHtml = '';
         foreach ($doc->pages as $page) {
+            if (!$page->image_path) continue; // skip blank pages — no extra sheet
             $pagesHtml .= '<div class="fc-doc-page">'
                 . $renderer->renderSinglePageHtml($page, $workorder, $ctx, null)
                 . '</div>';
@@ -252,24 +253,30 @@ body{font-family:Arial,sans-serif;font-size:12px;background:#f8f9fa;color:#21252
 .pdw-dot{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;background:#0d9488;border-radius:50%}
 .pdw-el{position:absolute;transform:translate(-50%,-50%);font-size:8.5pt;font-weight:700;white-space:nowrap;line-height:1.2}
 .pdw-dim{color:#0d6efd;background:rgba(255,255,255,0.92);border:0.75px solid #0d6efd;border-radius:2px;padding:1px 4px}
-.pdw-dim.st-final{color:#198754;border-color:#198754}
-.pdw-dim.st-initial{color:#b58900;border-color:#b58900}
-.pdw-dim.st-missing{color:#dc3545;border-color:#dc3545}
+.pdw-dim.st-pass{color:#198754;border-color:#198754}
+.pdw-dim.st-fail{color:#dc3545;border-color:#dc3545}
+.pdw-dim.st-repair{color:#6f42c1;border-color:#6f42c1}
+.pdw-dim.st-nodata{color:#b58900;border-color:#b58900}
+.pdw-dim.pdw-value{border:none;background:transparent;padding:0}
 .pdw-label{color:#0d9488;background:rgba(255,255,255,0.85);padding:0 3px}
 @media print{
+  html,body{margin:0;padding:0;background:#fff}
   .toolbar{display:none!important}
-  body{background:#fff}
-  .fc-doc-page{box-shadow:none;margin:0;max-width:none;page-break-after:always}
-  .fc-doc-page:last-child{page-break-after:auto}
+  /* break BEFORE each page (not after) so no trailing blank sheet */
+  .fc-doc-page{box-shadow:none;margin:0 auto;max-width:none;width:fit-content;page-break-before:always;page-break-inside:avoid}
+  .fc-doc-page:first-child{page-break-before:auto}
+  /* keep one manual page on one sheet — scale the scan to the printable area */
+  .fc-doc-page .pdw-page img{max-height:261mm;width:auto;max-width:100%}
   @page{size:letter portrait;margin:8mm}
 }
 </style></head><body>
 <div class="toolbar">
   <h1>' . e($title) . '</h1>
   <span class="legend">
-    <span><i style="background:#198754"></i>final</span>
-    <span><i style="background:#b58900"></i>initial</span>
-    <span><i style="background:#dc3545"></i>no data</span>
+    <span><i style="background:#198754"></i>Pass</span>
+    <span><i style="background:#6f42c1"></i>Repair</span>
+    <span><i style="background:#dc3545"></i>Fail</span>
+    <span><i style="background:#b58900"></i>no data</span>
   </span>
   <button class="btn btn-success" id="savePdfBtn">&#128190; Save PDF</button>
   <button class="btn btn-primary" onclick="window.print()" title="Select «Print on both sides» (duplex) in the print dialog">&#9112; Print</button>
@@ -919,6 +926,11 @@ document.getElementById("savePdfBtn").addEventListener("click", async function (
   .pdw-dot{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;background:#0d9488;border-radius:50%}
   .pdw-el{position:absolute;transform:translate(-50%,-50%);font-size:8.5pt;font-weight:700;white-space:nowrap;line-height:1.2;cursor:default}
   .pdw-dim{color:#0d6efd;background:rgba(255,255,255,0.92);border:0.75px solid #0d6efd;border-radius:2px;padding:1px 4px}
+  .pdw-dim.st-pass{color:#198754;border-color:#198754}
+  .pdw-dim.st-fail{color:#dc3545;border-color:#dc3545}
+  .pdw-dim.st-repair{color:#6f42c1;border-color:#6f42c1}
+  .pdw-dim.st-nodata{color:#b58900;border-color:#b58900}
+  .pdw-dim.pdw-value{border:none;background:transparent;padding:0}
   .pdw-label{color:#0d9488;background:rgba(255,255,255,0.85);padding:0 3px}
   body.edit-mode .pdw-el{cursor:grab}
   body.edit-mode .pdw-dim{outline:1.5px dashed rgba(13,110,253,0.45);outline-offset:2px}
