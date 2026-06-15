@@ -73,6 +73,16 @@ class ManualParameter extends Model
         return $this->hasMany(ManualRepairStep::class, 'manual_parameter_id')->orderBy('sort_order');
     }
 
+    public function fitsAsOd(): HasMany
+    {
+        return $this->hasMany(ManualFit::class, 'od_param_id');
+    }
+
+    public function fitsAsId(): HasMany
+    {
+        return $this->hasMany(ManualFit::class, 'id_param_id');
+    }
+
     public function points(): BelongsToMany
     {
         return $this->belongsToMany(
