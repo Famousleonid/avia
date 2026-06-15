@@ -36,7 +36,7 @@ class ManualFitController extends Controller
      */
     public function report(Manual $manual)
     {
-        $fitMemberIds = $manual->fits()->get(['od_param_id', 'id_param_id'])
+        $fitMemberIds = $manual->fits()->where('is_fc', true)->get(['od_param_id', 'id_param_id'])
             ->flatMap(fn ($f) => [$f->od_param_id, $f->id_param_id])
             ->filter()->unique()->flip();
 
@@ -110,14 +110,13 @@ class ManualFitController extends Controller
             ->with('points:id,code,is_fits_clearance')
             ->get();
 
-        // Group qualifying params by their F&C point.
+        // Group qualifying params by point. A fit is any mating point with an
+        // OD and an ID member; is_fits_clearance only decides the is_fc flag
+        // (whether it shows in the F&C table), not whether the fit exists.
         $byPoint = [];
         foreach ($params as $p) {
             foreach ($p->points as $pt) {
-                if (! $pt->is_fits_clearance) {
-                    continue;
-                }
-                $byPoint[$pt->id] ??= ['code' => $pt->code, 'params' => collect()];
+                $byPoint[$pt->id] ??= ['code' => $pt->code, 'is_fc' => (bool) $pt->is_fits_clearance, 'params' => collect()];
                 $byPoint[$pt->id]['params']->push($p);
             }
         }
@@ -153,6 +152,7 @@ class ManualFitController extends Controller
                 'od_param_id' => $od->id,
                 'id_param_id' => $id->id,
                 'ref_no'      => $info['code'],
+                'is_fc'       => $info['is_fc'],
                 'sort_order'  => ++$order,
             ]);
             $created++;
@@ -170,6 +170,7 @@ class ManualFitController extends Controller
             'od_param_id'            => $data['od_param_id'],
             'id_param_id'            => $data['id_param_id'],
             'ref_no'                 => $data['ref_no'] ?? null,
+            'is_fc'                  => $data['is_fc'] ?? true,
             'assembly_clearance_min' => $data['assembly_clearance_min'] ?? null,
             'assembly_clearance_max' => $data['assembly_clearance_max'] ?? null,
             'permitted_clearance'    => $data['permitted_clearance'] ?? null,
@@ -203,6 +204,7 @@ class ManualFitController extends Controller
             'od_param_id'            => $req . 'integer|exists:manual_parameters,id',
             'id_param_id'            => $req . 'integer|exists:manual_parameters,id',
             'ref_no'                 => 'nullable|string|max:40',
+            'is_fc'                  => 'nullable|boolean',
             'assembly_clearance_min' => 'nullable|numeric',
             'assembly_clearance_max' => 'nullable|numeric',
             'permitted_clearance'    => 'nullable|numeric',
@@ -243,6 +245,7 @@ class ManualFitController extends Controller
         return [
             'id'                     => $fit->id,
             'ref_no'                 => $fit->ref_no,
+            'is_fc'                  => (bool) $fit->is_fc,
             'sort_order'             => $fit->sort_order,
             'od_param_id'            => $fit->od_param_id,
             'id_param_id'            => $fit->id_param_id,

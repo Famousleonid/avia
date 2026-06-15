@@ -75,6 +75,10 @@
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="fcCancelBtn">Cancel</button>
             </div>
         </div>
+        <div class="form-check mt-2">
+            <input type="checkbox" class="form-check-input" id="fcIsFc" checked>
+            <label class="form-check-label text-secondary" for="fcIsFc">Show in F&amp;C table (running clearance). Uncheck for a non-F&amp;C mating pair, e.g. bushing-to-housing.</label>
+        </div>
         <div id="fcFormErr" class="text-danger mt-1 d-none"></div>
         <div class="text-secondary mt-1" style="font-size:11px">Leave clearances blank to derive from member limits (in).</div>
     </div>
@@ -156,6 +160,7 @@
     const asmMin  = document.getElementById('fcAsmMin');
     const asmMax  = document.getElementById('fcAsmMax');
     const perm    = document.getElementById('fcPerm');
+    const isFc    = document.getElementById('fcIsFc');
     const editId  = document.getElementById('fcEditId');
     const formErr = document.getElementById('fcFormErr');
 
@@ -203,13 +208,17 @@
     }
 
     function renderPairs() {
+        // The pairs table is the manual's F&C table — show only is_fc fits.
+        // Non-F&C mating pairs still exist in the registry (used by Required
+        // Bushings etc.) but are not printed here.
+        const fcFits = fits.filter(f => f.is_fc);
         // Each fit is its own <tbody> so print keeps a pair's two rows together.
         pairsTable.querySelectorAll('tbody').forEach(tb => tb.remove());
-        if (!fits.length) {
-            pairsTable.insertAdjacentHTML('beforeend', '<tbody><tr><td colspan="10" class="text-secondary">No fits yet — use “Add fit”.</td></tr></tbody>');
+        if (!fcFits.length) {
+            pairsTable.insertAdjacentHTML('beforeend', '<tbody><tr><td colspan="10" class="text-secondary">No F&amp;C pairs yet — use “Add fit”.</td></tr></tbody>');
             return;
         }
-        const html = fits.map(f => {
+        const html = fcFits.map(f => {
             const odm = f.od_member || {}, idm = f.id_member || {};
             const warn = f.mismatch ? ' <span class="text-danger" title="stored clearance differs from derived">⚠</span>' : '';
             const aMinCls = f.assembly_clearance_min == null ? 'text-secondary' : '';
@@ -267,6 +276,7 @@
         asmMin.value = (fit && fit.assembly_clearance_min != null) ? fit.assembly_clearance_min : '';
         asmMax.value = (fit && fit.assembly_clearance_max != null) ? fit.assembly_clearance_max : '';
         perm.value   = (fit && fit.permitted_clearance != null) ? fit.permitted_clearance : '';
+        isFc.checked = fit ? !!fit.is_fc : true;
         formErr.classList.add('d-none');
         formEl.classList.remove('d-none');
     }
@@ -278,6 +288,7 @@
             od_param_id: odSel.value || null,
             id_param_id: idSel.value || null,
             ref_no: refNo.value.trim() || null,
+            is_fc: isFc.checked,
             assembly_clearance_min: numOrNull(asmMin),
             assembly_clearance_max: numOrNull(asmMax),
             permitted_clearance: numOrNull(perm),
