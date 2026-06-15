@@ -15,15 +15,16 @@
         #fc-view thead { display: table-header-group; }
         #fc-pairs-table tbody { break-inside: avoid; page-break-inside: avoid; }
         #fc-simple-tbody tr { break-inside: avoid; page-break-inside: avoid; }
-        /* Center the table horizontally on the page. */
+        /* Stretch the table to the full page width. */
         #fc-view .table-responsive { overflow: visible !important; }
-        #fc-view table { width: auto !important; margin-left: auto !important; margin-right: auto !important; }
+        #fc-view table { width: 100% !important; }
         /* Force readable black text/borders on white paper (app theme is dark). */
         #fc-view, #fc-view * { color: #000 !important; }
         #fc-view table, #fc-view th, #fc-view td { border-color: #000 !important; }
-        /* Extra view: the F&C column is always empty there — drop it from print. */
-        #fc-view.filter-std #fc-simple-table th:nth-child(3),
-        #fc-view.filter-std #fc-simple-table td:nth-child(3) { display: none !important; }
+        /* Extra view: the F&C column is always empty there — drop it from print.
+           The F&C header is a rowspan cell in the first header row only. */
+        #fc-view.filter-std #fc-simple-table thead tr:first-child th:nth-child(3),
+        #fc-view.filter-std #fc-simple-table tbody td:nth-child(3) { display: none !important; }
     }
 </style>
 {{-- Page orientation is set per print from JS (F&C pairs = portrait, report = landscape). --}}
@@ -84,16 +85,15 @@
             <table id="fc-simple-table" class="table table-bordered table-sm align-middle" style="font-size:12px;white-space:nowrap">
                 <thead class="table-light">
                     <tr>
-                        <th class="text-center">Figure</th>
-                        <th class="text-center">Ref. No.</th>
-                        <th class="text-center">F&amp;C</th>
-                        <th class="text-center">Component</th>
-                        <th>Description</th>
+                        <th rowspan="2" class="text-center align-middle">Figure</th>
+                        <th rowspan="2" class="text-center align-middle">Ref. No.</th>
+                        <th rowspan="2" class="text-center align-middle">F&amp;C</th>
+                        <th rowspan="2" class="text-center align-middle">Component</th>
+                        <th rowspan="2" class="align-middle">Description</th>
                         <th colspan="2" class="text-center">Original Limits <span class="fw-normal text-secondary">in</span></th>
                         <th colspan="2" class="text-center">Wear Limits <span class="fw-normal text-secondary">in</span></th>
                     </tr>
                     <tr>
-                        <th></th><th></th><th></th><th></th><th></th>
                         <th class="text-center">Min.</th><th class="text-center">Max.</th>
                         <th class="text-center">Min.</th><th class="text-center">Max.</th>
                     </tr>
