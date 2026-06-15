@@ -304,7 +304,8 @@ body{font-family:Arial,sans-serif;font-size:12px;background:#f8f9fa;color:#21252
 .pdw-dim.st-nodata{color:#b58900;border-color:#b58900}
 .pdw-dim.pdw-value{border:none;background:transparent;padding:0}
 .pdw-label{color:#0d9488;background:rgba(255,255,255,0.85);padding:0 3px}
-.pdw-torque-input{position:absolute;transform:translate(-50%,-50%);width:64px;font-size:8.5pt;font-weight:700;text-align:center;color:#fd7e14;background:#fff;border:1px solid #fd7e14;border-radius:3px;padding:1px 2px;z-index:10}
+.pdw-torque-input{position:absolute;transform:translate(-50%,-50%);width:56px;font-size:8.5pt;font-weight:700;text-align:center;color:#fd7e14;background:#fff;border:1px solid #fd7e14;border-radius:3px;padding:1px 2px;z-index:10;-moz-appearance:textfield;appearance:textfield}
+.pdw-torque-input::-webkit-outer-spin-button,.pdw-torque-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .pdw-torque-input.filled{color:#198754;border-color:#198754}
 @media print{
   .pdw-torque-input{border:none;color:#000;background:transparent}
@@ -357,7 +358,13 @@ async function fcSaveTorque() {
 }
 document.querySelectorAll(".pdw-torque-input").forEach(function (i) {
     const sync = function () { i.classList.toggle("filled", i.value.trim() !== ""); };
-    i.addEventListener("input", sync); sync();
+    i.addEventListener("input", sync);
+    i.addEventListener("blur", function () {           // mask 0.00
+        const v = parseFloat(i.value);
+        i.value = isNaN(v) ? "" : v.toFixed(2);
+        sync();
+    });
+    sync();
 });
 const fcTorqueBtn = document.getElementById("saveTorqueBtn");
 if (fcTorqueBtn) {
