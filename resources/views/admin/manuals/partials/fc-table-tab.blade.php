@@ -15,8 +15,13 @@
         #fc-view thead { display: table-header-group; }
         #fc-pairs-table tbody { break-inside: avoid; page-break-inside: avoid; }
         #fc-simple-tbody tr { break-inside: avoid; page-break-inside: avoid; }
+        /* Center the table horizontally on the page. */
+        #fc-view .table-responsive { overflow: visible !important; }
+        #fc-view table { width: auto !important; margin-left: auto !important; margin-right: auto !important; }
     }
 </style>
+{{-- Page orientation is set per print from JS (F&C pairs = portrait, report = landscape). --}}
+<style id="fc-page"></style>
 <div class="p-3" id="fc-view" data-manual-id="{{ $cmm->id }}">
     <div class="d-flex align-items-center gap-2 mb-3 fc-no-print">
         <h5 class="mb-0 me-2">Fits and Clearances</h5>
@@ -304,7 +309,13 @@
     document.getElementById('fcAddBtn').addEventListener('click', () => { filter = 'fc'; applyFilter(); showForm(null); });
     document.getElementById('fcCancelBtn').addEventListener('click', hideForm);
     document.getElementById('fcSaveBtn').addEventListener('click', save);
-    document.getElementById('fcPrintBtn').addEventListener('click', () => window.print());
+    document.getElementById('fcPrintBtn').addEventListener('click', () => {
+        // F&C pairs view → portrait; the wider flat report → landscape.
+        const landscape = filter !== 'fc';
+        document.getElementById('fc-page').textContent =
+            '@page { size: ' + (landscape ? 'landscape' : 'portrait') + '; margin: 12mm; }';
+        window.print();
+    });
     document.getElementById('fcDetectBtn').addEventListener('click', async () => {
         if (!confirm('Create fits for points that have both an OD and an ID parameter? Existing pairs are kept.')) return;
         try {
