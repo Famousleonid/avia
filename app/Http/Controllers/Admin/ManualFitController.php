@@ -116,6 +116,8 @@ class ManualFitController extends Controller
             'id_param_id'            => $fit->id_param_id,
             'od_label'               => $this->memberLabel($fit->odParam),
             'id_label'               => $this->memberLabel($fit->idParam),
+            'od'                     => $this->member($fit->odParam),
+            'id'                     => $this->member($fit->idParam),
             // Stored manual values (null = not entered → derived is used).
             'assembly_clearance_min' => $fit->assembly_clearance_min,
             'assembly_clearance_max' => $fit->assembly_clearance_max,
@@ -140,5 +142,23 @@ class ManualFitController extends Controller
         $ipl = optional($param->inspectionComponent?->variants?->first()?->component)->ipl_num;
 
         return trim($param->description . ($ipl ? " ({$ipl})" : ''));
+    }
+
+    private function member(?ManualParameter $param): ?array
+    {
+        if (! $param) {
+            return null;
+        }
+
+        return [
+            'id'          => $param->id,
+            'description' => $param->description,
+            'ipl'         => optional($param->inspectionComponent?->variants?->first()?->component)->ipl_num,
+            'orig_min'    => $param->orig_dim_min,
+            'orig_max'    => $param->orig_dim_max,
+            // Wear falls back to orig when not set (same as the manual reading).
+            'wear_min'    => $param->wear_dim_min ?? $param->orig_dim_min,
+            'wear_max'    => $param->wear_dim_max ?? $param->orig_dim_max,
+        ];
     }
 }

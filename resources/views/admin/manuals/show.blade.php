@@ -1436,9 +1436,7 @@
                         ])
                     </div>
                     <div id="fc-table-content-wrap" style="display:none">
-                        @include('admin.manuals.partials.fc-table-tab', [
-                            'manualFits' => $manualFits,
-                        ])
+                        @include('admin.manuals.partials.fc-table-tab')
                     </div>
                 </div>
                 {{-- Part Documents hub — content (#pdw-host) is moved here from the Dimensions partial on init. --}}
