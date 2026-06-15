@@ -1,17 +1,25 @@
-{{-- Fits & Clearances — full-width view: Table 8001 reproduction + authoring.
-     Client-rendered from /manuals/{id}/fits (ManualFit). One fit → two member
-     rows (ID then OD) + shared clearance bracket; clearances are stored
-     (manual) or derived, mismatch flagged. Add/edit/delete inline. --}}
+{{-- Fits & Clearances — unified view (all from the new manual_fit data):
+     - flat Dimensions report (All / Extra) with an F&C badge driven by fit
+       membership (not the legacy is_fits_clearance point flag);
+     - F&C-only = the Table 8001 pairs view (clearances) with authoring;
+     - Add/edit/delete fits; Print. Client-rendered from the fit endpoints. --}}
+<style>
+    @media print { #fc-view .fc-no-print { display: none !important; } }
+</style>
 <div class="p-3" id="fc-view" data-manual-id="{{ $cmm->id }}">
-    <div class="d-flex align-items-center gap-2 mb-3">
-        <h5 class="mb-0">Fits and Clearances</h5>
-        <button type="button" class="btn btn-outline-primary btn-sm ms-auto" id="fcAddBtn">
-            <i class="bi bi-plus-lg"></i> Add fit
-        </button>
+    <div class="d-flex align-items-center gap-2 mb-3 fc-no-print">
+        <h5 class="mb-0 me-2">Fits and Clearances</h5>
+        <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-secondary active" data-fc-filter="all">All</button>
+            <button type="button" class="btn btn-outline-success" data-fc-filter="fc">F&amp;C only</button>
+            <button type="button" class="btn btn-outline-secondary" data-fc-filter="std">Extra</button>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="fcAddBtn"><i class="bi bi-plus-lg"></i> Add fit</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm ms-auto" id="fcPrintBtn">&#128438; Print</button>
     </div>
 
-    {{-- Add / edit form (hidden until used) --}}
-    <div id="fc-form" class="border rounded p-2 mb-3 d-none" style="font-size:12px">
+    {{-- Add / edit form --}}
+    <div id="fc-form" class="border rounded p-2 mb-3 d-none fc-no-print" style="font-size:12px">
         <input type="hidden" id="fcEditId">
         <div class="row g-2 align-items-end">
             <div class="col-md-3">
@@ -47,38 +55,65 @@
         <div class="text-secondary mt-1" style="font-size:11px">Leave clearances blank to derive from member limits (in).</div>
     </div>
 
-    <div id="fc-empty" class="text-secondary d-none">No Fits &amp; Clearances pairs yet — add one above.</div>
-
-    <div class="table-responsive" id="fc-table-wrap">
-        <table class="table table-bordered table-sm align-middle" style="font-size:12px;white-space:nowrap">
-            <thead class="table-light">
-                <tr>
-                    <th rowspan="3" class="text-center align-middle">Ref.<br>No.</th>
-                    <th rowspan="3" class="text-center align-middle">Mating IPL<br>Item / Member</th>
-                    <th colspan="4" class="text-center">Original Manufacturer Limits</th>
-                    <th colspan="3" class="text-center">In-Service Wear Limits</th>
-                    <th rowspan="3" class="text-center align-middle">Actions</th>
-                </tr>
-                <tr>
-                    <th colspan="2" class="text-center">Dimension<br><span class="fw-normal text-secondary">in</span></th>
-                    <th colspan="2" class="text-center">Assembly<br>Clearance<br><span class="fw-normal text-secondary">in</span></th>
-                    <th colspan="2" class="text-center">Dimension<br><span class="fw-normal text-secondary">in</span></th>
-                    <th class="text-center">Permitted<br>Clearance<br><span class="fw-normal text-secondary">in</span></th>
-                </tr>
-                <tr>
-                    <th class="text-center">Min.</th><th class="text-center">Max.</th>
-                    <th class="text-center">Min.</th><th class="text-center">Max.</th>
-                    <th class="text-center">Min.</th><th class="text-center">Max.</th>
-                    <th class="text-center">Max.</th>
-                </tr>
-            </thead>
-            <tbody id="fc-tbody"></tbody>
-        </table>
+    {{-- Flat dimensions report (All / Extra) --}}
+    <div id="fc-simple-section">
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm align-middle" style="font-size:12px;white-space:nowrap">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center">Figure</th>
+                        <th class="text-center">Ref. No.</th>
+                        <th class="text-center">F&amp;C</th>
+                        <th class="text-center">Component</th>
+                        <th>Description</th>
+                        <th colspan="2" class="text-center">Original Limits <span class="fw-normal text-secondary">in</span></th>
+                        <th colspan="2" class="text-center">Wear Limits <span class="fw-normal text-secondary">in</span></th>
+                    </tr>
+                    <tr>
+                        <th></th><th></th><th></th><th></th><th></th>
+                        <th class="text-center">Min.</th><th class="text-center">Max.</th>
+                        <th class="text-center">Min.</th><th class="text-center">Max.</th>
+                    </tr>
+                </thead>
+                <tbody id="fc-simple-tbody"></tbody>
+            </table>
+        </div>
     </div>
-    <p class="text-secondary mt-2" style="font-size:11px">
-        Muted clearance values are derived from the member limits; fill the manual values to override.
-        Rows flagged <span class="text-danger">⚠</span> have a stored clearance that disagrees with the derived one.
-    </p>
+
+    {{-- F&C pairs (Table 8001) — shown under "F&C only" --}}
+    <div id="fc-pairs-section" style="display:none">
+        <h6 class="mt-3 mb-2">Fits &amp; Clearances pairs</h6>
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm align-middle" style="font-size:12px;white-space:nowrap">
+                <thead class="table-light">
+                    <tr>
+                        <th rowspan="3" class="text-center align-middle">Ref.<br>No.</th>
+                        <th rowspan="3" class="text-center align-middle">Mating IPL<br>Item / Member</th>
+                        <th colspan="4" class="text-center">Original Manufacturer Limits</th>
+                        <th colspan="3" class="text-center">In-Service Wear Limits</th>
+                        <th rowspan="3" class="text-center align-middle fc-no-print">Actions</th>
+                    </tr>
+                    <tr>
+                        <th colspan="2" class="text-center">Dimension<br><span class="fw-normal text-secondary">in</span></th>
+                        <th colspan="2" class="text-center">Assembly<br>Clearance<br><span class="fw-normal text-secondary">in</span></th>
+                        <th colspan="2" class="text-center">Dimension<br><span class="fw-normal text-secondary">in</span></th>
+                        <th class="text-center">Permitted<br>Clearance<br><span class="fw-normal text-secondary">in</span></th>
+                    </tr>
+                    <tr>
+                        <th class="text-center">Min.</th><th class="text-center">Max.</th>
+                        <th class="text-center">Min.</th><th class="text-center">Max.</th>
+                        <th class="text-center">Min.</th><th class="text-center">Max.</th>
+                        <th class="text-center">Max.</th>
+                    </tr>
+                </thead>
+                <tbody id="fc-pairs-tbody"></tbody>
+            </table>
+        </div>
+        <p class="text-secondary mt-2 fc-no-print" style="font-size:11px">
+            Muted clearance values are derived from the member limits; fill the manual values to override.
+            Rows flagged <span class="text-danger">⚠</span> have a stored clearance that disagrees with the derived one.
+        </p>
+    </div>
 </div>
 
 <script>
@@ -88,9 +123,10 @@
     const MANUAL_ID = root.dataset.manualId;
     const CSRF = '{{ csrf_token() }}';
 
-    const tbody   = document.getElementById('fc-tbody');
-    const emptyEl = document.getElementById('fc-empty');
-    const wrapEl  = document.getElementById('fc-table-wrap');
+    const simpleTbody = document.getElementById('fc-simple-tbody');
+    const pairsTbody   = document.getElementById('fc-pairs-tbody');
+    const simpleSec    = document.getElementById('fc-simple-section');
+    const pairsSec     = document.getElementById('fc-pairs-section');
     const formEl  = document.getElementById('fc-form');
     const odSel   = document.getElementById('fcOdSelect');
     const idSel   = document.getElementById('fcIdSelect');
@@ -101,7 +137,7 @@
     const editId  = document.getElementById('fcEditId');
     const formErr = document.getElementById('fcFormErr');
 
-    let params = [], icLabels = {}, fits = [];
+    let params = [], icLabels = {}, fits = [], reportRows = [], filter = 'all';
 
     async function api(url, opts = {}) {
         const res = await fetch(url, {
@@ -127,27 +163,43 @@
         idSel.innerHTML = opts;
     }
 
-    function render() {
-        if (!fits.length) { wrapEl.classList.add('d-none'); emptyEl.classList.remove('d-none'); tbody.innerHTML = ''; return; }
-        emptyEl.classList.add('d-none'); wrapEl.classList.remove('d-none');
-        tbody.innerHTML = fits.map(f => {
+    function renderSimple() {
+        simpleTbody.innerHTML = reportRows.map(r => {
+            const badge = r.is_fc ? '<span class="badge text-bg-success" style="font-size:10px">F&amp;C</span>' : '';
+            return '<tr data-is-fc="' + (r.is_fc ? '1' : '0') + '">'
+                + '<td class="text-center text-secondary" style="font-size:11px">' + esc(r.figure) + '</td>'
+                + '<td class="text-center fw-semibold">' + esc(r.ref) + '</td>'
+                + '<td class="text-center">' + badge + '</td>'
+                + '<td>' + esc(r.component || '—') + '</td>'
+                + '<td>' + esc(r.description || '') + '</td>'
+                + '<td class="text-end">' + fmt(r.orig_min) + '</td>'
+                + '<td class="text-end">' + fmt(r.orig_max) + '</td>'
+                + '<td class="text-end">' + fmt(r.wear_min) + '</td>'
+                + '<td class="text-end">' + fmt(r.wear_max) + '</td>'
+                + '</tr>';
+        }).join('') || '<tr><td colspan="9" class="text-secondary">No measurement parameters found.</td></tr>';
+    }
+
+    function renderPairs() {
+        if (!fits.length) { pairsTbody.innerHTML = '<tr><td colspan="10" class="text-secondary">No fits yet — use “Add fit”.</td></tr>'; return; }
+        pairsTbody.innerHTML = fits.map(f => {
             const odm = f.od || {}, idm = f.id || {};
             const warn = f.mismatch ? ' <span class="text-danger" title="stored clearance differs from derived">⚠</span>' : '';
-            const asmMinCls = f.assembly_clearance_min == null ? 'text-secondary' : '';
-            const asmMaxCls = f.assembly_clearance_max == null ? 'text-secondary' : '';
-            const permCls   = f.permitted_clearance    == null ? 'text-secondary' : '';
+            const aMinCls = f.assembly_clearance_min == null ? 'text-secondary' : '';
+            const aMaxCls = f.assembly_clearance_max == null ? 'text-secondary' : '';
+            const pCls    = f.permitted_clearance    == null ? 'text-secondary' : '';
             return ''
                 + '<tr>'
                 +   '<td rowspan="2" class="text-center align-middle fw-semibold">' + esc(f.ref_no || '—') + warn + '</td>'
                 +   '<td>' + memberCell(idm) + '</td>'
                 +   '<td class="text-end">' + fmt(idm.orig_min) + '</td>'
                 +   '<td class="text-end">' + fmt(idm.orig_max) + '</td>'
-                +   '<td rowspan="2" class="text-end align-middle ' + asmMinCls + '">' + fmt(f.eff_assembly_min) + '</td>'
-                +   '<td rowspan="2" class="text-end align-middle ' + asmMaxCls + '">' + fmt(f.eff_assembly_max) + '</td>'
+                +   '<td rowspan="2" class="text-end align-middle ' + aMinCls + '">' + fmt(f.eff_assembly_min) + '</td>'
+                +   '<td rowspan="2" class="text-end align-middle ' + aMaxCls + '">' + fmt(f.eff_assembly_max) + '</td>'
                 +   '<td class="text-end">' + fmt(idm.wear_min) + '</td>'
                 +   '<td class="text-end">' + fmt(idm.wear_max) + '</td>'
-                +   '<td rowspan="2" class="text-end align-middle ' + permCls + '">' + fmt(f.eff_permitted) + '</td>'
-                +   '<td rowspan="2" class="text-center align-middle">'
+                +   '<td rowspan="2" class="text-end align-middle ' + pCls + '">' + fmt(f.eff_permitted) + '</td>'
+                +   '<td rowspan="2" class="text-center align-middle fc-no-print">'
                 +     '<button class="btn btn-outline-secondary btn-sm p-0 px-1 fc-edit" data-id="' + f.id + '" title="Edit"><i class="bi bi-pencil"></i></button> '
                 +     '<button class="btn btn-outline-danger btn-sm p-0 px-1 fc-del" data-id="' + f.id + '" title="Delete"><i class="bi bi-trash"></i></button>'
                 +   '</td>'
@@ -160,6 +212,20 @@
                 +   '<td class="text-end">' + fmt(odm.wear_max) + '</td>'
                 + '</tr>';
         }).join('');
+    }
+
+    function applyFilter() {
+        root.querySelectorAll('[data-fc-filter]').forEach(b => b.classList.toggle('active', b.dataset.fcFilter === filter));
+        if (filter === 'fc') {
+            simpleSec.style.display = 'none';
+            pairsSec.style.display = '';
+        } else {
+            pairsSec.style.display = 'none';
+            simpleSec.style.display = '';
+            simpleTbody.querySelectorAll('tr[data-is-fc]').forEach(row => {
+                row.style.display = (filter === 'std' && row.dataset.isFc === '1') ? 'none' : '';
+            });
+        }
     }
 
     function showForm(fit) {
@@ -190,6 +256,7 @@
             else await api('/manuals/' + MANUAL_ID + '/fits', { method: 'POST', body: JSON.stringify(payload) });
             hideForm();
             await loadAll();
+            filter = 'fc'; applyFilter();
         } catch (e) {
             formErr.textContent = e.message;
             formErr.classList.remove('d-none');
@@ -197,23 +264,30 @@
     }
 
     async function loadAll() {
-        const [ics, ps, fs] = await Promise.all([
+        const [ics, ps, fs, rep] = await Promise.all([
             api('/manuals/' + MANUAL_ID + '/inspection-components'),
             api('/manuals/' + MANUAL_ID + '/parameters'),
             api('/manuals/' + MANUAL_ID + '/fits'),
+            api('/manuals/' + MANUAL_ID + '/fits-report'),
         ]);
         icLabels = {};
         (ics || []).forEach(ic => { icLabels[ic.id] = ic.label || ic.name || ('IC ' + ic.id); });
         params = ps || [];
         fits = fs || [];
+        reportRows = rep || [];
         populateSelects();
-        render();
+        renderSimple();
+        renderPairs();
+        applyFilter();
     }
+    window.fcReload = loadAll;
 
-    document.getElementById('fcAddBtn').addEventListener('click', () => showForm(null));
+    root.querySelectorAll('[data-fc-filter]').forEach(b => b.addEventListener('click', () => { filter = b.dataset.fcFilter; applyFilter(); }));
+    document.getElementById('fcAddBtn').addEventListener('click', () => { filter = 'fc'; applyFilter(); showForm(null); });
     document.getElementById('fcCancelBtn').addEventListener('click', hideForm);
     document.getElementById('fcSaveBtn').addEventListener('click', save);
-    tbody.addEventListener('click', async (e) => {
+    document.getElementById('fcPrintBtn').addEventListener('click', () => window.print());
+    pairsTbody.addEventListener('click', async (e) => {
         const editBtn = e.target.closest('.fc-edit');
         const delBtn = e.target.closest('.fc-del');
         if (editBtn) {
@@ -226,7 +300,7 @@
         }
     });
 
-    function init() { loadAll().catch(e => { emptyEl.classList.remove('d-none'); emptyEl.innerHTML = '<span class="text-danger">' + esc(e.message) + '</span>'; }); }
+    function init() { loadAll().catch(e => { simpleTbody.innerHTML = '<tr><td colspan="9" class="text-danger">' + esc(e.message) + '</td></tr>'; }); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>

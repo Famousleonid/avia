@@ -29,6 +29,60 @@ class ManualFitController extends Controller
         return response()->json($fits);
     }
 
+    /**
+     * Flat dimensions report rows (the "old report" rebuilt on the new data):
+     * one row per parameter×point with orig/wear limits, an F&C flag driven by
+     * manual_fit membership (NOT the legacy is_fits_clearance point flag).
+     */
+    public function report(Manual $manual)
+    {
+        $fitMemberIds = $manual->fits()->get(['od_param_id', 'id_param_id'])
+            ->flatMap(fn ($f) => [$f->od_param_id, $f->id_param_id])
+            ->filter()->unique()->flip();
+
+        $figures = \App\Models\ManualDimensionFigure::where('manual_id', $manual->id)
+            ->get(['id', 'title', 'parent_figure_id', 'sort_order']);
+        $figLabel = [];
+        $figSort = [];
+        foreach ($figures as $f) {
+            $parent = $f->parent_figure_id ? $figures->firstWhere('id', $f->parent_figure_id) : null;
+            $figLabel[$f->id] = $parent ? ($parent->title . ': ' . $f->title) : $f->title;
+            $figSort[$f->id] = $f->sort_order ?? 0;
+        }
+
+        $params = ManualParameter::where('manual_id', $manual->id)
+            ->where(fn ($q) => $q->whereNotNull('orig_dim_min')->orWhereNotNull('orig_dim_max'))
+            ->with(['points:id,code,manual_dimension_figure_id,sort_order', 'inspectionComponent:id,label'])
+            ->get();
+
+        $rows = [];
+        foreach ($params as $p) {
+            $comp = $p->inspectionComponent?->label;
+            $isFc = $fitMemberIds->has($p->id);
+            foreach ($p->points as $pt) {
+                $figId = $pt->manual_dimension_figure_id;
+                $rows[] = [
+                    'figure'      => $figLabel[$figId] ?? '',
+                    'fig_sort'    => $figSort[$figId] ?? 0,
+                    'ref'         => $pt->code,
+                    'component'   => $comp,
+                    'description' => $p->description,
+                    'orig_min'    => $p->orig_dim_min,
+                    'orig_max'    => $p->orig_dim_max,
+                    'wear_min'    => $p->wear_dim_min ?? $p->orig_dim_min,
+                    'wear_max'    => $p->wear_dim_max ?? $p->orig_dim_max,
+                    'is_fc'       => $isFc,
+                ];
+            }
+        }
+
+        usort($rows, function ($a, $b) {
+            return [$a['fig_sort'], (string) $a['ref']] <=> [$b['fig_sort'], (string) $b['ref']];
+        });
+
+        return response()->json($rows);
+    }
+
     public function store(Request $request, Manual $manual)
     {
         $data = $this->validateData($request, $manual);

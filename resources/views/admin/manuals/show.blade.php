@@ -2799,8 +2799,10 @@
                 fcOpenBtn.style.color = '#6c757d';
                 fcOpenBtn.style.borderColor = '#6c757d';
                 fcVisible = true;
-                if (window.dimRenderFcTable) {
-                    fcWrap.innerHTML = window.dimRenderFcTable();
+                // Refresh the Fit-based F&C view (Table 8001 + dimensions report)
+                // from the live data each time it is opened.
+                if (window.fcReload) {
+                    window.fcReload();
                 }
             }
             function showDimensions() {
