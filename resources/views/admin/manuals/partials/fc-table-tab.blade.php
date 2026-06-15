@@ -10,6 +10,11 @@
         #fc-view, #fc-view * { visibility: visible !important; }
         #fc-view { position: absolute !important; left: 0; top: 0; width: 100%; }
         #fc-view .fc-no-print { display: none !important; }
+        /* Repeat the table header on every page; keep a fit (its two rows)
+           and any single report row from splitting across a page break. */
+        #fc-view thead { display: table-header-group; }
+        #fc-pairs-table tbody { break-inside: avoid; page-break-inside: avoid; }
+        #fc-simple-tbody tr { break-inside: avoid; page-break-inside: avoid; }
     }
 </style>
 <div class="p-3" id="fc-view" data-manual-id="{{ $cmm->id }}">
@@ -91,7 +96,7 @@
     <div id="fc-pairs-section" style="display:none">
         <h6 class="mt-3 mb-2">Fits &amp; Clearances pairs</h6>
         <div class="table-responsive">
-            <table class="table table-bordered table-sm align-middle" style="font-size:12px;white-space:nowrap">
+            <table id="fc-pairs-table" class="table table-bordered table-sm align-middle" style="font-size:12px;white-space:nowrap">
                 <thead class="table-light">
                     <tr>
                         <th rowspan="3" class="text-center align-middle">Ref.<br>No.</th>
@@ -113,7 +118,6 @@
                         <th class="text-center">Max.</th>
                     </tr>
                 </thead>
-                <tbody id="fc-pairs-tbody"></tbody>
             </table>
         </div>
         <p class="text-secondary mt-2 fc-no-print" style="font-size:11px">
@@ -131,7 +135,7 @@
     const CSRF = '{{ csrf_token() }}';
 
     const simpleTbody = document.getElementById('fc-simple-tbody');
-    const pairsTbody   = document.getElementById('fc-pairs-tbody');
+    const pairsTable   = document.getElementById('fc-pairs-table');
     const simpleSec    = document.getElementById('fc-simple-section');
     const pairsSec     = document.getElementById('fc-pairs-section');
     const formEl  = document.getElementById('fc-form');
@@ -188,14 +192,19 @@
     }
 
     function renderPairs() {
-        if (!fits.length) { pairsTbody.innerHTML = '<tr><td colspan="10" class="text-secondary">No fits yet — use “Add fit”.</td></tr>'; return; }
-        pairsTbody.innerHTML = fits.map(f => {
+        // Each fit is its own <tbody> so print keeps a pair's two rows together.
+        pairsTable.querySelectorAll('tbody').forEach(tb => tb.remove());
+        if (!fits.length) {
+            pairsTable.insertAdjacentHTML('beforeend', '<tbody><tr><td colspan="10" class="text-secondary">No fits yet — use “Add fit”.</td></tr></tbody>');
+            return;
+        }
+        const html = fits.map(f => {
             const odm = f.od_member || {}, idm = f.id_member || {};
             const warn = f.mismatch ? ' <span class="text-danger" title="stored clearance differs from derived">⚠</span>' : '';
             const aMinCls = f.assembly_clearance_min == null ? 'text-secondary' : '';
             const aMaxCls = f.assembly_clearance_max == null ? 'text-secondary' : '';
             const pCls    = f.permitted_clearance    == null ? 'text-secondary' : '';
-            return ''
+            return '<tbody>'
                 + '<tr>'
                 +   '<td rowspan="2" class="text-center align-middle fw-semibold">' + esc(f.ref_no || '—') + warn + '</td>'
                 +   '<td>' + memberCell(idm) + '</td>'
@@ -217,8 +226,10 @@
                 +   '<td class="text-end">' + fmt(odm.orig_max) + '</td>'
                 +   '<td class="text-end">' + fmt(odm.wear_min) + '</td>'
                 +   '<td class="text-end">' + fmt(odm.wear_max) + '</td>'
-                + '</tr>';
+                + '</tr>'
+                + '</tbody>';
         }).join('');
+        pairsTable.insertAdjacentHTML('beforeend', html);
     }
 
     function applyFilter() {
@@ -303,7 +314,7 @@
             alert('Detected: ' + r.created + ' new fit(s), ' + r.skipped + ' already existed.');
         } catch (e) { alert(e.message); }
     });
-    pairsTbody.addEventListener('click', async (e) => {
+    pairsTable.addEventListener('click', async (e) => {
         const editBtn = e.target.closest('.fc-edit');
         const delBtn = e.target.closest('.fc-del');
         if (editBtn) {
