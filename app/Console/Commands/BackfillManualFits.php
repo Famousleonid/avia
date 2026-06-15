@@ -3,8 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\Manual;
-use App\Models\ManualFit;
-use App\Models\ManualParameter;
 use Illuminate\Console\Command;
 use Illuminate\Console\ConfirmableTrait;
 
@@ -30,100 +28,35 @@ class BackfillManualFits extends Command
 
     protected $signature = 'fits:backfill
         {--manual= : Limit to a single manual id}
-        {--write : Persist created fits. Default is dry-run}
-        {--sample=30 : Maximum pairs to print}
         {--force : Force the operation to run in production}';
 
-    protected $description = 'Backfill manual_fits from legacy shared-point OD↔ID pairs (dry-run by default).';
+    protected $description = 'Backfill manual_fits from Fits & Clearances points (delegates to ManualFitController::detectPairs).';
 
-    public function handle(): int
+    public function handle(\App\Http\Controllers\Admin\ManualFitController $fits): int
     {
-        $write = (bool) $this->option('write');
-        if ($write && ! $this->confirmToProceed()) {
+        if (! $this->confirmToProceed()) {
             return self::FAILURE;
         }
-
-        $sampleLimit = max(0, (int) $this->option('sample'));
 
         $manualQuery = Manual::query()->orderBy('id');
         if ($this->option('manual') !== null) {
             $manualQuery->where('id', (int) $this->option('manual'));
         }
 
-        $stats = ['manuals' => 0, 'od_params' => 0, 'created' => 0, 'would_create' => 0, 'skipped_existing' => 0];
-        $sample = [];
+        $stats = ['manuals' => 0, 'created' => 0, 'skipped_existing' => 0];
 
         foreach ($manualQuery->cursor() as $manual) {
             $stats['manuals']++;
-
-            $params = ManualParameter::where('manual_id', $manual->id)
-                ->with('points:id,code')
-                ->get();
-
-            $odParams = $params->filter(fn ($p) =>
-                ($p->orig_dim_min !== null || $p->orig_dim_max !== null)
-                && preg_match('/\bOD\b/i', (string) $p->description) === 1);
-
-            foreach ($odParams as $od) {
-                $stats['od_params']++;
-                $odPointIds = $od->points->pluck('id');
-                if ($odPointIds->isEmpty()) {
-                    continue;
-                }
-
-                $mates = $params->filter(fn ($p) =>
-                    $p->id !== $od->id
-                    && $p->inspection_component_id !== $od->inspection_component_id
-                    && ($p->orig_dim_min !== null || $p->orig_dim_max !== null)
-                    && $p->points->pluck('id')->intersect($odPointIds)->isNotEmpty());
-
-                foreach ($mates as $mate) {
-                    $exists = ManualFit::where('od_param_id', $od->id)
-                        ->where('id_param_id', $mate->id)
-                        ->exists();
-
-                    if ($exists) {
-                        $stats['skipped_existing']++;
-                        continue;
-                    }
-
-                    if (count($sample) < $sampleLimit) {
-                        $sample[] = [
-                            'manual'   => $manual->id,
-                            'point(s)' => $od->points->pluck('code')->filter()->implode(', '),
-                            'OD param' => $od->id . ' · ' . $od->description,
-                            'ID param' => $mate->id . ' · ' . $mate->description,
-                        ];
-                    }
-
-                    if ($write) {
-                        ManualFit::create([
-                            'manual_id'   => $manual->id,
-                            'od_param_id' => $od->id,
-                            'id_param_id' => $mate->id,
-                            'sort_order'  => $stats['created'],
-                        ]);
-                        $stats['created']++;
-                    } else {
-                        $stats['would_create']++;
-                    }
-                }
-            }
+            [$created, $skipped] = $fits->detectPairs($manual);
+            $stats['created'] += $created;
+            $stats['skipped_existing'] += $skipped;
         }
 
         $this->newLine();
         $this->table(
-            ['manuals', 'OD params', 'created', 'would create', 'skipped existing'],
-            [[$stats['manuals'], $stats['od_params'], $stats['created'], $stats['would_create'], $stats['skipped_existing']]]
+            ['manuals', 'created', 'skipped existing'],
+            [[$stats['manuals'], $stats['created'], $stats['skipped_existing']]]
         );
-
-        if ($sample !== []) {
-            $this->table(array_keys($sample[0]), $sample);
-        }
-
-        if (! $write) {
-            $this->warn('Dry run only. Run with --write to persist the fits.');
-        }
 
         return self::SUCCESS;
     }

@@ -184,7 +184,7 @@
     function renderPairs() {
         if (!fits.length) { pairsTbody.innerHTML = '<tr><td colspan="10" class="text-secondary">No fits yet — use “Add fit”.</td></tr>'; return; }
         pairsTbody.innerHTML = fits.map(f => {
-            const odm = f.od || {}, idm = f.id || {};
+            const odm = f.od_member || {}, idm = f.id_member || {};
             const warn = f.mismatch ? ' <span class="text-danger" title="stored clearance differs from derived">⚠</span>' : '';
             const aMinCls = f.assembly_clearance_min == null ? 'text-secondary' : '';
             const aMaxCls = f.assembly_clearance_max == null ? 'text-secondary' : '';

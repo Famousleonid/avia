@@ -91,48 +91,74 @@ class ManualFitController extends Controller
      */
     public function detect(Manual $manual)
     {
+        [$created, $skipped] = $this->detectPairs($manual);
+
+        return response()->json(['created' => $created, 'skipped' => $skipped]);
+    }
+
+    /**
+     * Shared detection used by detect() and the fits:backfill command.
+     * Only points flagged Fits & Clearances (is_fits_clearance) qualify; on such
+     * a point the OD member is the param described "OD", the ID member the one
+     * described "ID" (or the other of two). ref_no is taken from the point code.
+     * Returns [created, skipped]. Idempotent on (od_param_id, id_param_id).
+     */
+    public function detectPairs(Manual $manual): array
+    {
         $params = ManualParameter::where('manual_id', $manual->id)
-            ->with('points:id')
+            ->where(fn ($q) => $q->whereNotNull('orig_dim_min')->orWhereNotNull('orig_dim_max'))
+            ->with('points:id,code,is_fits_clearance')
             ->get();
 
-        $odParams = $params->filter(fn ($p) =>
-            ($p->orig_dim_min !== null || $p->orig_dim_max !== null)
-            && preg_match('/\bOD\b/i', (string) $p->description) === 1);
+        // Group qualifying params by their F&C point.
+        $byPoint = [];
+        foreach ($params as $p) {
+            foreach ($p->points as $pt) {
+                if (! $pt->is_fits_clearance) {
+                    continue;
+                }
+                $byPoint[$pt->id] ??= ['code' => $pt->code, 'params' => collect()];
+                $byPoint[$pt->id]['params']->push($p);
+            }
+        }
 
         $created = 0;
         $skipped = 0;
         $order = (int) $manual->fits()->max('sort_order');
 
-        foreach ($odParams as $od) {
-            $odPointIds = $od->points->pluck('id');
-            if ($odPointIds->isEmpty()) {
+        foreach ($byPoint as $info) {
+            $ps = $info['params'];
+            if ($ps->count() < 2) {
                 continue;
             }
-            $mates = $params->filter(fn ($p) =>
-                $p->id !== $od->id
-                && $p->inspection_component_id !== $od->inspection_component_id
-                && ($p->orig_dim_min !== null || $p->orig_dim_max !== null)
-                && $p->points->pluck('id')->intersect($odPointIds)->isNotEmpty());
-
-            foreach ($mates as $mate) {
-                $exists = ManualFit::where('od_param_id', $od->id)
-                    ->where('id_param_id', $mate->id)
-                    ->exists();
-                if ($exists) {
-                    $skipped++;
-                    continue;
-                }
-                ManualFit::create([
-                    'manual_id'   => $manual->id,
-                    'od_param_id' => $od->id,
-                    'id_param_id' => $mate->id,
-                    'sort_order'  => ++$order,
-                ]);
-                $created++;
+            $od = $ps->first(fn ($p) => preg_match('/\bOD\b/i', (string) $p->description) === 1);
+            $id = $ps->first(fn ($p) => preg_match('/\bID\b/i', (string) $p->description) === 1);
+            if (! $id && $od && $ps->count() === 2) {
+                $id = $ps->first(fn ($p) => $p->id !== $od->id);
             }
+            if (! $od || ! $id) {
+                continue;
+            }
+
+            $exists = ManualFit::where('od_param_id', $od->id)
+                ->where('id_param_id', $id->id)
+                ->exists();
+            if ($exists) {
+                $skipped++;
+                continue;
+            }
+
+            ManualFit::create([
+                'manual_id'   => $manual->id,
+                'od_param_id' => $od->id,
+                'id_param_id' => $id->id,
+                'ref_no'      => $info['code'],
+                'sort_order'  => ++$order,
+            ]);
+            $created++;
         }
 
-        return response()->json(['created' => $created, 'skipped' => $skipped]);
+        return [$created, $skipped];
     }
 
     public function store(Request $request, Manual $manual)
@@ -222,8 +248,8 @@ class ManualFitController extends Controller
             'id_param_id'            => $fit->id_param_id,
             'od_label'               => $this->memberLabel($fit->odParam),
             'id_label'               => $this->memberLabel($fit->idParam),
-            'od'                     => $this->member($fit->odParam),
-            'id'                     => $this->member($fit->idParam),
+            'od_member'              => $this->member($fit->odParam),
+            'id_member'              => $this->member($fit->idParam),
             // Stored manual values (null = not entered → derived is used).
             'assembly_clearance_min' => $fit->assembly_clearance_min,
             'assembly_clearance_max' => $fit->assembly_clearance_max,
