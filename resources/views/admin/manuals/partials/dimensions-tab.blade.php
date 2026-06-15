@@ -1097,6 +1097,7 @@
                                 <option value="measurement">From measurement (WO)</option>
                                 <option value="calc">Calc from mating (F&amp;C)</option>
                                 <option value="formula">Formula</option>
+                                <option value="torque">Torque (WO input)</option>
                             </select>
                             <input id="pdw-ef-static" type="number" step="0.0001" class="form-control form-control-sm" style="width:120px;font-size:12px" placeholder="0.0000">
                             <select id="pdw-ef-param" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
@@ -5470,6 +5471,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     el.style.borderStyle = 'dashed';
                     el.style.borderColor = '#6f42c1';
                     el.style.color       = '#6f42c1';
+                } else if (e.value_source === 'torque') {
+                    valTxt = '⟨torque⟩';
+                    el.style.borderStyle = 'dashed';
+                    el.style.borderColor = '#fd7e14';
+                    el.style.color       = '#fd7e14';
                 } else {
                     valTxt = pdwFmt(e.static_value);
                 }
@@ -5826,7 +5832,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function pdwSyncDimFields(src) {
         const needsParam  = src === 'measurement' || src === 'calc';
         const isFormula   = src === 'formula';
-        document.getElementById('pdw-ef-static').classList.toggle('d-none', needsParam || isFormula);
+        const isTorque    = src === 'torque';
+        document.getElementById('pdw-ef-static').classList.toggle('d-none', needsParam || isFormula || isTorque);
         document.getElementById('pdw-ef-param').classList.toggle('d-none', !needsParam);
         document.getElementById('pdw-ef-formula').classList.toggle('d-none', !isFormula);
         if (isFormula) {
@@ -5914,6 +5921,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 const tolM = document.getElementById('pdw-ef-ftol-minus').value;
                 body.formula_tol_plus  = tolP !== '' ? parseFloat(tolP) : null;
                 body.formula_tol_minus = tolM !== '' ? parseFloat(tolM) : null;
+            } else if (src === 'torque') {
+                // free WO-filled value (keyed by element id) — no template value
+                body.static_value = null;
+                body.source_parameter_id = null;
             } else {
                 const v = document.getElementById('pdw-ef-static').value;
                 body.static_value = v !== '' ? parseFloat(v) : null;

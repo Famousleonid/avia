@@ -1102,7 +1102,7 @@ document.addEventListener(\'mouseup\', function (e) {
             'label_x_pct'         => 'nullable|numeric',
             'label_y_pct'         => 'nullable|numeric',
             'mask'                => 'nullable|in:diameter,linear,radius',
-            'value_source'        => 'nullable|in:static,measurement,calc,formula',
+            'value_source'        => 'nullable|in:static,measurement,calc,formula,torque',
             'static_value'        => 'nullable|numeric',
             'source_parameter_id' => 'nullable|exists:manual_parameters,id',
             'formula_expression'  => 'nullable|string|max:500',
