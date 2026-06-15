@@ -18,6 +18,12 @@
         /* Center the table horizontally on the page. */
         #fc-view .table-responsive { overflow: visible !important; }
         #fc-view table { width: auto !important; margin-left: auto !important; margin-right: auto !important; }
+        /* Force readable black text/borders on white paper (app theme is dark). */
+        #fc-view, #fc-view * { color: #000 !important; }
+        #fc-view table, #fc-view th, #fc-view td { border-color: #000 !important; }
+        /* Extra view: the F&C column is always empty there — drop it from print. */
+        #fc-view.filter-std #fc-simple-table th:nth-child(3),
+        #fc-view.filter-std #fc-simple-table td:nth-child(3) { display: none !important; }
     }
 </style>
 {{-- Page orientation is set per print from JS (F&C pairs = portrait, report = landscape). --}}
@@ -75,7 +81,7 @@
     {{-- Flat dimensions report (All / Extra) --}}
     <div id="fc-simple-section">
         <div class="table-responsive">
-            <table class="table table-bordered table-sm align-middle" style="font-size:12px;white-space:nowrap">
+            <table id="fc-simple-table" class="table table-bordered table-sm align-middle" style="font-size:12px;white-space:nowrap">
                 <thead class="table-light">
                     <tr>
                         <th class="text-center">Figure</th>
@@ -238,6 +244,8 @@
     }
 
     function applyFilter() {
+        root.classList.remove('filter-all', 'filter-fc', 'filter-std');
+        root.classList.add('filter-' + filter);
         root.querySelectorAll('[data-fc-filter]').forEach(b => b.classList.toggle('active', b.dataset.fcFilter === filter));
         if (filter === 'fc') {
             simpleSec.style.display = 'none';
