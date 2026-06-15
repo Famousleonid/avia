@@ -22,7 +22,7 @@ class Workorder extends Model implements HasMedia
     protected $fillable = ['number', 'draft_number', 'user_id', 'unit_id', 'instruction_id', 'external_damage','received_disassembly','nameplate_missing','disassembly_upon_arrival',
         'preliminary_test_false','part_missing','extra_parts','new_parts', 'open_at', 'customer_id', 'approve_at', 'description',
         'serial_number', 'place', 'paint_queue_order', 'machining_queue_order', 'amdt', 'rm_report', 'certificate_data', 'customer_po','shipping_freight_forwarder','shipping_awb_no','shipping_shipment_at','shipping_notes','modified','is_draft','storage_rack','storage_level','storage_column',
-        'arrival_box_status','arrival_box_notes','arrival_box_recorded_by','arrival_box_recorded_at',];
+        'arrival_box_status','arrival_box_notes','arrival_box_recorded_by','arrival_box_recorded_at','torque_values',];
 
     protected $casts = [
         'approve_at' => 'datetime',
@@ -34,6 +34,7 @@ class Workorder extends Model implements HasMedia
         'approve'    => 'boolean',
         'certificate_data' => 'array',
         'arrival_box_recorded_at' => 'datetime',
+        'torque_values' => 'array',
     ];
 
     public $mediaUrlName = 'workorders';
