@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Code;
 use App\Models\Component;
 use App\Models\Condition;
+use App\Models\ManualFit;
 use App\Models\ManualInspectionComponent;
 use App\Models\ManualInspectionComponentVariant;
 use App\Models\ManualParameter;
@@ -583,6 +584,10 @@ class WoMeasurementController extends Controller
             ->get()
             ->groupBy('manual_parameter_id');
 
+        // Mating registry: the bushing OD ↔ housing bore pair is an explicit
+        // fit (od_param_id = bushing OD). Replaces the old shared-point guess.
+        $mateByOd = ManualFit::where('manual_id', $manual->id)->get()->keyBy('od_param_id');
+
         $rows = [];
         foreach ($bushIcs as $ic) {
             // One row per bushing POSITION = its OD parameter (the bore side
@@ -596,10 +601,8 @@ class WoMeasurementController extends Controller
             foreach ($odParams as $od) {
                 $ptIds  = $od->points->pluck('id')->all();
                 $codes  = $od->points->pluck('code')->filter()->implode(', ');
-                $mating = $params->first(fn($p) =>
-                    $p->inspection_component_id !== $ic->id &&
-                    $p->points->pluck('id')->intersect($ptIds)->isNotEmpty() &&
-                    ($p->orig_dim_min !== null || $p->orig_dim_max !== null));
+                $fit    = $mateByOd->get($od->id);
+                $mating = $fit ? $params->firstWhere('id', $fit->id_param_id) : null;
                 if (!$mating && $ptIds === []) continue;
 
                 $row = [
@@ -695,6 +698,9 @@ class WoMeasurementController extends Controller
         $lastFinal = fn($pid) => ($measByParam[$pid] ?? collect())
             ->where('stage', 'final')->sortBy('id')->last();
 
+        // Bushing OD ↔ housing bore pairs come from the explicit fit registry.
+        $mateByOd = ManualFit::where('manual_id', $manual->id)->get()->keyBy('od_param_id');
+
         $rows = [];
         foreach ($bushIcs as $ic) {
             $pos = $ic->variants->first()?->component?->ipl_num ?? $ic->label;
@@ -705,11 +711,8 @@ class WoMeasurementController extends Controller
                     && preg_match('/\bOD\b/i', (string) $p->description) === 1);
 
             foreach ($odParams as $od) {
-                $ptIds  = $od->points->pluck('id');
-                $bore   = $params->first(fn($p) =>
-                    $p->inspection_component_id !== $ic->id &&
-                    $p->points->pluck('id')->intersect($ptIds)->isNotEmpty() &&
-                    ($p->orig_dim_min !== null || $p->orig_dim_max !== null));
+                $fit    = $mateByOd->get($od->id);
+                $bore   = $fit ? $params->firstWhere('id', $fit->id_param_id) : null;
                 if (!$bore) continue;
 
                 $boreIcLabel = ManualInspectionComponent::find($bore->inspection_component_id)?->label;
