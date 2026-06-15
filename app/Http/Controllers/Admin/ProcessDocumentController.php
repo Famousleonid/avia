@@ -359,9 +359,10 @@ async function fcSaveTorque() {
 document.querySelectorAll(".pdw-torque-input").forEach(function (i) {
     const sync = function () { i.classList.toggle("filled", i.value.trim() !== ""); };
     i.addEventListener("input", sync);
-    i.addEventListener("blur", function () {           // mask 0.00
-        const v = parseFloat(i.value);
-        i.value = isNaN(v) ? "" : v.toFixed(2);
+    i.addEventListener("blur", function () {           // mask: 0.00 or N/A
+        const raw = i.value.trim();
+        if (/^n\/?a$/i.test(raw)) { i.value = "N/A"; }
+        else { const v = parseFloat(raw); i.value = isNaN(v) ? "" : v.toFixed(2); }
         sync();
     });
     sync();

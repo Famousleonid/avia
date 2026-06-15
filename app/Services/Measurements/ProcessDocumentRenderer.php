@@ -289,7 +289,7 @@ class ProcessDocumentRenderer
             // Torque marks become inline inputs when the doc is opened in
             // torque-edit mode (tech fills the value during F&C Doc generation).
             if ($e->value_source === 'torque' && !empty($context['torque_edit'])) {
-                $els .= '<input class="pdw-el pdw-torque-input" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" data-element-id="' . (int) $e->id . '" value="' . $text . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">';
+                $els .= '<input class="pdw-el pdw-torque-input" type="text" inputmode="decimal" placeholder="0.00" title="Enter a number (0.00) or N/A" data-element-id="' . (int) $e->id . '" value="' . $text . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">';
             } else {
                 $els .= '<div class="' . $cls . '" data-element-id="' . (int) $e->id . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">' . $text . '</div>';
             }
