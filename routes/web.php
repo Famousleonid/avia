@@ -380,6 +380,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/manuals/{manual}/documents', [ProcessDocumentController::class, 'indexManual'])->name('manuals.documents.index');
     Route::post('/manuals/{manual}/documents', [ProcessDocumentController::class, 'storeManualDocument'])->name('manuals.documents.store');
     Route::get('/workorders/{workorder}/fc-document', [ProcessDocumentController::class, 'fcDocumentView'])->name('workorders.fc-document');
+    Route::post('/workorders/{workorder}/torque-values', [ProcessDocumentController::class, 'saveTorqueValues'])->name('workorders.torque-values.save');
     // Start/Finish (master-rule phase) process documents
     Route::get('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'indexPhase'])->name('phase-rule-processes.documents.index');
     Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'storePhaseDocument'])->name('phase-rule-processes.documents.store');

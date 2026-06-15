@@ -286,7 +286,13 @@ class ProcessDocumentRenderer
                 : 'pdw-el pdw-label';
             $fs   = $e->font_size ? ';font-size:' . (int) $e->font_size . 'pt' : '';
             $text = htmlspecialchars($rawText, ENT_QUOTES, 'UTF-8');
-            $els .= '<div class="' . $cls . '" data-element-id="' . (int) $e->id . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">' . $text . '</div>';
+            // Torque marks become inline inputs when the doc is opened in
+            // torque-edit mode (tech fills the value during F&C Doc generation).
+            if ($e->value_source === 'torque' && !empty($context['torque_edit'])) {
+                $els .= '<input class="pdw-el pdw-torque-input" data-element-id="' . (int) $e->id . '" value="' . $text . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">';
+            } else {
+                $els .= '<div class="' . $cls . '" data-element-id="' . (int) $e->id . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">' . $text . '</div>';
+            }
         }
 
         $defs = $hasDimLine

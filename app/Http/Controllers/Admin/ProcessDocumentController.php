@@ -226,6 +226,28 @@ class ProcessDocumentController extends Controller
      * WO measurements substituted. Value marks are colored by data state:
      * red — no measurement, yellow — initial only, green — final entered.
      */
+    /**
+     * Persist the WO torque values (map { element_id: value }) entered on the
+     * F&C Document's Torque page. Empty entries are dropped.
+     */
+    public function saveTorqueValues(Request $request, Workorder $workorder)
+    {
+        $data = $request->validate([
+            'values'   => 'array',
+            'values.*' => 'nullable|string|max:50',
+        ]);
+
+        $map = collect($data['values'] ?? [])
+            ->map(fn($v) => trim((string) $v))
+            ->reject(fn($v) => $v === '')
+            ->all();
+
+        $workorder->torque_values = $map;
+        $workorder->save();
+
+        return response()->json(['ok' => true, 'count' => count($map)]);
+    }
+
     public function fcDocumentView(Workorder $workorder)
     {
         $manual = $workorder->unit->manuals;
@@ -237,7 +259,15 @@ class ProcessDocumentController extends Controller
         }
 
         $renderer = new ProcessDocumentRenderer();
-        $ctx = ['show_missing' => true, 'stage_colors' => true];
+        $ctx = ['show_missing' => true, 'stage_colors' => true, 'torque_edit' => true];
+
+        // Torque inputs: marks the tech fills during generation. The gate blocks
+        // Save PDF until every torque input has a value for this WO.
+        $torqueIds = $doc->pages->flatMap(fn($p) => $p->elements)
+            ->filter(fn($e) => $e->value_source === 'torque')
+            ->pluck('id')->values();
+        $hasTorque = $torqueIds->isNotEmpty();
+        $torqueSaveUrl = route('workorders.torque-values.save', ['workorder' => $workorder->id]);
 
         $pagesHtml = '';
         foreach ($doc->pages as $page) {
@@ -274,7 +304,10 @@ body{font-family:Arial,sans-serif;font-size:12px;background:#f8f9fa;color:#21252
 .pdw-dim.st-nodata{color:#b58900;border-color:#b58900}
 .pdw-dim.pdw-value{border:none;background:transparent;padding:0}
 .pdw-label{color:#0d9488;background:rgba(255,255,255,0.85);padding:0 3px}
+.pdw-torque-input{position:absolute;transform:translate(-50%,-50%);width:64px;font-size:8.5pt;font-weight:700;text-align:center;color:#fd7e14;background:#fff;border:1px solid #fd7e14;border-radius:3px;padding:1px 2px;z-index:10}
+.pdw-torque-input.filled{color:#198754;border-color:#198754}
 @media print{
+  .pdw-torque-input{border:none;color:#000;background:transparent}
   html,body{margin:0;padding:0;background:#fff}
   .toolbar{display:none!important}
   /* break BEFORE each page (not after) so no trailing blank sheet */
@@ -293,18 +326,60 @@ body{font-family:Arial,sans-serif;font-size:12px;background:#f8f9fa;color:#21252
     <span><i style="background:#dc3545"></i>Fail</span>
     <span><i style="background:#b58900"></i>no data</span>
   </span>
+  ' . ($hasTorque ? '<button class="btn" id="saveTorqueBtn" style="background:#fd7e14;color:#fff">&#128295; Save torque</button>' : '') . '
   <button class="btn btn-success" id="savePdfBtn">&#128190; Save PDF</button>
   <button class="btn btn-primary" onclick="window.print()" title="Select «Print on both sides» (duplex) in the print dialog">&#9112; Print</button>
   <span style="font-size:10px;color:#6c757d">two-sided: enable duplex in the print dialog</span>
 </div>
+' . ($hasTorque ? '<div id="torqueBanner" style="display:none;background:#fff3cd;color:#664d03;border:1px solid #ffe69c;padding:8px 16px;font-size:12px">⚠ Fill every torque value (orange fields on the Torque page) and press “Save torque” before saving the PDF.</div>' : '') . '
 ' . $pagesHtml . '
 <script>
+const FC_HAS_TORQUE = ' . ($hasTorque ? 'true' : 'false') . ';
+const FC_TORQUE_URL = ' . json_encode($torqueSaveUrl) . ';
+const FC_CSRF = ' . json_encode(csrf_token()) . ';
+
+function fcCollectTorque() {
+    const map = {};
+    document.querySelectorAll(".pdw-torque-input").forEach(function (i) { map[i.dataset.elementId] = i.value.trim(); });
+    return map;
+}
+function fcAnyTorqueEmpty() {
+    return [...document.querySelectorAll(".pdw-torque-input")].some(function (i) { return i.value.trim() === ""; });
+}
+async function fcSaveTorque() {
+    const r = await fetch(FC_TORQUE_URL, {
+        method: "POST",
+        headers: { "X-CSRF-TOKEN": FC_CSRF, "Accept": "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ values: fcCollectTorque() }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || "Torque save failed");
+}
+document.querySelectorAll(".pdw-torque-input").forEach(function (i) {
+    const sync = function () { i.classList.toggle("filled", i.value.trim() !== ""); };
+    i.addEventListener("input", sync); sync();
+});
+const fcTorqueBtn = document.getElementById("saveTorqueBtn");
+if (fcTorqueBtn) {
+    fcTorqueBtn.addEventListener("click", async function () {
+        this.disabled = true; const t = this.textContent; this.textContent = "Saving…";
+        try { await fcSaveTorque(); this.textContent = "Torque saved ✓"; }
+        catch (e) { alert(e.message); this.textContent = t; }
+        finally { this.disabled = false; }
+    });
+}
 document.getElementById("savePdfBtn").addEventListener("click", async function () {
+    if (FC_HAS_TORQUE && fcAnyTorqueEmpty()) {
+        const b = document.getElementById("torqueBanner"); if (b) b.style.display = "";
+        alert("Fill every torque value and press “Save torque” before saving the PDF.");
+        return;
+    }
     this.disabled = true; this.textContent = "Saving…";
     try {
+        if (FC_HAS_TORQUE) { await fcSaveTorque(); }
         const r = await fetch(' . json_encode($saveUrl) . ', {
             method: "POST",
-            headers: { "X-CSRF-TOKEN": ' . json_encode(csrf_token()) . ', "Accept": "application/json", "Content-Type": "application/json" },
+            headers: { "X-CSRF-TOKEN": FC_CSRF, "Accept": "application/json", "Content-Type": "application/json" },
             body: JSON.stringify({ to_library: 1 }),
         });
         const j = await r.json();
