@@ -4,7 +4,13 @@
      - F&C-only = the Table 8001 pairs view (clearances) with authoring;
      - Add/edit/delete fits; Print. Client-rendered from the fit endpoints. --}}
 <style>
-    @media print { #fc-view .fc-no-print { display: none !important; } }
+    @media print {
+        /* Print only the F&C view, not the whole page. */
+        body * { visibility: hidden !important; }
+        #fc-view, #fc-view * { visibility: visible !important; }
+        #fc-view { position: absolute !important; left: 0; top: 0; width: 100%; }
+        #fc-view .fc-no-print { display: none !important; }
+    }
 </style>
 <div class="p-3" id="fc-view" data-manual-id="{{ $cmm->id }}">
     <div class="d-flex align-items-center gap-2 mb-3 fc-no-print">
