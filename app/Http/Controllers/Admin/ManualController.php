@@ -386,10 +386,22 @@ class ManualController extends Controller
 
         $codes = \App\Models\Code::orderBy('name')->get(['id', 'name', 'code']);
 
+        // Fits & Clearances — explicit OD↔ID pairs (manual_fits). Members carry
+        // their own limits; clearances are derived/stored on the fit.
+        $manualFits = \App\Models\ManualFit::where('manual_id', $cmm->id)
+            ->with([
+                'odParam.points:id,code',
+                'odParam.inspectionComponent.variants.component',
+                'idParam.points:id,code',
+                'idParam.inspectionComponent.variants.component',
+            ])
+            ->orderBy('sort_order')
+            ->get();
+
         return view('admin.manuals.show', compact('cmm','planes','builders','scopes',
         'units','parts','manualProcesses','manualProcessGroups','userCanManageLockedManualProcesses','userCanManageLockedManualParts','manualPartLock','manualPartsLocked','stdProcessesByType','stdExistingPartKeysByStd','stdAddSourceManuals','stdProcessPicklists','stdProcessPicklistOptions','serviceBulletins',
         'revisionChecks', 'latestRevisionCheck', 'revisionStatus', 'canRecordRevisionCheck', 'manualShowTab',
-        'dimensionFigures', 'dimManualProcesses', 'codes', 'stdProcessAuditWarnings'
+        'dimensionFigures', 'dimManualProcesses', 'codes', 'stdProcessAuditWarnings', 'manualFits'
         ));
 
     }

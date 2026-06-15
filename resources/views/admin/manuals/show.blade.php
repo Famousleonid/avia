@@ -1437,7 +1437,7 @@
                     </div>
                     <div id="fc-table-content-wrap" style="display:none">
                         @include('admin.manuals.partials.fc-table-tab', [
-                            'dimensionFigures' => $dimensionFigures,
+                            'manualFits' => $manualFits,
                         ])
                     </div>
                 </div>

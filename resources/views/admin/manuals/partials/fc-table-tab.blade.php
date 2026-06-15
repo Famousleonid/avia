@@ -1,82 +1,50 @@
 @php
-use Illuminate\Support\Collection;
-
-// Collect all F&C points across all figures
-$fcRows = [];
-foreach ($dimensionFigures as $figure) {
-    foreach ($figure->points as $point) {
-        if (!$point->is_fits_clearance) continue;
-        $specs = $point->specs->where('spec_type', 'measurement')->sortBy('sort_order')->values();
-        if ($specs->count() < 2) continue;
-
-        $specA = $specs[0]; // Part A (lower sort_order = inner / ID)
-        $specB = $specs[1]; // Part B (outer / OD)
-
-        // Original clearance
-        $clearOrigMin = ($specA->orig_dim_min !== null && $specB->orig_dim_max !== null)
-            ? round((float)$specA->orig_dim_min - (float)$specB->orig_dim_max, 4)
-            : null;
-        $clearOrigMax = ($specA->orig_dim_max !== null && $specB->orig_dim_min !== null)
-            ? round((float)$specA->orig_dim_max - (float)$specB->orig_dim_min, 4)
-            : null;
-
-        // Effective wear limits (fall back to orig if wear not set)
-        $aWearMin = $specA->wear_dim_min ?? $specA->orig_dim_min;
-        $aWearMax = $specA->wear_dim_max ?? $specA->orig_dim_max;
-        $bWearMin = $specB->wear_dim_min ?? $specB->orig_dim_min;
-        $bWearMax = $specB->wear_dim_max ?? $specB->orig_dim_max;
-
-        // Permitted clearance (wear)
-        $permClearMax = ($aWearMax !== null && $bWearMin !== null)
-            ? round((float)$aWearMax - (float)$bWearMin, 4)
-            : null;
-
-        $fcRows[] = [
-            'figure'       => $figure,
-            'point'        => $point,
-            'specA'        => $specA,
-            'specB'        => $specB,
-            'clearOrigMin' => $clearOrigMin,
-            'clearOrigMax' => $clearOrigMax,
-            'aWearMin'     => $aWearMin,
-            'aWearMax'     => $aWearMax,
-            'bWearMin'     => $bWearMin,
-            'bWearMax'     => $bWearMax,
-            'permClearMax' => $permClearMax,
-        ];
+/**
+ * Fits & Clearances table — built from explicit manual_fits (ManualFit), NOT
+ * the legacy shared-point specs. One fit → two member rows (ID then OD) plus a
+ * shared clearance bracket. Members carry their own limits; clearances come from
+ * the fit (stored manual value, else derived). A derived value is shown muted;
+ * a stored value that disagrees with the derived one is flagged.
+ */
+if (! function_exists('fcFmt')) {
+    function fcFmt($v, $d = 4) {
+        if ($v === null || $v === '') return '—';
+        return number_format(round((float)$v, $d), $d);
+    }
+}
+if (! function_exists('fcMemberIpl')) {
+    function fcMemberIpl($param) {
+        return optional($param?->inspectionComponent?->variants?->first()?->component)->ipl_num;
     }
 }
 
-if (! function_exists('fcFmt')) {
-function fcFmt($v, $d = 4) {
-    if ($v === null || $v === '') return '—';
-    $f = round((float)$v, $d);
-    return number_format($f, $d);
-}
-}
+$fits = $manualFits ?? collect();
 @endphp
 
 <div class="p-3">
     <h5 class="mb-3">Fits and Clearances</h5>
 
-    @if(empty($fcRows))
-        <div class="text-secondary">No Fits &amp; Clearances points found. Mark measurement points as F&amp;C in the Dimensions tab.</div>
+    @if($fits->isEmpty())
+        <div class="text-secondary">
+            No Fits &amp; Clearances pairs yet. Add them in the Fits &amp; Clearances panel
+            of the Dimensions tab (or run <code>php artisan fits:backfill --write</code> to
+            import legacy shared-point pairs).
+        </div>
     @else
         <div class="table-responsive">
             <table class="table table-bordered table-sm align-middle" style="font-size:12px;white-space:nowrap">
                 <thead class="table-light">
                     <tr>
-                        <th rowspan="3" class="text-center align-middle">Figure</th>
                         <th rowspan="3" class="text-center align-middle">Ref.<br>No.</th>
-                        <th rowspan="3" class="text-center align-middle">Mating IPL<br>Item No.</th>
+                        <th rowspan="3" class="text-center align-middle">Mating IPL<br>Item / Member</th>
                         <th colspan="4" class="text-center">Original Manufacturer Limits</th>
                         <th colspan="3" class="text-center">In-Service Wear Limits</th>
                     </tr>
                     <tr>
-                        <th colspan="2" class="text-center">Dimension<br><span class="fw-normal text-secondary">mm</span></th>
-                        <th colspan="2" class="text-center">Assembly<br>Clearance<br><span class="fw-normal text-secondary">mm</span></th>
-                        <th colspan="2" class="text-center">Dimension<br><span class="fw-normal text-secondary">mm</span></th>
-                        <th class="text-center">Permitted<br>Clearance<br><span class="fw-normal text-secondary">mm</span></th>
+                        <th colspan="2" class="text-center">Dimension<br><span class="fw-normal text-secondary">in</span></th>
+                        <th colspan="2" class="text-center">Assembly<br>Clearance<br><span class="fw-normal text-secondary">in</span></th>
+                        <th colspan="2" class="text-center">Dimension<br><span class="fw-normal text-secondary">in</span></th>
+                        <th class="text-center">Permitted<br>Clearance<br><span class="fw-normal text-secondary">in</span></th>
                     </tr>
                     <tr>
                         <th class="text-center">Min.</th>
@@ -89,59 +57,79 @@ function fcFmt($v, $d = 4) {
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($fcRows as $row)
+                    @foreach($fits as $fit)
                         @php
-                            $compA = $row['specA']->component;
-                            $compB = $row['specB']->component;
-                            $iplA  = $compA ? $compA->ipl_num : '—';
-                            $iplB  = $compB ? $compB->ipl_num : '—';
-                            $descA = $row['specA']->description;
-                            $descB = $row['specB']->description;
+                            $idP = $fit->idParam;
+                            $odP = $fit->odParam;
+
+                            $idIpl = fcMemberIpl($idP);
+                            $odIpl = fcMemberIpl($odP);
+
+                            // ID wear falls back to orig when wear not set; same for OD.
+                            $idWearMin = $idP?->wear_dim_min ?? $idP?->orig_dim_min;
+                            $idWearMax = $idP?->wear_dim_max ?? $idP?->orig_dim_max;
+                            $odWearMin = $odP?->wear_dim_min ?? $odP?->orig_dim_min;
+                            $odWearMax = $odP?->wear_dim_max ?? $odP?->orig_dim_max;
+
+                            $asmMin = $fit->effectiveAssemblyClearanceMin();
+                            $asmMax = $fit->effectiveAssemblyClearanceMax();
+                            $perm   = $fit->effectivePermittedClearance();
+
+                            $asmMinDerived = $fit->assembly_clearance_min === null;
+                            $asmMaxDerived = $fit->assembly_clearance_max === null;
+                            $permDerived   = $fit->permitted_clearance === null;
+
+                            $mismatch = $fit->hasClearanceMismatch();
                         @endphp
-                        {{-- Row 1: Part A (ID / inner) --}}
-                        <tr>
-                            <td rowspan="2" class="text-center align-middle text-secondary" style="font-size:11px">
-                                {{ $row['figure']->title }}
-                            </td>
+
+                        {{-- Row 1: ID member (inner) --}}
+                        <tr @if($mismatch) class="table-warning" @endif>
                             <td rowspan="2" class="text-center align-middle fw-semibold">
-                                {{ $row['point']->code }}
-                            </td>
-                            <td>
-                                {{ $descA }}
-                                @if($compA)
-                                    <span class="text-secondary">({{ $iplA }})</span>
+                                {{ $fit->ref_no ?: '—' }}
+                                @if($mismatch)
+                                    <div class="text-danger" style="font-size:10px" title="Stored clearance differs from derived">⚠ check</div>
                                 @endif
                             </td>
-                            <td class="text-end">{{ fcFmt($row['specA']->orig_dim_min) }}</td>
-                            <td class="text-end">{{ fcFmt($row['specA']->orig_dim_max) }}</td>
-                            <td rowspan="2" class="text-end align-middle{{ $row['clearOrigMin'] !== null && $row['clearOrigMin'] < 0 ? ' text-danger' : '' }}">
-                                {{ fcFmt($row['clearOrigMin']) }}
+                            <td>
+                                {{ $idP?->description ?? '—' }}
+                                @if($idIpl)<span class="text-secondary">({{ $idIpl }})</span>@endif
                             </td>
-                            <td rowspan="2" class="text-end align-middle{{ $row['clearOrigMax'] !== null && $row['clearOrigMax'] < 0 ? ' text-danger' : '' }}">
-                                {{ fcFmt($row['clearOrigMax']) }}
+                            <td class="text-end">{{ fcFmt($idP?->orig_dim_min) }}</td>
+                            <td class="text-end">{{ fcFmt($idP?->orig_dim_max) }}</td>
+                            <td rowspan="2" class="text-end align-middle {{ $asmMinDerived ? 'text-secondary' : '' }}"
+                                @if($asmMinDerived) title="derived" @endif>
+                                {{ fcFmt($asmMin) }}
                             </td>
-                            <td class="text-end">{{ fcFmt($row['aWearMin']) }}</td>
-                            <td class="text-end">{{ fcFmt($row['aWearMax']) }}</td>
-                            <td rowspan="2" class="text-end align-middle{{ $row['permClearMax'] !== null && $row['permClearMax'] < 0 ? ' text-danger' : '' }}">
-                                {{ fcFmt($row['permClearMax']) }}
+                            <td rowspan="2" class="text-end align-middle {{ $asmMaxDerived ? 'text-secondary' : '' }}"
+                                @if($asmMaxDerived) title="derived" @endif>
+                                {{ fcFmt($asmMax) }}
+                            </td>
+                            <td class="text-end">{{ fcFmt($idWearMin) }}</td>
+                            <td class="text-end">{{ fcFmt($idWearMax) }}</td>
+                            <td rowspan="2" class="text-end align-middle {{ $permDerived ? 'text-secondary' : '' }}"
+                                @if($permDerived) title="derived" @endif>
+                                {{ fcFmt($perm) }}
                             </td>
                         </tr>
-                        {{-- Row 2: Part B (OD / outer) --}}
-                        <tr>
+                        {{-- Row 2: OD member (outer) --}}
+                        <tr @if($mismatch) class="table-warning" @endif>
                             <td>
-                                {{ $descB }}
-                                @if($compB)
-                                    <span class="text-secondary">({{ $iplB }})</span>
-                                @endif
+                                {{ $odP?->description ?? '—' }}
+                                @if($odIpl)<span class="text-secondary">({{ $odIpl }})</span>@endif
                             </td>
-                            <td class="text-end">{{ fcFmt($row['specB']->orig_dim_min) }}</td>
-                            <td class="text-end">{{ fcFmt($row['specB']->orig_dim_max) }}</td>
-                            <td class="text-end">{{ fcFmt($row['bWearMin']) }}</td>
-                            <td class="text-end">{{ fcFmt($row['bWearMax']) }}</td>
+                            <td class="text-end">{{ fcFmt($odP?->orig_dim_min) }}</td>
+                            <td class="text-end">{{ fcFmt($odP?->orig_dim_max) }}</td>
+                            <td class="text-end">{{ fcFmt($odWearMin) }}</td>
+                            <td class="text-end">{{ fcFmt($odWearMax) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         </div>
+        <p class="text-secondary mt-2" style="font-size:11px">
+            Muted clearance values are derived from the member limits; fill the manual
+            values in the Fits &amp; Clearances panel to override. Rows flagged
+            <span class="text-danger">⚠ check</span> have a stored clearance that disagrees with the derived one.
+        </p>
     @endif
 </div>
