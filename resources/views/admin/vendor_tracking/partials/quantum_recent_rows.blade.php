@@ -25,6 +25,7 @@
         $statusLabel = $isOldWoNotFound ? 'WO not found: old' : ($isWoNotFound ? 'WO not found' : $status);
         $statusClass = match ($statusLabel) {
             'applied' => 'text-bg-success',
+            'ECO FEE' => 'text-bg-info',
             'error' => 'text-bg-danger',
             'unresolved' => 'text-bg-warning',
             'dismissed' => 'text-bg-secondary',

@@ -157,7 +157,7 @@ class WoBushingController extends Controller
         $labelMap = self::bushingProcessPrintLabels();
         $sortOrder = array_flip(array_keys($labelMap));
 
-        $groups = [];
+        $groupBuckets = [];
         $batches = WoBushingBatch::query()
             ->where('workorder_id', $workorder->id)
             ->whereHas('woBushingProcesses')
@@ -175,42 +175,100 @@ class WoBushingController extends Controller
                 continue;
             }
 
-            $components = [];
-            $totalQty = 0;
+            $lineEntries = [];
             foreach ($batch->woBushingProcesses as $woProcess) {
-                $component = $woProcess->line?->component;
-                if (! $component) {
+                $line = $woProcess->line;
+                $component = $line?->component;
+                if (! $line || ! $component) {
                     continue;
                 }
 
-                $qty = max(1, (int) ($woProcess->qty ?: ($woProcess->line?->qty ?? 1)));
-                $components[] = [
+                $lineId = (int) $line->id;
+                $lineEntries[$lineId] = [
+                    'line_id' => $lineId,
+                    'component_id' => (int) $component->id,
                     'component' => $component,
-                    'qty' => $qty,
+                    'qty' => max(1, (int) ($woProcess->qty ?: ($line->qty ?? 1))),
+                    'sort_order' => (int) ($line->sort_order ?? 0),
                 ];
-                $totalQty += $qty;
             }
 
-            if ($components === []) {
+            if ($lineEntries === []) {
                 continue;
             }
 
+            ksort($lineEntries, SORT_NUMERIC);
+            $signature = implode('|', array_map(
+                fn (array $entry): string => $entry['line_id'] . ':' . $entry['component_id'] . ':' . $entry['qty'],
+                $lineEntries
+            ));
+
+            if (! isset($groupBuckets[$signature])) {
+                $groupBuckets[$signature] = [
+                    'batch_ids' => [],
+                    'batch_labels' => [],
+                    'process_keys' => [],
+                    'components_by_line' => [],
+                    'min_batch_id' => (int) $batch->id,
+                    'min_process_order' => $sortOrder[$key] ?? 999,
+                    'min_line_order' => min(array_column($lineEntries, 'sort_order')),
+                ];
+            }
+
+            $bucket = &$groupBuckets[$signature];
+            $bucket['batch_ids'][] = (int) $batch->id;
+            $bucket['batch_labels'][] = $labelsByProcess[$key][(int) $batch->id] ?? 'B?';
+            $bucket['process_keys'][$key] = true;
+            $bucket['min_batch_id'] = min((int) $bucket['min_batch_id'], (int) $batch->id);
+            $bucket['min_process_order'] = min((int) $bucket['min_process_order'], $sortOrder[$key] ?? 999);
+            $bucket['min_line_order'] = min((int) $bucket['min_line_order'], min(array_column($lineEntries, 'sort_order')));
+
+            foreach ($lineEntries as $lineId => $entry) {
+                $bucket['components_by_line'][$lineId] ??= $entry;
+            }
+            unset($bucket);
+        }
+
+        $groups = [];
+        foreach ($groupBuckets as $bucket) {
+            $processKeys = array_keys($bucket['process_keys']);
+            usort($processKeys, fn (string $left, string $right): int => ($sortOrder[$left] ?? 999) <=> ($sortOrder[$right] ?? 999));
+
+            $processes = [];
+            $processNumbers = [];
+            foreach ($processKeys as $idx => $processKey) {
+                $processLabel = $labelMap[$processKey];
+                $processes[] = $processLabel;
+                $processNumbers[$processLabel] = $idx + 1;
+            }
+
+            $components = array_values($bucket['components_by_line']);
+            usort($components, function (array $left, array $right): int {
+                return ((int) $left['sort_order'] <=> (int) $right['sort_order'])
+                    ?: ((int) $left['line_id'] <=> (int) $right['line_id']);
+            });
+
             $groups[] = [
-                'batch_id' => (int) $batch->id,
-                'batch_label' => $labelsByProcess[$key][(int) $batch->id] ?? 'B?',
-                'process_key' => $key,
-                'processes' => [$processLabel],
+                'batch_id' => (int) $bucket['min_batch_id'],
+                'batch_label' => implode(', ', array_values(array_unique($bucket['batch_labels']))),
+                'process_key' => $processKeys[0] ?? '',
+                'process_order' => (int) $bucket['min_process_order'],
+                'line_order' => (int) $bucket['min_line_order'],
+                'processes' => $processes,
                 'components' => $components,
-                'total_qty' => $totalQty,
-                'process_numbers' => [$processLabel => 1],
+                'total_qty' => array_sum(array_map(fn (array $entry): int => (int) $entry['qty'], $components)),
+                'process_numbers' => $processNumbers,
             ];
         }
 
         usort($groups, function (array $left, array $right) use ($sortOrder): int {
-            $leftOrder = $sortOrder[$left['process_key'] ?? ''] ?? 999;
-            $rightOrder = $sortOrder[$right['process_key'] ?? ''] ?? 999;
+            $leftOrder = $left['line_order'] ?? 999;
+            $rightOrder = $right['line_order'] ?? 999;
+            $leftProcessOrder = $left['process_order'] ?? ($sortOrder[$left['process_key'] ?? ''] ?? 999);
+            $rightProcessOrder = $right['process_order'] ?? ($sortOrder[$right['process_key'] ?? ''] ?? 999);
 
             return ($leftOrder <=> $rightOrder)
+                ?: ($leftProcessOrder <=> $rightProcessOrder)
                 ?: ((int) ($left['batch_id'] ?? 0) <=> (int) ($right['batch_id'] ?? 0));
         });
 

@@ -976,9 +976,6 @@
                         @foreach($processGroups as $groupIndex => $group)
                             <div class="col  text-center " style="height: 24px">
                                 <strong>RO No.</strong>
-                                @if(!empty($group['batch_label'] ?? null))
-                                    <span class="spec-group-label-box">{{ $group['batch_label'] }}</span>
-                                @endif
                             </div>
                         @endforeach
                         @for($i = count($processGroups); $i < 6; $i++)

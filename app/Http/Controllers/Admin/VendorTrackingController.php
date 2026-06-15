@@ -52,6 +52,7 @@ class VendorTrackingController extends Controller
     ];
 
     private const QUANTUM_RECENT_PAGE_SIZE = 200;
+    private const QUANTUM_STATUS_ECO_FEE = 'ECO FEE';
     private const QUANTUM_STATUS_DISMISSED = 'dismissed';
 
     public function index(Request $request)
@@ -791,6 +792,7 @@ class VendorTrackingController extends Controller
             'wo_not_found' => 0,
             'wo_not_found_old' => 0,
             'applied' => 0,
+            'eco_fee' => 0,
             'not_applicable' => 0,
             'dismissed' => 0,
             'error' => 0,
@@ -827,6 +829,7 @@ class VendorTrackingController extends Controller
             '', 'pending' => 'pending',
             'unresolved' => 'unresolved',
             'applied' => 'applied',
+            self::QUANTUM_STATUS_ECO_FEE => 'eco_fee',
             'N/A' => 'not_applicable',
             self::QUANTUM_STATUS_DISMISSED => 'dismissed',
             'error' => 'error',

@@ -1,6 +1,6 @@
 @extends('admin.master')
 
-@section('styles')
+@section('style')
     <style>
         .placeholder-logo {
             display: flex;
@@ -13,7 +13,7 @@
 @section('content')
 
     <div class="d-flex justify-content-center align-items-center vh-100">
-        <img src="{{ asset('img/avia190.png') }}" alt="Company Logo" class="img-fluid " style="max-width: 40%;">
+        <img src="{{ asset('img/nodus.png') }}" alt="Company Logo" class="img-fluid " style="max-width: 40%;">
     </div>
 
 @endsection

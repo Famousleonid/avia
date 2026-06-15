@@ -9,6 +9,7 @@ use App\Models\ExtraProcess;
 use App\Models\Instruction;
 use App\Models\LogCard;
 use App\Models\Manual;
+use App\Models\Necessary;
 use App\Models\Task;
 use App\Models\Tdr;
 use App\Models\Transfer;
@@ -502,6 +503,25 @@ class QualityAssuranceController extends Controller
         }
         $includeLandingGearLogCard = $certificateStateBoolSetting('include_landing_gear_log_card', true);
         $includeRoycoService = $certificateStateBoolSetting('include_royco_service', false);
+        $includeOverhauledOn = $certificateStateBoolSetting('include_overhauled_on', false);
+        $orderNewNecessaryId = Necessary::query()
+            ->where('name', 'Order New')
+            ->value('id');
+        $hasOrderedReplacementParts = $workorder->tdrs->contains(function (Tdr $tdr) use ($orderNewNecessaryId): bool {
+            $hasOrderedComponent = trim((string) ($tdr->order_component_id ?? '')) !== ''
+                || ($tdr->tdr_type ?? null) === Tdr::TYPE_ORDER_NEW;
+
+            if (! $hasOrderedComponent) {
+                return false;
+            }
+
+            if ($orderNewNecessaryId === null) {
+                return true;
+            }
+
+            return (int) ($tdr->necessaries_id ?? 0) === (int) $orderNewNecessaryId
+                || ($tdr->tdr_type ?? null) === Tdr::TYPE_ORDER_NEW;
+        });
         $certificateInstructionNames = ['Test & inspect', 'Repair', 'Overhaul'];
         $certificateStatusOptions = Instruction::query()
             ->whereIn('name', $certificateInstructionNames)
@@ -524,6 +544,8 @@ class QualityAssuranceController extends Controller
             'certificateDateIso' => $certificateDateIso,
             'includeLandingGearLogCard' => $includeLandingGearLogCard,
             'includeRoycoService' => $includeRoycoService,
+            'includeOverhauledOn' => $includeOverhauledOn,
+            'hasOrderedReplacementParts' => $hasOrderedReplacementParts,
             'certificateItemSettings' => $certificateItemSettings,
             'certificateStatusOptions' => $certificateStatusOptions,
             'selectedCertificateInstructionId' => $workorder->instruction_id ? (int) $workorder->instruction_id : null,
@@ -547,8 +569,16 @@ class QualityAssuranceController extends Controller
                     'certificate_tracking_mode',
                     'certificate_manager_id',
                     'certificate_date',
+                    'certificate_work_order',
+                    'certificate_item_description',
+                    'certificate_item_part',
+                    'certificate_item_serial',
+                    'certificate_status_instruction_id',
+                    'certificate_status_work',
+                    'certificate_remarks',
                     'include_landing_gear_log_card',
                     'include_royco_service',
+                    'include_overhauled_on',
                 ]),
             ],
             'value' => ['nullable'],
@@ -558,7 +588,7 @@ class QualityAssuranceController extends Controller
         $key = (string) $data['key'];
         $value = $data['value'] ?? null;
 
-        if (in_array($key, ['certificate_detail_open', 'include_landing_gear_log_card', 'include_royco_service'], true)) {
+        if (in_array($key, ['certificate_detail_open', 'include_landing_gear_log_card', 'include_royco_service', 'include_overhauled_on'], true)) {
             $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
         } elseif ($key === 'certificate_tracking_mode') {
             $value = strtolower(trim((string) $value)) === 'c' ? 'c' : '';
@@ -575,13 +605,40 @@ class QualityAssuranceController extends Controller
                 $value = parse_project_date($value) ?: $value;
                 abort_unless((bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', $value), 422, 'Invalid certificate date.');
             }
+        } elseif ($key === 'certificate_status_instruction_id') {
+            $value = trim((string) $value);
+            if ($value !== '') {
+                Instruction::query()->findOrFail((int) $value);
+            }
+        } elseif ($key === 'certificate_remarks') {
+            abort_unless(is_array($value), 422, 'Invalid certificate remarks.');
+            $value = collect($value)
+                ->map(fn ($remark): string => trim((string) $remark))
+                ->values()
+                ->all();
+        } elseif (in_array($key, ['certificate_work_order', 'certificate_item_description', 'certificate_item_part', 'certificate_item_serial', 'certificate_status_work'], true)) {
+            $value = trim((string) $value);
+            abort_unless(mb_strlen($value) <= 1000, 422, 'Certificate value is too long.');
         } else {
             $value = trim((string) $value);
             abort_unless($value === 'main' || str_starts_with($value, 'log:'), 422, 'Invalid certificate detail source.');
         }
 
         $certificateData = is_array($workorder->certificate_data) ? $workorder->certificate_data : [];
-        if (in_array($key, ['certificate_manager_id', 'certificate_date', 'include_landing_gear_log_card', 'include_royco_service'], true)) {
+        if (in_array($key, [
+            'certificate_manager_id',
+            'certificate_date',
+            'certificate_work_order',
+            'certificate_item_description',
+            'certificate_item_part',
+            'certificate_item_serial',
+            'certificate_status_instruction_id',
+            'certificate_status_work',
+            'certificate_remarks',
+            'include_landing_gear_log_card',
+            'include_royco_service',
+            'include_overhauled_on',
+        ], true)) {
             $itemSource = trim((string) ($data['item_source'] ?? 'main')) ?: 'main';
             abort_unless($itemSource === 'main' || $itemSource === 'main:c' || str_starts_with($itemSource, 'log:'), 422, 'Invalid certificate detail source.');
 

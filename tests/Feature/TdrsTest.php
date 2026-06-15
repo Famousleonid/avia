@@ -223,7 +223,7 @@ class TdrsTest extends TestCase
         $this->assertContains($visibleOtherComponent->id, $componentIds);
     }
 
-    public function test_get_components_by_manual_prefers_unit_eff_detail_but_keeps_no_eff_letter_variants_and_assemblies(): void
+    public function test_get_components_by_manual_filters_eff_mismatches_but_keeps_no_eff_parts_and_assemblies(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual();
@@ -289,13 +289,53 @@ class TdrsTest extends TestCase
 
         $this->assertNotContains($left->id, $componentIds);
         $this->assertContains($right->id, $componentIds);
-        $this->assertNotContains($universalSameBase->id, $componentIds);
+        $this->assertContains($universalSameBase->id, $componentIds);
         $this->assertContains($noEffA->id, $componentIds);
         $this->assertContains($noEffB->id, $componentIds);
 
         $noEffAResponse = $components->firstWhere('id', $noEffA->id);
         $this->assertSame($assembly->id, $noEffAResponse['assemblies'][0]['id'] ?? null);
         $this->assertSame('ASSY-240A', $noEffAResponse['assemblies'][0]['assy_part_number'] ?? null);
+    }
+
+    public function test_get_components_by_manual_keeps_no_eff_letter_variant_when_base_ipl_has_eff_code(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'eff_code' => 'ACE',
+        ]);
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'unit_id' => $unit->id,
+        ]);
+
+        $effBase = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '2-2160',
+            'part_number' => '55201-101',
+            'name' => 'Eff coded outer cylinder',
+            'eff_code' => 'ACE',
+        ]);
+        $letterVariant = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '2-2160A',
+            'part_number' => '55201-102',
+            'name' => 'No eff letter outer cylinder',
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('api.get-components-by-manual', [
+            'manual_id' => $manual->id,
+            'workorder_id' => $workorder->id,
+        ]));
+
+        $response->assertOk();
+
+        $componentIds = collect($response->json('components'))->pluck('id')->all();
+
+        $this->assertContains($effBase->id, $componentIds);
+        $this->assertContains($letterVariant->id, $componentIds);
     }
 
     public function test_show_missing_and_ordered_parts_modals_sort_by_ipl_rule(): void

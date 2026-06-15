@@ -21,11 +21,12 @@ class ApplyQuantumRoBuffer extends Command
         $status = $stats['errors'] > 0 ? 'error' : 'ok';
 
         $line = sprintf(
-            '[%s] status=%s scanned=%d applied=%d unchanged=%d unresolved=%d not_applicable=%d errors=%d result="%s"',
+            '[%s] status=%s scanned=%d applied=%d eco_fee=%d unchanged=%d unresolved=%d not_applicable=%d errors=%d result="%s"',
             now()->format('Y-m-d H:i:s'),
             $status,
             $stats['scanned'],
             $stats['applied'],
+            $stats['eco_fee'] ?? 0,
             $stats['unchanged'],
             $stats['unresolved'],
             $stats['not_applicable'] ?? 0,
@@ -56,6 +57,10 @@ class ApplyQuantumRoBuffer extends Command
 
         if ($stats['applied'] > 0) {
             return 'rows applied';
+        }
+
+        if (($stats['eco_fee'] ?? 0) > 0) {
+            return 'ECO FEE rows';
         }
 
         if ($stats['unresolved'] > 0) {

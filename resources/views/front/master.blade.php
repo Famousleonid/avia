@@ -21,7 +21,7 @@
             padding: 0;
             margin: 0 auto;
             /*background: linear-gradient(blue, deepskyblue);*/
-            background: url("/public/img/avia190.png"), linear-gradient(blue, deepskyblue);
+            background: url("{{ asset('img/nodus.png') }}"), linear-gradient(#00008b, #0066cc);
             background-size: 700px auto, cover; /* 1-е — PNG, 2-е — градиент */
             background-repeat: no-repeat;
             background-attachment: fixed;

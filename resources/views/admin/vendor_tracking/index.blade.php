@@ -1458,6 +1458,7 @@
                 ['key' => 'wo_not_found', 'label' => 'WO not found'],
                 ['key' => 'wo_not_found_old', 'label' => 'WO not found: old'],
                 ['key' => 'applied', 'label' => 'applied'],
+                ['key' => 'eco_fee', 'label' => 'ECO FEE'],
                 ['key' => 'not_applicable', 'label' => 'N/A'],
                 ['key' => 'dismissed', 'label' => 'dismissed'],
                 ['key' => 'error', 'label' => 'error'],

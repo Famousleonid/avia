@@ -289,6 +289,21 @@ class VendorTrackingTest extends TestCase
             'last_seen_at' => Carbon::parse('2026-06-01 09:00:00'),
         ]);
 
+        QuantumRoLine::query()->create([
+            'source_uid' => 'eco-fee-' . $suffix,
+            'ro_number' => 'R-ECO-' . $suffix,
+            'wo_number' => null,
+            'vendor_name' => 'Brampton Processing',
+            'pn' => 'ECO FEE',
+            'description' => 'Environmental fee',
+            'class' => 'DETAIL_PROCESS',
+            'apply_status' => 'ECO FEE',
+            'apply_message' => 'ECO FEE row, no avia target needed',
+            'source_hash' => str_repeat('g', 64),
+            'applied_source_hash' => str_repeat('g', 64),
+            'last_seen_at' => Carbon::parse('2026-06-01 12:00:00'),
+        ]);
+
         $response = $this->actingAs($admin)->get(route('vendor-tracking.index'));
 
         $response->assertOk();
@@ -305,8 +320,11 @@ class VendorTrackingTest extends TestCase
         $this->assertStringContainsString('R-UNRES-' . $suffix, $unparsedHtml);
         $this->assertStringNotContainsString('R-NA-' . $suffix, $unparsedHtml);
         $this->assertStringNotContainsString('R-OLD-WO-' . $suffix, $unparsedHtml);
+        $this->assertStringNotContainsString('R-ECO-' . $suffix, $unparsedHtml);
         $this->assertStringContainsString('R-NA-' . $suffix, $latestHtml);
         $this->assertStringContainsString('R-OLD-WO-' . $suffix, $latestHtml);
+        $this->assertStringContainsString('R-ECO-' . $suffix, $latestHtml);
+        $this->assertStringContainsString('ECO FEE', $latestHtml);
         $this->assertStringContainsString('WO not found', $latestHtml);
         $this->assertStringContainsString('WO not found: old', $latestHtml);
     }

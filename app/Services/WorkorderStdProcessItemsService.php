@@ -42,7 +42,6 @@ class WorkorderStdProcessItemsService
 
             foreach (StdProcess::validStdValues() as $std) {
                 $manualRows = $this->manualStdRowsForManualStd((int) $manual->id, $std);
-                $effCodedBaseIpls = $this->effCodedBaseIpls($manualRows);
                 $flagColumn = $this->componentFlagColumnForStd($std);
                 $sortOrder = 1;
 
@@ -59,10 +58,6 @@ class WorkorderStdProcessItemsService
                     }
 
                     $rowEff = $manualRow->eff_code ?? $component->eff_code;
-                    if ($this->shouldSkipUniversalVariantBecauseEffVariantsExist($component, $rowEff, $effCodedBaseIpls)) {
-                        continue;
-                    }
-
                     if (! StdProcess::stdRowEffMatchesUnit($rowEff, (string) ($workorder->unit->eff_code ?? ''))) {
                         continue;
                     }
@@ -321,51 +316,6 @@ class WorkorderStdProcessItemsService
             ->with('component.manual:id,number')
             ->orderBy('id')
             ->get();
-    }
-
-    /**
-     * @param Collection<int, StdProcess> $manualRows
-     * @return array<string, bool>
-     */
-    protected function effCodedBaseIpls(Collection $manualRows): array
-    {
-        $keys = [];
-
-        foreach ($manualRows as $manualRow) {
-            $component = $manualRow->component;
-            if (! $component) {
-                continue;
-            }
-
-            $rowEff = $manualRow->eff_code ?? $component->eff_code;
-            if (StdProcess::effCodeTokens($rowEff) === []) {
-                continue;
-            }
-
-            foreach ($this->baseIplKeys((string) ($component->ipl_num ?? '')) as $baseKey) {
-                $keys[$baseKey] = true;
-            }
-        }
-
-        return $keys;
-    }
-
-    /**
-     * @param array<string, bool> $effCodedBaseIpls
-     */
-    protected function shouldSkipUniversalVariantBecauseEffVariantsExist(Component $component, ?string $rowEff, array $effCodedBaseIpls): bool
-    {
-        if (StdProcess::effCodeTokens($rowEff) !== []) {
-            return false;
-        }
-
-        foreach ($this->baseIplKeys((string) ($component->ipl_num ?? '')) as $baseKey) {
-            if (isset($effCodedBaseIpls[$baseKey])) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

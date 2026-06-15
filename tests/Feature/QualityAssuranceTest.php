@@ -10,6 +10,7 @@ use App\Models\LogCard;
 use App\Models\Main;
 use App\Models\ManualServiceBulletin;
 use App\Models\ManualRevisionCheck;
+use App\Models\Necessary;
 use App\Models\ProcessName;
 use App\Models\Task;
 use App\Models\Tdr;
@@ -218,8 +219,18 @@ class QualityAssuranceTest extends TestCase
             'modified' => '190-70262-007',
             'approve_at' => '2025-10-28',
         ]);
+        $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
+        $orderedComponent = Component::query()->create([
+            'manual_id' => $manual->id,
+            'part_number' => '190-70262-009',
+            'name' => 'Ordered Replacement',
+            'ipl_num' => '32-1',
+        ]);
         Tdr::query()->create([
             'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_ORDER_NEW,
+            'order_component_id' => $orderedComponent->id,
+            'necessaries_id' => $orderNew->id,
             'serial_number' => '1464362/001',
             'assy_serial_number' => '1453146/005',
             'qty' => 1,
@@ -298,6 +309,8 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('1453146/005');
         $response->assertSee('Rev # 12 dated');
         $response->assertSee('For the replacement parts refer to Teardown Report.');
+        $response->assertSee('Overhauled on ...................');
+        $response->assertSee('data-setting-key="include_overhauled_on"', false);
         $response->assertSee('Airworthiness Directives 2019-11-07, E2024-05-09 R1 and Service Bulletins: 170-32-0060 R1, 170-32-A94 R2 incorporated.');
         $response->assertDontSee('IGNORE-SB');
         $response->assertSee('Landing Gear Log Card attached');
@@ -332,6 +345,33 @@ class QualityAssuranceTest extends TestCase
         $response->assertDontSee('>Pin, Torque Arm</div>', false);
     }
 
+    public function test_certificate_replacement_parts_remark_uses_ordered_part_list(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder();
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'REPAIR-PN',
+            'name' => 'Repair Part',
+            'ipl_num' => '1-1',
+        ]);
+        Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'component_id' => $component->id,
+            'qty' => 1,
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('Replacements parts: None.');
+        $response->assertDontSee('For the replacement parts refer to Teardown Report.');
+    }
+
     public function test_certificate_can_use_selected_log_card_detail_item(): void
     {
         $manager = $this->createUserWithRole('Manager', [
@@ -350,18 +390,33 @@ class QualityAssuranceTest extends TestCase
             'ipl_num' => '7-42',
             'eff_code' => null,
         ]);
+        $secondComponent = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'LOG-PN-2',
+            'name' => 'Second Log Card Detail',
+            'ipl_num' => '7-43',
+            'eff_code' => null,
+        ]);
         LogCard::query()->create([
             'workorder_id' => $workorder->id,
             'component_data_out' => [
                 [
                     'component_id' => $component->id,
                     'serial_number' => 'LOG-SN',
+                    'qa_fit_csn' => '11111',
+                    'qa_fit_cso' => '22',
+                ],
+                [
+                    'component_id' => $secondComponent->id,
+                    'serial_number' => 'LOG-SN-2',
+                    'qa_fit_csn' => '30228',
+                    'qa_fit_cso' => '3162',
                 ],
             ],
         ]);
         $workorder->forceFill([
             'certificate_data' => [
-                'certificate_item_source' => 'log:0',
+                'certificate_item_source' => 'log:1',
                 'certificate_tracking_mode' => 'c',
             ],
         ])->save();
@@ -374,11 +429,81 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('data-certificate-detail-toggle', false);
         $response->assertSee('data-certificate-detail-select', false);
         $response->assertSee('Log Card Detail | LOG-PN | LOG-SN');
-        $response->assertSee('<div class="arc-tracking-no" data-certificate-tracking-number>W107736-1</div>', false);
-        $response->assertSee('>Log Card Detail</div>', false);
-        $response->assertSee('<td class="arc-item-multiline" data-certificate-item-part>LOG-PN</td>', false);
-        $response->assertSee('<td class="arc-item-multiline" data-certificate-item-serial>LOG-SN</td>', false);
+        $response->assertSee('Second Log Card Detail | LOG-PN-2 | LOG-SN-2');
+        $response->assertSee('<div class="arc-tracking-no" data-certificate-tracking-number>W107736-2</div>', false);
+        $response->assertSee('>Second Log Card Detail</div>', false);
+        $response->assertSee('data-certificate-item-part', false);
+        $response->assertSee('>LOG-PN-2</div>', false);
+        $response->assertSee('data-certificate-item-serial', false);
+        $response->assertSee('>LOG-SN-2</div>', false);
+        $response->assertSee('CSN-30228; CSO-3162.');
+        $this->assertMatchesRegularExpression(
+            '/<span[^>]*data-certificate-life-remark[^>]*>\s*CSN-30228; CSO-3162\.\s*<\/span>/s',
+            $response->getContent()
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/<span[^>]*data-certificate-life-remark[^>]*>\s*CSN-11111; CSO-22\.\s*<\/span>/s',
+            $response->getContent()
+        );
         $response->assertSee('Main Detail');
+    }
+
+    public function test_certificate_log_card_detail_does_not_use_whole_gear_life_when_row_is_blank(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder([
+            'number' => 107738,
+            'serial_number' => 'MAIN-SN',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => '1840-0006',
+            'name' => 'BOLT',
+            'ipl_num' => '7-44',
+            'eff_code' => null,
+        ]);
+        LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data_out' => [
+                [
+                    'component_id' => $component->id,
+                    'serial_number' => 'L895',
+                    'qa_aircraft_records' => [
+                        [
+                            'fit_csn' => '30,227',
+                            'fit_cso' => '15',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+        $workorder->forceFill([
+            'certificate_data' => [
+                'certificate_item_source' => 'log:0',
+            ],
+        ])->save();
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('>BOLT</div>', false);
+        $response->assertSee('>1840-0006</div>', false);
+        $response->assertSee('>L895</div>', false);
+        $this->assertDoesNotMatchRegularExpression(
+            '/<span[^>]*data-certificate-life-remark[^>]*>\s*CSN-30,227; CSO-15\.\s*<\/span>/s',
+            $response->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/<div[^>]*hidden[^>]*data-certificate-life-remark-row/s',
+            $response->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/<div[^>]*hidden[^>]*data-certificate-c-correction-row/s',
+            $response->getContent()
+        );
     }
 
     public function test_certificate_tracking_c_suffix_applies_to_main_detail_only(): void
@@ -408,7 +533,80 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('data-certificate-tracking-c-toggle', false);
         $response->assertSee('<div class="arc-tracking-no" data-certificate-tracking-number>W107736-C</div>', false);
         $response->assertSee('>Main Detail</div>', false);
+        $response->assertSee('This certificate issued to correct CSN info in Block 12 on original certificate W107736');
+        $this->assertMatchesRegularExpression(
+            '/<div(?=[^>]*data-certificate-c-correction-row)(?![^>]*hidden)/s',
+            $response->getContent()
+        );
         $response->assertDontSee('>Old Workorder Description</div>', false);
+    }
+
+    public function test_certificate_c_mode_uses_editable_item_overrides(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $repairInstruction = $this->createInstruction(['name' => 'Repair']);
+        $unit = $this->createUnit([
+            'name' => 'Main Detail',
+            'part_number' => 'MAIN-PN',
+        ]);
+        $workorder = $this->createWorkorder([
+            'number' => 107737,
+            'unit_id' => $unit->id,
+            'serial_number' => 'MAIN-SN',
+            'customer_po' => 'PO-BASE',
+        ]);
+
+        $workorder->forceFill([
+            'certificate_data' => [
+                'certificate_tracking_mode' => 'c',
+                'item_settings' => [
+                    'main:c' => [
+                        'certificate_work_order' => 'C-WO-77',
+                        'certificate_item_description' => 'C Detail',
+                        'certificate_item_part' => "C-PN\nALT-PN",
+                        'certificate_item_serial' => 'C-SN',
+                        'certificate_status_instruction_id' => (string) $repairInstruction->id,
+                        'certificate_status_work' => 'Repaired',
+                        'certificate_remarks' => [
+                            'C status remark.',
+                            'C workorder remark.',
+                            'C replacement remark.',
+                            'C AD remark.',
+                            'C log card remark.',
+                            'CSN-777; CSO-88.',
+                            'C overhauled on remark.',
+                            'C service remark.',
+                            'C correction paragraph.',
+                            'C extra remark.',
+                        ],
+                    ],
+                ],
+            ],
+        ])->save();
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('<div class="arc-tracking-no" data-certificate-tracking-number>W107737-C</div>', false);
+        $response->assertSee('data-certificate-work-order', false);
+        $response->assertSee('contenteditable="true"', false);
+        $response->assertSee('>C-WO-77</div>', false);
+        $response->assertSee('>C Detail</div>', false);
+        $response->assertSee('C-PN', false);
+        $response->assertSee('ALT-PN', false);
+        $response->assertSee('>C-SN</div>', false);
+        $response->assertSee('<div class="arc-status-work-print-value" data-certificate-status-output>Repaired</div>', false);
+        $response->assertSee('C status remark.');
+        $response->assertSee('CSN-777; CSO-88.');
+        $response->assertSee('C overhauled on remark.');
+        $response->assertSee('C correction paragraph.');
+        $response->assertSee('C extra remark.');
+        $response->assertDontSee('>PO-BASE</div>', false);
+        $response->assertDontSee('>Main Detail</div>', false);
+        $response->assertDontSee('>MAIN-SN</div>', false);
     }
 
     public function test_certificate_status_work_updates_workorder_instruction_and_prints_past_tense(): void
@@ -505,7 +703,7 @@ class QualityAssuranceTest extends TestCase
         $managerResponse->assertSee('data-certificate-date-picker', false);
         $managerResponse->assertSee('value="03/Nov/2025"', false);
         $managerResponse->assertSee('value="2025-11-03"', false);
-        $managerResponse->assertSee('Replacement parts: none');
+        $managerResponse->assertSee('Replacements parts: None.');
         $managerResponse->assertSee('Landing Gear Log Card attached');
         $managerResponse->assertSee('CSN-19453; CSO-0.');
         $managerResponse->assertSee('data-setting-key="include_landing_gear_log_card"', false);
@@ -600,6 +798,34 @@ class QualityAssuranceTest extends TestCase
         $this->assertSame((string) $signer->id, $certificateData['item_settings']['main:c']['certificate_manager_id']);
         $this->assertSame('2026-05-12', $certificateData['item_settings']['main:c']['certificate_date']);
         $this->assertArrayNotHasKey('certificate_manager_id', $certificateData);
+
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_item_part',
+                'value' => 'C-PN-STATE',
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_remarks',
+                'value' => ['C remark 1', 'C remark 2'],
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'include_overhauled_on',
+                'value' => true,
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+
+        $certificateData = $workorder->fresh()->certificate_data;
+        $this->assertSame('C-PN-STATE', $certificateData['item_settings']['main:c']['certificate_item_part']);
+        $this->assertSame(['C remark 1', 'C remark 2'], $certificateData['item_settings']['main:c']['certificate_remarks']);
+        $this->assertTrue($certificateData['item_settings']['main:c']['include_overhauled_on']);
+        $this->assertArrayNotHasKey('certificate_item_part', $certificateData);
     }
 
     public function test_serial_search_returns_workorder_links_from_tdr_and_log_card(): void

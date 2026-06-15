@@ -2590,10 +2590,9 @@ class TdrController extends Controller
         $resolver = app(ManualIplBranchRuleResolver::class);
         $manualId = (int) ($workorder->unit->manual_id ?? 0);
         $unitEff = (string) ($workorder->unit->eff_code ?? '');
-        $effCodedBaseIpls = $this->effCodedBaseIplsForComponents($components);
 
         return $components
-            ->filter(function (Component $component) use ($resolver, $workorder, $manualId, $unitEff, $effCodedBaseIpls): bool {
+            ->filter(function (Component $component) use ($resolver, $workorder, $manualId, $unitEff): bool {
                 if (! $resolver->allowsComponentForUnit(
                     $workorder->unit,
                     (string) ($component->ipl_num ?? ''),
@@ -2607,60 +2606,9 @@ class TdrController extends Controller
                     return false;
                 }
 
-                if (StdProcess::effCodeTokens($componentEff) === []) {
-                    foreach ($this->baseIplKeysForTdrComponent((string) ($component->ipl_num ?? '')) as $baseKey) {
-                        if (isset($effCodedBaseIpls[$baseKey])) {
-                            return false;
-                        }
-                    }
-                }
-
                 return true;
             })
             ->values();
-    }
-
-    private function effCodedBaseIplsForComponents($components): array
-    {
-        $keys = [];
-
-        foreach ($components as $component) {
-            if (! $component instanceof Component) {
-                continue;
-            }
-
-            if (StdProcess::effCodeTokens((string) ($component->eff_code ?? '')) === []) {
-                continue;
-            }
-
-            foreach ($this->baseIplKeysForTdrComponent((string) ($component->ipl_num ?? '')) as $baseKey) {
-                $keys[$baseKey] = true;
-            }
-        }
-
-        return $keys;
-    }
-
-    private function baseIplKeysForTdrComponent(string $ipl): array
-    {
-        $lines = preg_split('/\R+/', trim($ipl)) ?: [];
-        $keys = [];
-
-        foreach ($lines as $line) {
-            $line = strtoupper(trim($line));
-            if ($line === '') {
-                continue;
-            }
-
-            if (preg_match('/^(\d+[A-Z]*-\d+)[A-Z]+$/', $line, $matches)) {
-                $keys[] = $matches[1];
-                continue;
-            }
-
-            $keys[] = $line;
-        }
-
-        return array_values(array_unique($keys));
     }
 
     // -------------------------------------------------------------------------

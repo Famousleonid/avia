@@ -269,9 +269,67 @@ class WoBushingSortingTest extends TestCase
 
         $form = $this->actingAs($admin)->get(route('wo_bushings.specProcessForm', $woBushing->id));
         $form->assertOk();
-        $form->assertSee('B1', false);
+        $form->assertDontSee('B1', false);
         $form->assertSee('BATCH-PN', false);
         $form->assertDontSee('LOOSE-PN', false);
+    }
+
+    public function test_bushing_spec_process_form_merges_same_bushing_batch_across_process_columns(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+
+        $machining = $this->attachProcessToManual($manualId, 'Machining', 'Machine bushings');
+        $ndt = $this->attachProcessToManual($manualId, 'NDT-1', 'NDT bushings');
+        $cad = $this->attachProcessToManual($manualId, 'Cad plate', 'CAD plating');
+
+        $component = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '1-561',
+            'part_number' => 'MERGED-PN',
+            'name' => 'Grouped bushing',
+            'bush_ipl_num' => '1-561',
+            'is_bush' => true,
+        ]);
+        $line = WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 2,
+            'qty_remaining' => 2,
+            'group_key' => '1-561',
+            'sort_order' => 1,
+        ]);
+
+        foreach ([
+            ['process' => $machining, 'key' => 'machining'],
+            ['process' => $ndt, 'key' => 'ndt'],
+            ['process' => $cad, 'key' => 'cad'],
+        ] as $row) {
+            $batch = WoBushingBatch::query()->create([
+                'workorder_id' => $workorder->id,
+                'process_id' => $row['process']->id,
+                'process_column_key' => $row['key'],
+            ]);
+
+            WoBushingProcess::query()->create([
+                'wo_bushing_line_id' => $line->id,
+                'process_id' => $row['process']->id,
+                'batch_id' => $batch->id,
+                'qty' => 2,
+            ]);
+        }
+
+        $form = $this->actingAs($admin)->get(route('wo_bushings.specProcessForm', $woBushing->id));
+
+        $form->assertOk();
+        $html = $form->getContent();
+        $this->assertSame(1, substr_count($html, 'MERGED-PN'));
+        $this->assertStringContainsString('MERGED-PN : 2', $html);
+        $this->assertStringNotContainsString('MERGED-PN : 6', $html);
+        $this->assertStringNotContainsString('spec-group-label-box">B1</span>', $html);
     }
 
     private function attachProcessToManual(int $manualId, string $processName, string $processText): Process

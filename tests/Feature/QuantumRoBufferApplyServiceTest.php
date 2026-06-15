@@ -711,6 +711,37 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame($newHash, $line->applied_source_hash);
     }
 
+    public function test_eco_fee_pn_gets_terminal_eco_fee_status(): void
+    {
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => null,
+            'vendor_name' => 'Brampton Processing',
+            'pn' => 'ECO FEE',
+            'description' => 'Environmental fee',
+            'class' => 'DETAIL_PROCESS',
+            'bom_ref' => null,
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['scanned']);
+        $this->assertSame(1, $stats['eco_fee']);
+        $this->assertSame(0, $stats['unresolved']);
+
+        $line->refresh();
+
+        $this->assertSame('ECO FEE', $line->apply_status);
+        $this->assertStringContainsString('ECO FEE row', (string) $line->apply_message);
+        $this->assertSame($line->source_hash, $line->applied_source_hash);
+        $this->assertNull($line->applied_target_table);
+        $this->assertNull($line->applied_target_id);
+
+        $secondStats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(0, $secondStats['scanned']);
+    }
+
     private function createQuantumLine(array $attributes = []): QuantumRoLine
     {
         $sourceUid = 'rod:test:'.uniqid('', true);

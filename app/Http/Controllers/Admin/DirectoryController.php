@@ -14,9 +14,13 @@ class DirectoryController extends Controller
         abort_unless(auth()->check() && auth()->user()->roleIs(['Admin', 'Manager']), 403);
     }
 
-    private function authorizeDirectoryDelete(): void
+    private function authorizeDirectoryDelete(string $slug): void
     {
-        abort_unless(auth()->check() && auth()->user()->roleIs('Admin'), 403);
+        $allowedRoles = $slug === 'planes'
+            ? ['Admin', 'Manager']
+            : ['Admin'];
+
+        abort_unless(auth()->check() && auth()->user()->roleIs($allowedRoles), 403);
     }
 
     // ---------------------------------------------------------
@@ -330,9 +334,9 @@ class DirectoryController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $this->authorizeDirectoryDelete();
-
         $slug = $this->slug($request);
+        $this->authorizeDirectoryDelete($slug);
+
         $dir = $this->dir($slug);
 
         $modelClass = $dir['model'];

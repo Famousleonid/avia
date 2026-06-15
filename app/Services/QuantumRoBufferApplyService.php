@@ -20,6 +20,7 @@ class QuantumRoBufferApplyService
 {
     private const DATE_USER_NAME = 'Quantum';
     private const STATUS_APPLIED = 'applied';
+    private const STATUS_ECO_FEE = 'ECO FEE';
     private const STATUS_ERROR = 'error';
     private const STATUS_NA = 'N/A';
     private const STATUS_PENDING = 'pending';
@@ -38,6 +39,7 @@ class QuantumRoBufferApplyService
         $stats = [
             'scanned' => 0,
             'applied' => 0,
+            'eco_fee' => 0,
             'unchanged' => 0,
             'unresolved' => 0,
             'not_applicable' => 0,
@@ -93,6 +95,12 @@ class QuantumRoBufferApplyService
     private function applyLine(QuantumRoLine $line, Collection $codeMap, bool $dryRun): array
     {
         $route = $this->routeForLine($line);
+
+        if ($route['type'] === self::STATUS_ECO_FEE) {
+            $this->markLine($line, self::STATUS_ECO_FEE, 'ECO FEE row, no avia target needed', null, null, $dryRun);
+
+            return ['status' => 'eco_fee'];
+        }
 
         if ($route['type'] === self::TARGET_UNSUPPORTED) {
             $this->markLine($line, self::STATUS_UNRESOLVED, $route['message'], null, null, $dryRun);
@@ -171,6 +179,13 @@ class QuantumRoBufferApplyService
     {
         $pn = trim((string) $line->pn);
         $normalizedPn = $this->normalizeQuantumPn($pn);
+
+        if ($normalizedPn === 'ECOFEE') {
+            return [
+                'type' => self::STATUS_ECO_FEE,
+                'label' => self::STATUS_ECO_FEE,
+            ];
+        }
 
         if ($normalizedPn === 'NDT') {
             return [

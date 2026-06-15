@@ -19,7 +19,7 @@
     @php
         $isVendorDirectory = $slug === 'vendors';
         $isProcessNamesDirectory = $slug === 'process_names';
-        $canDeleteDirectoryItems = auth()->check() && auth()->user()->roleIs('Admin');
+        $canDeleteDirectoryItems = auth()->check() && auth()->user()->roleIs($slug === 'planes' ? ['Admin', 'Manager'] : ['Admin']);
         $hideProcessNameTableFields = ! $canDeleteDirectoryItems && $slug === 'process_names'
             ? ['notify_user_id', 'print_form']
             : [];
