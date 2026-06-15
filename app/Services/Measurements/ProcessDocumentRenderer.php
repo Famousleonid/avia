@@ -286,7 +286,13 @@ class ProcessDocumentRenderer
                 : 'pdw-el pdw-label';
             $fs   = $e->font_size ? ';font-size:' . (int) $e->font_size . 'pt' : '';
             $text = htmlspecialchars($rawText, ENT_QUOTES, 'UTF-8');
-            $els .= '<div class="' . $cls . '" data-element-id="' . (int) $e->id . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">' . $text . '</div>';
+            // Torque marks become inline inputs when the doc is opened in
+            // torque-edit mode (tech fills the value during F&C Doc generation).
+            if ($e->value_source === 'torque' && !empty($context['torque_edit'])) {
+                $els .= '<input class="pdw-el pdw-torque-input" type="text" inputmode="decimal" placeholder="0.00" title="Enter a number (0.00) or N/A" data-element-id="' . (int) $e->id . '" value="' . $text . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">';
+            } else {
+                $els .= '<div class="' . $cls . '" data-element-id="' . (int) $e->id . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">' . $text . '</div>';
+            }
         }
 
         $defs = $hasDimLine
@@ -360,6 +366,12 @@ class ProcessDocumentRenderer
                     return $prefix . $fallback;
                 }
                 return $prefix . $fmt($v);
+            }
+            // torque — free value filled per WO, keyed by this element id
+            if ($e->value_source === 'torque') {
+                $tv  = $workorder->torque_values ?? [];
+                $val = $tv[$e->id] ?? $tv[(string) $e->id] ?? null;
+                return ($val !== null && $val !== '') ? (string) $val : '';
             }
             return $prefix . ($e->static_value !== null ? $fmt($e->static_value) : '');
         }

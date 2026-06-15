@@ -1436,9 +1436,7 @@
                         ])
                     </div>
                     <div id="fc-table-content-wrap" style="display:none">
-                        @include('admin.manuals.partials.fc-table-tab', [
-                            'dimensionFigures' => $dimensionFigures,
-                        ])
+                        @include('admin.manuals.partials.fc-table-tab')
                     </div>
                 </div>
                 {{-- Part Documents hub — content (#pdw-host) is moved here from the Dimensions partial on init. --}}
@@ -2801,8 +2799,10 @@
                 fcOpenBtn.style.color = '#6c757d';
                 fcOpenBtn.style.borderColor = '#6c757d';
                 fcVisible = true;
-                if (window.dimRenderFcTable) {
-                    fcWrap.innerHTML = window.dimRenderFcTable();
+                // Refresh the Fit-based F&C view (Table 8001 + dimensions report)
+                // from the live data each time it is opened.
+                if (window.fcReload) {
+                    window.fcReload();
                 }
             }
             function showDimensions() {

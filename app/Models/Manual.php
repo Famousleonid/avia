@@ -129,6 +129,11 @@ class Manual extends Model implements HasMedia
         return $this->hasMany(ManualParameter::class, 'manual_id');
     }
 
+    public function fits()
+    {
+        return $this->hasMany(ManualFit::class, 'manual_id')->orderBy('sort_order');
+    }
+
     public function stdProcesses()
     {
         return $this->hasMany(StdProcess::class, 'manual_id');

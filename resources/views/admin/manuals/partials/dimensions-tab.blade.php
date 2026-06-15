@@ -1097,6 +1097,7 @@
                                 <option value="measurement">From measurement (WO)</option>
                                 <option value="calc">Calc from mating (F&amp;C)</option>
                                 <option value="formula">Formula</option>
+                                <option value="torque">Torque (WO input)</option>
                             </select>
                             <input id="pdw-ef-static" type="number" step="0.0001" class="form-control form-control-sm" style="width:120px;font-size:12px" placeholder="0.0000">
                             <select id="pdw-ef-param" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
@@ -4536,245 +4537,6 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (e) { alert(e.message); }
     });
 
-    // ==========================
-    // F&C table builder (called from show.blade.php when user opens the tab)
-    // Builds the table from the live `figures` JS array so it reflects unsaved-yet-refreshed data.
-    // ==========================
-    function fcFmt(v) {
-        if (v == null || v === '') return '—';
-        return parseFloat(v).toFixed(4);
-    }
-
-    window.dimFilterTable = function (filter) {
-        var wrap = document.getElementById('fc-table-content-wrap');
-        if (!wrap) return;
-        wrap.querySelectorAll('[data-dim-filter]').forEach(function (btn) {
-            btn.classList.toggle('active', btn.dataset.dimFilter === filter);
-        });
-        var simpleSection = wrap.querySelector('#dim-simple-section');
-        var fcSection = wrap.querySelector('#dim-fc-section');
-        if (filter === 'fc') {
-            if (simpleSection) simpleSection.style.display = 'none';
-            if (fcSection) fcSection.style.display = '';
-        } else {
-            if (fcSection) fcSection.style.display = 'none';
-            if (simpleSection) simpleSection.style.display = '';
-            wrap.querySelectorAll('tr[data-is-fc]').forEach(function (row) {
-                var isFc = row.dataset.isFc === '1';
-                row.style.display = (filter === 'std' && isFc) ? 'none' : '';
-            });
-        }
-    };
-
-    window.dimPrintTable = function () {
-        var wrap = document.getElementById('fc-table-content-wrap');
-        if (!wrap) return;
-
-        var printArea = document.createElement('div');
-        printArea.id = 'dim-print-area';
-        printArea.innerHTML = wrap.innerHTML;
-        printArea.querySelectorAll('button, .dim-no-print').forEach(function (el) { el.remove(); });
-        document.body.appendChild(printArea);
-
-        var style = document.createElement('style');
-        style.id = 'dim-print-style';
-        style.textContent =
-            '@media print {' +
-            '  body > *:not(#dim-print-area) { display: none !important; }' +
-            '  #dim-print-area { display: block !important; padding: 20px; }' +
-            '}';
-        document.head.appendChild(style);
-
-        window.print();
-
-        document.body.removeChild(printArea);
-        document.head.removeChild(style);
-    };
-
-    window.dimRenderFcTable = function () {
-        var diff = function (a, b) {
-            return (a != null && b != null)
-                ? Math.round((parseFloat(a) - parseFloat(b)) * 1e4) / 1e4 : null;
-        };
-
-        // Figure label with parent prefix: "Parent: Child" (same as WO Measurements F&C)
-        var figLabel = function (figure) {
-            if (!figure) return '';
-            var parent = figure.parent_figure_id
-                ? figures.find(function (f) { return f.id == figure.parent_figure_id; })
-                : null;
-            return parent ? (parent.title + ': ' + figure.title) : figure.title;
-        };
-
-        // Build pointFigureMap: point_id → {point, figure}
-        var pointFigureMap = {};
-        figures.forEach(function (figure) {
-            (figure.points || []).forEach(function (point) {
-                pointFigureMap[point.id] = { point: point, figure: figure };
-            });
-        });
-
-        // Collect measurement parameters (those with limits) → rows
-        var allRows = [];
-        var pointParamMap = {}; // point_id → [param, ...]
-
-        parameters.filter(function (p) {
-            return p.orig_dim_min !== null || p.orig_dim_max !== null;
-        }).forEach(function (param) {
-            (param.points || []).forEach(function (pt) {
-                var pf = pointFigureMap[pt.id];
-                if (!pf) return;
-                allRows.push({ figure: pf.figure, point: pf.point, param: param });
-                if (!pointParamMap[pt.id]) pointParamMap[pt.id] = [];
-                pointParamMap[pt.id].push(param);
-            });
-        });
-
-        // Sort rows by figure sort_order then point code
-        allRows.sort(function (a, b) {
-            var fs = (a.figure.sort_order || 0) - (b.figure.sort_order || 0);
-            if (fs !== 0) return fs;
-            return String(a.point.code).localeCompare(String(b.point.code));
-        });
-
-        // F&C pairs: points with is_fits_clearance and ≥2 params
-        var fcPairRows = [];
-        var fcSeen = {};
-        allRows.forEach(function (r) {
-            if (!r.point.is_fits_clearance || fcSeen[r.point.id]) return;
-            var ptParams = (pointParamMap[r.point.id] || []);
-            if (ptParams.length < 2) return;
-            fcSeen[r.point.id] = true;
-            // Sort so pA = hole (ID, larger dim) and pB = shaft (OD, smaller dim)
-            var sorted = ptParams.slice(0, 2).sort(function (a, b) {
-                var aVal = a.orig_dim_max != null ? a.orig_dim_max : (a.wear_dim_max != null ? a.wear_dim_max : 0);
-                var bVal = b.orig_dim_max != null ? b.orig_dim_max : (b.wear_dim_max != null ? b.wear_dim_max : 0);
-                return bVal - aVal;
-            });
-            var pA = sorted[0], pB = sorted[1];
-            var aWearMin = pA.wear_dim_min != null ? pA.wear_dim_min : pA.orig_dim_min;
-            var aWearMax = pA.wear_dim_max != null ? pA.wear_dim_max : pA.orig_dim_max;
-            var bWearMin = pB.wear_dim_min != null ? pB.wear_dim_min : pB.orig_dim_min;
-            var bWearMax = pB.wear_dim_max != null ? pB.wear_dim_max : pB.orig_dim_max;
-            fcPairRows.push({
-                figure: r.figure, point: r.point, pA: pA, pB: pB,
-                clearOrigMin: diff(pA.orig_dim_min, pB.orig_dim_max),
-                clearOrigMax: diff(pA.orig_dim_max, pB.orig_dim_min),
-                aWearMin: aWearMin, aWearMax: aWearMax,
-                bWearMin: bWearMin, bWearMax: bWearMax,
-                permClearMax: diff(aWearMax, bWearMin),
-            });
-        });
-
-        // ---- header bar ----
-        var h = '<div class="p-3">' +
-            '<div class="d-flex align-items-center gap-2 mb-3 dim-no-print-wrap">' +
-            '<h5 class="mb-0 me-2">Dimensions</h5>' +
-            '<div class="btn-group btn-group-sm">' +
-            '<button class="btn btn-outline-secondary active" data-dim-filter="all" onclick="window.dimFilterTable(\'all\')">All</button>' +
-            '<button class="btn btn-outline-success" data-dim-filter="fc" onclick="window.dimFilterTable(\'fc\')">F&amp;C only</button>' +
-            '<button class="btn btn-outline-secondary" data-dim-filter="std" onclick="window.dimFilterTable(\'std\')">Extra</button>' +
-            '</div>' +
-            '<button class="btn btn-outline-secondary btn-sm ms-auto dim-no-print" onclick="window.dimPrintTable()">&#128438; Print</button>' +
-            '</div>';
-
-        // ---- Dimensions table ----
-        h += '<div id="dim-simple-section">';
-        if (allRows.length === 0) {
-            h += '<div class="text-secondary mb-3">No measurement parameters found.</div>';
-        } else {
-            h += '<div class="table-responsive"><table class="table table-bordered table-sm align-middle" style="font-size:12px;white-space:nowrap">' +
-                '<thead class="table-light"><tr>' +
-                '<th class="text-center">Figure</th>' +
-                '<th class="text-center">Ref. No.</th>' +
-                '<th class="text-center">F&amp;C</th>' +
-                '<th class="text-center">Component</th>' +
-                '<th>Description</th>' +
-                '<th colspan="2" class="text-center">Original Limits <span class="fw-normal text-secondary">mm</span></th>' +
-                '<th colspan="2" class="text-center">Wear Limits <span class="fw-normal text-secondary">mm</span></th>' +
-                '</tr><tr>' +
-                '<th></th><th></th><th></th><th></th><th></th>' +
-                '<th class="text-center">Min.</th><th class="text-center">Max.</th>' +
-                '<th class="text-center">Min.</th><th class="text-center">Max.</th>' +
-                '</tr></thead><tbody>';
-
-            allRows.forEach(function (r) {
-                var isFc = r.point.is_fits_clearance ? '1' : '0';
-                var fcBadge = r.point.is_fits_clearance
-                    ? '<span class="badge text-bg-success" style="font-size:10px">F&amp;C</span>' : '';
-                var ic = inspComponents.find(function (c) { return c.id === r.param.inspection_component_id; });
-                var compLabel = ic ? escHtml(ic.label || '') : '—';
-                var wMin = r.param.wear_dim_min != null ? r.param.wear_dim_min : r.param.orig_dim_min;
-                var wMax = r.param.wear_dim_max != null ? r.param.wear_dim_max : r.param.orig_dim_max;
-                h += '<tr data-is-fc="' + isFc + '">' +
-                    '<td class="text-center text-secondary" style="font-size:11px">' + escHtml(figLabel(r.figure)) + '</td>' +
-                    '<td class="text-center fw-semibold">' + escHtml(r.point.code) + '</td>' +
-                    '<td class="text-center">' + fcBadge + '</td>' +
-                    '<td>' + compLabel + '</td>' +
-                    '<td>' + escHtml(r.param.description || '') + '</td>' +
-                    '<td class="text-end">' + fcFmt(r.param.orig_dim_min) + '</td>' +
-                    '<td class="text-end">' + fcFmt(r.param.orig_dim_max) + '</td>' +
-                    '<td class="text-end">' + fcFmt(wMin) + '</td>' +
-                    '<td class="text-end">' + fcFmt(wMax) + '</td>' +
-                    '</tr>';
-            });
-            h += '</tbody></table></div>';
-        }
-        h += '</div>';
-
-        // ---- F&C Pairs table ----
-        h += '<div id="dim-fc-section" style="display:none">';
-        if (fcPairRows.length > 0) {
-            h += '<h6 class="mt-4 mb-2">Fits &amp; Clearances</h6>' +
-                '<div class="table-responsive"><table class="table table-bordered table-sm align-middle" style="font-size:12px;white-space:nowrap">' +
-                '<thead class="table-light">' +
-                '<tr><th rowspan="3" class="text-center align-middle">Figure</th>' +
-                '<th rowspan="3" class="text-center align-middle">Ref.<br>No.</th>' +
-                '<th rowspan="3" class="text-center align-middle">Mating IPL<br>Item No.</th>' +
-                '<th colspan="4" class="text-center">Original Manufacturer Limits</th>' +
-                '<th colspan="3" class="text-center">In-Service Wear Limits</th></tr><tr>' +
-                '<th colspan="2" class="text-center">Dimension<br><span class="fw-normal text-secondary">mm</span></th>' +
-                '<th colspan="2" class="text-center">Assembly Clearance<br><span class="fw-normal text-secondary">mm</span></th>' +
-                '<th colspan="2" class="text-center">Dimension<br><span class="fw-normal text-secondary">mm</span></th>' +
-                '<th class="text-center">Permitted<br>Clearance<br><span class="fw-normal text-secondary">mm</span></th></tr><tr>' +
-                '<th class="text-center">Min.</th><th class="text-center">Max.</th>' +
-                '<th class="text-center">Min.</th><th class="text-center">Max.</th>' +
-                '<th class="text-center">Min.</th><th class="text-center">Max.</th>' +
-                '<th class="text-center">Max.</th></tr></thead><tbody>';
-
-            fcPairRows.forEach(function (r) {
-                var icA = inspComponents.find(function (c) { return c.id === r.pA.inspection_component_id; });
-                var icB = inspComponents.find(function (c) { return c.id === r.pB.inspection_component_id; });
-                var dA = escHtml(r.pA.description || ''), dB = escHtml(r.pB.description || '');
-                var iA = icA ? ' <span class="text-secondary">(' + escHtml(icA.label || '') + ')</span>' : '';
-                var iB = icB ? ' <span class="text-secondary">(' + escHtml(icB.label || '') + ')</span>' : '';
-                var negMin = r.clearOrigMin !== null && r.clearOrigMin < 0 ? ' text-danger' : '';
-                var negMax = r.clearOrigMax !== null && r.clearOrigMax < 0 ? ' text-danger' : '';
-                var negP   = r.permClearMax !== null && r.permClearMax < 0 ? ' text-danger' : '';
-                h += '<tr>' +
-                    '<td rowspan="2" class="text-center align-middle text-secondary" style="font-size:11px">' + escHtml(figLabel(r.figure)) + '</td>' +
-                    '<td rowspan="2" class="text-center align-middle fw-semibold">' + escHtml(r.point.code) + '</td>' +
-                    '<td>' + dA + iA + '</td>' +
-                    '<td class="text-end">' + fcFmt(r.pA.orig_dim_min) + '</td>' +
-                    '<td class="text-end">' + fcFmt(r.pA.orig_dim_max) + '</td>' +
-                    '<td rowspan="2" class="text-end align-middle' + negMin + '">' + fcFmt(r.clearOrigMin) + '</td>' +
-                    '<td rowspan="2" class="text-end align-middle' + negMax + '">' + fcFmt(r.clearOrigMax) + '</td>' +
-                    '<td class="text-end">' + fcFmt(r.aWearMin) + '</td>' +
-                    '<td class="text-end">' + fcFmt(r.aWearMax) + '</td>' +
-                    '<td rowspan="2" class="text-end align-middle' + negP + '">' + fcFmt(r.permClearMax) + '</td>' +
-                    '</tr><tr>' +
-                    '<td>' + dB + iB + '</td>' +
-                    '<td class="text-end">' + fcFmt(r.pB.orig_dim_min) + '</td>' +
-                    '<td class="text-end">' + fcFmt(r.pB.orig_dim_max) + '</td>' +
-                    '<td class="text-end">' + fcFmt(r.bWearMin) + '</td>' +
-                    '<td class="text-end">' + fcFmt(r.bWearMax) + '</td>' +
-                    '</tr>';
-            });
-            h += '</tbody></table></div>';
-        }
-        h += '</div></div>';
-        return h;
-    };
 
     // ==========================
     // Repair Plan (MasterRule) modal
@@ -5709,6 +5471,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     el.style.borderStyle = 'dashed';
                     el.style.borderColor = '#6f42c1';
                     el.style.color       = '#6f42c1';
+                } else if (e.value_source === 'torque') {
+                    valTxt = '⟨torque⟩';
+                    el.style.borderStyle = 'dashed';
+                    el.style.borderColor = '#fd7e14';
+                    el.style.color       = '#fd7e14';
                 } else {
                     valTxt = pdwFmt(e.static_value);
                 }
@@ -6065,7 +5832,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function pdwSyncDimFields(src) {
         const needsParam  = src === 'measurement' || src === 'calc';
         const isFormula   = src === 'formula';
-        document.getElementById('pdw-ef-static').classList.toggle('d-none', needsParam || isFormula);
+        const isTorque    = src === 'torque';
+        document.getElementById('pdw-ef-static').classList.toggle('d-none', needsParam || isFormula || isTorque);
         document.getElementById('pdw-ef-param').classList.toggle('d-none', !needsParam);
         document.getElementById('pdw-ef-formula').classList.toggle('d-none', !isFormula);
         if (isFormula) {
@@ -6153,6 +5921,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 const tolM = document.getElementById('pdw-ef-ftol-minus').value;
                 body.formula_tol_plus  = tolP !== '' ? parseFloat(tolP) : null;
                 body.formula_tol_minus = tolM !== '' ? parseFloat(tolM) : null;
+            } else if (src === 'torque') {
+                // free WO-filled value (keyed by element id) — no template value
+                body.static_value = null;
+                body.source_parameter_id = null;
             } else {
                 const v = document.getElementById('pdw-ef-static').value;
                 body.static_value = v !== '' ? parseFloat(v) : null;

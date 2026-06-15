@@ -46,6 +46,7 @@ use App\Http\Controllers\Admin\ManualDimensionPointController;
 use App\Http\Controllers\Admin\ManualDimensionSpecController;
 use App\Http\Controllers\Admin\ManualParameterController;
 use App\Http\Controllers\Admin\ManualRepairStepController;
+use App\Http\Controllers\Admin\ManualFitController;
 use App\Http\Controllers\Admin\MasterRuleController;
 use App\Http\Controllers\Admin\ProcessDocumentController;
 use App\Http\Controllers\Admin\ManualInspectionComponentController;
@@ -379,6 +380,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/manuals/{manual}/documents', [ProcessDocumentController::class, 'indexManual'])->name('manuals.documents.index');
     Route::post('/manuals/{manual}/documents', [ProcessDocumentController::class, 'storeManualDocument'])->name('manuals.documents.store');
     Route::get('/workorders/{workorder}/fc-document', [ProcessDocumentController::class, 'fcDocumentView'])->name('workorders.fc-document');
+    Route::post('/workorders/{workorder}/torque-values', [ProcessDocumentController::class, 'saveTorqueValues'])->name('workorders.torque-values.save');
     // Start/Finish (master-rule phase) process documents
     Route::get('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'indexPhase'])->name('phase-rule-processes.documents.index');
     Route::post('/phase-rule-processes/{masterRulePhaseRuleProcess}/documents', [ProcessDocumentController::class, 'storePhaseDocument'])->name('phase-rule-processes.documents.store');
@@ -412,6 +414,14 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/parameters/{manualParameter}/repair-steps', [ManualRepairStepController::class, 'store'])->name('parameters.repair-steps.store');
     Route::patch('/repair-steps/{manualRepairStep}', [ManualRepairStepController::class, 'update'])->name('repair-steps.update');
     Route::delete('/repair-steps/{manualRepairStep}', [ManualRepairStepController::class, 'destroy'])->name('repair-steps.destroy');
+
+    // Fits & Clearances — explicit OD↔ID pairs
+    Route::get('/manuals/{manual}/fits', [ManualFitController::class, 'index'])->name('manuals.fits.index');
+    Route::get('/manuals/{manual}/fits-report', [ManualFitController::class, 'report'])->name('manuals.fits.report');
+    Route::post('/manuals/{manual}/fits', [ManualFitController::class, 'store'])->name('manuals.fits.store');
+    Route::post('/manuals/{manual}/fits/detect', [ManualFitController::class, 'detect'])->name('manuals.fits.detect');
+    Route::patch('/fits/{manualFit}', [ManualFitController::class, 'update'])->name('fits.update');
+    Route::delete('/fits/{manualFit}', [ManualFitController::class, 'destroy'])->name('fits.destroy');
 
     // --- Bushing Specs ---
     Route::post('/dimension-specs/{manualDimensionSpec}/bushing-spec', [ManualDimensionSpecController::class, 'storeBushingSpec'])->name('dimension-specs.bushing-spec.store');
