@@ -361,6 +361,12 @@ class ProcessDocumentRenderer
                 }
                 return $prefix . $fmt($v);
             }
+            // torque — free value filled per WO, keyed by this element id
+            if ($e->value_source === 'torque') {
+                $tv  = $workorder->torque_values ?? [];
+                $val = $tv[$e->id] ?? $tv[(string) $e->id] ?? null;
+                return ($val !== null && $val !== '') ? (string) $val : '';
+            }
             return $prefix . ($e->static_value !== null ? $fmt($e->static_value) : '');
         }
 
