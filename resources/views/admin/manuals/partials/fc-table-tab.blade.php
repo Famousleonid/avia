@@ -15,6 +15,7 @@
             <button type="button" class="btn btn-outline-secondary" data-fc-filter="std">Extra</button>
         </div>
         <button type="button" class="btn btn-outline-primary btn-sm" id="fcAddBtn"><i class="bi bi-plus-lg"></i> Add fit</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="fcDetectBtn" title="Create fits for points that have both an OD and an ID parameter (existing pairs are kept)"><i class="bi bi-magic"></i> Detect from points</button>
         <button type="button" class="btn btn-outline-secondary btn-sm ms-auto" id="fcPrintBtn">&#128438; Print</button>
     </div>
 
@@ -287,6 +288,15 @@
     document.getElementById('fcCancelBtn').addEventListener('click', hideForm);
     document.getElementById('fcSaveBtn').addEventListener('click', save);
     document.getElementById('fcPrintBtn').addEventListener('click', () => window.print());
+    document.getElementById('fcDetectBtn').addEventListener('click', async () => {
+        if (!confirm('Create fits for points that have both an OD and an ID parameter? Existing pairs are kept.')) return;
+        try {
+            const r = await api('/manuals/' + MANUAL_ID + '/fits/detect', { method: 'POST' });
+            await loadAll();
+            filter = 'fc'; applyFilter();
+            alert('Detected: ' + r.created + ' new fit(s), ' + r.skipped + ' already existed.');
+        } catch (e) { alert(e.message); }
+    });
     pairsTbody.addEventListener('click', async (e) => {
         const editBtn = e.target.closest('.fc-edit');
         const delBtn = e.target.closest('.fc-del');

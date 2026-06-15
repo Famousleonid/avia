@@ -418,6 +418,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/manuals/{manual}/fits', [ManualFitController::class, 'index'])->name('manuals.fits.index');
     Route::get('/manuals/{manual}/fits-report', [ManualFitController::class, 'report'])->name('manuals.fits.report');
     Route::post('/manuals/{manual}/fits', [ManualFitController::class, 'store'])->name('manuals.fits.store');
+    Route::post('/manuals/{manual}/fits/detect', [ManualFitController::class, 'detect'])->name('manuals.fits.detect');
     Route::patch('/fits/{manualFit}', [ManualFitController::class, 'update'])->name('fits.update');
     Route::delete('/fits/{manualFit}', [ManualFitController::class, 'destroy'])->name('fits.destroy');
 

@@ -83,6 +83,58 @@ class ManualFitController extends Controller
         return response()->json($rows);
     }
 
+    /**
+     * On-demand detection: create fits for points that carry both an OD and an
+     * ID parameter (same heuristic as fits:backfill, scoped to this manual).
+     * Idempotent — existing (od, id) pairs are kept, not duplicated; deleted
+     * fits are NOT resurrected silently because this runs only on click.
+     */
+    public function detect(Manual $manual)
+    {
+        $params = ManualParameter::where('manual_id', $manual->id)
+            ->with('points:id')
+            ->get();
+
+        $odParams = $params->filter(fn ($p) =>
+            ($p->orig_dim_min !== null || $p->orig_dim_max !== null)
+            && preg_match('/\bOD\b/i', (string) $p->description) === 1);
+
+        $created = 0;
+        $skipped = 0;
+        $order = (int) $manual->fits()->max('sort_order');
+
+        foreach ($odParams as $od) {
+            $odPointIds = $od->points->pluck('id');
+            if ($odPointIds->isEmpty()) {
+                continue;
+            }
+            $mates = $params->filter(fn ($p) =>
+                $p->id !== $od->id
+                && $p->inspection_component_id !== $od->inspection_component_id
+                && ($p->orig_dim_min !== null || $p->orig_dim_max !== null)
+                && $p->points->pluck('id')->intersect($odPointIds)->isNotEmpty());
+
+            foreach ($mates as $mate) {
+                $exists = ManualFit::where('od_param_id', $od->id)
+                    ->where('id_param_id', $mate->id)
+                    ->exists();
+                if ($exists) {
+                    $skipped++;
+                    continue;
+                }
+                ManualFit::create([
+                    'manual_id'   => $manual->id,
+                    'od_param_id' => $od->id,
+                    'id_param_id' => $mate->id,
+                    'sort_order'  => ++$order,
+                ]);
+                $created++;
+            }
+        }
+
+        return response()->json(['created' => $created, 'skipped' => $skipped]);
+    }
+
     public function store(Request $request, Manual $manual)
     {
         $data = $this->validateData($request, $manual);
