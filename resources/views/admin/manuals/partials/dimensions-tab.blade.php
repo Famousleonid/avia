@@ -301,6 +301,7 @@
     }
     #dim-figure-canvas-wrap.add-area-mode { cursor: crosshair; }
     #dim-figure-canvas-wrap.add-line-mode { cursor: crosshair; }
+    #dim-figure-canvas-wrap.add-view-mode { cursor: crosshair; }
     #dim-lines-svg {
         position: absolute;
         top: 0; left: 0;
@@ -426,6 +427,9 @@
                 </button>
                 <button class="btn btn-outline-secondary btn-sm dim-mode-btn" id="dimAddLineModeBtn" title="Add linear dimension (two clicks)">
                     <i class="bi bi-rulers"></i> Add Line
+                </button>
+                <button class="btn btn-outline-secondary btn-sm dim-mode-btn" id="dimAddViewModeBtn" title="Add view arrow: click to place; drag the tip to rotate; opens a detail figure">
+                    <i class="bi bi-arrow-up-right-circle"></i> View
                 </button>
                 <button class="btn btn-outline-secondary btn-sm dim-mode-btn" id="dimAddTextModeBtn" title="Add part label: 1st click = dot on part, 2nd click = label position">
                     <i class="bi bi-tag"></i> Add Label
@@ -709,6 +713,15 @@
                         <input class="form-check-input" type="checkbox" id="dimPointFits">
                         <label class="form-check-label form-label-sm" for="dimPointFits">Fits &amp; Clearances</label>
                     </div>
+                </div>
+                <div class="mb-3 d-none" id="dimExtraArrowsWrap">
+                    <label class="form-label form-label-sm d-block">Extra arrows to this name</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="dimExtraArrowAdd">+ Add arrow</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="dimExtraArrowRemove">− Remove last</button>
+                        <span class="small text-muted" id="dimExtraArrowCount">0 arrow(s)</span>
+                    </div>
+                    <div class="form-text">After Save, drag each extra dot on the figure to its spot; Alt-click a dot to delete it.</div>
                 </div>
                 <div style="max-width:90px">
                     <label class="form-label form-label-sm">Sort</label>
@@ -1213,6 +1226,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let addCircleMode      = false;
     let circleCenter       = null;
     let circleTempEl       = null;
+    let addViewMode        = false;  // "View" arrow tool (directional navigation chevron)
     let areaWaitingLabel   = null;  // {x,y,w,h} after rect drawn, waiting for label click
     let areaTempRect       = null;  // persistent div showing drawn rect while waiting
     let circleWaitingLabel = null;  // {cx,cy,rx,ry} after circle drawn, waiting for label click
@@ -1249,6 +1263,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const addAreaModeBtn    = document.getElementById('dimAddAreaModeBtn');
     const addLineModeBtn    = document.getElementById('dimAddLineModeBtn');
     const addTextModeBtn    = document.getElementById('dimAddTextModeBtn');
+    const addViewModeBtn    = document.getElementById('dimAddViewModeBtn');
     const linesSvg          = document.getElementById('dim-lines-svg');
 
     // ==========================
@@ -1860,7 +1875,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     canvasWrap.addEventListener('mousedown', function (e) {
         if (e.button !== 0) return;
-        if (addPointMode || addCalloutMode || addCircleMode || addAreaMode || addLineMode || addTextMode) return;
+        if (addPointMode || addCalloutMode || addCircleMode || addAreaMode || addLineMode || addTextMode || addViewMode) return;
         if (isPointEl(e.target)) return;
         isPanning = true;
         panStart  = { x: e.clientX + canvasWrap.scrollLeft, y: e.clientY + canvasWrap.scrollTop };
@@ -1985,7 +2000,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function addDragBehavior(el, pt) {
         el.addEventListener('mousedown', function (e) {
-            if (e.button !== 0 || addPointMode || addCalloutMode || addCircleMode || addAreaMode || addLineMode || addTextMode) return;
+            if (e.button !== 0 || addPointMode || addCalloutMode || addCircleMode || addAreaMode || addLineMode || addTextMode || addViewMode) return;
             e.stopPropagation();
             const startX = e.clientX, startY = e.clientY;
             let moved = false;
@@ -2024,6 +2039,87 @@ document.addEventListener('DOMContentLoaded', function () {
                 savePointPosition(pt);
             }
 
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    }
+
+    // ---- Multi-arrow: extra leader anchors for a callout / part label ----
+    // Each entry in pt.extra_anchors is {x_pct,y_pct}: a draggable dot + a leader
+    // line to the same label, so several arrows point at one name.
+    function renderExtraAnchors(pt, lblEl, stroke) {
+        if (!Array.isArray(pt.extra_anchors)) return;
+        pt.extra_anchors.forEach(function (a, idx) {
+            const ax = parseFloat(a.x_pct), ay = parseFloat(a.y_pct);
+            if (isNaN(ax) || isNaN(ay)) return;
+            const dot = document.createElement('div');
+            dot.className  = 'dim-callout-dot';
+            dot.style.left = ax + '%';
+            dot.style.top  = ay + '%';
+            dot.title      = 'Extra arrow — drag to move, Alt+click to remove';
+            dot.dataset.id = pt.id;
+            dot.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (justDragged) return;
+                if (e.altKey) {                       // Alt+click deletes this arrow
+                    pt.extra_anchors.splice(idx, 1);
+                    apiFetch('/dimension-points/' + pt.id, { method: 'PATCH', body: JSON.stringify({ extra_anchors: pt.extra_anchors }) });
+                    renderPoints(activeFigure.points || []);
+                }
+            });
+            addAnchorDragBehavior(dot, pt, idx);
+            pointsOverlay.appendChild(dot);
+            drawLeaderToLabel(ax, ay, lblEl, stroke);
+        });
+    }
+
+    // Draw a leader line from a source point (% coords) to the border of a label element.
+    function drawLeaderToLabel(srcX, srcY, lblEl, stroke) {
+        const ns    = 'http://www.w3.org/2000/svg';
+        const cRect = figureImg.getBoundingClientRect();
+        const lblR  = lblEl.getBoundingClientRect();
+        const hw    = (lblR.width  / 2) / (cRect.width  || 1) * 100;
+        const hh    = (lblR.height / 2) / (cRect.height || 1) * 100;
+        const lcx   = parseFloat(lblEl.style.left), lcy = parseFloat(lblEl.style.top);  // label center (translate -50%)
+        const vx    = srcX - lcx, vy = srcY - lcy;
+        const t     = Math.min(vx !== 0 ? hw / Math.abs(vx) : Infinity, vy !== 0 ? hh / Math.abs(vy) : Infinity);
+        const ex    = lcx + t * vx, ey = lcy + t * vy;
+        const g     = document.createElementNS(ns, 'g'); g.style.pointerEvents = 'none';
+        const line  = document.createElementNS(ns, 'line');
+        line.setAttribute('x1', srcX + '%'); line.setAttribute('y1', srcY + '%');
+        line.setAttribute('x2', ex + '%');   line.setAttribute('y2', ey + '%');
+        line.setAttribute('stroke', stroke); line.setAttribute('stroke-width', '1');
+        g.appendChild(line);
+        linesSvg.appendChild(g);
+    }
+
+    // Drag a single extra anchor (by index) and persist the whole list.
+    function addAnchorDragBehavior(el, pt, idx) {
+        el.addEventListener('mousedown', function (e) {
+            if (e.button !== 0 || addPointMode || addCalloutMode || addCircleMode || addAreaMode || addLineMode || addTextMode || addViewMode) return;
+            e.stopPropagation();
+            const startX = e.clientX, startY = e.clientY;
+            let moved = false;
+            function onMove(ev) {
+                const dx = ev.clientX - startX, dy = ev.clientY - startY;
+                if (!moved && Math.sqrt(dx * dx + dy * dy) > 4) moved = true;
+                if (moved) { el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; el.style.cursor = 'grabbing'; document.body.style.userSelect = 'none'; }
+            }
+            function onUp(ev) {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                document.body.style.userSelect = ''; el.style.transform = ''; el.style.cursor = '';
+                if (!moved) return;
+                justDragged = true; setTimeout(function () { justDragged = false; }, 0);
+                const rect  = figureImg.getBoundingClientRect();
+                const dxPct = (ev.clientX - startX) / rect.width  * 100;
+                const dyPct = (ev.clientY - startY) / rect.height * 100;
+                const a = pt.extra_anchors[idx];
+                a.x_pct = Math.min(Math.max(parseFloat(a.x_pct) + dxPct, 0), 100).toFixed(2);
+                a.y_pct = Math.min(Math.max(parseFloat(a.y_pct) + dyPct, 0), 100).toFixed(2);
+                renderPoints(activeFigure.points);
+                apiFetch('/dimension-points/' + pt.id, { method: 'PATCH', body: JSON.stringify({ extra_anchors: pt.extra_anchors }) });
+            }
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
         });
@@ -2091,6 +2187,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderCircle(pt);
             } else if (pt.point_type === 'navigation' && pt.width_pct && pt.height_pct) {
                 renderArea(pt);
+            } else if (pt.point_type === 'view') {
+                renderView(pt);
             } else if (pt.x2_pct !== null && pt.x2_pct !== undefined) {
                 renderLine(pt);
             } else if (pt.label_x_pct !== null && pt.label_x_pct !== undefined) {
@@ -2133,8 +2231,46 @@ document.addEventListener('DOMContentLoaded', function () {
         area.style.top    = pt.y_pct + '%';
         area.style.width  = pt.width_pct + '%';
         area.style.height = pt.height_pct + '%';
+        area.style.transform = 'rotate(' + (parseFloat(pt.rotation_deg) || 0) + 'deg)';   // tilt
         area.title        = pt.code + (pt.description ? ': ' + pt.description : '');
         area.dataset.id   = pt.id;
+
+        // Rotate handle (knob above the box) — drag to tilt; Shift snaps to 15°.
+        if (isActive) {
+            const rot = document.createElement('div');
+            rot.style.cssText = 'position:absolute;left:50%;top:-22px;width:12px;height:12px;' +
+                'transform:translateX(-50%);border-radius:50%;background:#fff;' +
+                'border:2px solid #0d6efd;cursor:grab;z-index:12;';
+            rot.title = 'Drag to rotate';
+            rot.addEventListener('mousedown', function (e) {
+                if (e.button !== 0) return;
+                e.stopPropagation(); e.preventDefault();
+                const box = area.getBoundingClientRect();          // axis-aligned bbox; centre is the pivot
+                const cx = box.left + box.width / 2, cy = box.top + box.height / 2;
+                let moved = false;
+                function onMove(ev) {
+                    moved = true;
+                    let deg = Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180 / Math.PI + 90;
+                    if (ev.shiftKey) deg = Math.round(deg / 15) * 15;
+                    pt.rotation_deg = +deg.toFixed(1);
+                    area.style.transform = 'rotate(' + pt.rotation_deg + 'deg)';
+                    document.body.style.userSelect = 'none';
+                }
+                function onUp() {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    document.body.style.userSelect = '';
+                    if (moved) {
+                        justDragged = true; setTimeout(function () { justDragged = false; }, 80);
+                        apiFetch('/dimension-points/' + pt.id, { method: 'PATCH', body: JSON.stringify({ rotation_deg: pt.rotation_deg }) });
+                        renderPoints(activeFigure.points || []);
+                    }
+                }
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+            area.appendChild(rot);
+        }
 
         if (!hasExtLabel) {
             const internalLabel = document.createElement('span');
@@ -2146,6 +2282,8 @@ document.addEventListener('DOMContentLoaded', function () {
         area.addEventListener('click', function (e) {
             e.stopPropagation();
             if (justDragged || addPointMode || addCalloutMode || addTextMode || addCircleMode || addAreaMode || addLineMode) return;
+            // Alt+click selects the area (shows the rotate handle); plain click navigates.
+            if (e.altKey) { selectPoint(pt); return; }
             if (pt.child_figure_id) {
                 const child = figures.find(function(f) { return f.id == pt.child_figure_id; });
                 if (child) { selectFigure(child); return; }
@@ -2201,6 +2339,148 @@ document.addEventListener('DOMContentLoaded', function () {
             g.appendChild(line);
             linesSvg.appendChild(g);
         }
+    }
+
+    // View arrow: a hollow "block" arrow (shaft + head) pointing tail → tip, like a
+    // drawing view-direction marker. Visual = an undistorted HTML overlay icon rotated
+    // to the direction; selection/drag/rotation live in the SVG layer (endpoint handles).
+    function renderView(pt) {
+        const ns       = 'http://www.w3.org/2000/svg';
+        const isActive = activePoint && activePoint.id === pt.id;
+        const color    = isActive ? '#0d6efd' : '#198754';
+
+        const x1 = parseFloat(pt.x_pct), y1 = parseFloat(pt.y_pct);
+        const x2 = parseFloat(pt.x2_pct), y2 = parseFloat(pt.y2_pct);
+        const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
+
+        // visual angle in px (image is stretched, so % of width ≠ % of height)
+        const r  = figureImg.getBoundingClientRect();
+        const dx = (x2 - x1) / 100 * (r.width  || 1);
+        const dy = (y2 - y1) / 100 * (r.height || 1);
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+        // hollow block-arrow icon (drawn pointing +x, rotated to direction)
+        const arrow = document.createElement('div');
+        arrow.style.position = 'absolute';
+        arrow.style.left = midX + '%';
+        arrow.style.top  = midY + '%';
+        arrow.style.transform = 'translate(-50%,-50%) rotate(' + angle.toFixed(1) + 'deg)';
+        arrow.style.pointerEvents = 'none';
+        arrow.style.lineHeight = '0';
+        arrow.innerHTML =
+            '<svg width="50" height="32" viewBox="0 0 48 32" style="overflow:visible">' +
+            '<polygon points="0,10 30,10 30,1 47,16 30,31 30,22 0,22" ' +
+            'fill="white" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+            '</svg>';
+        pointsOverlay.appendChild(arrow);
+
+        // letter near the tail
+        if (pt.code) {
+            const lbl = document.createElement('div');
+            lbl.style.position = 'absolute';
+            lbl.style.left = x1 + '%';
+            lbl.style.top  = y1 + '%';
+            lbl.style.transform = 'translate(-50%,-150%)';
+            lbl.style.font = '700 14px sans-serif';
+            lbl.style.color = isActive ? '#dc3545' : '#111';
+            lbl.style.background = '#fff';
+            lbl.style.border = '1.5px solid ' + (isActive ? '#dc3545' : '#333');
+            lbl.style.padding = '1px 6px';
+            lbl.style.borderRadius = '2px';
+            lbl.style.boxShadow = '0 1px 4px rgba(0,0,0,.18)';
+            lbl.style.lineHeight = '1.6';
+            lbl.style.whiteSpace = 'nowrap';
+            lbl.style.pointerEvents = 'none';
+            lbl.textContent = pt.code;
+            pointsOverlay.appendChild(lbl);
+        }
+
+        // SVG layer: transparent hit line (select/drag the whole arrow) + handles (rotate)
+        const g = document.createElementNS(ns, 'g');
+        g.dataset.id = pt.id;
+        g.style.cursor = 'pointer';
+        g.style.pointerEvents = 'auto';
+
+        const hit = document.createElementNS(ns, 'line');
+        hit.setAttribute('x1', pt.x_pct + '%'); hit.setAttribute('y1', pt.y_pct + '%');
+        hit.setAttribute('x2', pt.x2_pct + '%'); hit.setAttribute('y2', pt.y2_pct + '%');
+        hit.setAttribute('stroke', 'transparent'); hit.setAttribute('stroke-width', '18');
+        hit.style.pointerEvents = 'stroke';
+        g.appendChild(hit);
+
+        if (isActive) {
+            // faint dashed guide shows the vector being rotated
+            const guide = document.createElementNS(ns, 'line');
+            guide.setAttribute('x1', pt.x_pct + '%'); guide.setAttribute('y1', pt.y_pct + '%');
+            guide.setAttribute('x2', pt.x2_pct + '%'); guide.setAttribute('y2', pt.y2_pct + '%');
+            guide.setAttribute('stroke', '#0d6efd'); guide.setAttribute('stroke-width', '1');
+            guide.setAttribute('stroke-dasharray', '4,3');
+            guide.style.pointerEvents = 'none';
+            g.appendChild(guide);
+        }
+
+        function navChild() {
+            const child = figures.find(function (f) { return f.id == pt.child_figure_id; });
+            if (child) { selectFigure(child); return true; }
+            return false;
+        }
+        g.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (justDragged || addPointMode || addAreaMode || addLineMode || addViewMode) return;
+            // Figure linked: plain click navigates; Alt+click selects for rotation.
+            // No figure: click selects so the arrow can be rotated by its handles.
+            if (pt.child_figure_id && !e.altKey) { if (navChild()) return; }
+            selectPoint(pt);
+        });
+        g.addEventListener('dblclick', function (e) {
+            e.stopPropagation();
+            // Figure linked: plain dbl-click navigates too; Alt+dbl-click opens the modal.
+            // No figure: dbl-click opens the modal.
+            if (pt.child_figure_id && !e.altKey) { if (navChild()) return; }
+            openEditPointModal(pt);
+        });
+        addDragBehavior(g, pt);
+
+        // Selected: endpoint handles — drag to rotate / resize the arrow.
+        if (isActive) {
+            [['x_pct', 'y_pct'], ['x2_pct', 'y2_pct']].forEach(function (m) {
+                const kx = m[0], ky = m[1];
+                const h = document.createElementNS(ns, 'circle');
+                h.setAttribute('cx', pt[kx] + '%'); h.setAttribute('cy', pt[ky] + '%');
+                h.setAttribute('r', '6');
+                h.setAttribute('fill', '#fff'); h.setAttribute('stroke', '#0d6efd'); h.setAttribute('stroke-width', '2');
+                h.style.cursor = 'move'; h.style.pointerEvents = 'all';
+                h.addEventListener('mousedown', function (e) {
+                    if (e.button !== 0) return;
+                    e.stopPropagation(); e.preventDefault();
+                    let movedEp = false;
+                    function onMove(ev) {
+                        movedEp = true;
+                        const rr = figureImg.getBoundingClientRect();
+                        const nx = Math.min(100, Math.max(0, (ev.clientX - rr.left) / rr.width  * 100)).toFixed(2);
+                        const ny = Math.min(100, Math.max(0, (ev.clientY - rr.top)  / rr.height * 100)).toFixed(2);
+                        pt[kx] = nx; pt[ky] = ny;
+                        renderPoints(activeFigure.points || []);   // live re-render → block arrow rotates
+                        document.body.style.userSelect = 'none';
+                    }
+                    function onUp() {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        document.body.style.userSelect = '';
+                        if (movedEp) {
+                            justDragged = true; setTimeout(function () { justDragged = false; }, 80);
+                            savePointPosition(pt);
+                            renderPoints(activeFigure.points || []);
+                        }
+                    }
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                });
+                g.appendChild(h);
+            });
+        }
+
+        linesSvg.appendChild(g);
     }
 
     function renderLine(pt) {
@@ -2351,7 +2631,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function addLabelDragBehavior(el, pt) {
         el.addEventListener('mousedown', function (e) {
-            if (e.button !== 0 || addPointMode || addCalloutMode || addCircleMode || addAreaMode || addLineMode || addTextMode) return;
+            if (e.button !== 0 || addPointMode || addCalloutMode || addCircleMode || addAreaMode || addLineMode || addTextMode || addViewMode) return;
             e.stopPropagation();
             const startX = e.clientX, startY = e.clientY;
             let moved = false;
@@ -2456,6 +2736,8 @@ document.addEventListener('DOMContentLoaded', function () {
         leaderLine.style.pointerEvents = 'none';
         g.appendChild(leaderLine);
         linesSvg.appendChild(g);
+
+        renderExtraAnchors(pt, lbl, stroke);   // multi-arrow: extra leaders to this name
     }
 
     function renderTextLabel(pt) {
@@ -2525,6 +2807,8 @@ document.addEventListener('DOMContentLoaded', function () {
         leaderLine.style.pointerEvents = 'none';
         g.appendChild(leaderLine);
         linesSvg.appendChild(g);
+
+        renderExtraAnchors(pt, lbl, stroke);   // multi-arrow: extra leaders to this name
     }
 
     function renderCircle(pt) {
@@ -2674,6 +2958,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (areaPreviewEl) { areaPreviewEl.remove(); areaPreviewEl = null; } areaDragStart = null;
         addLineMode    = false; addLineModeBtn.classList.remove('active');    canvasWrap.classList.remove('add-line-mode');
         resetLineDraw();
+        addViewMode    = false; addViewModeBtn.classList.remove('active');    canvasWrap.classList.remove('add-view-mode');
         addTextMode    = false; addTextModeBtn.classList.remove('active');    canvasWrap.classList.remove('add-text-mode');
         resetTextDraw();
     }
@@ -2706,6 +2991,41 @@ document.addEventListener('DOMContentLoaded', function () {
         const next = !addLineMode;
         deactivateAllModes();
         if (next) { addLineMode = true; addLineModeBtn.classList.add('active'); canvasWrap.classList.add('add-line-mode'); }
+    });
+
+    addViewModeBtn.addEventListener('click', function () {
+        const next = !addViewMode;
+        deactivateAllModes();
+        if (next) { addViewMode = true; addViewModeBtn.classList.add('active'); canvasWrap.classList.add('add-view-mode'); }
+    });
+
+    // ---- mousedown: place a View arrow (click to place; drag the tip to rotate) ----
+    imgContainer.addEventListener('mousedown', async function (e) {
+        if (!addViewMode || !activeFigure || e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = figureImg.getBoundingClientRect();
+        const x  = (e.clientX - rect.left) / rect.width  * 100;
+        const y  = (e.clientY - rect.top)  / rect.height * 100;
+        const x2 = Math.min(100, x + 12);          // default arrow points right; rotate via the tip handle
+        const body = {
+            code:            'A',
+            point_type:      'view',
+            description:     null,
+            child_figure_id: null,
+            x_pct:  +x.toFixed(2),  y_pct:  +y.toFixed(2),
+            x2_pct: +x2.toFixed(2), y2_pct: +y.toFixed(2),
+            sort_order: 0,
+        };
+        try {
+            const saved = await apiFetch('/dimension-figures/' + activeFigure.id + '/points', { method: 'POST', body: JSON.stringify(body) });
+            if (!activeFigure.points) activeFigure.points = [];
+            activeFigure.points.push(saved);
+            deactivateAllModes();
+            renderPoints(activeFigure.points);
+            selectPoint(saved);          // show endpoint handles so it can be rotated immediately
+            openEditPointModal(saved);   // prompt for the letter + target figure right away
+        } catch (err) { alert(err.message); }
     });
 
     addTextModeBtn.addEventListener('click', function () {
@@ -4183,13 +4503,36 @@ document.addEventListener('DOMContentLoaded', function () {
     function applyPointTypeUI(type) {
         const isMeas = type === 'measurement';
         const isText = type === 'text';
+        const isView = type === 'view';
         const isArea = type === 'circle' || type === 'navigation';
         document.getElementById('dimPointCodeWrap').classList.toggle('d-none', isText);
         document.getElementById('dimPointIcWrap').classList.toggle('d-none', !isText);
-        document.getElementById('dimPointChildFigureWrap').classList.toggle('d-none', !isArea);
+        document.getElementById('dimPointChildFigureWrap').classList.toggle('d-none', !(isArea || isView));
         document.getElementById('dimPointFitsWrap').classList.toggle('d-none', !isMeas);
+        // Extra arrows apply to a callout (measurement+label) or a part label.
+        document.getElementById('dimExtraArrowsWrap').classList.toggle('d-none', !(isMeas || isText));
         if (!isMeas) document.getElementById('dimPointFits').checked = false;
     }
+
+    // Working copy of the point's extra leader anchors while the modal is open.
+    let editingExtraAnchors = [];
+    function updateExtraArrowCount() {
+        document.getElementById('dimExtraArrowCount').textContent = editingExtraAnchors.length + ' arrow(s)';
+    }
+    document.getElementById('dimExtraArrowAdd').addEventListener('click', function () {
+        const baseX = parseFloat(document.getElementById('dimPointXDisplay').value) || 50;
+        const baseY = parseFloat(document.getElementById('dimPointYDisplay').value) || 50;
+        const n = editingExtraAnchors.length;
+        editingExtraAnchors.push({
+            x_pct: Math.min(95, baseX + 6 + n * 3).toFixed(2),
+            y_pct: Math.min(95, baseY + 6 + n * 3).toFixed(2),
+        });
+        updateExtraArrowCount();
+    });
+    document.getElementById('dimExtraArrowRemove').addEventListener('click', function () {
+        editingExtraAnchors.pop();
+        updateExtraArrowCount();
+    });
 
     function openAddPointModal(xPct, yPct, widthPct, heightPct, x2Pct, y2Pct, labelXPct, labelYPct) {
         const isArea = widthPct !== null && widthPct !== undefined;
@@ -4220,6 +4563,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimPointDeleteBtn').classList.add('d-none');
         document.getElementById('dimPointError').classList.add('d-none');
         applyPointTypeUI(ptType);
+        editingExtraAnchors = []; updateExtraArrowCount();
         populateChildFigureSelect(null);
         pointModal.show();
     }
@@ -4258,6 +4602,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const title  = pt.point_type === 'text'   ? 'Edit Part Label' :
                        pt.point_type === 'circle'  ? 'Edit Circle'     :
                        pt.point_type === 'navigation' ? 'Edit Area'    :
+                       pt.point_type === 'view'    ? 'Edit View'       :
                        isLine ? 'Edit Line' : 'Edit Point';
         document.getElementById('dimPointId').value            = pt.id;
         document.getElementById('dimPointCode').value          = pt.code || '';
@@ -4283,6 +4628,10 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimPointDeleteBtn').classList.remove('d-none');
         document.getElementById('dimPointError').classList.add('d-none');
         applyPointTypeUI(pt.point_type);
+        editingExtraAnchors = Array.isArray(pt.extra_anchors)
+            ? pt.extra_anchors.map(function (a) { return { x_pct: a.x_pct, y_pct: a.y_pct }; })
+            : [];
+        updateExtraArrowCount();
         populateChildFigureSelect(pt.child_figure_id);
         if (pt.point_type === 'text') populatePointIcSelect(pt.child_ic_id);
         pointModal.show();
@@ -4322,6 +4671,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('dimPointDeleteBtn').classList.add('d-none');
         document.getElementById('dimPointError').classList.add('d-none');
         applyPointTypeUI('text');
+        editingExtraAnchors = []; updateExtraArrowCount();
         populatePointIcSelect(null);
         pointModal.show();
     }
@@ -4345,6 +4695,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const id      = document.getElementById('dimPointId').value;
         const ptType  = document.getElementById('dimPointType').value;
         const isText  = ptType === 'text';
+        const isView  = ptType === 'view';
         const isArea  = ptType === 'circle' || ptType === 'navigation';
         const x2Val   = document.getElementById('dimPointX2Display').value;
         const isLine  = x2Val !== '';
@@ -4356,7 +4707,7 @@ document.addEventListener('DOMContentLoaded', function () {
             code:            isText ? null : document.getElementById('dimPointCode').value.trim(),
             point_type:      ptType,
             description:     document.getElementById('dimPointDescription').value.trim() || null,
-            child_figure_id: isArea ? (document.getElementById('dimPointChildFigure').value || null) : null,
+            child_figure_id: (isArea || isView) ? (document.getElementById('dimPointChildFigure').value || null) : null,
             child_ic_id:     isText ? ($('#dimPointIcSelect').val() || null) : null,
             x_pct:           parseFloat(document.getElementById('dimPointXDisplay').value),
             y_pct:           parseFloat(document.getElementById('dimPointYDisplay').value),
@@ -4367,6 +4718,8 @@ document.addEventListener('DOMContentLoaded', function () {
             label_x_pct:     labelXVal !== '' ? parseFloat(labelXVal) : null,
             label_y_pct:     labelYVal !== '' ? parseFloat(labelYVal) : null,
             is_fits_clearance:  document.getElementById('dimPointFits').checked,
+            extra_anchors:      (!document.getElementById('dimExtraArrowsWrap').classList.contains('d-none') && editingExtraAnchors.length)
+                                    ? editingExtraAnchors : null,
             sort_order:         parseInt(document.getElementById('dimPointSort').value) || 0,
         };
         try {

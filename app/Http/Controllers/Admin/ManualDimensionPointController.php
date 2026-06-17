@@ -18,7 +18,7 @@ class ManualDimensionPointController extends Controller
     public function store(Request $request, ManualDimensionFigure $manualDimensionFigure)
     {
         $data = $request->validate([
-            'point_type'         => 'required|in:navigation,measurement,circle,text',
+            'point_type'         => 'required|in:navigation,measurement,circle,text,view',
             'child_figure_id'    => 'nullable|exists:manual_dimension_figures,id',
             'child_ic_id'        => 'nullable|exists:manual_inspection_components,id',
             'code'               => 'required_unless:point_type,text|nullable|string|max:50',
@@ -32,6 +32,10 @@ class ManualDimensionPointController extends Controller
             'y2_pct'             => 'nullable|numeric|min:0|max:100',
             'label_x_pct'        => 'nullable|numeric|min:0|max:100',
             'label_y_pct'        => 'nullable|numeric|min:0|max:100',
+            'extra_anchors'             => 'nullable|array',
+            'extra_anchors.*.x_pct'     => 'required_with:extra_anchors|numeric|min:0|max:100',
+            'extra_anchors.*.y_pct'     => 'required_with:extra_anchors|numeric|min:0|max:100',
+            'rotation_deg'       => 'nullable|numeric|min:-360|max:360',
             'sort_order'         => 'nullable|integer',
         ]);
 
@@ -49,7 +53,7 @@ class ManualDimensionPointController extends Controller
     public function update(Request $request, ManualDimensionPoint $manualDimensionPoint)
     {
         $data = $request->validate([
-            'point_type'         => 'sometimes|in:navigation,measurement,circle,text',
+            'point_type'         => 'sometimes|in:navigation,measurement,circle,text,view',
             'child_figure_id'    => 'nullable|exists:manual_dimension_figures,id',
             'child_ic_id'        => 'nullable|exists:manual_inspection_components,id',
             'code'               => 'sometimes|nullable|string|max:50',
@@ -63,8 +67,23 @@ class ManualDimensionPointController extends Controller
             'y2_pct'             => 'nullable|numeric|min:0|max:100',
             'label_x_pct'        => 'nullable|numeric|min:0|max:100',
             'label_y_pct'        => 'nullable|numeric|min:0|max:100',
+            'extra_anchors'             => 'nullable|array',
+            'extra_anchors.*.x_pct'     => 'required_with:extra_anchors|numeric|min:0|max:100',
+            'extra_anchors.*.y_pct'     => 'required_with:extra_anchors|numeric|min:0|max:100',
+            'rotation_deg'       => 'nullable|numeric|min:-360|max:360',
             'sort_order'         => 'nullable|integer',
         ]);
+
+        // A part label keeps an internal slug in `code` (NOT NULL). The editor sends
+        // code=null for text points, so preserve the existing slug (or mint one).
+        $effectiveType = $data['point_type'] ?? $manualDimensionPoint->point_type;
+        if ($effectiveType === 'text' && empty($data['code'] ?? null)) {
+            if (empty($manualDimensionPoint->code)) {
+                $data['code'] = 'lbl_' . ($data['child_ic_id'] ?? $manualDimensionPoint->child_ic_id ?? uniqid());
+            } else {
+                unset($data['code']);
+            }
+        }
 
         $manualDimensionPoint->update($data);
 

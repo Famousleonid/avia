@@ -24,11 +24,15 @@ class ManualDimensionPoint extends Model
         'y2_pct',
         'label_x_pct',
         'label_y_pct',
+        'extra_anchors',
+        'rotation_deg',
         'sort_order',
     ];
 
     protected $casts = [
         'is_fits_clearance' => 'boolean',
+        'extra_anchors'     => 'array',
+        'rotation_deg'      => 'float',
     ];
 
     public function figure(): BelongsTo
