@@ -298,4 +298,26 @@ class FitsClearancesTorqueTest extends TestCase
             ->assertOk()
             ->assertSee('FC_HAS_TORQUE = false', false);
     }
+
+    // ---- Measurements F&C grid pairs via the fit registry (cross-point) ----
+
+    public function test_measurements_fc_table_pairs_via_fit_registry(): void
+    {
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        $ic = $this->createInspectionComponent($manual, 'Pin');
+        $od = $this->createParameter($manual, $ic, ['description' => 'OD pin', 'orig_dim_min' => 0.99, 'orig_dim_max' => 1.00]);
+        $id = $this->createParameter($manual, $ic, ['description' => 'ID bush', 'orig_dim_min' => 1.00, 'orig_dim_max' => 1.01]);
+        // Members on DIFFERENT points — the old shared-point logic could not pair these.
+        $this->attachParamToPoint($od, $this->createDimensionPoint($manual, '1', true));
+        $this->attachParamToPoint($id, $this->createDimensionPoint($manual, '2', true));
+        $this->createFit($manual, $od, $id, ['is_fc' => true]);
+
+        $this->actingAs($this->admin())
+            ->get(route('workorders.measurements.fc-table', $wo->id))
+            ->assertOk()
+            ->assertSee('OD pin')
+            ->assertSee('ID bush');
+    }
 }

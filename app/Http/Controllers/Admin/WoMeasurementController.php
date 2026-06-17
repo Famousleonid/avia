@@ -435,121 +435,137 @@ class WoMeasurementController extends Controller
         $fcRows    = [];
         $extraRows = [];
 
+        // F&C pairs come from the explicit fit registry (is_fc) — one source of
+        // truth across the manual table, the WO F&C document and this grid;
+        // supports cross-point pairs that the old shared-point logic could not.
+        $pairedParamIds = [];
+        $fcFits = ManualFit::where('manual_id', $manual->id)
+            ->where('is_fc', true)
+            ->with([
+                'odParam.points.figure', 'odParam.inspectionComponent.variants.component', 'odParam.repairSteps',
+                'idParam.points.figure', 'idParam.inspectionComponent.variants.component', 'idParam.repairSteps',
+            ])
+            ->orderBy('sort_order')
+            ->get();
+
+        foreach ($fcFits as $fit) {
+            $pA = $fit->idParam;  // ID = bore
+            $pB = $fit->odParam;  // OD = shaft
+            if (! $pA || ! $pB) {
+                continue;
+            }
+            $pairedParamIds[$pA->id] = true;
+            $pairedParamIds[$pB->id] = true;
+
+            // Display anchor: the point shared by both members, else either member's.
+            $odPts = $pB->points;
+            $pt = $pA->points->first(fn($p) => $odPts->contains('id', $p->id))
+                ?? $pA->points->first() ?? $odPts->first();
+            $fig = $pt?->figure;
+
+            $measA = $measByParam[$pA->id] ?? null;
+            $measB = $measByParam[$pB->id] ?? null;
+            $limA  = $pA->effectiveLimits($useWear);
+            $limB  = $pB->effectiveLimits($useWear);
+
+            $clearOrigMin = ($pA->orig_dim_min !== null && $pB->orig_dim_max !== null)
+                ? round((float)$pA->orig_dim_min - (float)$pB->orig_dim_max, 4) : null;
+            $clearOrigMax = ($pA->orig_dim_max !== null && $pB->orig_dim_min !== null)
+                ? round((float)$pA->orig_dim_max - (float)$pB->orig_dim_min, 4) : null;
+
+            $aWearMin = $pA->wear_dim_min ?? $pA->orig_dim_min;
+            $aWearMax = $pA->wear_dim_max ?? $pA->orig_dim_max;
+            $bWearMin = $pB->wear_dim_min ?? $pB->orig_dim_min;
+            $bWearMax = $pB->wear_dim_max ?? $pB->orig_dim_max;
+
+            $permClearMax = ($aWearMax !== null && $bWearMin !== null)
+                ? round((float)$aWearMax - (float)$bWearMin, 4) : null;
+
+            $actualClear = ($measA?->actual_value !== null && $measB?->actual_value !== null)
+                ? round((float)$measA->actual_value - (float)$measB->actual_value, 4) : null;
+
+            $fcRows[] = [
+                'fig'          => $fig,
+                'pt'           => $pt,
+                'ref'          => $pt?->code ?? $fit->ref_no ?? '—',
+                'pA'           => $pA,
+                'pB'           => $pB,
+                'measA'        => $measA,
+                'measB'        => $measB,
+                'compA'        => $pA->inspectionComponent?->variants->first()?->component,
+                'compB'        => $pB->inspectionComponent?->variants->first()?->component,
+                'limA'         => $limA,
+                'limB'         => $limB,
+                'clearOrigMin' => $clearOrigMin,
+                'clearOrigMax' => $clearOrigMax,
+                'aWearMin'     => $aWearMin,
+                'aWearMax'     => $aWearMax,
+                'bWearMin'     => $bWearMin,
+                'bWearMax'     => $bWearMax,
+                'permClearMax' => $permClearMax,
+                'actualClear'  => $actualClear,
+                'findingA'     => $findingByParam[$pA->id] ?? null,
+                'findingB'     => $findingByParam[$pB->id] ?? null,
+                // stored result is stage-aware (final → repair steps/limits)
+                'resultA'      => $measA?->result ?? $this->computeResult($measA?->actual_value, $limA),
+                'resultB'      => $measB?->result ?? $this->computeResult($measB?->actual_value, $limB),
+            ];
+        }
+
+        // Every other measured parameter → standalone row (not part of an F&C pair).
         foreach ($figures as $fig) {
             foreach ($fig->points as $pt) {
-                $params = $pt->parameters->sortBy('sort_order')->values();
+                foreach ($pt->parameters->sortBy('sort_order')->values() as $param) {
+                    if (isset($pairedParamIds[$param->id])) {
+                        continue;
+                    }
+                    $meas = $measByParam[$param->id] ?? null;
+                    $lim  = $param->effectiveLimits($useWear);
 
-                if ($pt->is_fits_clearance && $params->count() >= 2) {
-                    // Clearance is ALWAYS ID(bore) − OD(shaft). Param order in the manual
-                    // isn't guaranteed (a point may list OD first), so pick ID/OD explicitly
-                    // by description; fall back to sort_order only if they can't be identified.
-                    $idParam = $params->first(fn($p) => preg_match('/\bID\b/i', (string) ($p->description ?? '')) === 1);
-                    $odParam = $params->first(fn($p) => preg_match('/\bOD\b/i', (string) ($p->description ?? '')) === 1);
-                    if ($idParam && $odParam && $idParam->id !== $odParam->id) {
-                        $pA = $idParam;
-                        $pB = $odParam;
-                    } else {
-                        $pA = $params[0];
-                        $pB = $params[1];
+                    // Repair limits column: explicit repair_dim, otherwise from
+                    // oversize steps — the step the final landed in, or the
+                    // full step span when nothing is machined yet.
+                    $repMin = $param->repair_dim_min;
+                    $repMax = $param->repair_dim_max;
+                    $repLbl = null;
+                    // Repair-surface param without explicit repair_dim: the min
+                    // limit derives from orig min − allowed spotface depths.
+                    if ($repMin === null && $repMax === null
+                        && $param->repair_surface_side !== null
+                        && $param->orig_dim_min !== null) {
+                        $repMin = round((float) $param->orig_dim_min
+                            - (float) ($param->max_repair_depth_a ?? 0)
+                            - (float) ($param->max_repair_depth_b ?? 0), 4);
+                    }
+                    if ($repMin === null && $repMax === null && $param->repairSteps->isNotEmpty()) {
+                        $step = $meas?->repair_step_no
+                            ? $param->repairSteps->first(fn($s) => $s->step_no === $meas->repair_step_no)
+                            : null;
+                        if ($step) {
+                            $repMin = $step->dim_min;
+                            $repMax = $step->dim_max;
+                            $repLbl = $step->step_no;
+                        } else {
+                            $repMin = $param->repairSteps->min('dim_min');
+                            $repMax = $param->repairSteps->max('dim_max');
+                        }
                     }
 
-                    $measA = $measByParam[$pA->id] ?? null;
-                    $measB = $measByParam[$pB->id] ?? null;
-                    $limA  = $pA->effectiveLimits($useWear);
-                    $limB  = $pB->effectiveLimits($useWear);
-
-                    $clearOrigMin = ($pA->orig_dim_min !== null && $pB->orig_dim_max !== null)
-                        ? round((float)$pA->orig_dim_min - (float)$pB->orig_dim_max, 4) : null;
-                    $clearOrigMax = ($pA->orig_dim_max !== null && $pB->orig_dim_min !== null)
-                        ? round((float)$pA->orig_dim_max - (float)$pB->orig_dim_min, 4) : null;
-
-                    $aWearMin = $pA->wear_dim_min ?? $pA->orig_dim_min;
-                    $aWearMax = $pA->wear_dim_max ?? $pA->orig_dim_max;
-                    $bWearMin = $pB->wear_dim_min ?? $pB->orig_dim_min;
-                    $bWearMax = $pB->wear_dim_max ?? $pB->orig_dim_max;
-
-                    $permClearMax = ($aWearMax !== null && $bWearMin !== null)
-                        ? round((float)$aWearMax - (float)$bWearMin, 4) : null;
-
-                    $actualClear = ($measA?->actual_value !== null && $measB?->actual_value !== null)
-                        ? round((float)$measA->actual_value - (float)$measB->actual_value, 4) : null;
-
-                    $fcRows[] = [
-                        'fig'          => $fig,
-                        'pt'           => $pt,
-                        'pA'           => $pA,
-                        'pB'           => $pB,
-                        'measA'        => $measA,
-                        'measB'        => $measB,
-                        'compA'        => $pA->inspectionComponent?->variants->first()?->component,
-                        'compB'        => $pB->inspectionComponent?->variants->first()?->component,
-                        'limA'         => $limA,
-                        'limB'         => $limB,
-                        'clearOrigMin' => $clearOrigMin,
-                        'clearOrigMax' => $clearOrigMax,
-                        'aWearMin'     => $aWearMin,
-                        'aWearMax'     => $aWearMax,
-                        'bWearMin'     => $bWearMin,
-                        'bWearMax'     => $bWearMax,
-                        'permClearMax' => $permClearMax,
-                        'actualClear'  => $actualClear,
-                        'findingA'     => $findingByParam[$pA->id] ?? null,
-                        'findingB'     => $findingByParam[$pB->id] ?? null,
-                        // stored result is stage-aware (final → repair steps/limits)
-                        'resultA'      => $measA?->result ?? $this->computeResult($measA?->actual_value, $limA),
-                        'resultB'      => $measB?->result ?? $this->computeResult($measB?->actual_value, $limB),
+                    $extraRows[] = [
+                        'fig'        => $fig,
+                        'pt'         => $pt,
+                        'param'      => $param,
+                        'meas'       => $meas,
+                        'comp'       => $param->inspectionComponent?->variants->first()?->component,
+                        'lim'        => $lim,
+                        'repair_min' => $repMin,
+                        'repair_max' => $repMax,
+                        'repair_lbl' => $repLbl,
+                        'finding'    => $findingByParam[$param->id] ?? null,
+                        // stored result is stage-aware (initial → orig/wear,
+                        // final → repair limits / steps / spotface depths)
+                        'result'     => $meas?->result ?? $this->computeResult($meas?->actual_value, $lim),
                     ];
-
-                } elseif (!$pt->is_fits_clearance && $params->isNotEmpty()) {
-                    foreach ($params as $param) {
-                        $meas = $measByParam[$param->id] ?? null;
-                        $lim  = $param->effectiveLimits($useWear);
-
-                        // Repair limits column: explicit repair_dim, otherwise from
-                        // oversize steps — the step the final landed in, or the
-                        // full step span when nothing is machined yet.
-                        $repMin = $param->repair_dim_min;
-                        $repMax = $param->repair_dim_max;
-                        $repLbl = null;
-                        // Repair-surface param without explicit repair_dim: the min
-                        // limit derives from orig min − allowed spotface depths.
-                        if ($repMin === null && $repMax === null
-                            && $param->repair_surface_side !== null
-                            && $param->orig_dim_min !== null) {
-                            $repMin = round((float) $param->orig_dim_min
-                                - (float) ($param->max_repair_depth_a ?? 0)
-                                - (float) ($param->max_repair_depth_b ?? 0), 4);
-                        }
-                        if ($repMin === null && $repMax === null && $param->repairSteps->isNotEmpty()) {
-                            $step = $meas?->repair_step_no
-                                ? $param->repairSteps->first(fn($s) => $s->step_no === $meas->repair_step_no)
-                                : null;
-                            if ($step) {
-                                $repMin = $step->dim_min;
-                                $repMax = $step->dim_max;
-                                $repLbl = $step->step_no;
-                            } else {
-                                $repMin = $param->repairSteps->min('dim_min');
-                                $repMax = $param->repairSteps->max('dim_max');
-                            }
-                        }
-
-                        $extraRows[] = [
-                            'fig'        => $fig,
-                            'pt'         => $pt,
-                            'param'      => $param,
-                            'meas'       => $meas,
-                            'comp'       => $param->inspectionComponent?->variants->first()?->component,
-                            'lim'        => $lim,
-                            'repair_min' => $repMin,
-                            'repair_max' => $repMax,
-                            'repair_lbl' => $repLbl,
-                            'finding'    => $findingByParam[$param->id] ?? null,
-                            // stored result is stage-aware (initial → orig/wear,
-                            // final → repair limits / steps / spotface depths)
-                            'result'     => $meas?->result ?? $this->computeResult($meas?->actual_value, $lim),
-                        ];
-                    }
                 }
             }
         }

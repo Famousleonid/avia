@@ -144,13 +144,18 @@ try {
     </div>
 
 @php
-function wfmt($v) {
-    if ($v === null || $v === '') return '—';
-    return number_format(round((float)$v, 4), 4);
+if (! function_exists('wfmt')) {
+    function wfmt($v) {
+        if ($v === null || $v === '') return '—';
+        return number_format(round((float)$v, 4), 4);
+    }
 }
-function figLabel($fig) {
-    $parent = $fig->parentFigure?->title;
-    return $parent ? $parent . ': ' . $fig->title : $fig->title;
+if (! function_exists('figLabel')) {
+    function figLabel($fig) {
+        if (! $fig) return '';
+        $parent = $fig->parentFigure?->title;
+        return $parent ? $parent . ': ' . $fig->title : $fig->title;
+    }
 }
 @endphp
 
@@ -202,9 +207,9 @@ function figLabel($fig) {
         $fixA  = $row['measA'] && $row['measA']->stage === 'final' && $rA === 'PASS';
         $fixB  = $row['measB'] && $row['measB']->stage === 'final' && $rB === 'PASS';
     @endphp
-    <tr data-ref="{{ $row['pt']->code }}" data-type="fc">
+    <tr data-ref="{{ $row['ref'] }}" data-type="fc">
         <td rowspan="2" class="c col-figure" style="color:#666;font-size:10px">{{ figLabel($row['fig']) }}</td>
-        <td rowspan="2" class="c" style="font-weight:700">{{ $row['pt']->code }}</td>
+        <td rowspan="2" class="c" style="font-weight:700">{{ $row['ref'] }}</td>
         <td class="col-part">{{ $row['pA']->description }}@if($iplA) <span style="color:#888">({{ $iplA }})</span>@endif</td>
         <td class="r">{{ wfmt($row['pA']->orig_dim_min) }}</td>
         <td class="r">{{ wfmt($row['pA']->orig_dim_max) }}</td>
@@ -217,7 +222,7 @@ function figLabel($fig) {
         <td class="c col-defect" style="color:#dc3545;font-size:10px">{{ $row['findingA'] ?? '—' }}@if($row['findingA'] && $fixA) <span style="color:#198754;font-weight:700">/ OK</span>@endif</td>
         <td class="c col-result">@if($rA)<span class="{{ strtolower($rA) }}">{{ $rA }}</span>@else —@endif</td>
     </tr>
-    <tr data-ref="{{ $row['pt']->code }}" data-type="fc">
+    <tr data-ref="{{ $row['ref'] }}" data-type="fc">
         <td class="col-part">{{ $row['pB']->description }}@if($iplB) <span style="color:#888">({{ $iplB }})</span>@endif</td>
         <td class="r">{{ wfmt($row['pB']->orig_dim_min) }}</td>
         <td class="r">{{ wfmt($row['pB']->orig_dim_max) }}</td>
