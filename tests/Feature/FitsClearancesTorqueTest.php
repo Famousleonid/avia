@@ -186,4 +186,116 @@ class FitsClearancesTorqueTest extends TestCase
             ->assertOk()
             ->assertSee('B-99');
     }
+
+    // ---- F&C report rows: F&C badge only for members of an is_fc fit ----
+
+    public function test_fc_report_flags_only_is_fc_members(): void
+    {
+        $manual = $this->createManual();
+        $ic = $this->createInspectionComponent($manual, 'Pin');
+        $od = $this->createParameter($manual, $ic, ['description' => 'OD', 'orig_dim_min' => 0.5, 'orig_dim_max' => 0.6]);
+        $id = $this->createParameter($manual, $ic, ['description' => 'ID', 'orig_dim_min' => 0.7, 'orig_dim_max' => 0.8]);
+        $solo = $this->createParameter($manual, $ic, ['description' => 'Lug', 'orig_dim_min' => 0.1, 'orig_dim_max' => 0.2]);
+        $this->attachParamToPoint($od, $this->createDimensionPoint($manual, '1', true));
+        $this->attachParamToPoint($id, $this->createDimensionPoint($manual, '2', true));
+        $this->attachParamToPoint($solo, $this->createDimensionPoint($manual, '3', false));
+        $this->createFit($manual, $od, $id, ['is_fc' => true]);
+
+        $rows = $this->actingAs($this->admin())
+            ->getJson(route('manuals.fits.report', $manual->id))
+            ->assertOk()
+            ->json();
+
+        $byDesc = collect($rows)->keyBy('description');
+        $this->assertTrue((bool) $byDesc['OD']['is_fc']);
+        $this->assertTrue((bool) $byDesc['ID']['is_fc']);
+        $this->assertFalse((bool) $byDesc['Lug']['is_fc']);
+    }
+
+    // ---- Required Bushings: P/N resolved via the fit mate's bore state ----
+
+    public function test_required_bushings_resolves_pn_via_fit(): void
+    {
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $wo = $this->createWorkorder(['unit_id' => $unit->id]);
+
+        $bushIc = $this->createInspectionComponent($manual, 'Bushing 11-10');
+        $bushComp = $this->createComponent($manual, ['is_bush' => true, 'part_number' => 'STD-PN-11-10', 'ipl_num' => '11-10']);
+        $this->attachComponentToIc($bushIc, $bushComp);
+        $od = $this->createParameter($manual, $bushIc, ['description' => 'OD', 'orig_dim_min' => 1.3171, 'orig_dim_max' => 1.3180]);
+        $this->attachParamToPoint($od, $this->createDimensionPoint($manual, 'AA3', false));
+
+        $housingIc = $this->createInspectionComponent($manual, 'Main Fitting');
+        $bore = $this->createParameter($manual, $housingIc, ['description' => 'ID 11-10', 'orig_dim_min' => 1.3134, 'orig_dim_max' => 1.3151]);
+        $this->attachParamToPoint($bore, $this->createDimensionPoint($manual, 'AA3b', false));
+
+        $this->createFit($manual, $od, $bore, ['is_fc' => false]);
+        // Bore measured initial PASS → standard (initial) bushing P/N.
+        $this->createMeasurement($wo, $bore, ['stage' => 'initial', 'result' => 'PASS', 'actual_value' => 1.3140]);
+
+        $this->actingAs($this->admin())
+            ->get(route('workorders.measurements.required-bushings', $wo->id))
+            ->assertOk()
+            ->assertSee('STD-PN-11-10');
+    }
+
+    // ---- A. Torque renderer: value comes from workorder.torque_values ----
+
+    public function test_torque_renderer_reads_workorder_values(): void
+    {
+        $manual = $this->createManual();
+        $doc = $manual->documents()->create(['doc_type' => 'manual', 'title' => 'Torque', 'sort_order' => 0]);
+        $page = $doc->pages()->create(['page_no' => 1, 'image_path' => 't/torque.png', 'image_width' => 1000, 'image_height' => 800, 'sort_order' => 0]);
+        $el = $page->elements()->create(['element_type' => 'dimension', 'value_source' => 'torque', 'x_pct' => 50, 'y_pct' => 50, 'font_size' => 10, 'sort_order' => 0]);
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+        $wo->update(['torque_values' => [(string) $el->id => '3.60']]);
+
+        $renderer = new \App\Services\Measurements\ProcessDocumentRenderer();
+
+        // generate mode → plain text value, no input
+        $gen = $renderer->renderSinglePageHtml($page->fresh()->load('elements'), $wo->fresh(), []);
+        $this->assertStringContainsString('3.60', $gen);
+        $this->assertStringNotContainsString('pdw-torque-input', $gen);
+
+        // edit mode → inline input prefilled from torque_values
+        $edit = $renderer->renderSinglePageHtml($page->fresh()->load('elements'), $wo->fresh(), ['torque_edit' => true]);
+        $this->assertStringContainsString('pdw-torque-input', $edit);
+        $this->assertStringContainsString('value="3.60"', $edit);
+    }
+
+    // ---- B1. F&C Document page exposes the torque fill UI (server scaffolding) ----
+    // The actual Save-PDF JS gate (block until filled) needs a browser test (Dusk);
+    // here we assert the server-rendered prerequisites only.
+
+    public function test_fc_document_shows_torque_inputs_and_save_button(): void
+    {
+        $manual = $this->createManual();
+        $doc = $manual->documents()->create(['doc_type' => 'manual', 'title' => 'Torque', 'sort_order' => 0]);
+        $page = $doc->pages()->create(['page_no' => 1, 'image_path' => 't/torque.png', 'image_width' => 1000, 'image_height' => 800, 'sort_order' => 0]);
+        $el = $page->elements()->create(['element_type' => 'dimension', 'value_source' => 'torque', 'x_pct' => 50, 'y_pct' => 50, 'sort_order' => 0]);
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+        $wo->update(['torque_values' => [(string) $el->id => '7.50']]);
+
+        // Anchor on the gate flag (the server's decision) + the prefilled value,
+        // not on incidental button markup.
+        $resp = $this->actingAs($this->admin())->get(route('workorders.fc-document', $wo->id))->assertOk();
+        $resp->assertSee('FC_HAS_TORQUE = true', false); // gate active
+        $resp->assertSee('value="7.50"', false);         // input prefilled from torque_values
+    }
+
+    public function test_fc_document_has_no_torque_ui_without_torque_marks(): void
+    {
+        $manual = $this->createManual();
+        $doc = $manual->documents()->create(['doc_type' => 'manual', 'title' => 'Doc', 'sort_order' => 0]);
+        $page = $doc->pages()->create(['page_no' => 1, 'image_path' => 't/p.png', 'image_width' => 1000, 'image_height' => 800, 'sort_order' => 0]);
+        $page->elements()->create(['element_type' => 'dimension', 'value_source' => 'static', 'static_value' => 1.0, 'x_pct' => 50, 'y_pct' => 50, 'sort_order' => 0]);
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        // Gate flag off = no torque UI (the literal "saveTorqueBtn" still appears
+        // in the always-emitted JS, so we anchor on the flag, not the markup).
+        $this->actingAs($this->admin())->get(route('workorders.fc-document', $wo->id))
+            ->assertOk()
+            ->assertSee('FC_HAS_TORQUE = false', false);
+    }
 }
