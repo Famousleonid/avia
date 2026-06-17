@@ -58,7 +58,9 @@ try {
 </div>
 
 @php
-function ffmt($v) { return $v === null ? '—' : number_format((float)$v, 4); }
+if (! function_exists('ffmt')) {
+    function ffmt($v) { return $v === null ? '—' : number_format((float)$v, 4); }
+}
 @endphp
 
 @if(empty($rows))

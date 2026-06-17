@@ -140,4 +140,94 @@ trait BuildsDomainData
             'disassembly_upon_arrival' => false,
         ], $attributes));
     }
+
+    // ---- Fits & Clearances / Torque / Measurements fixtures ----
+
+    protected function createInspectionComponent(Manual $manual, string $label = 'IC', array $attributes = []): \App\Models\ManualInspectionComponent
+    {
+        return \App\Models\ManualInspectionComponent::query()->create(array_merge([
+            'manual_id' => $manual->id,
+            'label' => $label . ' ' . uniqid(),
+            'sort_order' => 0,
+        ], $attributes));
+    }
+
+    protected function createComponent(Manual $manual, array $attributes = []): \App\Models\Component
+    {
+        return \App\Models\Component::query()->create(array_merge([
+            'manual_id' => $manual->id,
+            'part_number' => 'PN-' . uniqid(),
+            'name' => 'Comp',
+            'ipl_num' => 'IPL-' . random_int(1, 99999),
+            'is_bush' => false,
+        ], $attributes));
+    }
+
+    /** Attach a component to an inspection component as its variant. */
+    protected function attachComponentToIc(\App\Models\ManualInspectionComponent $ic, \App\Models\Component $component): \App\Models\ManualInspectionComponentVariant
+    {
+        return \App\Models\ManualInspectionComponentVariant::query()->create([
+            'inspection_component_id' => $ic->id,
+            'component_id' => $component->id,
+        ]);
+    }
+
+    protected function createParameter(Manual $manual, ?\App\Models\ManualInspectionComponent $ic = null, array $attributes = []): \App\Models\ManualParameter
+    {
+        return \App\Models\ManualParameter::query()->create(array_merge([
+            'manual_id' => $manual->id,
+            'inspection_component_id' => $ic?->id,
+            'description' => 'OD',
+            'sort_order' => 0,
+        ], $attributes));
+    }
+
+    /** Creates a figure + one point on it; returns the point. */
+    protected function createDimensionPoint(Manual $manual, string $code = 'P', bool $isFc = false, array $attributes = []): \App\Models\ManualDimensionPoint
+    {
+        $figure = \App\Models\ManualDimensionFigure::query()->create([
+            'manual_id' => $manual->id,
+            'figure_type' => 'detail',
+            'title' => 'Fig ' . uniqid(),
+            'image_path' => 'test/fig.png',
+            'image_width' => 1000,
+            'image_height' => 800,
+            'sort_order' => 0,
+        ]);
+
+        return \App\Models\ManualDimensionPoint::query()->create(array_merge([
+            'manual_dimension_figure_id' => $figure->id,
+            'point_type' => 'measurement',
+            'code' => $code,
+            'is_fits_clearance' => $isFc,
+            'x_pct' => 10,
+            'y_pct' => 10,
+            'sort_order' => 0,
+        ], $attributes));
+    }
+
+    protected function attachParamToPoint(\App\Models\ManualParameter $param, \App\Models\ManualDimensionPoint $point): void
+    {
+        $param->points()->syncWithoutDetaching([$point->id]);
+    }
+
+    protected function createFit(Manual $manual, \App\Models\ManualParameter $od, \App\Models\ManualParameter $id, array $attributes = []): \App\Models\ManualFit
+    {
+        return \App\Models\ManualFit::query()->create(array_merge([
+            'manual_id' => $manual->id,
+            'od_param_id' => $od->id,
+            'id_param_id' => $id->id,
+            'is_fc' => true,
+            'sort_order' => 0,
+        ], $attributes));
+    }
+
+    protected function createMeasurement(Workorder $workorder, \App\Models\ManualParameter $param, array $attributes = []): \App\Models\WoMeasurement
+    {
+        return \App\Models\WoMeasurement::query()->create(array_merge([
+            'workorder_id' => $workorder->id,
+            'manual_parameter_id' => $param->id,
+            'stage' => 'final',
+        ], $attributes));
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ManualDimensionFigure;
 use App\Models\ManualDimensionPoint;
+use App\Models\ManualFit;
 use Illuminate\Http\Request;
 
 class ManualDimensionPointController extends Controller
@@ -66,6 +67,19 @@ class ManualDimensionPointController extends Controller
         ]);
 
         $manualDimensionPoint->update($data);
+
+        // Keep manual_fit.is_fc in sync with the point's F&C checkbox: a fit
+        // anchored on this point (both members attached here) is shown in the
+        // F&C table iff the point is flagged Fits & Clearances. Cross-point fits
+        // (members on other points) are not touched.
+        if (array_key_exists('is_fits_clearance', $data)) {
+            $paramIds = $manualDimensionPoint->parameters()->pluck('manual_parameters.id');
+            if ($paramIds->isNotEmpty()) {
+                ManualFit::whereIn('od_param_id', $paramIds)
+                    ->whereIn('id_param_id', $paramIds)
+                    ->update(['is_fc' => (bool) $data['is_fits_clearance']]);
+            }
+        }
 
         return response()->json($manualDimensionPoint->fresh()->load('childIc'));
     }
