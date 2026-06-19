@@ -150,6 +150,24 @@
         padding: 0 0.15rem 2px;
     }
 
+    .mobile-menu-bar .mobile-menu-disabled {
+        color: #8b949e !important;
+        cursor: default;
+        pointer-events: none;
+        user-select: none;
+    }
+
+    .mobile-menu-bar .mobile-menu-disabled .menu-icon-wrapper i,
+    .mobile-menu-bar .mobile-menu-disabled .menu-icon-wrapper span,
+    .mobile-menu-bar .mobile-menu-disabled .menu-label {
+        color: #8b949e !important;
+        text-decoration-color: #8b949e;
+    }
+
+    .mobile-menu-bar .mobile-menu-disabled .menu-icon-wrapper circle {
+        stroke: #6c757d;
+    }
+
     /* All icon glyphs share one horizontal band. */
     .menu-top-icon-slot {
         width: 100%;
@@ -300,10 +318,10 @@
             </a>
         @endif
         @notrole('Shipping')
-        <a href="{{ route('mobile.tasks', $currentWorkorderId) }}" data-spinner
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+        <div class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-decoration-none mobile-menu-disabled"
+             aria-disabled="true">
             <div class="menu-top-icon-slot">
-            <div class="menu-icon-wrapper {{ $isActive('mobile.tasks') ? 'active' : '' }}">
+            <div class="menu-icon-wrapper">
                 <i class="bi bi-alarm"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
@@ -311,7 +329,7 @@
             </div>
             </div>
             <span class="menu-label">Tasks</span>
-        </a>
+        </div>
 
         <a href="{{ route('mobile.components', $currentWorkorderId) }}" data-spinner
            class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none border-0 bg-transparent js-menu-photo">
@@ -324,10 +342,10 @@
             <span class="menu-label">Parts</span>
         </a>
 
-        <a href="{{ route('mobile.process', $currentWorkorderId) }}" data-spinner
-           class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-white text-decoration-none">
+        <div class="flex-fill text-center d-flex flex-column align-items-center justify-content-start text-decoration-none mobile-menu-disabled"
+             aria-disabled="true">
             <div class="menu-top-icon-slot">
-            <div class="menu-icon-wrapper {{ $isActive('mobile.process') ? 'active' : '' }}">
+            <div class="menu-icon-wrapper">
                 <i class="bi bi-activity"></i>
                 <svg viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="18"/>
@@ -335,7 +353,7 @@
             </div>
             </div>
             <span class="menu-label">Process</span>
-        </a>
+        </div>
 
         @endnotrole
 

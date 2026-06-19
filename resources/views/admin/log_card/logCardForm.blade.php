@@ -30,23 +30,24 @@
             @page {
                 /*size: letter landscape;*/
                 size: Letter landscape;
-                margin: 2mm;
+                margin: 3mm;
             }
 
             /* Убедитесь, что вся страница помещается на один лист */
             html, body {
                 height: auto;
                 width: auto;
-                margin-left: 3px;
+                margin: 0;
                 padding: 0;
             }
 
 
             .container-fluid {
-                max-height: calc(100vh - 20px); /* Оставляем место для футера */
+                max-height: 198mm;
                 overflow: hidden;
                 margin: 0 !important;
                 padding: 3px !important;
+                zoom: 0.97;
             }
 
             /* Скрываем ненужные элементы при печати */
@@ -60,15 +61,24 @@
             /* Колонтитул внизу страницы */
             footer {
                 position: fixed;
-                bottom: 0;
+                bottom: 1.5mm;
                 left: 0;
                 right: 0;
-                width: 100%;
+                width: auto;
                 text-align: center;
                 font-size: 12px;
                 background-color: #fff;
-                padding: 2px 0;
+                padding: 0;
                 margin: 0;
+                overflow: visible;
+            }
+
+            footer .row {
+                align-items: center;
+                min-height: 5mm;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 1.5mm !important;
             }
 
             /*!* Уменьшаем отступы в таблицах *!*/

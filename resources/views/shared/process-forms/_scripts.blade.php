@@ -90,6 +90,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
             const saved = loadPrintSettings();
             const g = (id) => document.getElementById(id);
             const settings = normalizePrintSettings({
+                layoutVersion: PRINT_SETTINGS_LAYOUT_VERSION,
                 pageMargin: (g('pageMargin')?.value ?? parseFloat(saved.pageMargin) ?? 1) + 'mm',
                 bodyWidth: (g('bodyWidth')?.value ?? parseFloat(saved.bodyWidth) ?? 98) + '%',
                 bodyHeight: (g('bodyHeight')?.value ?? parseFloat(saved.bodyHeight) ?? 99) + '%',

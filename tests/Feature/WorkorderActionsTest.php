@@ -208,6 +208,59 @@ class WorkorderActionsTest extends TestCase
             ->assertJsonPath('date_start', '2026-04-09');
     }
 
+    public function test_tdr_process_date_clear_is_written_to_dedicated_activity_log(): void
+    {
+        $manager = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $workorder = $this->createWorkorder(['number' => 880611]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $processName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Date Audit Sequence Test'],
+            [
+                'process_sheet_name' => 'TEST',
+                'form_number' => 'AUDIT',
+                'show_in_process_picker' => true,
+            ]
+        );
+        $process = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'date_start' => '2026-06-03',
+            'date_finish' => '2026-06-04',
+        ]);
+
+        $this->actingAs($manager)
+            ->patchJson(route('tdrprocesses.updateDate', $process), [
+                'date_start' => null,
+            ])
+            ->assertOk()
+            ->assertJsonPath('date_start', null)
+            ->assertJsonPath('date_finish', null);
+
+        $activity = Activity::query()
+            ->where('log_name', 'tdr_process_date_change')
+            ->where('subject_type', TdrProcess::class)
+            ->where('subject_id', $process->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($activity);
+        $props = $activity->properties->toArray();
+
+        $this->assertSame('tdr_process_update_date', $props['source']);
+        $this->assertSame($workorder->number, $props['workorder_number']);
+        $this->assertSame($process->id, $props['tdr_process_id']);
+        $this->assertSame(['date_start'], $props['received_fields']);
+        $this->assertSame(['date_start'], $props['empty_fields']);
+        $this->assertTrue($props['auto_cleared_finish']);
+        $this->assertSame('2026-06-03', $props['old']['date_start']);
+        $this->assertSame('2026-06-04', $props['old']['date_finish']);
+        $this->assertNull($props['new']['date_start']);
+        $this->assertNull($props['new']['date_finish']);
+    }
+
     public function test_mains_std_process_returned_date_requires_sent_date_and_same_or_later_date(): void
     {
         $manager = $this->createUserWithRole('Manager');

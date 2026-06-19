@@ -1962,6 +1962,7 @@ class TdrProcessController extends Controller
         $fromMachiningIndex = (int) $request->input('from_machining_index', 0) === 1;
         $oldStart = $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null;
         $oldFinish = $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null;
+        $oldPromise = $tdrProcess->date_promise ? $tdrProcess->date_promise->format('Y-m-d') : null;
         $authId = auth()->id();
         $editorName = $this->dateEditorName();
         $nextProcessForNotification = app(ProcessSequenceGuard::class)->nextAfterTdrProcess($tdrProcess);
@@ -2022,6 +2023,29 @@ class TdrProcessController extends Controller
         $tdrProcess->user_id = $authId;
 
         $tdrProcess->save();
+
+        $this->logTdrProcessDateChange(
+            $request,
+            $tdrProcess,
+            [
+                'date_start' => $oldStart,
+                'date_finish' => $oldFinish,
+                'date_promise' => $oldPromise,
+            ],
+            [
+                'date_start' => $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null,
+                'date_finish' => $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null,
+                'date_promise' => $tdrProcess->date_promise ? $tdrProcess->date_promise->format('Y-m-d') : null,
+            ],
+            $data,
+            $fromPaintIndex ? 'paint_index' : ($fromMachiningIndex ? 'machining_index' : 'tdr_process_update_date'),
+            [
+                'auto_cleared_finish' => array_key_exists('date_start', $data)
+                    && empty($data['date_start'])
+                    && $oldFinish !== null
+                    && ($tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null) === null,
+            ]
+        );
 
         $newFinishForNotification = $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null;
         if ($oldFinish === null && $newFinishForNotification !== null) {
@@ -2246,10 +2270,11 @@ class TdrProcessController extends Controller
             ? app(ProcessSequenceGuard::class)->nextAfterTravelerGroup($tdr, $travelerGroup)
             : null;
 
-        DB::transaction(function () use ($processes, $data, $uid, $editorName): void {
+        DB::transaction(function () use ($processes, $data, $uid, $editorName, $request): void {
             foreach ($processes as $process) {
                 $oldStart = $process->date_start ? $process->date_start->format('Y-m-d') : null;
                 $oldFinish = $process->date_finish ? $process->date_finish->format('Y-m-d') : null;
+                $oldPromise = $process->date_promise ? $process->date_promise->format('Y-m-d') : null;
 
                 if (array_key_exists('date_start', $data)) {
                     $nextStart = $data['date_start'] ?: null;
@@ -2283,6 +2308,30 @@ class TdrProcessController extends Controller
 
                 $process->user_id = $uid;
                 $process->save();
+
+                $this->logTdrProcessDateChange(
+                    $request,
+                    $process,
+                    [
+                        'date_start' => $oldStart,
+                        'date_finish' => $oldFinish,
+                        'date_promise' => $oldPromise,
+                    ],
+                    [
+                        'date_start' => $process->date_start ? $process->date_start->format('Y-m-d') : null,
+                        'date_finish' => $process->date_finish ? $process->date_finish->format('Y-m-d') : null,
+                        'date_promise' => $process->date_promise ? $process->date_promise->format('Y-m-d') : null,
+                    ],
+                    $data,
+                    'traveler_process_update_date',
+                    [
+                        'traveler_group' => (int) ($process->traveler_group ?: 1),
+                        'auto_cleared_finish' => array_key_exists('date_start', $data)
+                            && empty($data['date_start'])
+                            && $oldFinish !== null
+                            && ($process->date_finish ? $process->date_finish->format('Y-m-d') : null) === null,
+                    ]
+                );
             }
         });
 
@@ -2414,6 +2463,27 @@ class TdrProcessController extends Controller
                     }
                     $p->user_id = $uid;
                     $p->save();
+
+                    $this->logTdrProcessDateChange(
+                        $request,
+                        $p,
+                        [
+                            'date_start' => $oldStart,
+                            'date_finish' => $oldFinish,
+                            'date_promise' => $p->date_promise ? $p->date_promise->format('Y-m-d') : null,
+                        ],
+                        [
+                            'date_start' => $p->date_start ? $p->date_start->format('Y-m-d') : null,
+                            'date_finish' => $p->date_finish ? $p->date_finish->format('Y-m-d') : null,
+                            'date_promise' => $p->date_promise ? $p->date_promise->format('Y-m-d') : null,
+                        ],
+                        $data,
+                        'traveler_group_update_date',
+                        [
+                            'traveler_group' => $travelerGroup,
+                            'auto_cleared_finish' => $newStart === null && $oldFinish !== null,
+                        ]
+                    );
                 }
             }
 
@@ -2460,7 +2530,9 @@ class TdrProcessController extends Controller
                 }
 
                 foreach ($fresh as $p) {
+                    $oldStart = $p->date_start ? $p->date_start->format('Y-m-d') : null;
                     $oldFinish = $p->date_finish ? $p->date_finish->format('Y-m-d') : null;
+                    $oldPromise = $p->date_promise ? $p->date_promise->format('Y-m-d') : null;
                     $nextFinish = ($finishVal === null || $finishVal === '') ? null : $finishVal;
                     $p->date_finish = $nextFinish;
                     if ($oldFinish !== $nextFinish) {
@@ -2469,6 +2541,24 @@ class TdrProcessController extends Controller
                     }
                     $p->user_id = $uid;
                     $p->save();
+
+                    $this->logTdrProcessDateChange(
+                        $request,
+                        $p,
+                        [
+                            'date_start' => $oldStart,
+                            'date_finish' => $oldFinish,
+                            'date_promise' => $oldPromise,
+                        ],
+                        [
+                            'date_start' => $p->date_start ? $p->date_start->format('Y-m-d') : null,
+                            'date_finish' => $p->date_finish ? $p->date_finish->format('Y-m-d') : null,
+                            'date_promise' => $p->date_promise ? $p->date_promise->format('Y-m-d') : null,
+                        ],
+                        $data,
+                        'traveler_group_update_date',
+                        ['traveler_group' => $travelerGroup]
+                    );
                 }
             }
 
@@ -2485,9 +2575,30 @@ class TdrProcessController extends Controller
                     ->get();
 
                 foreach ($fresh as $p) {
+                    $oldStart = $p->date_start ? $p->date_start->format('Y-m-d') : null;
+                    $oldFinish = $p->date_finish ? $p->date_finish->format('Y-m-d') : null;
+                    $oldPromise = $p->date_promise ? $p->date_promise->format('Y-m-d') : null;
                     $p->date_promise = $promiseVal;
                     $p->user_id = $uid;
                     $p->save();
+
+                    $this->logTdrProcessDateChange(
+                        $request,
+                        $p,
+                        [
+                            'date_start' => $oldStart,
+                            'date_finish' => $oldFinish,
+                            'date_promise' => $oldPromise,
+                        ],
+                        [
+                            'date_start' => $p->date_start ? $p->date_start->format('Y-m-d') : null,
+                            'date_finish' => $p->date_finish ? $p->date_finish->format('Y-m-d') : null,
+                            'date_promise' => $p->date_promise ? $p->date_promise->format('Y-m-d') : null,
+                        ],
+                        $data,
+                        'traveler_group_update_date',
+                        ['traveler_group' => $travelerGroup]
+                    );
                 }
             }
 
@@ -2711,5 +2822,56 @@ class TdrProcessController extends Controller
     private function dateEditorName(): string
     {
         return auth()->user()?->name ?? 'system';
+    }
+
+    private function logTdrProcessDateChange(
+        Request $request,
+        TdrProcess $tdrProcess,
+        array $oldDates,
+        array $newDates,
+        array $validatedData,
+        string $source,
+        array $extra = []
+    ): void {
+        $dateKeys = ['date_start', 'date_finish', 'date_promise'];
+        $old = array_intersect_key($oldDates, array_flip($dateKeys));
+        $new = array_intersect_key($newDates, array_flip($dateKeys));
+
+        if ($old === $new) {
+            return;
+        }
+
+        $receivedFields = array_values(array_intersect($dateKeys, array_keys($validatedData)));
+        $emptyFields = array_values(array_filter(
+            $receivedFields,
+            fn (string $field): bool => ($validatedData[$field] ?? null) === null || $validatedData[$field] === ''
+        ));
+
+        $tdrProcess->loadMissing(['tdr.workorder', 'tdr.component', 'processName']);
+
+        activity('tdr_process_date_change')
+            ->causedBy(auth()->user())
+            ->performedOn($tdrProcess)
+            ->event('updated')
+            ->withProperties(array_merge([
+                'source' => $source,
+                'route' => optional($request->route())->getName(),
+                'method' => $request->method(),
+                'url' => $request->fullUrl(),
+                'referer' => (string) $request->headers->get('referer', ''),
+                'ip' => $request->ip(),
+                'user_agent' => \Illuminate\Support\Str::limit((string) $request->userAgent(), 240, ''),
+                'received_fields' => $receivedFields,
+                'empty_fields' => $emptyFields,
+                'workorder_id' => (int) ($tdrProcess->tdr?->workorder_id ?? 0),
+                'workorder_number' => (int) ($tdrProcess->tdr?->workorder?->number ?? 0),
+                'tdr_id' => (int) ($tdrProcess->tdrs_id ?? 0),
+                'tdr_process_id' => (int) $tdrProcess->id,
+                'process_name' => (string) ($tdrProcess->processName?->name ?? ''),
+                'detail_part_number' => (string) ($tdrProcess->tdr?->component?->part_number ?? ''),
+                'old' => $old,
+                'new' => $new,
+            ], $extra))
+            ->log('TDR process date updated');
     }
 }

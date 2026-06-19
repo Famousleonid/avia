@@ -222,6 +222,12 @@
                                             'unit_id' => 'unit',
                                             'instruction_id' => 'instruction',
                                             'customer_id' => 'customer',
+                                            'customer_contact_id', 'contact_id' => 'contact',
+                                            'customer_interaction_note_id' => 'marketing note',
+                                            'customer_marketing_profile_id' => 'marketing profile',
+                                            'company_type_id' => 'company type',
+                                            'segment_id' => 'segment',
+                                            'plane_id' => 'aircraft',
                                             'done_user_id' => 'done by',
                                             'notify_user_id' => 'notify user',
                                             default => str_replace('_', ' ', $key),
@@ -251,6 +257,11 @@
                                         $unitMap,
                                         $instructionMap,
                                         $customerMap,
+                                        $customerContactMap,
+                                        $customerNoteMap,
+                                        $customerMarketingProfileMap,
+                                        $marketingCompanyTypeMap,
+                                        $marketingSegmentMap,
                                         $doneUserMap,
                                         $notifyUserMap
                                     ) {
@@ -360,6 +371,36 @@
                                         if ($key === 'customer_id' && is_numeric($value)) {
                                             $id = (int)$value;
                                             return $customerMap[$id] ?? "customer id {$id}";
+                                        }
+
+                                        if (($key === 'customer_contact_id' || $key === 'contact_id') && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $customerContactMap[$id] ?? "contact id {$id}";
+                                        }
+
+                                        if ($key === 'customer_interaction_note_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $customerNoteMap[$id] ?? "marketing note id {$id}";
+                                        }
+
+                                        if ($key === 'customer_marketing_profile_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $customerMarketingProfileMap[$id] ?? "marketing profile id {$id}";
+                                        }
+
+                                        if ($key === 'company_type_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $marketingCompanyTypeMap[$id] ?? "company type id {$id}";
+                                        }
+
+                                        if ($key === 'segment_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $marketingSegmentMap[$id] ?? "segment id {$id}";
+                                        }
+
+                                        if ($key === 'plane_id' && is_numeric($value)) {
+                                            $id = (int)$value;
+                                            return $planeMap[$id] ?? "aircraft id {$id}";
                                         }
 
                                         if (($key === 'done_user_id' || $key === 'date_start_user_id' || $key === 'date_finish_user_id') && is_numeric($value)) {
@@ -585,6 +626,15 @@
                                     } elseif ($a->subject_type === \App\Models\Customer::class && $subjectId) {
                                         $label = $customerMap[$subjectId] ?? ($subject->name ?? null);
                                         $objectText = $label ? "customer: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\CustomerContact::class && $subjectId) {
+                                        $label = $customerContactMap[$subjectId] ?? null;
+                                        $objectText = $label ? "marketing contact: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\CustomerInteractionNote::class && $subjectId) {
+                                        $label = $customerNoteMap[$subjectId] ?? null;
+                                        $objectText = $label ? "marketing note: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\CustomerMarketingProfile::class && $subjectId) {
+                                        $label = $customerMarketingProfileMap[$subjectId] ?? null;
+                                        $objectText = $label ? "marketing profile: {$label}" : $objectText;
                                     } elseif ($a->subject_type === \App\Models\Process::class && $subjectId) {
                                         $label = $processMap[$subjectId] ?? ($subject->process ?? null);
                                         $objectText = $label ? "process: {$label}" : $objectText;

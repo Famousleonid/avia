@@ -9,9 +9,14 @@ use App\Models\Code;
 use App\Models\Component;
 use App\Models\Condition;
 use App\Models\Customer;
+use App\Models\CustomerContact;
+use App\Models\CustomerInteractionNote;
+use App\Models\CustomerMarketingProfile;
 use App\Models\GeneralTask;
 use App\Models\Instruction;
 use App\Models\Manual;
+use App\Models\MarketingCompanyType;
+use App\Models\MarketingSegment;
 use App\Models\Necessary;
 use App\Models\Plane;
 use App\Models\Process;
@@ -163,6 +168,12 @@ class ActivityLogController extends Controller
             'unit_id' => [],
             'instruction_id' => [],
             'customer_id' => [],
+            'customer_contact_id' => [],
+            'contact_id' => [],
+            'customer_interaction_note_id' => [],
+            'customer_marketing_profile_id' => [],
+            'company_type_id' => [],
+            'segment_id' => [],
             'done_user_id' => [],
             'notify_user_id' => [],
         ];
@@ -216,6 +227,18 @@ class ActivityLogController extends Controller
             if ($activity->subject_type === WorkorderUnitInspection::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
                 $idBuckets['workorder_unit_inspection_id'][] = (int) $activity->subject_id;
                 $idBuckets['condition_id'][] = (int) ($flat['condition_id'] ?? 0);
+            }
+
+            if ($activity->subject_type === CustomerContact::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
+                $idBuckets['customer_contact_id'][] = (int) $activity->subject_id;
+            }
+
+            if ($activity->subject_type === CustomerInteractionNote::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
+                $idBuckets['customer_interaction_note_id'][] = (int) $activity->subject_id;
+            }
+
+            if ($activity->subject_type === CustomerMarketingProfile::class && is_numeric($activity->subject_id) && (int) $activity->subject_id > 0) {
+                $idBuckets['customer_marketing_profile_id'][] = (int) $activity->subject_id;
             }
 
             if (isset($activity->subject) && isset($activity->subject->workorder_id)) {
@@ -456,6 +479,55 @@ class ActivityLogController extends Controller
             ->mapWithKeys(fn(Customer $c) => [$c->id => (string)$c->name])
             ->all();
 
+        $customerContactIds = array_values(array_unique(array_merge($idBuckets['customer_contact_id'], $idBuckets['contact_id'])));
+        $customerContactMap = CustomerContact::query()
+            ->whereIn('id', $customerContactIds)
+            ->with('customer:id,name')
+            ->get(['id', 'customer_id', 'first_name', 'last_name', 'email'])
+            ->mapWithKeys(function (CustomerContact $contact): array {
+                $name = trim((string) $contact->first_name.' '.(string) $contact->last_name);
+                $email = trim((string) $contact->email);
+                $contactLabel = $name !== '' && $email !== '' ? "{$name} <{$email}>" : ($name !== '' ? $name : $email);
+                $company = trim((string) ($contact->customer?->name ?? ''));
+
+                return [$contact->id => trim(implode(' - ', array_filter([$company, $contactLabel], fn ($value) => $value !== '')))];
+            })
+            ->all();
+
+        $customerNoteMap = CustomerInteractionNote::query()
+            ->whereIn('id', array_unique($idBuckets['customer_interaction_note_id']))
+            ->with(['customer:id,name', 'contact:id,first_name,last_name,email'])
+            ->get(['id', 'customer_id', 'contact_id', 'interaction_at'])
+            ->mapWithKeys(function (CustomerInteractionNote $note) use ($customerContactMap): array {
+                $company = trim((string) ($note->customer?->name ?? ''));
+                $contact = $note->contact_id ? ($customerContactMap[$note->contact_id] ?? '') : '';
+                $date = $note->interaction_at ? format_project_date($note->interaction_at) : '';
+
+                return [$note->id => trim(implode(' - ', array_filter([$company, $contact, $date], fn ($value) => $value !== '')))];
+            })
+            ->all();
+
+        $customerMarketingProfileMap = CustomerMarketingProfile::query()
+            ->whereIn('id', array_unique($idBuckets['customer_marketing_profile_id']))
+            ->with('customer:id,name')
+            ->get(['id', 'customer_id'])
+            ->mapWithKeys(fn (CustomerMarketingProfile $profile): array => [
+                $profile->id => trim((string) ($profile->customer?->name ?? 'Marketing profile')),
+            ])
+            ->all();
+
+        $marketingCompanyTypeMap = MarketingCompanyType::query()
+            ->whereIn('id', array_unique($idBuckets['company_type_id']))
+            ->get(['id', 'name'])
+            ->mapWithKeys(fn (MarketingCompanyType $type): array => [$type->id => (string) $type->name])
+            ->all();
+
+        $marketingSegmentMap = MarketingSegment::query()
+            ->whereIn('id', array_unique($idBuckets['segment_id']))
+            ->get(['id', 'name'])
+            ->mapWithKeys(fn (MarketingSegment $segment): array => [$segment->id => (string) $segment->name])
+            ->all();
+
         $doneUserIds = array_values(array_unique(array_merge(
             $idBuckets['done_user_id'],
             $idBuckets['date_start_user_id'],
@@ -533,6 +605,11 @@ class ActivityLogController extends Controller
             'unitMap',
             'instructionMap',
             'customerMap',
+            'customerContactMap',
+            'customerNoteMap',
+            'customerMarketingProfileMap',
+            'marketingCompanyTypeMap',
+            'marketingSegmentMap',
             'doneUserMap',
             'notifyUserMap',
             'purgeDaysOptions',
