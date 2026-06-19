@@ -19,3 +19,9 @@ yarn-error.log
 /sync_media.log
 /sync_media.php
 /.claude/settings.local.json
+/.codex-checkpoints/
+/codex-db-backups/
+/outputs/
+/manager/log/
+/quantum/log/
+/outputs/process_names_ref/node_modules/
