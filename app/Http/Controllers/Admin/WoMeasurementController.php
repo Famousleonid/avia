@@ -173,7 +173,7 @@ class WoMeasurementController extends Controller
             ]);
 
         $codes = Code::orderBy('name')->get(['id', 'name', 'code']);
-        $missingCodeId = Code::where('name', 'Missing')->value('id');
+        $missingCodeId = optional(Code::missing())->id;
 
         $tdrComponentIds = Tdr::where('workorder_id', $workorder->id)
             ->pluck('component_id')->unique()->filter()->values()->all();
@@ -864,9 +864,9 @@ class WoMeasurementController extends Controller
 
         // ── Missing Part ─────────────────────────────────────────────
         if (!empty($data['missing_meas_id'])) {
-            $missingCode      = Code::where('name', 'Missing')->first();
+            $missingCode      = Code::missing();
             $necessary        = Necessary::where('name', 'Order New')->first();
-            $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+            $missingCondition = Condition::partsMissing();
 
             $tdr = Tdr::create([
                 'tdr_type'           => Tdr::TYPE_ORDER_NEW,

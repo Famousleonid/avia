@@ -57,7 +57,7 @@ class TdrPrintFormController extends Controller
         $necessaries = Necessary::all();
 
         $necessary = Necessary::where('name', 'Order New')->first();
-        $code = Code::where('name', 'Missing')->first();
+        $code = Code::missing();
 
         $manuals = Manual::where('id', $manual_id)
             ->with('builder')
@@ -596,7 +596,7 @@ class TdrPrintFormController extends Controller
             $excludedIplNumsPaint = [];
 
             // Получаем ID для Missing, Repair, Order New
-            $missingCode = Code::where('name', 'Missing')->first();
+            $missingCode = Code::missing();
             $repairCode = Code::where('name', 'Repair')->first();
             $orderNewNecessary = Necessary::where('name', 'Order New')->first();
 
@@ -1597,7 +1597,7 @@ class TdrPrintFormController extends Controller
         $current_wo->load('tdrs.component', 'tdrs.conditions', 'tdrs.necessaries', 'tdrs.codes');
 
         $necessary = Necessary::where('name', 'Order New')->first();
-        $code = Code::where('name', 'Missing')->first();
+        $code = Code::missing();
 
         // Массивы для хранения разных типов строк
         $nullComponentConditions = []; // Для строк, где component_id == null
@@ -1605,7 +1605,7 @@ class TdrPrintFormController extends Controller
         $necessaryComponents = []; // Для строк, где component_id !== null и necessaries_id !== Order New
         $hasMissingComponents = false; // Флаг наличия компонентов с кодом Missing
 
-        $missingConditionName = 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST';
+        $missingConditionName = Condition::NAME_PARTS_MISSING;
         $unitInspections = WorkorderUnitInspection::query()
             ->with('condition:id,name')
             ->where('workorder_id', $current_wo->id)
@@ -1860,7 +1860,7 @@ class TdrPrintFormController extends Controller
     private function ndtStdExcludedAndTdrQtyByNormalizedIpl(int $workorderId): array
     {
         $excludedQtyByIpl = [];
-        $missingCode = Code::where('name', 'Missing')->first();
+        $missingCode = Code::missing();
         $repairCode = Code::where('name', 'Repair')->first();
         $orderNewNecessary = Necessary::where('name', 'Order New')->first();
 

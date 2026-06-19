@@ -657,7 +657,7 @@ class ProcessDocumentRenderer
         }
         if (!$paramIds) return 'pass';
 
-        $missingCodeId = \App\Models\Code::where('name', 'Missing')->value('id');
+        $missingCodeId = optional(\App\Models\Code::missing())->id;
 
         $byParam = WoMeasurement::where('workorder_id', $workorder->id)
             ->whereIn('manual_parameter_id', $paramIds)
@@ -729,7 +729,7 @@ class ProcessDocumentRenderer
 
         $state = null;
         if ($tdr) {
-            $missingCodeId = \App\Models\Code::where('name', 'Missing')->value('id');
+            $missingCodeId = optional(\App\Models\Code::missing())->id;
             $state = ($missingCodeId && (int) $tdr->codes_id === (int) $missingCodeId) ? 'missing' : 'ordernew';
         }
         return $this->tdrStateCache[$paramId] = $state;

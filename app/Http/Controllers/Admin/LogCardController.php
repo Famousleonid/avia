@@ -158,7 +158,7 @@ class LogCardController extends Controller
         $manual = Manual::find($manual_id);
 
         $necessary = Necessary::where('name', 'Order New')->first();
-        $code = Code::where('name', 'Missing')->first();
+        $code = Code::missing();
 
         $components = Component::with(['assemblies'])
             ->where('manual_id', $manual_id)
