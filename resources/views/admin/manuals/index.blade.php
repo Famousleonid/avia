@@ -59,6 +59,17 @@
             cursor: pointer;
         }
 
+        .manual-soft-deleted-row > td,
+        .manual-soft-deleted-row > th {
+            background: rgba(220, 53, 69, 0.16) !important;
+            color: var(--bs-secondary-color);
+        }
+
+        .manual-soft-deleted-row .manual-number {
+            text-decoration: line-through;
+            text-decoration-thickness: 1px;
+        }
+
         .clearable-input {
             position: relative;
             width: 400px;
@@ -271,17 +282,41 @@
                         <th class="text-primary text-center sortable bg-gradient" data-direction="asc">
                             {{ __('Lib') }} <i class="bi bi-chevron-expand ms-1"></i>
                         </th>
-                        <th class="text-primary text-center bg-gradient">{{ __('Action') }}</th>
+                        <th class="text-primary text-center bg-gradient">
+                            @role('Admin')
+                                <label class="d-inline-flex align-items-center justify-content-center gap-1 mb-1 small text-nowrap"
+                                       title="{{ __('Show all, including soft-deleted manuals') }}">
+                                    <input type="checkbox"
+                                           class="form-check-input m-0"
+                                           id="showDeletedManualsCheckbox"
+                                           @checked($showDeleted ?? false)>
+                                    <span>{{ __('All') }}</span>
+                                </label>
+                                <br>
+                            @endrole
+                            {{ __('Action') }}
+                        </th>
                     </tr>
                     </thead>
 
                     <tbody>
                     @foreach($cmms as $cmm)
-                        <tr>
+                        @php
+                            $isDeletedManual = method_exists($cmm, 'trashed') && $cmm->trashed();
+                        @endphp
+                        <tr @class(['manual-soft-deleted-row' => $isDeletedManual])>
                             <td>
-                                <a href="{{ route('manuals.show', ['manual' => $cmm->id]) }}">
-                                    {{ $cmm->number }}
-                                </a>
+                                @if($isDeletedManual)
+                                    <span class="manual-number">{{ $cmm->number }}</span>
+                                    <span class="badge text-bg-danger ms-1"
+                                          title="{{ __('Deleted at') }} {{ format_project_date($cmm->deleted_at) }}">
+                                        {{ __('Soft deleted') }}
+                                    </span>
+                                @else
+                                    <a href="{{ route('manuals.show', ['manual' => $cmm->id]) }}">
+                                        {{ $cmm->number }}
+                                    </a>
+                                @endif
                             </td>
 
                             <td title="{{ $cmm->title }}">{{ $cmm->title }}</td>
@@ -309,30 +344,59 @@
                             <td class="text-center">{{ $cmm->lib }}</td>
 
                             <td class="text-center">
-                                <button type="button"
-                                   class="btn btn-outline-primary btn-sm open-edit-cmm-drawer"
-                                   data-manual-url="{{ route('manuals.edit', ['manual' => $cmm->id]) }}"
-                                   data-update-url="{{ route('manuals.update', ['manual' => $cmm->id]) }}">
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
+                                @if($isDeletedManual)
+                                    <span class="badge bg-secondary me-1"
+                                          title="{{ __('Deleted at') }} {{ format_project_date($cmm->deleted_at) }}">
+                                        {{ __('Deleted') }} {{ format_project_date($cmm->deleted_at) }}
+                                    </span>
+                                @else
+                                    <button type="button"
+                                       class="btn btn-outline-primary btn-sm open-edit-cmm-drawer"
+                                       data-manual-url="{{ route('manuals.edit', ['manual' => $cmm->id]) }}"
+                                       data-update-url="{{ route('manuals.update', ['manual' => $cmm->id]) }}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                @endif
 
                                 @role('Admin')
-                                <form id="deleteForm_{{ $cmm->id }}"
-                                      action="{{ route('manuals.destroy', ['manual' => $cmm->id]) }}"
-                                      method="POST"
-                                      style="display:inline;">
-                                    @csrf
-                                    @method('DELETE')
+                                @unless($isDeletedManual)
+                                    <form id="deleteForm_{{ $cmm->id }}"
+                                          action="{{ route('manuals.destroy', ['manual' => $cmm->id]) }}"
+                                          method="POST"
+                                          style="display:inline;">
+                                        @csrf
+                                        @method('DELETE')
 
-                                    <button class="btn btn-sm btn-outline-danger"
-                                            type="button"
-                                            name="btn_delete"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#useConfirmDelete"
-                                            data-title="Delete Confirmation row {{ $cmm->number }}">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                type="button"
+                                                name="btn_delete"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#useConfirmDelete"
+                                                data-title="Delete Confirmation row {{ $cmm->number }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                @endunless
+
+                                @if(auth()->user()?->isSystemAdmin())
+                                    <form id="forceDeleteForm_{{ $cmm->id }}"
+                                          action="{{ route('manuals.force-destroy', ['manual' => $cmm->id]) }}"
+                                          method="POST"
+                                          style="display:inline;">
+                                        @csrf
+                                        @method('DELETE')
+
+                                        <button class="btn btn-sm btn-danger"
+                                                type="button"
+                                                name="btn_force_delete"
+                                                title="{{ __('Permanently delete') }}"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#useConfirmDelete"
+                                                data-title="Permanent delete {{ $cmm->number }}">
+                                            <i class="bi bi-x-octagon"></i>
+                                        </button>
+                                    </form>
+                                @endif
                                 @endrole
                             </td>
                         </tr>
@@ -590,6 +654,19 @@
             const clearBtn = document.getElementById('clearSearchBtn') ||
                 document.querySelector('.clearable-input .btn-clear');
             const loading = document.getElementById('tableLoading');
+            const showDeletedCheckbox = document.getElementById('showDeletedManualsCheckbox');
+
+            if (showDeletedCheckbox) {
+                showDeletedCheckbox.addEventListener('change', function () {
+                    const url = new URL(window.location.href);
+                    if (this.checked) {
+                        url.searchParams.set('with_deleted', '1');
+                    } else {
+                        url.searchParams.delete('with_deleted');
+                    }
+                    window.location.href = url.toString();
+                });
+            }
 
             const STORAGE_KEY = 'cmm_search';
             const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];

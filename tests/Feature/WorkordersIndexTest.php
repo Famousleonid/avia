@@ -12,6 +12,7 @@ use App\Models\TdrProcess;
 use App\Models\Task;
 use App\Models\UserUiSetting;
 use App\Models\WorkorderGeneralTaskStatus;
+use App\Services\Workorders\WorkorderVisibilityService;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
 
@@ -235,6 +236,113 @@ class WorkordersIndexTest extends TestCase
         $response->assertJsonPath('total_count', 1);
         $response->assertSee((string) $matching->number);
         $response->assertDontSee((string) $other->number);
+    }
+
+    public function test_visibility_service_hides_fifth_general_task_for_shop_roles(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $teamLeader = $this->createUserWithRole('Team Leader');
+        $manager = $this->createUserWithRole('Manager');
+
+        $generalTasks = collect(range(1, 5))->map(fn (int $position): GeneralTask => new GeneralTask([
+            'name' => 'Visibility Stage ' . $position,
+            'sort_order' => $position,
+        ]));
+
+        $service = app(WorkorderVisibilityService::class);
+
+        $this->assertSame(
+            ['Visibility Stage 1', 'Visibility Stage 2', 'Visibility Stage 3', 'Visibility Stage 4'],
+            $service->filterVisibleGeneralTasks($generalTasks, $technician)->pluck('name')->all()
+        );
+        $this->assertSame(
+            ['Visibility Stage 1', 'Visibility Stage 2', 'Visibility Stage 3', 'Visibility Stage 4'],
+            $service->filterVisibleGeneralTasks($generalTasks, $teamLeader)->pluck('name')->all()
+        );
+        $this->assertSame(
+            ['Visibility Stage 1', 'Visibility Stage 2', 'Visibility Stage 3', 'Visibility Stage 4', 'Visibility Stage 5'],
+            $service->filterVisibleGeneralTasks($generalTasks, $manager)->pluck('name')->all()
+        );
+    }
+
+    public function test_shop_roles_active_filter_hides_submitted_final_inspection_workorders(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $manager = $this->createUserWithRole('Manager');
+
+        $finalStage = GeneralTask::query()->create([
+            'name' => 'Final inspection visibility stage',
+            'sort_order' => 98,
+        ]);
+        $completeStage = GeneralTask::query()->create([
+            'name' => 'Complete visibility stage',
+            'sort_order' => 99,
+        ]);
+
+        $submittedTask = Task::query()->create([
+            'name' => '2. WO Submitted for Final Inspection',
+            'general_task_id' => $finalStage->id,
+            'task_has_start_date' => false,
+        ]);
+        $completedTask = Task::query()->create([
+            'name' => 'Completed',
+            'general_task_id' => $completeStage->id,
+            'task_has_start_date' => false,
+        ]);
+
+        $regular = $this->createWorkorder([
+            'user_id' => $technician->id,
+            'number' => 108201,
+        ]);
+        $submitted = $this->createWorkorder([
+            'user_id' => $technician->id,
+            'number' => 108202,
+        ]);
+        $completed = $this->createWorkorder([
+            'user_id' => $technician->id,
+            'number' => 108203,
+        ]);
+
+        Main::query()->create([
+            'workorder_id' => $submitted->id,
+            'general_task_id' => $finalStage->id,
+            'task_id' => $submittedTask->id,
+            'user_id' => $technician->id,
+            'date_finish' => '2026-05-04',
+            'ignore_row' => false,
+        ]);
+        Main::query()->create([
+            'workorder_id' => $completed->id,
+            'general_task_id' => $completeStage->id,
+            'task_id' => $completedTask->id,
+            'user_id' => $technician->id,
+            'date_finish' => '2026-05-05',
+            'ignore_row' => false,
+        ]);
+
+        $technicianResponse = $this->actingAs($technician)->getJson(route('workorders.index', [
+            'fragment' => 1,
+            'per_page' => 50,
+            'only_active' => 1,
+        ]));
+
+        $technicianResponse->assertOk();
+        $technicianResponse->assertJsonPath('total_count', 1);
+        $technicianResponse->assertSee((string) $regular->number);
+        $technicianResponse->assertDontSee((string) $submitted->number);
+        $technicianResponse->assertDontSee((string) $completed->number);
+
+        $managerResponse = $this->actingAs($manager)->getJson(route('workorders.index', [
+            'fragment' => 1,
+            'per_page' => 50,
+            'only_active' => 1,
+        ]));
+
+        $managerResponse->assertOk();
+        $managerResponse->assertJsonPath('total_count', 2);
+        $managerResponse->assertSee((string) $regular->number);
+        $managerResponse->assertSee((string) $submitted->number);
+        $managerResponse->assertDontSee((string) $completed->number);
     }
 
     public function test_stage_cache_matches_all_tasks_in_complete_stage(): void

@@ -103,6 +103,14 @@
         </a>
     </li>
 
+    @hasanyrole('Admin|Manager')
+        <li class="nav-item">
+            <a class="nav-link press-spinner {{ request()->routeIs('marketing.*') ? 'active' : '' }}" href="{{ route('marketing.index') }}">
+                <i class="bi bi-megaphone me-2"></i> <span>Marketing</span>
+            </a>
+        </li>
+    @endhasanyrole
+
 
 
     @roles("Admin|Team Leader|Manager")

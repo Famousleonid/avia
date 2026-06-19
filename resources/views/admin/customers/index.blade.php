@@ -4,6 +4,7 @@
 
 @section('content')
     @php
+        $canCreateCustomers = auth()->check() && auth()->user()->roleIs('Admin');
         $canDeleteCustomers = auth()->check() && auth()->user()->roleIs('Admin');
     @endphp
     <style>
@@ -88,10 +89,12 @@
                 {{-- Right: actions --}}
                 <div class="col-12 col-md-3">
                     <div class="dir-actions">
-                        <button class="btn btn-outline-primary btn-sm"
-                                data-bs-toggle="modal" data-bs-target="#createModal">
-                            {{ __('Add customer') }}
-                        </button>
+                        @if($canCreateCustomers)
+                            <button class="btn btn-outline-primary btn-sm"
+                                    data-bs-toggle="modal" data-bs-target="#createModal">
+                                {{ __('Add customer') }}
+                            </button>
+                        @endif
                     </div>
                 </div>
 
@@ -137,27 +140,29 @@
         @endif
     </div>
 
-    {{-- Create Modal --}}
-    <div class="modal fade dir-modal" id="createModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog dir-modal-dialog">
-            <div class="modal-content dir-modal-content">
-                <div class="modal-header dir-modal-header">
-                    <h5 class="modal-title">Add Customer</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body dir-modal-body">
-                    <form id="createForm" method="POST" action="{{ route('customers.store') }}">
-                        @csrf
-                        <div class="mb-3">
-                            <label for="createName" class="form-label">Name</label>
-                            <input type="text" id="createName" name="name" class="form-control" required>
-                        </div>
-                        <button type="submit" class="btn btn-outline-primary">Save</button>
-                    </form>
+    @if($canCreateCustomers)
+        {{-- Create Modal --}}
+        <div class="modal fade dir-modal" id="createModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog dir-modal-dialog">
+                <div class="modal-content dir-modal-content">
+                    <div class="modal-header dir-modal-header">
+                        <h5 class="modal-title">Add Customer</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body dir-modal-body">
+                        <form id="createForm" method="POST" action="{{ route('customers.store') }}">
+                            @csrf
+                            <div class="mb-3">
+                                <label for="createName" class="form-label">Name</label>
+                                <input type="text" id="createName" name="name" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary">Save</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    @endif
 
     {{-- Edit Modal --}}
     <div class="modal fade dir-modal" id="editModal" tabindex="-1" aria-hidden="true">

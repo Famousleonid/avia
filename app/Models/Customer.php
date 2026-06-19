@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Customer extends Model
@@ -17,5 +19,29 @@ class Customer extends Model
         return $this->hasMany(Workorder::class);
     }
 
+    public function workorders(): HasMany
+    {
+        return $this->hasMany(Workorder::class);
+    }
+
+    public function marketingProfile(): HasOne
+    {
+        return $this->hasOne(CustomerMarketingProfile::class);
+    }
+
+    public function marketingAircraft(): HasMany
+    {
+        return $this->hasMany(CustomerAircraft::class);
+    }
+
+    public function marketingContacts(): HasMany
+    {
+        return $this->hasMany(CustomerContact::class)->orderByDesc('is_primary')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function marketingNotes(): HasMany
+    {
+        return $this->hasMany(CustomerInteractionNote::class)->latest('interaction_at')->latest('id');
+    }
 
 }

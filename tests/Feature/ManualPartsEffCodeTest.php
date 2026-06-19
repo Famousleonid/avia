@@ -26,12 +26,14 @@ class ManualPartsEffCodeTest extends TestCase
                 'name' => 'Manual Part With Eff',
                 'units_assy' => '2',
                 'eff_code' => 'EFF-A',
+                'np' => true,
                 'redirect' => route('manuals.show', ['manual' => $manual, 'tab' => 'parts']),
             ]);
 
         $createResponse->assertOk();
         $component = Component::query()->where('manual_id', $manual->id)->where('part_number', 'PN-100')->firstOrFail();
         $this->assertSame('EFF-A', $component->eff_code);
+        $this->assertTrue((bool) $component->np);
 
         $updateResponse = $this
             ->actingAs($admin)
@@ -42,12 +44,14 @@ class ManualPartsEffCodeTest extends TestCase
                 'name' => 'Manual Part With Eff',
                 'units_assy' => '2',
                 'eff_code' => 'EFF-B',
+                'np' => true,
                 'redirect' => route('manuals.show', ['manual' => $manual, 'tab' => 'parts']),
             ]);
 
         $updateResponse->assertOk();
         $component->refresh();
         $this->assertSame('EFF-B', $component->eff_code);
+        $this->assertTrue((bool) $component->np);
 
         $showResponse = $this->actingAs($admin)->get(route('manuals.show', ['manual' => $manual, 'tab' => 'parts']));
 
@@ -55,6 +59,20 @@ class ManualPartsEffCodeTest extends TestCase
         $html = $showResponse->getContent();
         $this->assertStringContainsString('EFF Code', $html);
         $this->assertStringContainsString('EFF-B', $html);
-        $this->assertMatchesRegularExpression('/<th[^>]*>EFF Code<\/th>\s*<th[^>]*>Image<\/th>/s', $html);
+        $this->assertMatchesRegularExpression('/<th[^>]*title="Kit"[^>]*>Kit<\/th>\s*<th[^>]*title="NP"[^>]*>NP<\/th>\s*<th[^>]*title="Kit E"[^>]*>Kit_E<\/th>/s', $html);
+        $this->assertStringContainsString('data-field="np"', $html);
+
+        $jsonResponse = $this->actingAs($admin)->getJson(route('components.showJson', $component));
+        $jsonResponse->assertOk();
+        $jsonResponse->assertJsonPath('component.np', true);
+
+        $flagResponse = $this->actingAs($admin)->patchJson(route('components.updateFlags', $component), [
+            'field' => 'np',
+            'value' => false,
+        ]);
+        $flagResponse->assertOk();
+        $flagResponse->assertJsonPath('field', 'np');
+        $flagResponse->assertJsonPath('value', false);
+        $this->assertFalse((bool) $component->fresh()->np);
     }
 }

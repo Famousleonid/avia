@@ -1,3 +1,9 @@
+@php
+    $frontBackgroundImage = str_contains((string) session('url.intended'), '/cabinet')
+        ? 'img/avia190.png'
+        : 'img/nodus.png';
+@endphp
+
 @extends('front.master')
 
 @section('content')

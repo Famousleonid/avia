@@ -88,7 +88,10 @@
                                     @foreach($components as $component)
                                         <option value="{{ $component->id }}"
                                                 data-has_assy="{{ $component->assy_part_number ? 'true' : 'false' }}"
-                                                data-title="{{ $component->name }}">
+                                                data-title="{{ $component->name }}"
+                                                data-ipl="{{ $component->ipl_num }}"
+                                                data-part-number="{{ $component->part_number }}"
+                                                data-np="{{ $component->np ? '1' : '0' }}">
                                             {{ $component->ipl_num }} : {{ $component->part_number }} - {{$component->name }}
                                         </option>
                                     @endforeach
@@ -165,11 +168,12 @@
                                         <select name="order_component_id" id="order_component_id" class="form-control" style="width: 350px">
                                             <option selected value="">---</option>
                                             @foreach($components as $component)
-                                                <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="">
+                                                @continue($component->np)
+                                                <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="" data-np="{{ $component->np ? '1' : '0' }}">
                                                     {{ $component->assy_part_number ?: $component->part_number }} - {{ $component->name }} ({{ $component->ipl_num }})
                                                 </option>
                                                 @foreach($component->assemblies ?? [] as $assembly)
-                                                    <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="{{ $assembly->id }}">
+                                                    <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="{{ $assembly->id }}" data-np="{{ $component->np ? '1' : '0' }}">
                                                         {{ $assembly->assy_part_number }} - {{ $component->name }} ({{ $assembly->assy_ipl_num }}) (assy)
                                                     </option>
                                                 @endforeach
@@ -497,6 +501,8 @@
             });
 
             function appendOrderComponentOption(component) {
+                if (component.np) return;
+
                 const assemblies = Array.isArray(component.assemblies) ? component.assemblies : [];
                 const componentId = component.id || '';
                 const componentName = component.name || '';
@@ -506,7 +512,8 @@
                     .val(componentId)
                     .text(componentText)
                     .attr('data-component-id', componentId)
-                    .attr('data-assembly-id', ''));
+                    .attr('data-assembly-id', '')
+                    .attr('data-np', component.np ? '1' : '0'));
 
                 assemblies.forEach(function(assembly) {
                     const assyPart = assembly.assy_part_number || '';
@@ -516,7 +523,8 @@
                         .val(componentId)
                         .text(assyPart + ' - ' + componentName + ' (' + assyIpl + ') (assy)')
                         .attr('data-component-id', componentId)
-                        .attr('data-assembly-id', assembly.id || ''));
+                        .attr('data-assembly-id', assembly.id || '')
+                        .attr('data-np', component.np ? '1' : '0'));
                 });
             }
 
@@ -796,22 +804,26 @@
                         $('#i_component_id').append(
                             '<option value="' + component.id + '" ' +
                             'data-has_assy="' + ((component.assy_part_number || (Array.isArray(component.assemblies) && component.assemblies.length)) ? 'true' : 'false') + '" ' +
-                            'data-title="' + component.name + '">' +
+                            'data-title="' + component.name + '" ' +
+                            'data-ipl="' + (component.ipl_num || '') + '" ' +
+                            'data-part-number="' + (component.part_number || '') + '" ' +
+                            'data-np="' + (component.np ? '1' : '0') + '">' +
                             component.ipl_num + ' : ' + component.part_number + ' - ' + component.name +
                             '</option>'
                         );
 
                         // Добавляем те же опции в дропдаун заказа компонентов
                         // Используем assy_part_number если есть, иначе part_number
+                        if (component.np) return;
                         const displayPartNumber = component.assy_part_number || component.part_number;
                         $('#order_component_id').append(
-                            '<option value="' + component.id + '">' +
+                            '<option value="' + component.id + '" data-component-id="' + component.id + '" data-assembly-id="" data-np="' + (component.np ? '1' : '0') + '">' +
                             displayPartNumber + ' - ' + component.name + ' (' + component.ipl_num + ')' +
                             '</option>'
                         );
                         (Array.isArray(component.assemblies) ? component.assemblies : []).forEach(function(assembly) {
                             $('#order_component_id').append(
-                                '<option value="' + component.id + '" data-component-id="' + component.id + '" data-assembly-id="' + (assembly.id || '') + '">' +
+                                '<option value="' + component.id + '" data-component-id="' + component.id + '" data-assembly-id="' + (assembly.id || '') + '" data-np="' + (component.np ? '1' : '0') + '">' +
                                 (assembly.assy_part_number || '') + ' - ' + component.name + ' (' + (assembly.assy_ipl_num || '') + ') (assy)' +
                                 '</option>'
                             );

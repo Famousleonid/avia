@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\UserUiSetting;
 use App\Models\Workorder;
 use App\Models\TdrProcess;
+use App\Services\Workorders\WorkorderVisibilityService;
 use App\Services\WorkorderStdListProcessesService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -32,6 +33,10 @@ use Illuminate\Validation\Rule;
 
 class WorkorderController extends Controller
 {
+    public function __construct(private WorkorderVisibilityService $workorderVisibility)
+    {
+    }
+
     public function logs(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
@@ -336,13 +341,11 @@ class WorkorderController extends Controller
             $filters['cursor']
         );
 
-        $generalTasks = GeneralTask::query()
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+        $generalTasks = $this->workorderVisibility->visibleGeneralTasksFor($request->user());
 
         $tasksByGeneral = Task::query()
             ->select('id', 'name', 'general_task_id')
+            ->whereIn('general_task_id', $generalTasks->pluck('id'))
             ->orderBy('general_task_id')
             ->orderBy('name')
             ->get()
@@ -453,14 +456,7 @@ class WorkorderController extends Controller
         }
 
         if ($filters['only_active']) {
-            $query->whereDoesntHave('main', function (Builder $main) {
-                $main->whereNotNull('task_id')
-                    ->where('ignore_row', false)
-                    ->whereNotNull('date_finish')
-                    ->whereHas('task', function (Builder $task) {
-                        $task->where('name', 'Completed');
-                    });
-            });
+            $this->workorderVisibility->applyActiveFilterForUser($query, auth()->user());
         }
     }
 

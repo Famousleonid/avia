@@ -10,6 +10,7 @@
         'log_card' => 'LC',
         'is_bush' => 'Bush',
         'kit' => 'Kit',
+        'np' => 'NP',
         'kit_e' => 'Kit_E',
         'ndt_list' => 'NDT',
         'cad_list' => 'CAD',

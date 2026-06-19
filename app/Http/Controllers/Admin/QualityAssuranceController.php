@@ -504,6 +504,7 @@ class QualityAssuranceController extends Controller
         $includeLandingGearLogCard = $certificateStateBoolSetting('include_landing_gear_log_card', true);
         $includeRoycoService = $certificateStateBoolSetting('include_royco_service', false);
         $includeOverhauledOn = $certificateStateBoolSetting('include_overhauled_on', false);
+        $overhauledOnDate = $certificateStateStringSetting('certificate_overhauled_on_date');
         $orderNewNecessaryId = Necessary::query()
             ->where('name', 'Order New')
             ->value('id');
@@ -545,6 +546,7 @@ class QualityAssuranceController extends Controller
             'includeLandingGearLogCard' => $includeLandingGearLogCard,
             'includeRoycoService' => $includeRoycoService,
             'includeOverhauledOn' => $includeOverhauledOn,
+            'overhauledOnDate' => $overhauledOnDate,
             'hasOrderedReplacementParts' => $hasOrderedReplacementParts,
             'certificateItemSettings' => $certificateItemSettings,
             'certificateStatusOptions' => $certificateStatusOptions,
@@ -576,6 +578,11 @@ class QualityAssuranceController extends Controller
                     'certificate_status_instruction_id',
                     'certificate_status_work',
                     'certificate_remarks',
+                    'certificate_airworthiness_remark',
+                    'certificate_landing_gear_log_card_remark',
+                    'certificate_royco_service_remark',
+                    'certificate_c_correction_remark',
+                    'certificate_overhauled_on_date',
                     'include_landing_gear_log_card',
                     'include_royco_service',
                     'include_overhauled_on',
@@ -599,7 +606,7 @@ class QualityAssuranceController extends Controller
                     ->where('can_sign_certificates', true)
                     ->findOrFail((int) $value);
             }
-        } elseif ($key === 'certificate_date') {
+        } elseif (in_array($key, ['certificate_date', 'certificate_overhauled_on_date'], true)) {
             $value = trim((string) $value);
             if ($value !== '') {
                 $value = parse_project_date($value) ?: $value;
@@ -616,6 +623,9 @@ class QualityAssuranceController extends Controller
                 ->map(fn ($remark): string => trim((string) $remark))
                 ->values()
                 ->all();
+        } elseif (in_array($key, ['certificate_airworthiness_remark', 'certificate_landing_gear_log_card_remark', 'certificate_royco_service_remark', 'certificate_c_correction_remark'], true)) {
+            $value = trim((string) $value);
+            abort_unless(mb_strlen($value) <= 2000, 422, 'Certificate value is too long.');
         } elseif (in_array($key, ['certificate_work_order', 'certificate_item_description', 'certificate_item_part', 'certificate_item_serial', 'certificate_status_work'], true)) {
             $value = trim((string) $value);
             abort_unless(mb_strlen($value) <= 1000, 422, 'Certificate value is too long.');
@@ -635,6 +645,11 @@ class QualityAssuranceController extends Controller
             'certificate_status_instruction_id',
             'certificate_status_work',
             'certificate_remarks',
+            'certificate_airworthiness_remark',
+            'certificate_landing_gear_log_card_remark',
+            'certificate_royco_service_remark',
+            'certificate_c_correction_remark',
+            'certificate_overhauled_on_date',
             'include_landing_gear_log_card',
             'include_royco_service',
             'include_overhauled_on',

@@ -1032,6 +1032,7 @@
                                 <col class="manual-part-flag-col" style="width: 46px;">
                                 <col class="manual-part-flag-col" style="width: 46px;">
                                 <col class="manual-part-flag-col" style="width: 46px;">
+                                <col class="manual-part-flag-col" style="width: 46px;">
                                 <col class="manual-part-action-col" style="width: 86px;">
                             </colgroup>
                             <thead class="bg-gradient">
@@ -1050,6 +1051,7 @@
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Log Card">LC</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Bushing">Bush</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Kit">Kit</th>
+                                <th class="text-center bg-gradient align-content-center component-flag-head" title="NP">NP</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="Kit E">Kit_E</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="NDT List">NDT</th>
                                 <th class="text-center bg-gradient align-content-center component-flag-head" title="CAD List">CAD</th>
@@ -1071,7 +1073,7 @@
                                 ])
                                 @if($parts->isEmpty())
                                     <tr class="components-empty-row">
-                                        <td colspan="18" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
+                                        <td colspan="19" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
@@ -1504,6 +1506,10 @@
                             <label class="form-check-label" for="manual_drawer_kit">Kit</label>
                         </div>
                         <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_drawer_np" name="np">
+                            <label class="form-check-label" for="manual_drawer_np">NP</label>
+                        </div>
+                        <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="manual_drawer_kit_e" name="kit_e">
                             <label class="form-check-label" for="manual_drawer_kit_e">Kit_E</label>
                         </div>
@@ -1614,6 +1620,10 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="manual_edit_drawer_kit" name="kit">
                             <label class="form-check-label" for="manual_edit_drawer_kit">Kit</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="manual_edit_drawer_np" name="np">
+                            <label class="form-check-label" for="manual_edit_drawer_np">NP</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="manual_edit_drawer_kit_e" name="kit_e">
@@ -1902,7 +1912,7 @@
                                         <li><strong>units_assy</strong> - {{__('Units assy (optional)')}}</li>
                                         <li><strong>log_card</strong> - {{__('Log card (0 or 1, optional)')}}</li>
                                         <li><strong>is_bush</strong> - {{__('Is bushing (0 or 1, optional)')}}</li>
-                                        <li><strong>kit</strong>, <strong>kit_e</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
+                                        <li><strong>kit</strong>, <strong>np</strong>, <strong>kit_e</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
                                         <li><strong>bush_ipl_num</strong> - {{__('Bushing IPL number (optional)')}}</li>
                                     </ul>
                                     <div class="alert alert-warning mt-3 mb-0">
@@ -2770,7 +2780,7 @@
                         if (manualEditDrawer.isBush) manualEditDrawer.isBush.checked = !!component.is_bush;
                         var logCard = document.getElementById('manual_edit_drawer_log_card');
                         if (logCard) logCard.checked = !!component.log_card;
-                        ['kit', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].forEach(function (field) {
+                        ['kit', 'np', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].forEach(function (field) {
                             var checkbox = document.getElementById('manual_edit_drawer_' + field);
                             if (checkbox) checkbox.checked = !!component[field];
                         });

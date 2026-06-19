@@ -40,6 +40,101 @@ class ManualsTest extends TestCase
         $response->assertSee('Main Manual');
     }
 
+    public function test_system_admin_sees_and_can_permanently_delete_manual(): void
+    {
+        $systemAdmin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $manual = $this->createManual([
+            'number' => 'CMM-FORCE',
+            'title' => 'Force Delete Manual',
+        ]);
+        $component = Component::create([
+            'part_number' => 'FORCE-PART-1',
+            'name' => 'Force Part One',
+            'ipl_num' => '10-1',
+            'manual_id' => $manual->id,
+        ]);
+        $softDeletedComponent = Component::create([
+            'part_number' => 'FORCE-PART-2',
+            'name' => 'Force Part Two',
+            'ipl_num' => '10-2',
+            'manual_id' => $manual->id,
+        ]);
+        $softDeletedComponent->delete();
+
+        $index = $this->actingAs($systemAdmin)->get(route('manuals.index'));
+        $index->assertOk();
+        $index->assertSee(route('manuals.force-destroy', ['manual' => $manual->id]), false);
+
+        $response = $this->actingAs($systemAdmin)->delete(route('manuals.force-destroy', ['manual' => $manual->id]));
+
+        $response->assertRedirect(route('manuals.index'));
+        $this->assertDatabaseMissing('manuals', ['id' => $manual->id]);
+        $this->assertDatabaseMissing('components', ['id' => $component->id]);
+        $this->assertDatabaseMissing('components', ['id' => $softDeletedComponent->id]);
+    }
+
+    public function test_admin_role_without_is_admin_cannot_permanently_delete_manual(): void
+    {
+        $roleOnlyAdmin = $this->createUserWithRole('Admin', ['is_admin' => false]);
+        $manual = $this->createManual([
+            'number' => 'CMM-NO-FORCE',
+            'title' => 'No Force Delete Manual',
+        ]);
+
+        $index = $this->actingAs($roleOnlyAdmin)->get(route('manuals.index'));
+        $index->assertOk();
+        $index->assertDontSee(route('manuals.force-destroy', ['manual' => $manual->id]), false);
+
+        $response = $this->actingAs($roleOnlyAdmin)->delete(route('manuals.force-destroy', ['manual' => $manual->id]));
+
+        $response->assertForbidden();
+        $this->assertDatabaseHas('manuals', ['id' => $manual->id]);
+    }
+
+    public function test_admin_can_toggle_soft_deleted_manuals_in_index(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual([
+            'number' => 'CMM-SOFT-DELETED',
+            'title' => 'Soft Deleted Manual',
+        ]);
+        $manual->delete();
+
+        $defaultResponse = $this->actingAs($admin)->get(route('manuals.index'));
+        $defaultResponse->assertOk();
+        $defaultResponse->assertDontSee('CMM-SOFT-DELETED');
+
+        $withDeletedResponse = $this->actingAs($admin)->get(route('manuals.index', ['with_deleted' => 1]));
+        $withDeletedResponse->assertOk();
+        $withDeletedResponse->assertSee('CMM-SOFT-DELETED');
+        $withDeletedResponse->assertSee('Soft deleted');
+        $withDeletedResponse->assertSee('manual-soft-deleted-row', false);
+        $withDeletedResponse->assertSee('showDeletedManualsCheckbox', false);
+        $withDeletedResponse->assertSee('Permanent delete CMM-SOFT-DELETED', false);
+
+        $deleteResponse = $this->actingAs($admin)->delete(route('manuals.force-destroy', ['manual' => $manual->id]));
+
+        $deleteResponse->assertRedirect(route('manuals.index'));
+        $this->assertDatabaseMissing('manuals', ['id' => $manual->id]);
+    }
+
+    public function test_non_admin_cannot_include_soft_deleted_manuals_in_index(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $manual = $this->createManual([
+            'number' => 'CMM-HIDDEN-DELETED',
+            'title' => 'Hidden Deleted Manual',
+        ]);
+        $manual->permittedUsers()->attach($technician->id);
+        $manual->delete();
+
+        $response = $this->actingAs($technician)->get(route('manuals.index', ['with_deleted' => 1]));
+
+        $response->assertOk();
+        $response->assertDontSee('CMM-HIDDEN-DELETED');
+        $response->assertDontSee('id="showDeletedManualsCheckbox"', false);
+    }
+
     public function test_non_admin_sees_only_permitted_manuals(): void
     {
         $technician = $this->createUserWithRole('Technician');

@@ -70,6 +70,84 @@ class TdrsTest extends TestCase
         ]);
     }
 
+    public function test_tdr_order_component_picker_marks_np_parts_and_store_rejects_them_for_missing_and_order_new(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'unit_id' => $unit->id,
+        ]);
+        $inspectedComponent = Component::query()->create([
+            'manual_id' => $manual->id,
+            'part_number' => 'TDR-INSP',
+            'name' => 'Inspected Component',
+            'ipl_num' => '1-10',
+        ]);
+        $npComponent = Component::query()->create([
+            'manual_id' => $manual->id,
+            'part_number' => 'TDR-NP',
+            'name' => 'NP Component',
+            'ipl_num' => '1-20',
+            'np' => true,
+        ]);
+        $missingCode = Code::query()->firstOrCreate(['name' => 'Missing'], ['code' => 'M']);
+        $repairCode = Code::query()->firstOrCreate(['name' => 'Repairable'], ['code' => 'R']);
+        $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
+        Condition::query()->firstOrCreate([
+            'name' => 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST',
+        ], [
+            'unit' => false,
+        ]);
+
+        $componentsResponse = $this->actingAs($admin)->get(route('api.get-components-by-manual', [
+            'manual_id' => $manual->id,
+            'workorder_id' => $workorder->id,
+            'exclude_kits' => 1,
+        ]));
+
+        $componentsResponse->assertOk();
+        $npPayload = collect($componentsResponse->json('components'))
+            ->firstWhere('id', $npComponent->id);
+        $this->assertSame(true, $npPayload['np'] ?? null);
+
+        $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+        $showResponse->assertOk();
+        $this->assertStringContainsString('data-np="1"', $showResponse->getContent());
+
+        $missingResponse = $this->actingAs($admin)->post(route('tdrs.store'), [
+            'workorder_id' => $workorder->id,
+            'component_id' => $inspectedComponent->id,
+            'serial_number' => 'NSN',
+            'assy_serial_number' => ' ',
+            'codes_id' => $missingCode->id,
+            'necessaries_id' => $orderNew->id,
+            'qty' => 1,
+            'description' => 'Missing NP order attempt',
+            'order_component_id' => $npComponent->id,
+        ]);
+        $missingResponse->assertSessionHasErrors('order_component_id');
+
+        $orderNewResponse = $this->actingAs($admin)->post(route('tdrs.store'), [
+            'workorder_id' => $workorder->id,
+            'component_id' => $inspectedComponent->id,
+            'serial_number' => 'NSN',
+            'assy_serial_number' => ' ',
+            'codes_id' => $repairCode->id,
+            'necessaries_id' => $orderNew->id,
+            'qty' => 1,
+            'description' => 'Order New NP order attempt',
+            'order_component_id' => $npComponent->id,
+        ]);
+        $orderNewResponse->assertSessionHasErrors('order_component_id');
+
+        $this->assertDatabaseMissing('tdrs', [
+            'workorder_id' => $workorder->id,
+            'order_component_id' => $npComponent->id,
+        ]);
+    }
+
     public function test_update_part_field_updates_po_num(): void
     {
         $admin = $this->createUserWithRole('Admin');

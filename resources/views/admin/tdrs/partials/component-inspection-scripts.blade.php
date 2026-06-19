@@ -114,11 +114,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     ipl_num: option?.dataset?.ipl || '',
                     part_number: option?.dataset?.partNumber || '',
                     name: option?.dataset?.title || '',
+                    np: option?.dataset?.np === '1',
                     assemblies: componentAssembliesFromOption(option)
                 };
             }
 
+            function shouldExcludeNpOrderComponents() {
+                const codeName = ($('#codes_id option:selected').attr('data-title') || '').toString().trim().toLowerCase();
+                const necessaryName = ($('#necessaries_id option:selected').attr('data-title') || '').toString().trim().toLowerCase();
+                return codeName === 'missing' || necessaryName === 'order new';
+            }
+
             function appendOrderComponentOption(component) {
+                if (shouldExcludeNpOrderComponents() && component.np) return;
+
                 const assemblies = Array.isArray(component.assemblies) ? component.assemblies : [];
                 const componentId = component.id || '';
                 const componentName = component.name || '';
@@ -129,7 +138,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     .text(componentText)
                     .attr('data-component-id', componentId)
                     .attr('data-assembly-id', '')
-                    .attr('data-ipl', component.ipl_num || ''));
+                    .attr('data-ipl', component.ipl_num || '')
+                    .attr('data-np', component.np ? '1' : '0'));
 
                 assemblies.forEach(function(assembly) {
                     const assyPart = assembly.assy_part_number || '';
@@ -140,7 +150,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         .text(assyPart + ' - ' + componentName + ' (' + assyIpl + ') (assy)')
                         .attr('data-component-id', componentId)
                         .attr('data-assembly-id', assembly.id || '')
-                        .attr('data-ipl', assyIpl || component.ipl_num || ''));
+                        .attr('data-ipl', assyIpl || component.ipl_num || '')
+                        .attr('data-np', component.np ? '1' : '0'));
                 });
             }
 
@@ -328,6 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 .attr('data-title', component.name || '')
                                 .attr('data-ipl', component.ipl_num || '')
                                 .attr('data-part-number', component.part_number || '')
+                                .attr('data-np', component.np ? '1' : '0')
                                 .attr('data-assemblies', JSON.stringify(assemblies)));
                         });
                         $('#i_component_id').trigger('change');
@@ -462,6 +474,12 @@ function initTdrInlineCreate() {
         return [ipl, partNumber].filter(Boolean).join(' : ') + (title ? ' - ' + title : '');
     }
 
+    function shouldExcludeInlineNpOrderComponents() {
+        const codeName = selectedTitle(codeSelect).toLowerCase();
+        const necessaryName = selectedTitle(necessarySelect).toLowerCase();
+        return codeName === 'missing' || necessaryName === 'order new';
+    }
+
     function renderComponentSelectionText(option) {
         const selectedOption = option || componentSelect?.options[componentSelect.selectedIndex] || null;
         const partNumber = selectedOption && selectedOption.value ? partNumberFromOption(selectedOption) : '';
@@ -534,7 +552,9 @@ function initTdrInlineCreate() {
         if (!option || !option.value) return [];
         try {
             const parsed = JSON.parse(option.dataset.assemblies || '[]');
-            return Array.isArray(parsed) ? parsed : [];
+            return Array.isArray(parsed) ? parsed.filter(function(assembly) {
+                return assembly && assembly.id;
+            }) : [];
         } catch (error) {
             return [];
         }
@@ -587,6 +607,7 @@ function initTdrInlineCreate() {
         const selectedOption = option || selectedComponentOption();
         const selectedComponentId = selectedOption?.value || '';
         const selectedSection = iplSectionKey(selectedOption?.dataset?.ipl || '');
+        const excludeNp = shouldExcludeInlineNpOrderComponents();
 
         const previousComponentId = orderComponentIdInput?.value || '';
         const previousAssemblyId = orderComponentAssemblyInput?.value || '';
@@ -596,6 +617,7 @@ function initTdrInlineCreate() {
             .filter(function(componentOption) {
                 const componentId = componentOption?.value || '';
                 if (!componentId) return false;
+                if (excludeNp && componentOption?.dataset?.np === '1') return false;
                 if (!selectedSection) return true;
 
                 return iplSectionKey(componentOption?.dataset?.ipl || '') === selectedSection;
@@ -615,6 +637,7 @@ function initTdrInlineCreate() {
             }), 'component:' + componentId);
             orderOption.dataset.componentId = componentId;
             orderOption.dataset.assemblyId = '';
+            orderOption.dataset.np = componentOption?.dataset?.np || '0';
             orderComponentSelect.appendChild(orderOption);
 
             assemblies.forEach(function(assembly) {
@@ -628,19 +651,29 @@ function initTdrInlineCreate() {
                 const assemblyOption = new Option(label, 'assembly:' + (assembly.id || ''));
                 assemblyOption.dataset.componentId = componentId;
                 assemblyOption.dataset.assemblyId = assembly.id || '';
+                assemblyOption.dataset.isAssy = '1';
+                assemblyOption.dataset.np = componentOption?.dataset?.np || '0';
                 orderComponentSelect.appendChild(assemblyOption);
             });
         });
 
+        const orderOptions = Array.from(orderComponentSelect.options);
+        const selectedComponentOrderOptions = orderOptions.filter(function(item) {
+            return selectedComponentId && (item.dataset.componentId || '') === selectedComponentId;
+        });
+        const selectedComponentHasAssyChoice = selectedComponentOrderOptions.some(function(item) {
+            return (item.dataset.isAssy || '') === '1';
+        });
+
         const optionToRestore = previousAssemblyId
-            ? Array.from(orderComponentSelect.options).find(function(item) {
+            ? orderOptions.find(function(item) {
                 return (item.dataset.assemblyId || '') === previousAssemblyId;
             })
-            : Array.from(orderComponentSelect.options).find(function(item) {
+            : orderOptions.find(function(item) {
                 return previousComponentId && (item.dataset.componentId || '') === previousComponentId && !(item.dataset.assemblyId || '');
-            }) || Array.from(orderComponentSelect.options).find(function(item) {
+            }) || (!selectedComponentHasAssyChoice ? orderOptions.find(function(item) {
                 return selectedComponentId && (item.dataset.componentId || '') === selectedComponentId && !(item.dataset.assemblyId || '');
-            });
+            }) : null);
 
         orderComponentSelect.value = optionToRestore ? optionToRestore.value : '';
         if (optionToRestore) {
@@ -920,6 +953,10 @@ function initTdrInlineCreate() {
         const showQty = hasComponent && ((isManufacture && !showOrderPicker) || showOrderPicker);
         const showSerial = hasNecessary && !isOrderNew;
 
+        if (showOrderPicker) {
+            populateOrderComponentChoices(componentOption);
+        }
+
         setInlineCellVisible('code', hasComponent);
         setInlineCellVisible('necessary', !!showNecessary);
         setInlineCellVisible('serial', !!showSerial || showOrderPicker);
@@ -983,6 +1020,10 @@ function initTdrInlineCreate() {
                             .attr('data-title', title)
                             .attr('data-ipl', ipl)
                             .attr('data-part-number', partNumber)
+                            .attr('data-assy-part-number', component.assy_part_number || '')
+                            .attr('data-assy-ipl', component.assy_ipl_num || '')
+                            .attr('data-units-assy', component.units_assy || '')
+                            .attr('data-np', component.np ? '1' : '0')
                             .attr('data-assemblies', JSON.stringify(assemblies))
                     );
                 });

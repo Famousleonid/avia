@@ -597,6 +597,7 @@
                             <th class="text-center component-flag-head" title="Log Card">LC</th>
                             <th class="text-center component-flag-head" title="Bushing">Bush</th>
                             <th class="text-center component-flag-head" title="Kit">Kit</th>
+                            <th class="text-center component-flag-head" title="NP">NP</th>
                             <th class="text-center component-flag-head" title="Kit E">Kit_E</th>
                             <th class="text-center component-flag-head" title="NDT List">NDT</th>
                             <th class="text-center component-flag-head" title="CAD List">CAD</th>
@@ -610,7 +611,7 @@
                         @include('admin.components.partials.index-rows', ['components' => $components, 'showEffCodeColumn' => true])
                         @if($componentsTotal === 0)
                             <tr class="components-empty-row">
-                                <td colspan="17" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
+                                <td colspan="18" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td>
                             </tr>
                         @endif
                         </tbody>
@@ -692,6 +693,10 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="drawer_kit" name="kit">
                                 <label class="form-check-label" for="drawer_kit">Kit</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="drawer_np" name="np">
+                                <label class="form-check-label" for="drawer_np">NP</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="drawer_kit_e" name="kit_e">
@@ -864,6 +869,10 @@
                                 <label class="form-check-label" for="edit_drawer_kit">Kit</label>
                             </div>
                             <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_drawer_np" name="np">
+                                <label class="form-check-label" for="edit_drawer_np">NP</label>
+                            </div>
+                            <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="edit_drawer_kit_e" name="kit_e">
                                 <label class="form-check-label" for="edit_drawer_kit_e">Kit_E</label>
                             </div>
@@ -973,7 +982,7 @@
                                             <li><strong>units_assy</strong> - {{__('Units assy (optional)')}}</li>
                                             <li><strong>log_card</strong> - {{__('Log card (0 or 1, optional)')}}</li>
                                             <li><strong>is_bush</strong> - {{__('Is bushing (0 or 1, optional)')}}</li>
-                                            <li><strong>kit</strong>, <strong>kit_e</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
+                                            <li><strong>kit</strong>, <strong>np</strong>, <strong>kit_e</strong>, <strong>ndt_list</strong>, <strong>cad_list</strong>, <strong>stress_relief_list</strong>, <strong>paint_list</strong> - {{__('Flags (0 or 1, optional)')}}</li>
                                             <li><strong>bush_ipl_num</strong> - {{__('Bushing IPL number (optional)')}}</li>
                                         </ul>
                                         <div class="alert alert-warning mt-3 mb-0">
@@ -1319,7 +1328,7 @@
                             if (isBush) isBush.checked = !!component.is_bush;
                             const logCard = document.getElementById('edit_drawer_log_card');
                             if (logCard) logCard.checked = !!component.log_card;
-                            ['kit', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].forEach((field) => {
+                            ['kit', 'np', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'].forEach((field) => {
                                 const checkbox = document.getElementById(`edit_drawer_${field}`);
                                 if (checkbox) checkbox.checked = !!component[field];
                             });

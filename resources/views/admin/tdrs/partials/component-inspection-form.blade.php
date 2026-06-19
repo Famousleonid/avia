@@ -32,6 +32,7 @@
                                 data-title="{{ $component->name }}"
                                 data-ipl="{{ $component->ipl_num }}"
                                 data-part-number="{{ $component->part_number }}"
+                                data-np="{{ $component->np ? '1' : '0' }}"
                                 data-assemblies='{{ $componentAssembliesJson }}'>
                             {{ $component->ipl_num }} : {{ $component->part_number }} - {{ $component->name }}
                         </option>
@@ -104,11 +105,12 @@
                         <select name="order_component_id" id="order_component_id" class="form-control" style="width: 350px">
                             <option selected value="">---</option>
                             @foreach($components as $component)
-                                <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="" data-ipl="{{ $component->ipl_num }}">
+                                @continue($component->np)
+                                <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="" data-ipl="{{ $component->ipl_num }}" data-np="{{ $component->np ? '1' : '0' }}">
                                     {{ $component->assy_part_number ?: $component->part_number }} - {{ $component->name }} ({{ $component->ipl_num }})
                                 </option>
                                 @foreach($component->assemblies ?? [] as $assembly)
-                                    <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="{{ $assembly->id }}" data-ipl="{{ $assembly->assy_ipl_num ?: $component->ipl_num }}">
+                                    <option value="{{ $component->id }}" data-component-id="{{ $component->id }}" data-assembly-id="{{ $assembly->id }}" data-ipl="{{ $assembly->assy_ipl_num ?: $component->ipl_num }}" data-np="{{ $component->np ? '1' : '0' }}">
                                         {{ $assembly->assy_part_number }} - {{ $component->name }} ({{ $assembly->assy_ipl_num }}) (assy)
                                     </option>
                                 @endforeach

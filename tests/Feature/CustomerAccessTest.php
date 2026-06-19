@@ -24,6 +24,44 @@ class CustomerAccessTest extends TestCase
         $response->assertSee('Customers');
         $response->assertSee('Manager Visible Customer');
         $response->assertSee(route('customers.index'), false);
+        $response->assertDontSee('data-bs-target="#createModal"', false);
+    }
+
+    public function test_only_admin_can_create_customers(): void
+    {
+        $manager = $this->createUserWithRole('Manager');
+        $admin = $this->createUserWithRole('Admin');
+
+        $this->actingAs($manager)
+            ->postJson(route('customers.store'), ['name' => 'Manager New Customer'])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('customers', ['name' => 'Manager New Customer']);
+
+        $this->actingAs($admin)
+            ->postJson(route('customers.store'), ['name' => 'Admin New Customer'])
+            ->assertCreated()
+            ->assertJsonPath('name', 'Admin New Customer');
+
+        $this->assertDatabaseHas('customers', ['name' => 'Admin New Customer']);
+    }
+
+    public function test_workorder_create_customer_plus_is_admin_only(): void
+    {
+        $manager = $this->createUserWithRole('Manager');
+        $admin = $this->createUserWithRole('Admin');
+
+        $this->actingAs($manager)
+            ->get(route('workorders.create'))
+            ->assertOk()
+            ->assertDontSee('id="new_customer_create"', false)
+            ->assertDontSee('id="addCustomerModal"', false);
+
+        $this->actingAs($admin)
+            ->get(route('workorders.create'))
+            ->assertOk()
+            ->assertSee('id="new_customer_create"', false)
+            ->assertSee('id="addCustomerModal"', false);
     }
 
     public function test_manager_can_delete_planes_directory_items(): void

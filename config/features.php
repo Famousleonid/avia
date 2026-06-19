@@ -1,18 +1,17 @@
 <?php
 
 /**
- * Доступ к «фичам» (пункты меню, закрытые маршруты): роль ИЛИ явный user_id.
- * Gate-имя: feature.{ключ}, например feature.reports_beta
+ * Feature access gates.
  *
- * - roles — список имён ролей; достаточно одной совпавшей.
- * - user_ids — дополнительный whitelist по id пользователей (int).
- * - allow_is_admin — если true, пользователь с is_admin проходит (User::isAdmin()).
- * Пустые roles и user_ids и allow_is_admin false → доступа нет.
+ * Gate name: feature.{key}, for example feature.paint.
+ * roles: any matching role grants access.
+ * user_ids: optional explicit user whitelist.
+ * allow_is_admin: when true, User::isAdmin() grants access.
  */
 return [
 
     'paint' => [
-        'roles' => ['Admin', 'Manager','Paint'],
+        'roles' => ['Admin', 'Manager', 'Paint'],
         //'user_ids' => [2, 5, 8],
         'allow_is_admin' => true,
     ],
@@ -22,8 +21,12 @@ return [
         'allow_is_admin' => true,
     ],
 
+    'marketing' => [
+        'roles' => ['Admin', 'Manager'],
+        'allow_is_admin' => true,
+    ],
 
-    // пример: только перечисленные пользователи (роли не используются)
+    // Example: whitelist only, no roles.
    // 'one_off_tool' => [
     //    'roles' => [],
   //      'user_ids' => [1, 2],

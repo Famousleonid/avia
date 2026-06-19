@@ -34,13 +34,18 @@ class ManualController extends Controller
         $this->middleware('can:manuals.view')->only('show');
         $this->middleware('can:manuals.create')->only(['create', 'store']);
         $this->middleware('can:manuals.update')->only(['edit', 'update']);
-        $this->middleware('can:manuals.delete')->only('destroy');
+        $this->middleware('can:manuals.delete')->only(['destroy', 'forceDestroy']);
     }
 
 
-    public function index()
+    public function index(Request $request)
     {
         $query = Manual::with(['plane', 'builder', 'scope']);
+        $showDeleted = $request->boolean('with_deleted') && auth()->user()->roleIs('Admin');
+
+        if ($showDeleted) {
+            $query->withTrashed();
+        }
 
         if (! auth()->user()->roleIs('Admin') && ! auth()->user()->hasFullManualsAccess()) {
             $query->whereHas('permittedUsers', function ($q) {
@@ -56,7 +61,7 @@ class ManualController extends Controller
             ? User::orderBy('name')->get(['id', 'name', 'email'])
             : collect();
 
-        return view('admin.manuals.index', compact('cmms', 'planes', 'builders', 'scopes', 'users'));
+        return view('admin.manuals.index', compact('cmms', 'planes', 'builders', 'scopes', 'users', 'showDeleted'));
 
     }
 
@@ -617,6 +622,34 @@ class ManualController extends Controller
         $cmm->delete();
 
         return redirect()->route('manuals.index')->with('success', 'Manual deleted successfully');
+    }
+
+    public function forceDestroy($id)
+    {
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
+
+        $deletedPartsCount = DB::transaction(function () use ($id) {
+            $manual = Manual::withTrashed()->findOrFail($id);
+            $deletedPartsCount = Component::withTrashed()
+                ->where('manual_id', $manual->id)
+                ->count();
+
+            Component::withTrashed()
+                ->where('manual_id', $manual->id)
+                ->chunkById(100, function ($components): void {
+                    foreach ($components as $component) {
+                        $component->forceDelete();
+                    }
+                });
+
+            $manual->forceDelete();
+
+            return $deletedPartsCount;
+        });
+
+        return redirect()
+            ->route('manuals.index')
+            ->with('success', "Manual permanently deleted successfully. Deleted parts: {$deletedPartsCount}");
     }
 
     protected function ensureManualAccess(Manual $manual): void

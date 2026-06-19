@@ -309,7 +309,8 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('1453146/005');
         $response->assertSee('Rev # 12 dated');
         $response->assertSee('For the replacement parts refer to Teardown Report.');
-        $response->assertSee('Overhauled on ...................');
+        $response->assertSee('data-certificate-overhauled-on-remark', false);
+        $response->assertSee('data-certificate-overhauled-on-date', false);
         $response->assertSee('data-setting-key="include_overhauled_on"', false);
         $response->assertSee('Airworthiness Directives 2019-11-07, E2024-05-09 R1 and Service Bulletins: 170-32-0060 R1, 170-32-A94 R2 incorporated.');
         $response->assertDontSee('IGNORE-SB');
@@ -441,6 +442,10 @@ class QualityAssuranceTest extends TestCase
             '/<span[^>]*data-certificate-life-remark[^>]*>\s*CSN-30228; CSO-3162\.\s*<\/span>/s',
             $response->getContent()
         );
+        $this->assertMatchesRegularExpression(
+            '/<span(?=[^>]*data-certificate-life-remark)(?=[^>]*contenteditable="false")[^>]*>\s*CSN-30228; CSO-3162\.\s*<\/span>/s',
+            $response->getContent()
+        );
         $this->assertDoesNotMatchRegularExpression(
             '/<span[^>]*data-certificate-life-remark[^>]*>\s*CSN-11111; CSO-22\.\s*<\/span>/s',
             $response->getContent()
@@ -506,6 +511,85 @@ class QualityAssuranceTest extends TestCase
         );
     }
 
+    public function test_certificate_block_12_hides_empty_remark_rows_and_preserves_following_indexes(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder([
+            'number' => 107739,
+        ]);
+
+        $workorder->forceFill([
+            'certificate_data' => [
+                'certificate_tracking_mode' => 'c',
+                'item_settings' => [
+                    'main:c' => [
+                        'certificate_remarks' => [
+                            'C status remark.',
+                            'C workorder remark.',
+                            'C replacement remark.',
+                            'C AD remark.',
+                            'C log card remark.',
+                            '',
+                            '',
+                            'C service remark.',
+                            'C correction paragraph.',
+                        ],
+                    ],
+                ],
+            ],
+        ])->save();
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $content = $response->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/<span(?=[^>]*data-remark-index="6")(?=[^>]*data-certificate-overhauled-on-remark)[^>]*>\s*Overhauled on\s*<\/span>/s',
+            $content
+        );
+        $this->assertMatchesRegularExpression(
+            '/<span(?=[^>]*data-certificate-overhauled-on-print-date)[^>]*>\s*\.{19}\s*<\/span>/s',
+            $content
+        );
+        $this->assertFalse(str_contains($content, '>C service remark.</span>'));
+        $response->assertSee('Airworthiness Directives none and Service Bulletins: none incorporated.');
+        $this->assertFalse(str_contains($content, '>C AD remark.</span>'));
+        $this->assertMatchesRegularExpression(
+            '/<span(?=[^>]*data-certificate-airworthiness-remark)(?=[^>]*contenteditable="true")[^>]*>\s*Airworthiness Directives none and Service Bulletins: none incorporated\.\s*<\/span>/s',
+            $content
+        );
+        $this->assertMatchesRegularExpression(
+            '/<span(?=[^>]*data-certificate-separate-remark-key="certificate_landing_gear_log_card_remark")(?=[^>]*contenteditable="true")[^>]*>\s*Landing Gear Log Card attached\s*<\/span>/s',
+            $content
+        );
+        $this->assertMatchesRegularExpression(
+            '/<span(?=[^>]*data-certificate-separate-remark-key="certificate_royco_service_remark")(?=[^>]*contenteditable="true")[^>]*>\s*Serviced with ROYCO LGF \(Yellow\)\s*<\/span>/s',
+            $content
+        );
+        $response->assertSee('This certificate issued to correct CSN info in Block 12 on original certificate W107739');
+    }
+
+    public function test_certificate_block_12_has_fixed_height_and_scales_spacing(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder();
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('height: calc(1.78in + 4mm);', false);
+        $response->assertSee('overflow: hidden;', false);
+        $response->assertSee('--arc-remarks-line-height', false);
+        $response->assertSee("document.documentElement.style.setProperty('--arc-remarks-line-height'", false);
+    }
+
     public function test_certificate_tracking_c_suffix_applies_to_main_detail_only(): void
     {
         $manager = $this->createUserWithRole('Manager', [
@@ -569,6 +653,11 @@ class QualityAssuranceTest extends TestCase
                         'certificate_item_serial' => 'C-SN',
                         'certificate_status_instruction_id' => (string) $repairInstruction->id,
                         'certificate_status_work' => 'Repaired',
+                        'certificate_airworthiness_remark' => 'Edited AD/SB C remark.',
+                        'certificate_landing_gear_log_card_remark' => 'Edited log card C remark.',
+                        'certificate_royco_service_remark' => 'Edited ROYCO C remark.',
+                        'certificate_c_correction_remark' => 'C correction paragraph.',
+                        'certificate_overhauled_on_date' => '2026-06-16',
                         'certificate_remarks' => [
                             'C status remark.',
                             'C workorder remark.',
@@ -599,9 +688,31 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('ALT-PN', false);
         $response->assertSee('>C-SN</div>', false);
         $response->assertSee('<div class="arc-status-work-print-value" data-certificate-status-output>Repaired</div>', false);
-        $response->assertSee('C status remark.');
-        $response->assertSee('CSN-777; CSO-88.');
-        $response->assertSee('C overhauled on remark.');
+        $response->assertSee('in accordance with CMM #');
+        $this->assertFalse(str_contains($response->getContent(), '>C status remark.</span>'));
+        $this->assertFalse(str_contains($response->getContent(), '>CSN-777; CSO-88.</span>'));
+        $this->assertMatchesRegularExpression(
+            '/<span(?=[^>]*data-certificate-status-remark)(?=[^>]*contenteditable="false")[^>]*>/s',
+            $response->getContent()
+        );
+        $response->assertSee('Edited AD/SB C remark.');
+        $this->assertFalse(str_contains($response->getContent(), '>C AD remark.</span>'));
+        $this->assertMatchesRegularExpression(
+            '/<span(?=[^>]*data-certificate-airworthiness-remark)(?=[^>]*contenteditable="true")[^>]*>\s*Edited AD\/SB C remark\.\s*<\/span>/s',
+            $response->getContent()
+        );
+        $response->assertSee('Edited log card C remark.');
+        $response->assertSee('Edited ROYCO C remark.');
+        $this->assertFalse(str_contains($response->getContent(), '>C log card remark.</span>'));
+        $this->assertFalse(str_contains($response->getContent(), '>C service remark.</span>'));
+        $response->assertSee('>Overhauled on</span>', false);
+        $response->assertSee('> 16/Jun/2026</span>', false);
+        $response->assertSee('value="2026-06-16"', false);
+        $this->assertFalse(str_contains($response->getContent(), '>C overhauled on remark.</span>'));
+        $this->assertMatchesRegularExpression(
+            '/<span(?=[^>]*data-certificate-overhauled-on-remark)(?=[^>]*contenteditable="false")[^>]*>\s*Overhauled on\s*<\/span>/s',
+            $response->getContent()
+        );
         $response->assertSee('C correction paragraph.');
         $response->assertSee('C extra remark.');
         $response->assertDontSee('>PO-BASE</div>', false);
@@ -820,11 +931,51 @@ class QualityAssuranceTest extends TestCase
                 'item_source' => 'main:c',
             ])
             ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_overhauled_on_date',
+                'value' => '12/may/2026',
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_c_correction_remark',
+                'value' => 'Corrected C paragraph.',
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_airworthiness_remark',
+                'value' => 'Corrected AD/SB paragraph.',
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_landing_gear_log_card_remark',
+                'value' => 'Corrected log card line.',
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_royco_service_remark',
+                'value' => 'Corrected ROYCO line.',
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
 
         $certificateData = $workorder->fresh()->certificate_data;
         $this->assertSame('C-PN-STATE', $certificateData['item_settings']['main:c']['certificate_item_part']);
         $this->assertSame(['C remark 1', 'C remark 2'], $certificateData['item_settings']['main:c']['certificate_remarks']);
         $this->assertTrue($certificateData['item_settings']['main:c']['include_overhauled_on']);
+        $this->assertSame('2026-05-12', $certificateData['item_settings']['main:c']['certificate_overhauled_on_date']);
+        $this->assertSame('Corrected C paragraph.', $certificateData['item_settings']['main:c']['certificate_c_correction_remark']);
+        $this->assertSame('Corrected AD/SB paragraph.', $certificateData['item_settings']['main:c']['certificate_airworthiness_remark']);
+        $this->assertSame('Corrected log card line.', $certificateData['item_settings']['main:c']['certificate_landing_gear_log_card_remark']);
+        $this->assertSame('Corrected ROYCO line.', $certificateData['item_settings']['main:c']['certificate_royco_service_remark']);
         $this->assertArrayNotHasKey('certificate_item_part', $certificateData);
     }
 

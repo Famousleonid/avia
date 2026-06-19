@@ -51,6 +51,7 @@ use App\Http\Controllers\Admin\MasterRuleController;
 use App\Http\Controllers\Admin\ProcessDocumentController;
 use App\Http\Controllers\Admin\ManualInspectionComponentController;
 use App\Http\Controllers\Admin\ManualRepairProcedureController;
+use App\Http\Controllers\Admin\MarketingController;
 use App\Http\Controllers\Admin\WoMeasurementController;
 use App\Http\Controllers\Admin\MachiningController;
 use App\Http\Controllers\Admin\PaintController;
@@ -231,6 +232,19 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/workorders/check-number', [WorkorderController::class, 'checkNumber'])->name('workorders.checkNumber');
     Route::get('/tools', [ToolController::class, 'index'])->name('tools.index');
     Route::post('/tools/save', [ToolController::class, 'save'])->name('tools.save');
+    Route::middleware('can:feature.marketing')->group(function () {
+        Route::get('/marketing', [MarketingController::class, 'index'])->name('marketing.index');
+        Route::get('/marketing/customers', [MarketingController::class, 'customers'])->name('marketing.customers.index');
+        Route::post('/marketing/customers', [MarketingController::class, 'storeCustomer'])->name('marketing.customers.store');
+        Route::get('/marketing/customers/{customer}', [MarketingController::class, 'showCustomer'])->name('marketing.customers.show');
+        Route::patch('/marketing/customers/{customer}/profile', [MarketingController::class, 'updateProfile'])->name('marketing.customers.profile.update');
+        Route::get('/marketing/customers/{customer}/workorders', [MarketingController::class, 'customerWorkorders'])->name('marketing.customers.workorders');
+        Route::post('/marketing/customers/{customer}/contacts', [MarketingController::class, 'storeContact'])->name('marketing.contacts.store');
+        Route::patch('/marketing/contacts/{contact}', [MarketingController::class, 'updateContact'])->name('marketing.contacts.update');
+        Route::delete('/marketing/contacts/{contact}', [MarketingController::class, 'destroyContact'])->name('marketing.contacts.destroy');
+        Route::post('/marketing/customers/{customer}/notes', [MarketingController::class, 'storeNote'])->name('marketing.notes.store');
+        Route::patch('/marketing/notes/{note}', [MarketingController::class, 'updateNote'])->name('marketing.notes.update');
+    });
     Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class)->except(['show']);
     Route::get('/mains/{workorder}', [MainController::class, 'show'])->name('mains.show');
@@ -321,6 +335,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::patch('transfers/{id}/sn', [TransferController::class, 'updateSn'])->name('transfers.updateSn');
         Route::delete('transfers/delete-by-tdr/{id}', [TransferController::class, 'deleteByTdr'])->name('transfers.deleteByTdr');
 
+    Route::delete('/manuals/{manual}/force', [ManualController::class, 'forceDestroy'])->name('manuals.force-destroy');
     Route::resource('/manuals', ManualController::class);
 
     // --- Dimension Figures (Manual settings) ---

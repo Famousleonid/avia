@@ -763,6 +763,10 @@
                                             data-title="{{ $component->name }}"
                                             data-ipl="{{ $component->ipl_num }}"
                                             data-part-number="{{ $component->part_number }}"
+                                            data-assy-part-number="{{ $component->assy_part_number }}"
+                                            data-assy-ipl="{{ $component->assy_ipl_num }}"
+                                            data-units-assy="{{ $component->units_assy }}"
+                                            data-np="{{ $component->np ? '1' : '0' }}"
                                             data-assemblies='{{ $componentAssembliesJson }}'>
                                         {{ $component->ipl_num }} : {{ $component->part_number }} - {{ $component->name }}
                                     </option>

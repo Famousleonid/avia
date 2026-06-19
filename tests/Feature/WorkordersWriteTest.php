@@ -62,6 +62,26 @@ class WorkordersWriteTest extends TestCase
             ->assertDontSee('placeholder="10/Aug/2026"', false);
     }
 
+    public function test_admin_can_open_workorder_edit_when_unit_is_soft_deleted(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $unit = $this->createUnit([
+            'part_number' => 'DELETED-UNIT-PN',
+            'name' => 'Deleted Unit Name',
+        ]);
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'unit_id' => $unit->id,
+        ]);
+        $unit->delete();
+
+        $this->actingAs($admin)
+            ->get(route('workorders.edit', $workorder))
+            ->assertOk()
+            ->assertSee('DELETED-UNIT-PN')
+            ->assertSee('Deleted unit');
+    }
+
     public function test_mobile_draft_open_date_placeholder_uses_neutral_mask(): void
     {
         $shipper = $this->createUserWithRole('Shipping');

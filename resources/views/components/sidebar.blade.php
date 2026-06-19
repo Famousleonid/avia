@@ -137,7 +137,12 @@
 
         <div class="border-bottom p-3 d-flex align-items-center gap-2">
 
-            <img src="{{ asset('img/favicon.webp') }}" width="30" alt="Logo" class="flex-shrink-0">
+            <a href="{{ route('cabinet.index') }}"
+               class="flex-shrink-0 d-inline-flex bg-transparent text-decoration-none"
+               style="background: transparent !important;"
+               title="{{ __('Cabinet') }}">
+                <img src="{{ asset('img/favicon.webp') }}" width="30" alt="Cabinet">
+            </a>
 
             <a href="{{ route('front.index') }}" class="brand-link flex-grow-1">
                 @include('components.logo')

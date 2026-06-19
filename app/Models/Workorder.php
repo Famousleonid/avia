@@ -89,7 +89,7 @@ class Workorder extends Model implements HasMedia
 
     public function unit()
     {
-        return $this->belongsTo(\App\Models\Unit::class, 'unit_id', 'id');
+        return $this->belongsTo(\App\Models\Unit::class, 'unit_id', 'id')->withTrashed();
     }
 
     public function displayDescription(): ?string

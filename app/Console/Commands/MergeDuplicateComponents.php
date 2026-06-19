@@ -369,7 +369,7 @@ class MergeDuplicateComponents extends Command
     private function mergeCanonicalFields(Component $canonical, Component $duplicate): int
     {
         $updates = [];
-        foreach (['log_card', 'is_bush', 'kit', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'] as $field) {
+        foreach (['log_card', 'is_bush', 'kit', 'np', 'kit_e', 'ndt_list', 'cad_list', 'stress_relief_list', 'paint_list'] as $field) {
             if (! $canonical->{$field} && $duplicate->{$field}) {
                 $updates[$field] = true;
             }

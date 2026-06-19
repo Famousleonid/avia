@@ -136,7 +136,15 @@
                                                 </a>
                                             </label>
                                             <select name="unit_id" id="unit_id" class="form-control">
-                                                <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $current_wo->unit->name) }}" data-part-number="{{ old('part_number', $current_wo->unit->part_number) }}" data-manual-id="{{ $current_wo->unit?->manual_id ?? '' }}" data-verified="{{ $current_wo->unit?->verified ? 1 : 0 }}">{{ old('part_number', $current_wo->unit->part_number) }}@if($current_wo->unit->manual) ({{ $current_wo->unit->manual->number }})@else (Manual pending)@endif</option>
+                                                @php
+                                                    $selectedUnit = $current_wo->unit;
+                                                    $selectedUnitDeleted = $selectedUnit && method_exists($selectedUnit, 'trashed') && $selectedUnit->trashed();
+                                                @endphp
+                                                @if($selectedUnit)
+                                                    <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="{{ old('unit_name', $selectedUnit->name) }}" data-part-number="{{ old('part_number', $selectedUnit->part_number) }}" data-manual-id="{{ $selectedUnit->manual_id ?? '' }}" data-verified="{{ $selectedUnit->verified ? 1 : 0 }}">{{ old('part_number', $selectedUnit->part_number) }}@if($selectedUnit->manual) ({{ $selectedUnit->manual->number }})@else (Manual pending)@endif @if($selectedUnitDeleted) - Deleted unit @endif</option>
+                                                @else
+                                                    <option selected value="{{ old('unit_id', $current_wo->unit_id) }}" data-name="" data-part-number="" data-manual-id="" data-verified="0">Missing unit #{{ old('unit_id', $current_wo->unit_id) }}</option>
+                                                @endif
                                                 @foreach ($units as $unit)
                                                     @continue((int) $unit->id === (int) old('unit_id', $current_wo->unit_id))
                                                     <option value="{{$unit->id}}" data-name="{{ $unit->name }}" data-part-number="{{ $unit->part_number }}" data-manual-id="{{ $unit->manual_id ?? '' }}" data-verified="{{ $unit->verified ? 1 : 0 }}">{{ $unit->part_number }}@if($unit->manual) ({{ $unit->manual->number }})@else (Manual pending)@endif</option>

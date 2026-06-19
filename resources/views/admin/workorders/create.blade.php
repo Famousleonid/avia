@@ -100,6 +100,9 @@
 @endsection
 
 @section('content')
+    @php
+        $canCreateCustomer = auth()->check() && auth()->user()->roleIs('Admin');
+    @endphp
 
     <div class="container pl-3 pr-3 mt-5">
         <div class="card  p-2 shadow bg-gradient">
@@ -145,9 +148,11 @@
                                         </div>
                                         <div class="form-group col-lg-4 mb-1">
                                             <label for="customer_id">Customer <span style="color:red; font-size: x-small">(required)</span>
-                                                <a id="new_customer_create" class="ms-3" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
-                                                    <img class="mb-1" src="{{asset('img/plus.png')}}" width="20px" alt="" data-toggle="tooltip" data-placement="top" title="Add new customer">
-                                                </a>
+                                                @if($canCreateCustomer)
+                                                    <a id="new_customer_create" class="ms-3" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                                                        <img class="mb-1" src="{{asset('img/plus.png')}}" width="20px" alt="" data-toggle="tooltip" data-placement="top" title="Add new customer">
+                                                    </a>
+                                                @endif
                                             </label>
                                             <select name="customer_id" id="customer_id" class="form-select">
                                                 <option disabled {{ old('customer_id') ? '' : 'selected' }} value>---</option>
@@ -308,7 +313,8 @@
     </div>
 
     <!-- Модальное окно add Customer -->
-    <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerLabel" aria-hidden="true">
+    @if($canCreateCustomer)
+        <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -328,6 +334,8 @@
             </div>
         </div>
     </div>
+
+    @endif
 
 @endsection()
 
@@ -599,7 +607,7 @@
             });
 
             // ---------------------   Save Customer --------------------------------------------------------------
-            document.getElementById('createCustomerBtn').addEventListener('click', function () {
+            document.getElementById('createCustomerBtn')?.addEventListener('click', function () {
                 const nameInput = document.getElementById('customerNameInput');
                 const name = nameInput.value.trim();
 

@@ -458,7 +458,7 @@ class TdrController extends Controller
         // Компоненты для данного manual
         $componentsQuery = Component::where('manual_id', $manual_id)
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
-            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'kit_e', 'eff_code');
+            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code');
 
         if ($request->boolean('exclude_kits')) {
             $componentsQuery
@@ -506,7 +506,7 @@ class TdrController extends Controller
 
         $componentsQuery = Component::where('manual_id', $manual_id)
             ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
-            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'kit_e', 'eff_code');
+            ->select('id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'kit', 'np', 'kit_e', 'eff_code');
 
         if ($request->boolean('exclude_kits')) {
             $componentsQuery
@@ -769,6 +769,21 @@ class TdrController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->withErrors(['order_component_id' => __('Order component is required for Order New')]);
+        }
+
+        $isMissingPayload = $codeIdInt !== null && $validatedCodesId === $codeIdInt;
+        $isOrderNewPayload = $necessaryIdInt !== null && $validatedNecessaryId === $necessaryIdInt;
+        if (($isMissingPayload || $isOrderNewPayload) && ! empty($validated['order_component_id'])) {
+            $orderComponentIsNp = Component::query()
+                ->whereKey((int) $validated['order_component_id'])
+                ->where('np', true)
+                ->exists();
+
+            if ($orderComponentIsNp) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['order_component_id' => __('NP parts cannot be ordered')]);
+            }
         }
 
         // Проверяем наличие записей с Missing до создания (для оптимизации)
@@ -1232,7 +1247,7 @@ class TdrController extends Controller
         $components = $this->filterComponentsForUnit(
             Component::where('manual_id', $manual_id)
                 ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
-                ->select('id', 'manual_id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'eff_code', 'kit', 'kit_e')
+                ->select('id', 'manual_id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'eff_code', 'kit', 'np', 'kit_e')
                 ->get(),
             $current_wo
         );
@@ -1908,7 +1923,7 @@ class TdrController extends Controller
             $components = $this->filterComponentsForUnit(
                 Component::query()
                     ->where('manual_id', $current_tdr->workorder->unit->manual_id)
-                    ->select('id', 'part_number', 'name', 'ipl_num', 'kit', 'kit_e', 'eff_code')
+                    ->select('id', 'part_number', 'name', 'ipl_num', 'kit', 'np', 'kit_e', 'eff_code')
                     ->get(),
                 $current_tdr->workorder
             );

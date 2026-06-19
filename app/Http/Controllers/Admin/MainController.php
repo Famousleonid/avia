@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Code;
 use App\Models\Component;
-use App\Models\GeneralTask;
 use App\Models\MachiningWorkStep;
 use App\Models\Main;
 use App\Models\Necessary;
@@ -20,6 +19,7 @@ use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
 use App\Models\Workorder;
 use App\Services\MachiningWorkorderQueueRelease;
+use App\Services\Workorders\WorkorderVisibilityService;
 use App\Services\WorkorderStdListProcessesService;
 use App\Support\WoBushingProcessColumnKey;
 use Illuminate\Http\Request;
@@ -31,6 +31,10 @@ use Spatie\Activitylog\Models\Activity;
 
 class MainController extends Controller
 {
+    public function __construct(private WorkorderVisibilityService $workorderVisibility)
+    {
+    }
+
     public function index()
     {
         return 1;
@@ -139,9 +143,7 @@ class MainController extends Controller
 
         $users = User::all();
 
-        $general_tasks = GeneralTask::orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+        $general_tasks = $this->workorderVisibility->visibleGeneralTasksFor($request->user());
 
         $tasks = Task::whereIn('general_task_id', $general_tasks->pluck('id'))
             ->orderBy('general_task_id')

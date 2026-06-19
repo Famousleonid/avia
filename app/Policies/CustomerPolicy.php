@@ -22,7 +22,7 @@ class CustomerPolicy
 
     public function create(User $user): bool
     {
-        return $this->canUseCustomerDirectory($user, 'create');
+        return $user->roleIs('Admin');
     }
 
     public function update(User $user, Customer $customer): bool

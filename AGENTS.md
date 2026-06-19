@@ -39,3 +39,10 @@ Date format project rule:
 - In PHP views/services use `format_project_date()` or Blade `@projectDate(...)` for display.
 - In PHP request parsing use `parse_project_date()` when accepting user typed project dates.
 - Keep ISO `Y-m-d` only for database values, JSON/API contracts, tests, filenames, sorting keys, and native HTML `<input type="date">` values.
+
+Quantum knowledge rule:
+- For any task involving Quantum, Oracle `QCTL`, RO/WO sync, manager Quantum data, WO estimates, invoices, or Quantum table/field discovery, first read the `quantum/` folder.
+- Treat `quantum/` as the canonical project knowledge base for confirmed Quantum tables, fields, relationships, safe connection rules, and open questions.
+- When new Quantum facts are confirmed against real data, update the relevant file in `quantum/`; when a previous note is proven wrong, correct it there instead of leaving duplicate conflicting notes.
+- Keep hypotheses and unresolved items in `quantum/open-questions.md` until they are verified.
+- Store Quantum CSV/XLS/log exports under `quantum/log/`, not in the root of `quantum/`, so the knowledge files stay separate from generated outputs.
