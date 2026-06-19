@@ -319,6 +319,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('transfers/transfersForm/{source_wo}', [TransferController::class, 'transfersForm'])->name('transfers.transfersForm');
         Route::post('transfers/create/{id}', [TransferController::class, 'create'])->name('transfers.create');
         Route::patch('transfers/{id}/sn', [TransferController::class, 'updateSn'])->name('transfers.updateSn');
+        Route::patch('transfers/{id}/unit-on-po', [TransferController::class, 'updateUnitOnPo'])->name('transfers.updateUnitOnPo');
         Route::delete('transfers/delete-by-tdr/{id}', [TransferController::class, 'deleteByTdr'])->name('transfers.deleteByTdr');
 
     Route::resource('/manuals', ManualController::class);

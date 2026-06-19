@@ -13,6 +13,7 @@
                             <th class="text-primary text-center">{{ __('Part Number') }}</th>
                             <th class="text-primary text-center">{{ __('SN') }}</th>
                             <th class="text-primary text-center">{{ __('Reason') }}</th>
+                            <th class="text-primary text-center">{{ __('Unit on PO') }}</th>
                             <th class="text-primary text-center">{{ __('Form') }}</th>
                             <th class="text-primary text-center">{{ __('Created At') }}</th>
                         </tr>
@@ -47,6 +48,14 @@
                                     {{ optional($transfer->reasonCode)->name ?? '-' }}
                                 </td>
                                 <td class="text-center">
+                                    <input type="text"
+                                           class="form-control form-control-sm unit-on-po-input"
+                                           data-transfer-id="{{ $transfer->id }}"
+                                           value="{{ $transfer->unit_on_po }}"
+                                           maxlength="255"
+                                           placeholder="—">
+                                </td>
+                                <td class="text-center">
                                     <a href="{{ route('transfers.transferForm', $transfer->id) }}"
                                        class="btn btn-outline-info btn-sm"
                                        target="_blank">
@@ -79,6 +88,7 @@
                             <th class="text-primary text-center">{{ __('Part Number') }}</th>
                             <th class="text-primary text-center">{{ __('SN') }}</th>
                             <th class="text-primary text-center">{{ __('Reason') }}</th>
+                            <th class="text-primary text-center">{{ __('Unit on PO') }}</th>
                             <th class="text-primary text-center">{{ __('Form') }}</th>
                             <th class="text-primary text-center">{{ __('Created At') }}</th>
                         </tr>
@@ -111,6 +121,14 @@
                                 </td>
                                 <td class="text-center">
                                     {{ optional($transfer->reasonCode)->name ?? '-' }}
+                                </td>
+                                <td class="text-center">
+                                    <input type="text"
+                                           class="form-control form-control-sm unit-on-po-input"
+                                           data-transfer-id="{{ $transfer->id }}"
+                                           value="{{ $transfer->unit_on_po }}"
+                                           maxlength="255"
+                                           placeholder="—">
                                 </td>
                                 <td class="text-center">
                                     <a href="{{ route('transfers.transferForm', $transfer->id) }}"

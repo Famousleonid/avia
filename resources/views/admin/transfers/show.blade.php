@@ -47,62 +47,8 @@
     @include('admin.transfers.change-sn-modal')
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            let currentSnCell = null;
-
-            document.querySelectorAll('.change-sn-link').forEach(function (link) {
-                link.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const transferId = this.dataset.transferId;
-                    const currentSn = this.dataset.currentSn || '';
-
-                    currentSnCell = this.closest('td');
-
-                    document.getElementById('snTransferId').value = transferId;
-                    document.getElementById('component_sn').value = currentSn;
-                });
-            });
-
-            const form = document.getElementById('changeSnForm');
-            form.addEventListener('submit', function (e) {
-                e.preventDefault();
-
-                const transferId = document.getElementById('snTransferId').value;
-                const newSn = document.getElementById('component_sn').value;
-
-                const url = "{{ route('transfers.updateSn', ['id' => '__ID__']) }}".replace('__ID__', transferId);
-
-                fetch(url, {
-                    method: 'PATCH',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ component_sn: newSn })
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            if (currentSnCell) {
-                                if (data.component_sn) {
-                                    currentSnCell.innerHTML = `<a href="#" class="text-decoration-underline text-info change-sn-link" data-transfer-id="${transferId}" data-current-sn="${data.component_sn}" data-bs-toggle="modal" data-bs-target="#changeSnModal">${data.component_sn}</a>`;
-                                } else {
-                                    currentSnCell.textContent = '-';
-                                }
-                            }
-                            const modalEl = document.getElementById('changeSnModal');
-                            const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                            modalInstance.hide();
-                        } else {
-                            showNotification('Failed to update Serial Number', 'error');
-                        }
-                    })
-                    .catch(() => {
-                        showNotification('Server error', 'error');
-                    });
-            });
-        });
+        @include('admin.transfers._sn-edit-script')
+        @include('admin.transfers._unit-on-po-edit-script')
     </script>
 @endsection
 

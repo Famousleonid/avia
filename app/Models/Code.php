@@ -11,6 +11,9 @@ class Code extends Model
 
     public $timestamps = false;
 
+    /** Seeded code name for a missing part. */
+    public const NAME_MISSING = 'Missing';
+
     protected $fillable = [
         'name',
         'code',
@@ -23,5 +26,11 @@ class Code extends Model
     public function tdr()
     {
         return $this->hasMany(Tdr::class, 'codes_id');
+    }
+
+    /** The seeded "Missing" code. */
+    public static function missing(): ?self
+    {
+        return static::where('name', self::NAME_MISSING)->first();
     }
 }
