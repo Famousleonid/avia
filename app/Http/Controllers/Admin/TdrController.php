@@ -109,7 +109,7 @@ class TdrController extends Controller
     private function ndtStdExcludedAndTdrQtyByNormalizedIpl(int $workorderId): array
     {
         $excludedQtyByIpl = [];
-        $missingCode = Code::where('name', 'Missing')->first();
+        $missingCode = Code::missing();
         $repairCode = Code::where('name', 'Repair')->first();
         $orderNewNecessary = Necessary::where('name', 'Order New')->first();
 
@@ -564,7 +564,7 @@ class TdrController extends Controller
 
         // Загружаем необходимые сущности один раз
         $workorder = Workorder::findOrFail($validated['workorder_id']);
-        $code = Code::where('name', 'Missing')->first();
+        $code = Code::missing();
         $manufactureCode = Code::where('name', 'Manufacture')->first();
         $necessary = Necessary::where('name', 'Order New')->first();
         $repairNecessary = Necessary::where('name', 'Repair')->first();
@@ -795,7 +795,7 @@ class TdrController extends Controller
         }
 
         // Если codes_id равно Missing, автоматически устанавливаем conditions_id=1 (PARTS MISSING UPON ARRIVAL)
-        $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+        $missingCondition = Condition::partsMissing();
         if ($codeIdInt !== null && $validatedCodesId === $codeIdInt && $missingCondition) {
             // Если conditions_id не установлен или равен null, устанавливаем его в missingCondition->id
             if (empty($validated['conditions_id']) || $validated['conditions_id'] === null) {
@@ -945,7 +945,7 @@ class TdrController extends Controller
 
         // Загружаем необходимые сущности один раз
         $workorder = Workorder::findOrFail($validated['workorder_id']);
-        $code = Code::where('name', 'Missing')->first();
+        $code = Code::missing();
         $necessary = Necessary::where('name', 'Order New')->first();
 
         // Проверяем наличие записей с Missing до создания (для оптимизации)
@@ -957,7 +957,7 @@ class TdrController extends Controller
         }
 
         // Если codes_id равно Missing, автоматически устанавливаем conditions_id=1 (PARTS MISSING UPON ARRIVAL)
-        $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+        $missingCondition = Condition::partsMissing();
         if ($code && $validated['codes_id'] === $code->id && $missingCondition) {
             // Если conditions_id не установлен, устанавливаем его в missingCondition->id
             if (empty($validated['conditions_id'])) {
@@ -1709,8 +1709,8 @@ class TdrController extends Controller
         $bushingSpFormColumnsCount = $this->countBushingSpecProcessColumns($woBushing);
         $rmFormRowsCount = $this->countRmFormRows($current_wo);
         $tdrFormRowsCount = $this->countTdrFormRows($current_wo);
-        $code = Code::where('name', 'Missing')->first();
-        $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+        $code = Code::missing();
+        $missingCondition = Condition::partsMissing();
         $conditions = Condition::all();
         $necessary = Necessary::where('name', 'Order New')->first();
 
@@ -2090,7 +2090,7 @@ class TdrController extends Controller
             $deletedClonedTdrs = 0;
 
             // Код Missing (для управления флагом part_missing в workorders источников)
-            $missingCode = Code::where('name', 'Missing')->first();
+            $missingCode = Code::missing();
 
             foreach ($transfers as $transfer) {
                 // Для каждого transfer пытаемся удалить "клонированный" TDR в workorder_source
@@ -2176,7 +2176,7 @@ class TdrController extends Controller
         }
 
         // Найти код с именем 'Missing'
-        $code = Code::where('name', 'Missing')->first();
+        $code = Code::missing();
         // Log::info('Найден код с именем "Missing": ' . ($code ? 'Да' : 'Нет'));
 
         // Проверяем, была ли удаляемая запись с кодом Missing
@@ -2207,7 +2207,7 @@ class TdrController extends Controller
                 }
 
                 // Удаляем старые пустые записи с missingCondition (созданные до изменений)
-                $missingCondition = Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
+                $missingCondition = Condition::partsMissing();
                 if ($missingCondition) {
                     $emptyMissingRecords = Tdr::where('workorder_id', $workorderId)
                         ->unitInspections()
@@ -2354,7 +2354,7 @@ class TdrController extends Controller
     private function countPaintStdFormQty(Workorder $workorder): int
     {
         $excludedIplNums = [];
-        $missingCode = Code::where('name', 'Missing')->first();
+        $missingCode = Code::missing();
         $repairCode = Code::where('name', 'Repair')->first();
         $orderNewNecessary = Necessary::where('name', 'Order New')->first();
 
@@ -2488,8 +2488,8 @@ class TdrController extends Controller
     private function countTdrFormRows(Workorder $workorder): int
     {
         $necessary = Necessary::where('name', 'Order New')->first();
-        $missingCode = Code::where('name', 'Missing')->first();
-        $missingConditionName = 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST';
+        $missingCode = Code::missing();
+        $missingConditionName = Condition::NAME_PARTS_MISSING;
 
         $unitInspections = WorkorderUnitInspection::query()
             ->with('condition:id,name')

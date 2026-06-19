@@ -84,7 +84,7 @@
 
     // ===== 4. API transfers =====
     const TransferApi = {
-        createTransfer: function (tdrsId, workorderNumber, targetWorkorderNumber) {
+        createTransfer: function (tdrsId, workorderNumber, sourceWorkorderNumber) {
             const csrfToken = TokenUtils.getCsrfToken();
             const url = '{{ route("transfers.create", ":id") }}'.replace(':id', tdrsId);
 
@@ -96,7 +96,7 @@
                 },
                 body: JSON.stringify({
                     workorder_number: workorderNumber,
-                    target_workorder_number: targetWorkorderNumber
+                    source_workorder_number: sourceWorkorderNumber
                 })
             }).then(response => response.json());
         },

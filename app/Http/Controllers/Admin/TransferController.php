@@ -8,73 +8,13 @@ use App\Models\Tdr;
 use App\Models\Workorder;
 use App\Models\Code;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TransferController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Build the data payload for the Transfers view/partial.
      *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function edit($id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy($id)
-    {
-        //
-    }
-
-    /**
-     * Display all transfers related to given workorder.
-     *
-     * Workorder can be either target (workorder_id) or source (workorder_source).
-     *
-     * @param  \App\Models\Workorder  $workorder
-     * @return \Illuminate\Contracts\View\View
-     */
-    /**
      * @return array<string, mixed>
      */
     protected function transferShowData(Workorder $workorder): array
@@ -155,17 +95,23 @@ class TransferController extends Controller
             'instruction',
         ])->findOrFail($sourceWoId);
 
-        // Все трансферы ОТ этого WO (workorder_source), максимум 5
+        // Все трансферы ОТ этого WO (workorder_source). Бланк Form #011 вмещает
+        // 5 позиций на лист — разбиваем на страницы по 5, печатаем несколько листов.
         $transfers = Transfer::with(['workorder', 'component', 'reasonCode'])
             ->where('workorder_source', $sourceWoId)
             ->orderBy('id')
-            ->take(5)
             ->get();
+
+        $pages = $transfers->chunk(5)->values();
+        if ($pages->isEmpty()) {
+            $pages = collect([collect()]); // хотя бы один пустой бланк
+        }
 
         // HTML view: resources/views/admin/transfers/transfersForm.blade.php
         return view('admin.transfers.transfersForm', [
             'sourceWo' => $sourceWo,
             'transfers' => $transfers,
+            'pages' => $pages,
         ]);
     }
 
@@ -193,6 +139,28 @@ class TransferController extends Controller
     }
 
     /**
+     * Update "Unit Purchased on PO No." for a transfer (AJAX, inline edit).
+     *
+     * @param  int  $id  Transfer ID
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateUnitOnPo(Request $request, $id)
+    {
+        $request->validate([
+            'unit_on_po' => 'nullable|string|max:255',
+        ]);
+
+        $transfer = Transfer::findOrFail($id);
+        $transfer->unit_on_po = $request->input('unit_on_po');
+        $transfer->save();
+
+        return response()->json([
+            'success' => true,
+            'unit_on_po' => $transfer->unit_on_po,
+        ]);
+    }
+
+    /**
      * Create a transfer record from TDR
      *
      * @param  \Illuminate\Http\Request  $request
@@ -201,22 +169,46 @@ class TransferController extends Controller
      */
     public function create(Request $request, $id)
     {
+        // source_workorder_number — WO-источник (откуда берётся деталь).
+        // Старое имя target_workorder_number оставлено для обратной совместимости.
         $request->validate([
-            'workorder_number' => 'required|string',
-            'target_workorder_number' => 'required|string'
+            'workorder_number'          => 'required|string',
+            'source_workorder_number'   => 'required_without:target_workorder_number|string',
+            'target_workorder_number'   => 'sometimes|string',
         ]);
 
+        $sourceNumber = $request->input('source_workorder_number', $request->input('target_workorder_number'));
+
         try {
-            // Получаем TDR запись (строка в текущем WO, куда приходит компонент)
+            // TDR-строка в текущем WO (куда деталь приходит)
             $tdr = Tdr::findOrFail($id);
 
-            // Получаем текущий workorder (куда отправляется компонент)
-            $currentWorkorder = Workorder::where('number', $request->workorder_number)->firstOrFail();
+            // WO-приёмник (куда деталь приходит)
+            $currentWorkorder = Workorder::where('number', $request->workorder_number)->first();
+            if (!$currentWorkorder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Work Order W{$request->workorder_number} not found",
+                ], 422);
+            }
 
-            // Получаем workorder-источник (откуда отправляется компонент)
-            $sourceWorkorder = Workorder::where('number', $request->target_workorder_number)->firstOrFail();
+            // WO-источник (откуда деталь берётся)
+            $sourceWorkorder = Workorder::where('number', $sourceNumber)->first();
+            if (!$sourceWorkorder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Source Work Order W{$sourceNumber} not found",
+                ], 422);
+            }
 
-            // Определяем component_id (используем order_component_id если есть, иначе component_id)
+            if ($sourceWorkorder->id === $currentWorkorder->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Source and receiving Work Orders must differ',
+                ], 422);
+            }
+
+            // component_id (order_component_id приоритетнее)
             $componentId = $tdr->order_component_id ?? $tdr->component_id;
 
             if (!$componentId) {
@@ -226,67 +218,84 @@ class TransferController extends Controller
                 ], 400);
             }
 
-            // Создаем запись в transfers (связь между WO-приёмником и WO-источником)
-            $transfer = Transfer::create([
-                'workorder_id'      => $currentWorkorder->id,   // Текущий workorder (куда отправляется компонент)
-                'workorder_source'  => $sourceWorkorder->id,    // Workorder, откуда переводится компонент
-                'component_id'      => $componentId,
-                'component_sn'      => $tdr->serial_number ?? null,
-                // Причину берём из codes_id TDR (если есть)
-                'reason'            => $tdr->codes_id ?? null,
-                'unit_on_po'        => null, // Заполнится позже при необходимости
-            ]);
+            // Идемпотентность: один TDR = максимум один перевод. Повторный create
+            // (двойной клик, ретрай, две вкладки) возвращает существующий, не плодя дубли.
+            $existing = Transfer::where('tdr_id', $tdr->id)->first();
+            if ($existing) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Transfer already exists',
+                    'transfer' => $existing,
+                    'new_tdr_id' => $existing->cloned_tdr_id,
+                ]);
+            }
 
-            // Дополнительно: создаём запись в tdrs для WO-источника (target WO из ввода пользователя)
-            // Клонируем все поля из текущего TDR, кроме workorder_id (он будет указывать на WO-источник)
-            $newTdr = $tdr->replicate();
-            $newTdr->workorder_id = $sourceWorkorder->id;
-            $newTdr->save();
+            $result = DB::transaction(function () use ($tdr, $currentWorkorder, $sourceWorkorder, $componentId) {
+                // Клон TDR в WO-источнике. replicate() копирует ВСЕ поля оригинала,
+                // поэтому помечаем его как transfer_clone и сбрасываем поля, которые
+                // не должны переезжать в свежую запись чужого WO.
+                $newTdr = $tdr->replicate();
+                $newTdr->workorder_id = $sourceWorkorder->id;
+                $newTdr->tdr_type = Tdr::TYPE_TRANSFER_CLONE;
+                $newTdr->po_num = null;
+                $newTdr->received = null;
+                $newTdr->last_synced_measurement_id = null;
+                $newTdr->result_status = null;
+                $newTdr->scrap_reason = null;
+                $newTdr->replaced_by_tdr_id = null;
+                $newTdr->save();
 
-            // Если исходный TDR имеет код Missing, убедимся, что для WO-источника корректно выставлен флаг part_missing
-            $missingCode = Code::where('name', 'Missing')->first();
-            if ($missingCode && $tdr->codes_id === $missingCode->id) {
-                $remainingMissingForSource = Tdr::where('workorder_id', $sourceWorkorder->id)
-                    ->where('codes_id', $missingCode->id)
-                    ->count();
+                // Запись перевода с ЯВНЫМИ ссылками на оба конца (origin + клон)
+                $transfer = Transfer::create([
+                    'tdr_id'            => $tdr->id,                 // origin-TDR (WO-приёмник)
+                    'workorder_id'      => $currentWorkorder->id,   // WO-приёмник
+                    'workorder_source'  => $sourceWorkorder->id,    // WO-источник
+                    'component_id'      => $componentId,
+                    'component_sn'      => $tdr->serial_number ?? null,
+                    'cloned_tdr_id'     => $newTdr->id,
+                    'reason'            => $tdr->codes_id ?? null,
+                    'unit_on_po'        => null,
+                ]);
 
-                if ($remainingMissingForSource > 0) {
-                    // Есть хотя бы одна запись Missing в WO-источнике — флаг part_missing должен быть включён
+                // Если исходный TDR — Missing, синхронизируем флаг part_missing и строку Unit Inspection
+                $missingCode = Code::missing();
+                if ($missingCode && $tdr->codes_id === $missingCode->id) {
                     if (!$sourceWorkorder->part_missing) {
                         $sourceWorkorder->part_missing = true;
                         $sourceWorkorder->save();
                     }
-                }
 
-                // Проверяем, есть ли в WO-источнике запись с condition_id = 1 и component_id = null
-                // Если нет - создаём такую запись для отображения в блоке Unit Inspection
-                $missingCondition = \App\Models\Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
-                if ($missingCondition) {
-                    $existingUnitInspection = Tdr::where('workorder_id', $sourceWorkorder->id)
-                        ->where('conditions_id', $missingCondition->id)
-                        ->whereNull('component_id')
-                        ->whereNull('codes_id')
-                        ->first();
+                    // Строка-плейсхолдер для блока Unit Inspection в WO-источнике
+                    $missingCondition = \App\Models\Condition::partsMissing();
+                    if ($missingCondition) {
+                        $existingUnitInspection = Tdr::where('workorder_id', $sourceWorkorder->id)
+                            ->where('conditions_id', $missingCondition->id)
+                            ->whereNull('component_id')
+                            ->whereNull('codes_id')
+                            ->first();
 
-                    if (!$existingUnitInspection) {
-                        // Создаём запись для блока Unit Inspection
-                        Tdr::create([
-                            'workorder_id' => $sourceWorkorder->id,
-                            'component_id' => null,
-                            'conditions_id' => $missingCondition->id,
-                            'codes_id' => null,
-                            'use_tdr' => true,
-                            'use_process_forms' => false,
-                        ]);
+                        if (!$existingUnitInspection) {
+                            Tdr::create([
+                                'workorder_id'      => $sourceWorkorder->id,
+                                'tdr_type'          => Tdr::TYPE_UNIT_INSPECTION,
+                                'component_id'      => null,
+                                'conditions_id'     => $missingCondition->id,
+                                'codes_id'          => null,
+                                'use_tdr'           => true,
+                                'use_process_forms' => false,
+                            ]);
+                        }
                     }
                 }
-            }
+
+                return ['transfer' => $transfer, 'new_tdr_id' => $newTdr->id];
+            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Transfer created successfully',
-                'transfer' => $transfer,
-                'new_tdr_id' => $newTdr->id,
+                'transfer' => $result['transfer'],
+                'new_tdr_id' => $result['new_tdr_id'],
             ]);
 
         } catch (\Exception $e) {
@@ -319,79 +328,77 @@ class TransferController extends Controller
                 ], 400);
             }
 
-            // Находим все transfers, связанные с этим TDR (по текущему workorder_id и component_id)
-            $transfers = Transfer::where('workorder_id', $tdr->workorder_id)
-                ->where('component_id', $componentId)
-                ->get();
-
-            $deletedTransfers = 0;
-            $deletedClonedTdrs = 0;
+            // Находим переводы по явной связи origin-TDR; для legacy-записей
+            // (tdr_id ещё не проставлен) — fallback на (workorder_id, component_id).
+            $transfers = Transfer::where('tdr_id', $tdr->id)->get();
+            if ($transfers->isEmpty()) {
+                $transfers = Transfer::whereNull('tdr_id')
+                    ->where('workorder_id', $tdr->workorder_id)
+                    ->where('component_id', $componentId)
+                    ->get();
+            }
 
             // Код Missing (для управления флагом part_missing в workorders)
-            $missingCode = Code::where('name', 'Missing')->first();
+            $missingCode = Code::missing();
 
-            foreach ($transfers as $transfer) {
-                // Для каждого transfer пытаемся удалить "клонированный" TDR в workorder_source
-                if ($transfer->workorder_source) {
-                    $cloned = Tdr::where('workorder_id', $transfer->workorder_source)
-                        ->where(function ($q) use ($tdr) {
-                            // Пытаемся найти запись, максимально похожую на исходный TDR
-                            $q->where('component_id', $tdr->component_id)
-                                ->where('order_component_id', $tdr->order_component_id)
-                                ->where('codes_id', $tdr->codes_id)
-                                ->where('conditions_id', $tdr->conditions_id)
-                                ->where('necessaries_id', $tdr->necessaries_id)
-                                ->where('qty', $tdr->qty)
-                                ->where('serial_number', $tdr->serial_number);
-                        })
-                        ->where('id', '!=', $tdr->id)
-                        ->orderByDesc('id') // берём самую "свежую" как вероятный клон
-                        ->first();
+            $result = DB::transaction(function () use ($transfers, $tdr, $missingCode) {
+                $deletedTransfers = 0;
+                $deletedClonedTdrs = 0;
 
-                    if ($cloned) {
-                        $cloned->delete();
-                        $deletedClonedTdrs++;
+                foreach ($transfers as $transfer) {
+                    if ($transfer->workorder_source) {
+                        // Явная связь, если есть; иначе — fallback на старую эвристику для legacy-записей
+                        $cloned = $transfer->cloned_tdr_id
+                            ? Tdr::find($transfer->cloned_tdr_id)
+                            : $this->findLegacyClone($tdr, $transfer->workorder_source);
 
-                        // Если это была запись с кодом Missing, возможно нужно обновить part_missing для WO-источника
-                        if ($missingCode && $tdr->codes_id === $missingCode->id) {
-                            $remainingMissingForSource = Tdr::where('workorder_id', $transfer->workorder_source)
-                                ->where('codes_id', $missingCode->id)
-                                ->count();
+                        if ($cloned) {
+                            $cloned->delete();
+                            $deletedClonedTdrs++;
 
-                            if ($remainingMissingForSource === 0) {
-                                $sourceWo = Workorder::find($transfer->workorder_source);
-                                if ($sourceWo && $sourceWo->part_missing) {
-                                    $sourceWo->part_missing = false;
-                                    $sourceWo->save();
-                                }
+                            // Если это была запись с кодом Missing — возможно нужно снять part_missing у WO-источника
+                            if ($missingCode && $tdr->codes_id === $missingCode->id) {
+                                $remainingMissingForSource = Tdr::where('workorder_id', $transfer->workorder_source)
+                                    ->where('codes_id', $missingCode->id)
+                                    ->count();
 
-                                // Если не осталось записей с codes_id = 7, удаляем запись с condition_id = 1, component_id = null, codes_id = null
-                                $missingCondition = \App\Models\Condition::where('name', 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST')->first();
-                                if ($missingCondition) {
-                                    $unitInspectionRecord = Tdr::where('workorder_id', $transfer->workorder_source)
-                                        ->where('conditions_id', $missingCondition->id)
-                                        ->whereNull('component_id')
-                                        ->whereNull('codes_id')
-                                        ->first();
+                                if ($remainingMissingForSource === 0) {
+                                    $sourceWo = Workorder::find($transfer->workorder_source);
+                                    if ($sourceWo && $sourceWo->part_missing) {
+                                        $sourceWo->part_missing = false;
+                                        $sourceWo->save();
+                                    }
 
-                                    if ($unitInspectionRecord) {
-                                        $unitInspectionRecord->delete();
+                                    // Убираем строку-плейсхолдер Unit Inspection, если Missing больше нет
+                                    $missingCondition = \App\Models\Condition::partsMissing();
+                                    if ($missingCondition) {
+                                        $unitInspectionRecord = Tdr::where('workorder_id', $transfer->workorder_source)
+                                            ->where('conditions_id', $missingCondition->id)
+                                            ->whereNull('component_id')
+                                            ->whereNull('codes_id')
+                                            ->first();
+
+                                        if ($unitInspectionRecord) {
+                                            $unitInspectionRecord->delete();
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+
+                    $transfer->delete();
+                    $deletedTransfers++;
                 }
 
-                $transfer->delete();
-                $deletedTransfers++;
-            }
+                return compact('deletedTransfers', 'deletedClonedTdrs');
+            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Transfer deleted successfully',
-                'deleted_transfers' => $deletedTransfers,
-                'deleted_cloned_tdrs' => $deletedClonedTdrs,
+                'deleted_transfers' => $result['deletedTransfers'],
+                'deleted_cloned_tdrs' => $result['deletedClonedTdrs'],
             ]);
 
         } catch (\Exception $e) {
@@ -400,5 +407,26 @@ class TransferController extends Controller
                 'message' => 'Error deleting transfer: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Legacy fallback: для переводов, созданных до колонки cloned_tdr_id,
+     * клон ищется по совпадению полей оригинала (эвристика, может ошибаться).
+     */
+    private function findLegacyClone(Tdr $tdr, int $sourceWorkorderId): ?Tdr
+    {
+        return Tdr::where('workorder_id', $sourceWorkorderId)
+            ->where(function ($q) use ($tdr) {
+                $q->where('component_id', $tdr->component_id)
+                    ->where('order_component_id', $tdr->order_component_id)
+                    ->where('codes_id', $tdr->codes_id)
+                    ->where('conditions_id', $tdr->conditions_id)
+                    ->where('necessaries_id', $tdr->necessaries_id)
+                    ->where('qty', $tdr->qty)
+                    ->where('serial_number', $tdr->serial_number);
+            })
+            ->where('id', '!=', $tdr->id)
+            ->orderByDesc('id')
+            ->first();
     }
 }

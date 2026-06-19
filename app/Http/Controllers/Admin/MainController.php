@@ -225,7 +225,7 @@ class MainController extends Controller
         // TDR ids
         $tdrIds = Tdr::where('workorder_id', $current_workorder->id)->pluck('id');
 
-        $code = Code::where('name', 'Missing')->first();
+        $code = Code::missing();
         $necessary = Necessary::where('name', 'Order New')->first();
 
         $ordersPartsNew = collect();

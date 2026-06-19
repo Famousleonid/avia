@@ -116,7 +116,7 @@ class ConditionController extends Controller
         $condition = Condition::findOrFail($id);
 
         // Проверяем, что это не системное условие, которое нельзя редактировать
-        if ($condition->name === 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST') {
+        if ($condition->name === Condition::NAME_PARTS_MISSING) {
             return response()->json([
                 'success' => false,
                 'message' => __('This condition cannot be edited.')
@@ -176,7 +176,7 @@ class ConditionController extends Controller
         $condition = Condition::findOrFail($id);
 
         // Проверяем, что это не системное условие, которое нельзя удалять
-        if ($condition->name === 'PARTS MISSING UPON ARRIVAL AS INDICATED ON PARTS LIST') {
+        if ($condition->name === Condition::NAME_PARTS_MISSING) {
             return response()->json([
                 'success' => false,
                 'message' => __('This condition cannot be deleted.')

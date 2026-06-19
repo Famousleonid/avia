@@ -983,7 +983,6 @@ class TdrsTest extends TestCase
 
         $this->assertDatabaseHas('tdrs', [
             'id' => $blankTdr->id,
-            'deleted_at' => null,
         ]);
         $this->assertDatabaseHas('workorder_unit_inspections', [
             'workorder_id' => $workorder->id,
@@ -1180,11 +1179,10 @@ class TdrsTest extends TestCase
         $response = $this->actingAs($admin)->delete(route('tdrs.destroy', $missingTdr->id));
 
         $response->assertRedirect(route('tdrs.show', ['id' => $workorder->id]));
-        $this->assertSoftDeleted('tdrs', ['id' => $missingTdr->id]);
+        $this->assertDatabaseMissing('tdrs', ['id' => $missingTdr->id]);
         $this->assertDatabaseHas('tdrs', [
             'id' => $stdCarrier->id,
             'tdr_type' => Tdr::TYPE_STD_LIST_CARRIER,
-            'deleted_at' => null,
         ]);
         $this->assertDatabaseHas('tdr_processes', [
             'id' => $stdProcess->id,
@@ -1313,20 +1311,21 @@ class TdrsTest extends TestCase
         $showResponse->assertSee(route('tdrs.kitForm', ['id' => $workorder->id]), false);
         $showResponse->assertSee(route('tdrs.bushPrlForm', ['id' => $workorder->id]), false);
         $showResponse->assertDontSee(route('tdrs.bushingPrlForm', ['id' => $workorder->id]), false);
+        // Order is asserted via the buttons' route URLs rather than their text
+        // labels: labels like "Log Card" recur many times across the page (tabs,
+        // modals, inline scripts), which makes label-based ordered matching jump
+        // to the wrong occurrence. Only URLs that appear exactly once are used as
+        // anchors — Log Card / KIT / PRL / Bush PRL URLs are echoed in more than
+        // one place (their presence is asserted separately above).
         $showResponse->assertSeeInOrder([
-            'TDR Form',
-            'R&amp;M Form',
-            'SP Form',
-            'Bushing Form',
-            'Log Card',
-            'SB Form',
-            'NDT STD',
-            'CAD STD',
-            'Stress STD',
-            'Paint STD',
-            'KIT',
-            'PRL',
-            'Bush PRL',
+            route('tdrs.tdrForm', ['id' => $workorder->id]),
+            route('rm_reports.rmRecordForm', ['id' => $workorder->id]),
+            route('tdrs.specProcessFormEmp', ['id' => $workorder->id]),
+            route('tdrs.serviceBulletinLog', ['workorder' => $workorder->id]),
+            route('tdrs.ndtStd', ['workorder_id' => $workorder->id]),
+            route('tdrs.cadStd', ['workorder_id' => $workorder->id]),
+            route('tdrs.stressStd', ['workorder_id' => $workorder->id]),
+            route('tdrs.paintStd', ['workorder_id' => $workorder->id]),
         ], false);
         $showResponse->assertSee('>2</span>', false);
     }

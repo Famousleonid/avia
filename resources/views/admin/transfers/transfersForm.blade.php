@@ -292,6 +292,18 @@
             font-weight: bold;
             background-color: #f0f0f0;
         }
+
+        .sheet {
+            position: relative;
+        }
+        .sheet + .sheet {
+            page-break-before: always;
+        }
+        .sheet-counter {
+            font-size: 0.75rem;
+            text-align: right;
+            padding: 0 4px 4px 0;
+        }
     </style>
 </head>
 
@@ -303,7 +315,11 @@
     </button>
 </div>
 
-<div class="container-fluid" style="position: relative;">
+@foreach($pages as $pageIndex => $pageTransfers)
+<div class="container-fluid sheet">
+    @if($pages->count() > 1)
+        <div class="sheet-counter">Sheet {{ $pageIndex + 1 }} of {{ $pages->count() }}</div>
+    @endif
     <!-- Header -->
     <div class="row">
         <div class="col-3">
@@ -424,7 +440,7 @@
                 </tr>
                 </thead>
                 <tbody>
-                @foreach($transfers as $transfer)
+                @foreach($pageTransfers as $transfer)
                     <tr>
                         <td style="height: 60px">{{ optional($transfer->component)->assy_ipl_num ?: optional($transfer->component)->ipl_num ?: '—' }}</td>
                         <td>{{ optional($transfer->component)->name ?: '—' }}</td>
@@ -441,7 +457,7 @@
                         <td class="stamp">Quality Stamp</td>
                     </tr>
                 @endforeach
-                @for($i = $transfers->count(); $i < 5; $i++)
+                @for($i = $pageTransfers->count(); $i < 5; $i++)
                     <tr>
                         <td style="height: 60px"></td>
                         <td></td>
@@ -505,13 +521,14 @@
             </div>
         </div>
     </footer>
-
-    <script>
-        function printForm() {
-            window.print();
-        }
-    </script>
 </div>
+@endforeach
+
+<script>
+    function printForm() {
+        window.print();
+    }
+</script>
 </body>
 </html>
 
