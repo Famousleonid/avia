@@ -17,6 +17,7 @@ use App\Models\Team;
 use App\Models\Unit;
 use App\Models\Workorder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
@@ -83,10 +84,86 @@ class MobileApiTest extends TestCase
             ->assertJsonPath('data.user.capabilities.can_create_draft', true)
             ->assertJsonPath('data.user.capabilities.can_update_storage', true)
             ->assertJsonPath('data.menu_mode', 'workorders')
+            ->assertJsonPath('data.available_menu_modes.1', 'paint')
+            ->assertJsonPath('data.available_menu_modes.2', 'machining')
             ->assertJsonPath('data.offline_mode', false)
             ->assertJsonPath('data.photo_upload.compress_on_client', false)
             ->assertJsonPath('data.photo_upload.queue_on_client', true)
-            ->assertJsonPath('data.photo_upload.delete_local_after_success', true);
+            ->assertJsonPath('data.photo_upload.delete_local_after_success', true)
+            ->assertJsonPath('data.display_date_format', 'dd/mmm/yyyy')
+            ->assertJsonPath('data.navigation.top_menu_modes.paint.0.key', 'wo')
+            ->assertJsonPath('data.navigation.top_menu_modes.paint.1.key', 'lost')
+            ->assertJsonPath('data.navigation.available_sections.3.key', 'paint')
+            ->assertJsonPath('data.screens.draft_create.visible_flags.0', 'external_damage')
+            ->assertJsonPath('data.screens.draft_create.visible_flags.1', 'nameplate_missing')
+            ->assertJsonPath('data.screens.draft_create.pending_unit_quick_fields.0', 'part_number')
+            ->assertJsonPath('data.screens.workorder_parts.component_edit_fields.5', 'log_card');
+    }
+
+    public function test_mobile_api_public_app_config_returns_launch_and_login_metadata(): void
+    {
+        $response = $this->getJson(route('api.mobile.public.app-config'));
+
+        $response->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.app.theme', 'dark')
+            ->assertJsonPath('data.auth.login_title', 'Login')
+            ->assertJsonPath('data.auth.remember_me_supported', true)
+            ->assertJsonPath('data.auth.remember_me_mode', 'client_token_persistence')
+            ->assertJsonPath('data.auth.forgot_password_supported', true)
+            ->assertJsonPath('data.auth.forgot_password_url', route('password.request'))
+            ->assertJsonPath('data.launch.initial_route', 'login');
+    }
+
+    public function test_mobile_api_paint_and_machining_indexes_return_native_metadata(): void
+    {
+        $paintUser = $this->createUserWithRole('Paint');
+        $machiningUser = $this->createUserWithRole('Machining');
+
+        $paintResponse = $this->withMobileToken($paintUser)
+            ->getJson(route('api.mobile.paint.index'));
+
+        $paintResponse->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.menu_mode', 'paint')
+            ->assertJsonPath('data.top_menu.1.key', 'lost')
+            ->assertJsonPath('data.tabs.0.key', 'wo')
+            ->assertJsonPath('data.tabs.1.key', 'lost');
+
+        $machiningResponse = $this->withMobileToken($machiningUser)
+            ->getJson(route('api.mobile.machining.index', ['my_wo' => 1]));
+
+        $machiningResponse->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.menu_mode', 'machining')
+            ->assertJsonPath('data.top_menu.1.key', 'my_wo')
+            ->assertJsonPath('data.my_wo', true);
+    }
+
+    public function test_mobile_api_can_create_and_delete_paint_lost_part(): void
+    {
+        $paintUser = $this->createUserWithRole('Paint');
+
+        $createResponse = $this->withMobileToken($paintUser)
+            ->post(route('api.mobile.paint.lost.store'), [
+                'part_number' => 'LOST-PN',
+                'serial_number' => 'LOST-SN',
+                'comment' => 'Lost part from mobile API',
+                'photo' => UploadedFile::fake()->image('lost.png'),
+            ], ['Accept' => 'application/json']);
+
+        $createResponse->assertCreated()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.lost_part.part_number', 'LOST-PN');
+
+        $lostId = (int) $createResponse->json('data.lost_part.id');
+
+        $deleteResponse = $this->withMobileToken($paintUser)
+            ->deleteJson(route('api.mobile.paint.lost.destroy', $lostId));
+
+        $deleteResponse->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.id', $lostId);
     }
 
     public function test_mobile_api_logout_revokes_current_token(): void
@@ -391,6 +468,34 @@ class MobileApiTest extends TestCase
         $dateResponse->assertOk()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('data.process.date_start', '2026-05-25');
+    }
+
+    public function test_mobile_api_can_update_component_log_card_flag(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $user->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'ipl_num' => '11-22',
+            'part_number' => 'PN-LOG-CARD',
+            'name' => 'Log Card Component',
+            'log_card' => false,
+        ]);
+
+        $response = $this->withMobileToken($user)
+            ->patchJson(route('api.mobile.components.update', $component->id), [
+                'log_card' => true,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.component.id', $component->id)
+            ->assertJsonPath('data.component.log_card', true);
+
+        $this->assertDatabaseHas('components', [
+            'id' => $component->id,
+            'log_card' => 1,
+        ]);
     }
 
     public function test_mobile_api_materials_can_be_searched_and_updated(): void

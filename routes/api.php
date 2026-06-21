@@ -28,6 +28,7 @@ Route::prefix('archive')
     });
 
 Route::prefix('mobile')->name('api.mobile.')->group(function () {
+    Route::get('/public/app-config', [MobileApiController::class, 'publicAppConfig'])->name('public.app-config');
     Route::post('/auth/login', [MobileApiController::class, 'login'])->name('auth.login');
 
     Route::middleware('mobile.api')->group(function () {
@@ -72,6 +73,20 @@ Route::prefix('mobile')->name('api.mobile.')->group(function () {
 
         Route::get('/materials', [MobileApiController::class, 'materials'])->name('materials.index');
         Route::patch('/materials/{material}', [MobileApiController::class, 'updateMaterial'])->name('materials.update');
+
+        Route::get('/paint', [MobileApiController::class, 'paint'])->name('paint.index');
+        Route::post('/paint/lost', [MobileApiController::class, 'storePaintLost'])->name('paint.lost.store');
+        Route::delete('/paint/lost/{paint}', [MobileApiController::class, 'deletePaintLost'])->name('paint.lost.destroy');
+        Route::post('/paint/messages', [MobileApiController::class, 'sendPaintOwnerMessage'])->name('paint.messages.store');
+
+        Route::get('/machining', [MobileApiController::class, 'machining'])->name('machining.index');
+        Route::get('/machining/workorders/{workorderId}', [MobileApiController::class, 'machiningWorkorder'])->name('machining.workorders.show');
+        Route::patch('/machining/steps/{machiningWorkStep}', [MobileApiController::class, 'updateMachiningStep'])->name('machining.steps.update');
+        Route::post('/machining/workorders/{workorderId}/photos', [MobileApiController::class, 'storeMachiningWorkorderPhoto'])->name('machining.workorders.photos.store');
+        Route::get('/machining/workorders/{workorderId}/photos', [MobileApiController::class, 'machiningWorkorderPhotos'])->name('machining.workorders.photos.index');
+        Route::post('/machining/workorders/{workorderId}/doc-pdfs', [MobileApiController::class, 'storeMachiningWorkorderDocPdf'])->name('machining.workorders.doc-pdfs.store');
+        Route::get('/machining/workorders/{workorderId}/pdfs', [MobileApiController::class, 'machiningWorkorderPdfs'])->name('machining.workorders.pdfs.index');
+        Route::delete('/machining/workorders/{workorderId}/media/{media}', [MobileApiController::class, 'deleteMachiningWorkorderMedia'])->name('machining.workorders.media.destroy');
     });
 });
 
