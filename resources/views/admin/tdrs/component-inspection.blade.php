@@ -745,7 +745,7 @@
                 setHiddenInput('order_component_id', $('#order_component_id').val());
                 setHiddenInput('order_component_assembly_id', $('#order_component_assembly_id').val());
                 setHiddenInput('necessaries_id', '2');
-                setHiddenInput('conditions_id', '1');
+                // conditions_id резолвит сервер (Missing → PARTS MISSING по имени).
             } else if (codeName !== 'missing' && necessaryName === 'order new') {
                 setHiddenInput('use_tdr', '1');
                 setHiddenInput('use_process_forms', '0');
@@ -754,25 +754,7 @@
                 setHiddenInput('order_component_id', $('#order_component_id').val());
                 setHiddenInput('order_component_assembly_id', $('#order_component_assembly_id').val());
 
-                var conditionId = null;
-                var normalizedCodeName = codeName.toString().trim().toLowerCase();
-
-                $('#c_conditions_id option').each(function() {
-                    var condName = $(this).attr('data-title');
-                    var condValue = $(this).val();
-                    var normalizedCondName = condName ? condName.toString().trim().toLowerCase() : null;
-
-                    if (normalizedCondName && normalizedCondName === normalizedCodeName) {
-                        conditionId = condValue;
-                        return false;
-                    }
-                });
-
-                if (conditionId) {
-                    setHiddenInput('conditions_id', conditionId);
-                } else {
-                    setHiddenInput('conditions_id', '39');
-                }
+                // conditions_id резолвит сервер по имени кода (без магических id/дефолта 39).
             } else if (codeName !== 'missing' && necessaryName !== 'order new') {
                 setHiddenInput('use_tdr', '1');
                 setHiddenInput('use_process_forms', '1');

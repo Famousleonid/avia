@@ -1069,6 +1069,232 @@ class TdrsTest extends TestCase
         $response->assertSee($availableCondition->name);
     }
 
+    public function test_tdr_form_order_new_reason_comes_from_code_and_omits_scrap_for_customer_request(): void
+    {
+        // Order New rows print their REASON from the code (the field edited in the
+        // "Ordered Parts" modal), not from conditions. "Customer Request" is not a
+        // scrap reason, so its line must omit the "(scrap)" label.
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+
+        $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
+        Code::query()->firstOrCreate(['name' => 'Missing'], ['code' => 'M']);
+        $cracked = Code::query()->firstOrCreate(['name' => 'Cracked'], ['code' => 'C']);
+        $customerRequest = Code::query()->firstOrCreate(['name' => 'Customer Request'], ['code' => 'CR']);
+        // A condition that used to drive the printed label — it must no longer leak in.
+        $sbc = Condition::query()->firstOrCreate(['name' => 'SERVICE BULLETIN CHANGE'], ['unit' => 1]);
+
+        $crackedPart = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'CMP-CRACK-' . uniqid(),
+            'name' => 'Bushing',
+            'ipl_num' => '1-30',
+        ]);
+        $customerPart = Component::query()->create([
+            'manual_id' => $manualId,
+            'part_number' => 'CMP-CR-' . uniqid(),
+            'name' => 'End, Rod',
+            'ipl_num' => '1-170',
+        ]);
+
+        foreach ([[$crackedPart, $cracked], [$customerPart, $customerRequest]] as [$part, $code]) {
+            Tdr::query()->create([
+                'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+                'workorder_id' => $workorder->id,
+                'component_id' => $part->id,
+                'codes_id' => $code->id,
+                'conditions_id' => $sbc->id, // set, but must be ignored by the print
+                'necessaries_id' => $orderNew->id,
+                'serial_number' => 'NSN',
+                'assy_serial_number' => ' ',
+                'qty' => 1,
+                'use_tdr' => true,
+                'use_process_forms' => false,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('tdrs.tdrForm', ['id' => $workorder->id]));
+
+        $response->assertOk();
+        $html = $response->getContent();
+
+        // Reason is taken from the code, defect codes keep "(scrap)".
+        $this->assertStringContainsString('Cracked (scrap): (1-30)', $html);
+        // Customer Request: reason printed, but WITHOUT the scrap label.
+        $this->assertStringContainsString('Customer Request: (1-170)', $html);
+        $this->assertStringNotContainsString('Customer Request (scrap)', $html);
+        // The condition name must no longer be used as the Order New reason.
+        $this->assertStringNotContainsString('SERVICE BULLETIN CHANGE (scrap)', $html);
+    }
+
+    public function test_backfill_tdr_conditions_re_derives_condition_from_code(): void
+    {
+        // Legacy rows whose condition came from the old JS mapping (default 39 =
+        // SERVICE BULLETIN CHANGE) are re-derived by code name; Missing → PARTS
+        // MISSING; Manufacture and null-component rows are left untouched.
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+
+        $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
+        $missingCode = Code::query()->firstOrCreate(['name' => 'Missing'], ['code' => 'M']);
+        $cracked = Code::query()->firstOrCreate(['name' => 'Cracked'], ['code' => 'C']);
+        $customerRequest = Code::query()->firstOrCreate(['name' => 'Customer Request'], ['code' => 'CR']);
+        $manufacture = Code::query()->firstOrCreate(['name' => 'Manufacture'], ['code' => 'MF']);
+
+        $sbc = Condition::query()->firstOrCreate(['name' => 'SERVICE BULLETIN CHANGE'], ['unit' => 1]);
+        $crackedCond = Condition::query()->firstOrCreate(['name' => 'Cracked'], ['unit' => 1]);
+        $partsMissing = Condition::query()->firstOrCreate(
+            ['name' => Condition::NAME_PARTS_MISSING],
+            ['unit' => false]
+        );
+
+        $mkComp = function (string $ipl) use ($manualId) {
+            return Component::query()->create([
+                'manual_id' => $manualId,
+                'part_number' => 'CMP-' . uniqid(),
+                'name' => 'Part ' . $ipl,
+                'ipl_num' => $ipl,
+            ]);
+        };
+
+        // Polluted: Customer Request stored as SBC → should become null (no same-named condition).
+        $crTdr = Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR, 'workorder_id' => $workorder->id,
+            'component_id' => $mkComp('1-170')->id, 'codes_id' => $customerRequest->id,
+            'conditions_id' => $sbc->id, 'necessaries_id' => $orderNew->id,
+            'serial_number' => 'SN', 'assy_serial_number' => ' ', 'qty' => 1,
+            'use_tdr' => true, 'use_process_forms' => false,
+        ]);
+        // Polluted: Cracked stored as SBC → should become the "Cracked" condition.
+        $crackTdr = Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR, 'workorder_id' => $workorder->id,
+            'component_id' => $mkComp('1-30')->id, 'codes_id' => $cracked->id,
+            'conditions_id' => $sbc->id, 'necessaries_id' => $orderNew->id,
+            'serial_number' => 'SN', 'assy_serial_number' => ' ', 'qty' => 1,
+            'use_tdr' => true, 'use_process_forms' => false,
+        ]);
+        // Missing with a wrong condition → should become PARTS MISSING.
+        $missTdr = Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR, 'workorder_id' => $workorder->id,
+            'component_id' => $mkComp('2-10')->id, 'codes_id' => $missingCode->id,
+            'conditions_id' => $sbc->id, 'necessaries_id' => $orderNew->id,
+            'serial_number' => 'SN', 'assy_serial_number' => ' ', 'qty' => 1,
+            'use_tdr' => true, 'use_process_forms' => false,
+        ]);
+        // Manufacture → untouched.
+        $mfTdr = Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR, 'workorder_id' => $workorder->id,
+            'component_id' => $mkComp('3-10')->id, 'codes_id' => $manufacture->id,
+            'conditions_id' => $sbc->id, 'necessaries_id' => $orderNew->id,
+            'serial_number' => 'SN', 'assy_serial_number' => ' ', 'qty' => 1,
+            'use_tdr' => true, 'use_process_forms' => false,
+        ]);
+        // Null-component (STD carrier) → out of scope, untouched.
+        $nullTdr = Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_STD_LIST_CARRIER, 'workorder_id' => $workorder->id,
+            'component_id' => null, 'codes_id' => null,
+            'conditions_id' => $sbc->id, 'necessaries_id' => null, 'description' => 'carrier',
+            'serial_number' => 'NSN', 'assy_serial_number' => ' ', 'qty' => 1,
+            'use_tdr' => true, 'use_process_forms' => false,
+        ]);
+
+        $this->artisan('tdrs:backfill-conditions', ['--workorder' => $workorder->id, '--force' => true])
+            ->assertExitCode(0);
+
+        $this->assertNull($crTdr->fresh()->conditions_id);
+        $this->assertSame($crackedCond->id, $crackTdr->fresh()->conditions_id);
+        $this->assertSame($partsMissing->id, $missTdr->fresh()->conditions_id);
+        $this->assertSame($sbc->id, $mfTdr->fresh()->conditions_id);   // Manufacture untouched
+        $this->assertSame($sbc->id, $nullTdr->fresh()->conditions_id); // null-component untouched
+    }
+
+    public function test_tdr_inspection_lines_builder_is_single_source_for_render_and_count(): void
+    {
+        // The builder feeds both the renderer (tdrForm) and the row counter
+        // (countTdrFormRows); count(build()) must equal the rendered lines, and
+        // Order New lines must come from the code (Customer Request without scrap).
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+
+        $orderNew = Necessary::query()->firstOrCreate(['name' => 'Order New']);
+        $repair = Necessary::query()->firstOrCreate(['name' => 'Repair']);
+        Code::query()->firstOrCreate(['name' => 'Missing'], ['code' => 'M']);
+        $cracked = Code::query()->firstOrCreate(['name' => 'Cracked'], ['code' => 'C']);
+        $customerRequest = Code::query()->firstOrCreate(['name' => 'Customer Request'], ['code' => 'CR']);
+        $corroded = Code::query()->firstOrCreate(['name' => 'Corroded'], ['code' => 'CR2']);
+        $sbc = Condition::query()->firstOrCreate(['name' => 'SERVICE BULLETIN CHANGE'], ['unit' => 1]);
+        $bent = Condition::query()->firstOrCreate(['name' => 'BENT'], ['unit' => 1]);
+        $unitCond = Condition::query()->firstOrCreate(['name' => 'SEAL(S) WORN'], ['unit' => 1]);
+
+        // 1 unit inspection line.
+        WorkorderUnitInspection::query()->create([
+            'workorder_id' => $workorder->id,
+            'condition_id' => $unitCond->id,
+            'notes' => 'left side',
+            'qty' => 1,
+            'serial_number' => 'NSN',
+            'assy_serial_number' => ' ',
+            'use_tdr' => true,
+            'use_process_forms' => false,
+        ]);
+
+        // 1 null-component condition line.
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_STD_LIST_CARRIER,
+            'workorder_id' => $workorder->id,
+            'component_id' => null,
+            'codes_id' => null,
+            'conditions_id' => $bent->id,
+            'necessaries_id' => null,
+            'description' => '',
+            'serial_number' => 'NSN',
+            'assy_serial_number' => ' ',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => false,
+        ]);
+
+        $mk = function (string $name, string $ipl, $code, $necessary) use ($manualId, $workorder, $sbc) {
+            $component = Component::query()->create([
+                'manual_id' => $manualId,
+                'part_number' => 'CMP-' . uniqid(),
+                'name' => $name,
+                'ipl_num' => $ipl,
+            ]);
+            Tdr::query()->create([
+                'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+                'workorder_id' => $workorder->id,
+                'component_id' => $component->id,
+                'codes_id' => $code->id,
+                'conditions_id' => $sbc->id,
+                'necessaries_id' => $necessary->id,
+                'serial_number' => 'SN',
+                'assy_serial_number' => ' ',
+                'qty' => 1,
+                'use_tdr' => true,
+                'use_process_forms' => false,
+            ]);
+        };
+        $mk('Bushing', '1-30', $cracked, $orderNew);          // grouped, scrap
+        $mk('End, Rod', '1-170', $customerRequest, $orderNew); // grouped, no scrap
+        $mk('Sleeve', '2-40', $corroded, $repair);             // "is necessary"
+
+        $lines = app(\App\Services\TdrInspectionLinesBuilder::class)->build($workorder);
+        $joined = implode("\n", $lines);
+
+        // 1 unit + 1 null-component + 2 grouped (distinct codes) + 1 necessary.
+        $this->assertCount(5, $lines);
+        $this->assertStringContainsString('SEAL(S) WORN (left side)', $joined);
+        $this->assertStringContainsString('BENT', $joined);
+        $this->assertStringContainsString('Cracked (scrap): (1-30)', $joined);
+        $this->assertStringContainsString('Customer Request: (1-170)', $joined);
+        $this->assertStringNotContainsString('Customer Request (scrap)', $joined);
+        $this->assertStringContainsString('IS NECESSARY', $joined);
+    }
+
     public function test_tdr_form_prints_teardown_inspection_rows_before_tdr_rows(): void
     {
         $admin = $this->createUserWithRole('Admin');

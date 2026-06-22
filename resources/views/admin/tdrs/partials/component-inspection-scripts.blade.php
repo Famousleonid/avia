@@ -369,18 +369,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     setHiddenInput('order_component_id', $('#order_component_id').val());
                     setHiddenInput('order_component_assembly_id', $('#order_component_assembly_id').val());
                     setHiddenInput('necessaries_id', '2');
-                    setHiddenInput('conditions_id', '1');
+                    // conditions_id резолвит сервер (Missing → PARTS MISSING по имени).
                 } else if (codeName !== 'missing' && necessaryName === 'order new') {
                     setHiddenInput('use_tdr', '1');
                     setHiddenInput('use_process_forms', '0');
                     setHiddenInput('order_component_id', $('#order_component_id').val());
                     setHiddenInput('order_component_assembly_id', $('#order_component_assembly_id').val());
-                    let conditionId = '39';
-                    $('#c_conditions_id option').each(function() {
-                        const condName = ($(this).attr('data-title') || '').toString().trim().toLowerCase();
-                        if (condName === codeName) { conditionId = $(this).val(); return false; }
-                    });
-                    setHiddenInput('conditions_id', conditionId);
+                    // conditions_id резолвит сервер по имени кода (без магических id/дефолта 39).
                 } else if (codeName !== 'missing' && necessaryName !== 'order new') {
                     setHiddenInput('use_tdr', '1');
                     setHiddenInput('use_process_forms', '1');
@@ -924,19 +919,6 @@ function initTdrInlineCreate() {
             || !!closest('.select2-container--open, .select2-dropdown, .modal');
     }
 
-    function findConditionIdForCode(codeName) {
-        let conditionId = '39';
-        const options = @json($component_conditions->map(fn($condition) => ['id' => $condition->id, 'name' => $condition->name])->values());
-        options.some(function(condition) {
-            if ((condition.name || '').toString().trim().toLowerCase() === codeName) {
-                conditionId = condition.id;
-                return true;
-            }
-            return false;
-        });
-        return conditionId;
-    }
-
     function updateFieldVisibility() {
         const codeName = selectedTitle(codeSelect).toLowerCase();
         const necessaryName = selectedTitle(necessarySelect).toLowerCase();
@@ -1279,14 +1261,14 @@ function initTdrInlineCreate() {
             if (serialInput) serialInput.value = '';
             if (assySerialInput) assySerialInput.value = '';
             if (orderNewNecessaryId) setSelectValue(necessarySelect, orderNewNecessaryId);
-            conditionsInput.value = missingConditionId || '';
+            // conditions_id резолвит сервер (Missing → PARTS MISSING по имени).
         } else if (codeName && necessaryName === 'order new') {
             useTdrInput.value = '1';
             useProcessFormsInput.value = '0';
             if (descriptionInput) descriptionInput.value = '';
             if (serialInput) serialInput.value = '';
             if (assySerialInput) assySerialInput.value = '';
-            conditionsInput.value = findConditionIdForCode(codeName);
+            // conditions_id резолвит сервер по имени кода (без магических id/дефолта 39).
         } else if (codeName) {
             useTdrInput.value = '1';
             useProcessFormsInput.value = '1';

@@ -34,6 +34,7 @@ use App\Models\Unit;
 use App\Models\Workorder;
 use App\Services\LogCardTdrAccessService;
 use App\Services\ManualIplBranchRuleResolver;
+use App\Services\TdrInspectionLinesBuilder;
 use App\Services\WorkorderStdListProcessesService;
 use App\Support\KitPrlGrouping;
 use App\Support\LogCardDestructionCertificate;
@@ -794,18 +795,23 @@ class TdrController extends Controller
                 ->exists();
         }
 
-        // Если codes_id равно Missing, автоматически устанавливаем conditions_id=1 (PARTS MISSING UPON ARRIVAL)
+        // Missing всегда → PARTS MISSING UPON ARRIVAL: резолв по имени на сервере, не по
+        // присланному id (иначе чужой id на проде даст не тот condition).
         $missingCondition = Condition::partsMissing();
         if ($codeIdInt !== null && $validatedCodesId === $codeIdInt && $missingCondition) {
-            // Если conditions_id не установлен или равен null, устанавливаем его в missingCondition->id
-            if (empty($validated['conditions_id']) || $validated['conditions_id'] === null) {
-                $validated['conditions_id'] = $missingCondition->id;
-                // \Log::info('Auto-set conditions_id to missingCondition', [
-                //     'workorder_id' => $workorder->id,
-                //     'codes_id' => $validated['codes_id'],
-                //     'conditions_id' => $missingCondition->id
-                // ]);
-            }
+            $validated['conditions_id'] = $missingCondition->id;
+        }
+
+        // 2-A: для прочих кодов (не Missing/Manufacture) condition подбираем НА СЕРВЕРЕ по имени
+        // кода, не доверяя JS (он слал магические ID и дефолтил в 39 = SERVICE BULLETIN CHANGE —
+        // хрупко при иных id на проде и неверно для не-браковочных кодов вроде Customer Request).
+        // Нет одноимённого condition → null (нейтрально, без чужого состояния).
+        if (! $isMissingPayload && ! $isManufacture && $validatedCodesId !== null) {
+            $selectedCode = Code::find($validatedCodesId);
+            $matchedCondition = $selectedCode
+                ? Condition::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $selectedCode->name))])->first()
+                : null;
+            $validated['conditions_id'] = $matchedCondition?->id;
         }
 
         try {
@@ -2487,117 +2493,10 @@ class TdrController extends Controller
 
     private function countTdrFormRows(Workorder $workorder): int
     {
-        $necessary = Necessary::where('name', 'Order New')->first();
-        $missingCode = Code::missing();
-        $missingConditionName = Condition::NAME_PARTS_MISSING;
-
-        $unitInspections = WorkorderUnitInspection::query()
-            ->with('condition:id,name')
-            ->where('workorder_id', $workorder->id)
-            ->where(function ($query): void {
-                $query->where('use_tdr', true)
-                    ->orWhereNull('use_tdr');
-            })
-            ->orderBy('id')
-            ->get();
-
-        $unitInspectionRows = $unitInspections
-            ->filter(function (WorkorderUnitInspection $inspection) use ($missingConditionName): bool {
-                $conditionName = trim((string) ($inspection->condition->name ?? ''));
-                $notes = trim((string) ($inspection->notes ?? ''));
-
-                if (strcasecmp($conditionName, $missingConditionName) === 0) {
-                    return false;
-                }
-
-                return $conditionName !== '' || $notes !== '';
-            })
-            ->count();
-
-        $unitInspectionSourceTdrIds = $unitInspections
-            ->pluck('source_tdr_id')
-            ->filter()
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        $nullComponentRows = 0;
-        $groupedByConditions = [];
-        $necessaryComponentRows = 0;
-        $hasMissingComponents = false;
-
-        $tdrs = Tdr::where('workorder_id', $workorder->id)
-            ->with(['component', 'conditions', 'necessaries', 'codes'])
-            ->get();
-
-        foreach ($tdrs as $tdr) {
-            if ($missingCode && (int) $tdr->codes_id === (int) $missingCode->id) {
-                $hasMissingComponents = true;
-                continue;
-            }
-
-            if ($tdr->component_id === null) {
-                if (in_array((int) $tdr->id, $unitInspectionSourceTdrIds, true)) {
-                    continue;
-                }
-
-                $condition = $tdr->conditions;
-                if (! $condition) {
-                    continue;
-                }
-
-                $description = trim((string) $tdr->description);
-                $isNoteCondition = preg_match('/^note\s+\d+$/i', (string) $condition->name);
-                if ($isNoteCondition && $description === '') {
-                    continue;
-                }
-
-                $nullComponentRows++;
-                continue;
-            }
-
-            if ($necessary && (int) $tdr->necessaries_id === (int) $necessary->id) {
-                $component = $tdr->component;
-                $condition = $tdr->conditions;
-                if (! $component || ! $condition) {
-                    continue;
-                }
-
-                $componentString = sprintf(
-                    '(%s%s)<b> %s </b>%s',
-                    strtoupper((string) $component->ipl_num),
-                    (int) $tdr->qty === 1 ? '' : ', ' . $tdr->qty . 'pcs',
-                    strtoupper((string) $component->name),
-                    trim((string) $tdr->description) !== '' ? ': ( ' . strtoupper((string) $tdr->description) . ')' : ' '
-                );
-                $conditionName = (string) $condition->name;
-                $groupedByConditions[$conditionName] ??= [];
-                $lastKey = count($groupedByConditions[$conditionName]) - 1;
-                $lastString = $lastKey >= 0 ? $groupedByConditions[$conditionName][$lastKey] : '';
-
-                if (strlen($lastString . ', ' . $componentString) <= 120) {
-                    if ($lastKey >= 0) {
-                        $groupedByConditions[$conditionName][$lastKey] .= ', ' . $componentString;
-                    } else {
-                        $groupedByConditions[$conditionName][] = $conditionName . ' (scrap): ' . $componentString;
-                    }
-                } else {
-                    $groupedByConditions[$conditionName][] = $conditionName . ' (scrap): ' . $componentString;
-                }
-                continue;
-            }
-
-            if ($tdr->component && $tdr->necessaries && $tdr->codes) {
-                $necessaryComponentRows++;
-            }
-        }
-
-        $groupedRows = collect($groupedByConditions)->sum(fn (array $rows): int => count($rows));
-
-        return $unitInspectionRows
-            + $nullComponentRows
-            + $groupedRows
-            + $necessaryComponentRows
-            + ($hasMissingComponents ? 1 : 0);
+        // Делегируем общему билдеру: число строк формы = count построенных строк,
+        // тот же источник, что и рендер (TdrPrintFormController::tdrForm). Так рендер
+        // и резерв строк не могут разойтись.
+        return count(app(TdrInspectionLinesBuilder::class)->build($workorder));
     }
 
     private function filterComponentsForUnit($components, Workorder $workorder)
