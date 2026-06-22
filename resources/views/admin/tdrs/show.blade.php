@@ -743,11 +743,13 @@
                                         role="tab">{{ __('Transfers') }}</button>
                             </li>
                         @endif
+                        @unless(auth()->user()?->roleIs(['Shipping', 'Paint', 'Machining']))
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="tab-measurements" data-bs-toggle="tab"
                                     data-bs-target="#content-measurements" type="button"
                                     role="tab">{{ __('Measurements') }}</button>
                         </li>
+                        @endunless
                         {{-- Temporary Ordered-parts tab (opened by the Ordered button in Measurements; reuses the measurements pane) --}}
                         <li class="nav-item d-none" role="presentation" id="tab-ms-new-li">
                             <button class="nav-link" id="tab-ms-new" data-bs-toggle="tab"
@@ -940,8 +942,8 @@
                             </div>
                         </div>
                     @endif
-                    @role('Admin')
-                    {{-- Measurements tab --}}
+                    @unless(auth()->user()?->roleIs(['Shipping', 'Paint', 'Machining']))
+                    {{-- Measurements tab — доступно всем ролям, кроме Shipping/Paint/Machining --}}
                     <div class="tab-pane fade" id="content-measurements" role="tabpanel">
                         @include('admin.measurements._tab', ['wo' => $current_wo])
                     </div>
@@ -992,7 +994,7 @@
                             });
                         });
                     </script>
-                    @endrole
+                    @endunless
                 </div>
             </div>
         </div>
