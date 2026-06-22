@@ -49,6 +49,7 @@ Route::prefix('mobile')->name('api.mobile.')->group(function () {
         Route::get('/workorders', [MobileApiController::class, 'workorders'])->name('workorders.index');
         Route::get('/workorders/{workorderId}', [MobileApiController::class, 'workorder'])->name('workorders.show');
         Route::patch('/workorders/{workorderId}/storage', [MobileApiController::class, 'updateStorage'])->name('workorders.storage.update');
+        Route::patch('/workorders/{workorderId}/arrival-box', [MobileApiController::class, 'updateArrivalBox'])->name('workorders.arrival-box.update');
         Route::get('/workorders/{workorderId}/media', [MobileApiController::class, 'workorderMedia'])->name('workorders.media.index');
         Route::post('/workorders/{workorderId}/media', [MobileApiController::class, 'storeWorkorderMedia'])->name('workorders.media.store');
         Route::delete('/workorders/{workorderId}/media/{media}', [MobileApiController::class, 'deleteWorkorderMedia'])->name('workorders.media.destroy');

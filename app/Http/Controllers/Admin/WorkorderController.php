@@ -19,6 +19,7 @@ use App\Services\Workorders\WorkorderVisibilityService;
 use App\Services\WorkorderStdListProcessesService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +34,8 @@ use Illuminate\Validation\Rule;
 
 class WorkorderController extends Controller
 {
+    private const QUICK_OPEN_SEARCH_EMAIL = 'vkyushkevich@yahoo.ca';
+
     public function __construct(private WorkorderVisibilityService $workorderVisibility)
     {
     }
@@ -302,8 +305,73 @@ class WorkorderController extends Controller
             'initialSort' => $payload['filters']['sort'],
             'initialDirection' => $payload['filters']['direction'],
             'uiSettings' => $uiSettings,
+            'canUseQuickOpenSearch' => $this->canUseQuickOpenSearch(request()->user()),
         ]);
 
+    }
+
+    public function quickOpenSearch(Request $request): JsonResponse
+    {
+        abort_unless($this->canUseQuickOpenSearch($request->user()), 403);
+
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+        ]);
+        $term = trim((string) ($data['q'] ?? ''));
+
+        if ($term === '') {
+            return response()->json([
+                'ok' => true,
+                'count' => 0,
+                'message' => 'Enter search text.',
+            ]);
+        }
+
+        $filters = [
+            'q' => $term,
+            'customer_id' => '',
+            'technik_id' => '',
+            'only_my' => false,
+            'only_active' => false,
+            'only_approved' => false,
+            'show_drafts' => false,
+            'sort' => 'number',
+            'direction' => 'desc',
+            'cursor' => null,
+            'per_page' => 2,
+        ];
+
+        $query = Workorder::query()->withDrafts();
+        $this->applyWorkorderRoleVisibility($query);
+        $this->applyWorkorderIndexFilters($query, $filters);
+
+        $matches = $query
+            ->orderByDesc('workorders.number')
+            ->orderByDesc('workorders.id')
+            ->limit(2)
+            ->get(['workorders.id', 'workorders.number']);
+
+        if ($matches->count() === 1) {
+            $workorder = $matches->first();
+
+            return response()->json([
+                'ok' => true,
+                'count' => 1,
+                'url' => route('mains.show', $workorder->id),
+                'workorder' => [
+                    'id' => $workorder->id,
+                    'number' => (string) $workorder->number,
+                ],
+            ]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'count' => $matches->count(),
+            'message' => $matches->isEmpty()
+                ? 'No workorder found.'
+                : 'More than one workorder found.',
+        ]);
     }
 
     private function buildWorkorderIndexPayload(Request $request): array
@@ -398,6 +466,16 @@ class WorkorderController extends Controller
         if (auth()->check() && auth()->user()->roleIs('Technician')) {
             $query->where('workorders.is_draft', 0);
         }
+    }
+
+    private function canUseQuickOpenSearch(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return strtolower((string) $user->email) === self::QUICK_OPEN_SEARCH_EMAIL
+            || ($user->roleIs('Admin') && (bool) $user->is_admin);
     }
 
     private function applyWorkorderIndexFilters(Builder $query, array $filters): void

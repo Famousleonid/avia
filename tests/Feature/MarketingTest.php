@@ -178,6 +178,98 @@ class MarketingTest extends TestCase
         $this->assertSame('Pre-Payment', $props['new']['terms']);
     }
 
+    public function test_marketing_contact_and_note_create_delete_actions_are_logged(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $customer = $this->createCustomer(['name' => 'Audit Trail Customer']);
+
+        $contactResponse = $this->actingAs($admin)->postJson(route('marketing.contacts.store', $customer), [
+            'first_name' => 'Jane',
+            'last_name' => 'Buyer',
+            'position' => 'Purchasing',
+            'email' => 'jane.buyer@example.test',
+            'phone' => '555-0100',
+            'is_primary' => true,
+        ]);
+
+        $contactResponse->assertCreated()
+            ->assertJsonPath('contact.full_name', 'Jane Buyer');
+        $contactId = (int) $contactResponse->json('contact.id');
+
+        $contactCreated = Activity::query()
+            ->where('log_name', 'marketing')
+            ->where('description', 'Marketing contact created')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($contactCreated);
+        $this->assertSame($admin->id, $contactCreated->causer_id);
+        $this->assertSame('Audit Trail Customer', $contactCreated->properties['customer']);
+        $this->assertSame('Jane Buyer <jane.buyer@example.test>', $contactCreated->properties['new']['contact']);
+        $this->assertSame('jane.buyer@example.test', $contactCreated->properties['new']['email']);
+
+        $noteResponse = $this->actingAs($admin)->postJson(route('marketing.notes.store', $customer), [
+            'contact_id' => $contactId,
+            'note' => 'Discussed overhaul forecast and pricing.',
+            'interaction_at' => '12/may/2026',
+            'follow_up_at' => '15/may/2026',
+            'follow_up_status' => CustomerInteractionNote::STATUS_OPEN,
+        ]);
+
+        $noteResponse->assertCreated()
+            ->assertJsonPath('note.note', 'Discussed overhaul forecast and pricing.');
+        $noteId = (int) $noteResponse->json('note.id');
+
+        $noteCreated = Activity::query()
+            ->where('log_name', 'marketing')
+            ->where('description', 'Marketing note created')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($noteCreated);
+        $this->assertSame($admin->id, $noteCreated->causer_id);
+        $this->assertSame('Audit Trail Customer', $noteCreated->properties['customer']);
+        $this->assertSame('Discussed overhaul forecast and pricing.', $noteCreated->properties['new']['note']);
+        $this->assertSame('Jane Buyer <jane.buyer@example.test>', $noteCreated->properties['new']['contact']);
+
+        $this->actingAs($admin)
+            ->deleteJson(route('marketing.notes.destroy', $noteId))
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $this->assertDatabaseMissing('customer_interaction_notes', ['id' => $noteId]);
+
+        $noteDeleted = Activity::query()
+            ->where('log_name', 'marketing')
+            ->where('description', 'Marketing note deleted')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($noteDeleted);
+        $this->assertSame($admin->id, $noteDeleted->causer_id);
+        $this->assertSame('Audit Trail Customer', $noteDeleted->properties['customer']);
+        $this->assertSame('Discussed overhaul forecast and pricing.', $noteDeleted->properties['old']['note']);
+
+        $this->actingAs($admin)
+            ->deleteJson(route('marketing.contacts.destroy', $contactId))
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $this->assertDatabaseMissing('customer_contacts', ['id' => $contactId]);
+
+        $contactDeleted = Activity::query()
+            ->where('log_name', 'marketing')
+            ->where('description', 'Marketing contact deleted')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($contactDeleted);
+        $this->assertSame($admin->id, $contactDeleted->causer_id);
+        $this->assertSame('Audit Trail Customer', $contactDeleted->properties['customer']);
+        $this->assertSame('Jane Buyer <jane.buyer@example.test>', $contactDeleted->properties['old']['contact']);
+        $this->assertSame('jane.buyer@example.test', $contactDeleted->properties['old']['email']);
+    }
+
     public function test_marketing_note_follow_up_command_sends_due_notifications(): void
     {
         Notification::fake();

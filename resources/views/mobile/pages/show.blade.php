@@ -130,6 +130,15 @@
             justify-content: center;
         }
 
+        .arrival-box-notes {
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .arrival-box-form textarea {
+            resize: vertical;
+        }
+
     </style>
 @endsection
 
@@ -240,6 +249,17 @@
 
         @php
             $canUpdateStorage = auth()->check() && auth()->user()->roleIs(['Shipping', 'Manager', 'Admin']);
+            $canUpdateArrivalBox = $canUpdateStorage;
+            $arrivalBoxLabels = [
+                'ok' => 'OK',
+                'easy' => 'Light repair',
+                'medium' => 'Medium repair',
+                'hard' => 'Hard repair',
+                'replace' => 'New box',
+            ];
+            $arrivalBoxStatus = (string) ($workorder->arrival_box_status ?? '');
+            $arrivalBoxNotes = (string) ($workorder->arrival_box_notes ?? '');
+            $arrivalBoxLabel = $arrivalBoxLabels[$arrivalBoxStatus] ?? '';
         @endphp
 
         <div class="rounded-3 border border-info m-1 p-2">
@@ -302,6 +322,77 @@
                 </div>
                 @endif
             </div>
+
+            @if($canUpdateArrivalBox)
+            <div class="border-top border-secondary mt-2 pt-2">
+                <div class="d-flex align-items-start justify-content-between gap-2">
+                    <div class="min-w-0 flex-fill">
+                        <div class="d-flex align-items-center">
+                            <span class="text-info fw-semibold me-2">Box</span>
+                            <span id="arrivalBoxStatusText_{{ $workorder->id }}" class="text-white">
+                                {{ $arrivalBoxLabel !== '' ? $arrivalBoxLabel : '---' }}
+                            </span>
+                        </div>
+                        <div
+                            id="arrivalBoxNotesText_{{ $workorder->id }}"
+                            class="arrival-box-notes small text-white-50 mt-1 {{ $arrivalBoxNotes === '' ? 'd-none' : '' }}"
+                        >{{ $arrivalBoxNotes }}</div>
+
+                        <form
+                            id="arrivalBoxForm_{{ $workorder->id }}"
+                            class="arrival-box-form mt-2 d-none"
+                            data-saved-status="{{ $arrivalBoxStatus }}"
+                            data-saved-notes="{{ $arrivalBoxNotes }}"
+                        >
+                            <div class="row g-2">
+                                <div class="col-5">
+                                    <label class="form-label mb-1">Status</label>
+                                    <select name="arrival_box_status" class="form-select form-select-sm">
+                                        <option value="">---</option>
+                                        @foreach($arrivalBoxLabels as $value => $label)
+                                            <option value="{{ $value }}" @selected($arrivalBoxStatus === $value)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-7">
+                                    <label class="form-label mb-1">Notes</label>
+                                    <textarea
+                                        name="arrival_box_notes"
+                                        maxlength="1000"
+                                        rows="2"
+                                        class="form-control form-control-sm"
+                                    >{{ $arrivalBoxNotes }}</textarea>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button"
+                                        class="btn btn-sm btn-success"
+                                        onclick="saveArrivalBox({{ $workorder->id }})">
+                                    Save
+                                </button>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        onclick="cancelArrivalBox({{ $workorder->id }})">
+                                    Cancel
+                                </button>
+                            </div>
+
+                            <div class="small text-danger mt-2 d-none" id="arrivalBoxErr_{{ $workorder->id }}"></div>
+                        </form>
+                    </div>
+
+                    <div class="text-end">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-info"
+                                id="arrivalBoxEditBtn_{{ $workorder->id }}"
+                                onclick="toggleArrivalBoxEdit({{ $workorder->id }}, true)">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            @endif
         </div>
 
 
@@ -661,6 +752,14 @@
     <script>
         // URL-шаблон (лучше так, чем собирать руками)
         const STORAGE_UPDATE_URL = @json(route('mobile.workorders.storage.update', ['workorder' => '__ID__']));
+        const ARRIVAL_BOX_UPDATE_URL = @json(route('mobile.workorders.arrival-box.update', ['workorder' => '__ID__']));
+        const ARRIVAL_BOX_LABELS = {
+            ok: 'OK',
+            easy: 'Light repair',
+            medium: 'Medium repair',
+            hard: 'Hard repair',
+            replace: 'New box',
+        };
 
         function toggleStorageEdit(id, on) {
             const form = document.getElementById('storageForm_' + id);
@@ -728,6 +827,103 @@
                     showNotification('Storage updated', 'success');
                 }
 
+            } catch (e) {
+                if (err) { err.textContent = e.message || 'Network error'; err.classList.remove('d-none'); }
+            }
+        }
+
+        function toggleArrivalBoxEdit(id, on) {
+            const form = document.getElementById('arrivalBoxForm_' + id);
+            const btn = document.getElementById('arrivalBoxEditBtn_' + id);
+            const err = document.getElementById('arrivalBoxErr_' + id);
+
+            if (err) { err.classList.add('d-none'); err.textContent = ''; }
+            if (!form) return;
+
+            form.classList.toggle('d-none', !on);
+            if (btn) btn.classList.toggle('d-none', on);
+        }
+
+        function cancelArrivalBox(id) {
+            const form = document.getElementById('arrivalBoxForm_' + id);
+            if (form) {
+                const status = form.querySelector('[name="arrival_box_status"]');
+                const notes = form.querySelector('[name="arrival_box_notes"]');
+                if (status) status.value = form.dataset.savedStatus || '';
+                if (notes) notes.value = form.dataset.savedNotes || '';
+            }
+
+            toggleArrivalBoxEdit(id, false);
+        }
+
+        function updateArrivalBoxView(id, status, notes) {
+            const statusText = document.getElementById('arrivalBoxStatusText_' + id);
+            const notesText = document.getElementById('arrivalBoxNotesText_' + id);
+
+            if (statusText) {
+                statusText.textContent = ARRIVAL_BOX_LABELS[status] || '---';
+            }
+
+            if (notesText) {
+                notesText.textContent = notes || '';
+                notesText.classList.toggle('d-none', !notes);
+            }
+        }
+
+        async function saveArrivalBox(id) {
+            const form = document.getElementById('arrivalBoxForm_' + id);
+            const err = document.getElementById('arrivalBoxErr_' + id);
+            if (!form) return;
+
+            if (err) { err.classList.add('d-none'); err.textContent = ''; }
+
+            const fd = new FormData(form);
+            const payload = {
+                arrival_box_status: fd.get('arrival_box_status') || null,
+                arrival_box_notes: fd.get('arrival_box_notes') || '',
+            };
+
+            const url = ARRIVAL_BOX_UPDATE_URL.replace('__ID__', id);
+
+            try {
+                const r = await fetch(url, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': @json(csrf_token()),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await r.json().catch(() => ({}));
+
+                if (!r.ok || data.success === false) {
+                    const errors = data.errors ? Object.values(data.errors).flat().join(' ') : '';
+                    const msg = errors || data.message || 'Error saving box';
+                    if (err) { err.textContent = msg; err.classList.remove('d-none'); }
+                    return;
+                }
+
+                const box = data.arrival_box || {};
+                const status = box.status || '';
+                const notes = box.notes || '';
+
+                form.dataset.savedStatus = status;
+                form.dataset.savedNotes = notes;
+
+                const statusField = form.querySelector('[name="arrival_box_status"]');
+                const notesField = form.querySelector('[name="arrival_box_notes"]');
+                if (statusField) statusField.value = status;
+                if (notesField) notesField.value = notes;
+
+                updateArrivalBoxView(id, status, notes);
+                toggleArrivalBoxEdit(id, false);
+
+                if (typeof showNotification === 'function') {
+                    showNotification('Box updated', 'success');
+                }
             } catch (e) {
                 if (err) { err.textContent = e.message || 'Network error'; err.classList.remove('d-none'); }
             }

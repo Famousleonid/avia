@@ -45,7 +45,7 @@ try {
 </script>
 </head>
 <body>
-@include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null, 'printMarkQrSize' => 32, 'printMarkFormName' => 'Final Dimensional Report'])
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null, 'printMarkFormName' => 'Final Dimensional Report'])
 
 <div class="action-bar">
     <button class="btn-print" onclick="window.print()">&#128438; Print</button>

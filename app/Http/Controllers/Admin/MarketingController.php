@@ -352,6 +352,30 @@ class MarketingController extends Controller
         ]);
     }
 
+    public function destroyNote(CustomerInteractionNote $note): JsonResponse
+    {
+        $customer = $note->customer;
+        $old = $this->noteAuditSnapshot($note->fresh(['customer', 'contact', 'user']));
+
+        DB::transaction(function () use ($customer, $note) {
+            $note->delete();
+            $this->syncProfileDates($customer);
+        });
+
+        $this->logMarketingActivity(
+            'deleted',
+            $customer->fresh(),
+            'Marketing note deleted',
+            $old,
+            []
+        );
+
+        return response()->json([
+            'ok' => true,
+            'customer' => $this->customerDetail($customer->fresh()),
+        ]);
+    }
+
     public function customerWorkorders(Request $request, Customer $customer): JsonResponse
     {
         $data = $request->validate([

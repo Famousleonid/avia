@@ -278,6 +278,15 @@
             z-index: 10;
         }
 
+        .clearable-input.quick-open-input .form-control {
+            border-color: var(--bs-info);
+        }
+
+        .clearable-input.quick-open-input .form-control:focus {
+            border-color: var(--bs-info);
+            box-shadow: 0 0 0 .2rem rgba(var(--bs-info-rgb), .25);
+        }
+
         #currentUserCheckbox,
         #woDone,
         #approvedCheckbox {
@@ -511,6 +520,21 @@
                 @endrole
             </div>
 
+            @if($canUseQuickOpenSearch)
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-info small fw-semibold">For Slava:</span>
+                    <div class="clearable-input quick-open-input">
+                        <input id="quickOpenSearchInput"
+                               type="text"
+                               class="form-control"
+                               placeholder="Search...">
+                        <button id="clearQuickOpenSearch" type="button" class="btn-clear">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            @endif
+
             <div class="clearable-input">
                 <input id="searchInput" type="text" class="form-control" placeholder="Search...">
                 <button id="clearSearch" type="button" class="btn-clear">
@@ -676,6 +700,7 @@
         const workordersCsrfToken = @json(csrf_token());
         const workordersUiSettingsUrl = @json(route('user-ui-settings.store'));
         const workordersSavedUiSettings = @json($uiSettings['filters'] ?? []);
+        const workordersQuickOpenSearchUrl = @json($canUseQuickOpenSearch ? route('workorders.quick-open-search') : null);
 
         document.addEventListener('DOMContentLoaded', function () {
             const tableWrapper = document.getElementById('printArea');
@@ -686,6 +711,8 @@
 
             const searchInput = document.getElementById('searchInput');
             const clearSearchBtn = document.getElementById('clearSearch');
+            const quickOpenSearchInput = document.getElementById('quickOpenSearchInput');
+            const clearQuickOpenSearchBtn = document.getElementById('clearQuickOpenSearch');
 
             const checkboxMy = document.getElementById('currentUserCheckbox');
             const checkboxDone = document.getElementById('woDone');
@@ -706,6 +733,7 @@
             let approvePopover = null;
             let approveInput = null;
             let workordersRequestController = null;
+            let quickOpenRequestController = null;
 
             const state = {
                 q: '',
@@ -847,6 +875,88 @@
                 clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
             }
 
+            function updateQuickOpenSearchClearButton() {
+                if (!clearQuickOpenSearchBtn || !quickOpenSearchInput) return;
+
+                clearQuickOpenSearchBtn.style.display = quickOpenSearchInput.value ? 'block' : 'none';
+            }
+
+            function syncSearchInputs(value) {
+                searchInput.value = value;
+
+                if (quickOpenSearchInput) {
+                    quickOpenSearchInput.value = value;
+                }
+
+                updateSearchClearButton();
+                updateQuickOpenSearchClearButton();
+            }
+
+            function notifyQuickOpenSearch(message, type = 'warning') {
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(message, type);
+                }
+            }
+
+            function handleSearchInputChange(sourceInput) {
+                syncSearchInputs(sourceInput.value);
+                state.q = sourceInput.value.trim();
+
+                window.clearTimeout(searchDebounce);
+                searchDebounce = window.setTimeout(() => {
+                    resetAndReload();
+                }, 250);
+            }
+
+            async function runQuickOpenSearch() {
+                if (!workordersQuickOpenSearchUrl || !quickOpenSearchInput) return;
+
+                const q = quickOpenSearchInput.value.trim();
+
+                if (!q) {
+                    quickOpenSearchInput.focus();
+                    return;
+                }
+
+                if (quickOpenRequestController) {
+                    quickOpenRequestController.abort();
+                }
+
+                quickOpenRequestController = new AbortController();
+
+                try {
+                    const url = new URL(workordersQuickOpenSearchUrl, window.location.origin);
+                    url.searchParams.set('q', q);
+
+                    const response = await fetch(url.toString(), {
+                        signal: quickOpenRequestController.signal,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+                    const data = await response.json().catch(() => ({}));
+
+                    if (!response.ok || data.ok === false) {
+                        throw new Error(data.message || 'Search failed');
+                    }
+
+                    if (data.count === 1 && data.url) {
+                        if (typeof window.showLoadingSpinner === 'function') window.showLoadingSpinner();
+                        window.location.assign(data.url);
+                        return;
+                    }
+
+                    notifyQuickOpenSearch(data.message || 'Not unique.', data.count > 1 ? 'warning' : 'error');
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        notifyQuickOpenSearch(error.message || 'Search failed', 'error');
+                    }
+                } finally {
+                    quickOpenRequestController = null;
+                }
+            }
+
             function getUrlValue(params, key, fallback = '') {
                 return params.has(key) ? (params.get(key) || '') : fallback;
             }
@@ -889,7 +999,7 @@
             }
 
             function applyStateToControls() {
-                searchInput.value = state.q;
+                syncSearchInputs(state.q);
                 checkboxMy.checked = state.onlyMy;
                 checkboxDone.checked = state.onlyActive;
                 checkboxApproved.checked = state.onlyApproved;
@@ -908,7 +1018,6 @@
                     syncSelect2(technikFilter);
                 }
 
-                updateSearchClearButton();
                 updateSelectClearButton(customerFilter, clearCustomerBtn);
                 updateSelectClearButton(technikFilter, clearTechnikBtn);
                 updateSortIcons();
@@ -1320,21 +1429,27 @@
                 });
             });
 
-            searchInput.addEventListener('input', () => {
-                state.q = searchInput.value.trim();
-                updateSearchClearButton();
-
-                window.clearTimeout(searchDebounce);
-                searchDebounce = window.setTimeout(() => {
-                    resetAndReload();
-                }, 250);
-            });
+            searchInput.addEventListener('input', () => handleSearchInputChange(searchInput));
 
             clearSearchBtn.addEventListener('click', () => {
-                searchInput.value = '';
+                syncSearchInputs('');
                 state.q = '';
-                updateSearchClearButton();
                 resetAndReload();
+            });
+
+            quickOpenSearchInput?.addEventListener('input', () => handleSearchInputChange(quickOpenSearchInput));
+
+            clearQuickOpenSearchBtn?.addEventListener('click', () => {
+                syncSearchInputs('');
+                state.q = '';
+                resetAndReload();
+            });
+
+            quickOpenSearchInput?.addEventListener('keydown', event => {
+                if (event.key !== 'Enter') return;
+
+                event.preventDefault();
+                runQuickOpenSearch();
             });
 
             checkboxMy.addEventListener('change', () => {

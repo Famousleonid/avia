@@ -53,7 +53,7 @@ try {
 </script>
 </head>
 <body>
-@include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null, 'printMarkQrSize' => 32, 'printMarkFormName' => 'Required Bushings'])
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null, 'printMarkFormName' => 'Required Bushings'])
 
 <div class="action-bar">
     <button class="btn-print" onclick="window.print()">&#128438; Print</button>

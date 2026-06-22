@@ -30,7 +30,7 @@
             @page {
                 /*size: letter landscape;*/
                 size: Letter landscape;
-                margin: 3mm;
+                margin: 6mm;
             }
 
             /* Убедитесь, что вся страница помещается на один лист */
@@ -43,16 +43,19 @@
 
 
             .container-fluid {
+                width: 100% !important;
+                max-width: none !important;
                 max-height: 198mm;
                 overflow: hidden;
-                margin: 0 !important;
-                padding: 3px !important;
-                zoom: 0.97;
+                margin: 0 auto !important;
+                padding: 0 !important;
+                zoom: 1;
+                transform: none;
             }
 
             /* Скрываем ненужные элементы при печати */
-            .no-print, .mt-2{
-                display: none;
+            .no-print {
+                display: none !important;
             }
             /* Уменьшаем отступы между секциями */
             .row {
@@ -64,7 +67,7 @@
                 bottom: 1.5mm;
                 left: 0;
                 right: 0;
-                width: auto;
+                width: 100%;
                 text-align: center;
                 font-size: 12px;
                 background-color: #fff;
@@ -264,16 +267,28 @@
         .parent {
             display: grid;
             grid-template-columns: repeat(12, 1fr);
-            grid-template-rows: repeat(5, 1fr);
+            grid-auto-rows: auto;
             gap: 0px;
+        }
+
+        .log-card-table,
+        .log-card-table > div,
+        .log-card-table .log-card-record-row > div {
+            font-size: 14px !important;
+            line-height: 1.12;
         }
 
         .log-card-record-row {
             display: grid;
             grid-column: 1 / -1;
             grid-template-columns: repeat(12, 1fr);
+            min-height: 27px;
             break-inside: avoid;
             page-break-inside: avoid;
+        }
+
+        .log-card-record-row > div {
+            min-height: 27px;
         }
 
         @media print {
@@ -555,7 +570,7 @@
         </div>
     </div>
 
-    <div class="parent">
+    <div class="parent log-card-table">
         <div class="div1 text-center fs-8 border-all pt-3">Aircraft Reg./Con.No.</div>
         <div class="div2 text-center fs-8 border-t-r  pt-1">FITTED TO AIRCRAFT</div>
         <div class="div3 text-center fs-8 border-t-r-b  pt-1">REMOVED FROM AIRCRAFT</div>
@@ -583,8 +598,8 @@
         @endfor
     </div>
     <div class="border-l-t-r mt-1 ">
-        <div class="row">
-            <div class="col-10 pt-1  fs-75 " style="text-align: center; padding-left: 28ch;">
+        <div class="row g-0">
+            <div class="col-10 pt-1 fs-75 text-center">
                 <strong>PRIMARY MEMBER RECORDS</strong>
             </div>
             <div class="col-2 text-center"><strong>W{{$current_wo->number}}</strong></div>
@@ -592,7 +607,7 @@
     </div>
 
 
-    <div class="parent">
+    <div class="parent log-card-table">
         <div class="div31 text-center fs-8 border-all pt-3">DESCRIPTION</div>
         <div class="div32 text-center fs-8 border-t-r-b pt-3">PART NO.</div>
         <div class="div33 text-center fs-8 border-t-r-b pt-3">SERIAL NO.</div>
@@ -772,7 +787,7 @@ Service Bulletin.
 </div>
 
 <footer >
-<div class="row" style="width: 100%; padding: 1px 1px;">
+<div class="row g-0" style="width: 100%; padding: 1px 1px;">
 <div class="col-6 text-start">
 {{__("Form #008")}}
 </div>

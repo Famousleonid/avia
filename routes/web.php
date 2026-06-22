@@ -136,6 +136,7 @@ Route::prefix('mobile')->name('mobile.')->middleware(['auth','verified'])->group
     Route::get('/', [MobileController::class, 'index'])->name('index');
     Route::get('/show/{workorder}', [MobileController::class, 'show'])->name('show');
     Route::patch('/workorders/{workorder}/storage', [MobileController::class, 'updateStorage'])->name('workorders.storage.update');
+    Route::patch('/workorders/{workorder}/arrival-box', [MobileController::class, 'updateArrivalBox'])->name('workorders.arrival-box.update');
     Route::get('/draft', [MobileController::class, 'createDraft'])->name('draft');
     Route::post('/workorders/draft', [MobileController::class, 'storeDraft'])->name('draft.store');
     Route::post('/draft/units/pending', [MobileController::class, 'storePendingDraftUnit'])->name('draft.units.pending.store');
@@ -244,6 +245,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::delete('/marketing/contacts/{contact}', [MarketingController::class, 'destroyContact'])->name('marketing.contacts.destroy');
         Route::post('/marketing/customers/{customer}/notes', [MarketingController::class, 'storeNote'])->name('marketing.notes.store');
         Route::patch('/marketing/notes/{note}', [MarketingController::class, 'updateNote'])->name('marketing.notes.update');
+        Route::delete('/marketing/notes/{note}', [MarketingController::class, 'destroyNote'])->name('marketing.notes.destroy');
     });
     Route::resource('/users', UserController::class);
     Route::resource('/mains',  MainController::class)->except(['show']);
@@ -254,6 +256,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
   //  Route::patch('/mains/general-task/{workorder}/{generalTask}', [MainController::class, 'updateGeneralTaskDates'])->name('mains.updateGeneralTaskDates');
     Route::get('/main-rows/{main}/activity', [MainController::class, 'activity'])->name('mains.activity');
+    Route::get('/workorders/quick-open-search', [WorkorderController::class, 'quickOpenSearch'])->name('workorders.quick-open-search');
     Route::resource('/workorders', WorkorderController::class);
     Route::delete('/workorders/{workorder}/force', [WorkorderController::class, 'forceDestroy'])->name('workorders.forceDestroy');
 

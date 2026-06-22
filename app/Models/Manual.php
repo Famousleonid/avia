@@ -39,6 +39,7 @@ class Manual extends Model implements HasMedia
             ->logOnly([
                 'number',
                 'title',
+                'revision_date',
                 'unit_name',
                 'lib',
             ])

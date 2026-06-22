@@ -10,13 +10,14 @@
 
     $printMarkWoNumber = preg_replace('/\D+/', '', (string) $printMarkWoNumber);
     $printMarkQrEnabled = \App\Models\ProjectSetting::boolean(\App\Models\ProjectSetting::PRINT_FORMS_QR_ENABLED, true);
-    $printMarkQrSize = max(24, min(96, (int) ($printMarkQrSize ?? 64)));
-    $printMarkQrTop = $printMarkQrTop ?? '8px';
-    $printMarkQrRight = $printMarkQrRight ?? 'max(8px, calc((100vw - 1040px) / 2 + 8px))';
+    $printMarkQrSize = max(24, min(96, (int) ($printMarkQrSize ?? 40)));
+    $printMarkQrTop = $printMarkQrTop ?? '3mm';
+    $printMarkQrRight = $printMarkQrRight ?? 'max(4mm, calc(100vw - var(--container-margin-left, 0px) - var(--container-max-width, 100vw) + 4mm))';
     $printMarkQrPrintTop = $printMarkQrPrintTop ?? '0';
     $printMarkQrPrintRight = $printMarkQrPrintRight ?? '8mm';
-    $printMarkQrScreenPlacement = $printMarkQrScreenPlacement ?? 'viewport';
-    $printMarkQrHostSelector = $printMarkQrHostSelector ?? '.std-page, .page, .std-sheet-container';
+    $printMarkQrScreenPlacement = $printMarkQrScreenPlacement ?? 'page';
+    $printMarkQrHostSelector = $printMarkQrHostSelector ?? '.std-page, .page, .form-page-block, .cert-wrap, .page-wrap, .std-sheet-container, .container-fluid, main.content, body';
+    $printMarkQrAnchorSelector = $printMarkQrAnchorSelector ?? '.std-table, .table-header, .cert-table, table, .all-rows-container, .page-rows-container';
 @endphp
 
 @if($printMarkWoNumber !== '' && $printMarkQrEnabled)
@@ -88,6 +89,15 @@
                 z-index: 9999;
             }
 
+            @media screen {
+                .system-print-qr {
+                    left: var(--print-mark-screen-left, auto);
+                    right: var(--print-mark-screen-right, {{ $printMarkQrRight }});
+                    transform: var(--print-mark-screen-transform, none);
+                    transform-origin: var(--print-mark-screen-transform-origin, initial);
+                }
+            }
+
             .system-print-qr[data-screen-placement="page"] {
                 position: absolute;
                 visibility: hidden;
@@ -129,10 +139,95 @@
                 (function attachPrintMarkQrToPage() {
                     const qr = document.getElementById(@json($printMarkQrId));
                     const hostSelector = @json($printMarkQrHostSelector);
+                    const anchorSelector = @json($printMarkQrAnchorSelector);
                     if (!qr) return;
 
+                    function queryFirst(selector, root) {
+                        try {
+                            return (root || document).querySelector(selector);
+                        } catch (error) {
+                            return null;
+                        }
+                    }
+
+                    function closestHost(element) {
+                        if (!element || typeof element.closest !== 'function') return null;
+
+                        try {
+                            return element.closest(hostSelector);
+                        } catch (error) {
+                            return null;
+                        }
+                    }
+
+                    function resolveHost() {
+                        const anchor = queryFirst(anchorSelector);
+                        return closestHost(anchor) || queryFirst(hostSelector) || document.body;
+                    }
+
+                    function findAnchor(host) {
+                        return queryFirst(anchorSelector, host) || queryFirst(anchorSelector);
+                    }
+
+                    function syncHostScale(host) {
+                        if (!host || typeof DOMMatrixReadOnly === 'undefined') return;
+
+                        try {
+                            const transform = window.getComputedStyle(host).transform;
+                            if (!transform || transform === 'none') {
+                                qr.style.removeProperty('--print-mark-screen-transform');
+                                qr.style.removeProperty('--print-mark-screen-transform-origin');
+                                return;
+                            }
+
+                            const matrix = new DOMMatrixReadOnly(transform);
+                            const scaleX = Math.hypot(matrix.a, matrix.b);
+                            const scaleY = Math.hypot(matrix.c, matrix.d);
+                            if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY) || scaleX <= 0 || scaleY <= 0) return;
+
+                            if (Math.abs(scaleX - 1) > 0.001 || Math.abs(scaleY - 1) > 0.001) {
+                                qr.style.setProperty('--print-mark-screen-transform-origin', 'top right');
+                                qr.style.setProperty('--print-mark-screen-transform', 'scale(' + (1 / scaleX) + ', ' + (1 / scaleY) + ')');
+                            } else {
+                                qr.style.removeProperty('--print-mark-screen-transform');
+                                qr.style.removeProperty('--print-mark-screen-transform-origin');
+                            }
+                        } catch (error) {
+                            qr.style.removeProperty('--print-mark-screen-transform');
+                            qr.style.removeProperty('--print-mark-screen-transform-origin');
+                        }
+                    }
+
+                    function syncAnchorAlignment(host) {
+                        const anchor = findAnchor(host);
+                        if (!host || !anchor) {
+                            qr.style.removeProperty('--print-mark-screen-left');
+                            qr.style.removeProperty('--print-mark-screen-right');
+                            return;
+                        }
+
+                        const hostRect = host.getBoundingClientRect();
+                        const anchorRect = anchor.getBoundingClientRect();
+                        const qrRect = qr.getBoundingClientRect();
+                        const left = anchorRect.right - hostRect.left - qrRect.width;
+
+                        if (!Number.isFinite(left)) {
+                            qr.style.removeProperty('--print-mark-screen-left');
+                            qr.style.removeProperty('--print-mark-screen-right');
+                            return;
+                        }
+
+                        qr.style.setProperty('--print-mark-screen-left', Math.max(0, left) + 'px');
+                        qr.style.setProperty('--print-mark-screen-right', 'auto');
+                    }
+
+                    function syncPlacement(host) {
+                        syncHostScale(host);
+                        syncAnchorAlignment(host);
+                    }
+
                     function attach() {
-                        const host = document.querySelector(hostSelector);
+                        const host = resolveHost();
                         if (!host) {
                             qr.classList.add('system-print-qr--attached');
                             return;
@@ -144,7 +239,19 @@
                         if (qr.parentElement !== host) {
                             host.insertBefore(qr, host.firstChild);
                         }
+                        syncPlacement(host);
                         qr.classList.add('system-print-qr--attached');
+
+                        window.addEventListener('resize', function () {
+                            syncPlacement(host);
+                        });
+
+                        if (window.MutationObserver) {
+                            const observer = new MutationObserver(function () {
+                                syncPlacement(host);
+                            });
+                            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+                        }
                     }
 
                     if (document.readyState === 'loading') {

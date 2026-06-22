@@ -858,7 +858,7 @@
             'aircraft_colors' => $aircraftColorsFor($componentData),
             'header_colors' => $headerColorsFor($componentData),
             'note6_text' => $componentData[0]['qa_note6_text'] ?? "The Log Card was created refer to client's provided documents.",
-            'note6_enabled' => $componentData[0]['qa_note6_enabled'] ?? true,
+            'note6_enabled' => $componentData[0]['qa_note6_enabled'] ?? false,
             'header_part_number' => $current_wo->unit->part_number,
         ],
         'right' => [
@@ -870,7 +870,7 @@
             'aircraft_colors' => $aircraftColorsFor($componentDataOut),
             'header_colors' => $headerColorsFor($componentDataOut),
             'note6_text' => $componentDataOut[0]['qa_note6_text'] ?? "The Log Card was created refer to client's provided documents.",
-            'note6_enabled' => $componentDataOut[0]['qa_note6_enabled'] ?? true,
+            'note6_enabled' => $componentDataOut[0]['qa_note6_enabled'] ?? false,
             'header_part_number' => $componentDataOut[0]['qa_header_part_number'] ?? $current_wo->unit->part_number,
         ],
     ];

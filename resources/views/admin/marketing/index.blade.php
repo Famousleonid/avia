@@ -1197,6 +1197,7 @@
                 destroyContact: @json(route('marketing.contacts.destroy', ['contact' => '__ID__'])),
                 storeNote: @json(route('marketing.notes.store', ['customer' => '__ID__'])),
                 updateNote: @json(route('marketing.notes.update', ['note' => '__ID__'])),
+                destroyNote: @json(route('marketing.notes.destroy', ['note' => '__ID__'])),
             };
 
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -1763,6 +1764,7 @@
   <div class="marketing-actions">
     ${note.follow_up_status === 'open' ? `<button class="btn btn-sm btn-outline-success js-note-done" type="button" title="Mark follow-up as done"><i class="bi bi-check2-circle"></i><span>Follow-up done</span></button>` : ''}
     ${note.follow_up_status !== 'cancelled' ? `<button class="btn btn-sm btn-outline-secondary js-note-cancel" type="button" title="Cancel follow-up reminder"><i class="bi bi-slash-circle"></i><span>Cancel follow-up</span></button>` : ''}
+    <button class="btn btn-sm btn-outline-danger js-note-delete" type="button" title="Delete note"><i class="bi bi-trash"></i><span>Delete</span></button>
   </div>
 </div>`;
                 }).join('');
@@ -1896,6 +1898,23 @@
                     renderDetail();
                     renderRows(false);
                     notify('Note updated');
+                } catch (error) {
+                    notify(error.message, 'error');
+                }
+            }
+
+            async function deleteNote(button) {
+                const noteEl = button.closest('[data-note-id]');
+                const id = noteEl?.dataset.noteId;
+                if (!id || !confirm('Delete note?')) return;
+
+                try {
+                    const data = await requestJson(urlFor(routes.destroyNote, id), { method: 'DELETE' });
+                    state.selectedCustomer = data.customer;
+                    updateRowCache(data.customer);
+                    renderDetail();
+                    renderRows(false);
+                    notify('Note deleted');
                 } catch (error) {
                     notify(error.message, 'error');
                 }
@@ -2187,8 +2206,10 @@
             notesList.addEventListener('click', (event) => {
                 const doneBtn = event.target.closest('.js-note-done');
                 const cancelBtn = event.target.closest('.js-note-cancel');
+                const deleteBtn = event.target.closest('.js-note-delete');
                 if (doneBtn) updateNoteStatus(doneBtn, 'done');
                 if (cancelBtn) updateNoteStatus(cancelBtn, 'cancelled');
+                if (deleteBtn) deleteNote(deleteBtn);
             });
 
             document.querySelectorAll('.marketing-tab').forEach((btn) => {

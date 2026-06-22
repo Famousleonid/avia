@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Component;
 use App\Models\Code;
 use App\Models\Necessary;
+use App\Models\ProjectSetting;
 use App\Models\StdProcess;
 use App\Models\Tdr;
 use App\Models\WorkorderStdProcessItem;
@@ -1392,6 +1393,37 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             $this->assertLessThan(strpos($html, 'PN-SORT-290'), strpos($html, 'PN-SORT-030'));
             $this->assertLessThan(strpos($html, 'PN-SORT-300'), strpos($html, 'PN-SORT-290'));
         }
+    }
+
+    public function test_stress_std_qr_is_attached_to_form_page_for_screen_alignment(): void
+    {
+        ProjectSetting::setBoolean(ProjectSetting::PRINT_FORMS_QR_ENABLED, true);
+
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.stressStd', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSee('data-screen-placement="page"', false);
+        $response->assertSee('width: 40px;', false);
+        $response->assertSee('top: 3mm;', false);
+    }
+
+    public function test_prl_qr_is_shifted_up_from_workorder_number_box(): void
+    {
+        ProjectSetting::setBoolean(ProjectSetting::PRINT_FORMS_QR_ENABLED, true);
+        Necessary::query()->firstOrCreate(['name' => 'Order New']);
+        Code::query()->firstOrCreate(['name' => Code::NAME_MISSING], ['code' => 'M']);
+
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.prlForm', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSee('top: -8px;', false);
+        $response->assertSee('top: -2mm;', false);
     }
 
     public function test_paint_std_form_uses_component_flags_not_csv_snapshot(): void

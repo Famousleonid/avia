@@ -23,7 +23,7 @@
     );
     $selectedStatusWork = trim((string) ($selectedStatusOption->name ?? $selectedStatusOption['name'] ?? $defaultStatusWork));
     $status = $formatStatusWork($selectedStatusWork);
-    $manualDate = format_project_date($latestRevisionCheck?->revision_date ?? $manual?->revision_date);
+    $manualRevisionDateSource = $latestRevisionCheck?->revision_date ?? $manual?->revision_date;
     $manualRevisionNumber = trim((string) ($latestRevisionCheck?->revision_number ?? ''));
     $formatCertificateDate = static function ($date): string {
         $formatted = format_project_date($date);
@@ -48,6 +48,10 @@
             return '';
         }
     };
+    $manualDate = $formatCertificateDate($manualRevisionDateSource);
+    $manualRevisionDateInputValue = $manualDate;
+    $manualRevisionDateIso = $formatDateInputValue($manualRevisionDateSource);
+    $manualRevisionNumberInputValue = $manualRevisionNumber;
     $defaultCertificateDateSource = $current_wo->doneDate() ?? $current_wo->approve_at ?? now();
     $defaultCertificateDateDisplay = $formatCertificateDate($defaultCertificateDateSource);
     $defaultCertificateDateInputValue = $formatDateInputValue($defaultCertificateDateSource);
@@ -87,23 +91,10 @@
 
         return '';
     };
-    $firstUnitInspection = $current_wo->unitInspections
-        ? $current_wo->unitInspections->sortBy('id')->first()
-        : null;
-    $firstTdrWithSerial = $current_wo->tdrs
-        ? $current_wo->tdrs->first(fn ($tdr) => trim((string) ($tdr->serial_number ?? $tdr->assy_serial_number ?? '')) !== '')
-        : null;
-    $serialNumber = $firstNonBlank($current_wo->serial_number, $firstUnitInspection?->serial_number, $firstTdrWithSerial?->serial_number);
-    $assySerialNumber = $firstNonBlank($firstUnitInspection?->assy_serial_number, $firstTdrWithSerial?->assy_serial_number);
+    $serialNumber = $firstNonBlank($current_wo->serial_number);
     $trackingNumber = trim('W' . (string) $current_wo->number);
-    $mainPartNumberLines = [$mainItemPartNumber];
-    if ($modifiedPartNumber !== '' && strcasecmp($modifiedPartNumber, $mainItemPartNumber) !== 0) {
-        $mainPartNumberLines[] = '(' . $modifiedPartNumber . ')';
-    }
+    $mainPartNumberLines = [$modifiedPartNumber !== '' ? $modifiedPartNumber : $mainItemPartNumber];
     $mainSerialNumberLines = [$serialNumber];
-    if ($assySerialNumber !== '' && strcasecmp($assySerialNumber, $serialNumber) !== 0) {
-        $mainSerialNumberLines[] = '(' . $assySerialNumber . ')';
-    }
     $decodeLogRows = static function (mixed $value): array {
         if (is_string($value)) {
             $value = json_decode($value, true);
@@ -194,11 +185,11 @@
             $assySerialNumber = $firstNonBlank($row['assy_serial_number'] ?? null);
             $partNumberLines = [$partNumber];
             if ($assyPartNumber !== '' && strcasecmp($assyPartNumber, $partNumber) !== 0) {
-                $partNumberLines[] = '(' . $assyPartNumber . ')';
+                $partNumberLines = [$assyPartNumber, '(' . $partNumber . ')'];
             }
             $serialNumberLines = [$serialNumber];
             if ($assySerialNumber !== '' && strcasecmp($assySerialNumber, $serialNumber) !== 0) {
-                $serialNumberLines[] = '(' . $assySerialNumber . ')';
+                $serialNumberLines = [$assySerialNumber, '(' . $serialNumber . ')'];
             }
 
             return [
@@ -339,16 +330,21 @@
             : '';
     }
     $revisionText = '';
-    if ($manualDate) {
-        $revisionText = $manualRevisionNumber !== ''
-            ? ', Rev # ' . $manualRevisionNumber . ' dated ' . $manualDate
-            : ', Rev dated ' . $manualDate;
+    $revisionControlPrefix = '';
+    $hasRevisionControls = $manual !== null && ($manualDate !== '' || $manualRevisionNumber !== '');
+    if ($hasRevisionControls) {
+        $revisionControlPrefix = ', Rev # ';
+        $revisionText = $revisionControlPrefix . $manualRevisionNumber . ' dated ' . $manualDate;
     }
-    $statusRemarkSuffix = ' in accordance with CMM # ' . (string) ($manual?->number ?? '') . $revisionText . '.';
+    $statusRemarkBaseSuffix = ' in accordance with CMM # ' . (string) ($manual?->number ?? '');
+    $statusRemarkSuffix = $statusRemarkBaseSuffix . $revisionText . '.';
     $remarks = [
         [
             'text' => trim($status . $statusRemarkSuffix),
             'status_remark_suffix' => $statusRemarkSuffix,
+            'status_remark_revision_prefix' => $hasRevisionControls
+                ? $statusRemarkBaseSuffix . $revisionControlPrefix
+                : '',
         ],
         ['text' => 'Full details of work performed in work order W' . $current_wo->number . '.'],
         ['text' => $hasOrderedReplacementParts ? 'For the replacement parts refer to Teardown Report.' : 'Replacements parts: None.'],
@@ -984,6 +980,23 @@
             background: #fff;
         }
 
+        .arc-remark-number-input {
+            width: 0.36in;
+            min-width: 0.36in;
+            border: 1px solid #777;
+            border-radius: 2px;
+            padding: 0 2px;
+            font: inherit;
+            line-height: 1.1;
+            text-align: center;
+            background: #fff;
+        }
+
+        .arc-manual-revision-date-input {
+            width: 1.03in;
+            min-width: 1.03in;
+        }
+
         .arc-remark-print-date {
             display: none;
         }
@@ -1246,6 +1259,33 @@
         }
 
         @media print {
+            :root {
+                --arc-print-sheet-height: 7.74in;
+                --arc-print-top-height: calc(0.78in - 2mm);
+                --arc-print-org-height: 0.88in;
+                --arc-print-items-header-height: 0.22in;
+                --arc-print-items-row-height: 0.56in;
+                --arc-print-items-height: calc(var(--arc-print-items-header-height) + var(--arc-print-items-row-height));
+                --arc-print-remarks-height: calc(1.78in + 4mm);
+                --arc-print-cert-main-height: 1.26in;
+                --arc-print-cert-subrow-height: calc(0.32in + 2mm);
+                --arc-print-cert-height: calc(
+                    var(--arc-print-cert-main-height)
+                    + var(--arc-print-cert-subrow-height)
+                    + var(--arc-print-cert-subrow-height)
+                );
+                --arc-print-previous-height: 0.15in;
+                --arc-print-installer-height: calc(
+                    var(--arc-print-sheet-height)
+                    - var(--arc-print-top-height)
+                    - var(--arc-print-org-height)
+                    - var(--arc-print-items-height)
+                    - var(--arc-print-remarks-height)
+                    - var(--arc-print-cert-height)
+                    - var(--arc-print-previous-height)
+                );
+            }
+
             .arc-toolbar {
                 display: none !important;
             }
@@ -1263,6 +1303,10 @@
             }
 
             .arc-remark-date-input {
+                display: none !important;
+            }
+
+            .arc-remark-number-input {
                 display: none !important;
             }
 
@@ -1306,7 +1350,7 @@
 
             .arc-sheet {
                 width: 10.36in;
-                height: 7.74in;
+                height: var(--arc-print-sheet-height);
                 min-height: 0;
                 margin: 0;
                 display: flex;
@@ -1317,24 +1361,45 @@
                 page-break-after: avoid;
             }
 
+            .arc-sheet > .arc-top,
+            .arc-sheet > .arc-org,
+            .arc-sheet > .arc-items,
+            .arc-sheet > .arc-remarks,
+            .arc-sheet > .arc-cert-row,
+            .arc-sheet > .arc-previous,
+            .arc-sheet > .arc-installer {
+                flex-grow: 0;
+                flex-shrink: 0;
+                min-height: 0;
+                overflow: hidden;
+            }
+
             .arc-top {
-                min-height: calc(0.78in - 2mm);
+                flex-basis: var(--arc-print-top-height);
+                height: var(--arc-print-top-height);
             }
 
             .arc-org {
-                min-height: 0.88in;
+                flex-basis: var(--arc-print-org-height);
+                height: var(--arc-print-org-height);
+            }
+
+            .arc-items {
+                flex-basis: var(--arc-print-items-height);
+                height: var(--arc-print-items-height);
             }
 
             .arc-items th {
-                height: 0.22in;
+                height: var(--arc-print-items-header-height);
             }
 
             .arc-items td {
-                height: 0.56in;
+                height: var(--arc-print-items-row-height);
             }
 
             .arc-remarks {
-                height: calc(1.78in + 4mm);
+                flex-basis: var(--arc-print-remarks-height);
+                height: var(--arc-print-remarks-height);
             }
 
             .arc-remarks-lines {
@@ -1343,12 +1408,15 @@
             }
 
             .arc-cert-row {
-                min-height: 1.9in;
+                flex-basis: var(--arc-print-cert-height);
+                height: var(--arc-print-cert-height);
+                min-height: 0;
             }
 
             .arc-cert-left,
             .arc-cert-right {
-                grid-template-rows: 1.26in calc(0.32in + 2mm) calc(0.32in + 2mm);
+                height: 100%;
+                grid-template-rows: var(--arc-print-cert-main-height) var(--arc-print-cert-subrow-height) var(--arc-print-cert-subrow-height);
             }
 
             .arc-release-text {
@@ -1391,8 +1459,15 @@
                 font-size: calc(var(--arc-value-size) + 2px);
             }
 
+            .arc-previous {
+                flex-basis: var(--arc-print-previous-height);
+                height: var(--arc-print-previous-height);
+                min-height: 0;
+            }
+
             .arc-installer {
-                flex: 1 1 auto;
+                flex-basis: var(--arc-print-installer-height);
+                height: var(--arc-print-installer-height);
                 min-height: 0;
                 padding-bottom: 0.02in;
                 font-size: calc(var(--arc-installer-size) + 1px);
@@ -1561,6 +1636,11 @@
                     $isOverhauledOnRemark = ! empty($remark['overhauled_on_remark']);
                     $isAirworthinessRemark = ! empty($remark['airworthiness_remark']);
                     $separateRemarkKey = trim((string) ($remark['separate_remark_key'] ?? ''));
+                    $statusRemarkRevisionPrefix = (string) ($remark['status_remark_revision_prefix'] ?? '');
+                    $hasStatusRevisionInputs = $isStatusRemark && $statusRemarkRevisionPrefix !== '';
+                    $remarkDisplayText = $hasStatusRevisionInputs
+                        ? $status . $statusRemarkRevisionPrefix
+                        : $remarkText;
                     $hideRemarkRow = $remarkText === ''
                         || ($isLifeRemark && $remarkText === '')
                         || ($isCorrectionRemark && ($selectedCertificateStateKey !== 'main:c' || $remarkText === ''));
@@ -1579,13 +1659,13 @@
                             contenteditable="{{ $selectedCertificateStateKey === 'main:c' && ! $isStatusRemark && ! $isLifeRemark && ! $isOverhauledOnRemark ? 'true' : 'false' }}"
                             data-certificate-remark-text
                             data-remark-index="{{ $loop->index }}"
-                            data-default-value="{{ $remarkText }}"
-                            data-original-value="{{ $remarkText }}"
+                            data-default-value="{{ $remarkDisplayText }}"
+                            data-original-value="{{ $remarkDisplayText }}"
                             aria-label="Remark {{ $loop->iteration }}"
                             spellcheck="false"
                             @if($isStatusRemark)
                                 data-certificate-status-remark
-                                data-remark-suffix="{{ $remark['status_remark_suffix'] }}"
+                                data-remark-suffix="{{ $hasStatusRevisionInputs ? $statusRemarkRevisionPrefix : $remark['status_remark_suffix'] }}"
                             @endif
                             @if($isLifeRemark)
                                 data-certificate-life-remark
@@ -1602,7 +1682,38 @@
                             @if($isOverhauledOnRemark)
                                 data-certificate-overhauled-on-remark
                             @endif
-                        >{{ $isOverhauledOnRemark ? 'Overhauled on' : $remarkText }}</span>
+                        >{{ $isOverhauledOnRemark ? 'Overhauled on' : $remarkDisplayText }}</span>
+                        @if($hasStatusRevisionInputs)
+                            <span
+                                class="arc-remark-print-date"
+                                data-certificate-manual-revision-print-number
+                            >{{ $manualRevisionNumber }}</span>
+                            <input
+                                type="text"
+                                class="arc-remark-number-input arc-manual-revision-number-input"
+                                data-certificate-manual-revision-number
+                                data-original-value="{{ $manualRevisionNumberInputValue }}"
+                                value="{{ $manualRevisionNumberInputValue }}"
+                                aria-label="Manual revision number"
+                                spellcheck="false"
+                            >
+                            <span class="arc-status-revision-dated"> dated </span>
+                            <span
+                                class="arc-remark-print-date"
+                                data-certificate-manual-revision-print-date
+                            >{{ $manualDate }}</span>
+                            <input
+                                type="text"
+                                class="arc-remark-date-input arc-manual-revision-date-input"
+                                data-certificate-manual-revision-date
+                                data-original-value="{{ $manualRevisionDateInputValue }}"
+                                data-original-iso="{{ $manualRevisionDateIso }}"
+                                value="{{ $manualRevisionDateInputValue }}"
+                                aria-label="Manual revision date"
+                                spellcheck="false"
+                            >
+                            <span class="arc-status-revision-period">.</span>
+                        @endif
                         @if($isOverhauledOnRemark)
                             <span
                                 class="arc-remark-print-date"
@@ -1829,6 +1940,10 @@
         const overhauledOnRemark = document.querySelector('[data-certificate-overhauled-on-remark]');
         const overhauledOnDateInput = document.querySelector('[data-certificate-overhauled-on-date]');
         const overhauledOnPrintDate = document.querySelector('[data-certificate-overhauled-on-print-date]');
+        const manualRevisionNumberInput = document.querySelector('[data-certificate-manual-revision-number]');
+        const manualRevisionPrintNumber = document.querySelector('[data-certificate-manual-revision-print-number]');
+        const manualRevisionDateInput = document.querySelector('[data-certificate-manual-revision-date]');
+        const manualRevisionPrintDate = document.querySelector('[data-certificate-manual-revision-print-date]');
         const detailWorkOrder = document.querySelector('[data-certificate-work-order]');
         const remarksBox = document.querySelector('.arc-remarks');
         const remarksLines = document.querySelector('.arc-remarks-lines');
@@ -2670,19 +2785,67 @@
         const statusSelect = document.querySelector('[data-certificate-status-select]');
         const statusOutput = document.querySelector('[data-certificate-status-output]');
         const statusRemark = document.querySelector('[data-certificate-status-remark]');
+
+        function currentStatusDisplay() {
+            if (!statusSelect) {
+                return statusOutput?.textContent.trim() || '';
+            }
+
+            const selectedOption = statusSelect.options[statusSelect.selectedIndex];
+
+            return selectedOption?.getAttribute('data-status-display')
+                || selectedOption?.textContent.trim()
+                || statusSelect.value;
+        }
+
+        function manualRevisionDateDisplay() {
+            return manualRevisionDateInput?.value.trim()
+                || manualRevisionPrintDate?.textContent.trim()
+                || '';
+        }
+
+        function manualRevisionNumberDisplay() {
+            return manualRevisionNumberInput?.value.trim()
+                || manualRevisionPrintNumber?.textContent.trim()
+                || '';
+        }
+
+        function fullStatusRemarkText(display) {
+            if (!statusRemark) {
+                return display;
+            }
+
+            const suffix = statusRemark.getAttribute('data-remark-suffix') || '';
+            if (!manualRevisionDateInput && !manualRevisionPrintDate) {
+                return display + suffix;
+            }
+
+            const revisionNumber = manualRevisionNumberDisplay();
+            const revisionDate = manualRevisionDateDisplay();
+
+            return display + suffix + revisionNumber + ' dated ' + revisionDate + '.';
+        }
+
+        function setStatusRemarkDisplay(display) {
+            if (!statusRemark) {
+                return;
+            }
+
+            const text = display + (statusRemark.getAttribute('data-remark-suffix') || '');
+            statusRemark.textContent = text;
+            statusRemark.dataset.defaultValue = text;
+            statusRemark.dataset.originalValue = text;
+            syncRemarkRowVisibility(statusRemark);
+        }
+
         if (statusSelect) {
             let previousStatusValue = statusSelect.value;
             statusSelect.addEventListener('change', async function () {
-                const selectedOption = statusSelect.options[statusSelect.selectedIndex];
-                const display = selectedOption?.getAttribute('data-status-display')
-                    || selectedOption?.textContent.trim()
-                    || statusSelect.value;
+                const display = currentStatusDisplay();
                 if (statusOutput) {
                     statusOutput.textContent = display;
                 }
-                if (statusRemark) {
-                    statusRemark.textContent = display + (statusRemark.getAttribute('data-remark-suffix') || '');
-                }
+                setStatusRemarkDisplay(display);
 
                 if (isCertificateCMode()) {
                     setCertificateStateValue('certificate_status_instruction_id', statusSelect.value);
@@ -2690,9 +2853,7 @@
                     certificateItemSettings[currentCertificateStateKey] = certificateItemSettings[currentCertificateStateKey] || {};
                     const savedRemarks = certificateItemSettings[currentCertificateStateKey].certificate_remarks;
                     if (Array.isArray(savedRemarks)) {
-                        savedRemarks[0] = statusRemark
-                            ? statusRemark.textContent
-                            : display;
+                        savedRemarks[0] = fullStatusRemarkText(display);
                         setCertificateStateValue('certificate_remarks', savedRemarks);
                         await saveSetting('certificate_remarks', savedRemarks, {itemSource: currentCertificateStateKey});
                     }
@@ -2735,9 +2896,7 @@
                     if (statusOutput) {
                         statusOutput.textContent = revertedDisplay;
                     }
-                    if (statusRemark) {
-                        statusRemark.textContent = revertedDisplay + (statusRemark.getAttribute('data-remark-suffix') || '');
-                    }
+                    setStatusRemarkDisplay(revertedDisplay);
                     alert(error.message || 'Could not update instruction.');
                 } finally {
                     statusSelect.disabled = false;
@@ -2784,6 +2943,157 @@
             }
 
             return `${displayMatch[3]}-${String(monthIndex + 1).padStart(2, '0')}-${displayMatch[1].padStart(2, '0')}`;
+        }
+
+        async function saveManualRevisionNumber() {
+            if (!manualRevisionNumberInput) {
+                return;
+            }
+
+            const value = (manualRevisionNumberInput.value || '').trim();
+            if (value === (manualRevisionNumberInput.dataset.originalValue || '')) {
+                return;
+            }
+
+            manualRevisionNumberInput.disabled = true;
+            manualRevisionNumberInput.classList.remove('is-invalid');
+            manualRevisionNumberInput.classList.add('is-saving');
+            try {
+                const response = await fetch(certificateStateUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        key: 'manual_revision_number',
+                        value: value,
+                    }),
+                });
+                const data = await response.json().catch(function () {
+                    return {};
+                });
+                if (!response.ok || data.ok !== true) {
+                    throw new Error(data.message || 'Could not update manual revision number.');
+                }
+
+                const displayValue = data.manual_revision_number || value;
+                manualRevisionNumberInput.value = displayValue;
+                manualRevisionNumberInput.dataset.originalValue = displayValue;
+                if (manualRevisionPrintNumber) {
+                    manualRevisionPrintNumber.textContent = displayValue;
+                }
+                setStatusRemarkDisplay(currentStatusDisplay());
+                fitRemarksText();
+            } catch (error) {
+                console.error('Failed to update manual revision number', error);
+                manualRevisionNumberInput.classList.add('is-invalid');
+                alert(error.message || 'Could not update manual revision number.');
+            } finally {
+                manualRevisionNumberInput.disabled = false;
+                manualRevisionNumberInput.classList.remove('is-saving');
+            }
+        }
+
+        async function saveManualRevisionDate() {
+            if (!manualRevisionDateInput) {
+                return;
+            }
+
+            const typedValue = manualRevisionDateInput.value || '';
+            const value = parseCertificateDate(typedValue);
+            if (!value) {
+                manualRevisionDateInput.setAttribute('aria-invalid', 'true');
+                return;
+            }
+
+            if (
+                value === (manualRevisionDateInput.dataset.originalIso || '')
+                || formatCertificateDate(value) === (manualRevisionDateInput.dataset.originalValue || '')
+            ) {
+                manualRevisionDateInput.value = formatCertificateDate(value);
+                manualRevisionDateInput.removeAttribute('aria-invalid');
+                return;
+            }
+
+            manualRevisionDateInput.disabled = true;
+            manualRevisionDateInput.classList.remove('is-invalid');
+            manualRevisionDateInput.classList.add('is-saving');
+            try {
+                const response = await fetch(certificateStateUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        key: 'manual_revision_date',
+                        value: value,
+                    }),
+                });
+                const data = await response.json().catch(function () {
+                    return {};
+                });
+                if (!response.ok || data.ok !== true) {
+                    throw new Error(data.message || 'Could not update manual revision date.');
+                }
+
+                const savedValue = data.manual_revision_date || value;
+                const displayValue = data.manual_revision_date_display || formatCertificateDate(savedValue);
+                manualRevisionDateInput.value = displayValue;
+                manualRevisionDateInput.dataset.originalValue = displayValue;
+                manualRevisionDateInput.dataset.originalIso = savedValue;
+                manualRevisionDateInput.removeAttribute('aria-invalid');
+                if (manualRevisionPrintDate) {
+                    manualRevisionPrintDate.textContent = displayValue;
+                }
+                setStatusRemarkDisplay(currentStatusDisplay());
+                fitRemarksText();
+            } catch (error) {
+                console.error('Failed to update manual revision date', error);
+                manualRevisionDateInput.classList.add('is-invalid');
+                alert(error.message || 'Could not update manual revision date.');
+            } finally {
+                manualRevisionDateInput.disabled = false;
+                manualRevisionDateInput.classList.remove('is-saving');
+            }
+        }
+
+        if (manualRevisionNumberInput) {
+            manualRevisionNumberInput.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    manualRevisionNumberInput.blur();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    manualRevisionNumberInput.value = manualRevisionNumberInput.dataset.originalValue || '';
+                    manualRevisionNumberInput.classList.remove('is-invalid');
+                    manualRevisionNumberInput.blur();
+                }
+            });
+            manualRevisionNumberInput.addEventListener('change', saveManualRevisionNumber);
+            manualRevisionNumberInput.addEventListener('blur', saveManualRevisionNumber);
+        }
+
+        if (manualRevisionDateInput) {
+            manualRevisionDateInput.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    manualRevisionDateInput.blur();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    manualRevisionDateInput.value = manualRevisionDateInput.dataset.originalValue || '';
+                    manualRevisionDateInput.removeAttribute('aria-invalid');
+                    manualRevisionDateInput.classList.remove('is-invalid');
+                    manualRevisionDateInput.blur();
+                }
+            });
+            manualRevisionDateInput.addEventListener('change', saveManualRevisionDate);
+            manualRevisionDateInput.addEventListener('blur', saveManualRevisionDate);
         }
 
         if (dateInput) {

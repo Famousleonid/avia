@@ -609,6 +609,114 @@ class WorkordersWriteTest extends TestCase
         $this->assertSame(11, (int) $workorder->fresh()->storage_rack);
     }
 
+    public function test_mobile_arrival_box_update_is_limited_to_shipping_manager_and_admin(): void
+    {
+        $workorder = $this->createWorkorder([
+            'arrival_box_status' => null,
+            'arrival_box_notes' => null,
+            'arrival_box_recorded_by' => null,
+            'arrival_box_recorded_at' => null,
+        ]);
+
+        foreach (['Shipping', 'Manager', 'Admin'] as $role) {
+            $user = $this->createUserWithRole($role, [
+                'email' => strtolower($role) . '.arrival.box.' . uniqid() . '@example.test',
+            ]);
+
+            $this->actingAs($user)
+                ->patchJson(route('mobile.workorders.arrival-box.update', $workorder), [
+                    'arrival_box_status' => 'medium',
+                    'arrival_box_notes' => 'Middle rail cracked',
+                ])
+                ->assertOk()
+                ->assertJsonPath('success', true)
+                ->assertJsonPath('arrival_box.status', 'medium')
+                ->assertJsonPath('arrival_box.status_label', 'Medium repair')
+                ->assertJsonPath('arrival_box.notes', 'Middle rail cracked');
+
+            $this->assertDatabaseHas('workorders', [
+                'id' => $workorder->id,
+                'arrival_box_status' => 'medium',
+                'arrival_box_notes' => 'Middle rail cracked',
+                'arrival_box_recorded_by' => $user->id,
+            ]);
+            $this->assertNotNull($workorder->fresh()->arrival_box_recorded_at);
+        }
+
+        $technician = $this->createUserWithRole('Technician');
+
+        $this->actingAs($technician)
+            ->patchJson(route('mobile.workorders.arrival-box.update', $workorder), [
+                'arrival_box_status' => 'hard',
+                'arrival_box_notes' => 'Blocked',
+            ])
+            ->assertForbidden();
+
+        $this->assertSame('medium', $workorder->fresh()->arrival_box_status);
+    }
+
+    public function test_mobile_arrival_box_block_is_visible_only_to_shipping_manager_and_admin(): void
+    {
+        $workorder = $this->createWorkorder([
+            'arrival_box_status' => 'medium',
+            'arrival_box_notes' => 'Middle rail cracked',
+        ]);
+
+        foreach (['Shipping', 'Manager', 'Admin'] as $role) {
+            $user = $this->createUserWithRole($role, [
+                'email' => strtolower($role) . '.arrival.box.visible.' . uniqid() . '@example.test',
+            ]);
+
+            $this->actingAs($user)
+                ->get(route('mobile.show', $workorder))
+                ->assertOk()
+                ->assertSee('id="arrivalBoxStatusText_' . $workorder->id . '"', false);
+        }
+
+        $technician = $this->createUserWithRole('Technician');
+
+        $this->actingAs($technician)
+            ->get(route('mobile.show', $workorder))
+            ->assertOk()
+            ->assertDontSee('id="arrivalBoxStatusText_' . $workorder->id . '"', false);
+    }
+
+    public function test_mobile_arrival_box_can_be_filled_after_draft_creation(): void
+    {
+        $shipping = $this->createUserWithRole('Shipping');
+        $draft = $this->createWorkorder([
+            'user_id' => $shipping->id,
+            'number' => 109001,
+            'draft_number' => 109001,
+            'is_draft' => true,
+            'arrival_box_status' => null,
+            'arrival_box_notes' => null,
+        ]);
+
+        $this->actingAs($shipping)
+            ->get(route('mobile.show', $draft))
+            ->assertOk()
+            ->assertSee('Draft:');
+
+        $this->actingAs($shipping)
+            ->patchJson(route('mobile.workorders.arrival-box.update', $draft), [
+                'arrival_box_status' => 'replace',
+                'arrival_box_notes' => 'Use new box before shipping',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('arrival_box.status', 'replace')
+            ->assertJsonPath('arrival_box.status_label', 'New box');
+
+        $this->assertDatabaseHas('workorders', [
+            'id' => $draft->id,
+            'is_draft' => true,
+            'arrival_box_status' => 'replace',
+            'arrival_box_notes' => 'Use new box before shipping',
+            'arrival_box_recorded_by' => $shipping->id,
+        ]);
+    }
+
     public function test_desktop_storage_endpoint_uses_same_role_limit(): void
     {
         $workorder = $this->createWorkorder([

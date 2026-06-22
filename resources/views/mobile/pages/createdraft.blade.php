@@ -262,10 +262,10 @@
                 <div class="modal-body">
                     <div class="d-grid gap-2">
                         <button type="button" class="btn btn-outline-success w-100 draft-box-choice" data-box-status="ok">OK</button>
-                        <button type="button" class="btn btn-outline-info w-100 draft-box-choice" data-box-status="easy">Easy repair</button>
+                        <button type="button" class="btn btn-outline-info w-100 draft-box-choice" data-box-status="easy">Light repair</button>
                         <button type="button" class="btn btn-outline-warning w-100 draft-box-choice" data-box-status="medium">Medium repair</button>
                         <button type="button" class="btn btn-outline-danger w-100 draft-box-choice" data-box-status="hard">Hard repair</button>
-                        <button type="button" class="btn btn-outline-light w-100 draft-box-choice" data-box-status="replace">Replace</button>
+                        <button type="button" class="btn btn-outline-light w-100 draft-box-choice" data-box-status="replace">New box</button>
                     </div>
 
                     <div class="mt-3">
@@ -415,10 +415,10 @@
             const arrivalBoxNotesText = document.getElementById('arrivalBoxNotesText');
             const arrivalBoxLabels = {
                 ok: 'OK',
-                easy: 'Easy repair',
+                easy: 'Light repair',
                 medium: 'Medium repair',
                 hard: 'Hard repair',
-                replace: 'Replace',
+                replace: 'New box',
             };
             const arrivalBoxTextClasses = {
                 ok: 'text-success',

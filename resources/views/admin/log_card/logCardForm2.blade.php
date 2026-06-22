@@ -263,6 +263,13 @@
             gap: 0px;
         }
 
+        .log-card-table,
+        .log-card-table > div,
+        .log-card-table .log-card-record-row > div {
+            font-size: 14px !important;
+            line-height: 1.12;
+        }
+
         .log-card-record-row {
             display: grid;
             grid-column: 1 / -1;
@@ -614,7 +621,7 @@
         </div>
     </div>
 
-    <div class="parent">
+    <div class="parent log-card-table">
         <div class="div1 text-center fs-7 border-all pt-3">Aircraft Reg./Con.No.</div>
         <div class="div2 text-center fs-7 border-t-r  pt-1">FITTED TO AIRCRAFT</div>
         <div class="div3 text-center fs-7 border-t-r-b  pt-1">REMOVED FROM AIRCRAFT</div>
@@ -651,7 +658,7 @@
     </div>
 
 
-    <div class="parent">
+    <div class="parent log-card-table">
         <div class="div31 text-center fs-8 border-all pt-3">DESCRIPTION</div>
         <div class="div32 text-center fs-8 border-t-r-b pt-3">PART NO.</div>
         <div class="div33 text-center fs-8 border-t-r-b pt-3">SERIAL NO.</div>
@@ -819,7 +826,7 @@
                 <div class="col-2 text-center"><strong>W{{$current_wo->number}}</strong></div>
             </div>
         </div>
-        <div class="parent ">
+        <div class="parent log-card-table">
             <div class="div31 text-center fs-8 border-all pt-3">DESCRIPTION</div>
             <div class="div32 text-center fs-8 border-t-r-b pt-3">PART NO.</div>
             <div class="div33 text-center fs-8 border-t-r-b pt-3">SERIAL NO.</div>

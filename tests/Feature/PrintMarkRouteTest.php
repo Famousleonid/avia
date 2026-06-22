@@ -48,7 +48,8 @@ class PrintMarkRouteTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('system-print-qr', $html);
-        $this->assertStringContainsString('width: 64px;', $html);
+        $this->assertStringContainsString('width: 40px;', $html);
+        $this->assertStringContainsString('data-screen-placement="page"', $html);
         $this->assertTrue(str_contains($html, '<svg') || str_contains($html, 'api.qrserver.com'));
         $this->assertStringNotContainsString('System Print', $html);
         $this->assertDatabaseHas('print_marks', [

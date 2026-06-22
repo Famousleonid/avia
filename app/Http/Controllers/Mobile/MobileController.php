@@ -945,6 +945,50 @@ class MobileController extends Controller
         ]);
     }
 
+    public function updateArrivalBox(Request $request, Workorder $workorder): JsonResponse
+    {
+        abort_unless($request->user()?->roleIs(['Shipping', 'Manager', 'Admin']), 403);
+
+        $data = $request->validate([
+            'arrival_box_status' => ['nullable', 'in:ok,easy,medium,hard,replace'],
+            'arrival_box_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $status = $data['arrival_box_status'] ?? null;
+        $notes = trim((string) ($data['arrival_box_notes'] ?? '')) ?: null;
+        $hasArrivalBoxData = ! empty($status) || $notes !== null;
+
+        $workorder->update([
+            'arrival_box_status' => $status ?: null,
+            'arrival_box_notes' => $notes,
+            'arrival_box_recorded_by' => $hasArrivalBoxData ? $request->user()->id : null,
+            'arrival_box_recorded_at' => $hasArrivalBoxData ? now() : null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'arrival_box' => [
+                'status' => $workorder->arrival_box_status,
+                'status_label' => self::arrivalBoxStatusLabel($workorder->arrival_box_status),
+                'notes' => $workorder->arrival_box_notes,
+                'recorded_by' => $workorder->arrival_box_recorded_by,
+                'recorded_at' => optional($workorder->arrival_box_recorded_at)?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    private static function arrivalBoxStatusLabel(?string $status): string
+    {
+        return match ($status) {
+            'ok' => 'OK',
+            'easy' => 'Light repair',
+            'medium' => 'Medium repair',
+            'hard' => 'Hard repair',
+            'replace' => 'New box',
+            default => '',
+        };
+    }
+
     public function materials()
     {
         $user = Auth::user();

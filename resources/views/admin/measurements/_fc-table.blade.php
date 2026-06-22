@@ -114,7 +114,7 @@ try {
 </script>
 </head>
 <body>
-@include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null, 'printMarkQrSize' => 32])
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $workorder ?? null])
 <div class="page-wrap">
 
 <aside class="sidebar">

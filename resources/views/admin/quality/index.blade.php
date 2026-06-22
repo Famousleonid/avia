@@ -199,6 +199,29 @@
             display: inline-flex;
         }
 
+        .qa-search-spinner {
+            position: absolute;
+            top: 50%;
+            right: 2.35rem;
+            display: none;
+            width: .85rem;
+            height: .85rem;
+            border: .12rem solid rgba(13, 202, 240, .25);
+            border-top-color: var(--bs-info);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translateY(-50%);
+            animation: qaSpin .65s linear infinite;
+        }
+
+        .qa-search-wrap.is-loading .form-control {
+            padding-right: 4.15rem;
+        }
+
+        .qa-search-wrap.is-loading .qa-search-spinner {
+            display: inline-block;
+        }
+
         .qa-dot-spinner {
             display: inline-flex;
             align-items: center;
@@ -248,6 +271,12 @@
             40% {
                 transform: translateY(-.35rem);
                 opacity: .95;
+            }
+        }
+
+        @keyframes qaSpin {
+            to {
+                transform: translateY(-50%) rotate(360deg);
             }
         }
 
@@ -1024,6 +1053,7 @@
                 <label class="form-label small mb-0" for="qaWorkorderSearch">WO #</label>
                 <div class="qa-search-wrap">
                     <input type="text" id="qaWorkorderSearch" class="form-control form-control-sm" placeholder="Enter full workorder number" autocomplete="off" inputmode="numeric">
+                    <span id="qaWorkorderSearchSpinner" class="qa-search-spinner" aria-hidden="true"></span>
                     <button type="button" id="qaWorkorderSearchClear" class="qa-search-clear" aria-label="Clear search">
                         <i class="bi bi-x-lg"></i>
                     </button>
@@ -1104,6 +1134,7 @@
             const serialStorageKey = 'serialSearch';
             const repairOrderFilterStorageKey = 'repairOrderFilter';
             const searchInput = document.getElementById('qaWorkorderSearch');
+            const searchWrap = searchInput.closest('.qa-search-wrap');
             const clearButton = document.getElementById('qaWorkorderSearchClear');
             const currentWorkorderLabel = document.getElementById('qaCurrentWorkorder');
             const serialSearchInput = document.getElementById('qaSerialSearch');
@@ -1159,7 +1190,8 @@
             };
 
             const setLoading = (loading) => {
-                pageLoading.classList.toggle('is-visible', loading);
+                searchWrap.classList.toggle('is-loading', loading);
+                searchInput.setAttribute('aria-busy', loading ? 'true' : 'false');
             };
 
             const saveSearch = (value) => {
@@ -1838,7 +1870,7 @@
                 }
 
                 setLoading(true);
-                message.innerHTML = spinnerHtml;
+                message.textContent = '';
 
                 try {
                     const url = new URL(endpoint, window.location.origin);

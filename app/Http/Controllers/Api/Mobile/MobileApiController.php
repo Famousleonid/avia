@@ -301,6 +301,32 @@ class MobileApiController extends Controller
         ]);
     }
 
+    public function updateArrivalBox(Request $request, int $workorderId): JsonResponse
+    {
+        abort_unless($request->user()?->roleIs(['Shipping', 'Manager', 'Admin']), 403);
+
+        $workorder = $this->findWorkorder($workorderId);
+        $data = $request->validate([
+            'arrival_box_status' => ['nullable', 'in:ok,easy,medium,hard,replace'],
+            'arrival_box_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $status = $data['arrival_box_status'] ?? null;
+        $notes = trim((string) ($data['arrival_box_notes'] ?? '')) ?: null;
+        $hasArrivalBoxData = ! empty($status) || $notes !== null;
+
+        $workorder->update([
+            'arrival_box_status' => $status ?: null,
+            'arrival_box_notes' => $notes,
+            'arrival_box_recorded_by' => $hasArrivalBoxData ? $request->user()->id : null,
+            'arrival_box_recorded_at' => $hasArrivalBoxData ? now() : null,
+        ]);
+
+        return $this->ok([
+            'arrival_box' => $this->arrivalBoxPayload($workorder, $request->user()),
+        ]);
+    }
+
     public function workorderMedia(Request $request, int $workorderId): JsonResponse
     {
         $workorder = $this->findWorkorder($workorderId, ['media']);
@@ -1313,6 +1339,7 @@ class MobileApiController extends Controller
             'team' => $user->team ? ['id' => $user->team->id, 'name' => $user->team->name] : null,
             'capabilities' => [
                 'can_update_storage' => $user->roleIs(['Shipping', 'Manager', 'Admin']),
+                'can_update_arrival_box' => $user->roleIs(['Shipping', 'Manager', 'Admin']),
                 'can_create_draft' => $user->roleIs(['Shipping', 'Manager', 'Admin']),
                 'can_use_paint' => $user->roleIs(['Paint', 'Admin', 'Manager']),
                 'can_use_machining' => $user->roleIs(['Machining', 'Admin', 'Manager']),
@@ -1387,12 +1414,7 @@ class MobileApiController extends Controller
                 'location' => $workorder->storage_location,
                 'can_update' => $user->roleIs(['Shipping', 'Manager', 'Admin']),
             ],
-            'arrival_box' => [
-                'status' => $workorder->arrival_box_status,
-                'notes' => $workorder->arrival_box_notes,
-                'recorded_by' => $workorder->arrival_box_recorded_by,
-                'recorded_at' => optional($workorder->arrival_box_recorded_at)?->toIso8601String(),
-            ],
+            'arrival_box' => $this->arrivalBoxPayload($workorder, $user),
             'media_groups' => collect($this->mediaGroups())->map(function ($label, $key) use ($workorder) {
                 $items = $workorder->getMedia((string) $key);
 
@@ -1425,6 +1447,30 @@ class MobileApiController extends Controller
             ] : null,
             'verified' => (bool) $unit->verified,
         ];
+    }
+
+    private function arrivalBoxPayload(Workorder $workorder, User $user): array
+    {
+        return [
+            'status' => $workorder->arrival_box_status,
+            'status_label' => $this->arrivalBoxStatusLabel($workorder->arrival_box_status),
+            'notes' => $workorder->arrival_box_notes,
+            'recorded_by' => $workorder->arrival_box_recorded_by,
+            'recorded_at' => optional($workorder->arrival_box_recorded_at)?->toIso8601String(),
+            'can_update' => $user->roleIs(['Shipping', 'Manager', 'Admin']),
+        ];
+    }
+
+    private function arrivalBoxStatusLabel(?string $status): string
+    {
+        return match ($status) {
+            'ok' => 'OK',
+            'easy' => 'Light repair',
+            'medium' => 'Medium repair',
+            'hard' => 'Hard repair',
+            'replace' => 'New box',
+            default => '',
+        };
     }
 
     private function componentPayload(?Component $component, $tdrs = null): ?array

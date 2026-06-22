@@ -432,7 +432,11 @@
 
 <body>
 @if($showPrintMarkQr ?? true)
-    @include('shared.print-mark.qr', ['printMarkWorkorder' => $current_wo ?? null])
+    @include('shared.print-mark.qr', [
+        'printMarkWorkorder' => $current_wo ?? null,
+        'printMarkQrTop' => '-8px',
+        'printMarkQrPrintTop' => '-2mm',
+    ])
 @endif
 <!-- Кнопки для печати и настроек -->
 <div class="text-start m-3 no-print">

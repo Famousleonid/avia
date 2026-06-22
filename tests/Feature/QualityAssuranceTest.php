@@ -303,15 +303,26 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('arc-date-hint');
         $response->assertSee('Date (dd/mmm/yyyy)');
         $response->assertSee('Lower Stay Assy');
-        $response->assertSee('190-70260-407');
+        $response->assertDontSee('190-70260-407');
         $response->assertSee('190-70262-007');
-        $response->assertSee('1464362/001');
-        $response->assertSee('1453146/005');
-        $response->assertSee('Rev # 12 dated');
+        $this->assertMatchesRegularExpression(
+            '/<div(?=[^>]*data-certificate-item-serial)[^>]*>\s*1464362\/001\s*<\/div>/s',
+            $response->getContent()
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/<div(?=[^>]*data-certificate-item-serial)[^>]*>[^<]*1453146\/005[^<]*<\/div>/s',
+            $response->getContent()
+        );
+        $response->assertSee('Rev #');
+        $response->assertSee(' dated ');
         $response->assertSee('For the replacement parts refer to Teardown Report.');
         $response->assertSee('data-certificate-overhauled-on-remark', false);
         $response->assertSee('data-certificate-overhauled-on-date', false);
         $response->assertSee('data-setting-key="include_overhauled_on"', false);
+        $response->assertSee('data-certificate-manual-revision-number', false);
+        $response->assertSee('data-certificate-manual-revision-date', false);
+        $response->assertSee('value="12"', false);
+        $response->assertSee('value="15/Jun/2025"', false);
         $response->assertSee('Airworthiness Directives 2019-11-07, E2024-05-09 R1 and Service Bulletins: 170-32-0060 R1, 170-32-A94 R2 incorporated.');
         $response->assertDontSee('IGNORE-SB');
         $response->assertSee('Landing Gear Log Card attached');
@@ -394,6 +405,7 @@ class QualityAssuranceTest extends TestCase
         $secondComponent = Component::query()->create([
             'manual_id' => $workorder->unit->manual_id,
             'part_number' => 'LOG-PN-2',
+            'assy_part_number' => 'ASSY-PN-2',
             'name' => 'Second Log Card Detail',
             'ipl_num' => '7-43',
             'eff_code' => null,
@@ -410,6 +422,7 @@ class QualityAssuranceTest extends TestCase
                 [
                     'component_id' => $secondComponent->id,
                     'serial_number' => 'LOG-SN-2',
+                    'assy_serial_number' => 'ASSY-SN-2',
                     'qa_fit_csn' => '30228',
                     'qa_fit_cso' => '3162',
                 ],
@@ -430,13 +443,19 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('data-certificate-detail-toggle', false);
         $response->assertSee('data-certificate-detail-select', false);
         $response->assertSee('Log Card Detail | LOG-PN | LOG-SN');
-        $response->assertSee('Second Log Card Detail | LOG-PN-2 | LOG-SN-2');
+        $response->assertSee('Second Log Card Detail | ASSY-PN-2 / (LOG-PN-2) | ASSY-SN-2 / (LOG-SN-2)');
         $response->assertSee('<div class="arc-tracking-no" data-certificate-tracking-number>W107736-2</div>', false);
         $response->assertSee('>Second Log Card Detail</div>', false);
         $response->assertSee('data-certificate-item-part', false);
-        $response->assertSee('>LOG-PN-2</div>', false);
+        $this->assertMatchesRegularExpression(
+            '/<div(?=[^>]*data-certificate-item-part)[^>]*>\s*ASSY-PN-2\s*\(LOG-PN-2\)\s*<\/div>/s',
+            $response->getContent()
+        );
         $response->assertSee('data-certificate-item-serial', false);
-        $response->assertSee('>LOG-SN-2</div>', false);
+        $this->assertMatchesRegularExpression(
+            '/<div(?=[^>]*data-certificate-item-serial)[^>]*>\s*ASSY-SN-2\s*\(LOG-SN-2\)\s*<\/div>/s',
+            $response->getContent()
+        );
         $response->assertSee('CSN-30228; CSO-3162.');
         $this->assertMatchesRegularExpression(
             '/<span[^>]*data-certificate-life-remark[^>]*>\s*CSN-30228; CSO-3162\.\s*<\/span>/s',
@@ -977,6 +996,114 @@ class QualityAssuranceTest extends TestCase
         $this->assertSame('Corrected log card line.', $certificateData['item_settings']['main:c']['certificate_landing_gear_log_card_remark']);
         $this->assertSame('Corrected ROYCO line.', $certificateData['item_settings']['main:c']['certificate_royco_service_remark']);
         $this->assertArrayNotHasKey('certificate_item_part', $certificateData);
+    }
+
+    public function test_certificate_manual_revision_fields_update_manual_and_latest_revision_check(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $manual = $this->createManual([
+            'number' => '32-11-07',
+            'revision_date' => '2025-06-15',
+        ]);
+        $revisionCheck = ManualRevisionCheck::query()->create([
+            'manual_id' => $manual->id,
+            'revision_number' => '12',
+            'revision_date' => '2025-06-15',
+            'checked_at' => '2025-06-15',
+            'status' => ManualRevisionCheck::STATUS_UNCHANGED,
+        ]);
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+        ]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'manual_revision_date',
+                'value' => '20/Jun/2026',
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('ok', true);
+        $response->assertJsonPath('manual_revision_number', '12');
+        $response->assertJsonPath('manual_revision_date', '2026-06-20');
+        $response->assertJsonPath('manual_revision_date_display', '20/Jun/2026');
+        $numberResponse = $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'manual_revision_number',
+                'value' => '13',
+            ]);
+
+        $numberResponse->assertOk();
+        $numberResponse->assertJsonPath('ok', true);
+        $numberResponse->assertJsonPath('manual_revision_number', '13');
+        $this->assertDatabaseHas('manuals', [
+            'id' => $manual->id,
+            'revision_date' => '2026-06-20',
+        ]);
+        $this->assertDatabaseHas('manual_revision_checks', [
+            'id' => $revisionCheck->id,
+            'revision_number' => '13',
+            'revision_date' => '2026-06-20',
+        ]);
+        $this->assertArrayNotHasKey('manual_revision_date', $workorder->fresh()->certificate_data ?? []);
+        $this->assertArrayNotHasKey('manual_revision_number', $workorder->fresh()->certificate_data ?? []);
+
+        $formResponse = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $formResponse->assertOk();
+        $formResponse->assertSee('Rev #');
+        $formResponse->assertSee('data-certificate-manual-revision-number', false);
+        $formResponse->assertSee('data-certificate-manual-revision-date', false);
+        $formResponse->assertSee('value="13"', false);
+        $formResponse->assertSee('value="20/Jun/2026"', false);
+
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'part_number' => 'LC-PN',
+            'name' => 'Log Card Detail',
+            'ipl_num' => '1-1',
+            'eff_code' => null,
+        ]);
+        LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data_out' => [
+                [
+                    'component_id' => $component->id,
+                    'serial_number' => 'LC-SN',
+                ],
+            ],
+        ]);
+
+        $workorder->forceFill([
+            'certificate_data' => [
+                'certificate_item_source' => 'log:0',
+            ],
+        ])->save();
+        $detailResponse = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+        $detailResponse->assertOk();
+        $detailResponse->assertSee('data-certificate-manual-revision-number', false);
+        $detailResponse->assertSee('value="13"', false);
+        $detailResponse->assertSee('value="20/Jun/2026"', false);
+
+        $workorder->forceFill([
+            'certificate_data' => [
+                'certificate_item_source' => 'main',
+                'certificate_tracking_mode' => 'c',
+            ],
+        ])->save();
+        $cResponse = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+        $cResponse->assertOk();
+        $cResponse->assertSee('data-certificate-manual-revision-number', false);
+        $cResponse->assertSee('value="13"', false);
+        $cResponse->assertSee('value="20/Jun/2026"', false);
     }
 
     public function test_serial_search_returns_workorder_links_from_tdr_and_log_card(): void
@@ -1557,6 +1684,61 @@ class QualityAssuranceTest extends TestCase
         $response->assertOk();
         $rows = LogCard::where('workorder_id', $workorder->id)->first()->component_data_out;
         $this->assertSame('DCL1032/04', $rows[0]['qa_header_part_number']);
+    }
+
+    public function test_log_card_note_six_checkbox_defaults_off_when_not_saved(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder();
+        LogCard::create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                ['name' => 'Bolt', 'part_number' => 'PN-1', 'serial_number' => 'SN-1'],
+            ]),
+        ]);
+
+        $response = $this->actingAs($manager)->get(route('quality.forms.log_card', $workorder));
+
+        $response->assertOk();
+        $html = $response->getContent();
+        preg_match_all('/<input class="qa-note-print-toggle"[^>]*>/s', $html, $matches);
+
+        $this->assertCount(2, $matches[0]);
+        $this->assertSame(2, substr_count($html, 'class="qa-note6" data-print-enabled="0"'));
+
+        foreach ($matches[0] as $input) {
+            $this->assertStringContainsString('data-qa-note-toggle', $input);
+            $this->assertStringNotContainsString('checked', $input);
+        }
+    }
+
+    public function test_log_card_note_six_checkbox_keeps_saved_enabled_state(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder();
+        $row = ['name' => 'Bolt', 'part_number' => 'PN-1', 'serial_number' => 'SN-1', 'qa_note6_enabled' => true];
+        LogCard::create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([$row]),
+            'component_data_out' => [$row],
+        ]);
+
+        $response = $this->actingAs($manager)->get(route('quality.forms.log_card', $workorder));
+
+        $response->assertOk();
+        $html = $response->getContent();
+        preg_match_all('/<input class="qa-note-print-toggle"[^>]*>/s', $html, $matches);
+
+        $this->assertCount(2, $matches[0]);
+        $this->assertSame(2, substr_count($html, 'class="qa-note6" data-print-enabled="1"'));
+
+        foreach ($matches[0] as $input) {
+            $this->assertStringContainsString('checked', $input);
+        }
     }
 
     public function test_manager_can_upload_quality_documents_to_workorder(): void

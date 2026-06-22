@@ -9,6 +9,7 @@ use App\Models\ExtraProcess;
 use App\Models\Instruction;
 use App\Models\LogCard;
 use App\Models\Manual;
+use App\Models\ManualRevisionCheck;
 use App\Models\Necessary;
 use App\Models\Task;
 use App\Models\Tdr;
@@ -578,6 +579,8 @@ class QualityAssuranceController extends Controller
                     'certificate_status_instruction_id',
                     'certificate_status_work',
                     'certificate_remarks',
+                    'manual_revision_number',
+                    'manual_revision_date',
                     'certificate_airworthiness_remark',
                     'certificate_landing_gear_log_card_remark',
                     'certificate_royco_service_remark',
@@ -606,12 +609,18 @@ class QualityAssuranceController extends Controller
                     ->where('can_sign_certificates', true)
                     ->findOrFail((int) $value);
             }
-        } elseif (in_array($key, ['certificate_date', 'certificate_overhauled_on_date'], true)) {
+        } elseif (in_array($key, ['certificate_date', 'certificate_overhauled_on_date', 'manual_revision_date'], true)) {
             $value = trim((string) $value);
             if ($value !== '') {
                 $value = parse_project_date($value) ?: $value;
                 abort_unless((bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', $value), 422, 'Invalid certificate date.');
             }
+            if ($key === 'manual_revision_date') {
+                abort_unless($value !== '', 422, 'Invalid manual revision date.');
+            }
+        } elseif ($key === 'manual_revision_number') {
+            $value = trim((string) $value);
+            abort_unless(mb_strlen($value) <= 255, 422, 'Manual revision number is too long.');
         } elseif ($key === 'certificate_status_instruction_id') {
             $value = trim((string) $value);
             if ($value !== '') {
@@ -632,6 +641,14 @@ class QualityAssuranceController extends Controller
         } else {
             $value = trim((string) $value);
             abort_unless($value === 'main' || str_starts_with($value, 'log:'), 422, 'Invalid certificate detail source.');
+        }
+
+        if ($key === 'manual_revision_date') {
+            return $this->updateCertificateManualRevision($workorder, revisionDate: $value);
+        }
+
+        if ($key === 'manual_revision_number') {
+            return $this->updateCertificateManualRevision($workorder, revisionNumber: $value);
         }
 
         $certificateData = is_array($workorder->certificate_data) ? $workorder->certificate_data : [];
@@ -840,6 +857,63 @@ class QualityAssuranceController extends Controller
             'field' => $data['field'],
             'style' => $style,
             'value' => trim((string) ($data['value'] ?? '')),
+        ]);
+    }
+
+    private function updateCertificateManualRevision(
+        Workorder $workorder,
+        ?string $revisionDate = null,
+        ?string $revisionNumber = null,
+    )
+    {
+        $workorder->loadMissing(['unit.manual.revisionChecks']);
+
+        $manual = $workorder->unit?->manual;
+        abort_unless($manual, 404, 'Manual not found for workorder.');
+
+        $revisionDate = $revisionDate !== null
+            ? Carbon::parse($revisionDate)->format('Y-m-d')
+            : null;
+        $latestRevisionCheck = $manual->revisionChecks
+            ? $manual->revisionChecks
+                ->sortByDesc(fn ($check) => optional($check->revision_date)->format('Y-m-d') ?? '')
+                ->first()
+            : null;
+
+        if (! $latestRevisionCheck && $revisionNumber !== null) {
+            $latestRevisionCheck = ManualRevisionCheck::query()->create([
+                'manual_id' => $manual->id,
+                'revision_number' => $revisionNumber !== '' ? $revisionNumber : null,
+                'revision_date' => $revisionDate
+                    ?? ($manual->revision_date ? Carbon::parse($manual->revision_date)->format('Y-m-d') : now()->toDateString()),
+                'checked_at' => now()->toDateString(),
+                'checked_by_user_id' => auth()->id(),
+                'checked_by_stamp' => auth()->user()?->stamp,
+                'status' => ManualRevisionCheck::STATUS_UNCHANGED,
+            ]);
+        } elseif ($latestRevisionCheck) {
+            $latestRevisionCheck->forceFill(array_filter([
+                'revision_number' => $revisionNumber,
+                'revision_date' => $revisionDate,
+            ], static fn ($value): bool => $value !== null))->save();
+        }
+
+        if ($revisionDate !== null) {
+            $manual->forceFill([
+                'revision_date' => $revisionDate,
+            ])->save();
+        }
+
+        $manualRevisionDate = $revisionDate
+            ?? ($latestRevisionCheck?->revision_date ? Carbon::parse($latestRevisionCheck->revision_date)->format('Y-m-d') : null)
+            ?? ($manual->revision_date ? Carbon::parse($manual->revision_date)->format('Y-m-d') : null);
+        $manualRevisionNumber = $revisionNumber ?? trim((string) ($latestRevisionCheck?->revision_number ?? ''));
+
+        return response()->json([
+            'ok' => true,
+            'manual_revision_number' => $manualRevisionNumber,
+            'manual_revision_date' => $manualRevisionDate,
+            'manual_revision_date_display' => $manualRevisionDate ? format_project_date($manualRevisionDate) : '',
         ]);
     }
 

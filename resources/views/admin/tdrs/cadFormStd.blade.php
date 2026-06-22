@@ -100,7 +100,6 @@
     'printMarkQrSize' => 40,
     'printMarkQrScreenPlacement' => 'page',
     'printMarkQrTop' => '3mm',
-    'printMarkQrRight' => '4mm',
     'printMarkQrPrintTop' => '3mm',
     'printMarkQrPrintRight' => '4mm',
 ])

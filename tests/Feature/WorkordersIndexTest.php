@@ -210,6 +210,118 @@ class WorkordersIndexTest extends TestCase
         $response->assertDontSee((string) $other->number);
     }
 
+    public function test_quick_open_search_control_is_visible_for_allowed_email_and_system_admin(): void
+    {
+        $allowed = $this->createUserWithRole('Admin', [
+            'email' => 'vkyushkevich@yahoo.ca',
+        ]);
+        $systemAdmin = $this->createUserWithRole('Admin', [
+            'email' => 'system.admin.' . uniqid() . '@example.test',
+            'is_admin' => true,
+        ]);
+        $adminWithoutFlag = $this->createUserWithRole('Admin', [
+            'email' => 'limited.admin.' . uniqid() . '@example.test',
+            'is_admin' => false,
+        ]);
+        $manager = $this->createUserWithRole('Manager');
+
+        $allowedResponse = $this->actingAs($allowed)->get(route('workorders.index'));
+
+        $allowedResponse->assertOk();
+        $allowedResponse->assertSee('For Slava:', false);
+        $allowedResponse->assertSee('id="quickOpenSearchInput"', false);
+        $allowedResponse->assertSee('id="clearQuickOpenSearch"', false);
+        $allowedResponse->assertDontSee('id="quickOpenSearchButton"', false);
+        $allowedResponse->assertDontSee('id="quickOpenSearchStatus"', false);
+        $allowedResponse->assertDontSee('Open WO...', false);
+
+        $systemAdminResponse = $this->actingAs($systemAdmin)->get(route('workorders.index'));
+
+        $systemAdminResponse->assertOk();
+        $systemAdminResponse->assertSee('For Slava:', false);
+        $systemAdminResponse->assertSee('id="quickOpenSearchInput"', false);
+        $systemAdminResponse->assertSee('id="clearQuickOpenSearch"', false);
+
+        $adminWithoutFlagResponse = $this->actingAs($adminWithoutFlag)->get(route('workorders.index'));
+
+        $adminWithoutFlagResponse->assertOk();
+        $adminWithoutFlagResponse->assertDontSee('For Slava:', false);
+        $adminWithoutFlagResponse->assertDontSee('id="quickOpenSearchInput"', false);
+        $adminWithoutFlagResponse->assertDontSee('id="clearQuickOpenSearch"', false);
+
+        $managerResponse = $this->actingAs($manager)->get(route('workorders.index'));
+
+        $managerResponse->assertOk();
+        $managerResponse->assertDontSee('For Slava:', false);
+        $managerResponse->assertDontSee('id="quickOpenSearchInput"', false);
+        $managerResponse->assertDontSee('id="clearQuickOpenSearch"', false);
+    }
+
+    public function test_quick_open_search_returns_mains_url_when_exactly_one_workorder_matches(): void
+    {
+        $admin = $this->createUserWithRole('Admin', [
+            'email' => 'vkyushkevich@yahoo.ca',
+        ]);
+        $matching = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 765432,
+            'description' => 'Quick open exact match',
+        ]);
+        $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 765499,
+            'description' => 'Quick open other match',
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('workorders.quick-open-search', [
+            'q' => '765432',
+        ]));
+
+        $response->assertOk();
+        $response->assertJsonPath('ok', true);
+        $response->assertJsonPath('count', 1);
+        $response->assertJsonPath('url', route('mains.show', $matching->id));
+        $response->assertJsonPath('workorder.number', '765432');
+    }
+
+    public function test_quick_open_search_does_not_return_url_when_multiple_workorders_match(): void
+    {
+        $admin = $this->createUserWithRole('Admin', [
+            'email' => 'vkyushkevich@yahoo.ca',
+        ]);
+        $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 765431,
+        ]);
+        $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 765432,
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('workorders.quick-open-search', [
+            'q' => '76543',
+        ]));
+
+        $response->assertOk();
+        $response->assertJsonPath('ok', true);
+        $response->assertJsonPath('count', 2);
+        $response->assertJsonPath('message', 'More than one workorder found.');
+        $response->assertJsonMissingPath('url');
+    }
+
+    public function test_quick_open_search_endpoint_is_forbidden_for_other_emails(): void
+    {
+        $admin = $this->createUserWithRole('Admin', [
+            'is_admin' => false,
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('workorders.quick-open-search', [
+            'q' => '765432',
+        ]));
+
+        $response->assertForbidden();
+    }
+
     public function test_search_by_full_number_with_active_filter_applies_query(): void
     {
         $admin = $this->createUserWithRole('Admin');

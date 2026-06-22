@@ -266,6 +266,33 @@ class MobileApiTest extends TestCase
         ]);
     }
 
+    public function test_shipping_role_can_update_workorder_arrival_box(): void
+    {
+        $shipper = $this->createUserWithRole('Shipping');
+        $workorder = $this->createWorkorder(['user_id' => $shipper->id]);
+
+        $response = $this->withMobileToken($shipper)
+            ->patchJson(route('api.mobile.workorders.arrival-box.update', $workorder->id), [
+                'arrival_box_status' => 'easy',
+                'arrival_box_notes' => 'Lid latch bent',
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.arrival_box.status', 'easy')
+            ->assertJsonPath('data.arrival_box.status_label', 'Light repair')
+            ->assertJsonPath('data.arrival_box.notes', 'Lid latch bent')
+            ->assertJsonPath('data.arrival_box.can_update', true);
+
+        $this->assertDatabaseHas('workorders', [
+            'id' => $workorder->id,
+            'arrival_box_status' => 'easy',
+            'arrival_box_notes' => 'Lid latch bent',
+            'arrival_box_recorded_by' => $shipper->id,
+        ]);
+        $this->assertNotNull($workorder->fresh()->arrival_box_recorded_at);
+    }
+
     public function test_technician_cannot_update_storage_or_create_draft(): void
     {
         $user = $this->createUserWithRole('Technician');
@@ -279,6 +306,15 @@ class MobileApiTest extends TestCase
             ]);
 
         $storageResponse->assertForbidden()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('message', 'Forbidden.');
+
+        $arrivalBoxResponse = $this->withMobileToken($user)
+            ->patchJson(route('api.mobile.workorders.arrival-box.update', $workorder->id), [
+                'arrival_box_status' => 'medium',
+            ]);
+
+        $arrivalBoxResponse->assertForbidden()
             ->assertJsonPath('ok', false)
             ->assertJsonPath('message', 'Forbidden.');
 
