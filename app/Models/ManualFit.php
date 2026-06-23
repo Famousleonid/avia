@@ -24,6 +24,7 @@ class ManualFit extends Model
         'od_param_id',
         'id_param_id',
         'ref_no',
+        'id_ref_no',
         'is_fc',
         'assembly_clearance_min',
         'assembly_clearance_max',

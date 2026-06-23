@@ -194,44 +194,61 @@ if (! function_exists('figLabel')) {
     {{-- ── F&C rows (pairs) ──────────────────────────────── --}}
     @foreach($fcRows as $row)
     @php
-        $iplA  = $row['compA']?->ipl_num;
-        $iplB  = $row['compB']?->ipl_num;
-        $valA  = $row['measA']?->actual_value;
-        $valB  = $row['measB']?->actual_value;
-        $rA    = $row['resultA'];
-        $rB    = $row['resultB'];
-        $ac    = $row['actualClear'];
-        $acFail = $ac !== null && $row['permClearMax'] !== null && $ac > $row['permClearMax'];
-        $stA   = $row['measA'] ? ' <span class="stage-tag">('.($row['measA']->new_part ? 'new' : e($row['measA']->stage)).')</span>' : '';
-        $stB   = $row['measB'] ? ' <span class="stage-tag">('.($row['measB']->new_part ? 'new' : e($row['measB']->stage)).')</span>' : '';
-        $fixA  = $row['measA'] && $row['measA']->stage === 'final' && $rA === 'PASS';
-        $fixB  = $row['measB'] && $row['measB']->stage === 'final' && $rB === 'PASS';
+        // Two members of the pair (A = ID/bore, B = OD/shaft). Per-member Ref.No:
+        // when refSplit, each member is its own numbered row ordered by Ref.No;
+        // otherwise one merged Ref.No cell (legacy look), ID row first.
+        $split = $row['refSplit'] ?? false;
+        $mA = [
+            'ref' => $row['refId'] ?? $row['ref'], 'desc' => $row['pA']->description,
+            'ipl' => $row['compA']?->ipl_num, 'omin' => $row['pA']->orig_dim_min, 'omax' => $row['pA']->orig_dim_max,
+            'wmin' => $row['aWearMin'], 'wmax' => $row['aWearMax'],
+            'val' => $row['measA']?->actual_value, 'meas' => $row['measA'],
+            'finding' => $row['findingA'] ?? null, 'result' => $row['resultA'],
+        ];
+        $mB = [
+            'ref' => $row['refOd'] ?? $row['ref'], 'desc' => $row['pB']->description,
+            'ipl' => $row['compB']?->ipl_num, 'omin' => $row['pB']->orig_dim_min, 'omax' => $row['pB']->orig_dim_max,
+            'wmin' => $row['bWearMin'], 'wmax' => $row['bWearMax'],
+            'val' => $row['measB']?->actual_value, 'meas' => $row['measB'],
+            'finding' => $row['findingB'] ?? null, 'result' => $row['resultB'],
+        ];
+        $members = $split
+            ? collect([$mA, $mB])->sortBy('ref', SORT_NATURAL | SORT_FLAG_CASE)->values()->all()
+            : [$mA, $mB];
     @endphp
-    <tr data-ref="{{ $row['ref'] }}" data-type="fc">
+    @foreach($members as $i => $m)
+    @php
+        $first = $i === 0;
+        $r  = $m['result'];
+        $st = $m['meas'] ? ' <span class="stage-tag">('.($m['meas']->new_part ? 'new' : e($m['meas']->stage)).')</span>' : '';
+        $fix = $m['meas'] && $m['meas']->stage === 'final' && $r === 'PASS';
+    @endphp
+    <tr data-ref="{{ $m['ref'] ?: $row['ref'] }}" data-type="fc">
+        @if($first)
         <td rowspan="2" class="c col-figure" style="color:#666;font-size:10px">{{ figLabel($row['fig']) }}</td>
+        @endif
+        @if($split)
+        <td class="c" style="font-weight:700">{{ $m['ref'] ?: '—' }}</td>
+        @elseif($first)
         <td rowspan="2" class="c" style="font-weight:700">{{ $row['ref'] }}</td>
-        <td class="col-part">{{ $row['pA']->description }}@if($iplA) <span style="color:#888">({{ $iplA }})</span>@endif</td>
-        <td class="r">{{ wfmt($row['pA']->orig_dim_min) }}</td>
-        <td class="r">{{ wfmt($row['pA']->orig_dim_max) }}</td>
+        @endif
+        <td class="col-part">{{ $m['desc'] }}@if($m['ipl']) <span style="color:#888">({{ $m['ipl'] }})</span>@endif</td>
+        <td class="r">{{ wfmt($m['omin']) }}</td>
+        <td class="r">{{ wfmt($m['omax']) }}</td>
+        @if($first)
         <td rowspan="2" class="r{{ $row['clearOrigMin'] !== null && $row['clearOrigMin'] < 0 ? ' neg' : '' }}">{{ wfmt($row['clearOrigMin']) }}</td>
         <td rowspan="2" class="r{{ $row['clearOrigMax'] !== null && $row['clearOrigMax'] < 0 ? ' neg' : '' }}">{{ wfmt($row['clearOrigMax']) }}</td>
-        <td class="r">{{ wfmt($row['aWearMin']) }}</td>
-        <td class="r">{{ wfmt($row['aWearMax']) }}</td>
+        @endif
+        <td class="r">{{ wfmt($m['wmin']) }}</td>
+        <td class="r">{{ wfmt($m['wmax']) }}</td>
+        @if($first)
         <td rowspan="2" class="r{{ $row['permClearMax'] !== null && $row['permClearMax'] < 0 ? ' neg' : '' }}">{{ wfmt($row['permClearMax']) }}</td>
-        <td class="r {{ $rA === 'FAIL' ? 'val-fail' : ($rA === 'PASS' ? 'val-pass' : '') }}">{!! $valA !== null ? wfmt($valA).$stA : '—' !!}</td>
-        <td class="c col-defect" style="color:#dc3545;font-size:10px">{{ $row['findingA'] ?? '—' }}@if($row['findingA'] && $fixA) <span style="color:#198754;font-weight:700">/ OK</span>@endif</td>
-        <td class="c col-result">@if($rA)<span class="{{ strtolower($rA) }}">{{ $rA }}</span>@else —@endif</td>
+        @endif
+        <td class="r {{ $r === 'FAIL' ? 'val-fail' : ($r === 'PASS' ? 'val-pass' : '') }}">{!! $m['val'] !== null ? wfmt($m['val']).$st : '—' !!}</td>
+        <td class="c col-defect" style="color:#dc3545;font-size:10px">{{ $m['finding'] ?? '—' }}@if($m['finding'] && $fix) <span style="color:#198754;font-weight:700">/ OK</span>@endif</td>
+        <td class="c col-result">@if($r)<span class="{{ strtolower($r) }}">{{ $r }}</span>@else —@endif</td>
     </tr>
-    <tr data-ref="{{ $row['ref'] }}" data-type="fc">
-        <td class="col-part">{{ $row['pB']->description }}@if($iplB) <span style="color:#888">({{ $iplB }})</span>@endif</td>
-        <td class="r">{{ wfmt($row['pB']->orig_dim_min) }}</td>
-        <td class="r">{{ wfmt($row['pB']->orig_dim_max) }}</td>
-        <td class="r">{{ wfmt($row['bWearMin']) }}</td>
-        <td class="r">{{ wfmt($row['bWearMax']) }}</td>
-        <td class="r {{ $rB === 'FAIL' ? 'val-fail' : ($rB === 'PASS' ? 'val-pass' : '') }}">{!! $valB !== null ? wfmt($valB).$stB : '—' !!}</td>
-        <td class="c col-defect" style="color:#dc3545;font-size:10px">{{ $row['findingB'] ?? '—' }}@if($row['findingB'] && $fixB) <span style="color:#198754;font-weight:700">/ OK</span>@endif</td>
-        <td class="c col-result">@if($rB)<span class="{{ strtolower($rB) }}">{{ $rB }}</span>@else —@endif</td>
-    </tr>
+    @endforeach
     @endforeach
 
     {{-- ── Extra rows (single) ───────────────────────────── --}}

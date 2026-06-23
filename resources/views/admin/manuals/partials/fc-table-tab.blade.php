@@ -46,17 +46,21 @@
     <div id="fc-form" class="border rounded p-2 mb-3 d-none fc-no-print" style="font-size:12px">
         <input type="hidden" id="fcEditId">
         <div class="row g-2 align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label mb-1 text-secondary">OD member</label>
                 <select id="fcOdSelect" class="form-select form-select-sm"></select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-1">
+                <label class="form-label mb-1 text-secondary">OD Ref</label>
+                <input id="fcRefNo" class="form-control form-control-sm" placeholder="1">
+            </div>
+            <div class="col-md-2">
                 <label class="form-label mb-1 text-secondary">ID member</label>
                 <select id="fcIdSelect" class="form-select form-select-sm"></select>
             </div>
             <div class="col-md-1">
-                <label class="form-label mb-1 text-secondary">Ref. No</label>
-                <input id="fcRefNo" class="form-control form-control-sm" placeholder="8001-1">
+                <label class="form-label mb-1 text-secondary">ID Ref</label>
+                <input id="fcIdRefNo" class="form-control form-control-sm" placeholder="same">
             </div>
             <div class="col-md-1">
                 <label class="form-label mb-1 text-secondary">Asm min</label>
@@ -70,7 +74,7 @@
                 <label class="form-label mb-1 text-secondary">Perm</label>
                 <input id="fcPerm" class="form-control form-control-sm" placeholder="auto">
             </div>
-            <div class="col-md-2 d-flex gap-1">
+            <div class="col-md-3 d-flex gap-1">
                 <button type="button" class="btn btn-primary btn-sm flex-grow-1" id="fcSaveBtn">Save</button>
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="fcCancelBtn">Cancel</button>
             </div>
@@ -157,6 +161,7 @@
     const odSel   = document.getElementById('fcOdSelect');
     const idSel   = document.getElementById('fcIdSelect');
     const refNo   = document.getElementById('fcRefNo');
+    const idRefNo = document.getElementById('fcIdRefNo');
     const asmMin  = document.getElementById('fcAsmMin');
     const asmMax  = document.getElementById('fcAsmMax');
     const perm    = document.getElementById('fcPerm');
@@ -182,6 +187,9 @@
         if (!m) return '—';
         return esc(m.description || '') + (m.ipl ? ' <span class="text-secondary">(' + esc(m.ipl) + ')</span>' : '');
     }
+    // Natural compare so 2 < 10 and letter callouts (AA3, KK2) sort sensibly.
+    function refStr(v) { return (v == null ? '' : String(v)).trim(); }
+    function naturalCmp(a, b) { return refStr(a).localeCompare(refStr(b), undefined, { numeric: true, sensitivity: 'base' }); }
 
     function populateSelects() {
         const opts = '<option value="">— select —</option>' +
@@ -218,36 +226,59 @@
             pairsTable.insertAdjacentHTML('beforeend', '<tbody><tr><td colspan="10" class="text-secondary">No F&amp;C pairs yet — use “Add fit”.</td></tr></tbody>');
             return;
         }
-        const html = fcFits.map(f => {
+        // FIGURE 8001 NUMBER per member: ref_no = OD member, id_ref_no = ID member.
+        // When id_ref_no is empty or equals ref_no → one merged Ref.No cell (legacy
+        // look). When they differ → each member is its own numbered row, ordered by
+        // Ref.No. Assembly/permitted clearance always stays merged across the pair.
+        const fitKey = f => {
+            const keys = [refStr(f.ref_no), refStr(f.id_ref_no)].filter(s => s !== '').sort(naturalCmp);
+            return keys.length ? keys[0] : '';
+        };
+        const ordered = fcFits.slice().sort((x, y) => naturalCmp(fitKey(x), fitKey(y)));
+
+        const html = ordered.map(f => {
             const odm = f.od_member || {}, idm = f.id_member || {};
             const warn = f.mismatch ? ' <span class="text-danger" title="stored clearance differs from derived">⚠</span>' : '';
             const aMinCls = f.assembly_clearance_min == null ? 'text-secondary' : '';
             const aMaxCls = f.assembly_clearance_max == null ? 'text-secondary' : '';
             const pCls    = f.permitted_clearance    == null ? 'text-secondary' : '';
-            return '<tbody>'
-                + '<tr>'
-                +   '<td rowspan="2" class="text-center align-middle fw-semibold">' + esc(f.ref_no || '—') + warn + '</td>'
-                +   '<td>' + memberCell(idm) + '</td>'
-                +   '<td class="text-end">' + fmt(idm.orig_min) + '</td>'
-                +   '<td class="text-end">' + fmt(idm.orig_max) + '</td>'
-                +   '<td rowspan="2" class="text-end align-middle ' + aMinCls + '">' + fmt(f.eff_assembly_min) + '</td>'
-                +   '<td rowspan="2" class="text-end align-middle ' + aMaxCls + '">' + fmt(f.eff_assembly_max) + '</td>'
-                +   '<td class="text-end">' + fmt(idm.wear_min) + '</td>'
-                +   '<td class="text-end">' + fmt(idm.wear_max) + '</td>'
-                +   '<td rowspan="2" class="text-end align-middle ' + pCls + '">' + fmt(f.eff_permitted) + '</td>'
-                +   '<td rowspan="2" class="text-center align-middle fc-no-print">'
-                +     '<button class="btn btn-outline-secondary btn-sm p-0 px-1 fc-edit" data-id="' + f.id + '" title="Edit"><i class="bi bi-pencil"></i></button> '
-                +     '<button class="btn btn-outline-danger btn-sm p-0 px-1 fc-del" data-id="' + f.id + '" title="Delete"><i class="bi bi-trash"></i></button>'
-                +   '</td>'
-                + '</tr>'
-                + '<tr>'
-                +   '<td>' + memberCell(odm) + '</td>'
-                +   '<td class="text-end">' + fmt(odm.orig_min) + '</td>'
-                +   '<td class="text-end">' + fmt(odm.orig_max) + '</td>'
-                +   '<td class="text-end">' + fmt(odm.wear_min) + '</td>'
-                +   '<td class="text-end">' + fmt(odm.wear_max) + '</td>'
-                + '</tr>'
-                + '</tbody>';
+            const odRef = refStr(f.ref_no), idRef = refStr(f.id_ref_no);
+            const split = idRef !== '' && idRef !== odRef;
+
+            // member rows: split → sort by own ref; merged → ID first (legacy order)
+            const od = { ref: odRef, m: odm }, id = { ref: idRef, m: idm };
+            const rows = split ? [od, id].sort((a, b) => naturalCmp(a.ref, b.ref)) : [id, od];
+
+            let tb = '<tbody>';
+            rows.forEach((row, idx) => {
+                const first = idx === 0;
+                tb += '<tr>';
+                // Ref.No: per-member when split; single rowspan cell when merged
+                if (split) {
+                    tb += '<td class="text-center align-middle fw-semibold">' + esc(row.ref || '—') + (first ? warn : '') + '</td>';
+                } else if (first) {
+                    tb += '<td rowspan="2" class="text-center align-middle fw-semibold">' + esc(odRef || '—') + warn + '</td>';
+                }
+                tb += '<td>' + memberCell(row.m) + '</td>';
+                tb += '<td class="text-end">' + fmt(row.m.orig_min) + '</td>';
+                tb += '<td class="text-end">' + fmt(row.m.orig_max) + '</td>';
+                if (first) {
+                    tb += '<td rowspan="2" class="text-end align-middle ' + aMinCls + '">' + fmt(f.eff_assembly_min) + '</td>';
+                    tb += '<td rowspan="2" class="text-end align-middle ' + aMaxCls + '">' + fmt(f.eff_assembly_max) + '</td>';
+                }
+                tb += '<td class="text-end">' + fmt(row.m.wear_min) + '</td>';
+                tb += '<td class="text-end">' + fmt(row.m.wear_max) + '</td>';
+                if (first) {
+                    tb += '<td rowspan="2" class="text-end align-middle ' + pCls + '">' + fmt(f.eff_permitted) + '</td>';
+                    tb += '<td rowspan="2" class="text-center align-middle fc-no-print">'
+                        + '<button class="btn btn-outline-secondary btn-sm p-0 px-1 fc-edit" data-id="' + f.id + '" title="Edit"><i class="bi bi-pencil"></i></button> '
+                        + '<button class="btn btn-outline-danger btn-sm p-0 px-1 fc-del" data-id="' + f.id + '" title="Delete"><i class="bi bi-trash"></i></button>'
+                        + '</td>';
+                }
+                tb += '</tr>';
+            });
+            tb += '</tbody>';
+            return tb;
         }).join('');
         pairsTable.insertAdjacentHTML('beforeend', html);
     }
@@ -272,7 +303,8 @@
         editId.value = fit ? fit.id : '';
         odSel.value  = fit ? fit.od_param_id : '';
         idSel.value  = fit ? fit.id_param_id : '';
-        refNo.value  = fit ? (fit.ref_no || '') : '';
+        refNo.value   = fit ? (fit.ref_no || '') : '';
+        idRefNo.value = fit ? (fit.id_ref_no || '') : '';
         asmMin.value = (fit && fit.assembly_clearance_min != null) ? fit.assembly_clearance_min : '';
         asmMax.value = (fit && fit.assembly_clearance_max != null) ? fit.assembly_clearance_max : '';
         perm.value   = (fit && fit.permitted_clearance != null) ? fit.permitted_clearance : '';
@@ -288,6 +320,7 @@
             od_param_id: odSel.value || null,
             id_param_id: idSel.value || null,
             ref_no: refNo.value.trim() || null,
+            id_ref_no: idRefNo.value.trim() || null,
             is_fc: isFc.checked,
             assembly_clearance_min: numOrNull(asmMin),
             assembly_clearance_max: numOrNull(asmMax),

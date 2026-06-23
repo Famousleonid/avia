@@ -170,6 +170,7 @@ class ManualFitController extends Controller
             'od_param_id'            => $data['od_param_id'],
             'id_param_id'            => $data['id_param_id'],
             'ref_no'                 => $data['ref_no'] ?? null,
+            'id_ref_no'              => $data['id_ref_no'] ?? null,
             'is_fc'                  => $data['is_fc'] ?? true,
             'assembly_clearance_min' => $data['assembly_clearance_min'] ?? null,
             'assembly_clearance_max' => $data['assembly_clearance_max'] ?? null,
@@ -204,6 +205,7 @@ class ManualFitController extends Controller
             'od_param_id'            => $req . 'integer|exists:manual_parameters,id',
             'id_param_id'            => $req . 'integer|exists:manual_parameters,id',
             'ref_no'                 => 'nullable|string|max:40',
+            'id_ref_no'              => 'nullable|string|max:40',
             'is_fc'                  => 'nullable|boolean',
             'assembly_clearance_min' => 'nullable|numeric',
             'assembly_clearance_max' => 'nullable|numeric',
@@ -245,6 +247,7 @@ class ManualFitController extends Controller
         return [
             'id'                     => $fit->id,
             'ref_no'                 => $fit->ref_no,
+            'id_ref_no'              => $fit->id_ref_no,
             'is_fc'                  => (bool) $fit->is_fc,
             'sort_order'             => $fit->sort_order,
             'od_param_id'            => $fit->od_param_id,

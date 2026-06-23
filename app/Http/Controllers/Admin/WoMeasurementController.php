@@ -484,10 +484,28 @@ class WoMeasurementController extends Controller
             $actualClear = ($measA?->actual_value !== null && $measB?->actual_value !== null)
                 ? round((float)$measA->actual_value - (float)$measB->actual_value, 4) : null;
 
+            // Per-member Ref.No (FIGURE 8001 NUMBER): ref_no = OD, id_ref_no = ID.
+            // id_ref_no empty or == ref_no → merged single-ref cell (legacy look);
+            // different → each member its own numbered row. Empty refs fall back to
+            // the shared point code so the column is never blank.
+            $odRef     = trim((string) $fit->ref_no);
+            $idRef     = trim((string) $fit->id_ref_no);
+            $ptCode    = $pt?->code;
+            $refSplit  = $idRef !== '' && $idRef !== $odRef;
+            $refOd     = $odRef !== '' ? $odRef : (string) ($ptCode ?? '');
+            $refId     = $idRef !== '' ? $idRef : (string) ($ptCode ?? '');
+            $mergedRef = $odRef !== '' ? $odRef : ($ptCode ?? '—');
+            $refCands  = array_values(array_filter([$refOd, $refId], fn ($s) => $s !== ''));
+            usort($refCands, 'strnatcasecmp');
+
             $fcRows[] = [
                 'fig'          => $fig,
                 'pt'           => $pt,
-                'ref'          => $pt?->code ?? $fit->ref_no ?? '—',
+                'ref'          => $mergedRef,
+                'refOd'        => $refOd,
+                'refId'        => $refId,
+                'refSplit'     => $refSplit,
+                'sortRef'      => $refCands[0] ?? (string) $mergedRef,
                 'pA'           => $pA,
                 'pB'           => $pB,
                 'measA'        => $measA,
@@ -511,6 +529,9 @@ class WoMeasurementController extends Controller
                 'resultB'      => $measB?->result ?? $this->computeResult($measB?->actual_value, $limB),
             ];
         }
+
+        // Order F&C pairs by Ref.No (FIGURE 8001 NUMBER), natural sort.
+        usort($fcRows, fn ($a, $b) => strnatcasecmp((string) $a['sortRef'], (string) $b['sortRef']));
 
         // Every other measured parameter → standalone row (not part of an F&C pair).
         foreach ($figures as $fig) {

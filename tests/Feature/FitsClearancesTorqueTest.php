@@ -134,6 +134,38 @@ class FitsClearancesTorqueTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_fit_stores_per_member_ref_no(): void
+    {
+        $manual = $this->createManual();
+        $od = $this->createParameter($manual, null, ['description' => 'OD']);
+        $id = $this->createParameter($manual, null, ['description' => 'ID']);
+
+        // store with distinct OD/ID Ref.No (Table 8001 per-member numbering)
+        $created = $this->actingAs($this->admin())
+            ->postJson(route('manuals.fits.store', $manual->id), [
+                'od_param_id' => $od->id, 'id_param_id' => $id->id,
+                'ref_no' => '1', 'id_ref_no' => '2',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('ref_no', '1')
+            ->assertJsonPath('id_ref_no', '2')
+            ->json();
+
+        // update clears the ID ref → back to the merged/legacy look
+        $this->actingAs($this->admin())
+            ->patchJson(route('fits.update', $created['id']), ['id_ref_no' => null])
+            ->assertOk()
+            ->assertJsonPath('id_ref_no', null);
+
+        // store without id_ref_no → null (legacy single-ref behaviour preserved)
+        $this->actingAs($this->admin())
+            ->postJson(route('manuals.fits.store', $manual->id), [
+                'od_param_id' => $od->id, 'id_param_id' => $id->id, 'ref_no' => '5',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('id_ref_no', null);
+    }
+
     // ---- Torque values endpoint ----
 
     public function test_torque_values_save_trims_and_drops_empty(): void
@@ -319,5 +351,28 @@ class FitsClearancesTorqueTest extends TestCase
             ->assertOk()
             ->assertSee('OD pin')
             ->assertSee('ID bush');
+    }
+
+    public function test_measurements_fc_table_numbers_members_when_refs_differ(): void
+    {
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        $ic = $this->createInspectionComponent($manual, 'Pin');
+        $od = $this->createParameter($manual, $ic, ['description' => 'OD pin', 'orig_dim_min' => 0.99, 'orig_dim_max' => 1.00]);
+        $id = $this->createParameter($manual, $ic, ['description' => 'ID bush', 'orig_dim_min' => 1.00, 'orig_dim_max' => 1.01]);
+        $this->attachParamToPoint($od, $this->createDimensionPoint($manual, 'P1', true));
+        $this->attachParamToPoint($id, $this->createDimensionPoint($manual, 'P2', true));
+        // Distinct OD/ID Ref.No → Table 8001 per-member numbering.
+        $this->createFit($manual, $od, $id, ['is_fc' => true, 'ref_no' => '5', 'id_ref_no' => '4']);
+
+        $html = $this->actingAs($this->admin())
+            ->get(route('workorders.measurements.fc-table', $wo->id))
+            ->assertOk()
+            ->getContent();
+
+        // Each member is its own numbered row (not one merged Ref.No cell).
+        $this->assertStringContainsString('data-ref="4"', $html);
+        $this->assertStringContainsString('data-ref="5"', $html);
     }
 }
