@@ -1128,6 +1128,58 @@ class TdrsTest extends TestCase
         $this->assertStringNotContainsString('SERVICE BULLETIN CHANGE (scrap)', $html);
     }
 
+    public function test_inspect_button_shows_only_for_parts_with_measurable_parameter(): void
+    {
+        // The 📏 Inspect button must appear only when the part's inspection
+        // component has a MEASURABLE parameter (orig/wear dims or a repair rule).
+        // A part whose parameter has no dimensions/rules gets no button.
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['user_id' => $admin->id, 'unit_id' => $unit->id]);
+
+        $repair = Necessary::query()->firstOrCreate(['name' => 'Repair']);
+        $corroded = Code::query()->firstOrCreate(['name' => 'Corroded'], ['code' => 'C']);
+
+        // Measurable: parameter carries orig dimensions.
+        $icMeasurable = $this->createInspectionComponent($manual, 'Bolt 6-50');
+        $compMeasurable = $this->createComponent($manual, ['ipl_num' => '6-50', 'name' => 'BOLT']);
+        $this->attachComponentToIc($icMeasurable, $compMeasurable);
+        $this->createParameter($manual, $icMeasurable, [
+            'description' => 'OD', 'orig_dim_min' => 1.0000, 'orig_dim_max' => 1.0010,
+        ]);
+
+        // Non-measurable: parameter exists but has no dims and no repair rules.
+        $icBare = $this->createInspectionComponent($manual, 'Bolt 6-70');
+        $compBare = $this->createComponent($manual, ['ipl_num' => '6-70', 'name' => 'PIN']);
+        $this->attachComponentToIc($icBare, $compBare);
+        $this->createParameter($manual, $icBare, ['description' => 'OD']);
+
+        foreach ([$compMeasurable, $compBare] as $c) {
+            Tdr::query()->create([
+                'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+                'workorder_id' => $workorder->id,
+                'component_id' => $c->id,
+                'codes_id' => $corroded->id,
+                'conditions_id' => null,
+                'necessaries_id' => $repair->id,
+                'serial_number' => 'SN',
+                'assy_serial_number' => ' ',
+                'qty' => 1,
+                'use_tdr' => true,
+                'use_process_forms' => true,
+            ]);
+        }
+
+        $html = $this->actingAs($admin)->get(route('tdrs.show', ['id' => $workorder->id]))
+            ->assertOk()
+            ->getContent();
+
+        // Button present for the measurable part, absent for the bare one.
+        $this->assertStringContainsString('data-ic-id="' . $icMeasurable->id . '"', $html);
+        $this->assertStringNotContainsString('data-ic-id="' . $icBare->id . '"', $html);
+    }
+
     public function test_backfill_tdr_conditions_re_derives_condition_from_code(): void
     {
         // Legacy rows whose condition came from the old JS mapping (default 39 =

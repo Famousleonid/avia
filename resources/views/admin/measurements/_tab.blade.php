@@ -459,6 +459,7 @@
         renderPartsList();
         const part = partsTree.find(p => p.id === msSingleIc);
         if (part) selectComponent(part);
+        else msClearSelection(); // у детали нет точек измерения → не оставляем панель предыдущей детали
     }
 
     // Is the part visible in the current view mode?

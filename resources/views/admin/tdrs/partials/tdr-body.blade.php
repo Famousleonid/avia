@@ -631,7 +631,10 @@
             @endif
         </div>
         @php
-            // Inspect button: map TDR component → inspection component (Dimensions part)
+            // Inspect button: map TDR component → inspection component (Dimensions part),
+            // но оставляем только IC с ИЗМЕРИМЫМ параметром — у которого есть orig/wear
+            // размеры или repair-правило. У деталей без точек (или с точками без размеров/
+            // правил) кнопки Inspect нет — мерять нечего (совпадает с фильтром дерева).
             $tdrInspectCompIds = collect($tdrs)
                 ->filter(fn($t) => $t->use_tdr && $t->use_process_forms)
                 ->pluck('component_id')->filter()->unique();
@@ -639,6 +642,21 @@
                 ? \App\Models\ManualInspectionComponentVariant::whereIn('component_id', $tdrInspectCompIds)
                     ->pluck('inspection_component_id', 'component_id')
                 : collect();
+            if ($tdrInspectIcByComp->isNotEmpty()) {
+                $measurableIcIds = \App\Models\ManualParameter::query()
+                    ->whereIn('inspection_component_id', $tdrInspectIcByComp->values()->unique()->all())
+                    ->where(function ($q) {
+                        $q->whereNotNull('orig_dim_min')
+                          ->orWhereNotNull('orig_dim_max')
+                          ->orWhereNotNull('wear_dim_min')
+                          ->orWhereNotNull('wear_dim_max')
+                          ->orWhereHas('repairRules');
+                    })
+                    ->pluck('inspection_component_id')
+                    ->unique()
+                    ->flip();
+                $tdrInspectIcByComp = $tdrInspectIcByComp->filter(fn($icId) => $measurableIcIds->has($icId));
+            }
         @endphp
         <div class="table-wrapper p-1 tdr-show-right-table-wrapper">
             <table id="tdr_process_Table" class="table table-sm table-hover align-middle dir-table small shadow-lg">
