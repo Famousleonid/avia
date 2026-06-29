@@ -56,6 +56,8 @@ class PipelineContext
     /** nameId → stage|null (lazy cache) */
     private array $stageCache = [];
 
+    private array $existsCache = [];
+
     // -------------------------------------------------------------------------
     // Main phase (topologically pre-ordered by TopologicalProcessMerger)
     // -------------------------------------------------------------------------
@@ -71,6 +73,10 @@ class PipelineContext
     {
         foreach ($entries as $e) {
             $nameId = (int) $e['process_names_id'];
+            if (! $this->processNameExists($nameId)) {
+                continue;
+            }
+
             $this->warmCache($nameId);
 
             $this->processGroups[] = [
@@ -117,6 +123,10 @@ class PipelineContext
 
     private function addEntry(string $phase, int $nameId, int $pid, $rpId, ?string $desc, $pointKey): void
     {
+        if (! $this->processNameExists($nameId)) {
+            return;
+        }
+
         $scope = $this->scopeOf($nameId);
 
         // Within Start/Finish: deduplicate scope=part by nameId, scope=point by nameId+pointKey
@@ -223,6 +233,19 @@ class PipelineContext
             $this->scopeCache[$nameId] = $pn?->scope;
             $this->stageCache[$nameId] = $pn?->stage;
         }
+    }
+
+    private function processNameExists(int $nameId): bool
+    {
+        if ($nameId <= 0) {
+            return false;
+        }
+
+        if (! array_key_exists($nameId, $this->existsCache)) {
+            $this->existsCache[$nameId] = ProcessName::query()->whereKey($nameId)->exists();
+        }
+
+        return $this->existsCache[$nameId];
     }
 
     public function isEmpty(): bool

@@ -70,6 +70,124 @@ class TdrsTest extends TestCase
         ]);
     }
 
+    public function test_tdr_process_store_rejects_catalog_process_without_process_name(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Guard Store Process ' . uniqid(),
+            'process_sheet_name' => 'TEST',
+            'form_number' => '000',
+        ]);
+        $orphanCatalogProcess = Process::query()->create([
+            'process_names_id' => null,
+            'process' => 'Orphan catalog process',
+        ]);
+
+        $response = $this->actingAs($admin)->postJson(route('tdr-processes.store'), [
+            'tdrs_id' => $tdr->id,
+            'processes' => [[
+                'process_names_id' => $processName->id,
+                'processes' => [$orphanCatalogProcess->id],
+            ]],
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonPath('error', 'Selected process specification is missing a process name.');
+
+        $this->assertDatabaseMissing('tdr_processes', [
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+        ]);
+    }
+
+    public function test_tdr_process_update_rejects_catalog_process_without_process_name(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Guard Update Process ' . uniqid(),
+            'process_sheet_name' => 'TEST',
+            'form_number' => '000',
+        ]);
+        $validCatalogProcess = Process::query()->create([
+            'process_names_id' => $processName->id,
+            'process' => 'Valid catalog process',
+        ]);
+        $orphanCatalogProcess = Process::query()->create([
+            'process_names_id' => null,
+            'process' => 'Orphan catalog process',
+        ]);
+        $tdrProcess = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'processes' => [$validCatalogProcess->id],
+        ]);
+
+        $response = $this->actingAs($admin)->patchJson(route('tdr-processes.update', $tdrProcess), [
+            'tdrs_id' => $tdr->id,
+            'processes' => [[
+                'process_names_id' => $processName->id,
+                'process' => [$orphanCatalogProcess->id],
+            ]],
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('processes');
+
+        $tdrProcess->refresh();
+        $this->assertSame([$validCatalogProcess->id], TdrProcess::normalizeStoredProcessIds($tdrProcess->processes));
+    }
+
+    public function test_store_from_inspection_redirects_with_standard_errors_when_part_ipl_already_exists(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'unit_id' => $unit->id,
+        ]);
+        $this->createComponent($manual, [
+            'ipl_num' => '8-888',
+            'part_number' => 'PN-EXIST',
+            'name' => 'Existing Part',
+        ]);
+
+        $sourceUrl = route('tdrs.show', ['id' => $workorder->id]);
+
+        $response = $this->actingAs($admin)
+            ->from($sourceUrl)
+            ->post(route('components.storeFromInspection'), [
+                'name' => 'Duplicate Part',
+                'manual_id' => $manual->id,
+                'part_number' => 'PN-DUP',
+                'ipl_num' => '8-888',
+                'current_wo' => $workorder->id,
+                'redirect' => $sourceUrl,
+            ]);
+
+        $response->assertRedirect($sourceUrl);
+        $response->assertSessionHasErrors(['ipl_num']);
+        $this->assertSame(
+            1,
+            Component::query()
+                ->where('manual_id', $manual->id)
+                ->where('ipl_num', '8-888')
+                ->count()
+        );
+    }
+
     public function test_tdr_order_component_picker_marks_np_parts_and_store_rejects_them_for_missing_and_order_new(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -733,6 +851,11 @@ class TdrsTest extends TestCase
         $print = $this->actingAs($admin)->get(route('log_card.logCardForm', $workorder->id));
         $print->assertOk();
         $print->assertSee('LC-EXTRA', false);
+        $print->assertSee('Print Settings', false);
+        $print->assertSee('log_card_print_settings', false);
+        $print->assertSee('--log-card-table-font-size', false);
+        $print->assertSee('font-size: var(--log-card-table-font-size, 14px) !important;', false);
+        $print->assertSee('window.UserScopedStorage', false);
         $print->assertDontSee('MANUAL:', false);
         $print->assertDontSee('Extra Log Manual', false);
     }
@@ -773,6 +896,11 @@ class TdrsTest extends TestCase
         $this->assertStringContainsString('log-card-continuation-section', $html);
         $this->assertStringContainsString('break-inside: avoid-page;', $html);
         $this->assertStringContainsString('page-break-inside: avoid;', $html);
+        $this->assertStringContainsString('Print Settings', $html);
+        $this->assertStringContainsString('log_card_print_settings', $html);
+        $this->assertStringContainsString('--log-card-table-font-size', $html);
+        $this->assertStringContainsString('font-size: var(--log-card-table-font-size, 14px) !important;', $html);
+        $this->assertStringContainsString('window.UserScopedStorage', $html);
         $this->assertGreaterThanOrEqual(30, substr_count($html, 'class="log-card-record-row"'));
         $this->assertStringContainsString('1 of 3', $html);
         $this->assertStringContainsString('2 of 3', $html);

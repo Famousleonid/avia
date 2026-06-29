@@ -146,6 +146,7 @@ class WorkorderController extends Controller
             'date_start'     => 'Start',
             'date_finish'    => 'Finish',
             'main_id'        => 'Main ID',
+            'bushing_save'   => 'Bushing Save',
         ];
 
         $formatValue = function ($field, $value) use ($unitsMap, $customersMap, $instructionsMap, $usersMap) {
@@ -317,7 +318,7 @@ class WorkorderController extends Controller
         $data = $request->validate([
             'q' => ['nullable', 'string', 'max:120'],
         ]);
-        $term = trim((string) ($data['q'] ?? ''));
+        $term = $this->normalizeQuickOpenSearchTerm((string) ($data['q'] ?? ''));
 
         if ($term === '') {
             return response()->json([
@@ -476,6 +477,18 @@ class WorkorderController extends Controller
 
         return strtolower((string) $user->email) === self::QUICK_OPEN_SEARCH_EMAIL
             || ($user->roleIs('Admin') && (bool) $user->is_admin);
+    }
+
+    private function normalizeQuickOpenSearchTerm(string $term): string
+    {
+        $term = trim($term);
+        $compact = preg_replace('/[\s#-]+/', '', $term) ?? $term;
+
+        if (preg_match('/^w(?:o)?(\d+)$/i', $compact, $matches) === 1) {
+            return $matches[1];
+        }
+
+        return $term;
     }
 
     private function applyWorkorderIndexFilters(Builder $query, array $filters): void

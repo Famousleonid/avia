@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AccessController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\CabinetController;
 use App\Http\Controllers\Admin\ComponentController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Admin\DirectoryController;
 use App\Http\Controllers\Admin\ExtraProcessController;
 use App\Http\Controllers\Admin\GeneralTaskController;
 use App\Http\Controllers\Admin\LogCardController;
+use App\Http\Controllers\Admin\LibraryCountryController;
 use App\Http\Controllers\Admin\LibraryUnitController;
 use App\Http\Controllers\Admin\ManualProcessController;
 use App\Http\Controllers\Admin\ManualProcessLockController;
@@ -18,6 +20,7 @@ use App\Http\Controllers\Admin\ProcessController;
 use App\Http\Controllers\Admin\ProjectSettingController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\RmReportController;
+use App\Http\Controllers\Admin\SalesReportController;
 use App\Http\Controllers\Admin\ServiceBulletinLogController;
 use App\Http\Controllers\Admin\ShippingLogBookController;
 use App\Http\Controllers\Admin\StdProcessAuditController;
@@ -226,6 +229,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::get('/workorders/download/{id}/group/{group}', [WorkorderController::class, 'downloadGroup'])->name('workorders.downloadGroup');
     Route::get('/shipping-log-book', [ShippingLogBookController::class, 'index'])->name('shipping-log-book.index');
     Route::patch('/shipping-log-book/{workorder}', [ShippingLogBookController::class, 'update'])->name('shipping-log-book.update');
+    Route::get('/sales-reports', [SalesReportController::class, 'index'])->name('sales-reports.index');
 
     Route::post('/users/avatar/{id}', [MediaController::class, 'store_avatar'])->name('avatar.media.store');
     Route::get('workorders-logs', [\App\Http\Controllers\Admin\WorkorderController::class, 'logs'])->name('workorders.logs');
@@ -240,6 +244,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::get('/marketing/customers/{customer}', [MarketingController::class, 'showCustomer'])->name('marketing.customers.show');
         Route::patch('/marketing/customers/{customer}/profile', [MarketingController::class, 'updateProfile'])->name('marketing.customers.profile.update');
         Route::get('/marketing/customers/{customer}/workorders', [MarketingController::class, 'customerWorkorders'])->name('marketing.customers.workorders');
+        Route::patch('/marketing/workorders/{workorder}/sales-fields', [MarketingController::class, 'updateWorkorderSalesFields'])->name('marketing.workorders.sales-fields.update');
+        Route::get('/marketing/customers/{customer}/sales-report', [MarketingController::class, 'customerSalesReport'])->name('marketing.customers.sales-report');
+        Route::get('/marketing/sales-report/aircraft', [MarketingController::class, 'aircraftSalesReport'])->name('marketing.sales-report.aircraft');
         Route::post('/marketing/customers/{customer}/contacts', [MarketingController::class, 'storeContact'])->name('marketing.contacts.store');
         Route::patch('/marketing/contacts/{contact}', [MarketingController::class, 'updateContact'])->name('marketing.contacts.update');
         Route::delete('/marketing/contacts/{contact}', [MarketingController::class, 'destroyContact'])->name('marketing.contacts.destroy');
@@ -532,6 +539,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::resource('/customers',  CustomerController::class);
     Route::resource('/tasks',  TaskController::class);
     Route::resource('/general-tasks',  GeneralTaskController::class);
+    Route::resource('/library/countries', LibraryCountryController::class)
+        ->names('library.countries')
+        ->except(['create', 'edit', 'show']);
     Route::resource('/library/units', LibraryUnitController::class)
         ->names('library.units')
         ->except(['create', 'edit', 'show']);
@@ -695,6 +705,9 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 
 Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin')->group(function () {
     Route::middleware('systemAdmin')->group(function () {
+        Route::get('/access', [AccessController::class, 'index'])->name('admin.access.index');
+        Route::post('/access', [AccessController::class, 'store'])->name('admin.access.store');
+        Route::delete('/access/{access}', [AccessController::class, 'destroy'])->name('admin.access.destroy');
         Route::get('/project-settings', [ProjectSettingController::class, 'index'])->name('admin.project-settings.index');
         Route::post('/project-settings', [ProjectSettingController::class, 'update'])->name('admin.project-settings.update');
         Route::get('/std-process-audit', [StdProcessAuditController::class, 'index'])->name('admin.std-process-audit.index');

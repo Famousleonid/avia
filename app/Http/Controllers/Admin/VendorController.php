@@ -19,6 +19,8 @@ class VendorController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeVendorAccess();
+
         try {
             $request->validate([
                 'name' => 'required|string|max:255|unique:vendors,name'
@@ -50,7 +52,7 @@ class VendorController extends Controller
 
     public function show(Vendor $vendor): JsonResponse
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorAccess();
 
         return response()->json([
             'success' => true,
@@ -66,7 +68,7 @@ class VendorController extends Controller
 
     public function updateMeta(Request $request, Vendor $vendor): JsonResponse
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorAccess();
 
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255', 'unique:vendors,name,' . $vendor->id],
@@ -94,7 +96,7 @@ class VendorController extends Controller
 
     public function uploadMedia(Request $request, Vendor $vendor): JsonResponse
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorAccess();
 
         $request->validate([
             'files' => ['required'],
@@ -118,7 +120,7 @@ class VendorController extends Controller
 
     public function showMedia(Vendor $vendor, Media $media)
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorAccess();
         abort_unless(
             $media->model_type === $vendor->getMorphClass()
             && (int) $media->model_id === (int) $vendor->id
@@ -134,7 +136,7 @@ class VendorController extends Controller
 
     public function destroyMedia(Vendor $vendor, Media $media): JsonResponse
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorAccess();
         abort_unless(
             $media->model_type === $vendor->getMorphClass()
             && (int) $media->model_id === (int) $vendor->id
@@ -170,5 +172,10 @@ class VendorController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    private function authorizeVendorAccess(): void
+    {
+        abort_unless(auth()->user()?->can('feature.vendor_tracking'), 403);
     }
 }

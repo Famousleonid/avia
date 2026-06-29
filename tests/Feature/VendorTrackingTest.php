@@ -7,6 +7,7 @@ use App\Models\GeneralTask;
 use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\QuantumRoLine;
+use App\Models\QuantumRoSyncRun;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\UserUiSetting;
@@ -153,9 +154,12 @@ class VendorTrackingTest extends TestCase
             ->assertSee('setQuantumToolbarCount(data?.unparsed_total)', false)
             ->assertSee('id="quantumRecentVisibleToggle"', false)
             ->assertSee('id="quantumWorkorderSearch"', false)
+            ->assertSee('id="quantumRepairOrderSearch"', false)
+            ->assertSee('data-search-mode="ro"', false)
             ->assertSee('vendor-tracking/quantum-ro-lines/find-workorder')
             ->assertSee("event.key !== 'Enter'", false)
-            ->assertSee('highlightQuantumUnparsedRow(quantumUnparsedRowByLineId(data.line_id))', false)
+            ->assertSee('highlightQuantumRowsByLineIds(lineIds)', false)
+            ->assertSee('data-quantum-ro=', false)
             ->assertDontSee('Unresolved / needs attention')
             ->assertDontSee('Dismiss visible')
             ->assertDontSee('dismiss-visible')
@@ -183,6 +187,47 @@ class VendorTrackingTest extends TestCase
                 'R-PENDING-' . $suffix,
                 'R-OLD-' . $suffix,
             ]);
+    }
+
+    public function test_vendor_tracking_shows_quantum_sync_health_from_latest_run(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        Carbon::setTestNow(Carbon::parse('2026-06-25 10:00:00'));
+
+        try {
+            QuantumRoSyncRun::query()->create([
+                'source' => 'quantum',
+                'bridge_id' => 'test-bridge',
+                'status' => 'completed',
+                'rows_received' => 280,
+                'rows_inserted' => 2,
+                'rows_updated' => 3,
+                'rows_unchanged' => 275,
+                'started_at' => Carbon::parse('2026-06-25 09:40:00'),
+                'finished_at' => Carbon::parse('2026-06-25 09:40:00'),
+            ]);
+
+            QuantumRoLine::query()->create([
+                'source_uid' => 'sync-health-line-' . random_int(100000, 999999),
+                'ro_number' => 'R-SYNC-HEALTH',
+                'wo_number' => 'W107616',
+                'apply_status' => 'applied',
+                'source_hash' => str_repeat('d', 64),
+                'last_seen_at' => Carbon::parse('2026-06-25 09:39:00'),
+            ]);
+
+            $response = $this->actingAs($admin)->get(route('vendor-tracking.index'));
+
+            $response
+                ->assertOk()
+                ->assertSee('Quantum sync:')
+                ->assertSee('Sync stale')
+                ->assertSee('20m ago')
+                ->assertSee('Last run: 25/Jun/2026 09:40')
+                ->assertSee('rows: 280 received / 5 changed');
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_quantum_recent_rows_endpoint_paginates_latest_rows(): void
@@ -245,8 +290,107 @@ class VendorTrackingTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('found', true)
             ->assertJsonPath('line_id', $targetLine->id)
+            ->assertJsonPath('line_ids.0', $targetLine->id)
             ->assertJsonPath('page', 2)
+            ->assertJsonPath('mode', 'wo')
+            ->assertJsonPath('matched_count', 1)
+            ->assertJsonPath('matched_value', $targetWo)
             ->assertJsonPath('matched_wo', $targetWo);
+    }
+
+    public function test_quantum_workorder_search_returns_all_matching_line_ids(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $suffix = (string) random_int(100000, 999999);
+        $targetWo = 'W8' . $suffix;
+
+        $olderLine = QuantumRoLine::query()->create([
+            'source_uid' => 'recent-find-all-older-' . $suffix,
+            'ro_number' => 'R-MULTI-OLD-' . $suffix,
+            'wo_number' => $targetWo,
+            'bom_ref' => 'T2',
+            'apply_status' => 'unresolved',
+            'source_hash' => hash('sha256', 'recent-find-all-older-' . $suffix),
+            'last_seen_at' => Carbon::parse('2038-01-01 10:00:00'),
+        ]);
+
+        $newerLine = QuantumRoLine::query()->create([
+            'source_uid' => 'recent-find-all-newer-' . $suffix,
+            'ro_number' => 'R-MULTI-NEW-' . $suffix,
+            'wo_number' => $targetWo,
+            'bom_ref' => 'CP',
+            'apply_status' => 'applied',
+            'source_hash' => hash('sha256', 'recent-find-all-newer-' . $suffix),
+            'last_seen_at' => Carbon::parse('2038-01-01 10:05:00'),
+        ]);
+
+        QuantumRoLine::query()->create([
+            'source_uid' => 'recent-find-all-other-' . $suffix,
+            'ro_number' => 'R-MULTI-OTHER-' . $suffix,
+            'wo_number' => 'W9' . $suffix,
+            'bom_ref' => 'CP',
+            'apply_status' => 'applied',
+            'source_hash' => hash('sha256', 'recent-find-all-other-' . $suffix),
+            'last_seen_at' => Carbon::parse('2038-01-01 10:10:00'),
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('vendor-tracking.quantum-lines.find-workorder', [
+            'workorder' => $targetWo,
+        ]));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('found', true)
+            ->assertJsonPath('line_id', $newerLine->id)
+            ->assertJsonPath('line_ids.0', $newerLine->id)
+            ->assertJsonPath('line_ids.1', $olderLine->id)
+            ->assertJsonPath('matched_count', 2)
+            ->assertJsonPath('matched_value', $targetWo);
+    }
+
+    public function test_quantum_repair_order_search_returns_matching_line_ids(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $suffix = (string) random_int(100000, 999999);
+        $targetRo = 'R8' . $suffix;
+
+        $olderLine = QuantumRoLine::query()->create([
+            'source_uid' => 'recent-find-ro-older-' . $suffix,
+            'ro_number' => $targetRo,
+            'wo_number' => 'W-RO-OLD-' . $suffix,
+            'bom_ref' => 'T2',
+            'apply_status' => 'unresolved',
+            'source_hash' => hash('sha256', 'recent-find-ro-older-' . $suffix),
+            'last_seen_at' => Carbon::parse('2038-01-02 10:00:00'),
+        ]);
+
+        $newerLine = QuantumRoLine::query()->create([
+            'source_uid' => 'recent-find-ro-newer-' . $suffix,
+            'ro_number' => $targetRo,
+            'wo_number' => 'W-RO-NEW-' . $suffix,
+            'bom_ref' => 'CP',
+            'apply_status' => 'applied',
+            'source_hash' => hash('sha256', 'recent-find-ro-newer-' . $suffix),
+            'last_seen_at' => Carbon::parse('2038-01-02 10:05:00'),
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('vendor-tracking.quantum-lines.find-workorder', [
+            'mode' => 'ro',
+            'repair_order' => $targetRo,
+        ]));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('found', true)
+            ->assertJsonPath('mode', 'ro')
+            ->assertJsonPath('line_id', $newerLine->id)
+            ->assertJsonPath('line_ids.0', $newerLine->id)
+            ->assertJsonPath('line_ids.1', $olderLine->id)
+            ->assertJsonPath('matched_count', 2)
+            ->assertJsonPath('matched_ro', $targetRo)
+            ->assertJsonPath('matched_value', $targetRo);
     }
 
     public function test_quantum_not_applicable_rows_do_not_show_in_unparsed_section(): void

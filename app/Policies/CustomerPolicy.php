@@ -32,7 +32,7 @@ class CustomerPolicy
 
     public function delete(User $user, Customer $customer): bool
     {
-        return $user->roleIs('Admin');
+        return $user->isSystemAdmin();
     }
 
     private function canUseCustomerDirectory(User $user, string $ability, ?Customer $customer = null): bool

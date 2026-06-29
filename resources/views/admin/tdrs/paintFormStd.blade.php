@@ -17,7 +17,14 @@
     @include('admin.tdrs.partials.std-sheet-styles', ['tdrFormConfig' => $tdrFormConfig])
 </head>
 <body>
-@include('shared.print-mark.qr', ['printMarkWorkorder' => $current_wo ?? null])
+@include('shared.print-mark.qr', [
+    'printMarkWorkorder' => $current_wo ?? null,
+    'printMarkQrSize' => 40,
+    'printMarkQrScreenPlacement' => 'page',
+    'printMarkQrTop' => '3mm',
+    'printMarkQrPrintTop' => '3mm',
+    'printMarkQrPrintRight' => '4mm',
+])
 @include('admin.tdrs.partials.std-sheet-toolbar')
 
 @foreach($paint_table_pages as $paintPageIndex => $paintPageRows)

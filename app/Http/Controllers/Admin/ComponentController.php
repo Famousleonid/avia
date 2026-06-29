@@ -11,11 +11,13 @@ use App\Models\Builder;
 use App\Models\Scope;
 use App\Services\ManualPartAccessGuard;
 use App\Services\ProcessAccessDecision;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class ComponentController extends Controller
 {
@@ -61,6 +63,87 @@ class ComponentController extends Controller
         $normalized = preg_replace('/[^A-Za-z0-9_-]+/', '', (string) $normalized);
 
         return $normalized !== '' ? mb_substr($normalized, 0, 100) : null;
+    }
+
+    private function safeInspectionRedirect(Request $request, string $fallbackRedirect): string
+    {
+        $redirect = $request->input('redirect', $fallbackRedirect);
+
+        if (! is_string($redirect) || ! str_starts_with($redirect, url('/'))) {
+            return $fallbackRedirect;
+        }
+
+        return $redirect;
+    }
+
+    private function firstValidationMessage(array $errors): string
+    {
+        foreach ($errors as $messages) {
+            if (is_array($messages) && isset($messages[0])) {
+                return (string) $messages[0];
+            }
+        }
+
+        return 'The given data was invalid.';
+    }
+
+    private function inspectionErrorResponse(Request $request, string $message, int $status = 422, array $errors = [])
+    {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => $errors ?: ['component' => [$message]],
+            ], $status);
+        }
+
+        $workorderId = $request->input('current_wo') ?: $request->input('workorder_id');
+        $fallbackRedirect = $workorderId
+            ? route('tdrs.inspection.component', ['workorder_id' => $workorderId])
+            : route('components.index');
+
+        $redirect = redirect()->back(302, [], $this->safeInspectionRedirect($request, $fallbackRedirect))
+            ->withInput();
+
+        if ($errors) {
+            return $redirect->withErrors($errors);
+        }
+
+        return $redirect->with('error', $message);
+    }
+
+    private function isComponentIplDuplicate(QueryException $exception): bool
+    {
+        $message = $exception->getMessage();
+
+        return str_contains($message, 'components_manual_active_ipl_unique')
+            || (
+                (int) ($exception->errorInfo[1] ?? 0) === 1062
+                && str_contains($message, 'active_ipl_num')
+            );
+    }
+
+    private function duplicateComponentIplMessage(Request $request): string
+    {
+        $ipl = Component::normalizeIpl($request->input('ipl_num'));
+        $manualId = (int) $request->input('manual_id');
+
+        $duplicate = Component::query()
+            ->where('manual_id', $manualId)
+            ->where('ipl_num', $ipl)
+            ->first(['id', 'part_number', 'name', 'ipl_num']);
+
+        if ($duplicate) {
+            return sprintf(
+                'Component IPL "%s" already exists in this manual as #%d (%s %s).',
+                $duplicate->ipl_num,
+                $duplicate->id,
+                trim((string) $duplicate->part_number) ?: '-',
+                trim((string) $duplicate->name) ?: '-'
+            );
+        }
+
+        return sprintf('Component IPL "%s" already exists in this manual.', $ipl);
     }
 
     private function generateKitPrlChoiceGroup(Manual $manual, int $firstComponentId): string
@@ -227,10 +310,10 @@ class ComponentController extends Controller
         $afterDash = "SUBSTRING_INDEX({$ipl}, '-', -1)";
 
         $query
-            ->orderByRaw("({$ipl} REGEXP '^[0-9]+-[0-9]+[A-Za-z]*$') desc")
+            ->orderByRaw("({$ipl} REGEXP '^[0-9]+[A-Za-z]*-[0-9]+[[:space:]]*([A-Za-z][A-Za-z0-9]*)?$') desc")
             ->orderByRaw("CAST(SUBSTRING_INDEX({$ipl}, '-', 1) AS UNSIGNED) {$direction}")
             ->orderByRaw("CAST(REGEXP_REPLACE({$afterDash}, '[^0-9].*$', '') AS UNSIGNED) {$direction}")
-            ->orderByRaw("REGEXP_REPLACE({$afterDash}, '^[0-9]+', '') {$direction}");
+            ->orderByRaw("TRIM(REGEXP_REPLACE({$afterDash}, '^[0-9]+', '')) {$direction}");
     }
 
     public function create()
@@ -250,9 +333,9 @@ class ComponentController extends Controller
             'name' => 'required|string|max:250',
             'manual_id' => 'required|exists:manuals,id',
             'part_number' =>'required|string|max:50',
-            'ipl_num' =>'string|max:10',
-            'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
-            'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            'ipl_num' =>'string|max:20',
+            'assy_ipl_num' => 'nullable|string|max:20|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
+            'bush_ipl_num' => 'nullable|string|max:20|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
             'kit_prl_choice_group' => 'nullable|string|max:100',
             'units_assy' => 'nullable|string|max:100',
             'eff_code' => 'nullable|string|max:100',
@@ -354,50 +437,47 @@ class ComponentController extends Controller
 
     public function storeFromInspection(Request $request)
     {
-            $current_wo = $request->current_wo;
+        $current_wo = $request->current_wo;
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:250',
+            'manual_id' => 'required|exists:manuals,id',
+            'part_number' => 'required|string|max:50',
+            'ipl_num' => 'nullable|string|max:20',
+            'assy_ipl_num' => 'nullable|string|max:20|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
+            'bush_ipl_num' => 'nullable|string|max:20|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
+            'eff_code' => 'nullable|string|max:100',
+            'units_assy' => 'nullable|string|max:100',
+//            'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+//            'assy_img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        ]);
+        $user = auth()->user();
+        $manualId = (int) $validated['manual_id'];
+        $manual = Manual::with('partLock.lockedBy')->findOrFail($manualId);
+        if ($deny = $this->denyIfManualPartsLocked($request, $manual, route('tdrs.inspection.component', ['workorder_id' => $current_wo]))) {
+            return $deny;
+        }
+        $manualHasAnyPermissions = DB::table('manual_user_permissions')
+            ->where('manual_id', $manualId)
+            ->exists();
+
+        abort_unless(
+            $user && (
+                $user->roleIs('Admin') ||
+                (!$manualHasAnyPermissions) ||
+                $user->permittedManuals()->where('manuals.id', $manualId)->exists()
+            ),
+            403
+        );
+        $validated['assy_part_number'] = $request->assy_part_number;
+        $validated['eff_code'] = $request->eff_code;
+        $validated['units_assy'] = $request->units_assy;
+        $validated = $this->fillComponentFlagsFromRequest($validated, $request);
+        $validated['bush_ipl_num'] = $request->bush_ipl_num;
 
         try {
-
-            $validated = $request->validate([
-                'name' => 'required|string|max:250',
-                'manual_id' => 'required|exists:manuals,id',
-                'part_number' => 'required|string|max:50',
-                'ipl_num' => 'nullable|string|max:10',
-                'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
-                'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
-                'eff_code' => 'nullable|string|max:100',
-                'units_assy' => 'nullable|string|max:100',
-//                'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-//                'assy_img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            ]);
-            $user = auth()->user();
-            $manualId = (int) $validated['manual_id'];
-            $manual = Manual::with('partLock.lockedBy')->findOrFail($manualId);
-            if ($deny = $this->denyIfManualPartsLocked($request, $manual, route('tdrs.inspection.component', ['workorder_id' => $current_wo]))) {
-                return $deny;
-            }
-            $manualHasAnyPermissions = DB::table('manual_user_permissions')
-                ->where('manual_id', $manualId)
-                ->exists();
-
-            abort_unless(
-                $user && (
-                    $user->roleIs('Admin') ||
-                    (!$manualHasAnyPermissions) ||
-                    $user->permittedManuals()->where('manuals.id', $manualId)->exists()
-                ),
-                403
-            );
-            $validated['assy_part_number'] = $request->assy_part_number;
-            $validated['eff_code'] = $request->eff_code;
-            $validated['units_assy'] = $request->units_assy;
-            $validated = $this->fillComponentFlagsFromRequest($validated, $request);
-            $validated['bush_ipl_num'] = $request->bush_ipl_num;
-
-            // Создание нового компонента
             $component = Component::create($validated);
 
-            // Добавление изображений, если они есть
             if ($request->hasFile('img')) {
                 $component->addMedia($request->file('img'))->toMediaCollection('component');
             }
@@ -405,25 +485,41 @@ class ComponentController extends Controller
             if ($request->hasFile('assy_img')) {
                 $component->addMedia($request->file('assy_img'))->toMediaCollection('assy_component');
             }
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
 
+            return $this->inspectionErrorResponse(
+                $request,
+                $this->firstValidationMessage($errors),
+                422,
+                $errors
+            );
+        } catch (QueryException $e) {
+            if ($this->isComponentIplDuplicate($e)) {
+                $message = $this->duplicateComponentIplMessage($request);
 
-            $fallbackRedirect = route('tdrs.inspection.component', ['workorder_id' => $current_wo]);
-            $redirect = $request->input('redirect', $fallbackRedirect);
-            if (!str_starts_with($redirect, url('/'))) {
-                $redirect = $fallbackRedirect;
+                return $this->inspectionErrorResponse($request, $message, 422, [
+                    'ipl_num' => [$message],
+                ]);
             }
 
-            return redirect($redirect)
-                ->with('success', 'Component created successfully.');
-
-        } catch (\Exception $e) {
-
-            // Возвращаем ошибку на фронт
-            return response()->json([
-                'success' => false,
-                'message' => 'Error occurred while adding the component. Please try again.'
-            ], 500);
+            throw $e;
         }
+
+        $fallbackRedirect = route('tdrs.inspection.component', ['workorder_id' => $current_wo]);
+        $redirect = $this->safeInspectionRedirect($request, $fallbackRedirect);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Component created successfully.',
+                'component' => $component,
+                'redirect' => $redirect,
+            ]);
+        }
+
+        return redirect($redirect)
+            ->with('success', 'Component created successfully.');
     }
 
     public function storeFromExtra(Request $request)
@@ -436,8 +532,8 @@ class ComponentController extends Controller
                 'name' => 'required|string|max:250',
                 'manual_id' => 'required|exists:manuals,id',
                 'part_number' => 'required|string|max:50',
-                'ipl_num' => 'nullable|string|max:10',
-                'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+                'ipl_num' => 'nullable|string|max:20',
+                'assy_ipl_num' => 'nullable|string|max:20|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
                 'eff_code' => 'nullable|string|max:100',
                 'units_assy' => 'nullable|string|max:100',
             ]);
@@ -526,9 +622,9 @@ class ComponentController extends Controller
             'name' => 'required|string|max:250',
             'manual_id' => 'required|exists:manuals,id',
             'part_number' =>'required|string|max:50',
-            'ipl_num' =>'required|string|max:10',
-            'assy_ipl_num' => 'nullable|string|max:50|regex:/^\d+-\d+[A-Za-z]?$/',
-            'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            'ipl_num' =>'required|string|max:20',
+            'assy_ipl_num' => 'nullable|string|max:50|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
+            'bush_ipl_num' => 'nullable|string|max:20|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
             'kit_prl_choice_group' => 'nullable|string|max:100',
             'units_assy' => 'nullable|string|max:100',
             'eff_code' => 'nullable|string|max:100',
@@ -646,7 +742,7 @@ class ComponentController extends Controller
         $validated = $request->validate([
             'field' => 'required|string|in:'.implode(',', self::COMPONENT_FLAGS),
             'value' => 'required|boolean',
-            'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            'bush_ipl_num' => 'nullable|string|max:20|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
         ]);
 
         $updates = [
@@ -888,9 +984,9 @@ class ComponentController extends Controller
             'name'         => 'required|string|max:250',
             'manual_id'    => 'required|exists:manuals,id',
             'part_number'  => 'required|string|max:50',
-            'ipl_num'      => 'required|string|max:10',
-            'assy_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
-            'bush_ipl_num' => 'nullable|string|max:10|regex:/^\d+-\d+[A-Za-z]?$/',
+            'ipl_num'      => 'required|string|max:20',
+            'assy_ipl_num' => 'nullable|string|max:20|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
+            'bush_ipl_num' => 'nullable|string|max:20|regex:/^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$/',
             'eff_code'     => 'nullable|string|max:100',
             'units_assy'   => 'nullable|string|max:100',
         ]);
@@ -967,6 +1063,14 @@ class ComponentController extends Controller
             403
         );
         $component->delete();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => __('Component (part) deleted successfully.'),
+                'component_id' => (int) $id,
+            ]);
+        }
 
         $redirect = $request->input('redirect');
         if ($redirect) {

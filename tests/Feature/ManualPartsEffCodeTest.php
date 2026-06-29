@@ -75,4 +75,60 @@ class ManualPartsEffCodeTest extends TestCase
         $flagResponse->assertJsonPath('value', false);
         $this->assertFalse((bool) $component->fresh()->np);
     }
+
+    public function test_manual_part_edit_accepts_same_ipl_with_spaced_suffix(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '13-70',
+            'part_number' => 'PN-BASE',
+            'name' => 'Base Part',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '13-70 RS',
+            'part_number' => 'PN-RS',
+            'name' => 'Repair Sleeve',
+        ]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->putJson(route('components.update', $component), [
+                'manual_id' => $manual->id,
+                'ipl_num' => '13-70 RS',
+                'part_number' => 'PN-RS',
+                'name' => 'Repair Sleeve Updated',
+                'units_assy' => '1',
+                'redirect' => route('manuals.show', ['manual' => $manual, 'tab' => 'parts']),
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $this->assertSame('Repair Sleeve Updated', $component->fresh()->name);
+    }
+
+    public function test_manual_part_delete_can_return_json_for_ajax_table_delete(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '13-80',
+            'part_number' => 'PN-DELETE',
+            'name' => 'Part To Delete',
+        ]);
+
+        $response = $this
+            ->actingAs($admin)
+            ->deleteJson(route('components.destroy', $component), [
+                'redirect' => route('manuals.show', ['manual' => $manual, 'tab' => 'parts']),
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('component_id', $component->id);
+        $this->assertSoftDeleted('components', ['id' => $component->id]);
+    }
 }

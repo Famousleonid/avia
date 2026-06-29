@@ -74,7 +74,7 @@ class StdProcess extends Model
     {
         $value = self::sortComparableIplValue($ipl);
 
-        if (! preg_match('/^(\d+)([A-Za-z]*)-(\d+)([A-Za-z0-9]*)$/', $value, $matches)) {
+        if (! preg_match('/^(\d+)([A-Za-z]*)-(\d+)\s*([A-Za-z][A-Za-z0-9]*)?$/', $value, $matches)) {
             return [1, 0, '', 0, strtoupper($value)];
         }
 
@@ -207,7 +207,7 @@ class StdProcess extends Model
 
     protected static function ndtProcessNumber(ProcessName $processName): ?string
     {
-        if (preg_match('/^NDT-(\d+)$/i', trim((string) $processName->name), $m)) {
+        if (preg_match('/^NDT-(\d+)\b/i', trim((string) $processName->name), $m)) {
             return (string) ((int) $m[1]);
         }
 

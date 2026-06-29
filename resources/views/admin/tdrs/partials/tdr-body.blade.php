@@ -9,6 +9,11 @@
     }
 
     #tdr_process_Table {
+        --tdr-action-button-size: 34px;
+        --tdr-action-col-width: 172px;
+        --tdr-action-gap: 6px;
+        --tdr-action-icon-size: 22px;
+        --tdr-action-train-canvas-size: 42px;
         table-layout: fixed;
         width: 100%;
     }
@@ -20,7 +25,7 @@
     }
 
     #tdr_process_Table col.tdr-action-col {
-        width: 144px;
+        width: var(--tdr-action-col-width);
     }
 
     #tdr_process_Table th:not(:last-child),
@@ -190,27 +195,35 @@
     }
 
     #tdr_process_Table .tdr-action-cell {
-        min-width: 144px;
+        min-width: var(--tdr-action-col-width);
         overflow: visible;
         padding: 4px 8px;
+        text-align: left;
         text-overflow: clip;
     }
 
     #tdr_process_Table .tdr-action-cell > .d-flex {
         align-items: center;
-        gap: 6px;
+        flex-wrap: nowrap;
+        gap: var(--tdr-action-gap);
+        justify-content: flex-start;
     }
 
     #tdr_process_Table .tdr-action-cell .btn {
         --bs-btn-padding-x: 0;
         --bs-btn-padding-y: 0;
+        aspect-ratio: 1 / 1;
         align-items: center;
         display: inline-flex;
+        flex: 0 0 var(--tdr-action-button-size);
         font-size: 17px;
-        height: 34px;
+        height: var(--tdr-action-button-size);
         justify-content: center;
         line-height: 1;
-        width: 34px;
+        max-width: var(--tdr-action-button-size);
+        min-width: var(--tdr-action-button-size);
+        overflow: hidden;
+        width: var(--tdr-action-button-size);
     }
 
     #tdr_process_Table .tdr-action-cell form {
@@ -222,18 +235,19 @@
     #tdr_process_Table .tdr-action-cell .btn > .bi {
         align-items: center;
         display: inline-flex;
-        font-size: 17px;
-        height: 17px;
+        font-size: var(--tdr-action-icon-size);
+        height: var(--tdr-action-icon-size);
         justify-content: center;
-        width: 17px;
+        line-height: 1;
+        width: var(--tdr-action-icon-size);
     }
 
     #tdr_process_Table .tdr-action-cell .open-part-processes-tab .tdr-process-icon {
         display: block;
-        height: 42px;
+        height: var(--tdr-action-train-canvas-size);
         max-height: none;
         max-width: none;
-        width: 42px;
+        width: var(--tdr-action-train-canvas-size);
         object-fit: contain;
     }
 
@@ -679,8 +693,8 @@
                     <th class="text-center text-primary sortable">{{__('S/N')}}</th>
                     <th class="text-center text-primary sortable">{{__('Part name')}}</th>
                     <th class="text-center text-primary">{{__('EC')}}</th>
-                    <th class="text-primary text-center">
-                        <span class="text-center">{{__('Action')}}</span>
+                    <th class="text-primary text-start">
+                        <span>{{__('Action')}}</span>
                     </th>
                 </tr>
                 </thead>
@@ -717,8 +731,8 @@
                                     @endif
                                 @endforeach
                             </td>
-                            <td class="text-center tdr-action-cell">
-                                <div class="d-flex justify-content-center">
+                            <td class="text-start tdr-action-cell">
+                                <div class="d-flex">
                                     <button type="button" class="btn btn-outline-primary btn-sm me-2 open-part-processes-tab"
                                             title="{{ __('Part Processes') }}"
                                             data-tdr-id="{{ $tdr->id }}">
@@ -859,8 +873,8 @@
                         </div>
                     </td>
                     <td class="text-center text-muted"></td>
-                    <td class="text-center tdr-action-cell">
-                        <div class="d-flex justify-content-center">
+                    <td class="text-start tdr-action-cell">
+                        <div class="d-flex">
                             <button type="submit" form="tdrInlineCreateForm" class="btn btn-outline-primary tdr-inline-save-btn">{{ __('Save') }}</button>
                         </div>
                     </td>

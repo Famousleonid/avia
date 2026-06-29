@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\HasMediaHelpers;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -20,6 +21,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
 {
     use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers, LogsActivity, softDeletes;
 
+    // TODO(access): drop legacy access columns after production verifies user_feature_access.
     protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'can_manage_locked_manual_processes', 'can_manage_locked_manual_parts', 'qa_access', 'ec_access', 'can_sign_certificates', 'role_id', 'phone', 'stamp', 'team_id', 'birthday', 'notification_prefs'];
     protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date', 'can_manage_locked_manual_processes' => 'boolean', 'can_manage_locked_manual_parts' => 'boolean', 'qa_access' => 'boolean', 'ec_access' => 'boolean', 'can_sign_certificates' => 'boolean'];
     protected $hidden = ['password', 'remember_token'];
@@ -64,12 +66,12 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
 
     public function canManageLockedManualProcesses(): bool
     {
-        return $this->isAdmin() || (bool) $this->can_manage_locked_manual_processes;
+        return $this->isSystemAdmin() || $this->hasExplicitFeatureAccess('manuals.locked_processes');
     }
 
     public function canManageLockedManualParts(): bool
     {
-        return $this->isAdmin() || (bool) $this->can_manage_locked_manual_parts;
+        return $this->isSystemAdmin() || $this->hasExplicitFeatureAccess('manuals.locked_parts');
     }
 
     public function roleName(): ?string
@@ -85,33 +87,32 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
 
     public function hasFullManualsAccess(): bool
     {
-        return (bool) data_get($this->notification_prefs ?? [], 'manuals_full_access', false);
+        return $this->isSystemAdmin() || $this->hasExplicitFeatureAccess('manuals.full');
     }
 
     public function hasQualityAssuranceAccess(): bool
     {
-        return (bool) $this->qa_access;
+        return $this->isSystemAdmin() || $this->hasExplicitFeatureAccess('quality_assurance');
     }
 
     public function canAccessQualityAssurancePage(): bool
     {
-        return $this->isSystemAdmin()
-            || ($this->roleIs(['Admin', 'Manager']) && $this->hasQualityAssuranceAccess());
+        return $this->hasQualityAssuranceAccess();
     }
 
     public function hasEcAccess(): bool
     {
-        return (bool) $this->ec_access;
+        return $this->isSystemAdmin() || $this->hasExplicitFeatureAccess('ec');
     }
 
     public function canAccessEcPage(): bool
     {
-        return $this->isAdmin() || $this->hasEcAccess();
+        return $this->hasEcAccess();
     }
 
     public function canSignCertificates(): bool
     {
-        return (bool) $this->can_sign_certificates;
+        return $this->isSystemAdmin() || $this->hasExplicitFeatureAccess('certificates.sign');
     }
 
     public function roleIs(string|array $roles): bool
@@ -124,6 +125,24 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     {
         $roles = explode('|', $pipeSeparated);
         return $this->roleIs($roles);
+    }
+
+    public function featureAccesses(): HasMany
+    {
+        return $this->hasMany(UserFeatureAccess::class);
+    }
+
+    public function hasExplicitFeatureAccess(string $featureKey): bool
+    {
+        if ($this->relationLoaded('featureAccesses')) {
+            return $this->featureAccesses->contains(
+                fn (UserFeatureAccess $access) => $access->feature_key === $featureKey
+            );
+        }
+
+        return $this->featureAccesses()
+            ->where('feature_key', $featureKey)
+            ->exists();
     }
 
     public function role()

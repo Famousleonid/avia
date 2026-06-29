@@ -21,6 +21,10 @@ class AuthServiceProvider extends ServiceProvider
         foreach (config('permissions') as $model => $actions) {
             foreach ($actions as $action => $rolesAllowed) {
                 Gate::define("{$model}.{$action}", function ($user) use ($model, $action, $rolesAllowed) {
+                    if ($user->isSystemAdmin()) {
+                        return true;
+                    }
+
                     if ($model === 'manuals' && in_array($action, ['viewAny', 'view'], true)) {
                         if ($user->hasFullManualsAccess()) {
                             return true;
@@ -37,10 +41,18 @@ class AuthServiceProvider extends ServiceProvider
         }
 
         foreach (config('features', []) as $featureKey => $definition) {
-            Gate::define("feature.{$featureKey}", function (User $user) use ($definition) {
+            Gate::define("feature.{$featureKey}", function (User $user) use ($featureKey, $definition) {
+                if ($user->isSystemAdmin()) {
+                    return true;
+                }
+
                 $rolesAllowed = $definition['roles'] ?? [];
                 $userIds = array_map(static fn ($id) => (int) $id, $definition['user_ids'] ?? []);
                 $allowIsAdmin = (bool) ($definition['allow_is_admin'] ?? false);
+
+                if ($user->hasExplicitFeatureAccess($featureKey)) {
+                    return true;
+                }
 
                 if ($allowIsAdmin && $user->isAdmin()) {
                     return true;

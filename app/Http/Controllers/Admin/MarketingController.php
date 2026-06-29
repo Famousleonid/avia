@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CustomerAircraft;
 use App\Models\CustomerContact;
@@ -13,6 +14,7 @@ use App\Models\MarketingSegment;
 use App\Models\Plane;
 use App\Models\User;
 use App\Models\Workorder;
+use App\Services\SalesReportService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +30,7 @@ class MarketingController extends Controller
         return view('admin.marketing.index', [
             'companyTypes' => MarketingCompanyType::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
             'segments' => MarketingSegment::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
+            'countries' => Country::query()->where('active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'alpha2', 'name']),
             'planes' => Plane::query()->orderBy('type')->get(['id', 'type']),
             'users' => User::query()->orderBy('name')->get(['id', 'name']),
             'lifecycleOptions' => $this->lifecycleOptions(),
@@ -41,6 +44,7 @@ class MarketingController extends Controller
             'company_type_id' => ['nullable', 'integer', 'exists:marketing_company_types,id'],
             'segment_id' => ['nullable', 'integer', 'exists:marketing_segments,id'],
             'plane_id' => ['nullable', 'integer', 'exists:planes,id'],
+            'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'country' => ['nullable', 'string', 'max:120'],
             'lifecycle_status' => ['nullable', Rule::in(array_keys($this->lifecycleOptions()))],
             'follow_up' => ['nullable', Rule::in(['due', 'upcoming', 'none'])],
@@ -56,6 +60,7 @@ class MarketingController extends Controller
             ->with([
                 'marketingProfile.companyType',
                 'marketingProfile.segment',
+                'marketingProfile.countryRef',
                 'marketingAircraft.plane',
                 'marketingContacts',
             ])
@@ -71,7 +76,15 @@ class MarketingController extends Controller
                     ->orWhereHas('marketingProfile', function ($profile) use ($like) {
                         $profile->where('country', 'like', $like)
                             ->orWhere('address', 'like', $like)
+                            ->orWhere('street_address', 'like', $like)
+                            ->orWhere('city', 'like', $like)
+                            ->orWhere('state_province', 'like', $like)
+                            ->orWhere('company_notes', 'like', $like)
                             ->orWhere('terms_label', 'like', $like);
+                    })
+                    ->orWhereHas('marketingProfile.countryRef', function ($country) use ($like) {
+                        $country->where('name', 'like', $like)
+                            ->orWhere('alpha2', 'like', $like);
                     })
                     ->orWhereHas('marketingContacts', function ($contact) use ($like) {
                         $contact->where('first_name', 'like', $like)
@@ -98,9 +111,29 @@ class MarketingController extends Controller
             $query->whereHas('marketingAircraft', fn ($aircraft) => $aircraft->where('plane_id', (int) $filters['plane_id']));
         }
 
+        if (!empty($filters['country_id'])) {
+            $selectedCountry = Country::query()->find((int) $filters['country_id']);
+            $legacyCountryNames = $selectedCountry ? $this->countryFilterAliases($selectedCountry) : [];
+
+            $query->whereHas('marketingProfile', function ($profile) use ($filters, $legacyCountryNames): void {
+                $profile->where('country_id', (int) $filters['country_id']);
+
+                if ($legacyCountryNames !== []) {
+                    $profile->orWhere(function ($legacy) use ($legacyCountryNames): void {
+                        foreach ($legacyCountryNames as $legacyName) {
+                            $legacy->orWhereRaw('LOWER(TRIM(country)) = ?', [$legacyName]);
+                        }
+                    });
+                }
+            });
+        }
+
         if (!empty($filters['country'])) {
             $country = '%' . $this->escapeLike(trim((string) $filters['country'])) . '%';
-            $query->whereHas('marketingProfile', fn ($profile) => $profile->where('country', 'like', $country));
+            $query->whereHas('marketingProfile', function ($profile) use ($country): void {
+                $profile->where('country', 'like', $country)
+                    ->orWhereHas('countryRef', fn ($countryQuery) => $countryQuery->where('name', 'like', $country));
+            });
         }
 
         if (!empty($filters['lifecycle_status'])) {
@@ -381,18 +414,36 @@ class MarketingController extends Controller
         $data = $request->validate([
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'wo_q' => ['nullable', 'string', 'max:120'],
+            'wo_number' => ['nullable', 'string', 'max:60'],
+            'wo_status' => ['nullable', 'string', 'max:60'],
+            'wo_ro' => ['nullable', 'string', 'max:120'],
+            'wo_part' => ['nullable', 'string', 'max:120'],
+            'wo_description' => ['nullable', 'string', 'max:120'],
+            'wo_serial' => ['nullable', 'string', 'max:120'],
+            'wo_task' => ['nullable', 'string', 'max:120'],
+            'wo_terms' => ['nullable', 'string', 'max:120'],
+            'wo_estimate' => ['nullable', 'string', 'max:120'],
+            'wo_estimate_date' => ['nullable', 'string', 'max:60'],
+            'wo_approval_date' => ['nullable', 'string', 'max:60'],
+            'wo_invoice' => ['nullable', 'string', 'max:60'],
+            'wo_invoice_date' => ['nullable', 'string', 'max:60'],
+            'wo_ship_date' => ['nullable', 'string', 'max:60'],
+            'wo_awb' => ['nullable', 'string', 'max:120'],
         ]);
 
         $perPage = (int) ($data['per_page'] ?? 20);
+        $profile = $this->ensureProfile($customer);
 
-        $workorders = Workorder::query()
+        $query = Workorder::query()
             ->where('customer_id', $customer->id)
             ->with(['unit.manual.plane', 'instruction', 'main.task', 'media'])
             ->orderByDesc('open_at')
-            ->orderByDesc('number')
-            ->paginate($perPage);
+            ->orderByDesc('number');
 
-        $profile = $this->ensureProfile($customer);
+        $this->applyMarketingWorkorderFilters($query, $data, $profile);
+
+        $workorders = $query->paginate($perPage);
 
         return response()->json([
             'items' => $workorders->getCollection()
@@ -408,13 +459,81 @@ class MarketingController extends Controller
         ]);
     }
 
+    public function updateWorkorderSalesFields(Request $request, Workorder $workorder): JsonResponse
+    {
+        abort_if($workorder->is_draft, 404);
+
+        $data = $request->validate([
+            'sales_invoice_amount' => ['nullable', 'string', 'max:60'],
+            'sales_invoice_date' => ['nullable', 'string', 'max:32'],
+            'shipping_shipment_at' => ['nullable', 'string', 'max:32'],
+            'shipping_awb_no' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $workorder->forceFill([
+            'sales_invoice_amount' => $this->parseMoneyInput($data['sales_invoice_amount'] ?? null, 'sales_invoice_amount'),
+            'sales_invoice_date' => $this->parseDateInput($data['sales_invoice_date'] ?? null, 'sales_invoice_date'),
+            'shipping_shipment_at' => $this->parseDateInput($data['shipping_shipment_at'] ?? null, 'shipping_shipment_at'),
+            'shipping_awb_no' => trim((string) ($data['shipping_awb_no'] ?? '')) ?: null,
+        ])->save();
+
+        $customer = $workorder->customer()->firstOrFail();
+        $profile = $this->ensureProfile($customer);
+        $workorder->load(['unit.manual.plane', 'instruction', 'main.task', 'media']);
+
+        return response()->json([
+            'ok' => true,
+            'workorder' => $this->workorderRow($workorder, $profile),
+        ]);
+    }
+
+    public function customerSalesReport(Request $request, Customer $customer, SalesReportService $reports): JsonResponse
+    {
+        $data = $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
+
+        $report = $reports->build([
+            'report_type' => 'customer',
+            'customer_id' => $customer->id,
+            'date_from' => $data['date_from'] ?? now()->startOfYear()->format('Y-m-d'),
+            'date_to' => $data['date_to'] ?? now()->endOfYear()->format('Y-m-d'),
+        ]);
+
+        return response()->json($report);
+    }
+
+    public function aircraftSalesReport(Request $request, SalesReportService $reports): JsonResponse
+    {
+        $data = $request->validate([
+            'plane_id' => ['required', 'integer', 'exists:planes,id'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
+
+        $report = $reports->build([
+            'report_type' => 'component',
+            'plane_id' => (int) $data['plane_id'],
+            'date_from' => $data['date_from'] ?? now()->startOfYear()->format('Y-m-d'),
+            'date_to' => $data['date_to'] ?? now()->endOfYear()->format('Y-m-d'),
+        ]);
+
+        return response()->json($report);
+    }
+
     private function validateProfilePayload(Request $request, bool $creating): array
     {
         $rules = [
             'name' => [$creating ? 'required' : 'sometimes', 'string', 'max:250'],
             'lifecycle_status' => ['nullable', Rule::in(array_keys($this->lifecycleOptions()))],
+            'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'country' => ['nullable', 'string', 'max:120'],
             'address' => ['nullable', 'string', 'max:2000'],
+            'street_address' => ['nullable', 'string', 'max:2000'],
+            'city' => ['nullable', 'string', 'max:120'],
+            'state_province' => ['nullable', 'string', 'max:120'],
+            'company_notes' => ['nullable', 'string', 'max:8000'],
             'company_type_id' => ['nullable', 'integer', 'exists:marketing_company_types,id'],
             'segment_id' => ['nullable', 'integer', 'exists:marketing_segments,id'],
             'terms_label' => ['nullable', 'string', 'max:120'],
@@ -478,14 +597,37 @@ class MarketingController extends Controller
     private function saveProfile(Customer $customer, array $data): CustomerMarketingProfile
     {
         $profile = $this->ensureProfile($customer);
+        $countryId = $profile->country_id;
+        $countryName = $profile->country;
+
+        if (array_key_exists('country_id', $data)) {
+            $countryId = $data['country_id'] ? (int) $data['country_id'] : null;
+            $countryName = $countryId
+                ? Country::query()->whereKey($countryId)->value('name')
+                : null;
+        } elseif (array_key_exists('country', $data)) {
+            $countryName = $this->nullableString($data['country'] ?? null);
+        }
+
+        $streetAddress = $profile->street_address ?? $profile->address;
+        if (array_key_exists('street_address', $data)) {
+            $streetAddress = $this->nullableString($data['street_address']);
+        } elseif (array_key_exists('address', $data)) {
+            $streetAddress = $this->nullableString($data['address']);
+        }
 
         $profile->fill([
-            'lifecycle_status' => $data['lifecycle_status'] ?? $profile->lifecycle_status ?? CustomerMarketingProfile::STATUS_EXISTING,
-            'country' => $data['country'] ?? $profile->country,
-            'address' => $data['address'] ?? $profile->address,
+            'lifecycle_status' => array_key_exists('lifecycle_status', $data) ? ($data['lifecycle_status'] ?? CustomerMarketingProfile::STATUS_EXISTING) : ($profile->lifecycle_status ?? CustomerMarketingProfile::STATUS_EXISTING),
+            'country_id' => $countryId,
+            'country' => $countryName,
+            'address' => $streetAddress,
+            'street_address' => $streetAddress,
+            'city' => array_key_exists('city', $data) ? $this->nullableString($data['city']) : $profile->city,
+            'state_province' => array_key_exists('state_province', $data) ? $this->nullableString($data['state_province']) : $profile->state_province,
+            'company_notes' => array_key_exists('company_notes', $data) ? $this->nullableString($data['company_notes']) : $profile->company_notes,
             'company_type_id' => array_key_exists('company_type_id', $data) ? $data['company_type_id'] : $profile->company_type_id,
             'segment_id' => array_key_exists('segment_id', $data) ? $data['segment_id'] : $profile->segment_id,
-            'terms_label' => $data['terms_label'] ?? $profile->terms_label,
+            'terms_label' => array_key_exists('terms_label', $data) ? $this->nullableString($data['terms_label']) : $profile->terms_label,
             'owner_user_id' => array_key_exists('owner_user_id', $data) ? $data['owner_user_id'] : $profile->owner_user_id,
         ]);
 
@@ -581,6 +723,7 @@ class MarketingController extends Controller
             'marketingProfile.companyType',
             'marketingProfile.segment',
             'marketingProfile.owner',
+            'marketingProfile.countryRef',
             'marketingAircraft.plane',
             'marketingContacts',
             'marketingNotes.contact',
@@ -598,6 +741,9 @@ class MarketingController extends Controller
     private function customerRow(Customer $customer): array
     {
         $profile = $customer->marketingProfile;
+        $country = $this->countryName($profile);
+        $streetAddress = (string) ($profile?->street_address ?? $profile?->address ?? '');
+        $formattedAddress = $this->formattedCompanyAddress($profile);
         $contacts = $customer->marketingContacts ?? collect();
         $primaryContact = $contacts->firstWhere('is_primary', true) ?: $contacts->first();
         $aircraft = ($customer->marketingAircraft ?? collect())
@@ -611,8 +757,15 @@ class MarketingController extends Controller
         return [
             'id' => $customer->id,
             'name' => (string) $customer->name,
-            'country' => (string) ($profile?->country ?? ''),
-            'address' => (string) ($profile?->address ?? ''),
+            'country_id' => $profile?->country_id,
+            'country' => $country,
+            'address' => $streetAddress,
+            'street_address' => $streetAddress,
+            'city' => (string) ($profile?->city ?? ''),
+            'state_province' => (string) ($profile?->state_province ?? ''),
+            'company_notes' => (string) ($profile?->company_notes ?? ''),
+            'formatted_address' => $formattedAddress,
+            'address_categories' => $this->addressCategories($formattedAddress),
             'company_type' => $profile?->companyType?->name,
             'company_type_id' => $profile?->company_type_id,
             'segment' => $profile?->segment?->name,
@@ -634,10 +787,20 @@ class MarketingController extends Controller
 
     private function profileRow(?CustomerMarketingProfile $profile): array
     {
+        $streetAddress = (string) ($profile?->street_address ?? $profile?->address ?? '');
+        $formattedAddress = $this->formattedCompanyAddress($profile);
+
         return [
             'lifecycle_status' => $profile?->lifecycle_status ?? CustomerMarketingProfile::STATUS_EXISTING,
-            'country' => (string) ($profile?->country ?? ''),
-            'address' => (string) ($profile?->address ?? ''),
+            'country_id' => $profile?->country_id,
+            'country' => $this->countryName($profile),
+            'address' => $streetAddress,
+            'street_address' => $streetAddress,
+            'city' => (string) ($profile?->city ?? ''),
+            'state_province' => (string) ($profile?->state_province ?? ''),
+            'company_notes' => (string) ($profile?->company_notes ?? ''),
+            'formatted_address' => $formattedAddress,
+            'address_categories' => $this->addressCategories($formattedAddress),
             'company_type_id' => $profile?->company_type_id,
             'company_type' => $profile?->companyType?->name,
             'segment_id' => $profile?->segment_id,
@@ -705,6 +868,10 @@ class MarketingController extends Controller
             'estimate_amount' => null,
             'estimate_date' => $this->datePayload($workorder->open_at),
             'approval_date' => $this->datePayload($workorder->approve_at),
+            'sales_invoice_amount' => $this->moneyPayload($workorder->sales_invoice_amount),
+            'sales_invoice_date' => $this->datePayload($workorder->sales_invoice_date),
+            'shipping_shipment_at' => $this->datePayload($workorder->shipping_shipment_at),
+            'shipping_awb_no' => (string) ($workorder->shipping_awb_no ?? ''),
             'pdf_count' => $pdfCount,
             'image_count' => $imageCount,
             'urls' => [
@@ -713,6 +880,334 @@ class MarketingController extends Controller
                 'pdfs' => route('workorders.pdfs', $workorder->id),
             ],
         ];
+    }
+
+    private function applyMarketingWorkorderFilters($query, array $filters, CustomerMarketingProfile $profile): void
+    {
+        $global = trim((string) ($filters['wo_q'] ?? ''));
+        if ($global !== '') {
+            $this->applyMarketingWorkorderGlobalSearch($query, $global, $profile);
+        }
+
+        $this->applyMarketingWorkorderNumberFilter($query, (string) ($filters['wo_number'] ?? ''));
+        $this->applyMarketingWorkorderStatusTextFilter($query, (string) ($filters['wo_status'] ?? ''));
+        $this->applyMarketingWorkorderLikeFilter($query, 'customer_po', (string) ($filters['wo_ro'] ?? ''));
+        $this->applyMarketingWorkorderUnitFilter($query, 'part_number', (string) ($filters['wo_part'] ?? ''));
+        $this->applyMarketingWorkorderDescriptionFilter($query, (string) ($filters['wo_description'] ?? ''));
+        $this->applyMarketingWorkorderLikeFilter($query, 'serial_number', (string) ($filters['wo_serial'] ?? ''));
+        $this->applyMarketingWorkorderRelationFilter($query, 'instruction', 'name', (string) ($filters['wo_task'] ?? ''));
+        $this->applyMarketingWorkorderTermsFilter($query, (string) ($filters['wo_terms'] ?? ''), $profile);
+        $this->applyMarketingWorkorderEstimateFilter($query, (string) ($filters['wo_estimate'] ?? ''));
+        $this->applyMarketingWorkorderDateFilter($query, 'open_at', (string) ($filters['wo_estimate_date'] ?? ''));
+        $this->applyMarketingWorkorderDateFilter($query, 'approve_at', (string) ($filters['wo_approval_date'] ?? ''));
+        $this->applyMarketingWorkorderMoneyFilter($query, 'sales_invoice_amount', (string) ($filters['wo_invoice'] ?? ''));
+        $this->applyMarketingWorkorderDateFilter($query, 'sales_invoice_date', (string) ($filters['wo_invoice_date'] ?? ''));
+        $this->applyMarketingWorkorderDateFilter($query, 'shipping_shipment_at', (string) ($filters['wo_ship_date'] ?? ''));
+        $this->applyMarketingWorkorderLikeFilter($query, 'shipping_awb_no', (string) ($filters['wo_awb'] ?? ''));
+    }
+
+    private function applyMarketingWorkorderGlobalSearch($query, string $value, CustomerMarketingProfile $profile): void
+    {
+        $like = '%' . $this->escapeLike($value) . '%';
+        $number = $this->workorderNumberSearchValue($value);
+        $date = $this->parseSearchDate($value);
+        $money = $this->normalizeMoneySearchValue($value);
+        $termsMatch = $this->containsSearchText($profile->terms_label ?? '', $value);
+
+        $query->where(function ($inner) use ($like, $number, $date, $money, $termsMatch, $value): void {
+            $inner->where('customer_po', 'like', $like)
+                ->orWhere('description', 'like', $like)
+                ->orWhere('serial_number', 'like', $like)
+                ->orWhere('open_at', 'like', $like)
+                ->orWhere('approve_at', 'like', $like)
+                ->orWhere('sales_invoice_date', 'like', $like)
+                ->orWhere('shipping_shipment_at', 'like', $like)
+                ->orWhere('shipping_awb_no', 'like', $like)
+                ->orWhereHas('unit', function ($unit) use ($like): void {
+                    $unit->where('part_number', 'like', $like)
+                        ->orWhere('name', 'like', $like)
+                        ->orWhere('description', 'like', $like);
+                })
+                ->orWhereHas('instruction', fn ($instruction) => $instruction->where('name', 'like', $like));
+
+            if ($number !== '') {
+                $inner->orWhere('number', 'like', '%' . $this->escapeLike($number) . '%');
+            }
+
+            if ($date !== null) {
+                $inner->orWhereDate('open_at', $date)
+                    ->orWhereDate('approve_at', $date)
+                    ->orWhereDate('sales_invoice_date', $date)
+                    ->orWhereDate('shipping_shipment_at', $date);
+            }
+
+            if ($money !== '') {
+                $inner->orWhere('sales_invoice_amount', 'like', '%' . $this->escapeLike($money) . '%');
+            }
+
+            if ($termsMatch) {
+                $inner->orWhereRaw('1 = 1');
+            }
+
+            $this->orWhereMarketingWorkorderStatusTextMatches($inner, $value);
+        });
+    }
+
+    private function applyMarketingWorkorderNumberFilter($query, string $value): void
+    {
+        $number = $this->workorderNumberSearchValue($value);
+        if ($number === '') {
+            return;
+        }
+
+        $query->where('number', 'like', '%' . $this->escapeLike($number) . '%');
+    }
+
+    private function applyMarketingWorkorderLikeFilter($query, string $column, string $value): void
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return;
+        }
+
+        $query->where($column, 'like', '%' . $this->escapeLike($value) . '%');
+    }
+
+    private function applyMarketingWorkorderUnitFilter($query, string $column, string $value): void
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return;
+        }
+
+        $like = '%' . $this->escapeLike($value) . '%';
+        $query->whereHas('unit', fn ($unit) => $unit->where($column, 'like', $like));
+    }
+
+    private function applyMarketingWorkorderRelationFilter($query, string $relation, string $column, string $value): void
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return;
+        }
+
+        $like = '%' . $this->escapeLike($value) . '%';
+        $query->whereHas($relation, fn ($related) => $related->where($column, 'like', $like));
+    }
+
+    private function applyMarketingWorkorderDescriptionFilter($query, string $value): void
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return;
+        }
+
+        $like = '%' . $this->escapeLike($value) . '%';
+        $query->where(function ($inner) use ($like): void {
+            $inner->where('description', 'like', $like)
+                ->orWhereHas('unit', function ($unit) use ($like): void {
+                    $unit->where('name', 'like', $like)
+                        ->orWhere('description', 'like', $like);
+                });
+        });
+    }
+
+    private function applyMarketingWorkorderTermsFilter($query, string $value, CustomerMarketingProfile $profile): void
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return;
+        }
+
+        if (! $this->containsSearchText($profile->terms_label ?? '', $value)) {
+            $query->whereRaw('1 = 0');
+        }
+    }
+
+    private function applyMarketingWorkorderEstimateFilter($query, string $value): void
+    {
+        if (trim($value) !== '' && ! $this->containsSearchText('-', $value)) {
+            $query->whereRaw('1 = 0');
+        }
+    }
+
+    private function applyMarketingWorkorderMoneyFilter($query, string $column, string $value): void
+    {
+        $value = $this->normalizeMoneySearchValue($value);
+        if ($value === '') {
+            return;
+        }
+
+        $query->where($column, 'like', '%' . $this->escapeLike($value) . '%');
+    }
+
+    private function applyMarketingWorkorderDateFilter($query, string $column, string $value): void
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return;
+        }
+
+        $date = $this->parseSearchDate($value);
+        if ($date !== null) {
+            $query->whereDate($column, $date);
+            return;
+        }
+
+        $query->where($column, 'like', '%' . $this->escapeLike($value) . '%');
+    }
+
+    private function applyMarketingWorkorderStatusTextFilter($query, string $value): void
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return;
+        }
+
+        $statuses = $this->matchingMarketingWorkorderStatuses($value);
+        if ($statuses === []) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+
+        $query->where(function ($inner) use ($statuses): void {
+            foreach ($statuses as $status) {
+                $inner->orWhere(fn ($statusQuery) => $this->applyMarketingWorkorderStatusCondition($statusQuery, $status));
+            }
+        });
+    }
+
+    private function orWhereMarketingWorkorderStatusTextMatches($query, string $value): void
+    {
+        foreach ($this->matchingMarketingWorkorderStatuses($value) as $status) {
+            $query->orWhere(fn ($statusQuery) => $this->applyMarketingWorkorderStatusCondition($statusQuery, $status));
+        }
+    }
+
+    private function applyMarketingWorkorderStatusCondition($query, string $status): void
+    {
+        if ($status === 'complete') {
+            $query->whereHas('main', fn ($main) => $this->applyCompletedMainConstraint($main));
+            return;
+        }
+
+        if ($status === 'in_process') {
+            $query->whereNotNull('approve_at')
+                ->whereDoesntHave('main', fn ($main) => $this->applyCompletedMainConstraint($main));
+            return;
+        }
+
+        if ($status === 'waiting_approval') {
+            $query->whereNull('approve_at')
+                ->whereDoesntHave('main', fn ($main) => $this->applyCompletedMainConstraint($main));
+        }
+    }
+
+    private function applyCompletedMainConstraint($query): void
+    {
+        $query->where(function ($inner): void {
+            $inner->where('ignore_row', false)
+                ->orWhereNull('ignore_row');
+        })
+            ->whereNotNull('date_finish')
+            ->whereHas('task', fn ($task) => $task->whereIn('name', ['Completed', 'Complete']));
+    }
+
+    private function matchingMarketingWorkorderStatuses(string $value): array
+    {
+        $needle = strtolower(trim($value));
+        if ($needle === '') {
+            return [];
+        }
+
+        return collect([
+            'complete' => 'complete',
+            'in_process' => 'in process',
+            'waiting_approval' => 'waiting approval',
+        ])
+            ->filter(fn (string $label): bool => str_contains($label, $needle))
+            ->keys()
+            ->values()
+            ->all();
+    }
+
+    private function workorderNumberSearchValue(string $value): string
+    {
+        return preg_replace('/\D+/', '', $value) ?? '';
+    }
+
+    private function parseSearchDate(string $value): ?string
+    {
+        try {
+            return parse_project_date($value);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function containsSearchText(mixed $haystack, string $needle): bool
+    {
+        return str_contains(
+            strtolower((string) $haystack),
+            strtolower(trim($needle))
+        );
+    }
+
+    private function countryName(?CustomerMarketingProfile $profile): string
+    {
+        return (string) ($profile?->countryRef?->name ?? $profile?->country ?? '');
+    }
+
+    private function formattedCompanyAddress(?CustomerMarketingProfile $profile): string
+    {
+        if (! $profile) {
+            return '';
+        }
+
+        $streetAddress = $this->nullableString($profile->street_address ?? $profile->address);
+        $cityLine = collect([
+            $this->nullableString($profile->city),
+            $this->nullableString($profile->state_province),
+        ])->filter()->implode(', ');
+
+        return collect([
+            $streetAddress,
+            $cityLine !== '' ? $cityLine : null,
+            $this->countryName($profile) ?: null,
+        ])->filter()->implode("\n");
+    }
+
+    private function addressCategories(string $formattedAddress): array
+    {
+        return collect(['Logistics', 'Shipping', 'Marketing', 'Accounting', 'Purchasing'])
+            ->map(fn (string $label): array => [
+                'label' => $label,
+                'address' => $formattedAddress,
+            ])
+            ->all();
+    }
+
+    private function countryFilterAliases(Country $country): array
+    {
+        $aliases = [
+            $country->name,
+            $country->alpha2,
+        ];
+
+        if ($country->alpha2 === 'US') {
+            $aliases = array_merge($aliases, ['USA', 'U.S.A.', 'United States of America']);
+        }
+
+        if ($country->alpha2 === 'GB') {
+            $aliases = array_merge($aliases, ['UK', 'U.K.', 'Great Britain']);
+        }
+
+        return collect($aliases)
+            ->map(fn ($value): string => strtolower(trim((string) $value)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function datePayload(mixed $date): array
@@ -730,6 +1225,22 @@ class MarketingController extends Controller
         return [
             'iso' => $carbon->toDateString(),
             'display' => format_project_date($carbon) ?? $carbon->toDateString(),
+        ];
+    }
+
+    private function moneyPayload(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return ['value' => null, 'display' => ''];
+        }
+
+        $amount = (float) $value;
+        $formattedValue = number_format($amount, 2, '.', '');
+        $decimals = abs($amount - round($amount)) < 0.005 ? 0 : 2;
+
+        return [
+            'value' => $formattedValue,
+            'display' => '$' . number_format($amount, $decimals, '.', ','),
         ];
     }
 
@@ -767,6 +1278,26 @@ class MarketingController extends Controller
         return $parsed;
     }
 
+    private function parseMoneyInput(mixed $value, string $field): ?string
+    {
+        $normalized = $this->normalizeMoneySearchValue((string) $value);
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (! preg_match('/^-?\d+(?:\.\d{1,2})?$/', $normalized)) {
+            throw ValidationException::withMessages([$field => 'Invalid amount.']);
+        }
+
+        return number_format((float) $normalized, 2, '.', '');
+    }
+
+    private function normalizeMoneySearchValue(string $value): string
+    {
+        return trim(str_replace(['$', ',', ' '], '', $value));
+    }
+
     private function lifecycleOptions(): array
     {
         return [
@@ -779,6 +1310,13 @@ class MarketingController extends Controller
     private function escapeLike(string $value): string
     {
         return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value !== '' ? $value : null;
     }
 
     private function logMarketingActivity(string $event, object $subject, string $description, array $old, array $new): void
@@ -810,6 +1348,7 @@ class MarketingController extends Controller
             'marketingProfile.companyType',
             'marketingProfile.segment',
             'marketingProfile.owner',
+            'marketingProfile.countryRef',
             'marketingAircraft.plane',
         ]);
 
@@ -818,8 +1357,11 @@ class MarketingController extends Controller
         return [
             'company' => (string) $customer->name,
             'status' => $this->lifecycleOptions()[$profile?->lifecycle_status ?? CustomerMarketingProfile::STATUS_EXISTING] ?? (string) ($profile?->lifecycle_status ?? ''),
-            'country' => (string) ($profile?->country ?? ''),
-            'address' => (string) ($profile?->address ?? ''),
+            'country' => $this->countryName($profile),
+            'street address' => (string) ($profile?->street_address ?? $profile?->address ?? ''),
+            'city' => (string) ($profile?->city ?? ''),
+            'state/province' => (string) ($profile?->state_province ?? ''),
+            'company notes' => (string) ($profile?->company_notes ?? ''),
             'type' => (string) ($profile?->companyType?->name ?? ''),
             'segment' => (string) ($profile?->segment?->name ?? ''),
             'terms' => (string) ($profile?->terms_label ?? ''),

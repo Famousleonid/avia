@@ -324,12 +324,6 @@
             text-align: left !important;
         }
 
-        .container-fluid > .row.g-0 > .col-2.border-l.ps-1.spec-left-label-ndt > div {
-            justify-content: center !important;
-            padding-left: 0 !important;
-            text-align: center !important;
-        }
-
         .container-fluid > .row.g-0 > .col-10 > .row.g-0 > .col > .row.g-0 > .col-2.border-r,
         .process-step-number-cell {
             align-items: center !important;
@@ -455,19 +449,27 @@
 
         .part-no-data {
             display: grid !important;
-            grid-template-columns: minmax(0, 1fr) !important;
-            gap: 1px !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            grid-template-rows: repeat(3, 1fr) !important;
+            gap: 0 1px !important;
             text-align: center !important;
-            align-items: start !important;
+            align-items: center !important;
+            align-content: center !important;
+            height: 100% !important;
+            overflow: hidden !important;
             width: 100% !important;
         }
         .part-no-data div {
             display: block !important;
-            line-height: 1.2 !important;
+            line-height: 7.2px !important;
             max-width: 100% !important;
-            overflow-wrap: anywhere !important;
-            white-space: normal !important;
+            overflow: hidden !important;
+            overflow-wrap: normal !important;
+            white-space: nowrap !important;
             word-break: normal !important;
+        }
+        .part-no-data div:only-child {
+            grid-column: 1 / -1 !important;
         }
 
         .row.g-0 > .col-2 > div strong {
@@ -542,24 +544,37 @@
 
             .part-no-data {
                 display: grid !important;
-                grid-template-columns: minmax(0, 1fr) !important;
-                gap: 1px !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                grid-template-rows: repeat(3, 1fr) !important;
+                gap: 0 1px !important;
                 text-align: center !important;
-                align-items: start !important;
+                align-items: center !important;
+                align-content: center !important;
+                height: 100% !important;
+                overflow: hidden !important;
                 width: 100% !important;
             }
             .part-no-data div {
                 display: block !important;
-                line-height: 1.2 !important;
+                line-height: 7.2px !important;
                 max-width: 100% !important;
-                overflow-wrap: anywhere !important;
-                white-space: normal !important;
+                overflow: hidden !important;
+                overflow-wrap: normal !important;
+                white-space: nowrap !important;
                 word-break: normal !important;
+            }
+            .part-no-data div:only-child {
+                grid-column: 1 / -1 !important;
             }
 
             .row.g-0 > .col-2 > div strong {
                 font-size: var(--table-font-size) !important;
             }
+        }
+
+        .spec-component-header-row > .col-10 > .row.g-0 > .col .part-no-data,
+        .spec-component-header-row > .col-10 > .row.g-0 > .col .part-no-data div {
+            font-size: 7px !important;
         }
 
         .border-r {
@@ -783,8 +798,13 @@
         $processGroups = $processGroupChunk->values()->all();
         $pageNumber = ($spPageOffset ?? 0) + $loop->iteration;
         $pageTotal = $combinedSpecPageTotal ?? $componentChunks->count();
+        $partNoCellRows = max(1, min(7, (int) collect($processGroups)->max(
+            fn (array $group): int => max(1, count($group['part_number_cells'] ?? []))
+        )));
+        $partNoExtraRows = max(0, $partNoCellRows - 1);
+        $processTableRowsMax = max(1, 14 - $partNoExtraRows);
     @endphp
-    <div class="container-fluid">
+    <div class="container-fluid" data-process-table-rows-max="{{ $processTableRowsMax }}">
         <div class="row">
             <div class="col-1">
                 <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
@@ -877,61 +897,53 @@
             </div>
         </div>
 
-        <div class="row g-0 spec-component-header-row">
-            <div class="col-2 border-l-t ps-1">
-                <div style="min-height: 28px"><strong> Part No.</strong></div>
-            </div>
-            <div class="col-10">
-                <div class="row g-0 ">
-                    @if(isset($processGroups) && count($processGroups) > 0)
-                        @foreach($processGroups as $groupIndex => $group)
-                            <div class="col {{ ($groupIndex == count($processGroups) - 1 && count($processGroups) < 6) ?
-                            'border-l-t-r' : 'border-l-t' }} text-center" style="min-height: 30px; padding: 2px;">
+        @for($partNoRow = 0; $partNoRow < $partNoCellRows; $partNoRow++)
+            <div class="row g-0 spec-component-header-row spec-part-no-row">
+                <div class="col-2 border-l-t ps-1">
+                    <div style="height: 30px">
+                        @if($partNoRow === 0)
+                            <strong> Part No.</strong>
+                        @endif
+                    </div>
+                </div>
+                <div class="col-10">
+                    <div class="row g-0 ">
+                        @if(isset($processGroups) && count($processGroups) > 0)
+                            @foreach($processGroups as $groupIndex => $group)
                                 @php
-                                    $partNumbersWithQty = [];
-                                    if (isset($group['components']) && is_array($group['components'])) {
-                                        foreach ($group['components'] as $compItem) {
-                                            if (isset($compItem['component']) && $compItem['component']->part_number) {
-                                                $partNum = trim($compItem['component']->part_number);
-                                                if (!empty($partNum)) {
-                                                    $qty = isset($compItem['qty']) ? (int)$compItem['qty'] : 1;
-                                                    if (!isset($partNumbersWithQty[$partNum])) {
-                                                        $partNumbersWithQty[$partNum] = 0;
-                                                    }
-                                                    $partNumbersWithQty[$partNum] += $qty;
-                                                }
-                                            }
-                                        }
-                                    }
+                                    $partNumberCell = $group['part_number_cells'][$partNoRow] ?? [];
                                 @endphp
-                                @if(count($partNumbersWithQty) > 0)
-                                    <div class="part-no-data">
-                                        @foreach($partNumbersWithQty as $partNum => $qty)
-                                            <div>{{ $partNum }}{{__(' : ')}}{{ $qty }}</div>
-                                        @endforeach
-                                    </div>
-                                @endif
-                            </div>
-                        @endforeach
-                        @for($i = count($processGroups); $i < 6; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r'}} text-center" style="min-height: 30px;
-                            padding: 2px;">
-                                <span class="">
-                                </span>
-                            </div>
-                        @endfor
-                    @else
-                        @for($i = 0; $i < 6; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-t-r'}} text-center" style="min-height: 30px;
-                            padding: 2px;">
-                                <span class="">
-                                </span>
-                            </div>
-                        @endfor
-                    @endif
+                                <div class="col {{ ($groupIndex == count($processGroups) - 1 && count($processGroups) < 6) ?
+                                'border-l-t-r' : 'border-l-t' }} text-center" style="height: 30px; padding: 1px;">
+                                    @if(count($partNumberCell) > 0)
+                                        <div class="part-no-data">
+                                            @foreach($partNumberCell as $partNum)
+                                                <div>{{ $partNum }}</div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                            @for($i = count($processGroups); $i < 6; $i++)
+                                <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r'}} text-center" style="height: 30px;
+                                padding: 1px;">
+                                    <span class="">
+                                    </span>
+                                </div>
+                            @endfor
+                        @else
+                            @for($i = 0; $i < 6; $i++)
+                                <div class="col {{ $i < 5 ? 'border-l-t' : 'border-t-r'}} text-center" style="height: 30px;
+                                padding: 1px;">
+                                    <span class="">
+                                    </span>
+                                </div>
+                            @endfor
+                        @endif
+                    </div>
                 </div>
             </div>
-        </div>
+        @endfor
 
         <div class="row g-0 spec-component-header-row">
             <div class="col-2 border-l-t ps-1">
@@ -996,7 +1008,7 @@
 
         <div class="row g-0 ">
             <div class="col-2 border-l-t ps-1">
-                <div style="height: 30px"><strong></strong></div>
+                <div style="height: 30px"><strong>N.D.T.</strong></div>
             </div>
             <div class="col-10">
                 <div class="row g-0">
@@ -1033,98 +1045,6 @@
                     @else
                         @for($i = 0; $i < 6; $i++)
                             <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
-                            position: relative;">
-                                <div class="row g-0">
-                                    <div class="col-2 text-center border-r" style="height: 30px;">
-                                    </div>
-                                    <div class="col-6 text-center" style="height: 30px;">
-                                    </div>
-                                </div>
-                            </div>
-                        @endfor
-                    @endif
-                </div>
-            </div>
-        </div>
-
-        <div class="row g-0 ">
-            <div class="col-2 border-l ps-1 spec-left-label-ndt">
-                <div style="height: 30px"><strong> N.D.T.</strong></div>
-            </div>
-            <div class="col-10">
-                <div class="row g-0">
-                    @if(isset($processGroups) && count($processGroups) > 0)
-                        @foreach($processGroups as $groupIndex => $group)
-                            <div class="col {{ $groupIndex < 5 ? 'border-l-t-r' : 'border-l-t' }} text-center" style="height:
-                            30px; position: relative;">
-                                <div class="row g-0">
-                                    <div class="col-2 text-center border-r" style="height: 30px;">
-                                    </div>
-                                    <div class="col-6 text-center" style="height: 30px;">
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
-                        @for($i = count($processGroups); $i < 6; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
-                            position: relative;">
-                                <div class="row g-0">
-                                    <div class="col-2 text-center border-r" style="height: 30px;">
-                                    </div>
-                                    <div class="col-6 text-center" style="height: 30px;">
-                                    </div>
-                                </div>
-                            </div>
-                        @endfor
-                    @else
-                        @for($i = 0; $i < 6; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height: 30px;
-                            position: relative;">
-                                <div class="row g-0">
-                                    <div class="col-2 text-center border-r" style="height: 30px;">
-                                    </div>
-                                    <div class="col-6 text-center" style="height: 30px;">
-                                    </div>
-                                </div>
-                            </div>
-                        @endfor
-                    @endif
-                </div>
-            </div>
-        </div>
-
-        <div class="row g-0 ">
-            <div class="col-2 border-l ps-1">
-                <div style="height:30px"><strong></strong></div>
-            </div>
-            <div class="col-10">
-                <div class="row g-0">
-                    @if(isset($processGroups) && count($processGroups) > 0)
-                        @foreach($processGroups as $groupIndex => $group)
-                            <div class="col {{ $groupIndex < 5 ? 'border-l-t-r' : 'border-l-t' }} text-center" style="height:
-                           30px; position: relative;">
-                                <div class="row g-0">
-                                    <div class="col-2 text-center border-r" style="height:30px;">
-                                    </div>
-                                    <div class="col-6 text-center" style="height:30px;">
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
-                        @for($i = count($processGroups); $i < 6; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height:30px;
-                            position: relative;">
-                                <div class="row g-0">
-                                    <div class="col-2 text-center border-r" style="height:30px;">
-                                    </div>
-                                    <div class="col-6 text-center" style="height:30px;">
-                                    </div>
-                                </div>
-                            </div>
-                        @endfor
-                    @else
-                        @for($i = 0; $i < 6; $i++)
-                            <div class="col {{ $i < 5 ? 'border-l-t' : 'border-l-t-r' }} text-center" style="height:30px;
                             position: relative;">
                                 <div class="row g-0">
                                     <div class="col-2 text-center border-r" style="height: 30px;">
@@ -1457,8 +1377,9 @@
             </div>
         </div>
 
-        @for($row = 1; $row <= 1; $row++)
-            <div class="row g-0 ">
+        {{-- 7 fixed process rows + these 7 blanks = 14 selectable lower-table rows. --}}
+        @for($row = 1; $row <= 7; $row++)
+            <div class="row g-0 spec-extra-process-row">
                 <div class="col-2 border-l-t ps-1">
                     <div style="height: 30px"></div>
                 </div>
@@ -1619,7 +1540,7 @@
                                 </label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="processTableRows" name="processTableRows"
-                                           min="1" max="11" step="1" value="11">
+                                           min="1" max="14" step="1" value="14">
                                 </div>
                             </div>
 
@@ -1900,6 +1821,7 @@
 <script>
     const PRINT_SETTINGS_KEY = 'woBushingsSpecProcessForm_print_settings';
     const TOOLTIP_LANG_KEY = 'woBushingsSpecProcessForm_tooltip_lang';
+    const PROCESS_TABLE_ROWS_MAX = 14;
 
     const defaultSettings = {
         pageMargin: '2mm',
@@ -1911,7 +1833,7 @@
         containerMarginRight: '10px',
         tableFontSize: '14px',
         componentHeaderFontSize: '16px',
-        processTableRows: 11,
+        processTableRows: 14,
         footerWidth: '1060px',
         footerFontSize: '12px',
         footerPadding: '2px 2px'
@@ -1974,7 +1896,7 @@
             containerMarginRight: defaultSettings.containerMarginRight,
             tableFontSize: normalizePixelSetting(merged.tableFontSize, 14, 8, 24),
             componentHeaderFontSize: normalizePixelSetting(merged.componentHeaderFontSize, 16, 8, 24),
-            processTableRows: Math.round(clampNumber(merged.processTableRows, 1, 11, 11)),
+            processTableRows: Math.round(clampNumber(merged.processTableRows, 1, PROCESS_TABLE_ROWS_MAX, 14)),
             footerWidth: defaultSettings.footerWidth,
             footerFontSize: defaultSettings.footerFontSize,
             footerPadding: defaultSettings.footerPadding
@@ -2038,6 +1960,12 @@
                 return;
             }
 
+            const containerMaxRows = parseInt(container.dataset.processTableRowsMax || PROCESS_TABLE_ROWS_MAX, 10);
+            const visibleRowCount = Math.min(
+                Math.max(parseInt(rowCount, 10) || PROCESS_TABLE_ROWS_MAX, 1),
+                Number.isFinite(containerMaxRows) ? containerMaxRows : PROCESS_TABLE_ROWS_MAX
+            );
+
             const rows = [];
             let node = stepsRow.nextElementSibling;
             while (node && !node.classList.contains('parent')) {
@@ -2052,11 +1980,11 @@
             });
 
             rows.forEach(function(row, index) {
-                row.style.display = index < rowCount ? '' : 'none';
+                row.style.display = index < visibleRowCount ? '' : 'none';
             });
 
             if (rows.length > 0) {
-                rows[Math.min(rowCount, rows.length) - 1].classList.add('spec-visible-process-last');
+                rows[Math.min(visibleRowCount, rows.length) - 1].classList.add('spec-visible-process-last');
             }
         });
     }

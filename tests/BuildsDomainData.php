@@ -12,6 +12,7 @@ use App\Models\Scope;
 use App\Models\Team;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\UserFeatureAccess;
 use App\Models\Workorder;
 use Carbon\Carbon;
 
@@ -35,7 +36,59 @@ trait BuildsDomainData
             'stamp' => 'QA',
         ];
 
-        return User::factory()->create(array_merge($defaults, $attributes));
+        $user = User::factory()->create(array_merge($defaults, $attributes));
+        $this->grantFeatureAccessForLegacyTestAttributes($user, $attributes, $roleName);
+
+        return $user;
+    }
+
+    protected function grantFeatureAccess(User $user, string $featureKey, ?User $grantedBy = null): void
+    {
+        UserFeatureAccess::query()->firstOrCreate(
+            [
+                'user_id' => $user->id,
+                'feature_key' => $featureKey,
+            ],
+            [
+                'granted_by_user_id' => $grantedBy?->id,
+            ]
+        );
+
+        $user->unsetRelation('featureAccesses');
+    }
+
+    private function grantFeatureAccessForLegacyTestAttributes(User $user, array $attributes, string $roleName): void
+    {
+        if (
+            ((bool) $user->is_admin && $roleName === 'Admin')
+            || (($attributes['qa_access'] ?? false) === true && in_array($roleName, ['Admin', 'Manager'], true))
+        ) {
+            $this->grantFeatureAccess($user, 'quality_assurance');
+        }
+
+        if ((bool) $user->is_admin || ($attributes['ec_access'] ?? false) === true) {
+            $this->grantFeatureAccess($user, 'ec');
+        }
+
+        if (($attributes['can_sign_certificates'] ?? false) === true) {
+            $this->grantFeatureAccess($user, 'certificates.sign');
+        }
+
+        if (($attributes['can_manage_locked_manual_processes'] ?? false) === true) {
+            $this->grantFeatureAccess($user, 'manuals.locked_processes');
+        }
+
+        if (($attributes['can_manage_locked_manual_parts'] ?? false) === true) {
+            $this->grantFeatureAccess($user, 'manuals.locked_parts');
+        }
+
+        if ((bool) data_get($attributes, 'notification_prefs.manuals_full_access', false)) {
+            $this->grantFeatureAccess($user, 'manuals.full');
+        }
+
+        if (in_array($roleName, ['Admin', 'Manager'], true)) {
+            $this->grantFeatureAccess($user, 'vendor_tracking');
+        }
     }
 
     protected function createCustomer(array $attributes = []): Customer

@@ -28,6 +28,8 @@ class TopologicalProcessMerger
     /** @var array<int,string|null> nameId → scope cache */
     private array $scopeCache = [];
 
+    private array $existsCache = [];
+
     /**
      * @param  Collection $rules  ManualParameterRepairRule (with processes.manualProcess.process loaded)
      * @return array<int,array>   ordered entries: each has process_names_id, process_ids[],
@@ -54,7 +56,12 @@ class TopologicalProcessMerger
                     continue;
                 }
 
-                $nameId = (int) $process->process_names_id;
+                $nameId = (int) ($process->process_names_id ?? 0);
+                if (! $this->processNameExists($nameId)) {
+                    $prevKey = null;
+                    continue;
+                }
+
                 $scope  = $this->scopeOf($nameId);
 
                 if ($scope === 'point') {
@@ -169,5 +176,18 @@ class TopologicalProcessMerger
         }
 
         return $this->scopeCache[$nameId];
+    }
+
+    private function processNameExists(int $nameId): bool
+    {
+        if ($nameId <= 0) {
+            return false;
+        }
+
+        if (! array_key_exists($nameId, $this->existsCache)) {
+            $this->existsCache[$nameId] = ProcessName::query()->whereKey($nameId)->exists();
+        }
+
+        return $this->existsCache[$nameId];
     }
 }

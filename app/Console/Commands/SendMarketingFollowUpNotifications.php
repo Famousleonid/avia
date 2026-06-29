@@ -6,6 +6,7 @@ use App\Models\CustomerInteractionNote;
 use App\Models\User;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Gate;
 
 class SendMarketingFollowUpNotifications extends Command
 {
@@ -32,9 +33,11 @@ class SendMarketingFollowUpNotifications extends Command
             return self::SUCCESS;
         }
 
-        $admins = User::query()
-            ->whereHas('role', fn ($role) => $role->where('name', 'Admin'))
-            ->get();
+        $marketingUsers = User::query()
+            ->with(['role', 'featureAccesses'])
+            ->get()
+            ->filter(fn (User $user) => Gate::forUser($user)->allows('feature.marketing'))
+            ->values();
 
         foreach ($notes as $note) {
             $customerName = (string) ($note->customer?->name ?? 'Customer');
@@ -49,8 +52,8 @@ class SendMarketingFollowUpNotifications extends Command
             }
 
             $recipients = collect([$note->user])
-                ->filter()
-                ->merge($admins)
+                ->filter(fn (?User $user): bool => $user !== null && Gate::forUser($user)->allows('feature.marketing'))
+                ->merge($marketingUsers)
                 ->filter(fn (User $user) => empty(($user->notification_prefs ?? [])['mute_all']))
                 ->unique('id')
                 ->values();

@@ -6,7 +6,7 @@
                 <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Part') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ route('components.storeFromInspection') }}" method="POST" id="addComponentForm">
+            <form action="{{ route('components.storeFromInspection') }}" method="POST" id="addComponentForm" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-body">
                     <input type="hidden" name="manual_id" id="addComponentManualId" value="{{ $current_wo->unit->manual_id }}">

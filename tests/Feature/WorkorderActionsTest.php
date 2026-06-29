@@ -208,6 +208,58 @@ class WorkorderActionsTest extends TestCase
             ->assertJsonPath('date_start', '2026-04-09');
     }
 
+    public function test_mains_show_hides_tdr_processes_without_process_name(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'unit_id' => $unit->id,
+        ]);
+        $component = $this->createComponent($manual, [
+            'name' => 'Main Null Guard Component',
+            'part_number' => 'NULL-GUARD-PN',
+            'ipl_num' => '1-1',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'serial_number' => 'NULL-GUARD-SN',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Visible Null Guard Process ' . uniqid(),
+            'process_sheet_name' => 'TEST',
+            'form_number' => '000',
+            'show_in_process_picker' => true,
+        ]);
+        $visible = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'sort_order' => 1,
+            'repair_order' => 'VISIBLE-NULL-GUARD-RO',
+        ]);
+        $orphan = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => null,
+            'sort_order' => 2,
+            'repair_order' => 'ORPHAN-NULL-GUARD-RO',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('mains.show', $workorder));
+
+        $response
+            ->assertOk()
+            ->assertSee('VISIBLE-NULL-GUARD-RO')
+            ->assertSee('data-qa-process-id="' . $visible->id . '"', false)
+            ->assertDontSee('ORPHAN-NULL-GUARD-RO')
+            ->assertDontSee('data-qa-process-id="' . $orphan->id . '"', false);
+    }
+
     public function test_tdr_process_date_clear_is_written_to_dedicated_activity_log(): void
     {
         $manager = $this->createUserWithRole('Admin', ['is_admin' => true]);

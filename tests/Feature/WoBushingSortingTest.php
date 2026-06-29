@@ -11,6 +11,7 @@ use App\Models\WoBushingBatch;
 use App\Models\WoBushingLine;
 use App\Models\WoBushingProcess;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Spatie\Activitylog\Models\Activity;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
 
@@ -47,6 +48,14 @@ class WoBushingSortingTest extends TestCase
         $response->assertOk();
         $response->assertSeeInOrder(['6-490', '6-500', '9A-30', '9A-300'], false);
         $response->assertDontSee('NOT-BUSH', false);
+        $response->assertSee('data-itemized="1"', false);
+        $response->assertSee('dir-table bushing-create-table bushing-itemized-table', false);
+        $response->assertSee('bushing-col-process', false);
+        $response->assertSee('bushing-col-ndt', false);
+        $response->assertSee('>Qty</th>', false);
+        $response->assertDontSee('WO Qty', false);
+        $response->assertSee('group_bushings[GRP-A][items]', false);
+        $response->assertDontSee('[components][]', false);
     }
 
     public function test_update_can_save_selected_bushing_without_processes_for_prl(): void
@@ -92,6 +101,82 @@ class WoBushingSortingTest extends TestCase
         $this->assertNotNull($line);
         $this->assertSame(2, $line->qty);
         $this->assertSame(0, WoBushingProcess::query()->where('wo_bushing_line_id', $line->id)->count());
+    }
+
+    public function test_bushing_create_save_is_logged_on_workorder(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+
+        $component = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '8-240',
+            'part_number' => '1840-0402',
+            'name' => 'Logged bushing',
+            'bush_ipl_num' => '8-240',
+            'is_bush' => true,
+            'units_assy' => 2,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->post(route('wo_bushings.store'), [
+                'workorder_id' => $workorder->id,
+                'group_bushings' => [
+                    '8-240' => [
+                        'items' => [
+                            $component->id => [
+                                'selected' => '1',
+                                'qty' => '2',
+                                'need_processes' => '0',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('line_count', 1)
+            ->assertJsonPath('process_count', 0);
+
+        $woBushing = WoBushing::query()
+            ->where('workorder_id', $workorder->id)
+            ->first();
+
+        $this->assertNotNull($woBushing);
+
+        $line = WoBushingLine::query()
+            ->where('wo_bushing_id', $woBushing->id)
+            ->where('component_id', $component->id)
+            ->first();
+
+        $this->assertNotNull($line);
+        $this->assertSame(2, $line->qty);
+        $this->assertSame(0, WoBushingProcess::query()->where('wo_bushing_line_id', $line->id)->count());
+
+        $activity = Activity::query()
+            ->where('log_name', 'workorder')
+            ->where('subject_type', $workorder::class)
+            ->where('subject_id', $workorder->id)
+            ->where('description', 'Bushing data created')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($activity);
+        $props = $activity->properties->toArray();
+        $this->assertSame('wo_bushings', $props['source'] ?? null);
+        $this->assertSame('success', $props['status'] ?? null);
+        $this->assertSame(1, $props['snapshot_after']['line_count'] ?? null);
+        $this->assertSame(2, $props['snapshot_after']['total_qty'] ?? null);
+        $this->assertSame('1840-0402', $props['snapshot_after']['rows'][0]['part_number'] ?? null);
+        $this->assertArrayHasKey('bushing_save', $props['attributes'] ?? []);
+
+        $this->actingAs($admin)
+            ->get(route('workorders.logs-json', $workorder))
+            ->assertOk()
+            ->assertJsonFragment(['label' => 'Bushing Save']);
     }
 
     public function test_edit_bushing_form_limits_ndt_choices_to_ndt_1_and_ndt_4(): void
@@ -271,10 +356,11 @@ class WoBushingSortingTest extends TestCase
         $form->assertOk();
         $form->assertDontSee('B1', false);
         $form->assertSee('BATCH-PN', false);
-        $form->assertDontSee('LOOSE-PN', false);
+        $form->assertSee('LOOSE-PN', false);
+        $form->assertSee('BATCH2-PN', false);
     }
 
-    public function test_bushing_spec_process_form_merges_same_bushing_batch_across_process_columns(): void
+    public function test_bushing_spec_process_form_prints_part_number_without_qty_across_batches(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id]);
@@ -327,9 +413,168 @@ class WoBushingSortingTest extends TestCase
         $form->assertOk();
         $html = $form->getContent();
         $this->assertSame(1, substr_count($html, 'MERGED-PN'));
-        $this->assertStringContainsString('MERGED-PN : 2', $html);
+        $this->assertStringContainsString('>MERGED-PN</div>', $html);
+        $this->assertStringContainsString('QTY: 2', $html);
+        $this->assertStringNotContainsString('MERGED-PN : 2', $html);
         $this->assertStringNotContainsString('MERGED-PN : 6', $html);
         $this->assertStringNotContainsString('spec-group-label-box">B1</span>', $html);
+    }
+
+    public function test_bushing_spec_process_form_groups_six_part_numbers_per_cell_by_process_route(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+
+        $machining = $this->attachProcessToManual($manualId, 'Machining', 'Machine bushings');
+
+        foreach (range(1, 7) as $index) {
+            $component = Component::query()->create([
+                'manual_id' => $manualId,
+                'ipl_num' => '9-'.$index,
+                'part_number' => sprintf('PACK-PN-%02d', $index),
+                'name' => 'Packed bushing '.$index,
+                'bush_ipl_num' => '9-'.$index,
+                'is_bush' => true,
+            ]);
+
+            $line = WoBushingLine::query()->create([
+                'wo_bushing_id' => $woBushing->id,
+                'workorder_id' => $workorder->id,
+                'component_id' => $component->id,
+                'qty' => 1,
+                'qty_remaining' => 1,
+                'group_key' => '9-'.$index,
+                'sort_order' => $index,
+            ]);
+
+            WoBushingProcess::query()->create([
+                'wo_bushing_line_id' => $line->id,
+                'process_id' => $machining->id,
+                'qty' => 1,
+            ]);
+        }
+
+        $form = $this->actingAs($admin)->get(route('wo_bushings.specProcessForm', $woBushing->id));
+
+        $form->assertOk();
+        $html = $form->getContent();
+
+        $this->assertSame(2, substr_count($html, 'spec-part-no-row'));
+        $this->assertStringContainsString('data-process-table-rows-max="13"', $html);
+        $this->assertStringContainsString('PACK-PN-01', $html);
+        $this->assertStringContainsString('PACK-PN-06', $html);
+        $this->assertStringContainsString('PACK-PN-07', $html);
+        $this->assertStringContainsString('QTY: 7', $html);
+        $this->assertStringNotContainsString('PACK-PN-01 : ', $html);
+    }
+
+    public function test_bushing_spec_process_print_settings_allow_fourteen_process_rows(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+
+        $response = $this->actingAs($admin)->get(route('wo_bushings.specProcessForm', $woBushing->id));
+
+        $response->assertOk();
+        $html = $response->getContent();
+
+        $this->assertStringContainsString('id="processTableRows" name="processTableRows"', $html);
+        $this->assertStringContainsString('max="14"', $html);
+        $this->assertStringContainsString('const PROCESS_TABLE_ROWS_MAX = 14;', $html);
+        $this->assertStringContainsString('clampNumber(merged.processTableRows, 1, PROCESS_TABLE_ROWS_MAX, 14)', $html);
+        $this->assertSame(7, substr_count($html, 'spec-extra-process-row'));
+    }
+
+    public function test_bushing_spec_process_form_ignores_batch_when_grouping_same_part_number(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+
+        $machining = $this->attachProcessToManual($manualId, 'Machining', 'Machine bushings');
+        $ndt = $this->attachProcessToManual($manualId, 'NDT-4', 'NDT bushings');
+        $cad = $this->attachProcessToManual($manualId, 'Cad plate', 'CAD plating');
+
+        $first = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '8-231',
+            'part_number' => '1840-0302RS01',
+            'name' => 'First bushing',
+            'bush_ipl_num' => '8-230',
+            'is_bush' => true,
+        ]);
+        $second = Component::query()->create([
+            'manual_id' => $manualId,
+            'ipl_num' => '8-361',
+            'part_number' => '1840-0302RS01',
+            'name' => 'Second bushing',
+            'bush_ipl_num' => '8-360',
+            'is_bush' => true,
+        ]);
+
+        $firstLine = WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $workorder->id,
+            'component_id' => $first->id,
+            'qty' => 2,
+            'qty_remaining' => 2,
+            'group_key' => '8-230',
+            'sort_order' => 1,
+        ]);
+        $secondLine = WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $workorder->id,
+            'component_id' => $second->id,
+            'qty' => 2,
+            'qty_remaining' => 2,
+            'group_key' => '8-360',
+            'sort_order' => 2,
+        ]);
+
+        $machiningBatch = WoBushingBatch::query()->create([
+            'workorder_id' => $workorder->id,
+            'process_id' => $machining->id,
+            'process_column_key' => 'machining',
+        ]);
+        $firstNdtBatch = WoBushingBatch::query()->create([
+            'workorder_id' => $workorder->id,
+            'process_id' => $ndt->id,
+            'process_column_key' => 'ndt',
+        ]);
+        $secondNdtBatch = WoBushingBatch::query()->create([
+            'workorder_id' => $workorder->id,
+            'process_id' => $ndt->id,
+            'process_column_key' => 'ndt',
+        ]);
+
+        foreach ([
+            [$firstLine, $machining, $machiningBatch],
+            [$secondLine, $machining, $machiningBatch],
+            [$firstLine, $ndt, $firstNdtBatch],
+            [$secondLine, $ndt, $secondNdtBatch],
+            [$firstLine, $cad, null],
+            [$secondLine, $cad, null],
+        ] as [$line, $process, $batch]) {
+            WoBushingProcess::query()->create([
+                'wo_bushing_line_id' => $line->id,
+                'process_id' => $process->id,
+                'batch_id' => $batch?->id,
+                'qty' => 2,
+            ]);
+        }
+
+        $form = $this->actingAs($admin)->get(route('wo_bushings.specProcessForm', $woBushing->id));
+
+        $form->assertOk();
+        $html = $form->getContent();
+        $this->assertSame(1, substr_count($html, '1840-0302RS01'));
+        $this->assertStringContainsString('QTY: 4', $html);
+        $this->assertStringNotContainsString('1840-0302RS01 : 4', $html);
+        $this->assertStringNotContainsString('1840-0302RS01 : 2', $html);
     }
 
     private function attachProcessToManual(int $manualId, string $processName, string $processText): Process

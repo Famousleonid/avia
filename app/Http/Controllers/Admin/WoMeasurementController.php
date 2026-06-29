@@ -12,6 +12,7 @@ use App\Models\ManualInspectionComponentVariant;
 use App\Models\ManualParameter;
 use App\Models\ManualParameterRepairRule;
 use App\Models\Necessary;
+use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\WoMeasurement;
@@ -1052,6 +1053,10 @@ class WoMeasurementController extends Controller
 
         $maxSort = 0;
         foreach ($ctx->orderedGroups() as $group) {
+            if (! $this->isValidProcessNameId($group['process_names_id'] ?? null)) {
+                continue;
+            }
+
             if ($isEc) {
                 $keep = ($group['phase'] ?? '') === 'start'
                     || (($group['phase'] ?? '') === 'main'
@@ -1448,6 +1453,10 @@ class WoMeasurementController extends Controller
         $existingSorts = TdrProcess::where('tdrs_id', $tdr->id)->pluck('sort_order')->toArray();
 
         foreach ($ctx->orderedGroups() as $group) {
+            if (! $this->isValidProcessNameId($group['process_names_id'] ?? null)) {
+                continue;
+            }
+
             if (in_array($group['process_names_id'], $startedNameIds)) continue;
 
             $sort = $baseSort + (int) $group['sort_order'];
@@ -1467,6 +1476,13 @@ class WoMeasurementController extends Controller
         }
 
         return response()->json(['ok' => true, 'tdr_id' => $tdr->id]);
+    }
+
+    private function isValidProcessNameId(mixed $value): bool
+    {
+        $id = (int) ($value ?? 0);
+
+        return $id > 0 && ProcessName::query()->whereKey($id)->exists();
     }
 
     public function revertPartTdr(Request $request, Workorder $workorder)

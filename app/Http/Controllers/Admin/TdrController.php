@@ -24,7 +24,7 @@ use App\Models\Training;
 use App\Models\Transfer;
 use App\Models\Vendor;
 use App\Models\WoBushing;
-use App\Models\WoBushingBatch;
+use App\Models\WoBushingLine;
 use App\Models\WorkorderUnitInspection;
 use http\Client\Curl\User;
 use Illuminate\Support\Facades\Cache;
@@ -38,6 +38,7 @@ use App\Services\TdrInspectionLinesBuilder;
 use App\Services\WorkorderStdListProcessesService;
 use App\Support\KitPrlGrouping;
 use App\Support\LogCardDestructionCertificate;
+use App\Support\WoBushingProcessColumnKey;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\View\View;
@@ -2468,10 +2469,51 @@ class TdrController extends Controller
             return 0;
         }
 
-        return WoBushingBatch::query()
+        $printableKeys = array_flip([
+            'machining',
+            'stress_relief',
+            'ndt',
+            'passivation',
+            'cad',
+            'anodizing',
+            'xylan',
+        ]);
+
+        $groups = [];
+        $lines = WoBushingLine::query()
             ->where('workorder_id', $woBushing->workorder_id)
-            ->whereHas('woBushingProcesses')
-            ->count();
+            ->with(['component:id,part_number', 'processes.process.process_name'])
+            ->get();
+
+        foreach ($lines as $line) {
+            $processSignature = [];
+
+            foreach ($line->processes as $processRow) {
+                $key = WoBushingProcessColumnKey::fromProcess($processRow->process);
+                if (! isset($printableKeys[$key])) {
+                    continue;
+                }
+
+                $processSignature[] = $key . ':' . (int) $processRow->process_id;
+            }
+
+            $processSignature = array_values(array_unique($processSignature));
+            sort($processSignature, SORT_NATURAL);
+
+            if ($processSignature === []) {
+                continue;
+            }
+
+            $partNumber = mb_strtoupper(trim((string) ($line->component?->part_number ?? '')));
+            if ($partNumber === '') {
+                continue;
+            }
+
+            $signature = implode('|', $processSignature);
+            $groups[$signature][$partNumber] = true;
+        }
+
+        return collect($groups)->sum(fn (array $partNumbers): int => (int) ceil(count($partNumbers) / 42));
     }
 
     private function countRmFormRows(Workorder $workorder): int

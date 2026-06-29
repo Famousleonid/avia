@@ -5,7 +5,7 @@
 @section('content')
     @php
         $canCreateCustomers = auth()->check() && auth()->user()->roleIs('Admin');
-        $canDeleteCustomers = auth()->check() && auth()->user()->roleIs('Admin');
+        $canDeleteCustomers = auth()->check() && auth()->user()->isSystemAdmin();
     @endphp
     <style>
         .table-wrapper{
@@ -154,7 +154,7 @@
                             @csrf
                             <div class="mb-3">
                                 <label for="createName" class="form-label">Name</label>
-                                <input type="text" id="createName" name="name" class="form-control" required>
+                                <input type="text" id="createName" name="name" class="form-control" required autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
                             </div>
                             <button type="submit" class="btn btn-outline-primary">Save</button>
                         </form>
@@ -179,7 +179,7 @@
                         <input type="hidden" id="editId" name="id">
                         <div class="mb-3">
                             <label for="editName" class="form-label">Name</label>
-                            <input type="text" id="editName" name="name" class="form-control" required>
+                            <input type="text" id="editName" name="name" class="form-control" required autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
                         </div>
                         <button type="submit" class="btn btn-outline-primary" onclick="showLoadingSpinner()">Update</button>
                     </form>

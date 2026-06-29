@@ -508,7 +508,7 @@
                 <input type="hidden" id="dimRuleParamId">
 
                 <div class="mb-3">
-                    <label class="form-label form-label-sm">Rule name <span class="text-secondary" style="font-weight:400">(e.g. Rechrome, Replace bushing)</span></label>
+                    <label class="form-label form-label-sm">Rule name <span class="text-secondary" style="font-weight:400">(e.g. Repair plating, Replace bushing)</span></label>
                     <input type="text" class="form-control form-control-sm" id="dimRuleName" maxlength="100" placeholder="Optional — identifies this repair procedure">
                 </div>
 
@@ -1066,7 +1066,7 @@
                             </div>
                             <div class="col">
                                 <label class="form-label form-label-sm">Title</label>
-                                <input type="text" id="pdwDocTitle" class="form-control form-control-sm" placeholder="e.g. Rechrome sketch">
+                                <input type="text" id="pdwDocTitle" class="form-control form-control-sm" placeholder="e.g. Repair sketch">
                             </div>
                             <div class="col-auto">
                                 <button class="btn btn-secondary btn-sm" id="pdwDocCancelBtn">Cancel</button>

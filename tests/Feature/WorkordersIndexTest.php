@@ -284,6 +284,28 @@ class WorkordersIndexTest extends TestCase
         $response->assertJsonPath('workorder.number', '765432');
     }
 
+    public function test_quick_open_search_accepts_w_prefixed_workorder_number(): void
+    {
+        $admin = $this->createUserWithRole('Admin', [
+            'email' => 'vkyushkevich@yahoo.ca',
+        ]);
+        $matching = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 765432,
+            'description' => 'Quick open with W prefix',
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('workorders.quick-open-search', [
+            'q' => 'W765432',
+        ]));
+
+        $response->assertOk();
+        $response->assertJsonPath('ok', true);
+        $response->assertJsonPath('count', 1);
+        $response->assertJsonPath('url', route('mains.show', $matching->id));
+        $response->assertJsonPath('workorder.number', '765432');
+    }
+
     public function test_quick_open_search_does_not_return_url_when_multiple_workorders_match(): void
     {
         $admin = $this->createUserWithRole('Admin', [

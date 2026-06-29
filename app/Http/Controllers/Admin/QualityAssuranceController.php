@@ -439,9 +439,9 @@ class QualityAssuranceController extends Controller
         $user = $request->user();
         $managerOptions = User::query()
             ->with('role')
-            ->where('can_sign_certificates', true)
+            ->whereHas('featureAccesses', fn ($query) => $query->where('feature_key', 'certificates.sign'))
             ->orderBy('name')
-            ->get(['id', 'name', 'role_id', 'can_sign_certificates']);
+            ->get(['id', 'name', 'role_id']);
         $certificateData = is_array($workorder->certificate_data) ? $workorder->certificate_data : [];
         $certificateStringSetting = static function (string $key, string $default = '') use ($certificateData): string {
             if (! array_key_exists($key, $certificateData)) {
@@ -586,6 +586,7 @@ class QualityAssuranceController extends Controller
                     'certificate_royco_service_remark',
                     'certificate_c_correction_remark',
                     'certificate_overhauled_on_date',
+                    'include_airworthiness_remark',
                     'include_landing_gear_log_card',
                     'include_royco_service',
                     'include_overhauled_on',
@@ -598,7 +599,7 @@ class QualityAssuranceController extends Controller
         $key = (string) $data['key'];
         $value = $data['value'] ?? null;
 
-        if (in_array($key, ['certificate_detail_open', 'include_landing_gear_log_card', 'include_royco_service', 'include_overhauled_on'], true)) {
+        if (in_array($key, ['certificate_detail_open', 'include_airworthiness_remark', 'include_landing_gear_log_card', 'include_royco_service', 'include_overhauled_on'], true)) {
             $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
         } elseif ($key === 'certificate_tracking_mode') {
             $value = strtolower(trim((string) $value)) === 'c' ? 'c' : '';
@@ -606,7 +607,7 @@ class QualityAssuranceController extends Controller
             $value = trim((string) $value);
             if ($value !== '') {
                 User::query()
-                    ->where('can_sign_certificates', true)
+                    ->whereHas('featureAccesses', fn ($query) => $query->where('feature_key', 'certificates.sign'))
                     ->findOrFail((int) $value);
             }
         } elseif (in_array($key, ['certificate_date', 'certificate_overhauled_on_date', 'manual_revision_date'], true)) {
@@ -667,6 +668,7 @@ class QualityAssuranceController extends Controller
             'certificate_royco_service_remark',
             'certificate_c_correction_remark',
             'certificate_overhauled_on_date',
+            'include_airworthiness_remark',
             'include_landing_gear_log_card',
             'include_royco_service',
             'include_overhauled_on',

@@ -663,7 +663,7 @@
 
 {{-- Edit Bushing Modal --}}
 <div class="modal fade" id="editBushingModal" tabindex="-1" aria-labelledby="editBushingModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: calc(100vw - 24px); width: 1320px; height: 90vh;">
+    <div class="modal-dialog" style="max-width: 90vw; width: 90vw; height: 90vh;">
         <div class="modal-content bg-gradient" style="height: 90vh;">
             <div class="modal-header">
                 <h6 class="modal-title text-info" id="editBushingModalLabel">{{ __('Update Bushings List') }}</h6>

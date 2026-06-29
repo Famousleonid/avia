@@ -28,6 +28,7 @@ use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\UserFeatureAccess;
 use App\Models\Vendor;
 use App\Models\Workorder;
 use App\Models\WorkorderStdProcess;
@@ -175,6 +176,7 @@ class ActivityLogController extends Controller
             'company_type_id' => [],
             'segment_id' => [],
             'done_user_id' => [],
+            'granted_by_user_id' => [],
             'notify_user_id' => [],
         ];
 
@@ -241,6 +243,16 @@ class ActivityLogController extends Controller
                 $idBuckets['customer_marketing_profile_id'][] = (int) $activity->subject_id;
             }
 
+            if ($activity->subject_type === UserFeatureAccess::class && $activity->subject instanceof UserFeatureAccess) {
+                if (is_numeric($activity->subject->user_id) && (int) $activity->subject->user_id > 0) {
+                    $idBuckets['user_id'][] = (int) $activity->subject->user_id;
+                }
+
+                if (is_numeric($activity->subject->granted_by_user_id) && (int) $activity->subject->granted_by_user_id > 0) {
+                    $idBuckets['granted_by_user_id'][] = (int) $activity->subject->granted_by_user_id;
+                }
+            }
+
             if (isset($activity->subject) && isset($activity->subject->workorder_id)) {
                 $subjectWorkorderId = $activity->subject->workorder_id;
                 if (is_numeric($subjectWorkorderId) && (int)$subjectWorkorderId > 0) {
@@ -288,8 +300,12 @@ class ActivityLogController extends Controller
             ->mapWithKeys(fn(Task $t) => [$t->id => (string)$t->name])
             ->all();
 
+        $userIds = array_values(array_unique(array_merge(
+            $idBuckets['user_id'],
+            $idBuckets['granted_by_user_id'],
+        )));
         $userMap = User::query()
-            ->whereIn('id', array_unique($idBuckets['user_id']))
+            ->whereIn('id', $userIds)
             ->get(['id', 'name'])
             ->mapWithKeys(fn(User $u) => [$u->id => (string)$u->name])
             ->all();

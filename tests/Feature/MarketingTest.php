@@ -2,11 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Models\Country;
 use App\Models\CustomerAircraft;
 use App\Models\CustomerInteractionNote;
 use App\Models\CustomerMarketingProfile;
+use App\Models\GeneralTask;
+use App\Models\Main;
 use App\Models\MarketingCompanyType;
 use App\Models\MarketingSegment;
+use App\Models\Task;
+use App\Models\User;
+use App\Models\UserFeatureAccess;
+use App\Services\SalesReportQuantumInvoiceProvider;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
@@ -19,11 +26,14 @@ class MarketingTest extends TestCase
     use BuildsDomainData;
     use DatabaseTransactions;
 
-    public function test_marketing_access_is_limited_to_admin_and_manager(): void
+    public function test_marketing_access_is_limited_to_assigned_users(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $manager = $this->createUserWithRole('Manager');
         $technician = $this->createUserWithRole('Technician');
+
+        $this->grantMarketingAccess($admin);
+        $this->grantMarketingAccess($manager);
 
         $this->actingAs($admin)
             ->get(route('marketing.index'))
@@ -42,12 +52,59 @@ class MarketingTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_library_country_reference_can_be_managed_by_admin(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+
+        $this->actingAs($admin)
+            ->post(route('library.countries.store'), [
+                'name' => 'Testland',
+                'alpha2' => 'XZ',
+                'sort_order' => 900,
+                'active' => '1',
+            ])
+            ->assertRedirect(route('library.countries.index'));
+
+        $country = Country::query()->where('alpha2', 'XZ')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->get(route('library.countries.index', ['q' => 'Testland']))
+            ->assertOk()
+            ->assertSee('Testland');
+
+        $this->actingAs($admin)
+            ->put(route('library.countries.update', $country), [
+                'name' => 'Testland Updated',
+                'alpha2' => 'XZ',
+                'sort_order' => 901,
+            ])
+            ->assertRedirect(route('library.countries.index'));
+
+        $this->assertDatabaseHas('countries', [
+            'id' => $country->id,
+            'name' => 'Testland Updated',
+            'active' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('library.countries.destroy', $country->fresh()))
+            ->assertRedirect(route('library.countries.index'));
+
+        $this->assertDatabaseMissing('countries', [
+            'id' => $country->id,
+        ]);
+    }
+
     public function test_marketing_customer_profile_can_be_updated_and_listed(): void
     {
         $admin = $this->createUserWithRole('Admin');
+        $this->grantMarketingAccess($admin);
+
         $customer = $this->createCustomer(['name' => 'SkyService']);
         $companyType = MarketingCompanyType::query()->firstOrCreate(['name' => 'MRO'], ['sort_order' => 10]);
         $segment = MarketingSegment::query()->firstOrCreate(['name' => 'Regional'], ['sort_order' => 10]);
+        $canada = Country::query()->firstOrCreate(['alpha2' => 'CA'], ['name' => 'Canada', 'sort_order' => 10, 'active' => true]);
+        $unitedStates = Country::query()->firstOrCreate(['alpha2' => 'US'], ['name' => 'United States', 'sort_order' => 20, 'active' => true]);
         $plane = $this->createPlane(['type' => 'CL601']);
 
         $this->actingAs($admin)
@@ -56,20 +113,88 @@ class MarketingTest extends TestCase
             ->assertSee('data-marketing-page', false)
             ->assertSee('id="marketingShell"', false)
             ->assertSee('id="marketingSplitter"', false)
-            ->assertSee('placeholder="Company, contact, country, A/C"', false)
+            ->assertSee('placeholder="Company, contact, country, city, A/C"', false)
+            ->assertSee('id="marketingCountry"', false)
+            ->assertSee('id="detailCountryId"', false)
+            ->assertSee('id="detailCity"', false)
+            ->assertSee('id="detailStateProvince"', false)
+            ->assertSee('id="detailStreetAddress"', false)
+            ->assertSee('id="detailCompanyNotes"', false)
+            ->assertSee('id="marketingAddressCategories"', false)
+            ->assertSee('Company (Name)')
+            ->assertSee('Street Address')
+            ->assertSee('Company Notes')
             ->assertSee('id="marketingWorkordersScroll"', false)
+            ->assertSee('id="marketingWorkordersSearch"', false)
+            ->assertSee('data-workorder-filter="number"', false)
+            ->assertSee('data-workorder-filter="status"', false)
+            ->assertDontSee('data-workorder-filter="files"', false)
+            ->assertSee('currentWorkorderFilters', false)
+            ->assertSee('reloadWorkordersForFilterChange', false)
+            ->assertSee('role="tablist"', false)
+            ->assertSee('aria-controls="marketingPaneWorkorders"', false)
+            ->assertSee('aria-controls="marketingPaneSalesReport"', false)
+            ->assertSee("const allowedTabs = ['overview', 'contacts', 'notes', 'workorders', 'sales_report'];", false)
+            ->assertSee('salesReport: ', false)
+            ->assertSee('aircraftSalesReport: ', false)
+            ->assertSee('id="marketingSalesReportRows"', false)
+            ->assertSee('id="marketingSalesReportCompany"', false)
+            ->assertSee('id="marketingSalesReportWarning" class="marketing-sales-report-warning"', false)
+            ->assertSee('id="marketingSalesReportModeCustomer"', false)
+            ->assertSee('id="marketingSalesReportModeAircraft"', false)
+            ->assertSee('id="marketingSalesReportAircraft"', false)
+            ->assertSee('data-sales-report-customer-col', false)
+            ->assertSee('class="marketing-sales-report-date"', false)
+            ->assertDontSee('<th>Company Name</th>', false)
+            ->assertDontSee('id="marketingSalesReportWarning" class="alert alert-warning', false)
+            ->assertSee('is-company-only', false)
+            ->assertSee('.marketing-detail-tabs::after', false)
+            ->assertSee('height: 1px;', false)
+            ->assertSee('border: 2px solid transparent;', false)
+            ->assertSee('border-bottom: 0;', false)
+            ->assertSee('class="table table-sm table-hover align-middle mb-0 dir-table dir-table--ellipsis marketing-workorders-table"', false)
             ->assertSee('id="marketingMediaModal"', false)
             ->assertSee('id="marketingProfileForm" data-no-spinner', false)
             ->assertSee('id="marketingContactForm" class="marketing-section" data-no-spinner', false)
+            ->assertSee('id="marketingContactForm" class="marketing-section" data-no-spinner autocomplete="off" hidden', false)
             ->assertSee('id="marketingNoteForm" class="marketing-section" data-no-spinner', false)
             ->assertSee('id="marketingCreateForm" data-no-spinner', false)
-            ->assertSee('data-contact-id="${contact.id}" data-no-spinner', false);
+            ->assertSee('data-contact-id="${contact.id}" data-no-spinner', false)
+            ->assertSee('data-contact-new-toggle', false)
+            ->assertSee('data-contact-copy="all"', false)
+            ->assertSee('data-contact-copy="emails"', false)
+            ->assertSee('data-contact-copy="phones"', false)
+            ->assertSee('setContactFormEditing', false)
+            ->assertSee('copyMarketingContacts', false)
+            ->assertSee('setNewContactFormVisible', false)
+            ->assertSee('marketing-contact-edit', false)
+            ->assertSee('readonly>', false)
+            ->assertSee("const filtersKey = 'filters';", false)
+            ->assertSee("const selectedCustomerKey = 'selected_customer_id';", false)
+            ->assertSee('restoreSelectedCustomerId', false)
+            ->assertSee('saveSelectedCustomer(data.customer.id)', false)
+            ->assertSee('select2:select.marketingFilters', false)
+            ->assertSee('marketing-filter-clear', false)
+            ->assertSee('initFilterClearButtons', false)
+            ->assertSee('initMarketingAircraftSelects', false)
+            ->assertSee('html[data-bs-theme="dark"] .marketing-toolbar .marketing-filter .select2-container--default .select2-selection--single', false)
+            ->assertSee('--marketing-control-sm-height: 31px;', false)
+            ->assertSee('.marketing-field .form-control-sm', false)
+            ->assertSee('color: var(--bs-warning);', false)
+            ->assertSee('detailMeta.hidden = true;', false)
+            ->assertSee('marketing-workorder-complete', false)
+            ->assertSee("String(wo.status || '').trim().toLowerCase() === 'complete'", false)
+            ->assertSee('btn-outline-info js-marketing-media', false)
+            ->assertDontSee('size="8"', false);
 
         $update = $this->actingAs($admin)->patchJson(route('marketing.customers.profile.update', $customer), [
             'name' => 'SkyService Ltd',
             'lifecycle_status' => CustomerMarketingProfile::STATUS_EXISTING,
-            'country' => 'Canada',
-            'address' => 'Toronto',
+            'country_id' => $canada->id,
+            'city' => 'Toronto',
+            'state_province' => 'Ontario',
+            'street_address' => '123 Airport Road',
+            'company_notes' => 'Send quotes to purchasing before calling.',
             'company_type_id' => $companyType->id,
             'segment_id' => $segment->id,
             'terms_label' => 'NET 30',
@@ -79,11 +204,24 @@ class MarketingTest extends TestCase
         $update->assertOk()
             ->assertJsonPath('customer.name', 'SkyService Ltd')
             ->assertJsonPath('customer.country', 'Canada')
+            ->assertJsonPath('customer.profile.country_id', $canada->id)
+            ->assertJsonPath('customer.profile.city', 'Toronto')
+            ->assertJsonPath('customer.profile.state_province', 'Ontario')
+            ->assertJsonPath('customer.profile.street_address', '123 Airport Road')
+            ->assertJsonPath('customer.profile.company_notes', 'Send quotes to purchasing before calling.')
+            ->assertJsonPath('customer.profile.formatted_address', "123 Airport Road\nToronto, Ontario\nCanada")
+            ->assertJsonPath('customer.profile.address_categories.0.label', 'Logistics')
+            ->assertJsonPath('customer.profile.address_categories.4.label', 'Purchasing')
             ->assertJsonPath('customer.aircraft.0.type', 'CL601');
 
         $this->assertDatabaseHas('customer_marketing_profiles', [
             'customer_id' => $customer->id,
+            'country_id' => $canada->id,
             'country' => 'Canada',
+            'city' => 'Toronto',
+            'state_province' => 'Ontario',
+            'street_address' => '123 Airport Road',
+            'company_notes' => 'Send quotes to purchasing before calling.',
             'terms_label' => 'NET 30',
         ]);
         $this->assertDatabaseHas('customer_aircraft', [
@@ -93,6 +231,7 @@ class MarketingTest extends TestCase
 
         $list = $this->actingAs($admin)->getJson(route('marketing.customers.index', [
             'q' => 'SkyService',
+            'country_id' => $canada->id,
             'plane_id' => $plane->id,
         ]));
 
@@ -100,10 +239,30 @@ class MarketingTest extends TestCase
             ->assertJsonPath('items.0.name', 'SkyService Ltd')
             ->assertJsonPath('items.0.company_type', 'MRO');
 
+        $legacyCustomer = $this->createCustomer(['name' => 'Legacy Country Customer']);
+        CustomerMarketingProfile::query()->create([
+            'customer_id' => $legacyCustomer->id,
+            'lifecycle_status' => CustomerMarketingProfile::STATUS_EXISTING,
+            'country' => 'Canada',
+        ]);
+
+        $legacyList = $this->actingAs($admin)->getJson(route('marketing.customers.index', [
+            'q' => 'Legacy Country',
+            'country_id' => $canada->id,
+        ]));
+
+        $legacyList->assertOk()
+            ->assertJsonPath('items.0.name', 'Legacy Country Customer')
+            ->assertJsonPath('items.0.country', 'Canada');
+
         $created = $this->actingAs($admin)->postJson(route('marketing.customers.store'), [
             'name' => 'New Prospect Co',
             'lifecycle_status' => CustomerMarketingProfile::STATUS_POTENTIAL,
-            'country' => 'USA',
+            'country_id' => $unitedStates->id,
+            'city' => 'Miami',
+            'state_province' => 'Florida',
+            'street_address' => '400 Aviation Way',
+            'company_notes' => 'Prefers email follow-up.',
             'company_type_id' => $companyType->id,
             'segment_id' => $segment->id,
             'aircraft_ids' => [$plane->id],
@@ -122,26 +281,352 @@ class MarketingTest extends TestCase
         $this->assertDatabaseHas('customer_marketing_profiles', [
             'customer_id' => $createdCustomerId,
             'lifecycle_status' => CustomerMarketingProfile::STATUS_POTENTIAL,
-            'country' => 'USA',
+            'country_id' => $unitedStates->id,
+            'country' => 'United States',
+            'city' => 'Miami',
+            'state_province' => 'Florida',
+            'street_address' => '400 Aviation Way',
+            'company_notes' => 'Prefers email follow-up.',
         ]);
+    }
+
+    public function test_marketing_customer_workorders_endpoint_filters_columns_and_global_search(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->grantMarketingAccess($admin);
+
+        $customer = $this->createCustomer(['name' => 'WO Filter Customer']);
+        $otherCustomer = $this->createCustomer(['name' => 'Other WO Customer']);
+        CustomerMarketingProfile::query()->create([
+            'customer_id' => $customer->id,
+            'lifecycle_status' => CustomerMarketingProfile::STATUS_EXISTING,
+            'terms_label' => 'NET 45',
+        ]);
+
+        $repair = $this->createInstruction(['name' => 'Repair']);
+        $overhaul = $this->createInstruction(['name' => 'Overhaul']);
+        $selectedUnit = $this->createUnit([
+            'part_number' => 'PN-FILTER-100',
+            'name' => 'Landing Gear Assembly',
+            'description' => 'Main landing gear',
+        ]);
+        $otherUnit = $this->createUnit([
+            'part_number' => 'PN-OTHER-200',
+            'name' => 'Hydraulic Pump',
+            'description' => 'Pump description',
+        ]);
+
+        $matching = $this->createWorkorder([
+            'customer_id' => $customer->id,
+            'unit_id' => $selectedUnit->id,
+            'instruction_id' => $repair->id,
+            'number' => 321001,
+            'customer_po' => 'RO-FILTER-900',
+            'serial_number' => 'SER-FILTER-001',
+            'description' => 'Fallback description',
+            'open_at' => '2026-05-01 08:00:00',
+            'approve_at' => '2026-05-10 08:00:00',
+        ]);
+
+        $waiting = $this->createWorkorder([
+            'customer_id' => $customer->id,
+            'unit_id' => $otherUnit->id,
+            'instruction_id' => $overhaul->id,
+            'number' => 321002,
+            'customer_po' => 'RO-OTHER-900',
+            'serial_number' => '00235',
+            'description' => 'Other description',
+            'open_at' => '2026-06-01 08:00:00',
+            'approve_at' => null,
+        ]);
+
+        $complete = $this->createWorkorder([
+            'customer_id' => $customer->id,
+            'unit_id' => $otherUnit->id,
+            'instruction_id' => $repair->id,
+            'number' => 321003,
+            'customer_po' => 'RO-COMPLETE-900',
+            'serial_number' => '00197',
+            'description' => 'Complete description',
+            'open_at' => '2026-07-01 08:00:00',
+            'approve_at' => '2026-07-02 08:00:00',
+        ]);
+
+        $completedGeneralTask = GeneralTask::query()->create([
+            'name' => 'Marketing completed',
+            'sort_order' => 1,
+        ]);
+        $completedTask = Task::query()->create([
+            'name' => 'Completed',
+            'general_task_id' => $completedGeneralTask->id,
+        ]);
+        Main::query()->create([
+            'user_id' => $admin->id,
+            'workorder_id' => $complete->id,
+            'general_task_id' => $completedGeneralTask->id,
+            'task_id' => $completedTask->id,
+            'date_finish' => '2026-07-05',
+            'ignore_row' => false,
+        ]);
+
+        $this->createWorkorder([
+            'customer_id' => $otherCustomer->id,
+            'unit_id' => $selectedUnit->id,
+            'instruction_id' => $repair->id,
+            'number' => 321004,
+            'serial_number' => 'SER-FILTER-OTHER-CUSTOMER',
+        ]);
+
+        $this->actingAs($admin)->getJson(route('marketing.customers.workorders', [
+            'customer' => $customer,
+            'wo_q' => 'SER-FILTER',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('items.0.number_label', 'W321001')
+            ->assertJsonCount(1, 'items');
+
+        $this->actingAs($admin)->getJson(route('marketing.customers.workorders', [
+            'customer' => $customer,
+            'wo_part' => 'PN-FILTER',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('items.0.id', $matching->id)
+            ->assertJsonCount(1, 'items');
+
+        $serialResponse = $this->actingAs($admin)->getJson(route('marketing.customers.workorders', [
+            'customer' => $customer,
+            'wo_serial' => '001',
+        ]));
+
+        $serialResponse->assertOk()
+            ->assertJsonPath('items.0.id', $complete->id)
+            ->assertJsonPath('items.0.serial_number', '00197')
+            ->assertJsonCount(2, 'items');
+        $this->assertStringNotContainsString('00235', $serialResponse->getContent());
+
+        $this->actingAs($admin)->getJson(route('marketing.customers.workorders', [
+            'customer' => $customer,
+            'wo_status' => 'complete',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('items.0.id', $complete->id)
+            ->assertJsonPath('items.0.status', 'Complete')
+            ->assertJsonCount(1, 'items');
+
+        $this->actingAs($admin)->getJson(route('marketing.customers.workorders', [
+            'customer' => $customer,
+            'wo_estimate_date' => '01/May/2026',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('items.0.id', $matching->id)
+            ->assertJsonCount(1, 'items');
+
+        $this->actingAs($admin)->getJson(route('marketing.customers.workorders', [
+            'customer' => $customer,
+            'wo_status' => 'waiting',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('items.0.id', $waiting->id)
+            ->assertJsonPath('items.0.status', 'Waiting Approval')
+            ->assertJsonCount(1, 'items');
+
+    }
+
+    public function test_marketing_workorder_sales_fields_can_be_updated(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->grantMarketingAccess($admin);
+
+        $customer = $this->createCustomer(['name' => 'Sales Fields Customer']);
+        $workorder = $this->createWorkorder([
+            'customer_id' => $customer->id,
+            'number' => 107777,
+        ]);
+
+        $response = $this->actingAs($admin)->patchJson(route('marketing.workorders.sales-fields.update', $workorder), [
+            'sales_invoice_amount' => '$15,453',
+            'sales_invoice_date' => '29/jun/2026',
+            'shipping_shipment_at' => '01/jul/2026',
+            'shipping_awb_no' => '1565df16565',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('workorder.id', $workorder->id)
+            ->assertJsonPath('workorder.sales_invoice_amount.value', '15453.00')
+            ->assertJsonPath('workorder.sales_invoice_amount.display', '$15,453')
+            ->assertJsonPath('workorder.sales_invoice_date.iso', '2026-06-29')
+            ->assertJsonPath('workorder.sales_invoice_date.display', '29/Jun/2026')
+            ->assertJsonPath('workorder.shipping_shipment_at.iso', '2026-07-01')
+            ->assertJsonPath('workorder.shipping_shipment_at.display', '01/Jul/2026')
+            ->assertJsonPath('workorder.shipping_awb_no', '1565df16565');
+
+        $this->assertDatabaseHas('workorders', [
+            'id' => $workorder->id,
+            'sales_invoice_amount' => '15453.00',
+            'sales_invoice_date' => '2026-06-29',
+            'shipping_shipment_at' => '2026-07-01',
+            'shipping_awb_no' => '1565df16565',
+        ]);
+    }
+
+    public function test_marketing_customer_sales_report_endpoint_returns_selected_customer_workorders(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->grantMarketingAccess($admin);
+
+        $customer = $this->createCustomer(['name' => 'Sales Report Customer']);
+        $otherCustomer = $this->createCustomer(['name' => 'Other Sales Customer']);
+        $plane = $this->createPlane(['type' => 'E170']);
+        $manual = $this->createManual(['planes_id' => $plane->id]);
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'part_number' => '2309-2200-153',
+            'description' => 'MLG Shock Strut',
+        ]);
+
+        $this->createWorkorder([
+            'customer_id' => $customer->id,
+            'unit_id' => $unit->id,
+            'number' => 107548,
+            'serial_number' => 'DL5263',
+            'description' => 'MLG Shock Strut',
+            'open_at' => '2026-05-01 08:00:00',
+        ]);
+
+        $this->createWorkorder([
+            'customer_id' => $otherCustomer->id,
+            'unit_id' => $unit->id,
+            'number' => 107549,
+            'serial_number' => 'DL5264',
+            'description' => 'Other Customer Unit',
+            'open_at' => '2026-05-01 08:00:00',
+        ]);
+
+        $this->mock(SalesReportQuantumInvoiceProvider::class, function ($mock): void {
+            $mock->shouldReceive('fetch')->once()->andReturn([
+                'available' => false,
+                'warning' => 'Quantum unavailable in test.',
+                'items' => [],
+            ]);
+        });
+
+        $response = $this->actingAs($admin)->getJson(route('marketing.customers.sales-report', [
+            'customer' => $customer,
+            'date_from' => '2026-01-01',
+            'date_to' => '2026-12-31',
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('report_type', 'customer')
+            ->assertJsonPath('rows.0.company', 'Sales Report Customer')
+            ->assertJsonPath('rows.0.aircraft_type', 'E170')
+            ->assertJsonPath('rows.0.wo_number', 'W107548')
+            ->assertJsonPath('rows.0.part_number', '2309-2200-153')
+            ->assertJsonPath('rows.0.serial_number', 'DL5263')
+            ->assertJsonPath('rows.0.description', 'MLG Shock Strut');
+
+        $this->assertStringNotContainsString('W107549', $response->getContent());
+    }
+
+    public function test_marketing_aircraft_sales_report_endpoint_returns_selected_aircraft_workorders(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->grantMarketingAccess($admin);
+
+        $selectedPlane = $this->createPlane(['type' => 'E170']);
+        $otherPlane = $this->createPlane(['type' => 'CRJ900']);
+        $selectedManual = $this->createManual(['planes_id' => $selectedPlane->id]);
+        $otherManual = $this->createManual(['planes_id' => $otherPlane->id]);
+        $selectedUnit = $this->createUnit([
+            'manual_id' => $selectedManual->id,
+            'part_number' => '2309-2200-154',
+            'description' => 'MLG Shock Strut',
+        ]);
+        $otherUnit = $this->createUnit([
+            'manual_id' => $otherManual->id,
+            'part_number' => '999-OTHER',
+            'description' => 'Other Plane Unit',
+        ]);
+
+        $customer = $this->createCustomer(['name' => 'Jazz Aviation']);
+        $secondCustomer = $this->createCustomer(['name' => 'Regional One']);
+
+        $this->createWorkorder([
+            'customer_id' => $customer->id,
+            'unit_id' => $selectedUnit->id,
+            'number' => 107560,
+            'serial_number' => 'DL5264',
+            'description' => 'MLG Shock Strut',
+            'open_at' => '2026-03-01 08:00:00',
+        ]);
+
+        $this->createWorkorder([
+            'customer_id' => $secondCustomer->id,
+            'unit_id' => $selectedUnit->id,
+            'number' => 107561,
+            'serial_number' => 'DL5265',
+            'description' => 'NLG Shock Strut',
+            'open_at' => '2026-03-02 08:00:00',
+        ]);
+
+        $this->createWorkorder([
+            'customer_id' => $customer->id,
+            'unit_id' => $otherUnit->id,
+            'number' => 107562,
+            'serial_number' => 'OTHER-SN',
+            'description' => 'Should Not Show',
+            'open_at' => '2026-03-03 08:00:00',
+        ]);
+
+        $this->mock(SalesReportQuantumInvoiceProvider::class, function ($mock): void {
+            $mock->shouldReceive('fetch')->once()->andReturn([
+                'available' => false,
+                'warning' => 'Quantum unavailable in test.',
+                'items' => [],
+            ]);
+        });
+
+        $response = $this->actingAs($admin)->getJson(route('marketing.sales-report.aircraft', [
+            'plane_id' => $selectedPlane->id,
+            'date_from' => '2026-01-01',
+            'date_to' => '2026-12-31',
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('report_type', 'component')
+            ->assertJsonPath('rows.0.aircraft_type', 'E170')
+            ->assertJsonPath('rows.0.company', 'Jazz Aviation')
+            ->assertJsonPath('rows.0.wo_number', 'W107560')
+            ->assertJsonPath('rows.1.company', 'Regional One')
+            ->assertJsonPath('rows.1.wo_number', 'W107561');
+
+        $this->assertStringNotContainsString('W107562', $response->getContent());
+        $this->assertStringNotContainsString('Should Not Show', $response->getContent());
     }
 
     public function test_marketing_changes_are_logged_with_human_readable_values(): void
     {
         $admin = $this->createUserWithRole('Admin');
+        $this->grantMarketingAccess($admin);
+
         $customer = $this->createCustomer(['name' => 'Readable Logs Inc']);
         $mro = MarketingCompanyType::query()->firstOrCreate(['name' => 'MRO'], ['sort_order' => 10]);
         $oem = MarketingCompanyType::query()->firstOrCreate(['name' => 'OEM'], ['sort_order' => 20]);
         $regional = MarketingSegment::query()->firstOrCreate(['name' => 'Regional'], ['sort_order' => 10]);
         $business = MarketingSegment::query()->firstOrCreate(['name' => 'Business'], ['sort_order' => 20]);
+        $canada = Country::query()->firstOrCreate(['alpha2' => 'CA'], ['name' => 'Canada', 'sort_order' => 10, 'active' => true]);
         $atr = $this->createPlane(['type' => 'ATR-42']);
         $cl = $this->createPlane(['type' => 'CL601']);
 
         $this->actingAs($admin)->patchJson(route('marketing.customers.profile.update', $customer), [
             'name' => 'Readable Logs Canada',
             'lifecycle_status' => CustomerMarketingProfile::STATUS_EXISTING,
-            'country' => 'Canada',
-            'address' => 'Toronto',
+            'country_id' => $canada->id,
+            'city' => 'Toronto',
+            'state_province' => 'Ontario',
+            'street_address' => '100 King Street',
+            'company_notes' => 'Initial instruction set.',
             'company_type_id' => $mro->id,
             'segment_id' => $regional->id,
             'terms_label' => 'NET 30',
@@ -151,8 +636,11 @@ class MarketingTest extends TestCase
         $this->actingAs($admin)->patchJson(route('marketing.customers.profile.update', $customer->fresh()), [
             'name' => 'Readable Logs Canada',
             'lifecycle_status' => CustomerMarketingProfile::STATUS_POTENTIAL,
-            'country' => 'Canada',
-            'address' => 'Montreal',
+            'country_id' => $canada->id,
+            'city' => 'Montreal',
+            'state_province' => 'Quebec',
+            'street_address' => '200 Rue Saint-Jacques',
+            'company_notes' => 'Route invoices to accounting.',
             'company_type_id' => $oem->id,
             'segment_id' => $business->id,
             'terms_label' => 'Pre-Payment',
@@ -173,6 +661,10 @@ class MarketingTest extends TestCase
         $this->assertSame('OEM', $props['new']['type']);
         $this->assertSame('Regional', $props['old']['segment']);
         $this->assertSame('Business', $props['new']['segment']);
+        $this->assertSame('Montreal', $props['new']['city']);
+        $this->assertSame('Quebec', $props['new']['state/province']);
+        $this->assertSame('200 Rue Saint-Jacques', $props['new']['street address']);
+        $this->assertSame('Route invoices to accounting.', $props['new']['company notes']);
         $this->assertSame('ATR-42', $props['old']['aircraft']);
         $this->assertSame('ATR-42, CL601', $props['new']['aircraft']);
         $this->assertSame('Pre-Payment', $props['new']['terms']);
@@ -181,6 +673,8 @@ class MarketingTest extends TestCase
     public function test_marketing_contact_and_note_create_delete_actions_are_logged(): void
     {
         $admin = $this->createUserWithRole('Admin');
+        $this->grantMarketingAccess($admin);
+
         $customer = $this->createCustomer(['name' => 'Audit Trail Customer']);
 
         $contactResponse = $this->actingAs($admin)->postJson(route('marketing.contacts.store', $customer), [
@@ -280,6 +774,9 @@ class MarketingTest extends TestCase
         $sales = $this->createUserWithRole('Sales');
         $customer = $this->createCustomer(['name' => 'Jazz Aviation LP']);
 
+        $this->grantMarketingAccess($admin);
+        $this->grantMarketingAccess($author);
+
         $note = CustomerInteractionNote::query()->create([
             'customer_id' => $customer->id,
             'user_id' => $author->id,
@@ -297,5 +794,13 @@ class MarketingTest extends TestCase
         Notification::assertNotSentTo($sales, NewMessageNotification::class);
 
         $this->assertNotNull($note->fresh()->reminder_sent_at);
+    }
+
+    private function grantMarketingAccess(User $user): void
+    {
+        UserFeatureAccess::query()->firstOrCreate([
+            'feature_key' => 'marketing',
+            'user_id' => $user->id,
+        ]);
     }
 }

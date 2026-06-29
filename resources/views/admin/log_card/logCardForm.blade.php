@@ -7,6 +7,10 @@
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
 
     <style>
+        :root {
+            --log-card-table-font-size: 14px;
+        }
+
         body {
             margin: 0;
             padding: 0;
@@ -274,7 +278,7 @@
         .log-card-table,
         .log-card-table > div,
         .log-card-table .log-card-record-row > div {
-            font-size: 14px !important;
+            font-size: var(--log-card-table-font-size, 14px) !important;
             line-height: 1.12;
         }
 
@@ -477,11 +481,7 @@
 
 <body>
 <!-- Кнопка для печати -->
-<div class="text-start m-3">
-    <button class="btn btn-outline-primary no-print" onclick="window.print()">
-        Print Form
-    </button>
-</div>
+@include('admin.log_card.partials.print-settings')
 <div class="container-fluid">
     <div class="row " style="height: 80px">
         <div class="col-4">

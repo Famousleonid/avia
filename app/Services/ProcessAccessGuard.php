@@ -164,7 +164,8 @@ class ProcessAccessGuard
         $contacts = User::query()
             ->where(function ($query) {
                 $query->where('is_admin', 1)
-                    ->orWhere('can_manage_locked_manual_processes', 1);
+                    ->orWhereHas('featureAccesses', fn ($featureQuery) => $featureQuery
+                        ->where('feature_key', 'manuals.locked_processes'));
             })
             ->orderBy('name')
             ->pluck('name')
@@ -181,7 +182,8 @@ class ProcessAccessGuard
     private function denyProcessNameCreationLocked(Manual $manual, ProcessName $processName): ProcessAccessDecision
     {
         $contacts = User::query()
-            ->where('can_manage_locked_manual_processes', 1)
+            ->whereHas('featureAccesses', fn ($featureQuery) => $featureQuery
+                ->where('feature_key', 'manuals.locked_processes'))
             ->orderBy('name')
             ->pluck('name')
             ->filter()

@@ -98,6 +98,22 @@ class TdrProcessController extends Controller
         return ProcessName::where('id', $processNamesId)->where('name', 'Machining (EC)')->exists();
     }
 
+    private function allCatalogProcessesHaveProcessNames(array $processIds): bool
+    {
+        $processIds = array_values(array_unique(array_filter(array_map('intval', $processIds))));
+        if ($processIds === []) {
+            return true;
+        }
+
+        $validCount = Process::query()
+            ->whereIn('id', $processIds)
+            ->whereNotNull('process_names_id')
+            ->whereHas('process_name')
+            ->count();
+
+        return $validCount === count($processIds);
+    }
+
     /**
      * Получает manual_id для TDR записи
      * Сначала пытается получить из компонента, затем из workorder
@@ -187,7 +203,10 @@ class TdrProcessController extends Controller
         // Получаем процессы, связанные с manual_id
         $processes = Process::whereHas('manuals', function ($query) use ($manual_id) {
             $query->where('manual_id', $manual_id);
-        })->get();
+        })
+            ->whereNotNull('process_names_id')
+            ->whereHas('process_name')
+            ->get();
 
         // Получаем процессы, уже связанные с текущим Tdr
         $tdrProcesses = TdrProcess::where('tdrs_id', $tdrId)->orderBy('sort_order')->get();
@@ -338,6 +357,15 @@ class TdrProcessController extends Controller
 
         // Сохраняем каждый процесс
         foreach ($processesData as $index => $data) {
+            if (! ProcessName::query()->whereKey((int) ($data['process_names_id'] ?? 0))->exists()) {
+                return response()->json(['error' => 'Invalid process name selected.'], 422);
+            }
+
+            $selectedProcessIds = TdrProcess::normalizeStoredProcessIds($data['processes'] ?? []);
+            if (! $this->allCatalogProcessesHaveProcessNames($selectedProcessIds)) {
+                return response()->json(['error' => 'Selected process specification is missing a process name.'], 422);
+            }
+
             $isEcEligible = in_array((int)$data['process_names_id'], $ecEligibleIds);
             $rawStandalone = $data['standalone_ec_only'] ?? false;
             $standaloneEcOnly = $rawStandalone === true
@@ -387,7 +415,7 @@ class TdrProcessController extends Controller
                 'tdrs_id' => $tdrId,
                 'process_names_id' => $data['process_names_id'],
                 'plus_process' => $data['plus_process'] ?? null, // Дополнительные NDT process_names_id через запятую
-                'processes' => array_values(TdrProcess::normalizeStoredProcessIds($data['processes'] ?? [])), // массив ID для cast JSON
+                'processes' => $selectedProcessIds, // массив ID для cast JSON
                 'sort_order' => $maxSortOrder + $sortOrderCounter + 1, // Устанавливаем sort_order в конец списка
                 'date_start' => null,
                 'date_finish' => null,
@@ -437,7 +465,7 @@ class TdrProcessController extends Controller
                         if ($existingEcProcess) {
                             // Обновляем существующую запись EC: добавляем новые процессы в JSON-массив
                             $existingProcesses = TdrProcess::normalizeStoredProcessIds($existingEcProcess->processes);
-                            $newProcesses = TdrProcess::normalizeStoredProcessIds($data['processes'] ?? []);
+                            $newProcesses = $selectedProcessIds;
 
                             // Объединяем массивы и убираем дубликаты
                             $mergedProcesses = array_unique(array_merge($existingProcesses, $newProcesses));
@@ -456,7 +484,7 @@ class TdrProcessController extends Controller
                         TdrProcess::create([
                             'tdrs_id' => $tdrId,
                             'process_names_id' => $ecProcessName->id,
-                            'processes' => array_values(TdrProcess::normalizeStoredProcessIds($data['processes'] ?? [])), // те же ID что у Machining
+                            'processes' => $selectedProcessIds, // те же ID что у Machining
                             'sort_order' => $maxSortOrder + $sortOrderCounter + 1, // Следующий порядок после Machining
                             'date_start' => null,
                             'date_finish' => null,
@@ -1383,7 +1411,10 @@ class TdrProcessController extends Controller
         $current_wo = $current_tdr->workorder;
         $processNames = ProcessName::forPicker()->orderBy('name')->get();
         $manual_id = $current_wo->unit->manual_id ?? null;
-        $processes = Process::whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))->get();
+        $processes = Process::whereHas('manuals', fn($q) => $q->where('manual_id', $manual_id))
+            ->whereNotNull('process_names_id')
+            ->whereHas('process_name')
+            ->get();
         $ndtProcessNames = ProcessName::where('name', 'like', 'NDT-%')->get();
         $ecEligibleProcessNameIds = $this->getEcEligibleProcessNameIds();
 
@@ -1457,6 +1488,15 @@ class TdrProcessController extends Controller
         $processesArray = is_array($processInput)
             ? array_map('intval', $processInput)
             : [ (int) $processInput ];
+
+        if (! $this->allCatalogProcessesHaveProcessNames($processesArray)) {
+            $msg = 'Selected process specification is missing a process name.';
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['message' => $msg, 'errors' => ['processes' => [$msg]]], 422);
+            }
+
+            return redirect()->back()->withErrors(['processes' => $msg]);
+        }
 
         // Сохраняем старые данные ДО обновления
         $oldProcessNamesId = $current_tdr_processes->process_names_id;

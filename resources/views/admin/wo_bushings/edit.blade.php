@@ -4,16 +4,46 @@
     <style>
         .bushing-edit-shell { max-width: 100%; }
         .bushing-edit-card { background: var(--bs-body-bg); border: 1px solid rgba(125, 140, 155, .35); }
-        .bushing-edit-table-wrap { max-height: calc(88vh - 170px); overflow-y: auto; overflow-x: hidden; }
-        .bushing-edit-table { width: min(1280px, 100%); max-width: 1280px; table-layout: fixed; }
+        .bushing-edit-table-wrap { width: 100%; max-height: calc(88vh - 170px); overflow-y: auto; overflow-x: auto; }
+        .bushing-itemized-table {
+            --bushing-fixed-cols-width: 604px;
+            --bushing-ndt-col-width: 96px;
+            --bushing-line-height: 28px;
+            width: 100%;
+            min-width: 1200px;
+            max-width: none;
+            table-layout: fixed;
+        }
+        .bushing-itemized-table col.bushing-col-bushing { width: 280px; }
+        .bushing-itemized-table col.bushing-col-part-qty { width: 74px; }
+        .bushing-itemized-table col.bushing-col-select { width: 92px; }
+        .bushing-itemized-table col.bushing-col-qty { width: 70px; }
+        .bushing-itemized-table col.bushing-col-toggle { width: 88px; }
+        .bushing-itemized-table col.bushing-col-ndt { width: var(--bushing-ndt-col-width); }
+        .bushing-itemized-table col.bushing-col-process {
+            width: calc((100% - var(--bushing-fixed-cols-width) - var(--bushing-ndt-col-width)) / 6);
+        }
         .bushing-edit-table th { position: sticky; top: 0; z-index: 2; background: #303841; font-size: .78rem; }
         .bushing-edit-table td { vertical-align: middle; font-size: .8rem; }
+        .bushing-itemized-table th,
+        .bushing-itemized-table td {
+            padding-left: .25rem !important;
+            padding-right: .25rem !important;
+        }
         .bushing-line-list { display: flex; flex-direction: column; gap: .45rem; }
-        .bushing-line-list > div { min-height: 24px; display: flex; align-items: center; }
+        .bushing-line-list > div { min-height: var(--bushing-line-height); display: flex; align-items: center; }
         .bushing-part-cell { white-space: normal; line-height: 1.25; }
         .bushing-select-cell { display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; }
         .bushing-select-ipl { color: var(--bs-body-color); font-size: .8rem; }
-        .bushing-qty-input { width: 70px; text-align: center; }
+        .bushing-qty-input {
+            width: 54px;
+            height: var(--bushing-line-height) !important;
+            min-height: var(--bushing-line-height) !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            text-align: center;
+            line-height: var(--bushing-line-height);
+        }
         .bushing-process-toggle { display: flex; justify-content: center; }
         .bushing-process-cell .form-select { width: 100%; min-width: 0; font-size: .75rem; padding: .2rem .35rem; }
         .bushing-ndt-select { min-width: 0 !important; }
@@ -78,27 +108,27 @@
             @if($bushings->flatten()->count() > 0)
                 <div class="card-body {{ $embedded ? 'p-0' : 'p-2' }}">
                     <div class="table-responsive bushing-edit-table-wrap">
-                        <table class="table table-bordered table-hover align-middle bushing-edit-table mb-0">
+                        <table class="table table-sm table-hover align-middle table-bordered bg-gradient dir-table bushing-edit-table bushing-itemized-table mb-0">
                             <colgroup>
-                                <col style="width: 16.8%;">
-                                <col style="width: 4.8%;">
-                                <col style="width: 5.5%;">
-                                <col style="width: 5.5%;">
-                                <col style="width: 6.6%;">
-                                <col style="width: 9.4%;">
-                                <col style="width: 10.2%;">
-                                <col style="width: 6.25%;">
-                                <col style="width: 9%;">
-                                <col style="width: 9%;">
-                                <col style="width: 9%;">
-                                <col style="width: 8%;">
+                                <col class="bushing-col-bushing">
+                                <col class="bushing-col-part-qty">
+                                <col class="bushing-col-select">
+                                <col class="bushing-col-qty">
+                                <col class="bushing-col-toggle">
+                                <col class="bushing-col-process">
+                                <col class="bushing-col-process">
+                                <col class="bushing-col-ndt">
+                                <col class="bushing-col-process">
+                                <col class="bushing-col-process">
+                                <col class="bushing-col-process">
+                                <col class="bushing-col-process">
                             </colgroup>
                             <thead>
                                 <tr>
                                     <th class="text-info text-center">{{ __('Bushing') }}</th>
                                     <th class="text-info text-center">{{ __('Part Qty') }}</th>
                                     <th class="text-info text-center">{{ __('Select') }}</th>
-                                    <th class="text-info text-center">{{ __('WO Qty') }}</th>
+                                    <th class="text-info text-center">{{ __('Qty') }}</th>
                                     <th class="text-info text-center">{{ __('Processes') }}</th>
                                     <th class="text-info text-center">{{ __('Machining') }}</th>
                                     <th class="text-info text-center">{{ __('Stress Relief') }}</th>
@@ -404,7 +434,7 @@
 
                 if (hasErrors) {
                     e.preventDefault();
-                    notify('{{ __("Please enter WO Qty and NDT for selected bushings with processes.") }}');
+                    notify('{{ __("Please enter Qty and NDT for selected bushings with processes.") }}');
                     return;
                 }
 
@@ -431,7 +461,7 @@
                     })
                     .then(function(data) {
                         if (data.success) {
-                            if (typeof window.handleEditBushingSaved === 'function') window.handleEditBushingSaved();
+                            if (typeof window.handleEditBushingSaved === 'function') window.handleEditBushingSaved(data.message || '{{ __("Bushing data saved.") }}');
                             return;
                         }
                         notify(data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : '{{ __("Error") }}'), 'error');

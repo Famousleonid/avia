@@ -63,7 +63,8 @@ class ManualPartAccessGuard
         $contacts = User::query()
             ->where(function ($query) {
                 $query->where('is_admin', 1)
-                    ->orWhere('can_manage_locked_manual_parts', 1);
+                    ->orWhereHas('featureAccesses', fn ($featureQuery) => $featureQuery
+                        ->where('feature_key', 'manuals.locked_parts'));
             })
             ->orderBy('name')
             ->pluck('name')

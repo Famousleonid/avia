@@ -550,7 +550,7 @@ class ManualsTest extends TestCase
         $admin = $this->createUserWithRole('Admin');
         $manual = $this->createManual();
 
-        foreach (['9A-300', '9A-30', '9A-290'] as $ipl) {
+        foreach (['9A-300', '9A-30', '9A-290', '13-71', '13-70 RS', '13-70'] as $ipl) {
             Component::query()->create([
                 'manual_id' => $manual->id,
                 'ipl_num' => $ipl,
@@ -570,6 +570,8 @@ class ManualsTest extends TestCase
 
         $this->assertLessThan(strpos($html, '>9A-290<'), strpos($html, '>9A-30<'));
         $this->assertLessThan(strpos($html, '>9A-300<'), strpos($html, '>9A-290<'));
+        $this->assertLessThan(strpos($html, '>13-70 RS<'), strpos($html, '>13-70<'));
+        $this->assertLessThan(strpos($html, '>13-71<'), strpos($html, '>13-70 RS<'));
     }
 
     public function test_manual_parts_forms_accept_ipl_section_suffix_pattern(): void
@@ -583,7 +585,7 @@ class ManualsTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('pattern="^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$"', false);
-        $response->assertSee('pattern="^$|^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$"', false);
+        $response->assertSee('pattern="^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$"', false);
+        $response->assertSee('pattern="^$|^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$"', false);
     }
 }

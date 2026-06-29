@@ -152,7 +152,7 @@
 
         return $lifeRemark !== '' ? $lifeRemark . '.' : '';
     };
-    $defaultLifeRemarkText = $logRowLifeRemarkText($logRows[0] ?? [], true) ?: 'CSN-19453; CSO-0.';
+    $defaultLifeRemarkText = $logRowLifeRemarkText($logRows[0] ?? [], true) ?: 'N/A';
     $certificateDetailOptions = collect([
         [
             'key' => 'main',
@@ -171,7 +171,7 @@
         ],
     ]);
     $logDetailOptions = collect($logRows)
-        ->map(function (array $row, int $index) use ($firstNonBlank, $formatDetailOptionLabel, $certificateLogComponents, $defaultLifeRemarkText, $logRowLifeRemarkText): array {
+        ->map(function (array $row, int $index) use ($firstNonBlank, $formatDetailOptionLabel, $certificateLogComponents, $logRowLifeRemarkText): array {
             $component = $certificateLogComponents->get((int) ($row['component_id'] ?? 0));
             $description = $firstNonBlank(
                 $row['qa_description'] ?? null,
@@ -204,7 +204,7 @@
                 'description' => $description,
                 'part_number' => collect($partNumberLines)->filter()->implode("\n"),
                 'serial_number' => collect($serialNumberLines)->filter()->implode("\n"),
-                'life_remark_text' => $logRowLifeRemarkText($row),
+                'life_remark_text' => $logRowLifeRemarkText($row) ?: 'N/A',
             ];
         })
         ->filter(fn (array $option): bool => $option['description'] !== '' || $option['part_number'] !== '' || $option['serial_number'] !== '')
@@ -348,7 +348,12 @@
         ],
         ['text' => 'Full details of work performed in work order W' . $current_wo->number . '.'],
         ['text' => $hasOrderedReplacementParts ? 'For the replacement parts refer to Teardown Report.' : 'Replacements parts: None.'],
-        ['text' => $airworthinessText, 'airworthiness_remark' => true],
+        [
+            'text' => $airworthinessText,
+            'airworthiness_remark' => true,
+            'setting_key' => 'include_airworthiness_remark',
+            'checked' => $certificateRemarkChecked('include_airworthiness_remark', false),
+        ],
         [
             'text' => $landingGearLogCardText,
             'setting_key' => 'include_landing_gear_log_card',
@@ -956,6 +961,10 @@
             min-width: 0;
         }
 
+        .arc-remark-line.is-print-disabled .arc-remark-text {
+            color: #777;
+        }
+
         .arc-remark-toggle {
             display: inline-flex;
             align-items: center;
@@ -1013,7 +1022,7 @@
         .arc-cert-right {
             position: relative;
             display: grid;
-            grid-template-rows: 1.26in calc(0.32in + 2mm) calc(0.32in + 2mm);
+            grid-template-rows: 1.26in calc(0.34in + 2mm) calc(0.34in + 2mm);
             border-right: 1.5px solid #000;
         }
 
@@ -1137,6 +1146,10 @@
             text-align: center;
             font-size: var(--arc-value-size);
             line-height: 1.1;
+        }
+
+        .arc-cert-signoff-cell .arc-cert-value {
+            bottom: 0.075in;
         }
 
         .arc-cert-control {
@@ -1268,7 +1281,7 @@
                 --arc-print-items-height: calc(var(--arc-print-items-header-height) + var(--arc-print-items-row-height));
                 --arc-print-remarks-height: calc(1.78in + 4mm);
                 --arc-print-cert-main-height: 1.26in;
-                --arc-print-cert-subrow-height: calc(0.32in + 2mm);
+                --arc-print-cert-subrow-height: calc(0.34in + 2mm);
                 --arc-print-cert-height: calc(
                     var(--arc-print-cert-main-height)
                     + var(--arc-print-cert-subrow-height)
@@ -1435,6 +1448,10 @@
             .arc-cert-value {
                 bottom: 0.01in;
                 font-size: var(--arc-value-size);
+            }
+
+            .arc-cert-signoff-cell .arc-cert-value {
+                bottom: 0.075in;
             }
 
             .arc-cert-boost-label {
@@ -1795,7 +1812,7 @@
                 </div>
             </div>
             <div class="arc-cert-subgrid">
-                <div class="arc-cert-small arc-cert-boost-label">
+                <div class="arc-cert-small arc-cert-boost-label arc-cert-signoff-cell">
                     14d. Name
                     @if($canEditCertificateManager && $managerOptions->isNotEmpty())
                         <select class="arc-cert-value arc-cert-control arc-cert-manager-control arc-cert-boost-value" id="certificateManagerId" data-certificate-manager-select>
@@ -1810,7 +1827,7 @@
                         <div class="arc-cert-value arc-cert-manager-value arc-cert-boost-value" data-certificate-manager-output>{{ $certificateManagerName }}</div>
                     @endif
                 </div>
-                <div class="arc-cert-small">
+                <div class="arc-cert-small arc-cert-signoff-cell">
                     14e. <span class="arc-date-hint">Date (dd/mmm/yyyy)</span>
                     <input
                         type="text"
@@ -1918,6 +1935,7 @@
         const certificateDetailItems = @json($certificateDetailOptions->keyBy('key')->all());
         const certificateItemSettings = @json($certificateItemSettings);
         const certificateStateDefaults = {
+            include_airworthiness_remark: false,
             include_landing_gear_log_card: @json($includeLandingGearLogCard),
             include_royco_service: @json($includeRoycoService),
             include_overhauled_on: @json($includeOverhauledOn),

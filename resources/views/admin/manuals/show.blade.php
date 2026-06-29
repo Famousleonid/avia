@@ -505,8 +505,12 @@
             min-height: 18px;
         }
         .manual-process-comment {
+            text-align: left !important;
             white-space: pre-wrap;
             overflow-wrap: anywhere;
+        }
+        .manual-process-comment-head {
+            text-align: left !important;
         }
         .manual-process-lock-button .btn-sm {
             padding: 2px 8px;
@@ -837,7 +841,7 @@
                         ? q
                         : (params.get('part_id') ? 'parts' : (params.get('std_inner') ? 'std' : (hashToTab[location.hash] || null)));
                     var server = @json($manualShowTab);
-                    if (desiredKey && desiredKey !== server) {
+                    if ((desiredKey && desiredKey !== server) || params.get('part_id')) {
                         document.documentElement.classList.add('manual-show-tabs-pending');
                     }
                 })();
@@ -1089,7 +1093,7 @@
                                 <th class="text-center bg-gradient" scope="col">Lock</th>
                                 <th class="text-center bg-gradient" scope="col">Process Name</th>
                                 <th class="text-center bg-gradient" scope="col">Process / Specification</th>
-                                <th class="text-center bg-gradient" scope="col">Comment</th>
+                                <th class="text-center bg-gradient manual-process-comment-head" scope="col">Comment</th>
                                 <th class="text-center bg-gradient" scope="col">Action</th>
                             </tr>
                             </thead>
@@ -1174,9 +1178,7 @@
                                                 <span>{{ $mp->process?->process }}</span>
                                             </span>
                                         </td>
-                                        <td class="align-content-center text-start ps-3 manual-process-comment">
-                                            {{ $mp->process_comment ?: '-' }}
-                                        </td>
+                                        <td class="align-content-center text-start ps-3 manual-process-comment">{{ $mp->process_comment ?: '-' }}</td>
                                         <td class="align-content-center manual-process-actions">
                                             <a href="{{ route('manual_processes.edit', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}"
                                                class="btn btn-outline-primary btn-sm @if($rowLocked && ! $userCanManageLockedManualProcesses) disabled @endif"
@@ -1184,7 +1186,12 @@
                                                @if($rowLocked && ! $userCanManageLockedManualProcesses) aria-disabled="true" tabindex="-1" @endif>
                                                 <i class="bi bi-pencil-square"></i>
                                             </a>
-                                            <form action="{{ route('manual_processes.destroy', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ __('Are you sure you want to delete this process?') }}');">
+                                            <form action="{{ route('manual_processes.destroy', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}"
+                                                  method="POST"
+                                                  class="d-inline"
+                                                  data-manual-project-delete-form
+                                                  data-confirm-title="{{ __('Delete process?') }}"
+                                                  data-confirm-message="{{ __('This process row will be removed from the manual.') }}">
                                                 @csrf
                                                 @method('DELETE')
                                                 <input type="hidden" name="return_to" value="{{ $manualUrlProcesses }}">
@@ -1302,7 +1309,7 @@
                                             <button form="update-sb-{{ $bulletin->id }}" type="submit" class="btn btn-outline-primary btn-sm" title="{{ __('Save') }}">
                                                 <i class="bi bi-save"></i>
                                             </button>
-                                            <button type="submit" form="delete-sb-{{ $bulletin->id }}" class="btn btn-outline-danger btn-sm" title="{{ __('Delete') }}" onclick="return confirm('{{ __('Delete this Service Bulletin row?') }}');">
+                                            <button type="submit" form="delete-sb-{{ $bulletin->id }}" class="btn btn-outline-danger btn-sm" title="{{ __('Delete') }}">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </td>
@@ -1321,7 +1328,13 @@
                                 @csrf
                                 @method('PUT')
                             </form>
-                            <form id="delete-sb-{{ $bulletin->id }}" method="post" action="{{ route('manuals.service-bulletins.destroy', ['manual' => $cmm, 'serviceBulletin' => $bulletin]) }}" class="d-none">
+                            <form id="delete-sb-{{ $bulletin->id }}"
+                                  method="post"
+                                  action="{{ route('manuals.service-bulletins.destroy', ['manual' => $cmm, 'serviceBulletin' => $bulletin]) }}"
+                                  class="d-none"
+                                  data-manual-project-delete-form
+                                  data-confirm-title="{{ __('Delete Service Bulletin row?') }}"
+                                  data-confirm-message="{{ __('This Service Bulletin row will be removed from the manual.') }}">
                                 @csrf
                                 @method('DELETE')
                             </form>
@@ -1467,7 +1480,7 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label for="manual_drawer_ipl_num" class="form-label">{{ __('IPL Number') }}</label>
-                        <input id="manual_drawer_ipl_num" type="text" class="form-control" name="ipl_num" pattern="^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$" required>
+                        <input id="manual_drawer_ipl_num" type="text" class="form-control" name="ipl_num" pattern="^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$" required>
                     </div>
                     <div class="col-md-6">
                         <label for="manual_drawer_part_number" class="form-label">{{ __('Part Number') }}</label>
@@ -1532,7 +1545,7 @@
                     </div>
                     <div class="mt-3 d-none" id="manual_drawer_bush_ipl_container">
                         <label for="manual_drawer_bush_ipl_num" class="form-label">{{ __('Initial Bushing IPL Number') }}</label>
-                        <input id="manual_drawer_bush_ipl_num" type="text" class="form-control" name="bush_ipl_num" pattern="^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$">
+                        <input id="manual_drawer_bush_ipl_num" type="text" class="form-control" name="bush_ipl_num" pattern="^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$">
                     </div>
                 </div>
 
@@ -1572,7 +1585,7 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label for="manual_edit_drawer_ipl_num" class="form-label">{{ __('IPL Number') }}</label>
-                        <input id="manual_edit_drawer_ipl_num" type="text" class="form-control" name="ipl_num" pattern="^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$" required>
+                        <input id="manual_edit_drawer_ipl_num" type="text" class="form-control" name="ipl_num" pattern="^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$" required>
                     </div>
                     <div class="col-md-6">
                         <label for="manual_edit_drawer_part_number" class="form-label">{{ __('Part Number') }}</label>
@@ -1648,7 +1661,7 @@
                     </div>
                     <div class="mt-3 d-none" id="manual_edit_drawer_bush_ipl_container">
                         <label for="manual_edit_drawer_bush_ipl_num" class="form-label">{{ __('Initial Bushing IPL Number') }}</label>
-                        <input id="manual_edit_drawer_bush_ipl_num" type="text" class="form-control" name="bush_ipl_num" pattern="^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$">
+                        <input id="manual_edit_drawer_bush_ipl_num" type="text" class="form-control" name="bush_ipl_num" pattern="^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$">
                     </div>
                 </div>
 
@@ -1684,7 +1697,7 @@
             <div class="row g-2">
                 <div class="col-md-4">
                     <label class="form-label">{{ __('Assembly IPL Number') }}</label>
-                    <input type="text" class="form-control" data-assembly-field="assy_ipl_num" pattern="^$|^\d+[A-Za-z]*-\d+[A-Za-z0-9]*$">
+                    <input type="text" class="form-control" data-assembly-field="assy_ipl_num" pattern="^$|^\d+[A-Za-z]*-\d+(?:\s*[A-Za-z][A-Za-z0-9]*)?$">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">{{ __('Assembly Part Number') }}</label>
@@ -2118,7 +2131,7 @@
 
                 table.addEventListener('submit', async function (event) {
                     var form = event.target.closest('form[data-manual-part-delete-form]');
-                    if (!form || form.dataset.projectConfirmAccepted === '1') return;
+                    if (!form) return;
 
                     event.preventDefault();
 
@@ -2136,13 +2149,108 @@
                     });
                     if (!confirmed) return;
 
-                    form.dataset.projectConfirmAccepted = '1';
-                    if (typeof showLoadingSpinner === 'function') showLoadingSpinner();
-                    HTMLFormElement.prototype.submit.call(form);
+                    var row = form.closest('tr');
+                    var container = row ? row.closest('.parts-table-container') : null;
+                    var tbody = row ? row.closest('tbody') : null;
+                    var nextFocusRow = null;
+                    if (row) {
+                        var cursor = row.nextElementSibling;
+                        while (cursor && (cursor.hidden || cursor.classList.contains('components-empty-row'))) {
+                            cursor = cursor.nextElementSibling;
+                        }
+                        nextFocusRow = cursor;
+                        cursor = row.previousElementSibling;
+                        while (!nextFocusRow && cursor) {
+                            if (!cursor.hidden && !cursor.classList.contains('components-empty-row')) {
+                                nextFocusRow = cursor;
+                            }
+                            cursor = cursor.previousElementSibling;
+                        }
+                    }
+                    var savedScrollTop = container ? container.scrollTop : 0;
+                    var submitButton = form.querySelector('button[type="submit"]');
+
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                    }
+
+                    try {
+                        var response = await fetch(form.action, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': form.querySelector('input[name="_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.content || '',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json',
+                            },
+                            credentials: 'same-origin',
+                            body: new FormData(form),
+                        });
+                        var data = await response.json().catch(function () { return {}; });
+                        if (!response.ok || data.success === false) {
+                            throw new Error(data.message || '{{ __('Failed to delete part.') }}');
+                        }
+
+                        row?.remove();
+
+                        if (container) {
+                            container.scrollTop = savedScrollTop;
+                        }
+
+                        if (nextFocusRow && !nextFocusRow.classList.contains('components-empty-row')) {
+                            nextFocusRow.classList.add('table-warning');
+                            window.setTimeout(function () {
+                                nextFocusRow.classList.remove('table-warning');
+                            }, 1400);
+                        } else if (tbody && tbody.querySelectorAll('tr:not(.components-empty-row)').length === 0) {
+                            tbody.innerHTML = '<tr class="components-empty-row"><td colspan="19" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td></tr>';
+                        }
+
+                        var countEl = document.querySelector('#nav-parts-tab .manual-parts-tab-count');
+                        if (countEl && tbody) {
+                            countEl.textContent = '(' + tbody.querySelectorAll('tr:not(.components-empty-row)').length + ')';
+                        }
+
+                        table.dispatchEvent(new CustomEvent('manual-parts:row-deleted'));
+                        showNotification(data.message || '{{ __('Component (part) deleted successfully.') }}', 'success');
+                    } catch (error) {
+                        if (submitButton) {
+                            submitButton.disabled = false;
+                        }
+                        showNotification(error.message || '{{ __('Failed to delete part.') }}', 'error');
+                    }
                 });
             }
 
             initManualPartDeleteConfirm();
+
+            document.addEventListener('submit', async function (event) {
+                var form = event.target.closest('form[data-manual-project-delete-form]');
+                if (!form || form.dataset.projectConfirmAccepted === '1') return;
+
+                event.preventDefault();
+
+                if (typeof window.confirmDialog !== 'function') {
+                    showNotification('{{ __('Delete confirmation dialog is not available.') }}', 'error');
+                    return;
+                }
+
+                var confirmed = await window.confirmDialog({
+                    title: form.dataset.confirmTitle || '{{ __('Delete row?') }}',
+                    message: form.dataset.confirmMessage || '{{ __('This row will be removed.') }}',
+                    okText: '{{ __('Delete') }}',
+                    cancelText: '{{ __('Cancel') }}',
+                    danger: true,
+                });
+                if (!confirmed) return;
+
+                form.dataset.projectConfirmAccepted = '1';
+                if (typeof showGlobalSpinner === 'function') {
+                    showGlobalSpinner();
+                } else if (typeof showLoadingSpinner === 'function') {
+                    showLoadingSpinner();
+                }
+                HTMLFormElement.prototype.submit.call(form);
+            });
 
             if (input && table) {
                 const tbody = table.querySelector('tbody');
@@ -2165,7 +2273,7 @@
                 }
 
                 function iplSortKey(value) {
-                    const match = String(value || '').trim().match(/^(\d+)([A-Za-z]*)-(\d+)([A-Za-z0-9]*)$/);
+                    const match = String(value || '').trim().match(/^(\d+)([A-Za-z]*)-(\d+)\s*([A-Za-z][A-Za-z0-9]*)?$/);
                     if (!match) {
                         return [1, 0, 0, String(value || '').trim().toUpperCase()];
                     }
@@ -2175,7 +2283,7 @@
                         Number(match[1]),
                         match[2].toUpperCase(),
                         Number(match[3]),
-                        match[4].toUpperCase(),
+                        (match[4] || '').toUpperCase(),
                     ];
                 }
 
@@ -2387,6 +2495,7 @@
                         updateSelectAllState();
                     }
                 });
+                table.addEventListener('manual-parts:row-deleted', updateSelectAllState);
                 applyBtn.addEventListener('click', function () {
                     submitGroup('group');
                 });
@@ -2434,7 +2543,7 @@
                                 value: bushIplNum,
                                 okText: '{{ __('Save') }}',
                                 cancelText: '{{ __('Cancel') }}',
-                                pattern: '^\\d+-\\d+[A-Za-z]?$',
+                                pattern: '^\\d+[A-Za-z]*-\\d+(?:\\s*[A-Za-z][A-Za-z0-9]*)?$',
                                 invalidMessage: '{{ __('Initial Bushing IPL Number format is invalid.') }}',
                             })
                             : null;
@@ -2710,7 +2819,8 @@
                         danger: true,
                     });
                     if (!confirmed) return;
-                } else if (!confirm('{{ __('Delete image?') }}')) {
+                } else {
+                    showNotification('{{ __('Delete confirmation dialog is not available.') }}', 'error');
                     return;
                 }
 
@@ -2916,15 +3026,25 @@
             }
 
             function scrollToEditedPartRow() {
-                if (!partIdToScroll) return;
-                requestAnimationFrame(function () {
-                    var row = document.getElementById('manual-part-row-' + partIdToScroll);
-                    if (row) {
-                        row.scrollIntoView({ block: 'center', behavior: 'auto' });
-                        row.classList.add('table-warning');
-                        window.setTimeout(function () { row.classList.remove('table-warning'); }, 1400);
-                    }
-                });
+                if (!partIdToScroll) return false;
+
+                var row = document.getElementById('manual-part-row-' + partIdToScroll);
+                var container = row ? row.closest('.parts-table-container') : null;
+                if (!row || !container) {
+                    return false;
+                }
+
+                var rowRect = row.getBoundingClientRect();
+                var containerRect = container.getBoundingClientRect();
+                var nextScrollTop = container.scrollTop
+                    + (rowRect.top - containerRect.top)
+                    - Math.max(0, (container.clientHeight - rowRect.height) / 2);
+
+                container.scrollTop = Math.max(0, nextScrollTop);
+                row.classList.add('table-warning');
+                window.setTimeout(function () { row.classList.remove('table-warning'); }, 1400);
+
+                return true;
             }
 
             function activateStdInnerTabIfRequested() {
@@ -2950,7 +3070,6 @@
             }
 
             function finishManualShowTabsBoot() {
-                document.documentElement.classList.remove('manual-show-tabs-pending');
                 activeTab = document.querySelector('#nav-tab .nav-link.active');
                 if (activeTab) {
                     var target = activeTab.getAttribute('data-bs-target');
@@ -2959,6 +3078,7 @@
                 }
                 scrollToEditedPartRow();
                 activateStdInnerTabIfRequested();
+                document.documentElement.classList.remove('manual-show-tabs-pending');
             }
 
             if (needsClientSwitch) {

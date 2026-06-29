@@ -67,7 +67,7 @@ class CustomerController extends Controller
 
     public function destroy(Customer $customer)
     {
-        abort_unless(auth()->check() && auth()->user()->roleIs('Admin'), 403);
+        abort_unless(auth()->user()?->isSystemAdmin(), 403);
 
         $customer->delete();
 

@@ -13,17 +13,160 @@ use App\Models\Tdr;
 use App\Models\Vendor;
 use App\Models\Manual;
 use App\Models\WoBushingBatch;
+use App\Models\WoBushingLine;
 use App\Models\WoBushingProcess;
 use App\Services\WoBushingRelationalSync;
 use App\Support\WoBushingProcessColumnKey;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class WoBushingController extends Controller
 {
     public function __construct(
         private WoBushingRelationalSync $woBushingSync
     ) {
+    }
+
+    private function bushingSnapshot(?WoBushing $woBushing): array
+    {
+        if (! $woBushing || ! $woBushing->exists) {
+            return [
+                'line_count' => 0,
+                'total_qty' => 0,
+                'process_count' => 0,
+                'rows' => [],
+            ];
+        }
+
+        $woBushing->load([
+            'lines.component:id,ipl_num,part_number',
+            'lines.processes.process.process_name:id,name',
+        ]);
+
+        $rows = [];
+        $totalQty = 0;
+        $processCount = 0;
+
+        foreach ($woBushing->lines as $line) {
+            $processes = $line->processes
+                ->map(function (WoBushingProcess $row): string {
+                    $processName = trim((string) ($row->process?->process_name?->name ?? ''));
+                    $processText = trim((string) ($row->process?->process ?? ''));
+
+                    return trim(($processName !== '' ? $processName . ': ' : '') . ($processText !== '' ? $processText : 'Process #' . $row->process_id));
+                })
+                ->filter()
+                ->values()
+                ->all();
+
+            $totalQty += (int) $line->qty;
+            $processCount += count($processes);
+
+            $rows[] = [
+                'line_id' => (int) $line->id,
+                'component_id' => (int) $line->component_id,
+                'ipl' => (string) ($line->component?->ipl_num ?? ''),
+                'part_number' => (string) ($line->component?->part_number ?? ''),
+                'qty' => (int) $line->qty,
+                'processes' => $processes,
+            ];
+        }
+
+        return [
+            'wo_bushing_id' => (int) $woBushing->id,
+            'line_count' => count($rows),
+            'total_qty' => $totalQty,
+            'process_count' => $processCount,
+            'rows' => $rows,
+        ];
+    }
+
+    private function payloadBushingSummary(array $bushDataArray): array
+    {
+        $rows = [];
+        $totalQty = 0;
+        $processCount = 0;
+
+        foreach ($bushDataArray as $row) {
+            $processes = $row['processes'] ?? [];
+            $rowProcessCount = 0;
+
+            foreach (['machining', 'stress_relief', 'passivation', 'cad', 'anodizing', 'xylan'] as $field) {
+                if (! empty($processes[$field])) {
+                    $rowProcessCount++;
+                }
+            }
+
+            $ndtCount = is_array($processes['ndt'] ?? null)
+                ? count(array_filter($processes['ndt']))
+                : (! empty($processes['ndt'] ?? null) ? 1 : 0);
+            $rowProcessCount += $ndtCount;
+
+            $qty = (int) ($row['qty'] ?? 0);
+            $totalQty += $qty;
+            $processCount += $rowProcessCount;
+
+            $rows[] = [
+                'component_id' => (int) ($row['bushing'] ?? 0),
+                'qty' => $qty,
+                'need_processes' => (bool) ($row['need_processes'] ?? false),
+                'process_count' => $rowProcessCount,
+            ];
+        }
+
+        return [
+            'line_count' => count($rows),
+            'total_qty' => $totalQty,
+            'process_count' => $processCount,
+            'rows' => $rows,
+        ];
+    }
+
+    private function bushingSummaryText(array $snapshot): string
+    {
+        return sprintf(
+            '%d row(s), qty %d, %d process row(s)',
+            (int) ($snapshot['line_count'] ?? 0),
+            (int) ($snapshot['total_qty'] ?? 0),
+            (int) ($snapshot['process_count'] ?? 0)
+        );
+    }
+
+    private function logBushingSaveResult(
+        Workorder $workorder,
+        string $action,
+        string $description,
+        ?array $before,
+        array $after,
+        array $payloadSummary,
+        string $status = 'success',
+        ?string $message = null
+    ): void {
+        $beforeSummary = $before ? $this->bushingSummaryText($before) : null;
+        $afterSummary = $this->bushingSummaryText($after);
+        $actionLabel = ucfirst($action);
+
+        activity('workorder')
+            ->causedBy(auth()->user())
+            ->performedOn($workorder)
+            ->event($status === 'success' ? $action : 'bushing_' . $status)
+            ->withProperties(array_filter([
+                'source' => 'wo_bushings',
+                'action' => $action,
+                'status' => $status,
+                'message' => $message,
+                'payload_summary' => $payloadSummary,
+                'snapshot_before' => $before,
+                'snapshot_after' => $after,
+                'attributes' => [
+                    'bushing_save' => $message ?: ($actionLabel . ': ' . $afterSummary),
+                ],
+                'old' => [
+                    'bushing_save' => $beforeSummary ? 'Before: ' . $beforeSummary : null,
+                ],
+            ], fn ($value) => $value !== null))
+            ->log($description);
     }
 
     private function countTdrSpecProcessPages(Workorder $workorder): int
@@ -139,93 +282,110 @@ class WoBushingController extends Controller
             return false;
         }
 
-        return WoBushingBatch::query()
-            ->where('workorder_id', $woBushing->workorder_id)
-            ->whereHas('woBushingProcesses')
-            ->exists();
+        return WoBushingProcess::query()
+            ->whereHas('line', fn ($query) => $query->where('wo_bushing_id', $woBushing->id))
+            ->with('process.process_name')
+            ->get()
+            ->contains(fn (WoBushingProcess $process): bool => array_key_exists(
+                WoBushingProcessColumnKey::fromProcess($process->process),
+                self::bushingProcessPrintLabels()
+            ));
     }
 
     /**
-     * The bushing SP form is printed from real batches only; loose single bushing
-     * processes stay visible in the tab but do not create a print form.
+     * The bushing SP form is grouped by process route.
+     * Batches are only operational grouping in the tab and must not split print columns.
      *
      * @return list<array<string, mixed>>
      */
     private function buildBushingSpecProcessGroups(Workorder $workorder): array
     {
-        $labelsByProcess = $this->batchLabelsByProcessForWorkorder((int) $workorder->id);
         $labelMap = self::bushingProcessPrintLabels();
         $sortOrder = array_flip(array_keys($labelMap));
+        $partNumbersPerCell = 6;
+        $maxPartNumberCellsPerColumn = 7;
+        $maxPartNumbersPerColumn = $partNumbersPerCell * $maxPartNumberCellsPerColumn;
 
         $groupBuckets = [];
-        $batches = WoBushingBatch::query()
+        $lines = WoBushingLine::query()
             ->where('workorder_id', $workorder->id)
-            ->whereHas('woBushingProcesses')
             ->with([
-                'process.process_name',
-                'woBushingProcesses.line.component',
+                'component',
+                'processes.process.process_name',
             ])
+            ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
 
-        foreach ($batches as $batch) {
-            $key = $this->resolveBatchProcessKey($batch);
-            $processLabel = $labelMap[$key] ?? null;
-            if (! $processLabel) {
+        foreach ($lines as $line) {
+            $component = $line->component;
+            if (! $component) {
                 continue;
             }
 
-            $lineEntries = [];
-            foreach ($batch->woBushingProcesses as $woProcess) {
-                $line = $woProcess->line;
-                $component = $line?->component;
-                if (! $line || ! $component) {
+            $processRows = [];
+            foreach ($line->processes as $woProcess) {
+                $key = WoBushingProcessColumnKey::fromProcess($woProcess->process);
+                if (! array_key_exists($key, $labelMap)) {
                     continue;
                 }
 
-                $lineId = (int) $line->id;
-                $lineEntries[$lineId] = [
-                    'line_id' => $lineId,
-                    'component_id' => (int) $component->id,
-                    'component' => $component,
-                    'qty' => max(1, (int) ($woProcess->qty ?: ($line->qty ?? 1))),
-                    'sort_order' => (int) ($line->sort_order ?? 0),
+                $processRows[] = [
+                    'key' => $key,
+                    'process_id' => (int) $woProcess->process_id,
+                    'order' => $sortOrder[$key] ?? 999,
                 ];
             }
 
-            if ($lineEntries === []) {
+            if ($processRows === []) {
                 continue;
             }
 
-            ksort($lineEntries, SORT_NUMERIC);
-            $signature = implode('|', array_map(
-                fn (array $entry): string => $entry['line_id'] . ':' . $entry['component_id'] . ':' . $entry['qty'],
-                $lineEntries
-            ));
+            usort($processRows, function (array $left, array $right): int {
+                return ((int) $left['order'] <=> (int) $right['order'])
+                    ?: ((int) $left['process_id'] <=> (int) $right['process_id']);
+            });
+
+            $processSignature = implode('|', array_values(array_unique(array_map(
+                fn (array $row): string => $row['key'] . ':' . $row['process_id'],
+                $processRows
+            ))));
+            $partNumber = trim((string) $component->part_number);
+            $signature = $processSignature;
 
             if (! isset($groupBuckets[$signature])) {
                 $groupBuckets[$signature] = [
-                    'batch_ids' => [],
-                    'batch_labels' => [],
                     'process_keys' => [],
                     'components_by_line' => [],
-                    'min_batch_id' => (int) $batch->id,
-                    'min_process_order' => $sortOrder[$key] ?? 999,
-                    'min_line_order' => min(array_column($lineEntries, 'sort_order')),
+                    'part_numbers' => [],
+                    'min_process_order' => 999,
+                    'min_line_order' => (int) ($line->sort_order ?? 0),
+                    'min_line_id' => (int) $line->id,
                 ];
             }
 
             $bucket = &$groupBuckets[$signature];
-            $bucket['batch_ids'][] = (int) $batch->id;
-            $bucket['batch_labels'][] = $labelsByProcess[$key][(int) $batch->id] ?? 'B?';
-            $bucket['process_keys'][$key] = true;
-            $bucket['min_batch_id'] = min((int) $bucket['min_batch_id'], (int) $batch->id);
-            $bucket['min_process_order'] = min((int) $bucket['min_process_order'], $sortOrder[$key] ?? 999);
-            $bucket['min_line_order'] = min((int) $bucket['min_line_order'], min(array_column($lineEntries, 'sort_order')));
-
-            foreach ($lineEntries as $lineId => $entry) {
-                $bucket['components_by_line'][$lineId] ??= $entry;
+            foreach ($processRows as $row) {
+                $bucket['process_keys'][$row['key']] = true;
+                $bucket['min_process_order'] = min((int) $bucket['min_process_order'], (int) $row['order']);
             }
+            $bucket['min_line_order'] = min((int) $bucket['min_line_order'], (int) ($line->sort_order ?? 0));
+            $bucket['min_line_id'] = min((int) $bucket['min_line_id'], (int) $line->id);
+            $normalizedPartNumber = mb_strtoupper($partNumber);
+            if ($normalizedPartNumber !== '' && ! isset($bucket['part_numbers'][$normalizedPartNumber])) {
+                $bucket['part_numbers'][$normalizedPartNumber] = [
+                    'part_number' => $partNumber,
+                    'sort_order' => (int) ($line->sort_order ?? 0),
+                    'line_id' => (int) $line->id,
+                ];
+            }
+            $bucket['components_by_line'][(int) $line->id] = [
+                'line_id' => (int) $line->id,
+                'component_id' => (int) $component->id,
+                'component' => $component,
+                'qty' => max(1, (int) ($line->qty ?? 1)),
+                'sort_order' => (int) ($line->sort_order ?? 0),
+            ];
             unset($bucket);
         }
 
@@ -248,17 +408,48 @@ class WoBushingController extends Controller
                     ?: ((int) $left['line_id'] <=> (int) $right['line_id']);
             });
 
-            $groups[] = [
-                'batch_id' => (int) $bucket['min_batch_id'],
-                'batch_label' => implode(', ', array_values(array_unique($bucket['batch_labels']))),
-                'process_key' => $processKeys[0] ?? '',
-                'process_order' => (int) $bucket['min_process_order'],
-                'line_order' => (int) $bucket['min_line_order'],
-                'processes' => $processes,
-                'components' => $components,
-                'total_qty' => array_sum(array_map(fn (array $entry): int => (int) $entry['qty'], $components)),
-                'process_numbers' => $processNumbers,
-            ];
+            $partNumbers = array_values($bucket['part_numbers']);
+            usort($partNumbers, function (array $left, array $right): int {
+                return ((int) $left['sort_order'] <=> (int) $right['sort_order'])
+                    ?: ((int) $left['line_id'] <=> (int) $right['line_id'])
+                    ?: strnatcasecmp((string) $left['part_number'], (string) $right['part_number']);
+            });
+
+            $partNumberColumns = array_chunk($partNumbers, $maxPartNumbersPerColumn);
+            if ($partNumberColumns === []) {
+                $partNumberColumns = [[]];
+            }
+
+            foreach ($partNumberColumns as $columnIndex => $partNumberColumn) {
+                $columnPartNumbers = array_column($partNumberColumn, 'part_number');
+                $allowedPartNumbers = array_flip(array_map(
+                    fn (string $partNumber): string => mb_strtoupper(trim($partNumber)),
+                    $columnPartNumbers
+                ));
+                $columnComponents = $columnPartNumbers === []
+                    ? $components
+                    : array_values(array_filter(
+                        $components,
+                        fn (array $entry): bool => isset($allowedPartNumbers[mb_strtoupper(trim((string) ($entry['component']->part_number ?? '')))])
+                    ));
+
+                $groups[] = [
+                    'batch_id' => 0,
+                    'batch_label' => '',
+                    'process_key' => $processKeys[0] ?? '',
+                    'process_order' => (int) $bucket['min_process_order'],
+                    'line_order' => (int) $bucket['min_line_order'],
+                    'line_id' => (int) $bucket['min_line_id'],
+                    'part_number' => (string) ($columnPartNumbers[0] ?? ''),
+                    'part_numbers' => $columnPartNumbers,
+                    'part_number_cells' => array_chunk($columnPartNumbers, $partNumbersPerCell),
+                    'processes' => $processes,
+                    'components' => $columnComponents,
+                    'total_qty' => array_sum(array_map(fn (array $entry): int => (int) $entry['qty'], $columnComponents)),
+                    'process_numbers' => $processNumbers,
+                    'split_index' => $columnIndex,
+                ];
+            }
         }
 
         usort($groups, function (array $left, array $right) use ($sortOrder): int {
@@ -269,7 +460,9 @@ class WoBushingController extends Controller
 
             return ($leftOrder <=> $rightOrder)
                 ?: ($leftProcessOrder <=> $rightProcessOrder)
-                ?: ((int) ($left['batch_id'] ?? 0) <=> (int) ($right['batch_id'] ?? 0));
+                ?: strnatcasecmp((string) ($left['part_number'] ?? ''), (string) ($right['part_number'] ?? ''))
+                ?: ((int) ($left['split_index'] ?? 0) <=> (int) ($right['split_index'] ?? 0))
+                ?: ((int) ($left['line_id'] ?? 0) <=> (int) ($right['line_id'] ?? 0));
         });
 
         return array_values($groups);
@@ -484,12 +677,25 @@ class WoBushingController extends Controller
 
         $workorderId = $request->workorder_id;
         $groupBushingsData = $request->group_bushings ?? [];
+        $workorder = Workorder::findOrFail($workorderId);
 
         // Check if WoBushing already exists for this workorder
         $existingWoBushing = WoBushing::where('workorder_id', $workorderId)->first();
         $isAjax = $request->ajax();
 
         if ($existingWoBushing) {
+            $snapshot = $this->bushingSnapshot($existingWoBushing);
+            $this->logBushingSaveResult(
+                $workorder,
+                'create',
+                'Bushing data create rejected',
+                $snapshot,
+                $snapshot,
+                [],
+                'rejected',
+                'Create rejected: bushing data already exists for this Work Order.'
+            );
+
             if ($isAjax) {
                 return response()->json(['success' => false, 'message' => __('Bushings data already exists for this Work Order. Please use Edit to modify.')]);
             }
@@ -498,8 +704,20 @@ class WoBushingController extends Controller
         }
 
         $bushDataArray = $this->woBushingSync->buildBushDataArrayFromGroups($groupBushingsData);
+        $payloadSummary = $this->payloadBushingSummary($bushDataArray);
 
         if (empty($bushDataArray)) {
+            $this->logBushingSaveResult(
+                $workorder,
+                'create',
+                'Bushing data create rejected',
+                null,
+                $this->bushingSnapshot(null),
+                $payloadSummary,
+                'rejected',
+                'Create rejected: no selected bushing components were received.'
+            );
+
             if ($isAjax ?? $request->ajax()) {
                 return response()->json(['success' => false, 'message' => __('Please select at least one component before submitting.')]);
             }
@@ -508,13 +726,51 @@ class WoBushingController extends Controller
                 ->withInput();
         }
 
-        $woBushing = WoBushing::create([
-            'workorder_id' => $workorderId,
-        ]);
-        $this->woBushingSync->syncFromGroupBushings($woBushing, $groupBushingsData);
+        try {
+            $woBushing = DB::transaction(function () use ($workorderId, $groupBushingsData) {
+                $woBushing = WoBushing::create([
+                    'workorder_id' => $workorderId,
+                ]);
+
+                $this->woBushingSync->syncFromGroupBushings($woBushing, $groupBushingsData);
+
+                return $woBushing;
+            });
+            $woBushing->refresh();
+            $after = $this->bushingSnapshot($woBushing);
+            $this->logBushingSaveResult(
+                $workorder,
+                'created',
+                'Bushing data created',
+                null,
+                $after,
+                $payloadSummary
+            );
+        } catch (Throwable $e) {
+            $this->logBushingSaveResult(
+                $workorder,
+                'create',
+                'Bushing data create failed',
+                null,
+                $this->bushingSnapshot(null),
+                $payloadSummary,
+                'failed',
+                'Create failed: ' . $e->getMessage()
+            );
+
+            throw $e;
+        }
 
         if ($isAjax ?? $request->ajax()) {
-            return response()->json(['success' => true]);
+            return response()->json([
+                'success' => true,
+                'message' => __('Bushing data saved (:rows rows, :processes process rows).', [
+                    'rows' => $after['line_count'] ?? 0,
+                    'processes' => $after['process_count'] ?? 0,
+                ]),
+                'line_count' => $after['line_count'] ?? 0,
+                'process_count' => $after['process_count'] ?? 0,
+            ]);
         }
         return redirect()->route('wo_bushings.show', $workorderId)
             ->with('success', 'Bushings data created successfully!');
@@ -810,9 +1066,22 @@ class WoBushingController extends Controller
         ]);
 
         $woBushing = WoBushing::findOrFail($id);
+        $workorder = $woBushing->workorder ?: Workorder::findOrFail($woBushing->workorder_id);
         $groupBushingsData = $request->group_bushings ?? [];
+        $before = $this->bushingSnapshot($woBushing);
 
         if (empty($groupBushingsData)) {
+            $this->logBushingSaveResult(
+                $workorder,
+                'update',
+                'Bushing data update rejected',
+                $before,
+                $before,
+                [],
+                'rejected',
+                'Update rejected: no bushing groups were received.'
+            );
+
             if ($request->ajax()) {
                 return response()->json(['success' => false, 'message' => __('Please select at least one group before submitting.')]);
             }
@@ -822,8 +1091,20 @@ class WoBushingController extends Controller
         }
 
         $bushDataArray = $this->woBushingSync->buildBushDataArrayFromGroups($groupBushingsData);
+        $payloadSummary = $this->payloadBushingSummary($bushDataArray);
 
         if (empty($bushDataArray)) {
+            $this->logBushingSaveResult(
+                $workorder,
+                'update',
+                'Bushing data update rejected',
+                $before,
+                $before,
+                $payloadSummary,
+                'rejected',
+                'Update rejected: no selected bushing components were received.'
+            );
+
             if ($request->ajax()) {
                 return response()->json(['success' => false, 'message' => __('Please select at least one component in the selected groups.')]);
             }
@@ -832,10 +1113,43 @@ class WoBushingController extends Controller
                 ->withInput();
         }
 
-        $this->woBushingSync->syncFromGroupBushings($woBushing, $groupBushingsData);
+        try {
+            $this->woBushingSync->syncFromGroupBushings($woBushing, $groupBushingsData);
+            $woBushing->refresh();
+            $after = $this->bushingSnapshot($woBushing);
+            $this->logBushingSaveResult(
+                $workorder,
+                'updated',
+                'Bushing data updated',
+                $before,
+                $after,
+                $payloadSummary
+            );
+        } catch (Throwable $e) {
+            $this->logBushingSaveResult(
+                $workorder,
+                'update',
+                'Bushing data update failed',
+                $before,
+                $before,
+                $payloadSummary,
+                'failed',
+                'Update failed: ' . $e->getMessage()
+            );
+
+            throw $e;
+        }
 
         if ($request->ajax()) {
-            return response()->json(['success' => true]);
+            return response()->json([
+                'success' => true,
+                'message' => __('Bushing data saved (:rows rows, :processes process rows).', [
+                    'rows' => $after['line_count'] ?? 0,
+                    'processes' => $after['process_count'] ?? 0,
+                ]),
+                'line_count' => $after['line_count'] ?? 0,
+                'process_count' => $after['process_count'] ?? 0,
+            ]);
         }
         return redirect()->route('wo_bushings.show', $woBushing->workorder_id)
             ->with('success', 'Bushings data updated successfully!');
@@ -1329,57 +1643,89 @@ class WoBushingController extends Controller
         ]);
 
         $ids = collect($data['wo_bushing_process_ids'])->map(fn ($v) => (int) $v)->unique()->values();
+        $workorder = $woBushing->workorder ?: Workorder::findOrFail($woBushing->workorder_id);
+        $before = $this->bushingSnapshot($woBushing);
+        $payloadSummary = [
+            'selected_process_ids' => $ids->all(),
+            'selected_count' => $ids->count(),
+        ];
 
-        DB::transaction(function () use ($ids, $woBushing) {
-            $rows = WoBushingProcess::query()
-                ->whereIn('id', $ids)
-                ->whereHas('line', fn ($q) => $q->where('wo_bushing_id', $woBushing->id))
-                ->with('process')
-                ->lockForUpdate()
-                ->get();
+        try {
+            DB::transaction(function () use ($ids, $woBushing) {
+                $rows = WoBushingProcess::query()
+                    ->whereIn('id', $ids)
+                    ->whereHas('line', fn ($q) => $q->where('wo_bushing_id', $woBushing->id))
+                    ->with('process')
+                    ->lockForUpdate()
+                    ->get();
 
-            if ($rows->count() !== $ids->count()) {
-                abort(422, 'Some selected rows are invalid.');
-            }
-
-            $columnKeys = $rows->map(fn (WoBushingProcess $wp) => WoBushingProcessColumnKey::fromProcess($wp->process));
-            if ($columnKeys->unique()->count() !== 1) {
-                abort(422, 'Batch must contain only one process column (header).');
-            }
-            $processColumnKey = $columnKeys->first();
-            if ($processColumnKey === 'other') {
-                abort(422, 'Invalid process for selected rows.');
-            }
-
-            $unavailable = $rows->filter(function (WoBushingProcess $wp) {
-                if (empty($wp->batch_id)) {
-                    return false;
+                if ($rows->count() !== $ids->count()) {
+                    abort(422, 'Some selected rows are invalid.');
                 }
-                $batch = $wp->batch()->first();
-                return ! empty($batch?->date_start);
+
+                $columnKeys = $rows->map(fn (WoBushingProcess $wp) => WoBushingProcessColumnKey::fromProcess($wp->process));
+                if ($columnKeys->unique()->count() !== 1) {
+                    abort(422, 'Batch must contain only one process column (header).');
+                }
+                $processColumnKey = $columnKeys->first();
+                if ($processColumnKey === 'other') {
+                    abort(422, 'Invalid process for selected rows.');
+                }
+
+                $unavailable = $rows->filter(function (WoBushingProcess $wp) {
+                    if (empty($wp->batch_id)) {
+                        return false;
+                    }
+                    $batch = $wp->batch()->first();
+                    return ! empty($batch?->date_start);
+                });
+                if ($unavailable->isNotEmpty()) {
+                    abort(422, 'Some selected rows are already sent and locked.');
+                }
+
+                $canonicalProcessId = (int) $rows->first()->process_id;
+
+                $batch = WoBushingBatch::create([
+                    'workorder_id' => $woBushing->workorder_id,
+                    'process_id' => $canonicalProcessId,
+                    'process_column_key' => $processColumnKey,
+                ]);
+
+                WoBushingProcess::query()
+                    ->whereIn('id', $rows->pluck('id'))
+                    ->update(['batch_id' => $batch->id]);
+
+                WoBushingBatch::query()
+                    ->where('workorder_id', $woBushing->workorder_id)
+                    ->whereNull('date_start')
+                    ->whereDoesntHave('woBushingProcesses')
+                    ->delete();
             });
-            if ($unavailable->isNotEmpty()) {
-                abort(422, 'Some selected rows are already sent and locked.');
-            }
 
-            $canonicalProcessId = (int) $rows->first()->process_id;
+            $woBushing->refresh();
+            $after = $this->bushingSnapshot($woBushing);
+            $this->logBushingSaveResult(
+                $workorder,
+                'batch_created',
+                'Bushing batch created',
+                $before,
+                $after,
+                $payloadSummary
+            );
+        } catch (Throwable $e) {
+            $this->logBushingSaveResult(
+                $workorder,
+                'batch_create',
+                'Bushing batch create failed',
+                $before,
+                $before,
+                $payloadSummary,
+                'failed',
+                'Batch create failed: ' . $e->getMessage()
+            );
 
-            $batch = WoBushingBatch::create([
-                'workorder_id' => $woBushing->workorder_id,
-                'process_id' => $canonicalProcessId,
-                'process_column_key' => $processColumnKey,
-            ]);
-
-            WoBushingProcess::query()
-                ->whereIn('id', $rows->pluck('id'))
-                ->update(['batch_id' => $batch->id]);
-
-            WoBushingBatch::query()
-                ->where('workorder_id', $woBushing->workorder_id)
-                ->whereNull('date_start')
-                ->whereDoesntHave('woBushingProcesses')
-                ->delete();
-        });
+            throw $e;
+        }
 
         return response()->json(['success' => true]);
     }
@@ -1392,45 +1738,77 @@ class WoBushingController extends Controller
         ]);
 
         $ids = collect($data['wo_bushing_process_ids'])->map(fn ($v) => (int) $v)->unique()->values();
+        $workorder = $woBushing->workorder ?: Workorder::findOrFail($woBushing->workorder_id);
+        $before = $this->bushingSnapshot($woBushing);
+        $payloadSummary = [
+            'selected_process_ids' => $ids->all(),
+            'selected_count' => $ids->count(),
+        ];
 
-        DB::transaction(function () use ($ids, $woBushing) {
-            $rows = WoBushingProcess::query()
-                ->whereIn('id', $ids)
-                ->whereHas('line', fn ($q) => $q->where('wo_bushing_id', $woBushing->id))
-                ->with('batch')
-                ->lockForUpdate()
-                ->get();
+        try {
+            DB::transaction(function () use ($ids, $woBushing) {
+                $rows = WoBushingProcess::query()
+                    ->whereIn('id', $ids)
+                    ->whereHas('line', fn ($q) => $q->where('wo_bushing_id', $woBushing->id))
+                    ->with('batch')
+                    ->lockForUpdate()
+                    ->get();
 
-            if ($rows->count() !== $ids->count()) {
-                abort(422, 'Some selected rows are invalid.');
-            }
-
-            $batchIds = $rows->pluck('batch_id')->filter()->unique()->values();
-
-            foreach ($rows as $wp) {
-                if (! $wp->batch_id) {
-                    continue;
+                if ($rows->count() !== $ids->count()) {
+                    abort(422, 'Some selected rows are invalid.');
                 }
-                if (! empty($wp->batch?->date_start)) {
-                    abort(422, 'Cannot ungroup sent rows.');
-                }
-                $wp->batch_id = null;
-                $wp->save();
-            }
 
-            if ($batchIds->isNotEmpty()) {
-                $stillUsed = WoBushingProcess::query()
-                    ->whereIn('batch_id', $batchIds)
-                    ->pluck('batch_id')
-                    ->filter()
-                    ->unique()
-                    ->values();
-                $toDelete = $batchIds->diff($stillUsed);
-                if ($toDelete->isNotEmpty()) {
-                    WoBushingBatch::query()->whereIn('id', $toDelete)->delete();
+                $batchIds = $rows->pluck('batch_id')->filter()->unique()->values();
+
+                foreach ($rows as $wp) {
+                    if (! $wp->batch_id) {
+                        continue;
+                    }
+                    if (! empty($wp->batch?->date_start)) {
+                        abort(422, 'Cannot ungroup sent rows.');
+                    }
+                    $wp->batch_id = null;
+                    $wp->save();
                 }
-            }
-        });
+
+                if ($batchIds->isNotEmpty()) {
+                    $stillUsed = WoBushingProcess::query()
+                        ->whereIn('batch_id', $batchIds)
+                        ->pluck('batch_id')
+                        ->filter()
+                        ->unique()
+                        ->values();
+                    $toDelete = $batchIds->diff($stillUsed);
+                    if ($toDelete->isNotEmpty()) {
+                        WoBushingBatch::query()->whereIn('id', $toDelete)->delete();
+                    }
+                }
+            });
+
+            $woBushing->refresh();
+            $after = $this->bushingSnapshot($woBushing);
+            $this->logBushingSaveResult(
+                $workorder,
+                'batch_ungrouped',
+                'Bushing batch ungrouped',
+                $before,
+                $after,
+                $payloadSummary
+            );
+        } catch (Throwable $e) {
+            $this->logBushingSaveResult(
+                $workorder,
+                'batch_ungroup',
+                'Bushing batch ungroup failed',
+                $before,
+                $before,
+                $payloadSummary,
+                'failed',
+                'Batch ungroup failed: ' . $e->getMessage()
+            );
+
+            throw $e;
+        }
 
         return response()->json(['success' => true]);
     }

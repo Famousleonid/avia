@@ -82,6 +82,24 @@ class WorkordersWriteTest extends TestCase
             ->assertSee('Deleted unit');
     }
 
+    public function test_admin_can_open_workorder_edit_when_customer_is_soft_deleted(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $customer = $this->createCustomer([
+            'name' => 'Deleted Customer Name',
+        ]);
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'customer_id' => $customer->id,
+        ]);
+        $customer->delete();
+
+        $this->actingAs($admin)
+            ->get(route('workorders.edit', $workorder))
+            ->assertOk()
+            ->assertSee('Deleted Customer Name');
+    }
+
     public function test_mobile_draft_open_date_placeholder_uses_neutral_mask(): void
     {
         $shipper = $this->createUserWithRole('Shipping');

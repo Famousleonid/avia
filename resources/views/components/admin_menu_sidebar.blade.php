@@ -103,13 +103,13 @@
         </a>
     </li>
 
-    @hasanyrole('Admin|Manager')
+    @can('feature.marketing')
         <li class="nav-item">
             <a class="nav-link press-spinner {{ request()->routeIs('marketing.*') ? 'active' : '' }}" href="{{ route('marketing.index') }}">
                 <i class="bi bi-megaphone me-2"></i> <span>Marketing</span>
             </a>
         </li>
-    @endhasanyrole
+    @endcan
 
 
 
@@ -172,6 +172,10 @@
 
             <li class="nav-item press-spinner">
                 <a href="{{ route('library.units.index') }}" class="nav-link {{ request()->routeIs('library.units.*') ? 'active' : '' }}"><i class="bi bi-dot"></i><span>Units</span></a>
+            </li>
+
+            <li class="nav-item press-spinner">
+                <a href="{{ route('library.countries.index') }}" class="nav-link {{ request()->routeIs('library.countries.*') ? 'active' : '' }}"><i class="bi bi-dot"></i><span>Countries</span></a>
             </li>
 
             <li class="nav-item press-spinner">
@@ -282,13 +286,13 @@
         @endif
 
 
-    @hasanyrole('Admin|Manager')
+    @can('feature.vendor_tracking')
         <li class="nav-item press-spinner">
             <a href="{{ route('vendor-tracking.index') }}" class="nav-link">
                 <i class="bi bi-truck me-2"></i> <span>Vendor tracking</span>
             </a>
         </li>
-    @endhasanyrole
+    @endcan
 
     @admin
         <li class="nav-item press-spinner">
@@ -304,7 +308,7 @@
 
         @systemadmin
             @php
-                $systemMenuOpen = request()->routeIs('admin.activity.*', 'mobile.*', 'admin.project-settings.*', 'admin.std-process-audit.*');
+                $systemMenuOpen = request()->routeIs('admin.activity.*', 'mobile.*', 'admin.access.*', 'admin.project-settings.*', 'admin.std-process-audit.*');
             @endphp
             <li class="nav-item">
                 <button class="nav-link w-100 d-flex align-items-center flex-nowrap text-start"
@@ -329,6 +333,12 @@
                     <li class="nav-item press-spinner">
                         <a href="{{ route('mobile.index') }}" class="nav-link {{ request()->routeIs('mobile.*') ? 'active' : '' }}">
                             <i class="bi bi-phone me-2"></i> <span>Mobile</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item press-spinner">
+                        <a href="{{ route('admin.access.index') }}" class="nav-link {{ request()->routeIs('admin.access.*') ? 'active' : '' }}">
+                            <i class="bi bi-person-lock me-2"></i> <span>Access</span>
                         </a>
                     </li>
 

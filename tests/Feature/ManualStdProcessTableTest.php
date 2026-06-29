@@ -105,6 +105,21 @@ class ManualStdProcessTableTest extends TestCase
         );
     }
 
+    public function test_manual_std_process_picklist_includes_labeled_ndt_manual_processes(): void
+    {
+        $manual = $this->createManual();
+        $this->attachManualProcess($manual->id, 'NDT-6 (Eddy Current)', 'NDT', 'MIL-HDBK-728/2');
+
+        $this->assertSame(
+            ['6'],
+            StdProcess::processPicklistValuesForManual($manual->id, StdProcess::STD_NDT)
+        );
+        $this->assertSame(
+            [['value' => '6', 'label' => 'NDT-6 (Eddy Current) MIL-HDBK-728/2']],
+            StdProcess::processPicklistOptionsForManual($manual->id, StdProcess::STD_NDT)
+        );
+    }
+
     public function test_manual_std_ndt_add_accepts_multiple_processes_as_numbers(): void
     {
         $admin = $this->createUserWithRole('Admin');

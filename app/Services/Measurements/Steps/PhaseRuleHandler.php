@@ -4,6 +4,7 @@ namespace App\Services\Measurements\Steps;
 
 use App\Models\MasterRule;
 use App\Models\MasterRulePhaseRule;
+use App\Models\ProcessName;
 use App\Services\Measurements\PipelineContext;
 
 /**
@@ -35,8 +36,14 @@ abstract class PhaseRuleHandler implements StepHandler
                 if (!$process) {
                     continue;
                 }
+
+                $nameId = (int) ($process->process_names_id ?? 0);
+                if ($nameId <= 0 || ! ProcessName::query()->whereKey($nameId)->exists()) {
+                    continue;
+                }
+
                 $entries[] = [
-                    'process_names_id' => (int) $process->process_names_id,
+                    'process_names_id' => $nameId,
                     'process_id'       => (int) $process->id,
                     'rule_process_id'  => (int) $rp->id, // MasterRulePhaseRuleProcess id
                     'description'      => $rp->description,

@@ -61,6 +61,7 @@ class WoBushingRelationalSync
             return $rows;
         }
 
+        // TODO(legacy bushing create): remove this old grouped payload branch after itemized create/edit has settled.
         if (! isset($groupData['components']) || ! is_array($groupData['components'])) {
             return [];
         }

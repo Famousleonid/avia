@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var editBushingUrl = '{{ route("wo_bushings.edit", ["wo_bushing" => "__ID__"]) }}';
     var getProcessesBaseUrl = '{{ url("/get-processes") }}';
 
-    window.handleEditBushingSaved = function() {
+    window.handleEditBushingSaved = function(message) {
         if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
         var modal = document.getElementById('editBushingModal');
         var m = modal ? bootstrap.Modal.getInstance(modal) : null;
@@ -219,6 +219,9 @@ document.addEventListener('DOMContentLoaded', function() {
         var actionsEl = document.getElementById('editBushingModalActions');
         if (actionsEl) actionsEl.style.setProperty('display', 'none', 'important');
         if (bushingTabBody) loadBushingPartial();
+        if (typeof window.tdrShowNotify === 'function') {
+            window.tdrShowNotify(message || '{{ __("Bushing data saved.") }}', 'success');
+        }
     };
 
     window.handleEditBushingCancel = function() {
@@ -2037,6 +2040,94 @@ document.addEventListener('DOMContentLoaded', function() {
             function hideGlobalSpinner() {
                 if (typeof window.hideLoadingSpinner === 'function') window.hideLoadingSpinner();
             }
+
+            if (form.dataset.itemized === '1') {
+                var selectedRows = Array.prototype.slice.call(form.querySelectorAll('.bushing-row'))
+                    .filter(function(row) {
+                        return Array.prototype.slice.call(row.querySelectorAll('.component-checkbox')).some(function(checkbox) {
+                            return checkbox.checked;
+                        });
+                    });
+
+                if (selectedRows.length === 0) {
+                    window.tdrShowNotify('{{ __("Please select at least one component before submitting.") }}', 'warning');
+                    hideGlobalSpinner();
+                    return;
+                }
+
+                var itemizedHasErr = false;
+                selectedRows.forEach(function(row) {
+                    row.querySelectorAll('.component-checkbox').forEach(function(checkbox) {
+                        if (!checkbox.checked) return;
+
+                        var componentPrefix = checkbox.name.replace('[selected]', '');
+                        var qty = row.querySelector('input[name="' + componentPrefix + '[qty]"]');
+                        var need = row.querySelector('input[name="' + componentPrefix + '[need_processes]"][type="checkbox"]');
+                        var ndt = row.querySelector('select[name="' + componentPrefix + '[ndt]"]');
+
+                        if (!qty || !qty.value || parseInt(qty.value, 10) < 1) {
+                            if (qty) qty.style.borderColor = 'red';
+                            itemizedHasErr = true;
+                        } else {
+                            qty.style.borderColor = '';
+                        }
+
+                        if (need && need.checked && ndt && ndt.options.length > 1 && !ndt.value) {
+                            ndt.style.borderColor = 'red';
+                            itemizedHasErr = true;
+                        } else if (ndt) {
+                            ndt.style.borderColor = '';
+                        }
+                    });
+                });
+
+                if (itemizedHasErr) {
+                    window.tdrShowNotify('{{ __("Please enter Qty and NDT for selected bushings with processes.") }}', 'warning');
+                    hideGlobalSpinner();
+                    return;
+                }
+
+                var itemizedSubmitBtn = document.querySelector('button[form="bushings-form"]');
+                if (itemizedSubmitBtn) { itemizedSubmitBtn.disabled = true; }
+                var itemizedFd = new FormData(form);
+                var itemizedController = new AbortController();
+                var itemizedTimeoutId = setTimeout(function() { itemizedController.abort(); }, 30000);
+                fetch(form.action, {
+                    method: 'POST',
+                    body: itemizedFd,
+                    signal: itemizedController.signal,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                })
+                .then(function(r) {
+                    return r.text().then(function(text) {
+                        try { return { json: JSON.parse(text), status: r.status }; } catch (e) { return { json: null, status: r.status }; }
+                    });
+                })
+                .then(function(result) {
+                    if (result.json) {
+                        if (result.json.success) {
+                            if (typeof loadBushingPartial === 'function') loadBushingPartial();
+                            window.tdrShowNotify(result.json.message || '{{ __("Bushing data saved.") }}', 'success');
+                        } else {
+                            window.tdrShowNotify(result.json.message || (result.json.errors ? JSON.stringify(result.json.errors) : '') || '{{ __("Error creating bushings data.") }}', 'error');
+                        }
+                    } else {
+                        window.tdrShowNotify('{{ __("Failed to submit.") }} (HTTP ' + result.status + ')', 'error');
+                    }
+                })
+                .catch(function(err) {
+                    window.tdrShowNotify(err.name === 'AbortError' ? '{{ __("Request timed out. Please try again.") }}' : ('{{ __("Failed to submit.") }}' + (err.message ? ': ' + err.message : '')), 'error');
+                })
+                .finally(function() {
+                    clearTimeout(itemizedTimeoutId);
+                    hideGlobalSpinner();
+                    if (itemizedSubmitBtn) { itemizedSubmitBtn.disabled = false; }
+                });
+                return;
+            }
+
+            // TODO(legacy bushing create): remove this old grouped submit fallback after itemized create/edit has settled.
             var selected = form.querySelectorAll('.component-checkbox:checked');
             if (selected.length === 0) {
                 window.tdrShowNotify('{{ __("Please select at least one component before submitting.") }}', 'warning');
@@ -2077,6 +2168,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.json) {
                     if (result.json.success) {
                         if (typeof loadBushingPartial === 'function') loadBushingPartial();
+                        window.tdrShowNotify(result.json.message || '{{ __("Bushing data saved.") }}', 'success');
                     } else {
                         window.tdrShowNotify(result.json.message || (result.json.errors ? JSON.stringify(result.json.errors) : '') || '{{ __("Error creating bushings data.") }}', 'error');
                     }

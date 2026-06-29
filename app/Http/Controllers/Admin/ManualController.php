@@ -226,7 +226,7 @@ class ManualController extends Controller
             $ipl = $part->ipl_num ?? '';
 
             // Ожидаемый формат: "1-10", "1-20A" и т.п.
-            if (!preg_match('/^(\d+)([A-Za-z\s]*)-(\d+)([A-Za-z\s0-9]*)$/', trim($ipl), $m)) {
+            if (!preg_match('/^(\d+)([A-Za-z]*)-(\d+)\s*([A-Za-z][A-Za-z0-9]*)?$/', trim($ipl), $m)) {
                 // Неизвестный формат отправляем в конец
                 return PHP_INT_MAX;
             }
@@ -380,6 +380,9 @@ class ManualController extends Controller
             ->get();
 
         $dimManualProcesses = \App\Models\ManualProcess::where('manual_id', $cmm->id)
+            ->whereDoesntHave('process.process_name', function ($query) {
+                $query->where('name', ProcessName::SYSTEM_TRAVELER_NAME);
+            })
             ->with('process.process_name')
             ->get()
             ->map(fn($mp) => [
@@ -671,7 +674,7 @@ class ManualController extends Controller
     {
         $value = trim((string) $ipl);
 
-        if (! preg_match('/^(\d+)([A-Za-z]*)-(\d+)([A-Za-z0-9]*)$/', $value, $matches)) {
+        if (! preg_match('/^(\d+)([A-Za-z]*)-(\d+)\s*([A-Za-z][A-Za-z0-9]*)?$/', $value, $matches)) {
             return [1, 0, 0, strtoupper($value)];
         }
 

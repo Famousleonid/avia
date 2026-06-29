@@ -7,6 +7,7 @@ use App\Exports\VendorTrackingExport;
 use App\Models\Customer;
 use App\Models\Process;
 use App\Models\QuantumRoLine;
+use App\Models\QuantumRoSyncRun;
 use App\Models\TdrProcess;
 use App\Models\Vendor;
 use App\Models\UserUiSetting;
@@ -52,12 +53,14 @@ class VendorTrackingController extends Controller
     ];
 
     private const QUANTUM_RECENT_PAGE_SIZE = 200;
+    private const QUANTUM_SYNC_STALE_AFTER_MINUTES = 15;
+    private const QUANTUM_SYNC_WARNING_AFTER_MINUTES = 10;
     private const QUANTUM_STATUS_ECO_FEE = 'ECO FEE';
     private const QUANTUM_STATUS_DISMISSED = 'dismissed';
 
     public function index(Request $request)
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorTracking();
 
         $filters = $this->filtersFromRequest($request);
         $totalRowsCount = $this->totalRowsCount();
@@ -75,6 +78,7 @@ class VendorTrackingController extends Controller
         $quantumUnparsedRows = $this->quantumUnparsedRows();
         $quantumUnparsedTotal = $this->quantumUnparsedTotal();
         $quantumStatusCounts = $this->quantumStatusCounts();
+        $quantumSyncHealth = $this->quantumSyncHealth();
 
         $summary = [
             'filtered_total' => $rows->total(),
@@ -92,13 +96,14 @@ class VendorTrackingController extends Controller
             'quantumRecentTotal',
             'quantumUnparsedRows',
             'quantumUnparsedTotal',
-            'quantumStatusCounts'
+            'quantumStatusCounts',
+            'quantumSyncHealth'
         ));
     }
 
     public function export(Request $request): BinaryFileResponse
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorTracking();
 
         $filters = $this->filtersFromRequest($request);
         $rows = $this->collectRows($filters);
@@ -111,7 +116,7 @@ class VendorTrackingController extends Controller
 
     public function updateRow(Request $request): JsonResponse
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorTracking();
 
         $data = $request->validate([
             'source_key' => ['required', 'string'],
@@ -172,7 +177,7 @@ class VendorTrackingController extends Controller
 
     public function recentQuantumRoLines(Request $request): JsonResponse
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorTracking();
 
         if (! $this->quantumRoLinesTableReady()) {
             return response()->json([
@@ -204,10 +209,12 @@ class VendorTrackingController extends Controller
 
     public function findQuantumRoLineByWorkorder(Request $request): JsonResponse
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorTracking();
 
         $data = $request->validate([
-            'workorder' => ['required', 'string', 'max:50'],
+            'mode' => ['nullable', 'string', 'in:wo,ro'],
+            'repair_order' => ['nullable', 'string', 'max:50'],
+            'workorder' => ['nullable', 'string', 'max:50'],
         ]);
 
         if (! $this->quantumRoLinesTableReady()) {
@@ -218,23 +225,38 @@ class VendorTrackingController extends Controller
             ]);
         }
 
-        $search = trim((string) $data['workorder']);
-        $digits = preg_replace('/\D+/', '', $search);
-        $term = $digits !== '' ? $digits : $search;
-        $like = '%' . $this->escapeLike($term) . '%';
+        $mode = ($data['mode'] ?? null) === 'ro' ? 'ro' : 'wo';
+        $search = trim((string) ($mode === 'ro' ? ($data['repair_order'] ?? '') : ($data['workorder'] ?? '')));
 
-        $line = $this->quantumRecentRowsQuery()
-            ->where('wo_number', 'like', $like)
-            ->first();
-
-        if (! $line) {
+        if ($search === '') {
             return response()->json([
                 'success' => true,
                 'found' => false,
-                'message' => 'WO not found in Quantum list.',
+                'message' => $mode === 'ro' ? 'RO is empty.' : 'WO is empty.',
             ]);
         }
 
+        $digits = preg_replace('/\D+/', '', $search);
+        $term = $digits !== '' ? $digits : $search;
+        $like = '%' . $this->escapeLike($term) . '%';
+        $column = $mode === 'ro' ? 'ro_number' : 'wo_number';
+
+        $matchedLines = $this->quantumRecentRowsQuery()
+            ->where($column, 'like', $like)
+            ->limit(501)
+            ->get(['id', 'ro_number', 'wo_number']);
+
+        if ($matchedLines->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'found' => false,
+                'message' => ($mode === 'ro' ? 'RO' : 'WO') . ' not found in Quantum list.',
+            ]);
+        }
+
+        $hasMoreMatches = $matchedLines->count() > 500;
+        $matchedLines = $matchedLines->take(500)->values();
+        $line = $matchedLines->first();
         $position = 0;
         foreach ($this->quantumRecentRowsQuery()->select('id')->cursor() as $orderedLine) {
             if ((int) $orderedLine->id === (int) $line->id) {
@@ -248,8 +270,14 @@ class VendorTrackingController extends Controller
             'success' => true,
             'found' => true,
             'line_id' => (int) $line->id,
+            'line_ids' => $matchedLines->pluck('id')->map(fn ($id) => (int) $id)->values(),
             'page' => intdiv($position, self::QUANTUM_RECENT_PAGE_SIZE) + 1,
             'position' => $position,
+            'mode' => $mode,
+            'matched_count' => $matchedLines->count(),
+            'has_more_matches' => $hasMoreMatches,
+            'matched_value' => $line->{$column},
+            'matched_ro' => $line->ro_number,
             'matched_wo' => $line->wo_number,
             'total' => $this->quantumRecentTotal(),
         ]);
@@ -257,7 +285,7 @@ class VendorTrackingController extends Controller
 
     public function dismissQuantumRoLine(QuantumRoLine $quantumRoLine): JsonResponse
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorTracking();
 
         $dismissedLine = $this->dismissQuantumLine($quantumRoLine);
 
@@ -273,7 +301,7 @@ class VendorTrackingController extends Controller
 
     public function restoreQuantumRoLine(QuantumRoLine $quantumRoLine): JsonResponse
     {
-        abort_unless(auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'), 403);
+        $this->authorizeVendorTracking();
 
         $restoredLine = $this->restoreQuantumLine($quantumRoLine);
 
@@ -294,6 +322,11 @@ class VendorTrackingController extends Controller
         $sources = array_values(array_intersect($sources, ['part', 'std', 'bushing']));
 
         return $sources ?: ['part', 'std', 'bushing'];
+    }
+
+    private function authorizeVendorTracking(): void
+    {
+        abort_unless(auth()->user()?->can('feature.vendor_tracking'), 403);
     }
 
     private function filtersFromRequest(Request $request): array
@@ -781,6 +814,146 @@ class VendorTrackingController extends Controller
     {
         return Schema::hasTable('quantum_ro_lines')
             && Schema::hasColumn('quantum_ro_lines', 'apply_status');
+    }
+
+    private function quantumSyncHealth(): array
+    {
+        $base = [
+            'ready' => false,
+            'status' => 'unavailable',
+            'label' => 'Unavailable',
+            'age_label' => '--',
+            'button_class' => 'btn-outline-secondary',
+            'badge_class' => 'text-bg-secondary',
+            'icon' => 'bi-database-x',
+            'message' => 'Quantum sync tables are not ready.',
+            'last_run_id' => null,
+            'last_run_status' => null,
+            'last_run_at' => null,
+            'last_line_seen_at' => null,
+            'last_source_modified' => null,
+            'rows_received' => null,
+            'rows_inserted' => null,
+            'rows_updated' => null,
+            'rows_unchanged' => null,
+            'minutes_since' => null,
+            'stale_after_minutes' => self::QUANTUM_SYNC_STALE_AFTER_MINUTES,
+        ];
+
+        if (! Schema::hasTable('quantum_ro_sync_runs')) {
+            return $base;
+        }
+
+        $latestRun = QuantumRoSyncRun::query()
+            ->orderByDesc('id')
+            ->first();
+
+        $lineTableReady = Schema::hasTable('quantum_ro_lines');
+        $lastLineSeenAt = $lineTableReady ? QuantumRoLine::query()->max('last_seen_at') : null;
+        $lastSourceModified = $lineTableReady ? QuantumRoLine::query()->max('source_last_modified') : null;
+
+        if (! $latestRun) {
+            return array_merge($base, [
+                'ready' => true,
+                'status' => 'never',
+                'label' => 'No runs',
+                'button_class' => 'btn-outline-secondary',
+                'badge_class' => 'text-bg-secondary',
+                'icon' => 'bi-database-x',
+                'message' => 'No Quantum sync run has been received yet.',
+                'last_line_seen_at' => $lastLineSeenAt,
+                'last_source_modified' => $lastSourceModified,
+            ]);
+        }
+
+        $lastRunAt = $latestRun->finished_at ?: ($latestRun->updated_at ?: $latestRun->created_at);
+        $minutesSince = $lastRunAt
+            ? max(0, intdiv(now()->getTimestamp() - $lastRunAt->getTimestamp(), 60))
+            : null;
+
+        $status = 'ok';
+        $label = 'Sync OK';
+        $buttonClass = 'btn-outline-success';
+        $badgeClass = 'text-bg-success';
+        $icon = 'bi-database-check';
+        $message = 'Quantum sync is receiving scheduled runs.';
+
+        if ($minutesSince === null) {
+            $status = 'unknown';
+            $label = 'Unknown';
+            $buttonClass = 'btn-outline-secondary';
+            $badgeClass = 'text-bg-secondary';
+            $icon = 'bi-database-x';
+            $message = 'Latest Quantum sync run has no timestamp.';
+        } elseif ($minutesSince >= self::QUANTUM_SYNC_STALE_AFTER_MINUTES) {
+            $status = 'stale';
+            $label = 'Sync stale';
+            $buttonClass = 'btn-outline-danger';
+            $badgeClass = 'text-bg-danger';
+            $icon = 'bi-database-exclamation';
+            $message = 'No Quantum sync run has been received within the expected 5 minute cadence.';
+        } elseif ($minutesSince >= self::QUANTUM_SYNC_WARNING_AFTER_MINUTES || $latestRun->status !== 'completed') {
+            $status = 'warning';
+            $label = 'Sync delayed';
+            $buttonClass = 'btn-outline-warning';
+            $badgeClass = 'text-bg-warning';
+            $icon = 'bi-database-exclamation';
+            $message = $latestRun->status === 'completed'
+                ? 'Latest Quantum sync run is later than expected.'
+                : "Latest Quantum sync run status is {$latestRun->status}.";
+        }
+
+        return array_merge($base, [
+            'ready' => true,
+            'status' => $status,
+            'label' => $label,
+            'age_label' => $this->quantumSyncAgeLabel($minutesSince),
+            'button_class' => $buttonClass,
+            'badge_class' => $badgeClass,
+            'icon' => $icon,
+            'message' => $message,
+            'last_run_id' => (int) $latestRun->id,
+            'last_run_status' => $latestRun->status,
+            'last_run_at' => $lastRunAt,
+            'last_line_seen_at' => $lastLineSeenAt,
+            'last_source_modified' => $lastSourceModified,
+            'rows_received' => (int) $latestRun->rows_received,
+            'rows_inserted' => (int) $latestRun->rows_inserted,
+            'rows_updated' => (int) $latestRun->rows_updated,
+            'rows_unchanged' => (int) $latestRun->rows_unchanged,
+            'minutes_since' => $minutesSince,
+        ]);
+    }
+
+    private function quantumSyncAgeLabel(?int $minutes): string
+    {
+        if ($minutes === null) {
+            return '--';
+        }
+
+        if ($minutes < 1) {
+            return 'just now';
+        }
+
+        if ($minutes < 60) {
+            return "{$minutes}m ago";
+        }
+
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+
+        if ($hours < 48) {
+            return $remainingMinutes > 0
+                ? "{$hours}h {$remainingMinutes}m ago"
+                : "{$hours}h ago";
+        }
+
+        $days = intdiv($hours, 24);
+        $remainingHours = $hours % 24;
+
+        return $remainingHours > 0
+            ? "{$days}d {$remainingHours}h ago"
+            : "{$days}d ago";
     }
 
     private function quantumStatusCounts(): array

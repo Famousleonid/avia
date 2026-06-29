@@ -247,7 +247,7 @@
                     <h5 class="modal-title" id="addComponentModalLabel">{{ __('Add Part') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <form action="{{ route('components.storeFromInspection') }}" method="POST" id="addComponentForm">
+                <form action="{{ route('components.storeFromInspection') }}" method="POST" id="addComponentForm" enctype="multipart/form-data">
                     @csrf
 
                     <div class="modal-body" >

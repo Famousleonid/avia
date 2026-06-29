@@ -13,11 +13,11 @@
     $printMarkQrSize = max(24, min(96, (int) ($printMarkQrSize ?? 40)));
     $printMarkQrTop = $printMarkQrTop ?? '3mm';
     $printMarkQrRight = $printMarkQrRight ?? 'max(4mm, calc(100vw - var(--container-margin-left, 0px) - var(--container-max-width, 100vw) + 4mm))';
+    $printMarkQrPageRight = $printMarkQrPageRight ?? '4mm';
     $printMarkQrPrintTop = $printMarkQrPrintTop ?? '0';
     $printMarkQrPrintRight = $printMarkQrPrintRight ?? '8mm';
     $printMarkQrScreenPlacement = $printMarkQrScreenPlacement ?? 'page';
-    $printMarkQrHostSelector = $printMarkQrHostSelector ?? '.std-page, .page, .form-page-block, .cert-wrap, .page-wrap, .std-sheet-container, .container-fluid, main.content, body';
-    $printMarkQrAnchorSelector = $printMarkQrAnchorSelector ?? '.std-table, .table-header, .cert-table, table, .all-rows-container, .page-rows-container';
+    $printMarkQrHostSelector = $printMarkQrHostSelector ?? '.tdr-primary-sheet, .form-page-block, .std-sheet-container, .page, .std-page, .cert-wrap, .page-wrap, .container-fluid, main.content, body';
 @endphp
 
 @if($printMarkWoNumber !== '' && $printMarkQrEnabled)
@@ -99,7 +99,10 @@
             }
 
             .system-print-qr[data-screen-placement="page"] {
+                left: auto;
                 position: absolute;
+                right: {{ $printMarkQrPageRight }};
+                top: {{ $printMarkQrTop }};
                 visibility: hidden;
             }
 
@@ -139,7 +142,6 @@
                 (function attachPrintMarkQrToPage() {
                     const qr = document.getElementById(@json($printMarkQrId));
                     const hostSelector = @json($printMarkQrHostSelector);
-                    const anchorSelector = @json($printMarkQrAnchorSelector);
                     if (!qr) return;
 
                     function queryFirst(selector, root) {
@@ -150,23 +152,8 @@
                         }
                     }
 
-                    function closestHost(element) {
-                        if (!element || typeof element.closest !== 'function') return null;
-
-                        try {
-                            return element.closest(hostSelector);
-                        } catch (error) {
-                            return null;
-                        }
-                    }
-
                     function resolveHost() {
-                        const anchor = queryFirst(anchorSelector);
-                        return closestHost(anchor) || queryFirst(hostSelector) || document.body;
-                    }
-
-                    function findAnchor(host) {
-                        return queryFirst(anchorSelector, host) || queryFirst(anchorSelector);
+                        return queryFirst(hostSelector) || document.body;
                     }
 
                     function syncHostScale(host) {
@@ -198,32 +185,10 @@
                         }
                     }
 
-                    function syncAnchorAlignment(host) {
-                        const anchor = findAnchor(host);
-                        if (!host || !anchor) {
-                            qr.style.removeProperty('--print-mark-screen-left');
-                            qr.style.removeProperty('--print-mark-screen-right');
-                            return;
-                        }
-
-                        const hostRect = host.getBoundingClientRect();
-                        const anchorRect = anchor.getBoundingClientRect();
-                        const qrRect = qr.getBoundingClientRect();
-                        const left = anchorRect.right - hostRect.left - qrRect.width;
-
-                        if (!Number.isFinite(left)) {
-                            qr.style.removeProperty('--print-mark-screen-left');
-                            qr.style.removeProperty('--print-mark-screen-right');
-                            return;
-                        }
-
-                        qr.style.setProperty('--print-mark-screen-left', Math.max(0, left) + 'px');
-                        qr.style.setProperty('--print-mark-screen-right', 'auto');
-                    }
-
                     function syncPlacement(host) {
                         syncHostScale(host);
-                        syncAnchorAlignment(host);
+                        qr.style.removeProperty('--print-mark-screen-left');
+                        qr.style.removeProperty('--print-mark-screen-right');
                     }
 
                     function attach() {

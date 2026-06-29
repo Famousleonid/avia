@@ -4,6 +4,7 @@ namespace App\Services\Measurements\Steps;
 
 use App\Models\MasterRule;
 use App\Models\ManualParameterRepairRule;
+use App\Models\ProcessName;
 use App\Services\Measurements\PipelineContext;
 use App\Services\Measurements\TopologicalProcessMerger;
 
@@ -44,8 +45,9 @@ class MainStepHandler implements StepHandler
         foreach ($rules as $rule) {
             foreach ($rule->processes as $rp) {
                 $process = $rp->manualProcess?->process;
-                if ($process) {
-                    $ids[] = (int) $process->process_names_id;
+                $nameId = (int) ($process?->process_names_id ?? 0);
+                if ($nameId > 0 && ProcessName::query()->whereKey($nameId)->exists()) {
+                    $ids[] = $nameId;
                 }
             }
         }

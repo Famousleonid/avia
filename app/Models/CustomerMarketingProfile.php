@@ -14,8 +14,13 @@ class CustomerMarketingProfile extends Model
     protected $fillable = [
         'customer_id',
         'lifecycle_status',
+        'country_id',
         'country',
         'address',
+        'city',
+        'state_province',
+        'street_address',
+        'company_notes',
         'company_type_id',
         'segment_id',
         'terms_label',
@@ -25,6 +30,7 @@ class CustomerMarketingProfile extends Model
     ];
 
     protected $casts = [
+        'country_id' => 'integer',
         'last_contact_at' => 'date',
         'next_follow_up_at' => 'date',
     ];
@@ -47,5 +53,10 @@ class CustomerMarketingProfile extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_user_id');
+    }
+
+    public function countryRef(): BelongsTo
+    {
+        return $this->belongsTo(Country::class, 'country_id');
     }
 }

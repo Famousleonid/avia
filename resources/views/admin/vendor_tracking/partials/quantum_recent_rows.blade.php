@@ -38,7 +38,11 @@
             ? ($line->applied_target_table . ' #' . $line->applied_target_id)
             : '--';
     @endphp
-    <tr data-quantum-line-id="{{ $line->id }}" data-quantum-wo="{{ trim((string) $line->wo_number) }}">
+    <tr
+        data-quantum-line-id="{{ $line->id }}"
+        data-quantum-wo="{{ trim((string) $line->wo_number) }}"
+        data-quantum-ro="{{ trim((string) $line->ro_number) }}"
+    >
         <td>
             @if($seenAt)
                 <span class="d-block">{{ format_project_date($seenAt) ?? '--' }}</span>

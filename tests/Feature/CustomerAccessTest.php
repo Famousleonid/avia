@@ -46,6 +46,50 @@ class CustomerAccessTest extends TestCase
         $this->assertDatabaseHas('customers', ['name' => 'Admin New Customer']);
     }
 
+    public function test_customer_delete_action_is_visible_only_for_system_admin(): void
+    {
+        $roleOnlyAdmin = $this->createUserWithRole('Admin', ['is_admin' => false]);
+        $systemAdmin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $customer = Customer::query()->create(['name' => 'Delete Visibility Customer']);
+
+        $this->actingAs($roleOnlyAdmin)
+            ->get(route('customers.index'))
+            ->assertOk()
+            ->assertSee('Delete Visibility Customer')
+            ->assertDontSee('data-bs-target="#deleteModal"', false)
+            ->assertDontSee('id="deleteModal"', false);
+
+        $this->actingAs($systemAdmin)
+            ->get(route('customers.index'))
+            ->assertOk()
+            ->assertSee('Delete Visibility Customer')
+            ->assertSee('data-bs-target="#deleteModal"', false)
+            ->assertSee('id="deleteModal"', false);
+    }
+
+    public function test_only_system_admin_can_delete_customers(): void
+    {
+        $roleOnlyAdmin = $this->createUserWithRole('Admin', ['is_admin' => false]);
+        $systemAdmin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $blockedCustomer = Customer::query()->create(['name' => 'Blocked Delete Customer']);
+        $deletedCustomer = Customer::query()->create(['name' => 'Allowed Delete Customer']);
+
+        $this->actingAs($roleOnlyAdmin)
+            ->delete(route('customers.destroy', $blockedCustomer))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('customers', [
+            'id' => $blockedCustomer->id,
+            'deleted_at' => null,
+        ]);
+
+        $this->actingAs($systemAdmin)
+            ->delete(route('customers.destroy', $deletedCustomer))
+            ->assertRedirect(route('customers.index'));
+
+        $this->assertSoftDeleted('customers', ['id' => $deletedCustomer->id]);
+    }
+
     public function test_workorder_create_customer_plus_is_admin_only(): void
     {
         $manager = $this->createUserWithRole('Manager');

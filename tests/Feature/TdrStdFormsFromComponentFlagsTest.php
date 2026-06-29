@@ -1395,19 +1395,29 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         }
     }
 
-    public function test_stress_std_qr_is_attached_to_form_page_for_screen_alignment(): void
+    public function test_std_qr_is_attached_to_sheet_without_table_anchor_for_screen_alignment(): void
     {
         ProjectSetting::setBoolean(ProjectSetting::PRINT_FORMS_QR_ENABLED, true);
 
         $admin = $this->createUserWithRole('Admin');
         $workorder = $this->createWorkorder(['user_id' => $admin->id]);
 
-        $response = $this->actingAs($admin)->get(route('tdrs.stressStd', $workorder->id));
+        foreach ([
+            route('tdrs.stressStd', $workorder->id),
+            route('tdrs.paintStd', $workorder->id),
+        ] as $route) {
+            $response = $this->actingAs($admin)->get($route);
 
-        $response->assertOk();
-        $response->assertSee('data-screen-placement="page"', false);
-        $response->assertSee('width: 40px;', false);
-        $response->assertSee('top: 3mm;', false);
+            $response->assertOk();
+            $response->assertSee('data-screen-placement="page"', false);
+            $response->assertSee('width: 40px;', false);
+            $response->assertSee('top: 3mm;', false);
+            $response->assertSee('right: 4mm;', false);
+            $response->assertSee('.tdr-primary-sheet, .form-page-block, .std-sheet-container', false);
+            $response->assertDontSee('anchorRect.right', false);
+            $response->assertDontSee('anchorSelector', false);
+            $response->assertDontSee('closestHost', false);
+        }
     }
 
     public function test_prl_qr_is_shifted_up_from_workorder_number_box(): void
@@ -1652,7 +1662,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         ]);
     }
 
-    public function test_workorder_std_items_subtract_tdr_from_base_and_suffix_variants(): void
+    public function test_workorder_std_items_subtract_tdr_from_base_and_suffix_variants_by_ipl_only(): void
     {
         $manual = $this->createManual();
         $unit = $this->createUnit(['manual_id' => $manual->id]);
@@ -1663,7 +1673,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             'manual_id' => $manual->id,
             'ipl_num' => '1-272',
             'part_number' => '170-70162-003',
-            'name' => 'STAY, LOWER',
+            'name' => 'STAY, LOWER BASE',
             'units_assy' => 1,
             'ndt_list' => true,
         ]);
@@ -1671,21 +1681,27 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             'manual_id' => $manual->id,
             'ipl_num' => '1-272A',
             'part_number' => '170-70162-005',
-            'name' => 'STAY, LOWER',
+            'name' => 'STAY, LOWER MOD',
             'units_assy' => 1,
             'ndt_list' => true,
         ]);
 
-        foreach ([$base, $suffix] as $component) {
-            StdProcess::query()->updateOrCreate([
-                'manual_id' => $manual->id,
-                'component_id' => $component->id,
-                'std' => StdProcess::STD_NDT,
-            ], [
-                'process' => '1',
-                'qty' => 1,
-            ]);
-        }
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $base->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '1',
+            'qty' => 1,
+        ]);
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $suffix->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '4',
+            'qty' => 1,
+        ]);
 
         $initial = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
         $this->assertSame(['1-272', '1-272A'], array_values(array_column($initial, 'ipl_num')));
@@ -1693,7 +1709,7 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         Tdr::query()->create([
             'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
             'workorder_id' => $workorder->id,
-            'component_id' => $base->id,
+            'component_id' => $suffix->id,
             'necessaries_id' => $repair->id,
             'qty' => 1,
             'serial_number' => 'NSN',
@@ -1714,6 +1730,66 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
             'workorder_id' => $workorder->id,
             'component_id' => $suffix->id,
             'std_type' => StdProcess::STD_NDT,
+        ]);
+    }
+
+    public function test_workorder_std_items_do_not_subtract_same_base_ipl_from_other_manual(): void
+    {
+        $manual = $this->createManual();
+        $otherManual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder(['unit_id' => $unit->id]);
+        $repair = Necessary::query()->firstOrCreate(['name' => 'Repair']);
+
+        $currentManualComponent = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '1-272',
+            'part_number' => 'CURRENT-PN',
+            'name' => 'CURRENT MANUAL PART',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+        $otherManualComponent = Component::query()->create([
+            'manual_id' => $otherManual->id,
+            'ipl_num' => '1-272A',
+            'part_number' => 'OTHER-PN',
+            'name' => 'OTHER MANUAL PART',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $currentManualComponent->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '1',
+            'qty' => 1,
+        ]);
+
+        $initial = StdProcess::snapshotComponentsForWorkorder($workorder, StdProcess::STD_NDT);
+        $this->assertSame(['1-272'], array_values(array_column($initial, 'ipl_num')));
+
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $otherManualComponent->id,
+            'necessaries_id' => $repair->id,
+            'qty' => 1,
+            'serial_number' => 'NSN',
+            'assy_serial_number' => ' ',
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $rows = StdProcess::snapshotComponentsForWorkorder($workorder->fresh(), StdProcess::STD_NDT);
+
+        $this->assertSame(['1-272'], array_values(array_column($rows, 'ipl_num')));
+        $this->assertDatabaseHas('workorder_std_process_items', [
+            'workorder_id' => $workorder->id,
+            'component_id' => $currentManualComponent->id,
+            'std_type' => StdProcess::STD_NDT,
+            'remaining_qty' => 1,
         ]);
     }
 

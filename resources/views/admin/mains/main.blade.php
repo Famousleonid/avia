@@ -1029,7 +1029,8 @@
                                         @forelse($cmp->tdrs as $tdr)
                                             @php
                                                 $prs = $tdr->tdrProcesses->filter(function ($p) {
-                                                    return optional($p->processName)->show_in_process_picker !== false
+                                                    return $p->processName
+                                                        && optional($p->processName)->show_in_process_picker !== false
                                                         && !((bool) ($p->ignore_row ?? false));
                                                 });
                                                 $travelerProcesses = $prs->filter(function ($p) {

@@ -3,6 +3,8 @@
 @section('style')
     <style>
         .marketing-page {
+            --marketing-control-sm-height: 31px;
+            --marketing-control-sm-inner-height: 29px;
             flex: 1 1 auto;
             min-height: 0;
             display: flex;
@@ -16,6 +18,8 @@
         }
 
         .marketing-toolbar {
+            --marketing-filter-control-height: var(--marketing-control-sm-height);
+            --marketing-filter-control-inner-height: var(--marketing-control-sm-inner-height);
             flex: 0 0 auto;
             display: flex;
             align-items: end;
@@ -62,6 +66,7 @@
         }
 
         .marketing-filter {
+            position: relative;
             min-width: 150px;
         }
 
@@ -84,13 +89,23 @@
         }
 
         .marketing-filter.is-active label {
-            color: #0d6efd;
+            color: var(--bs-info);
+        }
+
+        .marketing-toolbar .form-control-sm,
+        .marketing-toolbar .form-select-sm,
+        .marketing-toolbar .select2-container--default .select2-selection--single {
+            height: var(--marketing-filter-control-height) !important;
+            min-height: var(--marketing-filter-control-height) !important;
+            max-height: var(--marketing-filter-control-height) !important;
+            box-sizing: border-box;
         }
 
         .marketing-filter.is-active .form-control,
-        .marketing-filter.is-active .form-select {
-            border-color: #0d6efd;
-            box-shadow: 0 0 0 .12rem rgba(13, 110, 253, .18);
+        .marketing-filter.is-active .form-select,
+        .marketing-filter.is-active .select2-container--default .select2-selection--single {
+            border-color: var(--bs-info);
+            box-shadow: 0 0 0 .12rem rgba(var(--bs-info-rgb), .18);
         }
 
         html[data-bs-theme="dark"] .marketing-filter.is-active label {
@@ -98,9 +113,102 @@
         }
 
         html[data-bs-theme="dark"] .marketing-filter.is-active .form-control,
-        html[data-bs-theme="dark"] .marketing-filter.is-active .form-select {
+        html[data-bs-theme="dark"] .marketing-filter.is-active .form-select,
+        html[data-bs-theme="dark"] .marketing-filter.is-active .select2-container--default .select2-selection--single {
             border-color: #8bd3f7;
             box-shadow: 0 0 0 .12rem rgba(139, 211, 247, .16);
+        }
+
+        .marketing-filter .select2-container {
+            display: block;
+            width: 100% !important;
+            margin: 0;
+            vertical-align: bottom;
+        }
+
+        .marketing-filter .select2-container--default .select2-selection--single {
+            height: var(--marketing-filter-control-height) !important;
+            min-height: var(--marketing-filter-control-height) !important;
+            max-height: var(--marketing-filter-control-height) !important;
+            box-sizing: border-box !important;
+            padding: 0 !important;
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--bs-border-radius-sm);
+            background: var(--bs-body-bg);
+        }
+
+        html[data-bs-theme="dark"] .marketing-toolbar .marketing-filter .select2-container--default .select2-selection--single {
+            height: var(--marketing-filter-control-height) !important;
+            min-height: var(--marketing-filter-control-height) !important;
+            max-height: var(--marketing-filter-control-height) !important;
+            padding: 0 !important;
+            border-radius: var(--bs-border-radius-sm) !important;
+        }
+
+        .marketing-filter .select2-container--default .select2-selection--single .select2-selection__rendered {
+            height: var(--marketing-filter-control-inner-height) !important;
+            min-height: var(--marketing-filter-control-inner-height) !important;
+            padding-left: .5rem !important;
+            padding-right: 2rem !important;
+            color: var(--bs-body-color);
+            font-size: .875rem;
+            line-height: var(--marketing-filter-control-inner-height) !important;
+        }
+
+        html[data-bs-theme="dark"] .marketing-toolbar .marketing-filter .select2-container--default .select2-selection--single .select2-selection__rendered {
+            height: var(--marketing-filter-control-inner-height) !important;
+            min-height: var(--marketing-filter-control-inner-height) !important;
+            padding-left: .5rem !important;
+            padding-right: 2rem !important;
+            line-height: var(--marketing-filter-control-inner-height) !important;
+        }
+
+        .marketing-filter .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: var(--marketing-filter-control-inner-height) !important;
+            right: 4px;
+        }
+
+        html[data-bs-theme="dark"] .marketing-toolbar .marketing-filter .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: var(--marketing-filter-control-inner-height) !important;
+        }
+
+        .marketing-filter.has-clear .form-select {
+            padding-right: 2rem;
+            background-image: none;
+        }
+
+        .marketing-filter.has-clear .select2-container--default .select2-selection--single .select2-selection__arrow,
+        .marketing-filter.has-clear .select2-container--default .select2-selection--single .select2-selection__clear {
+            display: none;
+        }
+
+        .marketing-filter-clear {
+            position: absolute;
+            right: 6px;
+            bottom: 4px;
+            z-index: 4;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 23px;
+            height: 23px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--bs-info);
+            line-height: 1;
+        }
+
+        .marketing-filter.has-clear .marketing-filter-clear {
+            display: inline-flex;
+        }
+
+        .marketing-filter-clear:hover,
+        .marketing-filter-clear:focus-visible {
+            color: #fff;
+            background: var(--bs-info);
+            outline: 0;
         }
 
         .marketing-shell {
@@ -251,6 +359,22 @@
             text-overflow: ellipsis;
         }
 
+        .marketing-shell.is-company-only .marketing-table {
+            min-width: 100%;
+            table-layout: fixed;
+        }
+
+        .marketing-shell.is-company-only .marketing-table th:not(:first-child),
+        .marketing-shell.is-company-only .marketing-table td:not(:first-child) {
+            display: none;
+        }
+
+        .marketing-shell.is-company-only .marketing-table th:first-child,
+        .marketing-shell.is-company-only .marketing-table td:first-child {
+            width: 100% !important;
+            max-width: none;
+        }
+
         html[data-bs-theme="dark"] .marketing-table td {
             color: #d8dee3;
         }
@@ -348,11 +472,11 @@
         }
 
         .marketing-detail-title h2.is-loading {
-            color: #6c757d;
+            color: var(--bs-warning);
         }
 
         html[data-bs-theme="dark"] .marketing-detail-title h2.is-loading {
-            color: #8b949e;
+            color: #ffda6a;
         }
 
         .marketing-detail-title div {
@@ -366,23 +490,43 @@
         }
 
         .marketing-detail-tabs {
+            position: relative;
             flex: 0 0 auto;
             display: flex;
-            gap: 4px;
-            padding: 8px 10px;
-            border-bottom: 1px solid rgba(52, 58, 64, .12);
+            gap: 2px;
+            padding: 8px 14px 0;
             overflow-x: auto;
         }
 
+        .marketing-detail-tabs::after {
+            content: "";
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 0;
+            z-index: 0;
+            height: 1px;
+            background: rgba(52, 58, 64, .14);
+            pointer-events: none;
+        }
+
+        html[data-bs-theme="dark"] .marketing-detail-tabs::after {
+            background: rgba(255, 255, 255, .14);
+        }
+
         .marketing-tab {
+            position: relative;
+            z-index: 1;
             flex: 0 0 auto;
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            height: 32px;
-            padding: 0 10px;
-            border: 1px solid transparent;
-            border-radius: 8px;
+            height: 34px;
+            margin-bottom: -1px;
+            padding: 0 11px;
+            border: 2px solid transparent;
+            border-bottom: 0;
+            border-radius: 7px 7px 0 0;
             background: transparent;
             color: #4d5963;
             font-size: .82rem;
@@ -390,9 +534,31 @@
         }
 
         .marketing-tab.is-active {
-            border-color: rgba(13, 110, 253, .22);
+            z-index: 3;
+            border-color: var(--bs-info);
+            border-bottom: 0;
             color: #0d6efd;
-            background: rgba(13, 110, 253, .08);
+            background: #fff;
+        }
+
+        .marketing-tab.is-active::before,
+        .marketing-tab.is-active::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            z-index: 4;
+            width: 12px;
+            height: 2px;
+            background: var(--bs-info);
+            pointer-events: none;
+        }
+
+        .marketing-tab.is-active::before {
+            left: -12px;
+        }
+
+        .marketing-tab.is-active::after {
+            right: -12px;
         }
 
         html[data-bs-theme="dark"] .marketing-tab {
@@ -401,8 +567,14 @@
 
         html[data-bs-theme="dark"] .marketing-tab.is-active {
             color: #8bd3f7;
-            background: rgba(13, 202, 240, .10);
-            border-color: rgba(13, 202, 240, .22);
+            border-color: #8bd3f7;
+            border-bottom: 0;
+            background: #2d3030;
+        }
+
+        html[data-bs-theme="dark"] .marketing-tab.is-active::before,
+        html[data-bs-theme="dark"] .marketing-tab.is-active::after {
+            background: #8bd3f7;
         }
 
         .marketing-detail-body {
@@ -462,6 +634,95 @@
 
         html[data-bs-theme="dark"] .marketing-field label {
             color: #b9c1c8;
+        }
+
+        .marketing-field .form-control-sm,
+        .marketing-field .form-select-sm,
+        .marketing-field .select2-container--default .select2-selection--single {
+            height: var(--marketing-control-sm-height) !important;
+            min-height: var(--marketing-control-sm-height) !important;
+            max-height: var(--marketing-control-sm-height) !important;
+            box-sizing: border-box;
+        }
+
+        .marketing-field .marketing-country-select + .select2,
+        .marketing-field .marketing-aircraft-select + .select2 {
+            width: 100% !important;
+        }
+
+        .marketing-field .marketing-country-select + .select2 .select2-selection--single {
+            height: var(--marketing-control-sm-height) !important;
+            min-height: var(--marketing-control-sm-height) !important;
+            max-height: var(--marketing-control-sm-height) !important;
+            padding: 0 !important;
+            border-radius: 6px !important;
+        }
+
+        .marketing-field .marketing-country-select + .select2 .select2-selection__rendered {
+            height: var(--marketing-control-sm-inner-height) !important;
+            min-height: var(--marketing-control-sm-inner-height) !important;
+            padding-left: .75rem !important;
+            padding-right: 2rem !important;
+            line-height: var(--marketing-control-sm-inner-height) !important;
+        }
+
+        html[data-bs-theme="dark"] .marketing-page .marketing-field .marketing-country-select + .select2 .select2-selection--single .select2-selection__rendered {
+            padding-left: .75rem !important;
+        }
+
+        .marketing-field .marketing-country-select + .select2 .select2-selection__arrow {
+            height: var(--marketing-control-sm-inner-height) !important;
+        }
+
+        .marketing-field .marketing-aircraft-select + .select2 .select2-selection--multiple {
+            min-height: 31px;
+            max-height: 86px;
+            overflow-y: auto;
+            border-radius: 6px;
+        }
+
+        .marketing-field .marketing-aircraft-select + .select2 .select2-selection__rendered {
+            padding: 2px 6px;
+        }
+
+        .marketing-address-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+        }
+
+        .marketing-address-item {
+            min-width: 0;
+            padding: 9px;
+            border: 1px solid rgba(52, 58, 64, .14);
+            border-radius: 6px;
+            background: rgba(248, 249, 250, .78);
+        }
+
+        html[data-bs-theme="dark"] .marketing-address-item {
+            background: rgba(255, 255, 255, .04);
+            border-color: rgba(255, 255, 255, .12);
+        }
+
+        .marketing-address-label {
+            margin-bottom: 4px;
+            color: #68717a;
+            font-size: .7rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+
+        .marketing-address-text {
+            color: #27313a;
+            font-size: .8rem;
+            line-height: 1.32;
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+        }
+
+        html[data-bs-theme="dark"] .marketing-address-text {
+            color: #e7ecef;
         }
 
         .marketing-actions {
@@ -574,8 +835,23 @@
             flex: 0 0 auto;
         }
 
-        .marketing-aircraft-select {
-            min-height: 178px;
+        .marketing-contact-copy-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .marketing-contact-row:not(.is-editing) .marketing-contact-save,
+        .marketing-contact-row:not(.is-editing) .marketing-contact-cancel,
+        .marketing-contact-row:not(.is-editing) .js-contact-delete,
+        .marketing-contact-row.is-editing .marketing-contact-edit {
+            display: none;
+        }
+
+        .marketing-contact-row:not(.is-editing) input[readonly] {
+            cursor: text;
         }
 
         #aiAssistantWidget,
@@ -586,10 +862,11 @@
         .marketing-workorders-wrap {
             max-height: min(62vh, 620px);
             overflow: auto;
+            position: relative;
         }
 
         .marketing-workorders-table {
-            min-width: 980px;
+            min-width: 1320px;
             margin: 0;
         }
 
@@ -604,6 +881,281 @@
             font-size: .82rem;
             vertical-align: middle;
             white-space: nowrap;
+        }
+
+        .marketing-workorders-table tbody tr[data-workorder-id] {
+            cursor: pointer;
+        }
+
+        .marketing-workorders-table.dir-table tbody > tr.marketing-workorder-complete > td,
+        .marketing-workorders-table.dir-table.table-hover tbody > tr.marketing-workorder-complete:hover > td {
+            background: var(--dir-table-bg) !important;
+            color: #6c757d !important;
+        }
+
+        html[data-bs-theme="dark"] .marketing-workorders-table.dir-table tbody > tr.marketing-workorder-complete > td,
+        html[data-bs-theme="dark"] .marketing-workorders-table.dir-table.table-hover tbody > tr.marketing-workorder-complete:hover > td {
+            background: var(--dir-table-bg) !important;
+            color: #aeb6bd !important;
+        }
+
+        .marketing-workorders-table.dir-table tbody > tr.marketing-workorder-complete a {
+            color: inherit;
+        }
+
+        .marketing-workorders-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .marketing-workorders-toolbar .marketing-section-title {
+            margin-bottom: 0;
+        }
+
+        .marketing-workorders-search {
+            position: relative;
+            flex: 0 1 320px;
+            min-width: min(100%, 220px);
+        }
+
+        .marketing-workorders-search .form-control-sm {
+            height: var(--marketing-control-sm-height);
+            padding-right: 2rem;
+        }
+
+        .marketing-workorders-search-clear {
+            position: absolute;
+            top: 50%;
+            right: 4px;
+            z-index: 2;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--bs-info);
+            line-height: 1;
+            transform: translateY(-50%);
+        }
+
+        .marketing-workorders-search.has-clear .marketing-workorders-search-clear {
+            display: inline-flex;
+        }
+
+        .marketing-workorders-search-clear:hover,
+        .marketing-workorders-search-clear:focus-visible {
+            color: #fff;
+            background: var(--bs-info);
+            outline: 0;
+        }
+
+        .marketing-workorders-filter-row th {
+            top: 31px !important;
+            z-index: 12 !important;
+            padding: 4px 6px !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,.18) !important;
+        }
+
+        .marketing-workorders-filter-row input {
+            width: 100%;
+            min-width: 72px;
+            height: 25px;
+            padding: 2px 6px;
+            border: 1px solid var(--bs-border-color);
+            border-radius: 4px;
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            font-size: .74rem;
+            line-height: 19px;
+        }
+
+        .marketing-workorders-filter-row input:focus {
+            border-color: var(--bs-info);
+            box-shadow: 0 0 0 .1rem rgba(var(--bs-info-rgb), .18);
+            outline: 0;
+        }
+
+        .marketing-workorders-filter-row th.is-active input {
+            border-color: var(--bs-info);
+            color: var(--bs-info);
+        }
+
+        .marketing-sales-report-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .marketing-sales-report-heading {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .marketing-sales-report-company {
+            min-width: 0;
+            color: var(--bs-info);
+            font-size: .86rem;
+            font-weight: 800;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .marketing-sales-report-filters {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .marketing-sales-report-mode {
+            flex: 0 0 auto;
+        }
+
+        .marketing-sales-report-mode .btn {
+            font-weight: 800;
+        }
+
+        .marketing-sales-report-date {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .marketing-sales-report-aircraft {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .marketing-sales-report-filters label {
+            display: inline-block;
+            margin: 0;
+            color: #68717a;
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+
+        .marketing-sales-report-date .form-control-sm {
+            width: 140px;
+        }
+
+        .marketing-sales-report-aircraft .form-select-sm,
+        .marketing-sales-report-aircraft .select2-container {
+            width: 180px !important;
+        }
+
+        .marketing-sales-report-aircraft .select2-container--default .select2-selection--single {
+            height: var(--marketing-control-sm-height) !important;
+            min-height: var(--marketing-control-sm-height) !important;
+            max-height: var(--marketing-control-sm-height) !important;
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--bs-border-radius-sm);
+            background: var(--bs-body-bg);
+        }
+
+        .marketing-sales-report-aircraft .select2-container--default .select2-selection--single .select2-selection__rendered {
+            height: var(--marketing-control-sm-inner-height) !important;
+            padding-left: .5rem !important;
+            padding-right: 1.6rem !important;
+            color: var(--bs-body-color);
+            font-size: .875rem;
+            line-height: var(--marketing-control-sm-inner-height) !important;
+        }
+
+        .marketing-sales-report-aircraft .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: var(--marketing-control-sm-inner-height) !important;
+        }
+
+        .marketing-sales-report-aircraft.has-clear .select2-container--default .select2-selection--single .select2-selection__arrow {
+            display: none;
+        }
+
+        .marketing-sales-report-aircraft.has-clear .select2-container--default .select2-selection--single .select2-selection__clear {
+            position: absolute;
+            top: 0;
+            right: 7px;
+            z-index: 2;
+            height: var(--marketing-control-sm-inner-height);
+            margin-right: 0;
+            color: var(--bs-info);
+            font-weight: 800;
+            line-height: var(--marketing-control-sm-inner-height);
+        }
+
+        html[data-bs-theme="dark"] .marketing-sales-report-filters label {
+            color: #b9c1c8;
+        }
+
+        .marketing-sales-report-wrap {
+            max-height: min(62vh, 620px);
+            overflow: auto;
+            position: relative;
+        }
+
+        .marketing-sales-report-table {
+            min-width: 920px;
+            margin: 0;
+        }
+
+        .marketing-sales-report-table th {
+            font-size: .72rem;
+            text-transform: uppercase;
+            letter-spacing: 0;
+            white-space: nowrap;
+        }
+
+        .marketing-sales-report-table td {
+            font-size: .82rem;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .marketing-sales-report-money {
+            text-align: right;
+        }
+
+        .marketing-sales-report-total td {
+            font-weight: 800;
+        }
+
+        .marketing-sales-report-warning {
+            color: #ffc107;
+            font-size: .84rem;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        .marketing-sales-report-note {
+            margin-top: 8px;
+            color: #68717a;
+            font-size: .8rem;
+        }
+
+        html[data-bs-theme="dark"] .marketing-sales-report-note {
+            color: #b9c1c8;
+        }
+
+        html[data-bs-theme="dark"] .marketing-sales-report-warning {
+            color: #ffda6a;
         }
 
         .marketing-loading-dots {
@@ -763,7 +1315,8 @@
             }
 
             .marketing-form-grid,
-            .marketing-contact-row {
+            .marketing-contact-row,
+            .marketing-address-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -773,6 +1326,91 @@
 
             .marketing-contact-primary-actions {
                 grid-column: auto;
+            }
+        }
+
+        @media print {
+            @page {
+                size: letter landscape;
+                margin: 8mm;
+            }
+
+            html,
+            body.is-marketing-sales-report-print,
+            body.is-marketing-sales-report-print .container-fluid,
+            body.is-marketing-sales-report-print .page-layout,
+            body.is-marketing-sales-report-print .content,
+            body.is-marketing-sales-report-print .content-inner {
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                background: #fff !important;
+            }
+
+            body.is-marketing-sales-report-print #sidebarColumn,
+            body.is-marketing-sales-report-print .marketing-toolbar,
+            body.is-marketing-sales-report-print .marketing-table-panel,
+            body.is-marketing-sales-report-print .marketing-splitter,
+            body.is-marketing-sales-report-print .marketing-detail-head,
+            body.is-marketing-sales-report-print .marketing-detail-tabs,
+            body.is-marketing-sales-report-print .marketing-sales-report-actions,
+            body.is-marketing-sales-report-print .marketing-sales-report-mode,
+            body.is-marketing-sales-report-print .marketing-sales-report-aircraft,
+            body.is-marketing-sales-report-print footer,
+            body.is-marketing-sales-report-print #spinner-load {
+                display: none !important;
+            }
+
+            body.is-marketing-sales-report-print .row.page-layout,
+            body.is-marketing-sales-report-print .marketing-page,
+            body.is-marketing-sales-report-print .marketing-shell,
+            body.is-marketing-sales-report-print .marketing-detail,
+            body.is-marketing-sales-report-print .marketing-detail-body {
+                display: block !important;
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                border: 0 !important;
+                border-radius: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+                box-shadow: none !important;
+            }
+
+            body.is-marketing-sales-report-print .marketing-pane {
+                display: none !important;
+            }
+
+            body.is-marketing-sales-report-print #marketingPaneSalesReport {
+                display: block !important;
+                color: #000 !important;
+            }
+
+            body.is-marketing-sales-report-print .marketing-sales-report-wrap {
+                max-height: none !important;
+                overflow: visible !important;
+            }
+
+            body.is-marketing-sales-report-print .marketing-sales-report-table {
+                min-width: 0 !important;
+            }
+
+            body.is-marketing-sales-report-print .marketing-sales-report-warning {
+                display: none !important;
+            }
+
+            body.is-marketing-sales-report-print #marketingPaneSalesReport .marketing-section-title {
+                color: #000 !important;
+                font-weight: 400 !important;
+            }
+
+            body.is-marketing-sales-report-print .marketing-sales-report-company,
+            body.is-marketing-sales-report-print .marketing-sales-report-note,
+            body.is-marketing-sales-report-print .marketing-sales-report-table,
+            body.is-marketing-sales-report-print .marketing-sales-report-table th,
+            body.is-marketing-sales-report-print .marketing-sales-report-table td,
+            body.is-marketing-sales-report-print .marketing-sales-report-table a {
+                color: #000 !important;
             }
         }
     </style>
@@ -788,7 +1426,7 @@
 
             <div class="marketing-filter marketing-filter--search">
                 <label for="marketingSearch">Search</label>
-                <input id="marketingSearch" class="form-control form-control-sm" type="search" autocomplete="off" placeholder="Company, contact, country, A/C">
+                <input id="marketingSearch" class="form-control form-control-sm" type="search" autocomplete="off" placeholder="Company, contact, country, city, A/C">
             </div>
 
             <div class="marketing-filter">
@@ -797,6 +1435,16 @@
                     <option value="">All</option>
                     @foreach($lifecycleOptions as $value => $label)
                         <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="marketing-filter">
+                <label for="marketingCountry">Country</label>
+                <select id="marketingCountry" class="form-select form-select-sm marketing-country-select">
+                    <option value="">All</option>
+                    @foreach($countries as $country)
+                        <option value="{{ $country->id }}">{{ $country->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -904,22 +1552,23 @@
                     </button>
                 </div>
 
-                <div class="marketing-detail-tabs">
-                    <button class="marketing-tab is-active" type="button" data-tab="overview"><i class="bi bi-building"></i>Overview</button>
-                    <button class="marketing-tab" type="button" data-tab="contacts"><i class="bi bi-person-lines-fill"></i>Contacts</button>
-                    <button class="marketing-tab" type="button" data-tab="notes"><i class="bi bi-journal-text"></i>Notes</button>
-                    <button class="marketing-tab" type="button" data-tab="workorders"><i class="bi bi-wrench-adjustable"></i>WO</button>
+                <div class="marketing-detail-tabs" role="tablist" aria-label="Marketing detail tabs">
+                    <button id="marketingTabOverview" class="marketing-tab is-active" type="button" data-tab="overview" role="tab" aria-selected="true" aria-controls="marketingPaneOverview"><i class="bi bi-building"></i>Overview</button>
+                    <button id="marketingTabContacts" class="marketing-tab" type="button" data-tab="contacts" role="tab" aria-selected="false" aria-controls="marketingPaneContacts"><i class="bi bi-person-lines-fill"></i>Contacts</button>
+                    <button id="marketingTabNotes" class="marketing-tab" type="button" data-tab="notes" role="tab" aria-selected="false" aria-controls="marketingPaneNotes"><i class="bi bi-journal-text"></i>Notes</button>
+                    <button id="marketingTabWorkorders" class="marketing-tab" type="button" data-tab="workorders" role="tab" aria-selected="false" aria-controls="marketingPaneWorkorders"><i class="bi bi-wrench-adjustable"></i>WO</button>
+                    <button id="marketingTabSalesReport" class="marketing-tab" type="button" data-tab="sales_report" role="tab" aria-selected="false" aria-controls="marketingPaneSalesReport"><i class="bi bi-graph-up-arrow"></i>Sales Report</button>
                 </div>
 
                 <div class="marketing-detail-body">
-                    <div class="marketing-pane is-active" data-pane="overview">
+                    <div id="marketingPaneOverview" class="marketing-pane is-active" data-pane="overview" role="tabpanel" aria-labelledby="marketingTabOverview">
                         <form id="marketingProfileForm" data-no-spinner autocomplete="off">
                             <div class="marketing-section">
-                                <h3 class="marketing-section-title">Company</h3>
+                                <h3 class="marketing-section-title">Company (Name)</h3>
                                 <div class="marketing-form-grid">
                                     <div class="marketing-field span-2">
-                                        <label for="detailName">Name</label>
-                                        <input id="detailName" name="name" class="form-control form-control-sm" type="text" maxlength="250" autocomplete="off">
+                                        <label class="visually-hidden" for="detailName">Company Name</label>
+                                        <input id="detailName" name="name" class="form-control form-control-sm" type="text" maxlength="250" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
                                     </div>
                                     <div class="marketing-field">
                                         <label for="detailLifecycle">Status</label>
@@ -948,20 +1597,37 @@
                                         </select>
                                     </div>
                                     <div class="marketing-field">
-                                        <label for="detailCountry">Country</label>
-                                        <input id="detailCountry" name="country" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off">
+                                        <label for="detailCountryId">Country</label>
+                                        <select id="detailCountryId" name="country_id" class="form-select form-select-sm marketing-country-select" autocomplete="off">
+                                            <option value=""></option>
+                                            @foreach($countries as $country)
+                                                <option value="{{ $country->id }}">{{ $country->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="marketing-field">
+                                        <label for="detailCity">City</label>
+                                        <input id="detailCity" name="city" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
+                                    </div>
+                                    <div class="marketing-field">
+                                        <label for="detailStateProvince">State/Province</label>
+                                        <input id="detailStateProvince" name="state_province" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
                                     </div>
                                     <div class="marketing-field span-2">
-                                        <label for="detailAddress">Address</label>
-                                        <textarea id="detailAddress" name="address" class="form-control form-control-sm" rows="2" autocomplete="off"></textarea>
+                                        <label for="detailStreetAddress">Street Address</label>
+                                        <textarea id="detailStreetAddress" name="street_address" class="form-control form-control-sm" rows="2" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                                    </div>
+                                    <div class="marketing-field span-2">
+                                        <label for="detailCompanyNotes">Company Notes</label>
+                                        <textarea id="detailCompanyNotes" name="company_notes" class="form-control form-control-sm" rows="3" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
                                     </div>
                                     <div class="marketing-field span-2">
                                         <label for="detailTerms">Terms</label>
-                                        <input id="detailTerms" name="terms_label" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off">
+                                        <input id="detailTerms" name="terms_label" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
                                     </div>
                                     <div class="marketing-field span-2">
                                         <label for="detailAircraft">A/C Type</label>
-                                        <select id="detailAircraft" name="aircraft_ids[]" class="form-select form-select-sm marketing-aircraft-select" multiple size="8" autocomplete="off">
+                                        <select id="detailAircraft" name="aircraft_ids[]" class="form-select form-select-sm marketing-aircraft-select" multiple autocomplete="off">
                                             @foreach($planes as $plane)
                                                 <option value="{{ $plane->id }}">{{ $plane->type }}</option>
                                             @endforeach
@@ -976,23 +1642,28 @@
                                 </div>
                             </div>
                         </form>
+
+                        <div class="marketing-section">
+                            <h3 class="marketing-section-title">Address by Category</h3>
+                            <div id="marketingAddressCategories" class="marketing-address-grid"></div>
+                        </div>
                     </div>
 
-                    <div class="marketing-pane" data-pane="contacts">
-                        <form id="marketingContactForm" class="marketing-section" data-no-spinner autocomplete="off">
+                    <div id="marketingPaneContacts" class="marketing-pane" data-pane="contacts" role="tabpanel" aria-labelledby="marketingTabContacts">
+                        <form id="marketingContactForm" class="marketing-section" data-no-spinner autocomplete="off" hidden>
                             <h3 class="marketing-section-title">New Contact</h3>
                             <div class="marketing-form-grid">
                                 <div class="marketing-field">
                                     <label>First Name</label>
-                                    <input name="first_name" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off">
+                                    <input name="first_name" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
                                 </div>
                                 <div class="marketing-field">
                                     <label>Last Name</label>
-                                    <input name="last_name" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off">
+                                    <input name="last_name" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
                                 </div>
                                 <div class="marketing-field">
                                     <label>Position</label>
-                                    <input name="position" class="form-control form-control-sm" type="text" maxlength="160" autocomplete="off">
+                                    <input name="position" class="form-control form-control-sm" type="text" maxlength="160" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
                                 </div>
                                 <div class="marketing-field">
                                     <label>Email</label>
@@ -1000,7 +1671,7 @@
                                 </div>
                                 <div class="marketing-field">
                                     <label>Phone</label>
-                                    <input name="phone" class="form-control form-control-sm" type="text" maxlength="80" autocomplete="off">
+                                    <input name="phone" class="form-control form-control-sm" type="text" maxlength="80" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
                                 </div>
                                 <label class="d-flex align-items-center gap-2 mt-4 small fw-bold">
                                     <input name="is_primary" class="form-check-input mt-0" type="checkbox" value="1">
@@ -1016,12 +1687,32 @@
                         </form>
 
                         <div class="marketing-section">
-                            <h3 class="marketing-section-title">Contacts</h3>
+                            <h3 class="marketing-section-title">
+                                <span>Contacts</span>
+                                <span class="marketing-contact-copy-actions">
+                                    <button class="btn btn-sm btn-outline-primary" type="button" data-contact-new-toggle aria-expanded="false" title="Add new contact">
+                                        <i class="bi bi-plus-lg"></i>
+                                        <span>New Contact</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-contact-copy="all" title="Copy all contact info">
+                                        <i class="bi bi-clipboard"></i>
+                                        <span>All copy</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-contact-copy="emails" title="Copy all emails">
+                                        <i class="bi bi-envelope"></i>
+                                        <span>Email copy</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-contact-copy="phones" title="Copy all phone numbers">
+                                        <i class="bi bi-telephone"></i>
+                                        <span>Phone copy</span>
+                                    </button>
+                                </span>
+                            </h3>
                             <div id="marketingContactsList"></div>
                         </div>
                     </div>
 
-                    <div class="marketing-pane" data-pane="notes">
+                    <div id="marketingPaneNotes" class="marketing-pane" data-pane="notes" role="tabpanel" aria-labelledby="marketingTabNotes">
                         <form id="marketingNoteForm" class="marketing-section" data-no-spinner autocomplete="off">
                             <h3 class="marketing-section-title">New Note</h3>
                             <div class="marketing-form-grid">
@@ -1047,7 +1738,7 @@
                                 </div>
                                 <div class="marketing-field span-2">
                                     <label>Notes</label>
-                                    <textarea name="note" class="form-control form-control-sm" rows="4" required autocomplete="off"></textarea>
+                                    <textarea name="note" class="form-control form-control-sm" rows="4" required autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
                                 </div>
                             </div>
                             <div class="marketing-actions">
@@ -1064,11 +1755,19 @@
                         </div>
                     </div>
 
-                    <div class="marketing-pane" data-pane="workorders">
+                    <div id="marketingPaneWorkorders" class="marketing-pane" data-pane="workorders" role="tabpanel" aria-labelledby="marketingTabWorkorders">
                         <div class="marketing-section">
-                            <h3 class="marketing-section-title">Workorders</h3>
-                            <div class="marketing-workorders-wrap" id="marketingWorkordersScroll">
-                                <table class="table table-sm table-bordered marketing-workorders-table">
+                            <div class="marketing-workorders-toolbar">
+                                <h3 class="marketing-section-title">Workorders</h3>
+                                <div class="marketing-workorders-search" id="marketingWorkordersSearchWrap">
+                                    <input id="marketingWorkordersSearch" class="form-control form-control-sm" type="search" placeholder="Search..." autocomplete="off">
+                                    <button id="marketingWorkordersSearchClear" class="marketing-workorders-search-clear" type="button" title="Clear search" aria-label="Clear workorders search">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="marketing-workorders-wrap dir-table-wrap" id="marketingWorkordersScroll">
+                                <table class="table table-sm table-hover align-middle mb-0 dir-table dir-table--ellipsis marketing-workorders-table">
                                     <thead>
                                     <tr>
                                         <th>WO #</th>
@@ -1082,17 +1781,105 @@
                                         <th>WO Estimate</th>
                                         <th>WO Estimate Date</th>
                                         <th>Approval Date</th>
+                                        <th>Invoice</th>
+                                        <th>Invoice Date</th>
+                                        <th>Ship Date</th>
+                                        <th>AWB #</th>
                                         <th>Files</th>
+                                    </tr>
+                                    <tr class="marketing-workorders-filter-row">
+                                        <th><input type="search" data-workorder-filter="number" placeholder="WO #"></th>
+                                        <th><input type="search" data-workorder-filter="status" placeholder="Status"></th>
+                                        <th><input type="search" data-workorder-filter="ro" placeholder="RO#"></th>
+                                        <th><input type="search" data-workorder-filter="part" placeholder="P/N"></th>
+                                        <th><input type="search" data-workorder-filter="description" placeholder="Description"></th>
+                                        <th><input type="search" data-workorder-filter="serial" placeholder="S/N"></th>
+                                        <th><input type="search" data-workorder-filter="task" placeholder="Task"></th>
+                                        <th><input type="search" data-workorder-filter="terms" placeholder="Terms"></th>
+                                        <th><input type="search" data-workorder-filter="estimate" placeholder="Estimate"></th>
+                                        <th><input type="search" data-workorder-filter="estimate_date" placeholder="Date"></th>
+                                        <th><input type="search" data-workorder-filter="approval_date" placeholder="Date"></th>
+                                        <th><input type="search" data-workorder-filter="invoice" placeholder="Invoice"></th>
+                                        <th><input type="search" data-workorder-filter="invoice_date" placeholder="Date"></th>
+                                        <th><input type="search" data-workorder-filter="ship_date" placeholder="Date"></th>
+                                        <th><input type="search" data-workorder-filter="awb" placeholder="AWB #"></th>
+                                        <th></th>
                                     </tr>
                                     </thead>
                                     <tbody id="marketingWorkordersRows">
-                                    <tr><td colspan="12" class="text-center text-muted py-4">Select company</td></tr>
+                                    <tr><td colspan="16" class="text-center text-muted py-4">Select company</td></tr>
                                     </tbody>
                                 </table>
                             </div>
                             <div class="marketing-actions">
                                 <div id="marketingWorkordersMore" class="marketing-muted small" hidden></div>
                             </div>
+                        </div>
+                    </div>
+
+                    <div id="marketingPaneSalesReport" class="marketing-pane" data-pane="sales_report" role="tabpanel" aria-labelledby="marketingTabSalesReport">
+                        <div class="marketing-section">
+                            <div class="marketing-sales-report-toolbar">
+                                <div class="marketing-sales-report-heading">
+                                    <h3 class="marketing-section-title mb-0">Sales Report</h3>
+                                    <span id="marketingSalesReportCompany" class="marketing-sales-report-company"></span>
+                                    <span id="marketingSalesReportWarning" class="marketing-sales-report-warning" hidden></span>
+                                </div>
+                                <div class="marketing-sales-report-filters marketing-sales-report-actions">
+                                    <div class="btn-group btn-group-sm marketing-sales-report-mode" role="group" aria-label="Sales report type">
+                                        <input class="btn-check" type="radio" name="marketingSalesReportMode" id="marketingSalesReportModeCustomer" value="customer" autocomplete="off" checked>
+                                        <label class="btn btn-outline-info" for="marketingSalesReportModeCustomer">Customer</label>
+                                        <input class="btn-check" type="radio" name="marketingSalesReportMode" id="marketingSalesReportModeAircraft" value="aircraft" autocomplete="off">
+                                        <label class="btn btn-outline-info" for="marketingSalesReportModeAircraft">A/C Type</label>
+                                    </div>
+                                    <div id="marketingSalesReportAircraftWrap" class="marketing-sales-report-aircraft" hidden>
+                                        <label for="marketingSalesReportAircraft">A/C Type</label>
+                                        <select id="marketingSalesReportAircraft" class="form-select form-select-sm marketing-report-aircraft-select" autocomplete="off">
+                                            <option value=""></option>
+                                            @foreach($planes as $plane)
+                                                <option value="{{ $plane->id }}">{{ $plane->type }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="marketing-sales-report-date">
+                                        <label for="marketingSalesDateFrom">From</label>
+                                        <input id="marketingSalesDateFrom" class="form-control form-control-sm" type="date" value="{{ now()->startOfYear()->format('Y-m-d') }}">
+                                    </div>
+                                    <div class="marketing-sales-report-date">
+                                        <label for="marketingSalesDateTo">To</label>
+                                        <input id="marketingSalesDateTo" class="form-control form-control-sm" type="date" value="{{ now()->endOfYear()->format('Y-m-d') }}">
+                                    </div>
+                                    <button id="marketingSalesReportRefresh" class="btn btn-sm btn-outline-primary" type="button">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                        <span>Build</span>
+                                    </button>
+                                    <button id="marketingSalesReportPrint" class="btn btn-sm btn-outline-info" type="button">
+                                        <i class="bi bi-printer"></i>
+                                        <span>Print</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="marketing-sales-report-wrap dir-table-wrap">
+                                <table class="table table-sm table-hover align-middle mb-0 dir-table dir-table--ellipsis marketing-sales-report-table">
+                                    <thead>
+                                    <tr>
+                                        <th data-sales-report-customer-col hidden>Customer</th>
+                                        <th>WO#</th>
+                                        <th>P/N</th>
+                                        <th>S/N</th>
+                                        <th>Description</th>
+                                        <th>Invoiced Amount</th>
+                                        <th>Date</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="marketingSalesReportRows">
+                                    <tr><td colspan="6" class="text-center text-muted py-4">Select company</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="marketing-sales-report-note" id="marketingSalesReportNote">*NOTE: Report based on one customer</div>
                         </div>
                     </div>
                 </div>
@@ -1111,7 +1898,7 @@
                     <div class="marketing-form-grid">
                         <div class="marketing-field span-2">
                             <label>Name</label>
-                            <input name="name" class="form-control form-control-sm" type="text" required maxlength="250" autocomplete="off">
+                            <input name="name" class="form-control form-control-sm" type="text" required maxlength="250" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
                         </div>
                         <div class="marketing-field">
                             <label>Status</label>
@@ -1123,7 +1910,12 @@
                         </div>
                         <div class="marketing-field">
                             <label>Country</label>
-                            <input name="country" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off">
+                            <select id="createCountryId" name="country_id" class="form-select form-select-sm marketing-country-select" autocomplete="off">
+                                <option value=""></option>
+                                @foreach($countries as $country)
+                                    <option value="{{ $country->id }}">{{ $country->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="marketing-field">
                             <label>Type</label>
@@ -1143,17 +1935,67 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="marketing-field">
+                            <label>City</label>
+                            <input name="city" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
+                        </div>
+                        <div class="marketing-field">
+                            <label>State/Province</label>
+                            <input name="state_province" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
+                        </div>
                         <div class="marketing-field span-2">
-                            <label>Address</label>
-                            <textarea name="address" class="form-control form-control-sm" rows="2" autocomplete="off"></textarea>
+                            <label>Street Address</label>
+                            <textarea name="street_address" class="form-control form-control-sm" rows="2" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                        </div>
+                        <div class="marketing-field span-2">
+                            <label>Company Notes</label>
+                            <textarea name="company_notes" class="form-control form-control-sm" rows="3" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
                         </div>
                         <div class="marketing-field span-2">
                             <label>A/C Type</label>
-                            <select name="aircraft_ids[]" class="form-select form-select-sm marketing-aircraft-select" multiple size="8" autocomplete="off">
+                            <select name="aircraft_ids[]" class="form-select form-select-sm marketing-aircraft-select" multiple autocomplete="off">
                                 @foreach($planes as $plane)
                                     <option value="{{ $plane->id }}">{{ $plane->type }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="bi bi-check-lg"></i>
+                        <span>Save</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="marketingWorkorderSalesModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <form class="modal-content" id="marketingWorkorderSalesForm" data-no-spinner autocomplete="off">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="marketingWorkorderSalesTitle">Edit WO</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="marketing-form-grid">
+                        <div class="marketing-field">
+                            <label>Invoice</label>
+                            <input name="sales_invoice_amount" class="form-control form-control-sm" type="text" maxlength="60" placeholder="$15,453" inputmode="decimal" autocomplete="off">
+                        </div>
+                        <div class="marketing-field">
+                            <label>Invoice Date</label>
+                            <input name="sales_invoice_date" class="form-control form-control-sm" type="date" autocomplete="off">
+                        </div>
+                        <div class="marketing-field">
+                            <label>Ship Date</label>
+                            <input name="shipping_shipment_at" class="form-control form-control-sm" type="date" autocomplete="off">
+                        </div>
+                        <div class="marketing-field">
+                            <label>AWB #</label>
+                            <input name="shipping_awb_no" class="form-control form-control-sm" type="text" maxlength="255" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
                         </div>
                     </div>
                 </div>
@@ -1192,6 +2034,9 @@
                 showCustomer: @json(route('marketing.customers.show', ['customer' => '__ID__'])),
                 updateProfile: @json(route('marketing.customers.profile.update', ['customer' => '__ID__'])),
                 workorders: @json(route('marketing.customers.workorders', ['customer' => '__ID__'])),
+                updateWorkorderSalesFields: @json(route('marketing.workorders.sales-fields.update', ['workorder' => '__ID__'])),
+                salesReport: @json(route('marketing.customers.sales-report', ['customer' => '__ID__'])),
+                aircraftSalesReport: @json(route('marketing.sales-report.aircraft')),
                 storeContact: @json(route('marketing.contacts.store', ['customer' => '__ID__'])),
                 updateContact: @json(route('marketing.contacts.update', ['contact' => '__ID__'])),
                 destroyContact: @json(route('marketing.contacts.destroy', ['contact' => '__ID__'])),
@@ -1205,7 +2050,8 @@
             const filtersKey = 'filters';
             const layoutKey = 'layout';
             const tabKey = 'active_tab';
-            const allowedTabs = ['overview', 'contacts', 'notes', 'workorders'];
+            const selectedCustomerKey = 'selected_customer_id';
+            const allowedTabs = ['overview', 'contacts', 'notes', 'workorders', 'sales_report'];
 
             const shell = document.getElementById('marketingShell');
             const splitter = document.getElementById('marketingSplitter');
@@ -1219,21 +2065,43 @@
             const detailMeta = document.getElementById('detailMeta');
             const profileForm = document.getElementById('marketingProfileForm');
             const contactForm = document.getElementById('marketingContactForm');
+            const contactNewToggle = document.querySelector('[data-contact-new-toggle]');
             const noteForm = document.getElementById('marketingNoteForm');
             const createForm = document.getElementById('marketingCreateForm');
             const contactsList = document.getElementById('marketingContactsList');
             const notesList = document.getElementById('marketingNotesList');
+            const addressCategories = document.getElementById('marketingAddressCategories');
             const noteContact = document.getElementById('noteContact');
             const workordersRows = document.getElementById('marketingWorkordersRows');
             const workordersScroll = document.getElementById('marketingWorkordersScroll');
             const workordersMore = document.getElementById('marketingWorkordersMore');
+            const workordersSearchWrap = document.getElementById('marketingWorkordersSearchWrap');
+            const workordersSearch = document.getElementById('marketingWorkordersSearch');
+            const workordersSearchClear = document.getElementById('marketingWorkordersSearchClear');
+            const workorderFilterInputs = Array.from(document.querySelectorAll('[data-workorder-filter]'));
+            const salesReportRows = document.getElementById('marketingSalesReportRows');
+            const salesReportCompany = document.getElementById('marketingSalesReportCompany');
+            const salesReportWarning = document.getElementById('marketingSalesReportWarning');
+            const salesReportNote = document.getElementById('marketingSalesReportNote');
+            const salesReportModeInputs = document.querySelectorAll('input[name="marketingSalesReportMode"]');
+            const salesReportAircraftWrap = document.getElementById('marketingSalesReportAircraftWrap');
+            const salesReportAircraft = document.getElementById('marketingSalesReportAircraft');
+            const salesReportDateFrom = document.getElementById('marketingSalesDateFrom');
+            const salesReportDateTo = document.getElementById('marketingSalesDateTo');
+            const salesReportRefresh = document.getElementById('marketingSalesReportRefresh');
+            const salesReportPrint = document.getElementById('marketingSalesReportPrint');
+            const workorderSalesModalEl = document.getElementById('marketingWorkorderSalesModal');
+            const workorderSalesForm = document.getElementById('marketingWorkorderSalesForm');
+            const workorderSalesTitle = document.getElementById('marketingWorkorderSalesTitle');
             const mediaModalEl = document.getElementById('marketingMediaModal');
             const mediaTitle = document.getElementById('marketingMediaTitle');
             const mediaBody = document.getElementById('marketingMediaBody');
+            const workordersColumnCount = 16;
 
             const filterEls = {
                 q: document.getElementById('marketingSearch'),
                 lifecycle_status: document.getElementById('marketingLifecycle'),
+                country_id: document.getElementById('marketingCountry'),
                 company_type_id: document.getElementById('marketingCompanyType'),
                 segment_id: document.getElementById('marketingSegment'),
                 plane_id: document.getElementById('marketingAircraft'),
@@ -1252,6 +2120,14 @@
                 workordersHasMore: false,
                 workordersLoaded: false,
                 workordersLoading: false,
+                workordersPendingReset: false,
+                workordersRequestSeq: 0,
+                workordersFilterRevision: 0,
+                workordersById: new Map(),
+                editingWorkorderId: null,
+                salesReportLoaded: false,
+                salesReportLoading: false,
+                salesReportMode: 'customer',
             };
 
             const loadingDotsHtml = '<span class="marketing-loading-dots"><span></span><span></span><span></span></span>';
@@ -1263,6 +2139,8 @@
             function setDetailTitleLoading() {
                 detailTitle.classList.add('is-loading');
                 detailTitle.innerHTML = loadingHtml('Loading');
+                detailMeta.textContent = '';
+                detailMeta.hidden = true;
             }
 
             function setDetailTitleText(value) {
@@ -1304,10 +2182,20 @@
                 });
 
                 root.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]), textarea').forEach((el) => {
+                    const type = String(el.getAttribute('type') || (el.tagName === 'TEXTAREA' ? 'textarea' : 'text')).toLowerCase();
+                    const fieldName = String(el.getAttribute('name') || el.id || '').toLowerCase();
+                    const supportsWritingAssist = !['date', 'email', 'hidden', 'number', 'password', 'search', 'tel', 'url'].includes(type)
+                        && !el.matches('[data-project-date]')
+                        && !fieldName.includes('email')
+                        && !fieldName.includes('phone')
+                        && !fieldName.includes('alpha2')
+                        && !fieldName.includes('amount')
+                        && !fieldName.includes('awb');
+
                     el.setAttribute('autocomplete', 'new-password');
-                    el.setAttribute('autocorrect', 'off');
-                    el.setAttribute('autocapitalize', 'off');
-                    el.setAttribute('spellcheck', 'false');
+                    el.setAttribute('autocorrect', supportsWritingAssist ? 'on' : 'off');
+                    el.setAttribute('autocapitalize', supportsWritingAssist ? (el.tagName === 'TEXTAREA' ? 'sentences' : 'words') : 'off');
+                    el.setAttribute('spellcheck', supportsWritingAssist ? 'true' : 'false');
 
                     if (!el.matches('[readonly]') && !el.matches('[type="date"], [type="search"], [data-project-date]')) {
                         el.setAttribute('readonly', 'readonly');
@@ -1325,7 +2213,7 @@
             }
 
             function isMarketingAutofillScope(target) {
-                return !!target?.closest?.('[data-marketing-page], #marketingCreateModal');
+                return !!target?.closest?.('[data-marketing-page], #marketingCreateModal, #marketingWorkorderSalesModal');
             }
 
             async function requestJson(url, options = {}) {
@@ -1434,15 +2322,94 @@
 
             function setFilters(filters) {
                 Object.entries(filterEls).forEach(([key, el]) => {
-                    el.value = filters?.[key] || '';
+                    setSelectValue(el, filters?.[key] || '');
                 });
                 updateFilterStates();
             }
 
             function updateFilterStates() {
                 Object.values(filterEls).forEach((el) => {
-                    el.closest('.marketing-filter')?.classList.toggle('is-active', String(el.value || '') !== '');
+                    const isActive = String(el.value || '') !== '';
+                    const filter = el.closest('.marketing-filter');
+
+                    filter?.classList.toggle('is-active', isActive);
+                    filter?.classList.toggle('has-clear', isActive && el.tagName === 'SELECT');
                 });
+            }
+
+            function initFilterClearButtons() {
+                Object.values(filterEls).forEach((el) => {
+                    if (el.tagName !== 'SELECT') return;
+
+                    const filter = el.closest('.marketing-filter');
+                    if (!filter || filter.querySelector('.marketing-filter-clear')) return;
+
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'marketing-filter-clear';
+                    button.innerHTML = '<i class="bi bi-x-lg"></i>';
+                    button.title = 'Clear filter';
+                    button.setAttribute('aria-label', 'Clear filter');
+
+                    button.addEventListener('click', async (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        setSelectValue(el, '');
+                        updateFilterStates();
+                        await saveFilters();
+                        await loadCustomers(true);
+                    });
+
+                    filter.appendChild(button);
+                });
+
+                updateFilterStates();
+            }
+
+            function currentWorkorderFilters() {
+                const filters = {};
+                const search = String(workordersSearch?.value || '').trim();
+
+                if (search !== '') {
+                    filters.wo_q = search;
+                }
+
+                workorderFilterInputs.forEach((input) => {
+                    const key = input.dataset.workorderFilter;
+                    const value = String(input.value || '').trim();
+                    if (key && value !== '') {
+                        filters[`wo_${key}`] = value;
+                    }
+                });
+
+                return filters;
+            }
+
+            function updateWorkorderFilterStates() {
+                const hasSearch = String(workordersSearch?.value || '').trim() !== '';
+                workordersSearchWrap?.classList.toggle('has-clear', hasSearch);
+
+                workorderFilterInputs.forEach((input) => {
+                    input.closest('th')?.classList.toggle('is-active', String(input.value || '').trim() !== '');
+                });
+            }
+
+            function clearWorkorderSearch() {
+                if (!workordersSearch) return;
+
+                workordersSearch.value = '';
+                reloadWorkordersForFilterChange();
+            }
+
+            function reloadWorkordersForFilterChange() {
+                state.workordersFilterRevision += 1;
+                updateWorkorderFilterStates();
+                state.workordersLoaded = false;
+
+                if (state.activeTab === 'workorders' && state.selectedCustomer) {
+                    loadWorkorders(true);
+                }
             }
 
             function clampPanelWidth(width) {
@@ -1451,7 +2418,7 @@
                 const shellWidth = shell.getBoundingClientRect().width;
                 if (!Number.isFinite(shellWidth) || shellWidth < 700) return null;
 
-                const minLeft = 300;
+                const minLeft = 190;
                 const minRight = 390;
                 const handleWidth = splitter?.getBoundingClientRect().width || 14;
                 const gapWidth = 16;
@@ -1462,11 +2429,17 @@
                 return Math.min(Math.max(Math.round(width), minLeft), Math.round(maxLeft));
             }
 
+            function updatePanelMode(width) {
+                if (!shell) return;
+                shell.classList.toggle('is-company-only', Number(width) <= 260);
+            }
+
             function setPanelWidth(width, persist = false) {
                 const clamped = clampPanelWidth(width);
                 if (!clamped) return;
 
                 shell.style.setProperty('--marketing-left-width', `${clamped}px`);
+                updatePanelMode(clamped);
 
                 if (persist) {
                     const persistPromise = window.UserUiSettings?.set(scope, layoutKey, { leftWidth: clamped });
@@ -1525,7 +2498,7 @@
                 const step = event.shiftKey ? 80 : 32;
                 const shellWidth = shell.getBoundingClientRect().width;
 
-                if (event.key === 'Home') return setPanelWidth(300, true);
+                if (event.key === 'Home') return setPanelWidth(190, true);
                 if (event.key === 'End') return setPanelWidth(shellWidth - 390, true);
                 setPanelWidth(current + (event.key === 'ArrowRight' ? step : -step), true);
             }
@@ -1636,6 +2609,23 @@
                 } catch (_) {}
             }
 
+            async function saveSelectedCustomer(id) {
+                try {
+                    await window.UserUiSettings?.set(scope, selectedCustomerKey, id ? String(id) : null);
+                } catch (_) {}
+            }
+
+            async function restoreSelectedCustomerId() {
+                const urlCustomerId = new URLSearchParams(window.location.search).get('customer');
+                if (urlCustomerId) return urlCustomerId;
+
+                try {
+                    return await window.UserUiSettings?.get(scope, selectedCustomerKey, null);
+                } catch (_) {
+                    return null;
+                }
+            }
+
             function debounce(fn, wait) {
                 let timer = null;
                 return function (...args) {
@@ -1650,11 +2640,25 @@
                 state.workordersPage = 1;
                 state.workordersHasMore = false;
                 state.workordersLoading = false;
+                state.workordersPendingReset = false;
+                state.workordersRequestSeq += 1;
+                state.workordersFilterRevision += 1;
+                state.salesReportLoaded = false;
+                state.salesReportLoading = false;
+                if (salesReportWarning) {
+                    salesReportWarning.hidden = true;
+                    salesReportWarning.textContent = '';
+                }
+                if (salesReportCompany) {
+                    salesReportCompany.textContent = state.salesReportMode === 'customer' ? '' : selectedSalesReportAircraftLabel();
+                }
+                if (salesReportRows && state.salesReportMode === 'customer') {
+                    salesReportRows.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Select company</td></tr>';
+                }
                 renderRows(false);
 
                 detail.classList.add('is-open');
                 setDetailTitleLoading();
-                detailMeta.textContent = 'Marketing profile';
 
                 const nextUrl = new URL(window.location.href);
                 nextUrl.searchParams.set('customer', id);
@@ -1663,10 +2667,15 @@
                 try {
                     const data = await requestJson(urlFor(routes.showCustomer, id), { method: 'GET', headers: { 'Content-Type': 'application/json' } });
                     state.selectedCustomer = data.customer;
+                    await saveSelectedCustomer(data.customer.id);
                     renderDetail();
 
                     if (state.activeTab === 'workorders') {
                         await loadWorkorders(true);
+                    }
+
+                    if (state.activeTab === 'sales_report') {
+                        await loadSalesReport(true);
                     }
                 } catch (error) {
                     notify(error.message, 'error');
@@ -1682,6 +2691,84 @@
                 Array.from(select.options).forEach((option) => {
                     option.selected = set.has(String(option.value));
                 });
+
+                if (window.jQuery?.fn?.select2 && window.jQuery(select).data('select2')) {
+                    window.jQuery(select).val(Array.from(set)).trigger('change.select2');
+                }
+            }
+
+            function setSelectValue(select, value) {
+                if (!select) return;
+
+                select.value = value ? String(value) : '';
+
+                if (window.jQuery?.fn?.select2 && window.jQuery(select).data('select2')) {
+                    window.jQuery(select).val(select.value).trigger('change.select2');
+                }
+            }
+
+            function resetEnhancedSelects(root) {
+                root.querySelectorAll('select').forEach((select) => {
+                    if (window.jQuery?.fn?.select2 && window.jQuery(select).data('select2')) {
+                        window.jQuery(select).val(select.multiple ? [] : '').trigger('change.select2');
+                    }
+                });
+            }
+
+            function initMarketingCountrySelects(root = document) {
+                if (!window.jQuery?.fn?.select2) return;
+
+                window.jQuery(root).find('.marketing-country-select').each(function () {
+                    const $select = window.jQuery(this);
+                    if ($select.data('select2')) return;
+
+                    const modal = this.closest('.modal');
+                    $select.select2({
+                        width: '100%',
+                        placeholder: this.id === 'marketingCountry' ? 'All' : 'Select country',
+                        allowClear: true,
+                        dropdownParent: modal ? window.jQuery(modal) : window.jQuery(document.body),
+                    });
+                });
+            }
+
+            function initMarketingAircraftSelects(root = document) {
+                if (!window.jQuery?.fn?.select2) return;
+
+                window.jQuery(root).find('.marketing-aircraft-select').each(function () {
+                    const $select = window.jQuery(this);
+                    if ($select.data('select2')) return;
+
+                    const modal = this.closest('.modal');
+                    $select.select2({
+                        width: '100%',
+                        placeholder: 'Select A/C Type',
+                        allowClear: true,
+                        closeOnSelect: false,
+                        dropdownParent: modal ? window.jQuery(modal) : window.jQuery(document.body),
+                    });
+                });
+            }
+
+            function renderAddressCategories(customer) {
+                if (!addressCategories) return;
+
+                const categories = customer.profile?.address_categories || customer.address_categories || [];
+                const fallbackAddress = customer.profile?.formatted_address || customer.formatted_address || '';
+                const addressItems = categories.length
+                    ? categories
+                    : ['Logistics', 'Shipping', 'Marketing', 'Accounting', 'Purchasing'].map((label) => ({ label, address: fallbackAddress }));
+
+                if (!fallbackAddress) {
+                    addressCategories.innerHTML = '<div class="marketing-empty">No address</div>';
+                    return;
+                }
+
+                addressCategories.innerHTML = addressItems.map((item) => `
+<div class="marketing-address-item">
+  <div class="marketing-address-label">${escapeHtml(item.label)}</div>
+  <div class="marketing-address-text">${escapeHtml(item.address || fallbackAddress)}</div>
+</div>`).join('');
             }
 
             function renderDetail() {
@@ -1689,23 +2776,110 @@
                 if (!customer) return;
 
                 setDetailTitleText(customer.name);
-                detailMeta.textContent = [customer.country, customer.company_type, customer.segment].filter(Boolean).join(' / ') || 'Marketing profile';
+                detailMeta.textContent = '';
+                detailMeta.hidden = true;
 
                 profileForm.name.value = customer.name || '';
                 profileForm.lifecycle_status.value = customer.profile?.lifecycle_status || 'existing';
-                profileForm.country.value = customer.profile?.country || '';
-                profileForm.address.value = customer.profile?.address || '';
+                setSelectValue(profileForm.country_id, customer.profile?.country_id || '');
+                profileForm.city.value = customer.profile?.city || '';
+                profileForm.state_province.value = customer.profile?.state_province || '';
+                profileForm.street_address.value = customer.profile?.street_address || customer.profile?.address || '';
+                profileForm.company_notes.value = customer.profile?.company_notes || '';
                 profileForm.company_type_id.value = customer.profile?.company_type_id || '';
                 profileForm.segment_id.value = customer.profile?.segment_id || '';
                 profileForm.terms_label.value = customer.profile?.terms_label || '';
                 setSelectMultiple(document.getElementById('detailAircraft'), selectedAircraftIds(customer));
                 markFormClean(profileForm);
+                setNewContactFormVisible(false);
 
+                renderAddressCategories(customer);
                 renderContacts(customer.contacts || []);
                 renderNoteContactOptions(customer.contacts || []);
                 renderNotes(customer.notes || []);
                 disableAutocomplete(detail);
                 window.initProjectDatePickers?.(detail);
+            }
+
+            function setContactFormEditing(form, editing) {
+                if (!form) return;
+
+                form.classList.toggle('is-editing', editing);
+                form.querySelectorAll('input[name="first_name"], input[name="last_name"], input[name="position"], input[name="email"], input[name="phone"]').forEach((input) => {
+                    input.readOnly = !editing;
+                });
+
+                form.querySelectorAll('input[type="checkbox"][name="is_primary"]').forEach((input) => {
+                    input.disabled = !editing;
+                });
+
+                refreshFormDirtyState(form);
+            }
+
+            function contactCopyText(contacts, mode) {
+                if (mode === 'emails') {
+                    return contacts.map((contact) => contact.email || '').filter(Boolean).join('\n');
+                }
+
+                if (mode === 'phones') {
+                    return contacts.map((contact) => contact.phone || '').filter(Boolean).join('\n');
+                }
+
+                return contacts.map((contact) => {
+                    const lines = [
+                        contact.full_name || [contact.first_name, contact.last_name].filter(Boolean).join(' '),
+                        contact.position,
+                        contact.email,
+                        contact.phone,
+                        contact.is_primary ? 'Primary contact' : '',
+                    ].filter(Boolean);
+
+                    return lines.join('\n');
+                }).filter(Boolean).join('\n\n');
+            }
+
+            async function copyTextToClipboard(text) {
+                if (!text.trim()) {
+                    notify('Nothing to copy', 'error');
+                    return;
+                }
+
+                try {
+                    if (navigator.clipboard?.writeText) {
+                        await navigator.clipboard.writeText(text);
+                    } else {
+                        const textarea = document.createElement('textarea');
+                        textarea.value = text;
+                        textarea.setAttribute('readonly', 'readonly');
+                        textarea.style.position = 'fixed';
+                        textarea.style.left = '-9999px';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand('copy');
+                        textarea.remove();
+                    }
+
+                    notify('Copied');
+                } catch (error) {
+                    notify('Copy failed', 'error');
+                }
+            }
+
+            function copyMarketingContacts(mode) {
+                const contacts = state.selectedCustomer?.contacts || [];
+                copyTextToClipboard(contactCopyText(contacts, mode));
+            }
+
+            function setNewContactFormVisible(visible) {
+                contactForm.hidden = !visible;
+                contactNewToggle?.classList.toggle('active', visible);
+                contactNewToggle?.setAttribute('aria-expanded', visible ? 'true' : 'false');
+
+                if (visible) {
+                    contactForm.querySelector('input[name="first_name"]')?.focus();
+                } else {
+                    contactForm.reset();
+                }
             }
 
             function renderContacts(contacts) {
@@ -1716,24 +2890,29 @@
 
                 contactsList.innerHTML = contacts.map((contact) => `
 <form class="marketing-contact-row js-contact-row" data-contact-id="${contact.id}" data-no-spinner autocomplete="off">
-  <input name="first_name" class="form-control form-control-sm" value="${escapeHtml(contact.first_name)}" placeholder="First Name" autocomplete="off">
-  <input name="last_name" class="form-control form-control-sm" value="${escapeHtml(contact.last_name)}" placeholder="Last Name" autocomplete="off">
-  <input name="position" class="form-control form-control-sm" value="${escapeHtml(contact.position)}" placeholder="Position" autocomplete="off">
-  <input name="email" class="form-control form-control-sm" value="${escapeHtml(contact.email)}" placeholder="Email" autocomplete="off">
-  <input name="phone" class="form-control form-control-sm" value="${escapeHtml(contact.phone)}" placeholder="Phone" autocomplete="off">
+  <input name="first_name" class="form-control form-control-sm" value="${escapeHtml(contact.first_name)}" placeholder="First Name" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true" readonly>
+  <input name="last_name" class="form-control form-control-sm" value="${escapeHtml(contact.last_name)}" placeholder="Last Name" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true" readonly>
+  <input name="position" class="form-control form-control-sm" value="${escapeHtml(contact.position)}" placeholder="Position" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true" readonly>
+  <input name="email" class="form-control form-control-sm" value="${escapeHtml(contact.email)}" placeholder="Email" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly>
+  <input name="phone" class="form-control form-control-sm" value="${escapeHtml(contact.phone)}" placeholder="Phone" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly>
   <div class="marketing-contact-primary-actions">
     <label class="d-flex align-items-center gap-2 small fw-bold mb-0">
-      <input name="is_primary" class="form-check-input mt-0" type="checkbox" value="1" ${contact.is_primary ? 'checked' : ''}>
+      <input name="is_primary" class="form-check-input mt-0" type="checkbox" value="1" ${contact.is_primary ? 'checked' : ''} disabled>
       Primary
     </label>
     <div class="marketing-contact-actions">
-      <button class="btn btn-sm btn-outline-primary marketing-save-button" type="submit" data-save-button title="Save"><i class="bi bi-check-lg" data-save-icon></i></button>
+      <button class="btn btn-sm btn-outline-secondary marketing-contact-edit" type="button" title="Edit contact"><i class="bi bi-pencil"></i><span>Edit</span></button>
+      <button class="btn btn-sm btn-outline-secondary marketing-contact-cancel" type="button" title="Cancel editing"><i class="bi bi-x-lg"></i></button>
+      <button class="btn btn-sm btn-outline-primary marketing-save-button marketing-contact-save" type="submit" data-save-button title="Save"><i class="bi bi-check-lg" data-save-icon></i></button>
       <button class="btn btn-sm btn-outline-danger js-contact-delete" type="button" title="Delete"><i class="bi bi-trash"></i></button>
     </div>
   </div>
 </form>`).join('');
                 disableAutocomplete(contactsList);
-                contactsList.querySelectorAll('.js-contact-row').forEach(markFormClean);
+                contactsList.querySelectorAll('.js-contact-row').forEach((form) => {
+                    setContactFormEditing(form, false);
+                    markFormClean(form);
+                });
             }
 
             function renderNoteContactOptions(contacts) {
@@ -1809,6 +2988,7 @@
                         body: JSON.stringify(formDataObject(contactForm)),
                     });
                     contactForm.reset();
+                    setNewContactFormVisible(false);
                     state.selectedCustomer = data.customer;
                     updateRowCache(data.customer);
                     renderDetail();
@@ -1929,6 +3109,7 @@
                         body: JSON.stringify(formDataObject(createForm)),
                     });
                     createForm.reset();
+                    resetEnhancedSelects(createForm);
                     bootstrap.Modal.getInstance(document.getElementById('marketingCreateModal'))?.hide();
                     await loadCustomers(true);
                     await openCustomer(data.customer.id);
@@ -1940,16 +3121,11 @@
                 }
             }
 
-            function renderWorkorders(items, append = false) {
-                if (!append) workordersRows.innerHTML = '';
+            function renderWorkorderRow(wo) {
+                const isComplete = String(wo.status || '').trim().toLowerCase() === 'complete';
 
-                if (!items.length && !append) {
-                    workordersRows.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">No workorders</td></tr>';
-                    return;
-                }
-
-                const html = items.map((wo) => `
-<tr>
+                return `
+<tr class="${isComplete ? 'marketing-workorder-complete' : ''}" data-workorder-id="${Number(wo.id || 0)}">
   <td><a href="${escapeHtml(wo.urls.open)}">${escapeHtml(wo.number_label)}</a></td>
   <td>${escapeHtml(wo.status || '-')}</td>
   <td>${escapeHtml(wo.ro_number || '-')}</td>
@@ -1961,26 +3137,100 @@
   <td>${wo.estimate_amount ? escapeHtml(wo.estimate_amount) : '-'}</td>
   <td>${escapeHtml(wo.estimate_date?.display || '-')}</td>
   <td>${escapeHtml(wo.approval_date?.display || '-')}</td>
+  <td>${escapeHtml(wo.sales_invoice_amount?.display || '-')}</td>
+  <td>${escapeHtml(wo.sales_invoice_date?.display || '-')}</td>
+  <td>${escapeHtml(wo.shipping_shipment_at?.display || '-')}</td>
+  <td>${escapeHtml(wo.shipping_awb_no || '-')}</td>
   <td>
-    <button class="btn btn-sm btn-outline-secondary js-marketing-media" type="button" data-media-kind="photos" data-media-count="${Number(wo.image_count || 0)}" data-media-url="${escapeHtml(wo.urls.photos)}" data-wo-label="${escapeHtml(wo.number_label)}" title="Images"><i class="bi bi-images"></i> ${Number(wo.image_count || 0)}</button>
-    <button class="btn btn-sm btn-outline-secondary js-marketing-media" type="button" data-media-kind="pdfs" data-media-count="${Number(wo.pdf_count || 0)}" data-media-url="${escapeHtml(wo.urls.pdfs)}" data-wo-label="${escapeHtml(wo.number_label)}" title="PDF"><i class="bi bi-file-earmark-pdf"></i> ${Number(wo.pdf_count || 0)}</button>
+    <button class="btn btn-sm btn-outline-info js-marketing-media" type="button" data-media-kind="photos" data-media-count="${Number(wo.image_count || 0)}" data-media-url="${escapeHtml(wo.urls.photos)}" data-wo-label="${escapeHtml(wo.number_label)}" title="Images"><i class="bi bi-images"></i> ${Number(wo.image_count || 0)}</button>
+    <button class="btn btn-sm btn-outline-info js-marketing-media" type="button" data-media-kind="pdfs" data-media-count="${Number(wo.pdf_count || 0)}" data-media-url="${escapeHtml(wo.urls.pdfs)}" data-wo-label="${escapeHtml(wo.number_label)}" title="PDF"><i class="bi bi-file-earmark-pdf"></i> ${Number(wo.pdf_count || 0)}</button>
   </td>
-</tr>`).join('');
+</tr>`;
+            }
+
+            function renderWorkorders(items, append = false) {
+                if (!append) {
+                    workordersRows.innerHTML = '';
+                    state.workordersById.clear();
+                }
+
+                if (!items.length && !append) {
+                    workordersRows.innerHTML = `<tr><td colspan="${workordersColumnCount}" class="text-center text-muted py-4">No workorders</td></tr>`;
+                    return;
+                }
+
+                items.forEach((wo) => state.workordersById.set(Number(wo.id), wo));
+                const html = items.map((wo) => renderWorkorderRow(wo)).join('');
 
                 workordersRows.insertAdjacentHTML('beforeend', html);
             }
 
+            function openWorkorderSalesModal(id) {
+                const wo = state.workordersById.get(Number(id));
+                if (!wo || !workorderSalesForm || !workorderSalesModalEl) return;
+
+                state.editingWorkorderId = Number(id);
+                workorderSalesTitle.textContent = `Edit ${wo.number_label || 'WO'}`;
+                workorderSalesForm.reset();
+                workorderSalesForm.elements.sales_invoice_amount.value = wo.sales_invoice_amount?.value || '';
+                workorderSalesForm.elements.sales_invoice_date.value = wo.sales_invoice_date?.iso || '';
+                workorderSalesForm.elements.shipping_shipment_at.value = wo.shipping_shipment_at?.iso || '';
+                workorderSalesForm.elements.shipping_awb_no.value = wo.shipping_awb_no || '';
+                bootstrap.Modal.getOrCreateInstance(workorderSalesModalEl).show();
+            }
+
+            function replaceRenderedWorkorderRow(wo) {
+                state.workordersById.set(Number(wo.id), wo);
+                const row = workordersRows.querySelector(`tr[data-workorder-id="${Number(wo.id)}"]`);
+                if (row) {
+                    row.outerHTML = renderWorkorderRow(wo);
+                }
+            }
+
+            async function saveWorkorderSalesFields(event) {
+                event.preventDefault();
+
+                const id = state.editingWorkorderId;
+                if (!id || !workorderSalesForm) return;
+
+                try {
+                    const data = await requestJson(urlFor(routes.updateWorkorderSalesFields, id), {
+                        method: 'PATCH',
+                        body: JSON.stringify(formDataObject(workorderSalesForm)),
+                    });
+
+                    if (data.workorder) {
+                        replaceRenderedWorkorderRow(data.workorder);
+                    }
+
+                    bootstrap.Modal.getInstance(workorderSalesModalEl)?.hide();
+                    notify('WO fields saved');
+                } catch (error) {
+                    notify(error.message, 'error');
+                } finally {
+                    window.safeHideSpinner?.();
+                }
+            }
+
             async function loadWorkorders(reset = false) {
                 if (!state.selectedCustomer) return;
-                if (state.workordersLoading) return;
+                if (state.workordersLoading) {
+                    if (reset) state.workordersPendingReset = true;
+                    return;
+                }
                 if (reset) {
                     state.workordersPage = 1;
                     state.workordersLoaded = false;
                     state.workordersHasMore = false;
-                    workordersRows.innerHTML = `<tr><td colspan="12" class="text-center text-muted py-4">${loadingHtml('Loading')}</td></tr>`;
+                    state.workordersById.clear();
+                    workordersRows.innerHTML = `<tr><td colspan="${workordersColumnCount}" class="text-center text-muted py-4">${loadingHtml('Loading')}</td></tr>`;
+                    if (workordersScroll) workordersScroll.scrollTop = 0;
                 }
 
                 state.workordersLoading = true;
+                const requestSeq = ++state.workordersRequestSeq;
+                const filterRevision = state.workordersFilterRevision;
+                const customerId = state.selectedCustomer.id;
                 if (reset) {
                     workordersMore.hidden = true;
                 } else {
@@ -1989,8 +3239,20 @@
                 }
 
                 try {
-                    const url = `${urlFor(routes.workorders, state.selectedCustomer.id)}?${queryString({ page: state.workordersPage, per_page: 20 })}`;
+                    const url = `${urlFor(routes.workorders, state.selectedCustomer.id)}?${queryString({
+                        ...currentWorkorderFilters(),
+                        page: state.workordersPage,
+                        per_page: 20,
+                    })}`;
                     const data = await requestJson(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+                    const isCurrentRequest = requestSeq === state.workordersRequestSeq
+                        && filterRevision === state.workordersFilterRevision
+                        && Number(customerId) === Number(state.selectedCustomer?.id);
+
+                    if (!isCurrentRequest) {
+                        return;
+                    }
+
                     state.workordersHasMore = !!data.pagination?.has_more;
                     state.workordersPage = data.pagination?.next_page || state.workordersPage + 1;
                     state.workordersLoaded = true;
@@ -1998,11 +3260,215 @@
                     workordersMore.textContent = state.workordersHasMore ? 'Scroll for more' : '';
                     renderWorkorders(data.items || [], !reset);
                 } catch (error) {
-                    workordersRows.innerHTML = `<tr><td colspan="12" class="text-center text-danger py-4">${escapeHtml(error.message)}</td></tr>`;
+                    const isCurrentRequest = requestSeq === state.workordersRequestSeq
+                        && filterRevision === state.workordersFilterRevision
+                        && Number(customerId) === Number(state.selectedCustomer?.id);
+
+                    if (isCurrentRequest) {
+                        workordersRows.innerHTML = `<tr><td colspan="${workordersColumnCount}" class="text-center text-danger py-4">${escapeHtml(error.message)}</td></tr>`;
+                    }
                 } finally {
-                    state.workordersLoading = false;
+                    if (requestSeq === state.workordersRequestSeq) {
+                        state.workordersLoading = false;
+
+                        if (state.workordersPendingReset) {
+                            state.workordersPendingReset = false;
+                            loadWorkorders(true);
+                        }
+                    }
                 }
             }
+
+            function formatSalesMoney(value) {
+                if (value === null || value === undefined || value === '') return '-';
+
+                const amount = Number(value);
+                if (!Number.isFinite(amount)) return escapeHtml(value);
+
+                const decimals = Math.abs(amount - Math.round(amount)) < 0.005 ? 0 : 2;
+                return `$${amount.toLocaleString('en-US', {
+                    minimumFractionDigits: decimals,
+                    maximumFractionDigits: decimals,
+                })}`;
+            }
+
+            function salesReportMode() {
+                const checked = Array.from(salesReportModeInputs || []).find((input) => input.checked);
+                return checked?.value === 'aircraft' ? 'aircraft' : 'customer';
+            }
+
+            function selectedSalesReportAircraftLabel() {
+                const option = salesReportAircraft?.selectedOptions?.[0];
+                return option?.value ? option.textContent.trim() : '';
+            }
+
+            function setSalesReportMessage(message) {
+                const mode = salesReportMode();
+                const colspan = mode === 'aircraft' ? 7 : 6;
+                salesReportRows.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted py-4">${message}</td></tr>`;
+            }
+
+            function updateSalesReportModeUi() {
+                state.salesReportMode = salesReportMode();
+                const isAircraft = state.salesReportMode === 'aircraft';
+                if (salesReportAircraftWrap) {
+                    salesReportAircraftWrap.hidden = !isAircraft;
+                    salesReportAircraftWrap.classList.toggle('has-clear', isAircraft && !!salesReportAircraft?.value);
+                }
+                document.querySelectorAll('[data-sales-report-customer-col]').forEach((el) => {
+                    el.hidden = !isAircraft;
+                });
+
+                if (salesReportCompany) {
+                    salesReportCompany.textContent = isAircraft ? selectedSalesReportAircraftLabel() : (state.selectedCustomer?.name || '');
+                }
+            }
+
+            function initMarketingReportAircraftSelects(root = document) {
+                if (!window.jQuery?.fn?.select2) return;
+
+                window.jQuery(root).find('.marketing-report-aircraft-select').each(function () {
+                    const $select = window.jQuery(this);
+                    if ($select.data('select2')) return;
+
+                    $select.select2({
+                        width: '100%',
+                        placeholder: 'Select A/C Type',
+                        allowClear: true,
+                        dropdownParent: window.jQuery(document.body),
+                    });
+                });
+            }
+
+            function renderSalesReport(report) {
+                if (!salesReportRows) return;
+
+                const rows = report?.rows || [];
+                const isAircraft = report?.report_type === 'component' || salesReportMode() === 'aircraft';
+                const colspan = isAircraft ? 7 : 6;
+                const totalColspan = isAircraft ? 5 : 4;
+
+                document.querySelectorAll('[data-sales-report-customer-col]').forEach((el) => {
+                    el.hidden = !isAircraft;
+                });
+
+                if (salesReportCompany) {
+                    salesReportCompany.textContent = isAircraft
+                        ? (rows[0]?.aircraft_type || selectedSalesReportAircraftLabel())
+                        : (state.selectedCustomer?.name || rows[0]?.company || '');
+                }
+
+                if (salesReportWarning) {
+                    salesReportWarning.hidden = !report?.warning;
+                    salesReportWarning.textContent = report?.warning || '';
+                }
+
+                if (salesReportNote) {
+                    salesReportNote.textContent = `*NOTE: ${report?.note || 'Report based on one customer'}`;
+                }
+
+                if (!rows.length) {
+                    salesReportRows.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted py-4">No sales report rows</td></tr>`;
+                    return;
+                }
+
+                const html = rows.map((row) => {
+                    return `
+<tr>
+  ${isAircraft ? `<td title="${escapeHtml(row.company || '')}">${escapeHtml(row.company || '-')}</td>` : ''}
+  <td>${escapeHtml(row.wo_number || '-')}</td>
+  <td title="${escapeHtml(row.part_number || '')}">${escapeHtml(row.part_number || '-')}</td>
+  <td title="${escapeHtml(row.serial_number || '')}">${escapeHtml(row.serial_number || '-')}</td>
+  <td title="${escapeHtml(row.description || '')}">${escapeHtml(row.description || '-')}</td>
+  <td class="marketing-sales-report-money">${formatSalesMoney(row.invoiced_amount)}</td>
+  <td>${escapeHtml(row.date_label || report?.period_label || '-')}</td>
+</tr>`;
+                }).join('');
+
+                salesReportRows.innerHTML = `${html}
+<tr class="marketing-sales-report-total">
+  <td colspan="${totalColspan}" class="text-end">TOTAL</td>
+  <td class="marketing-sales-report-money">${formatSalesMoney(report?.total ?? 0)}</td>
+  <td></td>
+</tr>`;
+            }
+
+            async function loadSalesReport(reset = false) {
+                if (!salesReportRows) return;
+
+                const mode = salesReportMode();
+                state.salesReportMode = mode;
+                updateSalesReportModeUi();
+
+                if (salesReportWarning) {
+                    salesReportWarning.hidden = true;
+                    salesReportWarning.textContent = '';
+                }
+
+                if (mode === 'customer' && !state.selectedCustomer) {
+                    if (salesReportCompany) salesReportCompany.textContent = '';
+                    setSalesReportMessage('Select company');
+                    return;
+                }
+
+                if (mode === 'aircraft' && !salesReportAircraft?.value) {
+                    if (salesReportCompany) salesReportCompany.textContent = '';
+                    setSalesReportMessage('Select A/C Type');
+                    return;
+                }
+
+                if (state.salesReportLoading) return;
+                state.salesReportLoading = true;
+
+                if (reset) {
+                    state.salesReportLoaded = false;
+                    if (salesReportCompany) {
+                        salesReportCompany.textContent = mode === 'aircraft'
+                            ? selectedSalesReportAircraftLabel()
+                            : (state.selectedCustomer?.name || '');
+                    }
+                    setSalesReportMessage(loadingHtml('Loading'));
+                }
+
+                salesReportRefresh && (salesReportRefresh.disabled = true);
+                salesReportPrint && (salesReportPrint.disabled = true);
+
+                try {
+                    const params = {
+                        date_from: salesReportDateFrom?.value || '',
+                        date_to: salesReportDateTo?.value || '',
+                    };
+                    const url = mode === 'aircraft'
+                        ? `${routes.aircraftSalesReport}?${queryString({ ...params, plane_id: salesReportAircraft?.value || '' })}`
+                        : `${urlFor(routes.salesReport, state.selectedCustomer.id)}?${queryString(params)}`;
+                    const report = await requestJson(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+                    renderSalesReport(report);
+                    state.salesReportLoaded = true;
+                } catch (error) {
+                    const colspan = mode === 'aircraft' ? 7 : 6;
+                    salesReportRows.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-danger py-4">${escapeHtml(error.message)}</td></tr>`;
+                } finally {
+                    state.salesReportLoading = false;
+                    salesReportRefresh && (salesReportRefresh.disabled = false);
+                    salesReportPrint && (salesReportPrint.disabled = false);
+                }
+            }
+
+            async function printSalesReport() {
+                if (!state.salesReportLoaded) {
+                    await loadSalesReport(true);
+                }
+
+                if (!state.salesReportLoaded) return;
+
+                document.body.classList.add('is-marketing-sales-report-print');
+                window.print();
+                window.setTimeout(() => document.body.classList.remove('is-marketing-sales-report-print'), 800);
+            }
+
+            window.addEventListener('afterprint', () => {
+                document.body.classList.remove('is-marketing-sales-report-print');
+            });
 
             function normalizePhotoPayload(data) {
                 if (Array.isArray(data.photos)) {
@@ -2109,7 +3575,11 @@
                 if (!allowedTabs.includes(tab)) tab = 'overview';
 
                 state.activeTab = tab;
-                document.querySelectorAll('.marketing-tab').forEach((btn) => btn.classList.toggle('is-active', btn.dataset.tab === tab));
+                document.querySelectorAll('.marketing-tab').forEach((btn) => {
+                    const active = btn.dataset.tab === tab;
+                    btn.classList.toggle('is-active', active);
+                    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
                 document.querySelectorAll('.marketing-pane').forEach((pane) => pane.classList.toggle('is-active', pane.dataset.pane === tab));
 
                 if (persist) {
@@ -2119,6 +3589,10 @@
                 if (tab === 'workorders' && state.selectedCustomer && !state.workordersLoaded) {
                     loadWorkorders(true);
                 }
+
+                if (tab === 'sales_report' && !state.salesReportLoaded) {
+                    loadSalesReport(true);
+                }
             }
 
             rowsEl.addEventListener('click', (event) => {
@@ -2126,19 +3600,35 @@
                 if (row) openCustomer(row.dataset.customerId);
             });
 
-            Object.values(filterEls).forEach((el) => {
+            initFilterClearButtons();
+
+            Object.entries(filterEls).forEach(([key, el]) => {
                 const handler = debounce(async () => {
                     updateFilterStates();
                     await saveFilters();
                     await loadCustomers(true);
                 }, el.type === 'search' ? 260 : 80);
                 el.addEventListener(el.type === 'search' ? 'input' : 'change', handler);
+
+                if (key === 'country_id' && window.jQuery) {
+                    window.jQuery(el)
+                        .off('change.marketingFilters select2:select.marketingFilters select2:clear.marketingFilters')
+                        .on('change.marketingFilters select2:select.marketingFilters select2:clear.marketingFilters', handler);
+                }
             });
 
             document.getElementById('marketingResetFilters').addEventListener('click', async () => {
                 setFilters({});
                 await saveFilters();
                 await loadCustomers(true);
+            });
+
+            const debouncedWorkorderFilterReload = debounce(reloadWorkordersForFilterChange, 260);
+
+            workordersSearch?.addEventListener('input', debouncedWorkorderFilterReload);
+            workordersSearchClear?.addEventListener('click', clearWorkorderSearch);
+            workorderFilterInputs.forEach((input) => {
+                input.addEventListener('input', debouncedWorkorderFilterReload);
             });
 
             tableScroll.addEventListener('scroll', () => {
@@ -2153,8 +3643,66 @@
 
             workordersRows.addEventListener('click', (event) => {
                 const mediaBtn = event.target.closest('.js-marketing-media');
-                if (mediaBtn) openMediaModal(mediaBtn);
+                if (mediaBtn) {
+                    openMediaModal(mediaBtn);
+                    return;
+                }
+
+                if (event.target.closest('a, button, input, select, textarea, label')) {
+                    return;
+                }
+
+                const row = event.target.closest('tr[data-workorder-id]');
+                if (row) {
+                    openWorkorderSalesModal(row.dataset.workorderId);
+                }
             });
+
+            salesReportRefresh?.addEventListener('click', () => loadSalesReport(true));
+            salesReportPrint?.addEventListener('click', async () => {
+                try {
+                    await printSalesReport();
+                } catch (error) {
+                    notify(error.message || 'Print failed', 'error');
+                }
+            });
+
+            [salesReportDateFrom, salesReportDateTo].forEach((el) => {
+                el?.addEventListener('change', () => {
+                    state.salesReportLoaded = false;
+                    if (state.activeTab === 'sales_report') {
+                        loadSalesReport(true);
+                    }
+                });
+            });
+
+            salesReportModeInputs.forEach((input) => {
+                input.addEventListener('change', () => {
+                    state.salesReportLoaded = false;
+                    updateSalesReportModeUi();
+                    loadSalesReport(true);
+                });
+            });
+
+            salesReportAircraft?.addEventListener('change', () => {
+                state.salesReportLoaded = false;
+                updateSalesReportModeUi();
+                if (state.activeTab === 'sales_report' && salesReportMode() === 'aircraft') {
+                    loadSalesReport(true);
+                }
+            });
+
+            if (window.jQuery && salesReportAircraft) {
+                window.jQuery(salesReportAircraft)
+                    .off('change.marketingSalesReport select2:select.marketingSalesReport select2:clear.marketingSalesReport')
+                    .on('change.marketingSalesReport select2:select.marketingSalesReport select2:clear.marketingSalesReport', () => {
+                        state.salesReportLoaded = false;
+                        updateSalesReportModeUi();
+                        if (state.activeTab === 'sales_report' && salesReportMode() === 'aircraft') {
+                            loadSalesReport(true);
+                        }
+                    });
+            }
 
             mediaBody.addEventListener('click', (event) => {
                 const pdfBtn = event.target.closest('.js-marketing-pdf-select');
@@ -2179,6 +3727,17 @@
 
             document.getElementById('marketingCreateModal')?.addEventListener('shown.bs.modal', (event) => {
                 disableAutocomplete(event.currentTarget);
+                initMarketingCountrySelects(event.currentTarget);
+                initMarketingAircraftSelects(event.currentTarget);
+            });
+
+            workorderSalesModalEl?.addEventListener('shown.bs.modal', (event) => {
+                disableAutocomplete(event.currentTarget);
+                workorderSalesForm?.elements?.sales_invoice_amount?.focus();
+            });
+
+            workorderSalesModalEl?.addEventListener('hidden.bs.modal', () => {
+                state.editingWorkorderId = null;
             });
 
             profileForm.addEventListener('submit', saveProfile);
@@ -2187,6 +3746,7 @@
             contactForm.addEventListener('submit', addContact);
             noteForm.addEventListener('submit', addNote);
             createForm.addEventListener('submit', addCompany);
+            workorderSalesForm?.addEventListener('submit', saveWorkorderSalesFields);
 
             contactsList.addEventListener('input', handleDirtyFieldChange);
             contactsList.addEventListener('change', handleDirtyFieldChange);
@@ -2195,12 +3755,38 @@
                 const form = event.target.closest('.js-contact-row');
                 if (!form) return;
                 event.preventDefault();
+                if (!form.classList.contains('is-editing')) return;
                 saveContact(form);
             });
 
             contactsList.addEventListener('click', (event) => {
+                const editBtn = event.target.closest('.marketing-contact-edit');
+                if (editBtn) {
+                    const form = editBtn.closest('.js-contact-row');
+                    setContactFormEditing(form, true);
+                    form?.querySelector('input[name="first_name"]')?.focus();
+                    return;
+                }
+
+                const cancelBtn = event.target.closest('.marketing-contact-cancel');
+                if (cancelBtn) {
+                    const form = cancelBtn.closest('.js-contact-row');
+                    form?.reset();
+                    setContactFormEditing(form, false);
+                    markFormClean(form);
+                    return;
+                }
+
                 const deleteBtn = event.target.closest('.js-contact-delete');
                 if (deleteBtn) deleteContact(deleteBtn);
+            });
+
+            document.querySelectorAll('[data-contact-copy]').forEach((button) => {
+                button.addEventListener('click', () => copyMarketingContacts(button.dataset.contactCopy || 'all'));
+            });
+
+            contactNewToggle?.addEventListener('click', () => {
+                setNewContactFormVisible(contactForm.hidden);
             });
 
             notesList.addEventListener('click', (event) => {
@@ -2230,6 +3816,11 @@
             (async function init() {
                 disableAutocomplete(document.querySelector('[data-marketing-page]') || document);
                 disableAutocomplete(document.getElementById('marketingCreateModal') || document.createElement('div'));
+                initMarketingCountrySelects(document);
+                initMarketingAircraftSelects(document);
+                initMarketingReportAircraftSelects(document);
+                updateSalesReportModeUi();
+                updateWorkorderFilterStates();
 
                 try {
                     await restorePanelLayout();
@@ -2244,7 +3835,7 @@
                 } catch (_) {}
                 await loadCustomers(true);
 
-                const initialCustomerId = new URLSearchParams(window.location.search).get('customer');
+                const initialCustomerId = await restoreSelectedCustomerId();
                 if (initialCustomerId) {
                     await openCustomer(initialCustomerId);
                 }

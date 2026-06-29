@@ -324,6 +324,11 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('value="12"', false);
         $response->assertSee('value="15/Jun/2025"', false);
         $response->assertSee('Airworthiness Directives 2019-11-07, E2024-05-09 R1 and Service Bulletins: 170-32-0060 R1, 170-32-A94 R2 incorporated.');
+        $response->assertSee('data-setting-key="include_airworthiness_remark"', false);
+        $this->assertMatchesRegularExpression(
+            '/<div(?=[^>]*class="[^"]*arc-remark-line[^"]*is-print-disabled)[\s\S]*?data-certificate-airworthiness-remark[\s\S]*?data-setting-key="include_airworthiness_remark"[\s\S]*?<\/div>/',
+            $response->getContent()
+        );
         $response->assertDontSee('IGNORE-SB');
         $response->assertSee('Landing Gear Log Card attached');
         $response->assertSee('CSN-13931; CSO-0');
@@ -472,7 +477,7 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('Main Detail');
     }
 
-    public function test_certificate_log_card_detail_does_not_use_whole_gear_life_when_row_is_blank(): void
+    public function test_certificate_log_card_detail_uses_na_when_row_life_is_blank(): void
     {
         $manager = $this->createUserWithRole('Manager', [
             'qa_access' => true,
@@ -521,7 +526,7 @@ class QualityAssuranceTest extends TestCase
             $response->getContent()
         );
         $this->assertMatchesRegularExpression(
-            '/<div[^>]*hidden[^>]*data-certificate-life-remark-row/s',
+            '/<span[^>]*data-certificate-life-remark[^>]*>\s*N\/A\s*<\/span>/s',
             $response->getContent()
         );
         $this->assertMatchesRegularExpression(
@@ -576,6 +581,7 @@ class QualityAssuranceTest extends TestCase
         );
         $this->assertFalse(str_contains($content, '>C service remark.</span>'));
         $response->assertSee('Airworthiness Directives none and Service Bulletins: none incorporated.');
+        $response->assertSee('data-setting-key="include_airworthiness_remark"', false);
         $this->assertFalse(str_contains($content, '>C AD remark.</span>'));
         $this->assertMatchesRegularExpression(
             '/<span(?=[^>]*data-certificate-airworthiness-remark)(?=[^>]*contenteditable="true")[^>]*>\s*Airworthiness Directives none and Service Bulletins: none incorporated\.\s*<\/span>/s',
@@ -835,7 +841,7 @@ class QualityAssuranceTest extends TestCase
         $managerResponse->assertSee('value="2025-11-03"', false);
         $managerResponse->assertSee('Replacements parts: None.');
         $managerResponse->assertSee('Landing Gear Log Card attached');
-        $managerResponse->assertSee('CSN-19453; CSO-0.');
+        $managerResponse->assertSee('N/A');
         $managerResponse->assertSee('data-setting-key="include_landing_gear_log_card"', false);
         $managerResponse->assertSee('is-print-disabled');
         $managerResponse->assertSee('Serviced with ROYCO LGF (Yellow)');
@@ -952,6 +958,13 @@ class QualityAssuranceTest extends TestCase
             ->assertOk();
         $this->actingAs($manager)
             ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'include_airworthiness_remark',
+                'value' => true,
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
                 'key' => 'certificate_overhauled_on_date',
                 'value' => '12/may/2026',
                 'item_source' => 'main:c',
@@ -990,6 +1003,7 @@ class QualityAssuranceTest extends TestCase
         $this->assertSame('C-PN-STATE', $certificateData['item_settings']['main:c']['certificate_item_part']);
         $this->assertSame(['C remark 1', 'C remark 2'], $certificateData['item_settings']['main:c']['certificate_remarks']);
         $this->assertTrue($certificateData['item_settings']['main:c']['include_overhauled_on']);
+        $this->assertTrue($certificateData['item_settings']['main:c']['include_airworthiness_remark']);
         $this->assertSame('2026-05-12', $certificateData['item_settings']['main:c']['certificate_overhauled_on_date']);
         $this->assertSame('Corrected C paragraph.', $certificateData['item_settings']['main:c']['certificate_c_correction_remark']);
         $this->assertSame('Corrected AD/SB paragraph.', $certificateData['item_settings']['main:c']['certificate_airworthiness_remark']);

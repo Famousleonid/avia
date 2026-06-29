@@ -227,6 +227,8 @@
                                             'customer_marketing_profile_id' => 'marketing profile',
                                             'company_type_id' => 'company type',
                                             'segment_id' => 'segment',
+                                            'feature_key' => 'feature',
+                                            'granted_by_user_id' => 'granted by',
                                             'plane_id' => 'aircraft',
                                             'done_user_id' => 'done by',
                                             'notify_user_id' => 'notify user',
@@ -287,7 +289,7 @@
                                             return $name ? $name : "task id {$id}";
                                         }
 
-                                        if ($key === 'user_id' && is_numeric($value)) {
+                                        if (($key === 'user_id' || $key === 'granted_by_user_id') && is_numeric($value)) {
                                             $id = (int)$value;
                                             $name = $userMap[$id] ?? null;
                                             return $name ? $name : "user id {$id}";
@@ -587,6 +589,14 @@
                                     } elseif ($a->subject_type === \App\Models\User::class && $subjectId) {
                                         $label = $userMap[$subjectId] ?? ($subject->name ?? null);
                                         $objectText = $label ? "user: {$label}" : $objectText;
+                                    } elseif ($a->subject_type === \App\Models\UserFeatureAccess::class) {
+                                        $row = array_merge($old, $new);
+                                        $feature = trim((string) ($row['feature_key'] ?? ($subject->feature_key ?? '')));
+                                        $featureLabel = $feature !== '' ? ucfirst($feature) : null;
+                                        $accessUserId = $row['user_id'] ?? ($subject->user_id ?? null);
+                                        $accessUser = is_numeric($accessUserId) ? ($userMap[(int) $accessUserId] ?? "user id {$accessUserId}") : null;
+                                        $parts = array_values(array_filter([$featureLabel, $accessUser], fn ($value) => filled($value)));
+                                        $objectText = $parts !== [] ? 'access: '.implode(' / ', $parts) : $objectText;
                                     } elseif ($a->subject_type === \App\Models\GeneralTask::class && $subjectId) {
                                         $label = $generalTaskMap[$subjectId] ?? ($subject->name ?? null);
                                         $objectText = $label ? "general task: {$label}" : $objectText;

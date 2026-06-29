@@ -332,6 +332,36 @@
             line-height: 1;
         }
 
+        .vendor-tracking-quantum-sync-badge {
+            gap: .35rem;
+        }
+
+        .vendor-tracking-quantum-sync-badge.is-ok {
+            border-color: #86efac;
+            color: #14532d;
+            background: #f0fdf4;
+        }
+
+        .vendor-tracking-quantum-sync-badge.is-warning {
+            border-color: #f59e0b;
+            color: #713f12;
+            background: #fffbeb;
+        }
+
+        .vendor-tracking-quantum-sync-badge.is-stale {
+            border-color: #fca5a5;
+            color: #7f1d1d;
+            background: #fef2f2;
+        }
+
+        .vendor-tracking-quantum-sync-badge.is-never,
+        .vendor-tracking-quantum-sync-badge.is-unknown,
+        .vendor-tracking-quantum-sync-badge.is-unavailable {
+            border-color: #cbd5e1;
+            color: #475569;
+            background: #f8fafc;
+        }
+
         .vendor-tracking-loadmore {
             display: flex;
             justify-content: center;
@@ -682,6 +712,19 @@
             border-color: #f59e0b;
         }
 
+        .vendor-tracking-toolbar-btn.btn-outline-danger {
+            color: #7f1d1d;
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .vendor-tracking-toolbar-btn.btn-outline-danger:hover,
+        .vendor-tracking-toolbar-btn.btn-outline-danger:focus {
+            color: #450a0a;
+            background: #fee2e2;
+            border-color: #dc2626;
+        }
+
         .quantum-buffer-modal {
             --quantum-buffer-modal-margin: 3rem;
             --quantum-buffer-splitter-size: 18px;
@@ -744,11 +787,41 @@
             color: #64748b;
         }
 
+        .quantum-buffer-sync-meta {
+            flex-basis: 100%;
+            font-size: .74rem;
+            color: #64748b;
+        }
+
+        .quantum-buffer-sync-meta .badge {
+            font-weight: 600;
+        }
+
         .quantum-buffer-header-actions {
             display: flex;
             align-items: center;
-            gap: .75rem;
+            flex-wrap: wrap;
+            flex: 1 1 520px;
+            gap: .45rem .75rem;
+            justify-content: flex-end;
             margin-left: auto;
+            min-width: 420px;
+        }
+
+        .quantum-buffer-search-group {
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: .3rem;
+            justify-content: flex-start;
+            margin-right: auto;
+            position: relative;
+        }
+
+        .quantum-buffer-search-form {
+            display: inline-flex;
+            align-items: center;
+            gap: .25rem;
             white-space: nowrap;
         }
 
@@ -866,15 +939,30 @@
             flex-wrap: wrap;
         }
 
-        .quantum-buffer-wo-search {
-            width: 120px;
+        .quantum-buffer-wo-search,
+        .quantum-buffer-ro-search {
+            width: 112px;
             min-height: 28px;
         }
 
         .quantum-buffer-search-status {
-            min-width: 95px;
-            max-width: 260px;
+            font-size: .72rem;
+            min-width: 0;
+            max-width: 230px;
             line-height: 1.15;
+            overflow: hidden;
+            pointer-events: none;
+            position: absolute;
+            right: calc(100% + .45rem);
+            text-align: right;
+            text-overflow: ellipsis;
+            top: 50%;
+            transform: translateY(-50%);
+            white-space: nowrap;
+        }
+
+        .quantum-buffer-search-status:empty {
+            display: none;
         }
 
         .quantum-buffer-recent-wrap {
@@ -1463,6 +1551,30 @@
                 ['key' => 'dismissed', 'label' => 'dismissed'],
                 ['key' => 'error', 'label' => 'error'],
             ];
+            $quantumSyncHealth = $quantumSyncHealth ?? [];
+            $quantumSyncStatus = $quantumSyncHealth['status'] ?? 'unavailable';
+            $quantumSyncDateTime = static function ($value): string {
+                if (! $value) {
+                    return '--';
+                }
+
+                try {
+                    $date = $value instanceof \Carbon\CarbonInterface
+                        ? $value
+                        : \Carbon\Carbon::parse($value);
+
+                    return (format_project_date($date) ?? '--') . ' ' . $date->format('H:i');
+                } catch (\Throwable) {
+                    return '--';
+                }
+            };
+            $quantumSyncLastRunLabel = $quantumSyncDateTime($quantumSyncHealth['last_run_at'] ?? null);
+            $quantumSyncLastLineLabel = $quantumSyncDateTime($quantumSyncHealth['last_line_seen_at'] ?? null);
+            $quantumSyncRowsReceived = number_format((int) ($quantumSyncHealth['rows_received'] ?? 0));
+            $quantumSyncRowsChanged = number_format(
+                (int) ($quantumSyncHealth['rows_inserted'] ?? 0)
+                + (int) ($quantumSyncHealth['rows_updated'] ?? 0)
+            );
         @endphp
         <div class="vendor-tracking-sticky-shell">
             <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1472,11 +1584,26 @@
                     <div class="vendor-tracking-counts">
                         <span class="vendor-tracking-count-badge">Selected: &nbsp; <span class="vendor-tracking-count-number">{{ number_format($summary['filtered_total'] ?? 0) }}</span></span>
                         <span class="vendor-tracking-count-badge">Total: &nbsp; <span class="vendor-tracking-count-number">{{ number_format($summary['total_rows'] ?? 0) }}</span></span>
+                        <span
+                            class="vendor-tracking-count-badge vendor-tracking-quantum-sync-badge is-{{ $quantumSyncStatus }}"
+                            title="{{ $quantumSyncHealth['message'] ?? 'Quantum sync status' }}"
+                        >
+                            <i class="bi {{ $quantumSyncHealth['icon'] ?? 'bi-database-x' }}"></i>
+                            Quantum sync:
+                            <strong>{{ $quantumSyncHealth['label'] ?? 'Unavailable' }}</strong>
+                            <span>{{ $quantumSyncHealth['age_label'] ?? '--' }}</span>
+                        </span>
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <button type="button" class="btn btn-outline-warning btn-sm vendor-tracking-toolbar-btn" data-bs-toggle="modal" data-bs-target="#quantumRoBufferModal" title="Quantum buffer unresolved rows">
-                        <i class="bi bi-database-exclamation me-1"></i> Quantum
+                    <button
+                        type="button"
+                        class="btn {{ $quantumSyncHealth['button_class'] ?? 'btn-outline-warning' }} btn-sm vendor-tracking-toolbar-btn"
+                        data-bs-toggle="modal"
+                        data-bs-target="#quantumRoBufferModal"
+                        title="{{ $quantumSyncHealth['message'] ?? 'Quantum buffer unresolved rows' }} Last run: {{ $quantumSyncLastRunLabel }}"
+                    >
+                        <i class="bi {{ $quantumSyncHealth['icon'] ?? 'bi-database-exclamation' }} me-1"></i> Quantum
                         <span
                             class="badge text-bg-warning ms-1 {{ ($quantumUnparsedTotal ?? 0) > 0 ? '' : 'd-none' }}"
                             id="quantumToolbarUnparsedCount"
@@ -1839,28 +1966,64 @@
                             total rows
                             &middot; unresolved:
                             <span id="quantumUnparsedTotalCount">{{ number_format($quantumUnparsedTotal ?? 0) }}</span>
+                            &middot; sync:
+                            <span class="badge {{ $quantumSyncHealth['badge_class'] ?? 'text-bg-secondary' }}">{{ $quantumSyncHealth['label'] ?? 'Unavailable' }}</span>
+                            {{ $quantumSyncHealth['age_label'] ?? '--' }}
+                        </div>
+                        <div class="quantum-buffer-sync-meta">
+                            Last run: {{ $quantumSyncLastRunLabel }}
+                            @if(! empty($quantumSyncHealth['last_run_id']))
+                                &middot; run #{{ $quantumSyncHealth['last_run_id'] }}
+                            @endif
+                            @if(! empty($quantumSyncHealth['last_run_status']))
+                                &middot; status: {{ $quantumSyncHealth['last_run_status'] }}
+                            @endif
+                            &middot; rows: {{ $quantumSyncRowsReceived }} received / {{ $quantumSyncRowsChanged }} changed
+                            &middot; last row seen: {{ $quantumSyncLastLineLabel }}
                         </div>
                     </div>
                     <div class="quantum-buffer-header-actions">
-                        <form
-                            id="quantumWorkorderSearchForm"
-                            class="d-flex align-items-center gap-1"
-                            data-find-url="{{ route('vendor-tracking.quantum-lines.find-workorder') }}"
-                            data-no-spinner
-                        >
-                            <input
-                                type="text"
-                                id="quantumWorkorderSearch"
-                                class="form-control form-control-sm quantum-buffer-wo-search"
-                                placeholder="WO"
-                                inputmode="numeric"
-                                autocomplete="off"
+                        <div class="quantum-buffer-search-group">
+                            <span id="quantumWorkorderSearchStatus" class="quantum-buffer-search-status"></span>
+                            <form
+                                id="quantumWorkorderSearchForm"
+                                class="quantum-buffer-search-form"
+                                data-find-url="{{ route('vendor-tracking.quantum-lines.find-workorder') }}"
+                                data-search-mode="wo"
+                                data-no-spinner
                             >
-                            <button type="submit" class="btn btn-outline-primary btn-sm" title="Search WO">
-                                <i class="bi bi-search"></i>
-                            </button>
-                        </form>
-                        <span id="quantumWorkorderSearchStatus" class="quantum-buffer-search-status"></span>
+                                <input
+                                    type="text"
+                                    id="quantumWorkorderSearch"
+                                    class="form-control form-control-sm quantum-buffer-wo-search"
+                                    placeholder="WO"
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                >
+                                <button type="submit" class="btn btn-outline-primary btn-sm" title="Search WO">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </form>
+                            <form
+                                id="quantumRepairOrderSearchForm"
+                                class="quantum-buffer-search-form"
+                                data-find-url="{{ route('vendor-tracking.quantum-lines.find-workorder') }}"
+                                data-search-mode="ro"
+                                data-no-spinner
+                            >
+                                <input
+                                    type="text"
+                                    id="quantumRepairOrderSearch"
+                                    class="form-control form-control-sm quantum-buffer-ro-search"
+                                    placeholder="RO"
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                >
+                                <button type="submit" class="btn btn-outline-primary btn-sm" title="Search RO">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </form>
+                        </div>
                         <label class="quantum-buffer-section-toggle quantum-buffer-header-toggle mb-0">
                             <input
                                 type="checkbox"
@@ -1896,7 +2059,11 @@
                                 </thead>
                                 <tbody id="quantumUnparsedRowsBody">
                                     @forelse($quantumUnparsedRows as $line)
-                                        <tr data-quantum-line-id="{{ $line->id }}">
+                                        <tr
+                                            data-quantum-line-id="{{ $line->id }}"
+                                            data-quantum-wo="{{ trim((string) $line->wo_number) }}"
+                                            data-quantum-ro="{{ trim((string) $line->ro_number) }}"
+                                        >
                                             <td>
                                                 <span class="badge {{ $line->apply_status === 'error' ? 'text-bg-danger' : 'text-bg-warning' }}">
                                                     {{ $line->apply_status ?: 'pending' }}
@@ -2685,6 +2852,8 @@
             const quantumRecentLoadState = document.getElementById('quantumRecentLoadState');
             const quantumWorkorderSearchForm = document.getElementById('quantumWorkorderSearchForm');
             const quantumWorkorderSearchInput = document.getElementById('quantumWorkorderSearch');
+            const quantumRepairOrderSearchForm = document.getElementById('quantumRepairOrderSearchForm');
+            const quantumRepairOrderSearchInput = document.getElementById('quantumRepairOrderSearch');
             const quantumWorkorderSearchStatus = document.getElementById('quantumWorkorderSearchStatus');
             const quantumBufferModalEl = document.getElementById('quantumRoBufferModal');
             const quantumBufferModalBody = quantumBufferModalEl?.querySelector('.modal-body') || null;
@@ -2693,8 +2862,7 @@
             const quantumBufferSplitter = document.getElementById('quantumBufferSplitter');
             const quantumRecentVisibleToggle = document.getElementById('quantumRecentVisibleToggle');
             let isLoadingQuantumRecent = false;
-            let activeQuantumSearchRow = null;
-            let activeQuantumUnparsedSearchRow = null;
+            let activeQuantumSearchRows = [];
             let quantumSplitRatio = Number(settingValue(quantumSplitRatioKey, 0.42));
 
             const quantumBodyGridGap = function () {
@@ -3017,37 +3185,85 @@
                     : String(value).replace(/"/g, '\\"');
             };
 
-            const highlightQuantumRecentRow = function (row) {
-                if (!row || !quantumRecentScroll) {
+            const clearQuantumSearchMatches = function () {
+                activeQuantumSearchRows.forEach(function (row) {
+                    row.classList.remove('is-quantum-search-match');
+                });
+                activeQuantumSearchRows = [];
+            };
+
+            const uniqueQuantumLineIds = function (lineIds) {
+                const seen = new Set();
+                const ids = [];
+
+                (Array.isArray(lineIds) ? lineIds : []).forEach(function (lineId) {
+                    const id = String(lineId || '').trim();
+                    if (!id || seen.has(id)) {
+                        return;
+                    }
+
+                    seen.add(id);
+                    ids.push(id);
+                });
+
+                return ids;
+            };
+
+            const scrollQuantumRowIntoView = function (row) {
+                if (!row) {
                     return;
                 }
 
-                activeQuantumSearchRow?.classList.remove('is-quantum-search-match');
-                activeQuantumSearchRow = row;
-                row.classList.add('is-quantum-search-match');
+                const wrap = row.closest('.quantum-buffer-table-wrap');
+                if (!wrap) {
+                    return;
+                }
 
-                const scrollRect = quantumRecentScroll.getBoundingClientRect();
+                const scrollRect = wrap.getBoundingClientRect();
                 const rowRect = row.getBoundingClientRect();
-                quantumRecentScroll.scrollTop += rowRect.top - scrollRect.top - 42;
+                wrap.scrollTop += rowRect.top - scrollRect.top - 42;
             };
 
-            const highlightQuantumUnparsedRow = function (row) {
-                if (!row) {
-                    return false;
-                }
+            const quantumRowsByLineIds = function (lineIds) {
+                const rows = [];
+                const recentRows = [];
+                const unparsedRows = [];
 
-                activeQuantumUnparsedSearchRow?.classList.remove('is-quantum-search-match');
-                activeQuantumUnparsedSearchRow = row;
-                row.classList.add('is-quantum-search-match');
-                const wrap = row.closest('.quantum-buffer-table-wrap');
+                uniqueQuantumLineIds(lineIds).forEach(function (lineId) {
+                    const recentRow = quantumRowByLineId(lineId);
+                    const unparsedRow = quantumUnparsedRowByLineId(lineId);
 
-                if (wrap) {
-                    const scrollRect = wrap.getBoundingClientRect();
-                    const rowRect = row.getBoundingClientRect();
-                    wrap.scrollTop += rowRect.top - scrollRect.top - 42;
-                }
+                    if (recentRow) {
+                        recentRows.push(recentRow);
+                        rows.push(recentRow);
+                    }
 
-                return true;
+                    if (unparsedRow) {
+                        unparsedRows.push(unparsedRow);
+                        rows.push(unparsedRow);
+                    }
+                });
+
+                return { rows, recentRows, unparsedRows };
+            };
+
+            const highlightQuantumRowsByLineIds = function (lineIds) {
+                clearQuantumSearchMatches();
+
+                const matches = quantumRowsByLineIds(lineIds);
+                activeQuantumSearchRows = matches.rows;
+                activeQuantumSearchRows.forEach(function (row) {
+                    row.classList.add('is-quantum-search-match');
+                });
+
+                scrollQuantumRowIntoView(matches.unparsedRows[0] || null);
+                scrollQuantumRowIntoView(matches.recentRows[0] || null);
+
+                return {
+                    total: matches.rows.length,
+                    recent: matches.recentRows.length,
+                    unparsed: matches.unparsedRows.length,
+                };
             };
 
             const appendQuantumRecentRows = function (html) {
@@ -3319,16 +3535,19 @@
                 return true;
             };
 
-            const findQuantumWorkorderInRecent = async function (event) {
+            const findQuantumLinesInRecent = async function (event, form, input, mode) {
                 event?.preventDefault();
-                if (!quantumWorkorderSearchInput || !quantumWorkorderSearchForm) {
+                if (!input || !form) {
                     return;
                 }
 
-                const workorder = quantumWorkorderSearchInput.value.trim();
-                const findUrl = quantumWorkorderSearchForm.dataset.findUrl || '';
+                const searchTerm = input.value.trim();
+                const searchMode = mode === 'ro' ? 'ro' : 'wo';
+                const searchLabel = searchMode === 'ro' ? 'RO' : 'WO';
+                const findUrl = form.dataset.findUrl || '';
 
-                if (!workorder) {
+                if (!searchTerm) {
+                    clearQuantumSearchMatches();
                     setQuantumSearchStatus('', 'text-muted');
                     return;
                 }
@@ -3342,7 +3561,8 @@
                 setQuantumSearchStatus('Searching...', 'text-info');
 
                 const url = new URL(findUrl, window.location.origin);
-                url.searchParams.set('workorder', workorder);
+                url.searchParams.set('mode', searchMode);
+                url.searchParams.set(searchMode === 'ro' ? 'repair_order' : 'workorder', searchTerm);
 
                 try {
                     const response = await fetch(url.toString(), {
@@ -3361,8 +3581,11 @@
                         throw new Error(data.message || 'Search failed');
                     }
 
-                    if (!data.found || !data.line_id) {
-                        setQuantumSearchStatus(data.message || 'WO not found', 'text-warning');
+                    const lineIds = uniqueQuantumLineIds(Array.isArray(data.line_ids) ? data.line_ids : [data.line_id]);
+
+                    if (!data.found || lineIds.length === 0) {
+                        clearQuantumSearchMatches();
+                        setQuantumSearchStatus(data.message || `${searchLabel} not found`, 'text-warning');
                         return;
                     }
 
@@ -3372,29 +3595,37 @@
                         return;
                     }
 
-                    const row = quantumRowByLineId(data.line_id);
-                    if (!row) {
+                    const highlighted = highlightQuantumRowsByLineIds(lineIds);
+                    if (highlighted.total <= 0) {
                         setQuantumSearchStatus('Row not loaded', 'text-danger');
                         return;
                     }
 
-                    highlightQuantumRecentRow(row);
-                    const highlightedUnparsed = highlightQuantumUnparsedRow(quantumUnparsedRowByLineId(data.line_id));
-                    setQuantumSearchStatus(`Shown ${data.matched_wo || workorder}${highlightedUnparsed ? ' in both tables' : ''}`, 'text-success');
+                    const matchedValue = data.matched_value
+                        || (searchMode === 'ro' ? data.matched_ro : data.matched_wo)
+                        || searchTerm;
+                    setQuantumSearchStatus(`${highlighted.total} rows for ${searchLabel} ${matchedValue}`, 'text-success');
                 } catch (error) {
                     setQuantumSearchStatus(error.message || 'Search failed', 'text-danger');
                 }
             };
 
-            quantumWorkorderSearchForm?.addEventListener('submit', findQuantumWorkorderInRecent);
-            quantumWorkorderSearchInput?.addEventListener('keydown', function (event) {
-                if (event.key !== 'Enter') {
-                    return;
-                }
+            const bindQuantumLineSearch = function (form, input, mode) {
+                form?.addEventListener('submit', function (event) {
+                    findQuantumLinesInRecent(event, form, input, mode);
+                });
+                input?.addEventListener('keydown', function (event) {
+                    if (event.key !== 'Enter') {
+                        return;
+                    }
 
-                event.preventDefault();
-                findQuantumWorkorderInRecent(event);
-            });
+                    event.preventDefault();
+                    findQuantumLinesInRecent(event, form, input, mode);
+                });
+            };
+
+            bindQuantumLineSearch(quantumWorkorderSearchForm, quantumWorkorderSearchInput, 'wo');
+            bindQuantumLineSearch(quantumRepairOrderSearchForm, quantumRepairOrderSearchInput, 'ro');
 
             quantumUnparsedBody?.addEventListener('click', function (event) {
                 const button = event.target.closest('.js-quantum-dismiss-row');

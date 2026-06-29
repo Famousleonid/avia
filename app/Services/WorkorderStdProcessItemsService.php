@@ -33,6 +33,7 @@ class WorkorderStdProcessItemsService
                 return;
             }
 
+            $manualId = (int) $manual->id;
             $excludedQtyByComponent = $this->excludedQtyByComponent($workorder);
             $excludedQtyByBaseIpl = $this->excludedQtyByBaseIpl($workorder);
             $now = now();
@@ -41,7 +42,7 @@ class WorkorderStdProcessItemsService
             StdProcess::syncFromComponentFlagsForManualWhenCountsDiffer($manual);
 
             foreach (StdProcess::validStdValues() as $std) {
-                $manualRows = $this->manualStdRowsForManualStd((int) $manual->id, $std);
+                $manualRows = $this->manualStdRowsForManualStd($manualId, $std);
                 $flagColumn = $this->componentFlagColumnForStd($std);
                 $sortOrder = 1;
 
@@ -53,7 +54,7 @@ class WorkorderStdProcessItemsService
                         continue;
                     }
 
-                    if (! $branchResolver->allowsComponentForUnit($workorder->unit, (string) ($component->ipl_num ?? ''), (int) $manual->id)) {
+                    if (! $branchResolver->allowsComponentForUnit($workorder->unit, (string) ($component->ipl_num ?? ''), $manualId)) {
                         continue;
                     }
 
@@ -69,8 +70,6 @@ class WorkorderStdProcessItemsService
                     ];
                 }
 
-                $collapsedVariantBaseKeys = $this->collapsedSuffixVariantBaseKeys($eligibleRows, (string) ($manual->number ?? ''));
-
                 foreach ($eligibleRows as $eligibleRow) {
                     /** @var StdProcess $manualRow */
                     $manualRow = $eligibleRow['manual_row'];
@@ -82,9 +81,8 @@ class WorkorderStdProcessItemsService
                     $excludedSourceQty = (int) ($excludedQtyByComponent[$component->id] ?? 0);
 
                     foreach ($this->baseIplKeys((string) ($component->ipl_num ?? '')) as $baseKey) {
-                        if (isset($collapsedVariantBaseKeys[$baseKey])) {
-                            $excludedSourceQty = max($excludedSourceQty, (int) ($excludedQtyByBaseIpl[$baseKey] ?? 0));
-                        }
+                        $manualBaseKey = $this->manualBaseIplKey($manualId, $baseKey);
+                        $excludedSourceQty = max($excludedSourceQty, (int) ($excludedQtyByBaseIpl[$manualBaseKey] ?? 0));
                     }
 
                     $excludedQty = min($baseQty, $excludedSourceQty);
@@ -287,7 +285,7 @@ class WorkorderStdProcessItemsService
                     $query->orWhereIn('codes_id', $missingCodeIds);
                 }
             })
-            ->with('component:id,ipl_num')
+            ->with('component:id,manual_id,ipl_num')
             ->get(['component_id', 'qty'])
             ->each(function (Tdr $tdr) use (&$excluded): void {
                 if (! $tdr->component) {
@@ -295,9 +293,14 @@ class WorkorderStdProcessItemsService
                 }
 
                 $qty = max(1, (int) ($tdr->qty ?? 1));
+                $manualId = (int) ($tdr->component->manual_id ?? 0);
+                if ($manualId <= 0) {
+                    return;
+                }
 
                 foreach ($this->baseIplKeys((string) ($tdr->component->ipl_num ?? '')) as $baseKey) {
-                    $excluded[$baseKey] = ($excluded[$baseKey] ?? 0) + $qty;
+                    $manualBaseKey = $this->manualBaseIplKey($manualId, $baseKey);
+                    $excluded[$manualBaseKey] = ($excluded[$manualBaseKey] ?? 0) + $qty;
                 }
             });
 
@@ -316,49 +319,6 @@ class WorkorderStdProcessItemsService
             ->with('component.manual:id,number')
             ->orderBy('id')
             ->get();
-    }
-
-    /**
-     * @param array<int, array{manual_row: StdProcess, component: Component, row_eff: mixed}> $eligibleRows
-     * @return array<string, bool>
-     */
-    protected function collapsedSuffixVariantBaseKeys(array $eligibleRows, string $manualNumber): array
-    {
-        $groups = [];
-
-        foreach ($eligibleRows as $eligibleRow) {
-            /** @var Component $component */
-            $component = $eligibleRow['component'];
-            $ipl = trim((string) ($component->ipl_num ?? ''));
-            if (! preg_match('/^(\d+[A-Za-z]*-\d+)(?:[A-Za-z]+)?$/', $ipl, $matches)) {
-                continue;
-            }
-
-            $baseIpl = strtoupper((string) ($matches[1] ?? ''));
-            $manual = trim((string) ($component->manual?->number ?? $manualNumber));
-            $name = mb_strtoupper(trim((string) ($component->name ?? '')));
-            $process = trim((string) ($eligibleRow['manual_row']->process ?? ''));
-            $groupKey = implode('|', [$manual, $baseIpl, $name, $process]);
-
-            $groups[$groupKey][$baseIpl] = true;
-            $groups[$groupKey]['count'] = ($groups[$groupKey]['count'] ?? 0) + 1;
-        }
-
-        $baseKeys = [];
-
-        foreach ($groups as $group) {
-            if (($group['count'] ?? 0) < 2) {
-                continue;
-            }
-
-            foreach ($group as $key => $value) {
-                if ($key !== 'count') {
-                    $baseKeys[(string) $key] = true;
-                }
-            }
-        }
-
-        return $baseKeys;
     }
 
     /**
@@ -384,6 +344,11 @@ class WorkorderStdProcessItemsService
         }
 
         return array_values(array_unique($keys));
+    }
+
+    protected function manualBaseIplKey(int $manualId, string $baseIpl): string
+    {
+        return $manualId . '|' . strtoupper(trim($baseIpl));
     }
 
     protected function baseQty(Component $component, ?StdProcess $manualRow): int

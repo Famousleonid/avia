@@ -898,9 +898,19 @@
                 }
             }
 
+            function normalizeQuickOpenSearchTerm(value) {
+                const term = String(value || '').trim();
+                const compact = term.replace(/[\s#-]+/g, '');
+                const match = compact.match(/^w(?:o)?(\d+)$/i);
+
+                return match ? match[1] : term;
+            }
+
             function handleSearchInputChange(sourceInput) {
                 syncSearchInputs(sourceInput.value);
-                state.q = sourceInput.value.trim();
+                state.q = sourceInput === quickOpenSearchInput
+                    ? normalizeQuickOpenSearchTerm(sourceInput.value)
+                    : sourceInput.value.trim();
 
                 window.clearTimeout(searchDebounce);
                 searchDebounce = window.setTimeout(() => {
@@ -911,7 +921,7 @@
             async function runQuickOpenSearch() {
                 if (!workordersQuickOpenSearchUrl || !quickOpenSearchInput) return;
 
-                const q = quickOpenSearchInput.value.trim();
+                const q = normalizeQuickOpenSearchTerm(quickOpenSearchInput.value);
 
                 if (!q) {
                     quickOpenSearchInput.focus();
