@@ -33,6 +33,13 @@ class ManualDimensionPoint extends Model
         'is_fits_clearance' => 'boolean',
         'extra_anchors'     => 'array',
         'rotation_deg'      => 'float',
+        // FK ids as integers — some PDO/PHP setups return them as strings ("25"),
+        // and the figure renderer matches them strictly (inspComponents.find(c =>
+        // c.id === pt.child_ic_id)). "25" === 25 → false → the part isn't found and
+        // the callout shows the raw fallback code "lbl_25" instead of the name.
+        'manual_dimension_figure_id' => 'integer',
+        'child_figure_id'            => 'integer',
+        'child_ic_id'                => 'integer',
     ];
 
     public function figure(): BelongsTo
