@@ -353,6 +353,27 @@ class FitsClearancesTorqueTest extends TestCase
             ->assertSee('ID bush');
     }
 
+    public function test_measurements_data_returns_integer_parameter_id(): void
+    {
+        // The grid binds measurements to parameters with a strict JS check
+        // (m.manual_parameter_id === param.id). Some PDO/PHP setups return the FK
+        // as a string ("38"), which breaks the match. The model cast must force int.
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+        $ic = $this->createInspectionComponent($manual, 'Pin');
+        $param = $this->createParameter($manual, $ic, ['description' => 'OD', 'orig_dim_min' => 0.99, 'orig_dim_max' => 1.00]);
+        $this->createMeasurement($wo, $param, ['stage' => 'initial', 'actual_value' => 0.995]);
+
+        $json = $this->actingAs($this->admin())
+            ->getJson(route('workorders.measurements.data', $wo->id))
+            ->assertOk()
+            ->json();
+
+        $meas = $json['measurements'][0];
+        $this->assertIsInt($meas['manual_parameter_id']);   // int, not "38"
+        $this->assertSame($param->id, $meas['manual_parameter_id']);
+    }
+
     public function test_measurements_fc_table_numbers_members_when_refs_differ(): void
     {
         $manual = $this->createManual();

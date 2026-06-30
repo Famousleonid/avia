@@ -39,6 +39,17 @@ class WoMeasurement extends Model
         'repair_depth_b'      => 'decimal:4',
         'repair_required'     => 'boolean',
         'new_part'            => 'boolean',
+        // FK ids as integers — otherwise some PDO/PHP setups return them as
+        // strings ("38"), and the JS strict-equality match (m.manual_parameter_id
+        // === param.id) fails, so saved measurements never bind to their parameter.
+        'workorder_id'                    => 'integer',
+        'manual_parameter_id'             => 'integer',
+        'manual_dimension_spec_id'        => 'integer',
+        'replaces_id'                     => 'integer',
+        'codes_id'                        => 'integer',
+        'manual_parameter_repair_rule_id' => 'integer',
+        'manual_dimension_repair_rule_id' => 'integer',
+        'user_id'                         => 'integer',
     ];
 
     public function workorder(): BelongsTo
