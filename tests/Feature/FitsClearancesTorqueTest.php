@@ -374,6 +374,60 @@ class FitsClearancesTorqueTest extends TestCase
         $this->assertSame($param->id, $meas['manual_parameter_id']);
     }
 
+    public function test_measurements_data_payload_has_expected_top_level_keys(): void
+    {
+        // Smoke contract: the grid boots from these keys (loadData in _tab).
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        $d = $this->actingAs($this->admin())
+            ->getJson(route('workorders.measurements.data', $wo->id))
+            ->assertOk()
+            ->json();
+
+        foreach ([
+            'use_wear', 'inspection_components', 'figures', 'parameters', 'measurements',
+            'codes', 'missing_code_id', 'ics_with_tdr', 'ics_missing_tdr',
+            'ics_tdr_label', 'ics_synced_meas',
+        ] as $key) {
+            $this->assertArrayHasKey($key, $d, "data() lost the '$key' key the grid depends on");
+        }
+    }
+
+    public function test_required_bushings_case_b_derives_req_od_from_orig_fit(): void
+    {
+        // Case B (continuous, no oversize steps): the bushing is manufactured to
+        // fit the machined bore. req OD = ID_final + [fit_min, fit_max], where
+        // fit_min = OD_orig_min − ID_orig_max, fit_max = OD_orig_max − ID_orig_min.
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        $bushIc = $this->createInspectionComponent($manual, 'Bushing 1-540');
+        $bushComp = $this->createComponent($manual, ['is_bush' => true, 'part_number' => 'STD-PN-1-540', 'ipl_num' => '1-540']);
+        $this->attachComponentToIc($bushIc, $bushComp);
+        // OD 0.8012–0.8020 vs bore 0.8000–0.8008 → fit +0.0004…+0.0020 (натяг)
+        $od = $this->createParameter($manual, $bushIc, ['description' => 'OD', 'orig_dim_min' => 0.8012, 'orig_dim_max' => 0.8020]);
+        $this->attachParamToPoint($od, $this->createDimensionPoint($manual, 'B1', false));
+
+        $housingIc = $this->createInspectionComponent($manual, 'Housing');
+        $bore = $this->createParameter($manual, $housingIc, ['description' => 'ID 1-540', 'orig_dim_min' => 0.8000, 'orig_dim_max' => 0.8008]);
+        $this->attachParamToPoint($bore, $this->createDimensionPoint($manual, 'B1b', false));
+
+        $this->createFit($manual, $od, $bore, ['is_fc' => false]);
+        // Bore machined continuously (final, no repair step) to 0.8040.
+        $this->createMeasurement($wo, $bore, ['stage' => 'final', 'result' => 'PASS', 'actual_value' => 0.8040]);
+
+        $html = $this->actingAs($this->admin())
+            ->get(route('workorders.measurements.required-bushings', $wo->id))
+            ->assertOk()
+            ->getContent();
+
+        // req OD = 0.8040 + [0.0004, 0.0020] = 0.8044–0.8060
+        $this->assertStringContainsString('req OD 0.8044', $html);
+        $this->assertStringContainsString('0.8060', $html);
+        $this->assertStringContainsString('manufacture per sketch', $html);
+    }
+
     public function test_measurements_data_payload_ids_are_integers_everywhere(): void
     {
         // Contract: every id/FK in the data() payload is an integer. The grid JS
