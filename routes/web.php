@@ -46,7 +46,6 @@ use App\Http\Controllers\Admin\WorkorderStdProcessController;
 use App\Http\Controllers\Admin\WoBushingController;
 use App\Http\Controllers\Admin\ManualDimensionFigureController;
 use App\Http\Controllers\Admin\ManualDimensionPointController;
-use App\Http\Controllers\Admin\ManualDimensionSpecController;
 use App\Http\Controllers\Admin\ManualParameterController;
 use App\Http\Controllers\Admin\ManualRepairStepController;
 use App\Http\Controllers\Admin\ManualFitController;
@@ -371,16 +370,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/inspection-components/{manualInspectionComponent}/variants', [ManualInspectionComponentController::class, 'storeVariant'])->name('inspection-components.variants.store');
     Route::delete('/inspection-component-variants/{manualInspectionComponentVariant}', [ManualInspectionComponentController::class, 'destroyVariant'])->name('inspection-component-variants.destroy');
 
-    // --- Dimension Specs (legacy, kept until full migration) ---
-    Route::post('/dimension-points/{manualDimensionPoint}/specs', [ManualDimensionSpecController::class, 'store'])->name('dimension-points.specs.store');
-    Route::patch('/dimension-specs/{manualDimensionSpec}', [ManualDimensionSpecController::class, 'update'])->name('dimension-specs.update');
-    Route::delete('/dimension-specs/{manualDimensionSpec}', [ManualDimensionSpecController::class, 'destroy'])->name('dimension-specs.destroy');
-    Route::post('/dimension-specs/{manualDimensionSpec}/repair-rules', [ManualDimensionSpecController::class, 'storeRepairRule'])->name('dimension-specs.repair-rules.store');
-    Route::patch('/dimension-repair-rules/{manualDimensionRepairRule}', [ManualDimensionSpecController::class, 'updateRepairRule'])->name('dimension-repair-rules.update');
-    Route::delete('/dimension-repair-rules/{manualDimensionRepairRule}', [ManualDimensionSpecController::class, 'destroyRepairRule'])->name('dimension-repair-rules.destroy');
-    Route::post('/dimension-specs/{manualDimensionSpec}/allowed-codes', [ManualDimensionSpecController::class, 'storeAllowedCode'])->name('dimension-specs.allowed-codes.store');
-    Route::delete('/dimension-spec-codes/{manualDimensionSpecCode}', [ManualDimensionSpecController::class, 'destroyAllowedCode'])->name('dimension-spec-codes.destroy');
-
     // --- Parameters ---
     Route::get('/manuals/{manual}/parameters', [ManualParameterController::class, 'index'])->name('manuals.parameters.index');
     Route::post('/dimension-points/{manualDimensionPoint}/parameters', [ManualParameterController::class, 'store'])->name('dimension-points.parameters.store');
@@ -448,15 +437,6 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/manuals/{manual}/fits/detect', [ManualFitController::class, 'detect'])->name('manuals.fits.detect');
     Route::patch('/fits/{manualFit}', [ManualFitController::class, 'update'])->name('fits.update');
     Route::delete('/fits/{manualFit}', [ManualFitController::class, 'destroy'])->name('fits.destroy');
-
-    // --- Bushing Specs ---
-    Route::post('/dimension-specs/{manualDimensionSpec}/bushing-spec', [ManualDimensionSpecController::class, 'storeBushingSpec'])->name('dimension-specs.bushing-spec.store');
-    Route::patch('/bushing-specs/{manualBushingSpec}', [ManualDimensionSpecController::class, 'updateBushingSpec'])->name('bushing-specs.update');
-    Route::delete('/bushing-specs/{manualBushingSpec}', [ManualDimensionSpecController::class, 'destroyBushingSpec'])->name('bushing-specs.destroy');
-
-    // --- Oversize Options ---
-    Route::post('/bushing-specs/{manualBushingSpec}/oversize-options', [ManualDimensionSpecController::class, 'storeOversizeOption'])->name('bushing-specs.oversize-options.store');
-    Route::delete('/bushing-oversize-options/{manualBushingOversizeOption}', [ManualDimensionSpecController::class, 'destroyOversizeOption'])->name('bushing-oversize-options.destroy');
 
     // --- Repair Procedures ---
     Route::get('/manuals/{manual}/repair-procedures', [ManualRepairProcedureController::class, 'index'])->name('manuals.repair-procedures.index');

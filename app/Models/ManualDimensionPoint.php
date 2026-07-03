@@ -57,11 +57,6 @@ class ManualDimensionPoint extends Model
         return $this->belongsTo(ManualInspectionComponent::class, 'child_ic_id');
     }
 
-    public function specs(): HasMany
-    {
-        return $this->hasMany(ManualDimensionSpec::class, 'manual_dimension_point_id')->orderBy('sort_order');
-    }
-
     public function parameters(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(

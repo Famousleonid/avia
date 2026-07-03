@@ -62,11 +62,6 @@ class WoMeasurement extends Model
         return $this->belongsTo(ManualParameter::class, 'manual_parameter_id');
     }
 
-    public function spec(): BelongsTo
-    {
-        return $this->belongsTo(ManualDimensionSpec::class, 'manual_dimension_spec_id');
-    }
-
     public function code(): BelongsTo
     {
         return $this->belongsTo(Code::class, 'codes_id');
@@ -75,11 +70,6 @@ class WoMeasurement extends Model
     public function repairRule(): BelongsTo
     {
         return $this->belongsTo(ManualParameterRepairRule::class, 'manual_parameter_repair_rule_id');
-    }
-
-    public function legacyRepairRule(): BelongsTo
-    {
-        return $this->belongsTo(ManualDimensionRepairRule::class, 'manual_dimension_repair_rule_id');
     }
 
     public function user(): BelongsTo
