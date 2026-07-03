@@ -1,0 +1,5245 @@
+document.addEventListener('DOMContentLoaded', function () {
+    const MANUAL_ID       = window.DIM_CFG.manualId;
+    const CSRF            = window.DIM_CFG.csrf;
+    const DIM_PROCESSES   = window.DIM_CFG.processes;
+    const DIM_CODES       = window.DIM_CFG.codes;
+    // unique process names {id: process_names_id, name} — for has_main_process condition
+    const DIM_PROCESS_NAMES = (function () {
+        const seen = {}, out = [];
+        DIM_PROCESSES.forEach(function (p) {
+            if (p.process_names_id && !seen[p.process_names_id]) { seen[p.process_names_id] = 1; out.push({ id: p.process_names_id, name: p.process_name }); }
+        });
+        return out.sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+    })();
+    const DIM_PROCESSES_BY_NAME = (function () {
+        const map = {};
+        DIM_PROCESSES.forEach(function (p) {
+            const name = p.process_name || '';
+            if (!map[name]) map[name] = [];
+            map[name].push(p);
+        });
+        // "Machining (EC)" uses the SAME single list as "Machining" (one machining
+        // pool of the manual) — EC machining picks from the same instructions.
+        if (map['Machining']) {
+            map['Machining (EC)'] = map['Machining'];
+        }
+        return map;
+    })();
+    let figures           = window.DIM_CFG.figures;
+    let activeFigure   = null;
+    let activePoint    = null;
+    let addPointMode   = false;
+    let addAreaMode    = false;
+    let areaDragStart  = null;
+    let areaPreviewEl  = null;
+    let addLineMode      = false;
+    let lineStart        = null;
+    let lineTempMarker   = null;
+    let lineTempLine     = null;
+    let addCalloutMode   = false;
+    let calloutDotStart  = null;
+    let calloutTempDot   = null;
+    let calloutTempLine  = null;
+    let addTextMode      = false;
+    let textDotStart     = null;
+    let textTempDot      = null;
+    let textTempLine     = null;
+    let addCircleMode      = false;
+    let circleCenter       = null;
+    let circleTempEl       = null;
+    let addViewMode        = false;  // "View" arrow tool (directional navigation chevron)
+    let areaWaitingLabel   = null;  // {x,y,w,h} after rect drawn, waiting for label click
+    let areaTempRect       = null;  // persistent div showing drawn rect while waiting
+    let circleWaitingLabel = null;  // {cx,cy,rx,ry} after circle drawn, waiting for label click
+    let lineWaitingLabel   = null;  // {x1,y1,x2,y2} after line drawn, waiting for label click
+    let waitingTempLine    = null;  // dashed SVG line following cursor while waiting
+    let justDragged        = false;
+    let autoNavCooldown    = false;
+    let isNavigating     = false;
+    let zoomFactor       = 1;
+    let zoomBaseWidth    = null;
+    let isPanning        = false;
+    let panStart         = null;
+
+    // ---- DOM refs ----
+    const figuresList       = document.getElementById('dim-figures-list');
+    const backToParentBtn   = document.getElementById('dimBackToParentBtn');
+    const viewerTitle       = document.getElementById('dim-viewer-title');
+    const viewerActions     = document.getElementById('dim-viewer-actions');
+    const canvasWrap        = document.getElementById('dim-figure-canvas-wrap');
+    const imgContainer      = document.getElementById('dim-figure-img-container');
+    const figureImg         = document.getElementById('dim-figure-img');
+    const pointsOverlay     = document.getElementById('dim-points-overlay');
+    const emptyState        = document.getElementById('dim-empty-state');
+    const specsHeader       = document.getElementById('dim-specs-point-label');
+    const specsEmpty        = document.getElementById('dim-specs-empty');
+    const specsList         = document.getElementById('dim-specs-list');
+    const specsFooter       = document.getElementById('dim-specs-footer');
+    const editPointBtn      = document.getElementById('dimEditPointBtn');
+    const zoomLabel         = document.getElementById('dimZoomLabel');
+    const zoomResetBtn      = document.getElementById('dimZoomResetBtn');
+    const addPointModeBtn   = document.getElementById('dimAddPointModeBtn');
+    const addCalloutModeBtn = document.getElementById('dimAddCalloutModeBtn');
+    const addCircleModeBtn  = document.getElementById('dimAddCircleModeBtn');
+    const addAreaModeBtn    = document.getElementById('dimAddAreaModeBtn');
+    const addLineModeBtn    = document.getElementById('dimAddLineModeBtn');
+    const addTextModeBtn    = document.getElementById('dimAddTextModeBtn');
+    const addViewModeBtn    = document.getElementById('dimAddViewModeBtn');
+    const linesSvg          = document.getElementById('dim-lines-svg');
+
+    // ==========================
+    // Inspection Components
+    // ==========================
+
+    const MANUAL_COMPONENTS = window.DIM_CFG.manualComponents;
+
+    let inspComponents = [];
+    let parameters     = [];
+    let expandedIcId   = null;
+
+    function compOptionLabel(c) {
+        return (c.ipl_num ? c.ipl_num + ' — ' : '') + (c.name || c.part_number || '');
+    }
+
+    function renderInspComponents() {
+        const list = document.getElementById('dim-insp-comp-list');
+        if (inspComponents.length === 0) {
+            list.innerHTML = '<div class="px-2 py-1 text-secondary" style="font-size:10px">No components yet</div>';
+            return;
+        }
+        list.innerHTML = inspComponents.map(function (ic) {
+            const isOpen   = expandedIcId === ic.id;
+            const varHtml  = isOpen ? ic.variants.map(function (v) {
+                const lbl = (v.ipl_num ? v.ipl_num + ' — ' : '') + (v.name || v.part_number || '');
+                return `<div class="d-flex align-items-center gap-1 ps-4" style="font-size:10px;padding:1px 8px 1px 28px">
+                    <span class="flex-grow-1 text-secondary">${escHtml(lbl)}</span>
+                    <button class="btn btn-link p-0 dim-ic-var-del" data-var-id="${v.id}" style="font-size:10px;opacity:.45;color:var(--bs-secondary-color)" title="Remove variant"><i class="bi bi-x"></i></button>
+                </div>`;
+            }).join('') : '';
+            const addVarHtml = isOpen
+                ? `<div class="ps-4 pb-1" style="padding-left:28px!important">
+                    <select class="form-select form-select-sm dim-ic-var-add" data-ic-id="${ic.id}">
+                        <option value=""></option>
+                        ${MANUAL_COMPONENTS.filter(function(c){ return !ic.variants.find(function(v){ return v.component_id===c.id; }); }).map(function(c){
+                            return `<option value="${c.id}">${escHtml(compOptionLabel(c))}</option>`;
+                        }).join('')}
+                    </select>
+                  </div>` : '';
+            return `<div class="dim-insp-comp-row" data-ic-id="${ic.id}" draggable="true">
+                <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
+                <button class="btn btn-link p-0 dim-ic-plan" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Repair Plan (Start/Finish)"><i class="bi bi-diagram-3"></i></button>
+                <button class="btn btn-link p-0 dim-ic-ec-doc" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Part documents (drawings for WO / EC)"><i class="bi bi-file-earmark-text"></i></button>
+                <span class="dim-insp-comp-name fw-semibold flex-grow-1" data-ic-id="${ic.id}" style="color:#5ee3ff;font-size:11px" title="Double-click to rename">${escHtml(ic.label)}</span>
+                <button class="btn btn-link p-0 dim-ic-expand" data-ic-id="${ic.id}" style="font-size:10px;color:var(--bs-secondary-color)" title="Variants">
+                    <i class="bi bi-${isOpen ? 'chevron-up' : 'chevron-down'}"></i>
+                </button>
+                <button class="btn btn-link p-0 dim-insp-comp-del" data-ic-id="${ic.id}" style="font-size:10px;opacity:.45;color:var(--bs-secondary-color)" title="Delete"><i class="bi bi-trash3"></i></button>
+            </div>
+            ${varHtml}${addVarHtml}`;
+        }).join('');
+
+        // expand/collapse
+        list.querySelectorAll('.dim-ic-expand').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const id = parseInt(btn.dataset.icId);
+                expandedIcId = (expandedIcId === id) ? null : id;
+                renderInspComponents();
+            });
+        });
+
+        // open repair plan (MasterRule)
+        list.querySelectorAll('.dim-ic-plan').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const id = parseInt(btn.dataset.icId);
+                const ic = inspComponents.find(function (x) { return x.id === id; });
+                openMasterRuleModal(id, ic ? ic.label : '');
+            });
+        });
+
+        // open EC dimensions sheet (part-level process document)
+        list.querySelectorAll('.dim-ic-ec-doc').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const id = parseInt(btn.dataset.icId);
+                const ic = inspComponents.find(function (x) { return x.id === id; });
+                openDocumentTree(id, ic ? ic.label : '');
+            });
+        });
+
+        // delete inspection component
+        list.querySelectorAll('.dim-insp-comp-del').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                const id = parseInt(btn.dataset.icId);
+                if (!confirm('Delete this inspection component?')) return;
+                try {
+                    await apiFetch('/inspection-components/' + id, { method: 'DELETE' });
+                    inspComponents = inspComponents.filter(function (ic) { return ic.id !== id; });
+                    if (expandedIcId === id) expandedIcId = null;
+                    renderInspComponents();
+                } catch (e) { alert(e.message); }
+            });
+        });
+
+        // delete variant
+        list.querySelectorAll('.dim-ic-var-del').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                const varId = parseInt(btn.dataset.varId);
+                try {
+                    await apiFetch('/inspection-component-variants/' + varId, { method: 'DELETE' });
+                    inspComponents.forEach(function (ic) {
+                        ic.variants = ic.variants.filter(function (v) { return v.id !== varId; });
+                    });
+                    expandedIcId = null;
+                    renderInspComponents();
+                } catch (e) { alert(e.message); }
+            });
+        });
+
+        // add variant select — Select2
+        $('.dim-ic-var-add').each(function () {
+            const $sel = $(this);
+            $sel.select2({
+                theme:       'bootstrap-5',
+                placeholder: '+ Add variant...',
+                width:       '100%',
+            });
+            $sel.on('change', async function () {
+                const compId = parseInt($sel.val());
+                const icId   = parseInt($sel.data('icId'));
+                if (!compId) return;
+                try {
+                    const v = await apiFetch('/inspection-components/' + icId + '/variants', {
+                        method: 'POST',
+                        body: JSON.stringify({ component_id: compId }),
+                    });
+                    const ic = inspComponents.find(function (ic) { return ic.id === icId; });
+                    if (ic) ic.variants.push(v);
+                    expandedIcId = icId;
+                    renderInspComponents();
+                } catch (e) { alert(e.message); }
+            });
+        });
+
+        setupInspCompDrag(list);
+
+        // inline rename on double-click
+        list.querySelectorAll('.dim-insp-comp-name').forEach(function (span) {
+            span.addEventListener('dblclick', function (e) {
+                e.stopPropagation();
+                const id      = parseInt(span.dataset.icId);
+                const ic      = inspComponents.find(function (x) { return x.id === id; });
+                if (!ic) return;
+                const row     = span.closest('.dim-insp-comp-row');
+                const origVal = ic.label;
+
+                const input   = document.createElement('input');
+                input.type    = 'text';
+                input.value   = origVal;
+                input.className = 'form-control form-control-sm py-0 px-1';
+                input.style.cssText = 'font-size:11px;height:20px;flex:1 1 0;min-width:0;color:#5ee3ff;background:rgba(255,255,255,.08);border-color:rgba(94,227,255,.4)';
+                row.setAttribute('draggable', 'false');
+                span.replaceWith(input);
+                input.focus();
+                input.select();
+
+                async function commit() {
+                    const newLabel = input.value.trim();
+                    if (!newLabel || newLabel === origVal) {
+                        renderInspComponents();
+                        return;
+                    }
+                    try {
+                        const updated = await apiFetch('/inspection-components/' + id, {
+                            method: 'PATCH',
+                            body: JSON.stringify({ label: newLabel }),
+                        });
+                        ic.label = updated.label;
+                    } catch (ex) { alert(ex.message); }
+                    renderInspComponents();
+                }
+
+                input.addEventListener('keydown', function (ev) {
+                    if (ev.key === 'Enter')  { ev.preventDefault(); input.blur(); }
+                    if (ev.key === 'Escape') { input.value = origVal; input.blur(); }
+                });
+                input.addEventListener('blur', commit, { once: true });
+            });
+        });
+    }
+
+    function setupInspCompDrag(list) {
+        let dragSrc = null;
+        list.querySelectorAll('.dim-insp-comp-row').forEach(function (row) {
+            row.addEventListener('dragstart', function () { dragSrc = row; row.style.opacity = '.4'; });
+            row.addEventListener('dragend',   function () { row.style.opacity = ''; });
+            row.addEventListener('dragover',  function (e) { e.preventDefault(); });
+            row.addEventListener('drop', async function (e) {
+                e.preventDefault();
+                if (!dragSrc || dragSrc === row) return;
+                const rows    = Array.from(list.querySelectorAll('.dim-insp-comp-row'));
+                const fromIdx = rows.indexOf(dragSrc);
+                const toIdx   = rows.indexOf(row);
+                inspComponents.splice(toIdx, 0, inspComponents.splice(fromIdx, 1)[0]);
+                renderInspComponents();
+                const ids = inspComponents.map(function (ic) { return ic.id; });
+                try {
+                    await apiFetch('/manuals/' + MANUAL_ID + '/inspection-components/reorder', { method: 'POST', body: JSON.stringify({ ids }) });
+                } catch (e) { console.error('Reorder failed', e); }
+            });
+        });
+    }
+
+    function refreshSpecComponentSelect(selectedId) {
+        const sel = document.getElementById('dimSpecComponent');
+        const current = selectedId !== undefined ? selectedId : $('#dimSpecComponent').val();
+        sel.innerHTML = '<option value="">— None —</option>';
+        inspComponents.forEach(function (ic) {
+            const opt = document.createElement('option');
+            opt.value = ic.id;
+            opt.textContent = ic.label;
+            sel.appendChild(opt);
+        });
+        const valToSet = (current !== undefined && current !== null && String(current) !== '') ? String(current) : null;
+        $('#dimSpecComponent').val(valToSet).trigger('change.select2');
+    }
+
+    function parametersForPoint(pt) {
+        return parameters.filter(function (p) {
+            return (p.points || []).some(function (pp) { return pp.id === pt.id; });
+        });
+    }
+
+    function getParamsForComponent(inspCompId) {
+        return parameters.filter(function (p) {
+            return String(p.inspection_component_id) === String(inspCompId);
+        });
+    }
+
+    function autoFillParamFromExisting() {
+        const specId = document.getElementById('dimSpecId').value;
+        if (specId) return; // editing existing — don't auto-fill
+        const inspCompId = $('#dimSpecComponent').val();
+        const desc       = document.getElementById('dimSpecDescription').value.trim().toLowerCase();
+        if (!desc) return;
+        const match = parameters.find(function (p) {
+            const sameDesc = (p.description || '').trim().toLowerCase() === desc;
+            const sameComp = inspCompId
+                ? String(p.inspection_component_id) === String(inspCompId)
+                : p.inspection_component_id == null;
+            return sameDesc && sameComp;
+        });
+        if (!match) {
+            document.getElementById('dimSpecId').value = '';
+            dimRsParamId = null; dimRsSteps = []; renderRepairSteps(); closeRepairStepForm();
+            return;
+        }
+        // Pre-fill from existing parameter
+        document.getElementById('dimSpecId').value          = match.id;
+        document.getElementById('dimSpecRequired').checked       = !!match.is_required;
+        document.getElementById('dimSpecRequiresValue').checked  = !!match.requires_value;
+        document.getElementById('dimSpecQty').value              = match.qty || 1;
+        document.getElementById('dimSpecOrigMin').value      = match.orig_dim_min      || '';
+        document.getElementById('dimSpecOrigMax').value      = match.orig_dim_max      || '';
+        document.getElementById('dimSpecWearMin').value      = match.wear_dim_min      || '';
+        document.getElementById('dimSpecWearMax').value      = match.wear_dim_max      || '';
+        document.getElementById('dimSpecRepairMin').value    = match.repair_dim_min    || '';
+        document.getElementById('dimSpecRepairMax').value    = match.repair_dim_max    || '';
+        document.getElementById('dimSpecFlangeClrMin').value = match.flange_clearance_min || '';
+        document.getElementById('dimSpecFlangeClrMax').value = match.flange_clearance_max || '';
+        updateIntRangeDisplay(match);
+        document.getElementById('dimSpecInspection').value   = match.inspection         || '';
+        document.getElementById('dimSpecSort').value         = match.sort_order         || 0;
+        dimSpecCodes = (match.codes || []).map(function (c) { return { id: c.codes_id, name: c.name || '' }; });
+        renderSpecCodesList();
+        // Show hint in modal title
+        document.getElementById('dimSpecModalTitle').textContent = 'Assign existing: ' + match.description;
+        document.getElementById('dimSpecDeleteBtn').classList.add('d-none');
+        document.getElementById('dimSpecDetachBtn').classList.add('d-none');
+        // existing parameter already has an id → load its repair steps so they can be added/edited
+        closeRepairStepForm();
+        loadRepairSteps(match.id);
+    }
+
+    document.getElementById('dimSpecDescription').addEventListener('input', autoFillParamFromExisting);
+
+    async function loadInspComponents() {
+        try {
+            inspComponents = await apiFetch('/manuals/' + MANUAL_ID + '/inspection-components');
+            renderInspComponents();
+            refreshSpecComponentSelect();
+        } catch (e) { console.error('loadInspComponents', e); }
+    }
+
+    async function loadParameters() {
+        try {
+            const data = await apiFetch('/manuals/' + MANUAL_ID + '/parameters');
+            parameters = data;
+            if (activePoint) renderSpecsPanel(activePoint);
+        } catch (e) { console.error('loadParameters', e); }
+    }
+
+    document.getElementById('dimAddInspCompBtn').addEventListener('click', function () {
+        const label = prompt('Component label (e.g. "Main Fitting LH", "Bushing"):');
+        if (!label || !label.trim()) return;
+        apiFetch('/manuals/' + MANUAL_ID + '/inspection-components', {
+            method: 'POST',
+            body: JSON.stringify({ label: label.trim() }),
+        }).then(function (ic) {
+            inspComponents.push(ic);
+            renderInspComponents();
+        }).catch(function (e) { alert(e.message); });
+    });
+
+    // ---- Modals ----
+    const figureModal = new bootstrap.Modal(document.getElementById('dimFigureModal'));
+    const pointModal  = new bootstrap.Modal(document.getElementById('dimPointModal'));
+    const specModal   = new bootstrap.Modal(document.getElementById('dimSpecModal'));
+
+    // ---- Select2 for Part picker ----
+    $('#dimSpecComponent').select2({
+        theme:          'bootstrap-5',
+        dropdownParent: $('#dimSpecModal'),
+        placeholder:    '— None —',
+        allowClear:     true,
+        width:          '100%',
+    });
+
+    // ---- Select2 for IC picker in point modal ----
+    $('#dimPointIcSelect').select2({
+        theme:          'bootstrap-5',
+        dropdownParent: $('#dimPointModal'),
+        placeholder:    '— Select part —',
+        allowClear:     true,
+        width:          '100%',
+    });
+
+    // ---- Select2 for Process Name in repair rule modal ----
+    (function () {
+        const sel = document.getElementById('dimRuleProcessName');
+        Object.keys(DIM_PROCESSES_BY_NAME).sort().forEach(function (name) {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            sel.appendChild(opt);
+        });
+    })();
+
+    $('#dimRuleProcessName').select2({
+        theme:          'bootstrap-5',
+        dropdownParent: $('#dimRepairRuleModal'),
+        placeholder:    'Process name...',
+        allowClear:     true,
+        width:          '100%',
+    });
+
+    $('#dimRuleProcessName').on('change', function () {
+        const name    = this.value;
+        const wrap    = document.getElementById('dimRuleProcessOptions');
+        if (!name) {
+            wrap.classList.add('d-none');
+            wrap.innerHTML = '';
+            return;
+        }
+        const procs   = DIM_PROCESSES_BY_NAME[name] || [];
+        const prefix  = name + ' — ';
+        wrap.innerHTML = procs.map(function (p) {
+            const shortLabel = p.label.startsWith(prefix) ? p.label.slice(prefix.length) : p.label;
+            return `<button type="button" class="btn btn-outline-secondary btn-sm dim-proc-opt-btn" data-id="${p.id}" data-label="${escHtml(p.label)}" style="font-size:12px">${escHtml(shortLabel)}</button>`;
+        }).join('');
+        wrap.classList.remove('d-none');
+        updateProcOptButtons();
+    });
+
+    function updateProcOptButtons() {
+        const wrap = document.getElementById('dimRuleProcessOptions');
+        if (!wrap) return;
+        wrap.querySelectorAll('.dim-proc-opt-btn').forEach(function (btn) {
+            const id      = parseInt(btn.dataset.id);
+            const already = dimRuleProcesses.some(function (p) { return p.manual_process_id === id; });
+            btn.classList.toggle('active', already);
+            btn.onclick = function () {
+                const idx = dimRuleProcesses.findIndex(function (p) { return p.manual_process_id === id; });
+                if (idx !== -1) {
+                    dimRuleProcesses.splice(idx, 1);
+                } else {
+                    dimRuleProcesses.push({ manual_process_id: id, label: btn.dataset.label, description: '' });
+                }
+                renderRuleProcessList();
+                updateProcOptButtons();
+            };
+        });
+    }
+
+    $('#dimSpecComponent').on('change', autoFillParamFromExisting);
+
+    function updateBushingFields() {
+        const icId = parseInt($('#dimSpecComponent').val());
+        const ic   = inspComponents.find(function (c) { return c.id === icId; });
+        const show = !!(ic && ic.is_bush);
+        document.getElementById('dimSpecBushingFields').style.display = show ? '' : 'none';
+        if (!show) {
+            document.getElementById('dimSpecIntRange').textContent = '—';
+        }
+    }
+    $('#dimSpecComponent').on('change', updateBushingFields);
+
+    // Derived interference fit: int_min = OD_min − ID_max, int_max = OD_max − ID_min
+    // (OD = this param, ID = mating bore sharing the same point)
+    function updateIntRangeDisplay(param) {
+        const el = document.getElementById('dimSpecIntRange');
+        el.textContent = '—';
+        if (!param || param.orig_dim_min == null || param.orig_dim_max == null) return;
+        const ptIds = new Set((param.points || []).map(function (pt) { return pt.id; }));
+        if (!ptIds.size) return;
+        const mating = parameters.find(function (p) {
+            return p.id !== param.id &&
+                   p.inspection_component_id !== param.inspection_component_id &&
+                   p.orig_dim_min != null && p.orig_dim_max != null &&
+                   (p.points || []).some(function (pt) { return ptIds.has(pt.id); });
+        });
+        if (!mating) { el.textContent = 'no mating bore found'; return; }
+        const intMin = (parseFloat(param.orig_dim_min) - parseFloat(mating.orig_dim_max)).toFixed(4);
+        const intMax = (parseFloat(param.orig_dim_max) - parseFloat(mating.orig_dim_min)).toFixed(4);
+        el.textContent = intMin + ' … ' + intMax;
+    }
+
+    // ---- Spec defect codes list ----
+    let dimSpecCodes = []; // [{id, name, finding_context}]
+
+    function renderSpecCodesList() {
+        const wrap = document.getElementById('dimSpecCodesList');
+        if (!wrap) return;
+        if (dimSpecCodes.length === 0) {
+            wrap.innerHTML = '<div class="text-secondary" style="font-size:11px">No defect codes added</div>';
+            return;
+        }
+        wrap.innerHTML = dimSpecCodes.map(function (c, i) {
+            const isMeas = c.finding_context === 'measurement';
+            const ctxBadge = isMeas
+                ? '<span class="badge bg-warning text-dark ms-1" style="font-size:9px">M</span>'
+                : '<span class="badge bg-info text-dark ms-1" style="font-size:9px">I</span>';
+            return `<span class="badge text-bg-secondary me-1 mb-1" style="font-size:11px;font-weight:500">
+                ${escHtml(c.name)}${ctxBadge}
+                <button type="button" class="btn-close btn-close-white ms-1 dim-spec-code-remove" data-idx="${i}" style="font-size:8px;vertical-align:middle"></button>
+            </span>`;
+        }).join('');
+        wrap.querySelectorAll('.dim-spec-code-remove').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dimSpecCodes.splice(parseInt(btn.dataset.idx), 1);
+                renderSpecCodesList();
+            });
+        });
+    }
+
+    document.getElementById('dimSpecCodesAdd').addEventListener('change', function () {
+        const val     = parseInt(this.value);
+        const name    = this.options[this.selectedIndex]?.dataset.name || '';
+        const context = document.getElementById('dimSpecCodeContext')?.value || 'inspection';
+        this.value = '';
+        if (!val || dimSpecCodes.find(function (c) { return c.id === val; })) return;
+        dimSpecCodes.push({ id: val, name: name, finding_context: context });
+        renderSpecCodesList();
+    });
+
+    // ---- Helpers ----
+    function csrf() { return CSRF; }
+    function fmtDim(v) { return v !== null && v !== undefined ? parseFloat(v).toFixed(4) : '—'; }
+
+    // ---- Zoom ----
+    function applyZoom(pivotClientX, pivotClientY) {
+        if (!zoomBaseWidth) {
+            // Release portrait height constraint and pin container at canvas width
+            // before reading BoundingClientRect — avoids dimension mismatch on first zoom.
+            figureImg.style.maxHeight = '';
+            figureImg.style.width     = '100%';
+            figureImg.style.maxWidth  = 'none';
+            zoomBaseWidth = canvasWrap.clientWidth;
+            imgContainer.style.width  = zoomBaseWidth + 'px';
+            void imgContainer.offsetWidth; // force reflow so BoundingClientRect is correct below
+        }
+        const newWidth = Math.round(zoomBaseWidth * zoomFactor);
+
+        // Position of pivot inside imgContainer before resize (fraction)
+        const cRect  = imgContainer.getBoundingClientRect();
+        const fracX  = pivotClientX !== undefined ? (pivotClientX - cRect.left)  / cRect.width  : 0.5;
+        const fracY  = pivotClientY !== undefined ? (pivotClientY - cRect.top)   / cRect.height : 0.5;
+
+        // Apply new width
+        if (zoomFactor === 1) {
+            imgContainer.style.width    = '';
+            figureImg.style.width       = '';
+            figureImg.style.maxWidth    = '';
+            figureImg.style.maxHeight   = canvasWrap.clientHeight + 'px';
+        } else {
+            imgContainer.style.width    = newWidth + 'px';
+            figureImg.style.width       = '100%';
+            figureImg.style.maxWidth    = 'none';
+            figureImg.style.maxHeight   = '';
+        }
+
+        // Adjust scroll so pivot point stays under cursor
+        const newCRect = imgContainer.getBoundingClientRect();
+        const newHeight = newCRect.height || (newWidth / (zoomBaseWidth || newWidth) * imgContainer.offsetHeight);
+        const wrapRect  = canvasWrap.getBoundingClientRect();
+        const mouseInWrapX = pivotClientX !== undefined ? pivotClientX - wrapRect.left : wrapRect.width  / 2;
+        const mouseInWrapY = pivotClientY !== undefined ? pivotClientY - wrapRect.top  : wrapRect.height / 2;
+        canvasWrap.scrollLeft = newWidth  * fracX - mouseInWrapX;
+        canvasWrap.scrollTop  = newCRect.height * fracY - mouseInWrapY;
+
+        zoomLabel.textContent = Math.round(zoomFactor * 100) + '%';
+    }
+
+    // Auto-navigate when an area/circle fills most of the visible viewport
+    function checkAutoNavigate() {
+        if (!activeFigure || autoNavCooldown) return;
+        requestAnimationFrame(function () {
+            if (!activeFigure || autoNavCooldown) return;
+            const wrapW   = canvasWrap.clientWidth;
+            const wrapH   = canvasWrap.clientHeight;
+            const imgW    = figureImg.offsetWidth;
+            const imgH    = figureImg.offsetHeight;
+            const scrollL = canvasWrap.scrollLeft;
+            const scrollT = canvasWrap.scrollTop;
+            const pts = activeFigure.points || [];
+            for (let i = 0; i < pts.length; i++) {
+                const pt = pts[i];
+                if (!pt.child_figure_id) continue;
+                let areaW, areaH, cxPx, cyPx;
+                let aLeft, aTop;
+                if (pt.point_type === 'circle' && pt.width_pct) {
+                    areaW = 2 * parseFloat(pt.width_pct)  / 100 * imgW;
+                    areaH = 2 * parseFloat(pt.height_pct) / 100 * imgH;
+                    aLeft = parseFloat(pt.x_pct) / 100 * imgW - areaW / 2;
+                    aTop  = parseFloat(pt.y_pct) / 100 * imgH - areaH / 2;
+                } else if (pt.point_type === 'navigation' && pt.width_pct) {
+                    areaW = parseFloat(pt.width_pct)  / 100 * imgW;
+                    areaH = parseFloat(pt.height_pct) / 100 * imgH;
+                    aLeft = parseFloat(pt.x_pct) / 100 * imgW;
+                    aTop  = parseFloat(pt.y_pct) / 100 * imgH;
+                } else continue;
+
+                // Area must overlap the visible viewport
+                if (aLeft + areaW < scrollL || aLeft > scrollL + wrapW) continue;
+                if (aTop  + areaH < scrollT || aTop  > scrollT + wrapH) continue;
+
+                const fillW = areaW / wrapW;
+                const fillH = areaH / wrapH;
+                if (fillW > 0.4 || fillH > 0.4) {
+                    const child = figures.find(function (f) { return f.id == pt.child_figure_id; });
+                    if (child) {
+                        autoNavCooldown = true;
+                        setTimeout(function () { autoNavCooldown = false; }, 2000);
+                        selectFigure(child);
+                        return;
+                    }
+                }
+            }
+        });
+    }
+
+    canvasWrap.addEventListener('wheel', function (e) {
+        if (!activeFigure || isNavigating) return;
+        e.preventDefault();
+        const step = e.deltaY < 0 ? 1.1 : (1 / 1.1);
+        zoomFactor = Math.min(Math.max(zoomFactor * step, 0.5), 5);
+        applyZoom(e.clientX, e.clientY);
+        checkAutoNavigate();
+        // Auto-navigate to parent when zooming out past minimum
+        if (e.deltaY > 0 && zoomFactor <= 0.5 && !autoNavCooldown) {
+            const parentId = backToParentBtn.dataset.parentId;
+            if (parentId) {
+                const parent = figures.find(function (f) { return f.id == parentId; });
+                if (parent) {
+                    autoNavCooldown = true;
+                    setTimeout(function () { autoNavCooldown = false; }, 2000);
+                    selectFigure(parent);
+                }
+            }
+        }
+    }, { passive: false });
+
+    function resetZoom() {
+        zoomFactor = 1;
+        imgContainer.style.width  = '';
+        figureImg.style.width     = '';
+        figureImg.style.maxWidth  = '';
+        figureImg.style.maxHeight = canvasWrap.clientHeight + 'px';
+        zoomLabel.textContent     = '100%';
+        zoomBaseWidth = null;
+    }
+
+    zoomResetBtn.addEventListener('click', resetZoom);
+
+    backToParentBtn.addEventListener('click', function () {
+        const parentId = backToParentBtn.dataset.parentId;
+        if (!parentId) return;
+        const parent = figures.find(function (f) { return f.id == parentId; });
+        if (parent) selectFigure(parent);
+    });
+
+    // ---- Pan (drag canvas to scroll when zoomed) ----
+    function isPointEl(el) {
+        if (!el) return false;
+        const cls = el.className;
+        if (typeof cls === 'string' &&
+            (cls.includes('dim-point-marker') || cls.includes('dim-area-marker') ||
+             cls.includes('dim-callout-dot')  || cls.includes('dim-callout-label') ||
+             cls.includes('dim-text-label'))) return true;
+        if (el.dataset && el.dataset.id) return true;
+        if (el.closest && el.closest('[data-id]')) return true;
+        return false;
+    }
+
+    canvasWrap.addEventListener('mousedown', function (e) {
+        if (e.button !== 0) return;
+        if (addPointMode || addCalloutMode || addCircleMode || addAreaMode || addLineMode || addTextMode || addViewMode) return;
+        if (isPointEl(e.target)) return;
+        isPanning = true;
+        panStart  = { x: e.clientX + canvasWrap.scrollLeft, y: e.clientY + canvasWrap.scrollTop };
+        canvasWrap.classList.add('panning');
+        e.preventDefault();
+    });
+
+    async function apiFetch(url, options = {}) {
+        const res = await fetch(url, {
+            headers: { 'X-CSRF-TOKEN': csrf(), 'Accept': 'application/json', 'Content-Type': 'application/json', ...(options.headers || {}) },
+            ...options,
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || json.error || 'Request failed');
+        return json;
+    }
+
+    // ---- Render figures list ----
+    function renderFiguresList() {
+        figuresList.innerHTML = '';
+        figures.forEach(function (fig) {
+            const el = document.createElement('div');
+            el.className = 'dim-figure-item' + (activeFigure && activeFigure.id === fig.id ? ' active' : '');
+            el.dataset.id = fig.id;
+            const badge = fig.figure_type === 'overview'
+                ? '<span class="badge text-bg-secondary dim-figure-badge">overview</span>'
+                : '<span class="badge text-bg-primary dim-figure-badge">detail</span>';
+            el.innerHTML = badge + '<span class="text-truncate">' + escHtml(fig.title) + '</span>';
+            el.addEventListener('click', function () { selectFigure(fig); });
+            figuresList.appendChild(el);
+        });
+    }
+
+    function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ---- Select figure ----
+    function selectFigure(fig) {
+        activeFigure = fig;
+        activePoint  = null;
+        addPointMode = false;
+        addPointModeBtn.classList.remove('active');
+        canvasWrap.classList.remove('add-point-mode');
+        addAreaMode = false;
+        addAreaModeBtn.classList.remove('active');
+        canvasWrap.classList.remove('add-area-mode');
+        if (areaPreviewEl) { areaPreviewEl.remove(); areaPreviewEl = null; }
+        areaDragStart = null;
+        resetLineDraw();
+        addLineMode = false;
+        addLineModeBtn.classList.remove('active');
+        canvasWrap.classList.remove('add-line-mode');
+        resetTextDraw();
+        addTextMode = false;
+        addTextModeBtn.classList.remove('active');
+        canvasWrap.classList.remove('add-text-mode');
+
+        isNavigating = true;
+        resetZoom();
+        renderFiguresList();
+        viewerTitle.textContent = fig.title;
+        viewerActions.classList.remove('d-none');
+        const parent = fig.parent_figure_id ? figures.find(function (f) { return f.id == fig.parent_figure_id; }) : null;
+        backToParentBtn.classList.toggle('d-none', !parent);
+        backToParentBtn.dataset.parentId = parent ? parent.id : '';
+        emptyState.classList.add('d-none');
+        imgContainer.classList.remove('d-none');
+        clearSpecsPanel();
+
+        // Phase 1: scale out current figure
+        imgContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        imgContainer.style.opacity    = '0';
+        imgContainer.style.transform  = 'scale(0.02)';
+        renderPoints([]);
+
+        setTimeout(function () {
+            // Phase 2: swap image (no transition during reset)
+            imgContainer.style.transition = 'none';
+            imgContainer.style.opacity    = '0';
+            imgContainer.style.transform  = 'scale(0.02)';
+            void imgContainer.offsetWidth; // force reflow
+
+            figureImg.onload = function () {
+                // Phase 3: scale in new figure — hard-reset all zoom state first
+                zoomFactor    = 1;
+                zoomBaseWidth = null;
+                imgContainer.style.width = '';
+                figureImg.style.width    = '';
+                figureImg.style.maxWidth = '';
+                figureImg.style.maxHeight = canvasWrap.clientHeight + 'px';
+                zoomLabel.textContent = '100%';
+
+                imgContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                requestAnimationFrame(function () {
+                    imgContainer.style.opacity   = '1';
+                    imgContainer.style.transform = 'scale(1)';
+                    renderPoints(fig.points || []);
+                    setTimeout(function () { isNavigating = false; }, 500);
+                });
+            };
+            // cache-buster: the figure scan can be replaced under the same url
+            figureImg.src = fig.image_path + (fig._imgRev ? (fig.image_path.includes('?') ? '&' : '?') + 'v=' + fig._imgRev : '');
+            figureImg.alt = fig.title;
+        }, 500);
+    }
+
+    // ---- Drag to reposition ----
+    async function savePointPosition(pt) {
+        const body = {
+            x_pct:       parseFloat(pt.x_pct),
+            y_pct:       parseFloat(pt.y_pct),
+            x2_pct:      (pt.x2_pct      !== null && pt.x2_pct      !== undefined) ? parseFloat(pt.x2_pct)      : null,
+            y2_pct:      (pt.y2_pct      !== null && pt.y2_pct      !== undefined) ? parseFloat(pt.y2_pct)      : null,
+            label_x_pct: (pt.label_x_pct !== null && pt.label_x_pct !== undefined) ? parseFloat(pt.label_x_pct) : null,
+            label_y_pct: (pt.label_y_pct !== null && pt.label_y_pct !== undefined) ? parseFloat(pt.label_y_pct) : null,
+        };
+        try {
+            await apiFetch('/dimension-points/' + pt.id, { method: 'PATCH', body: JSON.stringify(body) });
+        } catch (e) { alert('Save position failed: ' + e.message); }
+    }
+
+    function addDragBehavior(el, pt) {
+        el.addEventListener('mousedown', function (e) {
+            if (e.button !== 0 || addPointMode || addCalloutMode || addCircleMode || addAreaMode || addLineMode || addTextMode || addViewMode) return;
+            e.stopPropagation();
+            const startX = e.clientX, startY = e.clientY;
+            let moved = false;
+
+            function onMove(e) {
+                const dx = e.clientX - startX, dy = e.clientY - startY;
+                if (!moved && Math.sqrt(dx * dx + dy * dy) > 4) moved = true;
+                if (moved) {
+                    el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+                    el.style.cursor    = 'grabbing';
+                    document.body.style.userSelect = 'none';
+                }
+            }
+
+            function onUp(e) {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                document.body.style.userSelect = '';
+                el.style.transform = '';
+                el.style.cursor    = '';
+                if (!moved) return;
+
+                justDragged = true;
+                setTimeout(function () { justDragged = false; }, 0);
+
+                const rect   = figureImg.getBoundingClientRect();
+                const dxPct  = (e.clientX - startX) / rect.width  * 100;
+                const dyPct  = (e.clientY - startY) / rect.height * 100;
+                pt.x_pct = Math.min(Math.max(parseFloat(pt.x_pct) + dxPct, 0), 100).toFixed(2);
+                pt.y_pct = Math.min(Math.max(parseFloat(pt.y_pct) + dyPct, 0), 100).toFixed(2);
+                if (pt.x2_pct !== null && pt.x2_pct !== undefined) {
+                    pt.x2_pct = Math.min(Math.max(parseFloat(pt.x2_pct) + dxPct, 0), 100).toFixed(2);
+                    pt.y2_pct = Math.min(Math.max(parseFloat(pt.y2_pct) + dyPct, 0), 100).toFixed(2);
+                }
+                renderPoints(activeFigure.points);
+                savePointPosition(pt);
+            }
+
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    }
+
+    // ---- Multi-arrow: extra leader anchors for a callout / part label ----
+    // Each entry in pt.extra_anchors is {x_pct,y_pct}: a draggable dot + a leader
+    // line to the same label, so several arrows point at one name.
+    function renderExtraAnchors(pt, lblEl, stroke) {
+        if (!Array.isArray(pt.extra_anchors)) return;
+        pt.extra_anchors.forEach(function (a, idx) {
+            const ax = parseFloat(a.x_pct), ay = parseFloat(a.y_pct);
+            if (isNaN(ax) || isNaN(ay)) return;
+            const dot = document.createElement('div');
+            dot.className  = 'dim-callout-dot';
+            dot.style.left = ax + '%';
+            dot.style.top  = ay + '%';
+            dot.title      = 'Extra arrow — drag to move, Alt+click to remove';
+            dot.dataset.id = pt.id;
+            dot.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (justDragged) return;
+                if (e.altKey) {                       // Alt+click deletes this arrow
+                    pt.extra_anchors.splice(idx, 1);
+                    apiFetch('/dimension-points/' + pt.id, { method: 'PATCH', body: JSON.stringify({ extra_anchors: pt.extra_anchors }) });
+                    renderPoints(activeFigure.points || []);
+                }
+            });
+            addAnchorDragBehavior(dot, pt, idx);
+            pointsOverlay.appendChild(dot);
+            drawLeaderToLabel(ax, ay, lblEl, stroke);
+        });
+    }
+
+    // Draw a leader line from a source point (% coords) to the border of a label element.
+    function drawLeaderToLabel(srcX, srcY, lblEl, stroke) {
+        const ns    = 'http://www.w3.org/2000/svg';
+        const cRect = figureImg.getBoundingClientRect();
+        const lblR  = lblEl.getBoundingClientRect();
+        const hw    = (lblR.width  / 2) / (cRect.width  || 1) * 100;
+        const hh    = (lblR.height / 2) / (cRect.height || 1) * 100;
+        const lcx   = parseFloat(lblEl.style.left), lcy = parseFloat(lblEl.style.top);  // label center (translate -50%)
+        const vx    = srcX - lcx, vy = srcY - lcy;
+        const t     = Math.min(vx !== 0 ? hw / Math.abs(vx) : Infinity, vy !== 0 ? hh / Math.abs(vy) : Infinity);
+        const ex    = lcx + t * vx, ey = lcy + t * vy;
+        const g     = document.createElementNS(ns, 'g'); g.style.pointerEvents = 'none';
+        const line  = document.createElementNS(ns, 'line');
+        line.setAttribute('x1', srcX + '%'); line.setAttribute('y1', srcY + '%');
+        line.setAttribute('x2', ex + '%');   line.setAttribute('y2', ey + '%');
+        line.setAttribute('stroke', stroke); line.setAttribute('stroke-width', '1');
+        g.appendChild(line);
+        linesSvg.appendChild(g);
+    }
+
+    // Drag a single extra anchor (by index) and persist the whole list.
+    function addAnchorDragBehavior(el, pt, idx) {
+        el.addEventListener('mousedown', function (e) {
+            if (e.button !== 0 || addPointMode || addCalloutMode || addCircleMode || addAreaMode || addLineMode || addTextMode || addViewMode) return;
+            e.stopPropagation();
+            const startX = e.clientX, startY = e.clientY;
+            let moved = false;
+            function onMove(ev) {
+                const dx = ev.clientX - startX, dy = ev.clientY - startY;
+                if (!moved && Math.sqrt(dx * dx + dy * dy) > 4) moved = true;
+                if (moved) { el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; el.style.cursor = 'grabbing'; document.body.style.userSelect = 'none'; }
+            }
+            function onUp(ev) {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                document.body.style.userSelect = ''; el.style.transform = ''; el.style.cursor = '';
+                if (!moved) return;
+                justDragged = true; setTimeout(function () { justDragged = false; }, 0);
+                const rect  = figureImg.getBoundingClientRect();
+                const dxPct = (ev.clientX - startX) / rect.width  * 100;
+                const dyPct = (ev.clientY - startY) / rect.height * 100;
+                const a = pt.extra_anchors[idx];
+                a.x_pct = Math.min(Math.max(parseFloat(a.x_pct) + dxPct, 0), 100).toFixed(2);
+                a.y_pct = Math.min(Math.max(parseFloat(a.y_pct) + dyPct, 0), 100).toFixed(2);
+                renderPoints(activeFigure.points);
+                apiFetch('/dimension-points/' + pt.id, { method: 'PATCH', body: JSON.stringify({ extra_anchors: pt.extra_anchors }) });
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    }
+
+    // ---- Render points overlay ----
+    // ---- F&C Document: manual-level document (filled manual page copies) ----
+    document.getElementById('dimFcDocBtn')?.addEventListener('click', function () {
+        openProcessDocumentsModal(null, 'F&C Document', 'manual', false);
+    });
+
+    // ---- Find point: dropdown of the figure's points → select + pulse marker ----
+    function refreshPointFinder(points) {
+        const sel = document.getElementById('dimPointFinder');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Find point…</option>';
+        points.forEach(function (pt) {
+            const opt = document.createElement('option');
+            opt.value = pt.id;
+            const ic  = pt.point_type === 'text' ? inspComponents.find(c => c.id === pt.child_ic_id) : null;
+            opt.textContent = (pt.code || (ic ? ic.label : '#' + pt.id))
+                + (pt.description ? ' — ' + pt.description : '');
+            sel.appendChild(opt);
+        });
+    }
+
+    function flashPoint(pt) {
+        // center of the marker regardless of its type
+        let x = parseFloat(pt.x_pct), y = parseFloat(pt.y_pct);
+        if (pt.x2_pct != null) { x = (x + parseFloat(pt.x2_pct)) / 2; y = (y + parseFloat(pt.y2_pct)) / 2; }
+        else if (pt.point_type === 'navigation' && pt.width_pct) { x += parseFloat(pt.width_pct) / 2; y += parseFloat(pt.height_pct) / 2; }
+        const ring = document.createElement('div');
+        ring.style.cssText = 'position:absolute;left:' + x + '%;top:' + y + '%;width:14px;height:14px;'
+            + 'margin:-7px 0 0 -7px;border:3px solid #ffc107;border-radius:50%;pointer-events:none;z-index:50;'
+            + 'animation:dimPointPing 0.8s ease-out 4';
+        pointsOverlay.appendChild(ring);
+        setTimeout(function () { ring.remove(); }, 3300);
+    }
+
+    document.getElementById('dimPointFinder')?.addEventListener('change', function () {
+        const pt = (activeFigure?.points || []).find(p => p.id == this.value);
+        this.value = '';
+        if (!pt) return;
+        if (pt.point_type !== 'text') selectPoint(pt); else renderPoints(activeFigure.points || []);
+        flashPoint(pt);
+    });
+
+    function renderPoints(points) {
+        const ns = 'http://www.w3.org/2000/svg';
+        pointsOverlay.innerHTML = '';
+        linesSvg.innerHTML = '';
+        // arrowhead marker — auto-start-reverse gives both-end arrows from one definition
+        const defsEl = document.createElementNS(ns, 'defs');
+        defsEl.innerHTML =
+            '<marker id="dim-arrow" markerWidth="6" markerHeight="5" refX="6" refY="2.5" ' +
+            'orient="auto-start-reverse" markerUnits="strokeWidth">' +
+            '<path d="M0,0 L0,5 L6,2.5 z" fill="context-stroke"/>' +
+            '</marker>';
+        linesSvg.appendChild(defsEl);
+        refreshPointFinder(points || []);
+        (points || []).forEach(function (pt) {
+            if (pt.point_type === 'text') {
+                renderTextLabel(pt);
+            } else if (pt.point_type === 'circle' && pt.width_pct && pt.height_pct) {
+                renderCircle(pt);
+            } else if (pt.point_type === 'navigation' && pt.width_pct && pt.height_pct) {
+                renderArea(pt);
+            } else if (pt.point_type === 'view') {
+                renderView(pt);
+            } else if (pt.x2_pct !== null && pt.x2_pct !== undefined) {
+                renderLine(pt);
+            } else if (pt.label_x_pct !== null && pt.label_x_pct !== undefined) {
+                renderCallout(pt);
+            } else {
+                const marker = document.createElement('div');
+                marker.className = 'dim-point-marker' + (pt.point_type === 'navigation' ? ' navigation' : '') + (activePoint && activePoint.id === pt.id ? ' active' : '');
+                marker.style.left  = pt.x_pct + '%';
+                marker.style.top   = pt.y_pct + '%';
+                marker.title       = pt.code + (pt.description ? ': ' + pt.description : '');
+                marker.textContent = pt.code.length <= 3 ? pt.code : pt.code.slice(0,3);
+                marker.dataset.id  = pt.id;
+                marker.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    if (justDragged || addPointMode || addAreaMode || addLineMode) return;
+                    if (pt.point_type === 'navigation' && pt.child_figure_id) {
+                        const child = figures.find(function(f) { return f.id == pt.child_figure_id; });
+                        if (child) { selectFigure(child); return; }
+                    }
+                    selectPoint(pt);
+                });
+                marker.addEventListener('dblclick', function (e) {
+                    e.stopPropagation();
+                    openEditPointModal(pt);
+                });
+                addDragBehavior(marker, pt);
+                pointsOverlay.appendChild(marker);
+            }
+        });
+    }
+
+    function renderArea(pt) {
+        const ns       = 'http://www.w3.org/2000/svg';
+        const isActive = activePoint && activePoint.id === pt.id;
+        const hasExtLabel = pt.label_x_pct !== null && pt.label_x_pct !== undefined;
+
+        const area = document.createElement('div');
+        area.className = 'dim-area-marker' + (isActive ? ' active' : '');
+        area.style.left   = pt.x_pct + '%';
+        area.style.top    = pt.y_pct + '%';
+        area.style.width  = pt.width_pct + '%';
+        area.style.height = pt.height_pct + '%';
+        area.style.transform = 'rotate(' + (parseFloat(pt.rotation_deg) || 0) + 'deg)';   // tilt
+        area.title        = pt.code + (pt.description ? ': ' + pt.description : '');
+        area.dataset.id   = pt.id;
+
+        // Rotate handle (knob above the box) — drag to tilt; Shift snaps to 15°.
+        if (isActive) {
+            const rot = document.createElement('div');
+            rot.style.cssText = 'position:absolute;left:50%;top:-22px;width:12px;height:12px;' +
+                'transform:translateX(-50%);border-radius:50%;background:#fff;' +
+                'border:2px solid #0d6efd;cursor:grab;z-index:12;';
+            rot.title = 'Drag to rotate';
+            rot.addEventListener('mousedown', function (e) {
+                if (e.button !== 0) return;
+                e.stopPropagation(); e.preventDefault();
+                const box = area.getBoundingClientRect();          // axis-aligned bbox; centre is the pivot
+                const cx = box.left + box.width / 2, cy = box.top + box.height / 2;
+                let moved = false;
+                function onMove(ev) {
+                    moved = true;
+                    let deg = Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180 / Math.PI + 90;
+                    if (ev.shiftKey) deg = Math.round(deg / 15) * 15;
+                    pt.rotation_deg = +deg.toFixed(1);
+                    area.style.transform = 'rotate(' + pt.rotation_deg + 'deg)';
+                    document.body.style.userSelect = 'none';
+                }
+                function onUp() {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    document.body.style.userSelect = '';
+                    if (moved) {
+                        justDragged = true; setTimeout(function () { justDragged = false; }, 80);
+                        apiFetch('/dimension-points/' + pt.id, { method: 'PATCH', body: JSON.stringify({ rotation_deg: pt.rotation_deg }) });
+                        renderPoints(activeFigure.points || []);
+                    }
+                }
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+            area.appendChild(rot);
+        }
+
+        if (!hasExtLabel) {
+            const internalLabel = document.createElement('span');
+            internalLabel.className   = 'dim-area-label';
+            internalLabel.textContent = pt.code;
+            area.appendChild(internalLabel);
+        }
+
+        area.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (justDragged || addPointMode || addCalloutMode || addTextMode || addCircleMode || addAreaMode || addLineMode) return;
+            // Alt+click selects the area (shows the rotate handle); plain click navigates.
+            if (e.altKey) { selectPoint(pt); return; }
+            if (pt.child_figure_id) {
+                const child = figures.find(function(f) { return f.id == pt.child_figure_id; });
+                if (child) { selectFigure(child); return; }
+            }
+        });
+        area.addEventListener('dblclick', function (e) { e.stopPropagation(); openEditPointModal(pt); });
+        addDragBehavior(area, pt);
+        pointsOverlay.appendChild(area);
+
+        if (hasExtLabel) {
+            // External label — append first to measure size
+            const lbl = document.createElement('div');
+            lbl.className   = 'dim-callout-label' + (isActive ? ' active' : '');
+            lbl.style.left  = pt.label_x_pct + '%';
+            lbl.style.top   = pt.label_y_pct + '%';
+            lbl.textContent = pt.code;
+            lbl.title       = pt.code + (pt.description ? ': ' + pt.description : '');
+            lbl.dataset.id  = pt.id;
+            lbl.addEventListener('dblclick', function (e) {
+                e.stopPropagation();
+                if (addPointMode || addCalloutMode || addTextMode || addCircleMode || addAreaMode || addLineMode) return;
+                openEditPointModal(pt);
+            });
+            addLabelDragBehavior(lbl, pt);
+            pointsOverlay.appendChild(lbl);
+
+            // Leader line: from rect border → label border
+            const rcx = parseFloat(pt.x_pct)      + parseFloat(pt.width_pct)  / 2;
+            const rcy = parseFloat(pt.y_pct)       + parseFloat(pt.height_pct) / 2;
+            const lx  = parseFloat(pt.label_x_pct);
+            const ly  = parseFloat(pt.label_y_pct);
+            const vx  = lx - rcx, vy = ly - rcy;
+            const hw  = parseFloat(pt.width_pct) / 2, hh = parseFloat(pt.height_pct) / 2;
+            const t   = Math.min(vx !== 0 ? hw / Math.abs(vx) : Infinity, vy !== 0 ? hh / Math.abs(vy) : Infinity);
+            const bx  = rcx + t * vx, by = rcy + t * vy; // rect border point
+
+            // label border point
+            const cRect = figureImg.getBoundingClientRect();
+            const lblR  = lbl.getBoundingClientRect();
+            const lhw   = (lblR.width  / 2) / (cRect.width  || 1) * 100;
+            const lhh   = (lblR.height / 2) / (cRect.height || 1) * 100;
+            const uvx   = bx - lx, uvy = by - ly;
+            const lt    = Math.min(uvx !== 0 ? lhw / Math.abs(uvx) : Infinity, uvy !== 0 ? lhh / Math.abs(uvy) : Infinity);
+            const lex   = lx + lt * uvx, ley = ly + lt * uvy;
+
+            const g = document.createElementNS(ns, 'g');
+            g.style.pointerEvents = 'none';
+            const line = document.createElementNS(ns, 'line');
+            line.setAttribute('x1', bx + '%');  line.setAttribute('y1', by + '%');
+            line.setAttribute('x2', lex + '%'); line.setAttribute('y2', ley + '%');
+            line.setAttribute('stroke', isActive ? '#dc3545' : '#333');
+            line.setAttribute('stroke-width', '1');
+            g.appendChild(line);
+            linesSvg.appendChild(g);
+        }
+    }
+
+    // View arrow: a hollow "block" arrow (shaft + head) pointing tail → tip, like a
+    // drawing view-direction marker. Visual = an undistorted HTML overlay icon rotated
+    // to the direction; selection/drag/rotation live in the SVG layer (endpoint handles).
+    function renderView(pt) {
+        const ns       = 'http://www.w3.org/2000/svg';
+        const isActive = activePoint && activePoint.id === pt.id;
+        const color    = isActive ? '#0d6efd' : '#198754';
+
+        const x1 = parseFloat(pt.x_pct), y1 = parseFloat(pt.y_pct);
+        const x2 = parseFloat(pt.x2_pct), y2 = parseFloat(pt.y2_pct);
+        const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
+
+        // visual angle in px (image is stretched, so % of width ≠ % of height)
+        const r  = figureImg.getBoundingClientRect();
+        const dx = (x2 - x1) / 100 * (r.width  || 1);
+        const dy = (y2 - y1) / 100 * (r.height || 1);
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+        // hollow block-arrow icon (drawn pointing +x, rotated to direction)
+        const arrow = document.createElement('div');
+        arrow.style.position = 'absolute';
+        arrow.style.left = midX + '%';
+        arrow.style.top  = midY + '%';
+        arrow.style.transform = 'translate(-50%,-50%) rotate(' + angle.toFixed(1) + 'deg)';
+        arrow.style.pointerEvents = 'none';
+        arrow.style.lineHeight = '0';
+        arrow.innerHTML =
+            '<svg width="50" height="32" viewBox="0 0 48 32" style="overflow:visible">' +
+            '<polygon points="0,10 30,10 30,1 47,16 30,31 30,22 0,22" ' +
+            'fill="white" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+            '</svg>';
+        pointsOverlay.appendChild(arrow);
+
+        // letter near the tail
+        if (pt.code) {
+            const lbl = document.createElement('div');
+            lbl.style.position = 'absolute';
+            lbl.style.left = x1 + '%';
+            lbl.style.top  = y1 + '%';
+            lbl.style.transform = 'translate(-50%,-150%)';
+            lbl.style.font = '700 14px sans-serif';
+            lbl.style.color = isActive ? '#dc3545' : '#111';
+            lbl.style.background = '#fff';
+            lbl.style.border = '1.5px solid ' + (isActive ? '#dc3545' : '#333');
+            lbl.style.padding = '1px 6px';
+            lbl.style.borderRadius = '2px';
+            lbl.style.boxShadow = '0 1px 4px rgba(0,0,0,.18)';
+            lbl.style.lineHeight = '1.6';
+            lbl.style.whiteSpace = 'nowrap';
+            lbl.style.pointerEvents = 'none';
+            lbl.textContent = pt.code;
+            pointsOverlay.appendChild(lbl);
+        }
+
+        // SVG layer: transparent hit line (select/drag the whole arrow) + handles (rotate)
+        const g = document.createElementNS(ns, 'g');
+        g.dataset.id = pt.id;
+        g.style.cursor = 'pointer';
+        g.style.pointerEvents = 'auto';
+
+        const hit = document.createElementNS(ns, 'line');
+        hit.setAttribute('x1', pt.x_pct + '%'); hit.setAttribute('y1', pt.y_pct + '%');
+        hit.setAttribute('x2', pt.x2_pct + '%'); hit.setAttribute('y2', pt.y2_pct + '%');
+        hit.setAttribute('stroke', 'transparent'); hit.setAttribute('stroke-width', '18');
+        hit.style.pointerEvents = 'stroke';
+        g.appendChild(hit);
+
+        if (isActive) {
+            // faint dashed guide shows the vector being rotated
+            const guide = document.createElementNS(ns, 'line');
+            guide.setAttribute('x1', pt.x_pct + '%'); guide.setAttribute('y1', pt.y_pct + '%');
+            guide.setAttribute('x2', pt.x2_pct + '%'); guide.setAttribute('y2', pt.y2_pct + '%');
+            guide.setAttribute('stroke', '#0d6efd'); guide.setAttribute('stroke-width', '1');
+            guide.setAttribute('stroke-dasharray', '4,3');
+            guide.style.pointerEvents = 'none';
+            g.appendChild(guide);
+        }
+
+        function navChild() {
+            const child = figures.find(function (f) { return f.id == pt.child_figure_id; });
+            if (child) { selectFigure(child); return true; }
+            return false;
+        }
+        g.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (justDragged || addPointMode || addAreaMode || addLineMode || addViewMode) return;
+            // Figure linked: plain click navigates; Alt+click selects for rotation.
+            // No figure: click selects so the arrow can be rotated by its handles.
+            if (pt.child_figure_id && !e.altKey) { if (navChild()) return; }
+            selectPoint(pt);
+        });
+        g.addEventListener('dblclick', function (e) {
+            e.stopPropagation();
+            // Figure linked: plain dbl-click navigates too; Alt+dbl-click opens the modal.
+            // No figure: dbl-click opens the modal.
+            if (pt.child_figure_id && !e.altKey) { if (navChild()) return; }
+            openEditPointModal(pt);
+        });
+        addDragBehavior(g, pt);
+
+        // Selected: endpoint handles — drag to rotate / resize the arrow.
+        if (isActive) {
+            [['x_pct', 'y_pct'], ['x2_pct', 'y2_pct']].forEach(function (m) {
+                const kx = m[0], ky = m[1];
+                const h = document.createElementNS(ns, 'circle');
+                h.setAttribute('cx', pt[kx] + '%'); h.setAttribute('cy', pt[ky] + '%');
+                h.setAttribute('r', '6');
+                h.setAttribute('fill', '#fff'); h.setAttribute('stroke', '#0d6efd'); h.setAttribute('stroke-width', '2');
+                h.style.cursor = 'move'; h.style.pointerEvents = 'all';
+                h.addEventListener('mousedown', function (e) {
+                    if (e.button !== 0) return;
+                    e.stopPropagation(); e.preventDefault();
+                    let movedEp = false;
+                    function onMove(ev) {
+                        movedEp = true;
+                        const rr = figureImg.getBoundingClientRect();
+                        const nx = Math.min(100, Math.max(0, (ev.clientX - rr.left) / rr.width  * 100)).toFixed(2);
+                        const ny = Math.min(100, Math.max(0, (ev.clientY - rr.top)  / rr.height * 100)).toFixed(2);
+                        pt[kx] = nx; pt[ky] = ny;
+                        renderPoints(activeFigure.points || []);   // live re-render → block arrow rotates
+                        document.body.style.userSelect = 'none';
+                    }
+                    function onUp() {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        document.body.style.userSelect = '';
+                        if (movedEp) {
+                            justDragged = true; setTimeout(function () { justDragged = false; }, 80);
+                            savePointPosition(pt);
+                            renderPoints(activeFigure.points || []);
+                        }
+                    }
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                });
+                g.appendChild(h);
+            });
+        }
+
+        linesSvg.appendChild(g);
+    }
+
+    function renderLine(pt) {
+        const ns       = 'http://www.w3.org/2000/svg';
+        const isActive = activePoint && activePoint.id === pt.id;
+        const color    = isActive ? '#0d6efd' : '#dc3545';
+        const midX     = ((parseFloat(pt.x_pct) + parseFloat(pt.x2_pct)) / 2).toFixed(2);
+        const midY     = ((parseFloat(pt.y_pct) + parseFloat(pt.y2_pct)) / 2).toFixed(2);
+        const hasExtLabel = pt.label_x_pct != null && pt.label_x_pct !== '';
+
+        const g = document.createElementNS(ns, 'g');
+        g.dataset.id = pt.id;
+        g.style.cursor = 'pointer';
+        g.style.pointerEvents = 'auto';
+
+        // wide transparent hit area
+        const hit = document.createElementNS(ns, 'line');
+        hit.setAttribute('x1', pt.x_pct + '%'); hit.setAttribute('y1', pt.y_pct + '%');
+        hit.setAttribute('x2', pt.x2_pct + '%'); hit.setAttribute('y2', pt.y2_pct + '%');
+        hit.setAttribute('stroke', 'transparent'); hit.setAttribute('stroke-width', '14');
+        hit.style.pointerEvents = 'stroke';
+
+        // visual line with arrowheads at both ends
+        const line = document.createElementNS(ns, 'line');
+        line.setAttribute('x1', pt.x_pct + '%'); line.setAttribute('y1', pt.y_pct + '%');
+        line.setAttribute('x2', pt.x2_pct + '%'); line.setAttribute('y2', pt.y2_pct + '%');
+        line.setAttribute('stroke', color); line.setAttribute('stroke-width', '2');
+        line.setAttribute('marker-start', 'url(#dim-arrow)');
+        line.setAttribute('marker-end',   'url(#dim-arrow)');
+        line.style.pointerEvents = 'none';
+
+        g.appendChild(hit);
+        g.appendChild(line);
+
+        if (!hasExtLabel) {
+            // Fallback: label at midpoint in SVG
+            const text = document.createElementNS(ns, 'text');
+            text.setAttribute('x', midX + '%'); text.setAttribute('y', midY + '%');
+            text.setAttribute('text-anchor', 'middle'); text.setAttribute('dominant-baseline', 'middle');
+            text.setAttribute('font-size', '11'); text.setAttribute('font-weight', '700');
+            text.setAttribute('fill', color);
+            text.setAttribute('stroke', 'white'); text.setAttribute('stroke-width', '3');
+            text.setAttribute('paint-order', 'stroke');
+            text.style.pointerEvents = 'none';
+            text.textContent = pt.code;
+            g.appendChild(text);
+        }
+
+        g.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (justDragged || addPointMode || addAreaMode || addLineMode) return;
+            selectPoint(pt);
+        });
+        g.addEventListener('dblclick', function(e) {
+            e.stopPropagation();
+            openEditPointModal(pt);
+        });
+        addDragBehavior(g, pt);
+
+        // Selected line: endpoint handles — drag to change the arrow length/angle
+        if (isActive) {
+            [['x_pct', 'y_pct', 'x1', 'y1'], ['x2_pct', 'y2_pct', 'x2', 'y2']].forEach(function (m) {
+                const kx = m[0], ky = m[1], ax = m[2], ay = m[3];
+                const h = document.createElementNS(ns, 'circle');
+                h.setAttribute('cx', pt[kx] + '%'); h.setAttribute('cy', pt[ky] + '%');
+                h.setAttribute('r', '6');
+                h.setAttribute('fill', '#fff'); h.setAttribute('stroke', '#0d6efd'); h.setAttribute('stroke-width', '2');
+                h.style.cursor = 'move'; h.style.pointerEvents = 'all';
+                h.addEventListener('mousedown', function (e) {
+                    if (e.button !== 0) return;
+                    e.stopPropagation(); e.preventDefault();
+                    let movedEp = false;
+                    function onMove(ev) {
+                        movedEp = true;
+                        const r  = figureImg.getBoundingClientRect();
+                        const nx = Math.min(100, Math.max(0, (ev.clientX - r.left) / r.width  * 100)).toFixed(2);
+                        const ny = Math.min(100, Math.max(0, (ev.clientY - r.top)  / r.height * 100)).toFixed(2);
+                        pt[kx] = nx; pt[ky] = ny;
+                        h.setAttribute('cx', nx + '%');   h.setAttribute('cy', ny + '%');
+                        line.setAttribute(ax, nx + '%');  line.setAttribute(ay, ny + '%');
+                        hit.setAttribute(ax, nx + '%');   hit.setAttribute(ay, ny + '%');
+                        document.body.style.userSelect = 'none';
+                    }
+                    function onUp() {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        document.body.style.userSelect = '';
+                        if (movedEp) {
+                            justDragged = true; setTimeout(function () { justDragged = false; }, 80);
+                            savePointPosition(pt);
+                            renderPoints(activeFigure.points || []); // refresh label/leader positions
+                        }
+                    }
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                });
+                g.appendChild(h);
+            });
+        }
+
+        linesSvg.appendChild(g);
+
+        if (hasExtLabel) {
+            // External draggable label (same as callout)
+            const lbl = document.createElement('div');
+            lbl.className   = 'dim-callout-label' + (isActive ? ' active' : '');
+            lbl.style.left  = pt.label_x_pct + '%';
+            lbl.style.top   = pt.label_y_pct + '%';
+            lbl.textContent = pt.code;
+            lbl.title       = pt.code + (pt.description ? ': ' + pt.description : '');
+            lbl.dataset.id  = pt.id;
+            lbl.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (justDragged || addPointMode || addAreaMode || addLineMode) return;
+                selectPoint(pt);
+            });
+            lbl.addEventListener('dblclick', function(e) { e.stopPropagation(); openEditPointModal(pt); });
+            addLabelDragBehavior(lbl, pt);
+            pointsOverlay.appendChild(lbl);
+
+            // Leader line from midpoint → label border (same calculation as callout)
+            const containerRect = figureImg.getBoundingClientRect();
+            const lblRect       = lbl.getBoundingClientRect();
+            const cW = containerRect.width  || 1;
+            const cH = containerRect.height || 1;
+            const hw = (lblRect.width  / 2) / cW * 100;
+            const hh = (lblRect.height / 2) / cH * 100;
+            const vx = parseFloat(midX) - parseFloat(pt.label_x_pct);
+            const vy = parseFloat(midY) - parseFloat(pt.label_y_pct);
+            const tx = (vx !== 0) ? hw / Math.abs(vx) : Infinity;
+            const ty = (vy !== 0) ? hh / Math.abs(vy) : Infinity;
+            const t  = Math.min(tx, ty);
+            const ex = parseFloat(pt.label_x_pct) + t * vx;
+            const ey = parseFloat(pt.label_y_pct) + t * vy;
+
+            const leaderG = document.createElementNS(ns, 'g');
+            leaderG.style.pointerEvents = 'none';
+            const leaderLine = document.createElementNS(ns, 'line');
+            leaderLine.setAttribute('x1', midX + '%'); leaderLine.setAttribute('y1', midY + '%');
+            leaderLine.setAttribute('x2', ex + '%');   leaderLine.setAttribute('y2', ey + '%');
+            leaderLine.setAttribute('stroke', isActive ? '#0d6efd' : '#333');
+            leaderLine.setAttribute('stroke-width', '1');
+            leaderLine.style.pointerEvents = 'none';
+            leaderG.appendChild(leaderLine);
+            linesSvg.appendChild(leaderG);
+        }
+    }
+
+    function addLabelDragBehavior(el, pt) {
+        el.addEventListener('mousedown', function (e) {
+            if (e.button !== 0 || addPointMode || addCalloutMode || addCircleMode || addAreaMode || addLineMode || addTextMode || addViewMode) return;
+            e.stopPropagation();
+            const startX = e.clientX, startY = e.clientY;
+            let moved = false;
+
+            function onMove(e) {
+                const dx = e.clientX - startX, dy = e.clientY - startY;
+                if (!moved && Math.sqrt(dx * dx + dy * dy) > 4) moved = true;
+                if (moved) {
+                    el.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
+                    document.body.style.userSelect = 'none';
+                }
+            }
+
+            function onUp(e) {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                document.body.style.userSelect = '';
+                el.style.transform = '';
+                if (!moved) return;
+
+                justDragged = true;
+                setTimeout(function () { justDragged = false; }, 0);
+
+                const rect   = figureImg.getBoundingClientRect();
+                const dxPct  = (e.clientX - startX) / rect.width  * 100;
+                const dyPct  = (e.clientY - startY) / rect.height * 100;
+                pt.label_x_pct = Math.min(Math.max(parseFloat(pt.label_x_pct) + dxPct, 0), 100).toFixed(2);
+                pt.label_y_pct = Math.min(Math.max(parseFloat(pt.label_y_pct) + dyPct, 0), 100).toFixed(2);
+                renderPoints(activeFigure.points);
+                savePointPosition(pt);
+            }
+
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    }
+
+    function renderCallout(pt) {
+        const ns       = 'http://www.w3.org/2000/svg';
+        const isActive = activePoint && activePoint.id === pt.id;
+        const stroke   = isActive ? '#dc3545' : '#333';
+
+        // Small dot at measurement location
+        const dot = document.createElement('div');
+        dot.className = 'dim-callout-dot' + (isActive ? ' active' : '');
+        dot.style.left = pt.x_pct + '%';
+        dot.style.top  = pt.y_pct + '%';
+        dot.title      = pt.code + (pt.description ? ': ' + pt.description : '');
+        dot.dataset.id = pt.id;
+        dot.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (justDragged || addPointMode || addCalloutMode || addTextMode || addAreaMode || addLineMode) return;
+            selectPoint(pt);
+        });
+        dot.addEventListener('dblclick', function (e) { e.stopPropagation(); openEditPointModal(pt); });
+        addDragBehavior(dot, pt);
+        pointsOverlay.appendChild(dot);
+
+        // Label div — append first so we can measure it
+        const lbl = document.createElement('div');
+        lbl.className   = 'dim-callout-label' + (isActive ? ' active' : '');
+        lbl.style.left  = pt.label_x_pct + '%';
+        lbl.style.top   = pt.label_y_pct + '%';
+        lbl.textContent = pt.code;
+        lbl.title       = pt.code + (pt.description ? ': ' + pt.description : '');
+        lbl.dataset.id  = pt.id;
+        lbl.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (justDragged || addPointMode || addCalloutMode || addTextMode || addAreaMode || addLineMode) return;
+            selectPoint(pt);
+        });
+        lbl.addEventListener('dblclick', function (e) { e.stopPropagation(); openEditPointModal(pt); });
+        addLabelDragBehavior(lbl, pt);
+        pointsOverlay.appendChild(lbl);
+
+        // Compute leader line endpoint at the label rectangle border
+        const containerRect = figureImg.getBoundingClientRect();
+        const lblRect       = lbl.getBoundingClientRect();
+        const cW = containerRect.width  || 1;
+        const cH = containerRect.height || 1;
+        // label half-sizes in % of container
+        const hw = (lblRect.width  / 2) / cW * 100;
+        const hh = (lblRect.height / 2) / cH * 100;
+        // vector from label center toward dot
+        const vx = parseFloat(pt.x_pct)     - parseFloat(pt.label_x_pct);
+        const vy = parseFloat(pt.y_pct)     - parseFloat(pt.label_y_pct);
+        // t = how far to travel until we hit the rectangle border
+        const tx  = (vx !== 0) ? hw / Math.abs(vx) : Infinity;
+        const ty  = (vy !== 0) ? hh / Math.abs(vy) : Infinity;
+        const t   = Math.min(tx, ty);
+        const ex  = parseFloat(pt.label_x_pct) + t * vx;
+        const ey  = parseFloat(pt.label_y_pct) + t * vy;
+
+        // SVG leader line from dot to label border
+        const g = document.createElementNS(ns, 'g');
+        g.style.pointerEvents = 'none';
+        const leaderLine = document.createElementNS(ns, 'line');
+        leaderLine.setAttribute('x1', pt.x_pct + '%'); leaderLine.setAttribute('y1', pt.y_pct + '%');
+        leaderLine.setAttribute('x2', ex + '%');        leaderLine.setAttribute('y2', ey + '%');
+        leaderLine.setAttribute('stroke', stroke);
+        leaderLine.setAttribute('stroke-width', '1');
+        leaderLine.style.pointerEvents = 'none';
+        g.appendChild(leaderLine);
+        linesSvg.appendChild(g);
+
+        renderExtraAnchors(pt, lbl, stroke);   // multi-arrow: extra leaders to this name
+    }
+
+    function renderTextLabel(pt) {
+        const ns       = 'http://www.w3.org/2000/svg';
+        const isActive = activePoint && activePoint.id === pt.id;
+        const stroke   = isActive ? '#dc3545' : '#14b8a6';
+
+        // Look up IC name from local inspComponents array (no server roundtrip needed)
+        const ic = inspComponents.find(function (c) { return c.id == pt.child_ic_id; });
+        const labelText = ic ? ic.label : (pt.description || pt.code);
+
+        // Dot at part location
+        const dot = document.createElement('div');
+        dot.className = 'dim-callout-dot text' + (isActive ? ' active' : '');
+        dot.style.left = pt.x_pct + '%';
+        dot.style.top  = pt.y_pct + '%';
+        dot.title      = labelText;
+        dot.dataset.id = pt.id;
+        dot.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (justDragged || addPointMode || addCalloutMode || addTextMode || addAreaMode || addLineMode) return;
+            selectPoint(pt);
+        });
+        dot.addEventListener('dblclick', function (e) { e.stopPropagation(); openEditPointModal(pt); });
+        addDragBehavior(dot, pt);
+        pointsOverlay.appendChild(dot);
+
+        // Rounded rect label
+        const lbl = document.createElement('div');
+        lbl.className   = 'dim-text-label' + (isActive ? ' active' : '');
+        lbl.style.left  = pt.label_x_pct + '%';
+        lbl.style.top   = pt.label_y_pct + '%';
+        lbl.textContent = labelText;
+        lbl.title       = labelText;
+        lbl.dataset.id  = pt.id;
+        lbl.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (justDragged || addPointMode || addCalloutMode || addTextMode || addAreaMode || addLineMode) return;
+            selectPoint(pt);
+        });
+        lbl.addEventListener('dblclick', function (e) { e.stopPropagation(); openEditPointModal(pt); });
+        addLabelDragBehavior(lbl, pt);
+        pointsOverlay.appendChild(lbl);
+
+        // Leader line (dot → label border)
+        const containerRect = figureImg.getBoundingClientRect();
+        const lblRect       = lbl.getBoundingClientRect();
+        const cW = containerRect.width  || 1;
+        const cH = containerRect.height || 1;
+        const hw = (lblRect.width  / 2) / cW * 100;
+        const hh = (lblRect.height / 2) / cH * 100;
+        const vx = parseFloat(pt.x_pct) - parseFloat(pt.label_x_pct);
+        const vy = parseFloat(pt.y_pct) - parseFloat(pt.label_y_pct);
+        const tx = (vx !== 0) ? hw / Math.abs(vx) : Infinity;
+        const ty = (vy !== 0) ? hh / Math.abs(vy) : Infinity;
+        const t  = Math.min(tx, ty);
+        const ex = parseFloat(pt.label_x_pct) + t * vx;
+        const ey = parseFloat(pt.label_y_pct) + t * vy;
+
+        const g = document.createElementNS(ns, 'g');
+        g.style.pointerEvents = 'none';
+        const leaderLine = document.createElementNS(ns, 'line');
+        leaderLine.setAttribute('x1', pt.x_pct + '%'); leaderLine.setAttribute('y1', pt.y_pct + '%');
+        leaderLine.setAttribute('x2', ex + '%');        leaderLine.setAttribute('y2', ey + '%');
+        leaderLine.setAttribute('stroke', stroke);
+        leaderLine.setAttribute('stroke-width', '1.5');
+        leaderLine.style.pointerEvents = 'none';
+        g.appendChild(leaderLine);
+        linesSvg.appendChild(g);
+
+        renderExtraAnchors(pt, lbl, stroke);   // multi-arrow: extra leaders to this name
+    }
+
+    function renderCircle(pt) {
+        const ns       = 'http://www.w3.org/2000/svg';
+        const isActive = activePoint && activePoint.id === pt.id;
+        const color    = isActive ? '#dc3545' : '#6f42c1';
+
+        const g = document.createElementNS(ns, 'g');
+        g.dataset.id = pt.id;
+        g.style.cursor = 'pointer';
+        g.style.pointerEvents = 'auto';
+
+        // Transparent fill + wide stroke — catches clicks anywhere inside/on circle
+        const hitEl = document.createElementNS(ns, 'ellipse');
+        hitEl.setAttribute('cx', pt.x_pct + '%'); hitEl.setAttribute('cy', pt.y_pct + '%');
+        hitEl.setAttribute('rx', pt.width_pct + '%'); hitEl.setAttribute('ry', pt.height_pct + '%');
+        hitEl.setAttribute('fill', 'transparent');
+        hitEl.setAttribute('stroke', 'transparent'); hitEl.setAttribute('stroke-width', '14');
+        hitEl.style.pointerEvents = 'all';
+
+        // Visual ellipse
+        const el = document.createElementNS(ns, 'ellipse');
+        el.setAttribute('cx', pt.x_pct + '%'); el.setAttribute('cy', pt.y_pct + '%');
+        el.setAttribute('rx', pt.width_pct + '%'); el.setAttribute('ry', pt.height_pct + '%');
+        el.setAttribute('fill', isActive ? 'rgba(220,53,69,0.08)' : 'rgba(111,66,193,0.08)');
+        el.setAttribute('stroke', color); el.setAttribute('stroke-width', '1.5');
+        el.style.pointerEvents = 'none';
+
+        const hasExtLabel = pt.label_x_pct !== null && pt.label_x_pct !== undefined;
+
+        // Inline code label above circle (hidden when external label is used)
+        if (!hasExtLabel) {
+            const labelY = (parseFloat(pt.y_pct) - parseFloat(pt.height_pct)).toFixed(2);
+            const text = document.createElementNS(ns, 'text');
+            text.setAttribute('x', pt.x_pct + '%'); text.setAttribute('y', labelY + '%');
+            text.setAttribute('text-anchor', 'middle'); text.setAttribute('dominant-baseline', 'text-bottom');
+            text.setAttribute('font-size', '11'); text.setAttribute('font-weight', '700');
+            text.setAttribute('fill', color);
+            text.setAttribute('stroke', 'white'); text.setAttribute('stroke-width', '3');
+            text.setAttribute('paint-order', 'stroke');
+            text.style.pointerEvents = 'none';
+            text.textContent = pt.code;
+            g.appendChild(text);
+        }
+
+        g.appendChild(hitEl); g.appendChild(el);
+
+        g.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (justDragged || addPointMode || addCalloutMode || addTextMode || addCircleMode || addAreaMode || addLineMode) return;
+            if (pt.child_figure_id) {
+                const child = figures.find(function(f) { return f.id == pt.child_figure_id; });
+                if (child) { selectFigure(child); return; }
+            }
+        });
+        g.addEventListener('dblclick', function (e) { e.stopPropagation(); openEditPointModal(pt); });
+        addDragBehavior(g, pt);
+        linesSvg.appendChild(g);
+
+        // External label + leader line for circle
+        if (hasExtLabel) {
+            const lbl = document.createElement('div');
+            lbl.className   = 'dim-callout-label' + (isActive ? ' active' : '');
+            lbl.style.left  = pt.label_x_pct + '%';
+            lbl.style.top   = pt.label_y_pct + '%';
+            lbl.textContent = pt.code;
+            lbl.title       = pt.code + (pt.description ? ': ' + pt.description : '');
+            lbl.dataset.id  = pt.id;
+            lbl.addEventListener('dblclick', function (e) {
+                e.stopPropagation();
+                if (addPointMode || addCalloutMode || addTextMode || addCircleMode || addAreaMode || addLineMode) return;
+                openEditPointModal(pt);
+            });
+            addLabelDragBehavior(lbl, pt);
+            pointsOverlay.appendChild(lbl);
+
+            // Leader line: point on ellipse outline → label border
+            const cx = parseFloat(pt.x_pct), cy = parseFloat(pt.y_pct);
+            const rx = parseFloat(pt.width_pct), ry = parseFloat(pt.height_pct);
+            const lx = parseFloat(pt.label_x_pct), ly = parseFloat(pt.label_y_pct);
+            const theta = Math.atan2((ly - cy) / ry, (lx - cx) / rx);
+            const bx = cx + rx * Math.cos(theta);
+            const by = cy + ry * Math.sin(theta);
+
+            // Label border point
+            const cRect = figureImg.getBoundingClientRect();
+            const lblR  = lbl.getBoundingClientRect();
+            const lhw = (lblR.width  / 2) / (cRect.width  || 1) * 100;
+            const lhh = (lblR.height / 2) / (cRect.height || 1) * 100;
+            const uvx = bx - lx, uvy = by - ly;
+            const lt  = Math.min(uvx !== 0 ? lhw / Math.abs(uvx) : Infinity, uvy !== 0 ? lhh / Math.abs(uvy) : Infinity);
+            const lex = lx + lt * uvx, ley = ly + lt * uvy;
+
+            const lg = document.createElementNS(ns, 'g');
+            lg.style.pointerEvents = 'none';
+            const ll = document.createElementNS(ns, 'line');
+            ll.setAttribute('x1', bx + '%');  ll.setAttribute('y1', by + '%');
+            ll.setAttribute('x2', lex + '%'); ll.setAttribute('y2', ley + '%');
+            ll.setAttribute('stroke', isActive ? '#dc3545' : '#333');
+            ll.setAttribute('stroke-width', '1');
+            lg.appendChild(ll);
+            linesSvg.appendChild(lg);
+        }
+    }
+
+    function resetCircleDraw() {
+        circleCenter = null;
+        if (circleTempEl) { circleTempEl.remove(); circleTempEl = null; }
+    }
+
+    function resetLineDraw() {
+        lineStart = null;
+        if (lineTempMarker) { lineTempMarker.remove(); lineTempMarker = null; }
+        if (lineTempLine)   { lineTempLine.remove();   lineTempLine   = null; }
+    }
+
+    function resetCalloutDraw() {
+        calloutDotStart = null;
+        if (calloutTempDot)  { calloutTempDot.remove();  calloutTempDot  = null; }
+        if (calloutTempLine) { calloutTempLine.remove(); calloutTempLine = null; }
+    }
+
+    // ---- Add point mode toggle ----
+    function resetWaitingLabel() {
+        areaWaitingLabel   = null;
+        circleWaitingLabel = null;
+        lineWaitingLabel   = null;
+        canvasWrap.classList.remove('line-label-mode');
+        if (areaTempRect)    { areaTempRect.remove();    areaTempRect    = null; }
+        if (waitingTempLine) { waitingTempLine.remove(); waitingTempLine = null; }
+    }
+
+    function resetTextDraw() {
+        textDotStart = null;
+        if (textTempDot)  { textTempDot.remove();  textTempDot  = null; }
+        if (textTempLine) { textTempLine.remove(); textTempLine = null; }
+    }
+
+    function deactivateAllModes() {
+        addPointMode   = false; addPointModeBtn.classList.remove('active');   canvasWrap.classList.remove('add-point-mode');
+        addCalloutMode = false; addCalloutModeBtn.classList.remove('active'); canvasWrap.classList.remove('add-callout-mode');
+        resetCalloutDraw();
+        addCircleMode  = false; addCircleModeBtn.classList.remove('active');  canvasWrap.classList.remove('add-circle-mode');
+        resetCircleDraw();
+        resetWaitingLabel();
+        addAreaMode    = false; addAreaModeBtn.classList.remove('active');    canvasWrap.classList.remove('add-area-mode');
+        if (areaPreviewEl) { areaPreviewEl.remove(); areaPreviewEl = null; } areaDragStart = null;
+        addLineMode    = false; addLineModeBtn.classList.remove('active');    canvasWrap.classList.remove('add-line-mode');
+        resetLineDraw();
+        addViewMode    = false; addViewModeBtn.classList.remove('active');    canvasWrap.classList.remove('add-view-mode');
+        addTextMode    = false; addTextModeBtn.classList.remove('active');    canvasWrap.classList.remove('add-text-mode');
+        resetTextDraw();
+    }
+
+    addPointModeBtn.addEventListener('click', function () {
+        const next = !addPointMode;
+        deactivateAllModes();
+        if (next) { addPointMode = true; addPointModeBtn.classList.add('active'); canvasWrap.classList.add('add-point-mode'); }
+    });
+
+    addCalloutModeBtn.addEventListener('click', function () {
+        const next = !addCalloutMode;
+        deactivateAllModes();
+        if (next) { addCalloutMode = true; addCalloutModeBtn.classList.add('active'); canvasWrap.classList.add('add-callout-mode'); }
+    });
+
+    addCircleModeBtn.addEventListener('click', function () {
+        const next = !addCircleMode;
+        deactivateAllModes();
+        if (next) { addCircleMode = true; addCircleModeBtn.classList.add('active'); canvasWrap.classList.add('add-circle-mode'); }
+    });
+
+    addAreaModeBtn.addEventListener('click', function () {
+        const next = !addAreaMode;
+        deactivateAllModes();
+        if (next) { addAreaMode = true; addAreaModeBtn.classList.add('active'); canvasWrap.classList.add('add-area-mode'); }
+    });
+
+    addLineModeBtn.addEventListener('click', function () {
+        const next = !addLineMode;
+        deactivateAllModes();
+        if (next) { addLineMode = true; addLineModeBtn.classList.add('active'); canvasWrap.classList.add('add-line-mode'); }
+    });
+
+    addViewModeBtn.addEventListener('click', function () {
+        const next = !addViewMode;
+        deactivateAllModes();
+        if (next) { addViewMode = true; addViewModeBtn.classList.add('active'); canvasWrap.classList.add('add-view-mode'); }
+    });
+
+    // ---- mousedown: place a View arrow (click to place; drag the tip to rotate) ----
+    imgContainer.addEventListener('mousedown', async function (e) {
+        if (!addViewMode || !activeFigure || e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = figureImg.getBoundingClientRect();
+        const x  = (e.clientX - rect.left) / rect.width  * 100;
+        const y  = (e.clientY - rect.top)  / rect.height * 100;
+        const x2 = Math.min(100, x + 12);          // default arrow points right; rotate via the tip handle
+        const body = {
+            code:            'A',
+            point_type:      'view',
+            description:     null,
+            child_figure_id: null,
+            x_pct:  +x.toFixed(2),  y_pct:  +y.toFixed(2),
+            x2_pct: +x2.toFixed(2), y2_pct: +y.toFixed(2),
+            sort_order: 0,
+        };
+        try {
+            const saved = await apiFetch('/dimension-figures/' + activeFigure.id + '/points', { method: 'POST', body: JSON.stringify(body) });
+            if (!activeFigure.points) activeFigure.points = [];
+            activeFigure.points.push(saved);
+            deactivateAllModes();
+            renderPoints(activeFigure.points);
+            selectPoint(saved);          // show endpoint handles so it can be rotated immediately
+            openEditPointModal(saved);   // prompt for the letter + target figure right away
+        } catch (err) { alert(err.message); }
+    });
+
+    addTextModeBtn.addEventListener('click', function () {
+        const next = !addTextMode;
+        deactivateAllModes();
+        if (next) { addTextMode = true; addTextModeBtn.classList.add('active'); canvasWrap.classList.add('add-text-mode'); }
+    });
+
+    // ---- mousedown: place label for waiting area or circle (must be before draw handlers) ----
+    imgContainer.addEventListener('mousedown', function (e) {
+        if (e.button !== 0 || !activeFigure) return;
+        if (areaWaitingLabel) {
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = figureImg.getBoundingClientRect();
+            const xPct = ((e.clientX - rect.left) / rect.width  * 100).toFixed(2);
+            const yPct = ((e.clientY - rect.top)  / rect.height * 100).toFixed(2);
+            const { x, y, w, h } = areaWaitingLabel;
+            resetWaitingLabel();
+            deactivateAllModes();
+            openAddPointModal(x.toFixed(2), y.toFixed(2), w.toFixed(2), h.toFixed(2), null, null, xPct, yPct);
+            return;
+        }
+        if (circleWaitingLabel) {
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = figureImg.getBoundingClientRect();
+            const xPct = ((e.clientX - rect.left) / rect.width  * 100).toFixed(2);
+            const yPct = ((e.clientY - rect.top)  / rect.height * 100).toFixed(2);
+            const { cx, cy, rx, ry } = circleWaitingLabel;
+            if (circleTempEl) { circleTempEl.remove(); circleTempEl = null; }
+            resetWaitingLabel();
+            deactivateAllModes();
+            openAddCircleModal(cx.toFixed(2), cy.toFixed(2), rx.toFixed(2), ry.toFixed(2), xPct, yPct);
+            return;
+        }
+        if (lineWaitingLabel) {
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = figureImg.getBoundingClientRect();
+            const xPct = ((e.clientX - rect.left) / rect.width  * 100).toFixed(2);
+            const yPct = ((e.clientY - rect.top)  / rect.height * 100).toFixed(2);
+            const { x1, y1, x2, y2 } = lineWaitingLabel;
+            resetWaitingLabel();
+            deactivateAllModes();
+            openAddPointModal(x1, y1, null, null, x2, y2, xPct, yPct);
+            return;
+        }
+    });
+
+    // ---- mousedown: circle draw (center + drag radius) ----
+    imgContainer.addEventListener('mousedown', function (e) {
+        if (!addCircleMode || !activeFigure || e.button !== 0 || circleWaitingLabel) return;
+        e.preventDefault();
+        const rect = figureImg.getBoundingClientRect();
+        circleCenter = {
+            x: (e.clientX - rect.left) / rect.width  * 100,
+            y: (e.clientY - rect.top)  / rect.height * 100,
+        };
+        const ns = 'http://www.w3.org/2000/svg';
+        circleTempEl = document.createElementNS(ns, 'ellipse');
+        circleTempEl.setAttribute('cx', circleCenter.x + '%'); circleTempEl.setAttribute('cy', circleCenter.y + '%');
+        circleTempEl.setAttribute('rx', '0%'); circleTempEl.setAttribute('ry', '0%');
+        circleTempEl.setAttribute('fill', 'rgba(13,110,253,0.08)');
+        circleTempEl.setAttribute('stroke', '#0d6efd'); circleTempEl.setAttribute('stroke-width', '1.5');
+        circleTempEl.setAttribute('stroke-dasharray', '5,3');
+        circleTempEl.style.pointerEvents = 'none';
+        linesSvg.appendChild(circleTempEl);
+    });
+
+    // ---- Drag on image to draw area ----
+    imgContainer.addEventListener('mousedown', function (e) {
+        if (!addAreaMode || !activeFigure || e.button !== 0 || areaWaitingLabel) return;
+        e.preventDefault();
+        const rect = figureImg.getBoundingClientRect();
+        areaDragStart = {
+            x: (e.clientX - rect.left) / rect.width  * 100,
+            y: (e.clientY - rect.top)  / rect.height * 100,
+        };
+        areaPreviewEl = document.createElement('div');
+        areaPreviewEl.className = 'dim-area-preview';
+        areaPreviewEl.style.left   = areaDragStart.x + '%';
+        areaPreviewEl.style.top    = areaDragStart.y + '%';
+        areaPreviewEl.style.width  = '0';
+        areaPreviewEl.style.height = '0';
+        imgContainer.appendChild(areaPreviewEl);
+    });
+
+    document.addEventListener('mousemove', function (e) {
+        if (isPanning && panStart) {
+            canvasWrap.scrollLeft = panStart.x - e.clientX;
+            canvasWrap.scrollTop  = panStart.y - e.clientY;
+            return;
+        }
+        // Preview leader line while waiting for label placement click
+        if (areaWaitingLabel || circleWaitingLabel || lineWaitingLabel) {
+            const rect = figureImg.getBoundingClientRect();
+            const cx = Math.min(Math.max((e.clientX - rect.left) / rect.width  * 100, 0), 100);
+            const cy = Math.min(Math.max((e.clientY - rect.top)  / rect.height * 100, 0), 100);
+            const ns = 'http://www.w3.org/2000/svg';
+            let ox, oy; // origin: center of shape
+            if (areaWaitingLabel) {
+                ox = areaWaitingLabel.x + areaWaitingLabel.w / 2;
+                oy = areaWaitingLabel.y + areaWaitingLabel.h / 2;
+            } else if (circleWaitingLabel) {
+                ox = circleWaitingLabel.cx;
+                oy = circleWaitingLabel.cy;
+            } else {
+                // midpoint of line
+                ox = (parseFloat(lineWaitingLabel.x1) + parseFloat(lineWaitingLabel.x2)) / 2;
+                oy = (parseFloat(lineWaitingLabel.y1) + parseFloat(lineWaitingLabel.y2)) / 2;
+            }
+            if (!waitingTempLine) {
+                waitingTempLine = document.createElementNS(ns, 'line');
+                waitingTempLine.setAttribute('stroke', '#0d6efd');
+                waitingTempLine.setAttribute('stroke-width', '1');
+                waitingTempLine.setAttribute('stroke-dasharray', '4,3');
+                waitingTempLine.style.pointerEvents = 'none';
+                linesSvg.appendChild(waitingTempLine);
+            }
+            waitingTempLine.setAttribute('x1', ox + '%'); waitingTempLine.setAttribute('y1', oy + '%');
+            waitingTempLine.setAttribute('x2', cx + '%'); waitingTempLine.setAttribute('y2', cy + '%');
+        }
+        if (circleCenter && circleTempEl) {
+            const rect   = figureImg.getBoundingClientRect();
+            const dxPx   = (e.clientX - rect.left) - circleCenter.x / 100 * rect.width;
+            const dyPx   = (e.clientY - rect.top)  - circleCenter.y / 100 * rect.height;
+            const radius = Math.sqrt(dxPx * dxPx + dyPx * dyPx);
+            circleTempEl.setAttribute('rx', (radius / rect.width  * 100) + '%');
+            circleTempEl.setAttribute('ry', (radius / rect.height * 100) + '%');
+        }
+        if (!areaDragStart || !areaPreviewEl) return;
+        const rect = figureImg.getBoundingClientRect();
+        const cx = Math.min(Math.max((e.clientX - rect.left) / rect.width  * 100, 0), 100);
+        const cy = Math.min(Math.max((e.clientY - rect.top)  / rect.height * 100, 0), 100);
+        areaPreviewEl.style.left   = Math.min(cx, areaDragStart.x) + '%';
+        areaPreviewEl.style.top    = Math.min(cy, areaDragStart.y) + '%';
+        areaPreviewEl.style.width  = Math.abs(cx - areaDragStart.x) + '%';
+        areaPreviewEl.style.height = Math.abs(cy - areaDragStart.y) + '%';
+    });
+
+    document.addEventListener('mouseup', function (e) {
+        if (isPanning) {
+            isPanning = false;
+            panStart  = null;
+            canvasWrap.classList.remove('panning');
+            return;
+        }
+        if (circleCenter) {
+            const rect   = figureImg.getBoundingClientRect();
+            const dxPx   = (e.clientX - rect.left) - circleCenter.x / 100 * rect.width;
+            const dyPx   = (e.clientY - rect.top)  - circleCenter.y / 100 * rect.height;
+            const radius = Math.sqrt(dxPx * dxPx + dyPx * dyPx);
+            if (radius > 5) {
+                // Keep circleTempEl visible, wait for label click
+                circleWaitingLabel = {
+                    cx: parseFloat(circleCenter.x.toFixed(2)),
+                    cy: parseFloat(circleCenter.y.toFixed(2)),
+                    rx: parseFloat((radius / rect.width  * 100).toFixed(2)),
+                    ry: parseFloat((radius / rect.height * 100).toFixed(2)),
+                };
+                // Make temp ellipse solid (not dashed) to show it's placed
+                circleTempEl.removeAttribute('stroke-dasharray');
+                circleTempEl.setAttribute('stroke', '#6f42c1');
+                circleTempEl.setAttribute('stroke-width', '1.5');
+            } else {
+                resetCircleDraw();
+            }
+            circleCenter = null;
+            return;
+        }
+        if (!areaDragStart || !areaPreviewEl) return;
+        const rect = figureImg.getBoundingClientRect();
+        const cx = Math.min(Math.max((e.clientX - rect.left) / rect.width  * 100, 0), 100);
+        const cy = Math.min(Math.max((e.clientY - rect.top)  / rect.height * 100, 0), 100);
+        const x  = Math.min(cx, areaDragStart.x);
+        const y  = Math.min(cy, areaDragStart.y);
+        const w  = Math.abs(cx - areaDragStart.x);
+        const h  = Math.abs(cy - areaDragStart.y);
+        areaPreviewEl.remove();
+        areaPreviewEl = null;
+        areaDragStart = null;
+        if (w < 1 || h < 1) return;
+        // Keep area visible, wait for label click
+        areaWaitingLabel = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)), w: parseFloat(w.toFixed(2)), h: parseFloat(h.toFixed(2)) };
+        areaTempRect = document.createElement('div');
+        areaTempRect.className = 'dim-area-preview';
+        areaTempRect.style.cssText = 'position:absolute;left:' + x + '%;top:' + y + '%;width:' + w + '%;height:' + h + '%;pointer-events:none;border:1.5px solid #6f42c1;background:rgba(111,66,193,0.06);box-sizing:border-box;border-radius:3px;';
+        imgContainer.appendChild(areaTempRect);
+    });
+
+    // ---- mousemove: line / callout temp preview ----
+    imgContainer.addEventListener('mousemove', function (e) {
+        const rect = figureImg.getBoundingClientRect();
+        const cx = Math.min(Math.max((e.clientX - rect.left) / rect.width  * 100, 0), 100);
+        const cy = Math.min(Math.max((e.clientY - rect.top)  / rect.height * 100, 0), 100);
+        const ns = 'http://www.w3.org/2000/svg';
+
+        if (addCalloutMode && calloutDotStart) {
+            if (!calloutTempLine) {
+                calloutTempLine = document.createElementNS(ns, 'line');
+                calloutTempLine.setAttribute('stroke', '#0d6efd');
+                calloutTempLine.setAttribute('stroke-width', '1');
+                calloutTempLine.setAttribute('stroke-dasharray', '4,3');
+                calloutTempLine.style.pointerEvents = 'none';
+                linesSvg.appendChild(calloutTempLine);
+            }
+            calloutTempLine.setAttribute('x1', calloutDotStart.x + '%'); calloutTempLine.setAttribute('y1', calloutDotStart.y + '%');
+            calloutTempLine.setAttribute('x2', cx + '%');                 calloutTempLine.setAttribute('y2', cy + '%');
+        }
+
+        if (addTextMode && textDotStart) {
+            if (!textTempLine) {
+                textTempLine = document.createElementNS(ns, 'line');
+                textTempLine.setAttribute('stroke', '#14b8a6');
+                textTempLine.setAttribute('stroke-width', '1');
+                textTempLine.setAttribute('stroke-dasharray', '4,3');
+                textTempLine.style.pointerEvents = 'none';
+                linesSvg.appendChild(textTempLine);
+            }
+            textTempLine.setAttribute('x1', textDotStart.x + '%'); textTempLine.setAttribute('y1', textDotStart.y + '%');
+            textTempLine.setAttribute('x2', cx + '%');               textTempLine.setAttribute('y2', cy + '%');
+        }
+
+        if (!addLineMode || !lineStart) return;
+        if (!lineTempLine) {
+            lineTempLine = document.createElementNS(ns, 'line');
+            lineTempLine.setAttribute('stroke', '#0d6efd');
+            lineTempLine.setAttribute('stroke-width', '1.5');
+            lineTempLine.setAttribute('stroke-dasharray', '6,4');
+            lineTempLine.style.pointerEvents = 'none';
+            linesSvg.appendChild(lineTempLine);
+        }
+        lineTempLine.setAttribute('x1', lineStart.x + '%'); lineTempLine.setAttribute('y1', lineStart.y + '%');
+        lineTempLine.setAttribute('x2', cx + '%');          lineTempLine.setAttribute('y2', cy + '%');
+    });
+
+    // ---- Click on image to add point / callout / line ----
+    imgContainer.addEventListener('click', function (e) {
+        if (!activeFigure) return;
+        if (addAreaMode   && !areaWaitingLabel)   return;
+        if (addCircleMode && !circleWaitingLabel) return;
+        const rect = figureImg.getBoundingClientRect();
+        const xPct = ((e.clientX - rect.left) / rect.width  * 100).toFixed(2);
+        const yPct = ((e.clientY - rect.top)  / rect.height * 100).toFixed(2);
+
+        if (addCalloutMode) {
+            if (!calloutDotStart) {
+                // 1st click: store dot position, show temp dot
+                calloutDotStart = { x: xPct, y: yPct };
+                calloutTempDot = document.createElement('div');
+                calloutTempDot.className = 'dim-callout-dot';
+                calloutTempDot.style.left = xPct + '%';
+                calloutTempDot.style.top  = yPct + '%';
+                calloutTempDot.style.pointerEvents = 'none';
+                pointsOverlay.appendChild(calloutTempDot);
+            } else {
+                // 2nd click: label position → open modal
+                const dotX = calloutDotStart.x, dotY = calloutDotStart.y;
+                resetCalloutDraw();
+                openAddPointModal(dotX, dotY, null, null, null, null, xPct, yPct);
+            }
+            return;
+        }
+
+        if (addTextMode) {
+            if (!textDotStart) {
+                // 1st click: dot on the part
+                textDotStart = { x: xPct, y: yPct };
+                textTempDot = document.createElement('div');
+                textTempDot.className = 'dim-callout-dot text';
+                textTempDot.style.left = xPct + '%';
+                textTempDot.style.top  = yPct + '%';
+                textTempDot.style.pointerEvents = 'none';
+                pointsOverlay.appendChild(textTempDot);
+            } else {
+                // 2nd click: label position → open modal (text type)
+                const dotX = textDotStart.x, dotY = textDotStart.y;
+                resetTextDraw();
+                deactivateAllModes();
+                openAddTextModal(dotX, dotY, xPct, yPct);
+            }
+            return;
+        }
+
+        if (addLineMode) {
+            if (!lineStart) {
+                lineStart = { x: xPct, y: yPct };
+                const ns = 'http://www.w3.org/2000/svg';
+                lineTempMarker = document.createElementNS(ns, 'circle');
+                lineTempMarker.setAttribute('cx', xPct + '%'); lineTempMarker.setAttribute('cy', yPct + '%');
+                lineTempMarker.setAttribute('r', '6');
+                lineTempMarker.setAttribute('fill', '#0d6efd'); lineTempMarker.setAttribute('stroke', 'white'); lineTempMarker.setAttribute('stroke-width', '2');
+                lineTempMarker.style.pointerEvents = 'none';
+                linesSvg.appendChild(lineTempMarker);
+            } else {
+                const x1 = lineStart.x, y1 = lineStart.y;
+                resetLineDraw();
+                addLineMode = false;
+                addLineModeBtn.classList.remove('active');
+                canvasWrap.classList.remove('add-line-mode');
+                // Enter waiting state for label placement (same pattern as area/circle)
+                lineWaitingLabel = { x1: x1, y1: y1, x2: xPct, y2: yPct };
+                canvasWrap.classList.add('line-label-mode');
+            }
+            return;
+        }
+
+        if (addPointMode) {
+            openAddPointModal(xPct, yPct);
+        }
+    });
+
+    // ---- Copy point setup (all parameters incl. codes/rules/steps) ----
+    function fillCopyFromSelect(targetPt) {
+        const sel = document.getElementById('dimCopyFromSelect');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Copy setup from point…</option>';
+        const withParams = new Set();
+        parameters.forEach(p => (p.points || []).forEach(pp => withParams.add(pp.id)));
+        figures.forEach(fig => (fig.points || []).forEach(p => {
+            if (p.id === targetPt.id || !withParams.has(p.id)) return;
+            if (p.point_type && p.point_type !== 'measurement') return;
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.code + (fig.title ? ' — ' + fig.title : '');
+            sel.appendChild(opt);
+        }));
+    }
+
+    // When a source point is picked, offer its parts: copy everything or one part only
+    document.getElementById('dimCopyFromSelect')?.addEventListener('change', function () {
+        const icSel = document.getElementById('dimCopyIcSelect');
+        const srcId = parseInt(this.value);
+        icSel.classList.add('d-none');
+        icSel.innerHTML = '<option value="">All parts</option>';
+        if (!srcId) return;
+        const icIds = [...new Set(parameters
+            .filter(p => (p.points || []).some(pp => pp.id === srcId))
+            .map(p => p.inspection_component_id).filter(id => id != null))];
+        if (icIds.length > 1) {
+            icIds.forEach(id => {
+                const ic = inspComponents.find(c => c.id === id);
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = ic ? ic.label : ('Part #' + id);
+                icSel.appendChild(opt);
+            });
+            icSel.classList.remove('d-none');
+        }
+    });
+
+    document.getElementById('dimCopyFromBtn')?.addEventListener('click', async function () {
+        const sel = document.getElementById('dimCopyFromSelect');
+        const srcId = parseInt(sel?.value);
+        if (!srcId || !activePoint) return;
+        const icId = parseInt(document.getElementById('dimCopyIcSelect')?.value) || null;
+
+        // Ask the name for each copy right away — otherwise it's easy to forget
+        // to rename later and end up with two identical-looking parameters.
+        const srcParams = parameters.filter(p =>
+            (p.points || []).some(pp => pp.id === srcId) &&
+            (icId == null || p.inspection_component_id === icId));
+        if (!srcParams.length) return;
+        const names = {};
+        for (const p of srcParams) {
+            const name = prompt('Name for the copy of "' + (p.description || '') + '":', p.description || '');
+            if (name === null) return; // cancelled → abort the whole copy
+            names[p.id] = name.trim() || p.description;
+        }
+
+        this.disabled = true;
+        try {
+            await apiFetch('/dimension-points/' + activePoint.id + '/copy-from/' + srcId, {
+                method: 'POST',
+                body: JSON.stringify({ names, inspection_component_id: icId }),
+            });
+            await loadParameters();
+            renderSpecsPanel(activePoint);
+        } catch (e) {
+            alert(e.message);
+        } finally { this.disabled = false; }
+    });
+
+    // ---- Select point ----
+    function selectPoint(pt) {
+        activePoint = pt;
+        renderPoints(activeFigure.points || []);
+        renderSpecsPanel(pt);
+    }
+
+    function clearSpecsPanel() {
+        specsHeader.textContent = 'Select a point';
+        specsEmpty.classList.remove('d-none');
+        specsList.classList.add('d-none');
+        specsFooter.classList.add('d-none');
+        editPointBtn.classList.add('d-none');
+    }
+
+    function renderSpecsPanel(pt) {
+        // Text labels are annotations only — no specs/parameters panel needed
+        if (pt.point_type === 'text') {
+            const ic = inspComponents.find(function (c) { return c.id === pt.child_ic_id; });
+            specsHeader.textContent = ic ? ic.label : (pt.description || pt.code);
+            specsEmpty.classList.remove('d-none');
+            specsEmpty.textContent = 'Part label — no parameters';
+            specsList.classList.add('d-none');
+            specsFooter.classList.add('d-none');
+            editPointBtn.classList.remove('d-none');
+            return;
+        }
+        specsEmpty.textContent = 'Click a point on the figure to view specs';
+        specsHeader.textContent = pt.code + (pt.description ? ' — ' + pt.description : '');
+        specsEmpty.classList.add('d-none');
+        specsList.classList.remove('d-none');
+        specsFooter.classList.remove('d-none');
+        editPointBtn.classList.remove('d-none');
+        fillCopyFromSelect(pt);
+
+        specsList.innerHTML = '';
+        const params = parametersForPoint(pt);
+
+        if (params.length === 0) {
+            specsList.innerHTML = '<div class="text-secondary text-center py-2" style="font-size:12px">No parameters yet</div>';
+            return;
+        }
+
+        // Group by inspection_component_id
+        const groups = {};
+        const groupOrder = [];
+        params.forEach(function (param) {
+            const key = param.inspection_component_id != null ? String(param.inspection_component_id) : '__none__';
+            if (!groups[key]) {
+                const ic = inspComponents.find(function (c) { return c.id === param.inspection_component_id; }) || null;
+                groups[key] = { ic: ic, params: [] };
+                groupOrder.push(key);
+            }
+            groups[key].params.push(param);
+        });
+
+        const isFc = !!(pt.is_fits_clearance);
+
+        groupOrder.forEach(function (key) {
+            const group = groups[key];
+            const ic    = group.ic;
+            const icId  = ic ? ic.id : null;
+            const icLabel = ic ? escHtml(ic.label) : 'No part';
+
+            const card = document.createElement('div');
+            card.className = 'dim-comp-card';
+
+            let html = `<div class="dim-comp-card-header">
+                <span class="dim-comp-card-title" title="${icLabel}">${icLabel}</span>
+                <button class="btn btn-outline-primary dim-btn-xs dim-add-param-btn" data-ic-id="${icId || ''}">+ Param</button>
+            </div>`;
+
+            group.params.forEach(function (param) {
+                const hasLimits = param.orig_dim_min !== null || param.orig_dim_max !== null;
+                const fcBadge  = (isFc && hasLimits) ? '<span class="badge text-bg-success dim-spec-fits-badge">F&C</span>' : '';
+                const reqBadge = param.is_required ? '<span class="badge text-bg-secondary dim-spec-fits-badge">req</span>' : '';
+                const codes    = param.codes || [];
+                const rules    = param.repair_rules || [];
+
+                html += `<div class="dim-comp-section">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="dim-spec-label">${escHtml(param.description || '')}</span>
+                        <div class="d-flex gap-1 align-items-center">
+                            ${fcBadge}${reqBadge}
+                            <button class="btn btn-link btn-sm p-0 ms-1 dim-param-edit-btn" data-param-id="${param.id}" style="font-size:11px;color:var(--bs-secondary-color)">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                    </div>`;
+
+                if (hasLimits) {
+                    html += `<div class="dim-dim-row">
+                        <div class="dim-dim-cell"><div class="dim-dim-cell-label">orig min</div><div class="dim-dim-cell-val">${fmtDim(param.orig_dim_min)}</div></div>
+                        <div class="dim-dim-cell"><div class="dim-dim-cell-label">orig max</div><div class="dim-dim-cell-val">${fmtDim(param.orig_dim_max)}</div></div>
+                        ${param.wear_dim_min !== null ? `
+                        <div class="dim-dim-cell" style="background:rgba(255,193,7,.08)"><div class="dim-dim-cell-label">wear min</div><div class="dim-dim-cell-val">${fmtDim(param.wear_dim_min)}</div></div>
+                        <div class="dim-dim-cell" style="background:rgba(255,193,7,.08)"><div class="dim-dim-cell-label">wear max</div><div class="dim-dim-cell-val">${fmtDim(param.wear_dim_max)}</div></div>` : ''}
+                        ${param.repair_dim_min !== null || param.repair_dim_max !== null ? `
+                        <div class="dim-dim-cell" style="background:rgba(13,110,253,.06)"><div class="dim-dim-cell-label">repair min</div><div class="dim-dim-cell-val">${fmtDim(param.repair_dim_min)}</div></div>
+                        <div class="dim-dim-cell" style="background:rgba(13,110,253,.06)"><div class="dim-dim-cell-label">repair max</div><div class="dim-dim-cell-val">${fmtDim(param.repair_dim_max)}</div></div>` : ''}
+                    </div>`;
+                }
+
+                if (codes.length > 0) {
+                    html += `<div class="mt-1">` +
+                        codes.map(function (c) {
+                            return `<span class="badge text-bg-secondary me-1" style="font-size:10px;font-weight:500">${escHtml(c.name || '')}</span>`;
+                        }).join('') +
+                        `</div>`;
+                }
+
+                if (param.inspection) {
+                    html += `<div style="font-size:11px;color:var(--bs-secondary-color);margin-top:2px">${escHtml(param.inspection)}</div>`;
+                }
+
+                // Repair rules
+                if (rules.length > 0) {
+                    html += `<div class="mt-1" style="border-top:1px solid rgba(0,0,0,.08);padding-top:4px">`;
+                    rules.forEach(function (r) {
+                        const _ra    = r.action || (r.order_replacement ? 'order_new' : 'repair');
+                        const al     = _ra === 'ec' ? 'EC' : (_ra === 'order_new' ? 'Order new' : 'Repair');
+                        const pc     = (r.processes || []).length;
+                        const pcTxt  = pc > 0 ? ` · ${pc} proc.` : '';
+                        const nm     = escHtml(r.name || '—');
+
+                        const trigList      = r.triggers || [];
+                        const dimTrigTypes  = ['below_orig','above_orig','below_wear','above_wear'];
+                        const measTrigs     = trigList.filter(function (t) { return dimTrigTypes.includes(t.trigger); });
+                        const measFindTrigs = trigList.filter(function (t) { return t.trigger === 'finding_measurement'; });
+                        const inspFindTrigs = trigList.filter(function (t) { return t.trigger === 'finding_inspection' || t.trigger === 'finding'; });
+
+                        const measNames = measTrigs.map(function (t) {
+                            return `<span style="font-weight:600;color:var(--bs-body-color)">${escHtml(TRIGGER_LABELS[t.trigger] || t.trigger)}</span>`;
+                        }).join(', ');
+                        const measRow = measTrigs.length > 0
+                            ? `<div style="padding-left:16px;font-size:11px;color:var(--bs-secondary-color);margin-top:2px">Measurement · ${measNames}</div>`
+                            : '';
+
+                        const measFindNames = measFindTrigs.map(function (t) {
+                            return t.code_name ? `<span style="font-weight:600;color:var(--bs-body-color)">${escHtml(t.code_name)}</span>` : '<span style="font-style:italic">any</span>';
+                        }).join(', ');
+                        const measFindRow = measFindTrigs.length > 0
+                            ? `<div style="padding-left:16px;font-size:11px;color:var(--bs-secondary-color);margin-top:1px">Meas. Finding · ${measFindNames}</div>`
+                            : '';
+
+                        const inspFindNames = inspFindTrigs.map(function (t) {
+                            return t.code_name ? `<span style="font-weight:600;color:var(--bs-body-color)">${escHtml(t.code_name)}</span>` : '<span style="font-style:italic">any</span>';
+                        }).join(', ');
+                        const findRow = inspFindTrigs.length > 0
+                            ? `<div style="padding-left:16px;font-size:11px;color:var(--bs-secondary-color);margin-top:1px">Insp. Finding · ${inspFindNames}</div>`
+                            : '';
+
+                        html += `<div class="dim-rule-row" data-rule-id="${r.id}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span style="font-size:12px;font-weight:700">${nm} <span style="font-weight:400;color:var(--bs-secondary-color)">(${al}${pcTxt})</span></span>
+                                <button class="btn btn-link btn-sm p-0 dim-rule-edit-btn" data-rule-id="${r.id}" data-param-id="${param.id}" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-pencil"></i></button>
+                            </div>
+                            ${measRow}${measFindRow}${findRow}
+                        </div>`;
+                    });
+                    html += `</div>`;
+                }
+
+                html += `<button class="btn btn-outline-secondary dim-btn-xs mt-1 dim-add-rule-btn" data-param-id="${param.id}" style="width:100%">+ Add rule</button>
+                </div>`;
+            });
+
+            card.innerHTML = html;
+
+            card.querySelectorAll('.dim-param-edit-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const pid = parseInt(btn.dataset.paramId);
+                    const param = parameters.find(function (p) { return p.id === pid; });
+                    if (param) openEditParamModal(param);
+                });
+            });
+
+            card.querySelector('.dim-add-param-btn').addEventListener('click', function () {
+                openAddParamModal(icId);
+            });
+
+            card.querySelectorAll('.dim-add-rule-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const pid = parseInt(btn.dataset.paramId);
+                    const param = parameters.find(function (p) { return p.id === pid; });
+                    if (param) openAddRuleModal(param);
+                });
+            });
+
+            card.querySelectorAll('.dim-rule-edit-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const ruleId = parseInt(btn.dataset.ruleId);
+                    const pid    = parseInt(btn.dataset.paramId);
+                    const param  = parameters.find(function (p) { return p.id === pid; });
+                    if (!param) return;
+                    const rule = (param.repair_rules || []).find(function (r) { return r.id === ruleId; });
+                    if (rule) openEditRuleModal(rule, param);
+                });
+            });
+
+            specsList.appendChild(card);
+        });
+    }
+
+    function openAddParamModal(inspCompId) {
+        if (!activePoint) return;
+        document.getElementById('dimSpecId').value          = '';
+        document.getElementById('dimSpecDescription').value = '';
+        document.getElementById('dimSpecRequired').checked       = true;
+        document.getElementById('dimSpecRequiresValue').checked  = false;
+        document.getElementById('dimSpecQty').value              = 1;
+        document.getElementById('dimSpecOrigMin').value      = '';
+        document.getElementById('dimSpecOrigMax').value      = '';
+        document.getElementById('dimSpecWearMin').value      = '';
+        document.getElementById('dimSpecWearMax').value      = '';
+        document.getElementById('dimSpecRepairMin').value    = '';
+        document.getElementById('dimSpecRepairMax').value    = '';
+        document.getElementById('dimSpecIntRange').textContent = '—';
+        document.getElementById('dimSpecFlangeClrMin').value = '';
+        document.getElementById('dimSpecFlangeClrMax').value = '';
+        document.getElementById('dimSpecInspection').value   = '';
+        document.getElementById('dimSpecSort').value         = '0';
+        document.getElementById('dimSpecRepairSurfaceSection').classList.add('d-none');
+        dimSpecCodes = [];
+        renderSpecCodesList();
+        refreshSpecComponentSelect(inspCompId || '');
+        updateBushingFields();
+        document.getElementById('dimSpecModalTitle').textContent = 'Add Parameter — ' + activePoint.code;
+        document.getElementById('dimSpecDeleteBtn').classList.add('d-none');
+        document.getElementById('dimSpecDetachBtn').classList.add('d-none');
+        document.getElementById('dimSpecError').classList.add('d-none');
+        // new parameter has no id yet → clear any repair-step context from a previous param
+        dimRsParamId = null; dimRsSteps = []; renderRepairSteps(); closeRepairStepForm();
+        specModal.show();
+    }
+
+    function openEditParamModal(param) {
+        document.getElementById('dimSpecId').value          = param.id;
+        document.getElementById('dimSpecDescription').value = param.description || '';
+        refreshSpecComponentSelect(param.inspection_component_id || '');
+        document.getElementById('dimSpecRequired').checked       = !!param.is_required;
+        document.getElementById('dimSpecRequiresValue').checked  = !!param.requires_value;
+        document.getElementById('dimSpecQty').value              = param.qty || 1;
+        document.getElementById('dimSpecOrigMin').value      = param.orig_dim_min       || '';
+        document.getElementById('dimSpecOrigMax').value      = param.orig_dim_max       || '';
+        document.getElementById('dimSpecWearMin').value      = param.wear_dim_min       || '';
+        document.getElementById('dimSpecWearMax').value      = param.wear_dim_max       || '';
+        document.getElementById('dimSpecRepairMin').value    = param.repair_dim_min     || '';
+        document.getElementById('dimSpecRepairMax').value    = param.repair_dim_max     || '';
+        document.getElementById('dimSpecFlangeClrMin').value = param.flange_clearance_min || '';
+        document.getElementById('dimSpecFlangeClrMax').value = param.flange_clearance_max || '';
+        updateIntRangeDisplay(param);
+        document.getElementById('dimSpecInspection').value   = param.inspection          || '';
+        document.getElementById('dimSpecSort').value        = param.sort_order || '0';
+        dimSpecCodes = (param.codes || []).map(function (c) { return { id: c.codes_id, name: c.name || '', finding_context: c.finding_context || 'inspection' }; });
+        renderSpecCodesList();
+        document.getElementById('dimSpecModalTitle').textContent = 'Edit Parameter — ' + (param.description || '');
+        document.getElementById('dimSpecDeleteBtn').classList.remove('d-none');
+        const paramPoints = param.points || [];
+        document.getElementById('dimSpecDetachBtn').classList.toggle('d-none', paramPoints.length <= 1);
+        document.getElementById('dimSpecError').classList.add('d-none');
+        updateBushingFields();
+        renderRepairSurfaceSection(param);
+        // Load repair steps for this parameter (independent per part)
+        closeRepairStepForm();
+        loadRepairSteps(param.id);
+        specModal.show();
+    }
+
+    // ==========================
+    // Repair Surface — Linear Endpoints (inside Edit Parameter modal)
+    // ==========================
+
+    function paramIsLinear(param) {
+        const pts = param.points || [];
+        return pts.some(function (pt) {
+            const figPt = (activeFigure && activeFigure.points || []).find(function (p) { return p.id === pt.id; });
+            return figPt && figPt.x2_pct != null;
+        });
+    }
+
+    function renderRepairSurfaceSection(param) {
+        const section = document.getElementById('dimSpecRepairSurfaceSection');
+        const list    = document.getElementById('dimSpecRepairSurfaceList');
+
+        if (!paramIsLinear(param)) { section.classList.add('d-none'); return; }
+        section.classList.remove('d-none');
+
+        const side   = param.repair_surface_side || null;
+        const depthA = param.max_repair_depth_a != null ? param.max_repair_depth_a : '';
+        const depthB = param.max_repair_depth_b != null ? param.max_repair_depth_b : '';
+
+        const endpointRow = function (endId, label, isActive, depth) {
+            const chk   = isActive ? 'checked' : '';
+            const dNone = isActive ? '' : 'd-none';
+            return `<div class="border rounded p-2 mb-1 d-flex align-items-center gap-2" style="font-size:12px">
+                <span class="flex-grow-1 fw-semibold">${label}</span>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input dim-rs-chk" type="checkbox" ${chk}
+                        data-end="${endId}" data-param-id="${param.id}" title="Repair surface">
+                    <label class="form-check-label text-secondary" style="font-size:11px">Repair surface</label>
+                </div>
+                <input type="number" step="0.0001" placeholder="Max depth"
+                    class="form-control form-control-sm dim-rs-depth ${dNone}"
+                    style="width:110px" value="${escHtml(String(depth))}"
+                    data-end="${endId}" data-param-id="${param.id}">
+            </div>`;
+        };
+
+        const aActive = side === 'A' || side === 'both';
+        const bActive = side === 'B' || side === 'both';
+        list.innerHTML = endpointRow('A', 'End A (start)', aActive, depthA)
+                       + endpointRow('B', 'End B (end)',   bActive, depthB);
+
+        list.querySelectorAll('.dim-rs-chk').forEach(function (chk) {
+            chk.addEventListener('change', function () {
+                const row   = chk.closest('.border');
+                const depInp = row.querySelector('.dim-rs-depth');
+                depInp.classList.toggle('d-none', !chk.checked);
+                saveRepairSurface(param.id);
+            });
+        });
+
+        list.querySelectorAll('.dim-rs-depth').forEach(function (inp) {
+            inp.addEventListener('change', function () { saveRepairSurface(param.id); });
+        });
+    }
+
+    async function saveRepairSurface(paramId) {
+        const list  = document.getElementById('dimSpecRepairSurfaceList');
+        const chkA  = list.querySelector('.dim-rs-chk[data-end="A"]');
+        const chkB  = list.querySelector('.dim-rs-chk[data-end="B"]');
+        const inpA  = list.querySelector('.dim-rs-depth[data-end="A"]');
+        const inpB  = list.querySelector('.dim-rs-depth[data-end="B"]');
+        const aOn   = chkA && chkA.checked;
+        const bOn   = chkB && chkB.checked;
+        const side  = (aOn && bOn) ? 'both' : (aOn ? 'A' : (bOn ? 'B' : null));
+        const body  = {
+            repair_surface_side: side,
+            max_repair_depth_a:  aOn && inpA && inpA.value ? parseFloat(inpA.value) : null,
+            max_repair_depth_b:  bOn && inpB && inpB.value ? parseFloat(inpB.value) : null,
+        };
+        try {
+            const saved = await apiFetch('/parameters/' + paramId, { method: 'PATCH', body: JSON.stringify(body) });
+            const idx = parameters.findIndex(function (p) { return p.id == paramId; });
+            if (idx !== -1) parameters[idx] = saved;
+        } catch (e) {
+            console.error('Failed to save repair surface', e);
+        }
+    }
+
+    // ==========================
+    // Repair Steps (inside Edit Parameter modal)
+    // ==========================
+    let dimRsSteps   = [];   // loaded steps for active parameter
+    let dimRsParamId = null; // current parameter id
+    let dimRsIplTimer = null;
+    let dimPendingStepSeq = 0; // temp negative ids for steps added before a new param is saved
+
+    function fmtDim4(v) { return v != null ? parseFloat(v).toFixed(4) : '—'; }
+
+    function renderRepairSteps() {
+        const list = document.getElementById('dimRepairStepsList');
+        if (!list) return;
+        if (!dimRsSteps.length) {
+            list.innerHTML = '<div class="text-secondary" style="font-size:11px">No repair steps yet</div>';
+            return;
+        }
+        list.innerHTML = dimRsSteps.map(function (s) {
+            const dimStr = (s.dim_min != null || s.dim_max != null)
+                ? (fmtDim4(s.dim_min) + ' – ' + fmtDim4(s.dim_max)) : '—';
+            const compStr = s.component ? (s.component.ipl_num + ' ' + (s.component.part_number || '')) : '—';
+            return `<div class="d-flex align-items-center gap-2 py-1 border-bottom" style="font-size:12px">
+                <span class="fw-semibold text-info" style="min-width:36px">${escHtml(s.step_no)}</span>
+                <span class="font-monospace flex-grow-1">${escHtml(dimStr)}</span>
+                <span class="dim-rs-fit text-secondary font-monospace" data-step-no="${escHtml(s.step_no)}" style="font-size:10px"></span>
+                <span class="text-secondary" style="font-size:11px">${escHtml(compStr)}</span>
+                <button type="button" class="btn btn-link btn-sm p-0 dim-rs-edit-btn" data-id="${s.id}" title="Edit" style="color:var(--bs-secondary-color);font-size:11px"><i class="bi bi-pencil"></i></button>
+                <button type="button" class="btn btn-link btn-sm p-0 dim-rs-del-btn" data-id="${s.id}" title="Delete" style="color:#dc3545;font-size:11px"><i class="bi bi-trash3"></i></button>
+            </div>`;
+        }).join('');
+        annotateStepFits(list);
+        list.querySelectorAll('.dim-rs-edit-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { openRepairStepForm(parseInt(btn.dataset.id)); });
+        });
+        list.querySelectorAll('.dim-rs-del-btn').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                if (!confirm('Delete repair step?')) return;
+                const sid = btn.dataset.id;
+                if (parseInt(sid) < 0) { // pending (not yet saved) → remove locally only
+                    dimRsSteps = dimRsSteps.filter(function (s) { return String(s.id) !== String(sid); });
+                    renderRepairSteps();
+                    return;
+                }
+                try {
+                    await apiFetch('/repair-steps/' + sid, { method: 'DELETE' });
+                    dimRsSteps = dimRsSteps.filter(function (s) { return s.id != sid; });
+                    renderRepairSteps();
+                } catch (e) { alert(e.message); }
+            });
+        });
+    }
+
+    // Reference fit per step (data-entry check): step fit = OD_step_min − ID_step_max …
+    // OD_step_max − ID_step_min, compared against the orig-limits fit of the pair.
+    const matingStepsCache = {}; // mating param id → steps[]
+    async function annotateStepFits(list) {
+        const param = parameters.find(p => p.id === dimRsParamId);
+        if (!param || param.orig_dim_min == null || param.orig_dim_max == null) return;
+        const ptIds = new Set((param.points || []).map(pp => pp.id));
+        if (!ptIds.size) return;
+        const mating = parameters.find(p =>
+            p.id !== param.id &&
+            p.inspection_component_id !== param.inspection_component_id &&
+            p.orig_dim_min != null && p.orig_dim_max != null &&
+            (p.points || []).some(pp => ptIds.has(pp.id)));
+        if (!mating) return;
+
+        if (!matingStepsCache[mating.id]) {
+            try { matingStepsCache[mating.id] = await apiFetch('/parameters/' + mating.id + '/repair-steps'); }
+            catch (e) { return; }
+        }
+        const mSteps = matingStepsCache[mating.id] || [];
+        if (!mSteps.length) return;
+
+        const origFitMin = parseFloat(param.orig_dim_min) - parseFloat(mating.orig_dim_max);
+        const origFitMax = parseFloat(param.orig_dim_max) - parseFloat(mating.orig_dim_min);
+        const EPS = 0.00005;
+
+        list.querySelectorAll('.dim-rs-fit').forEach(el => {
+            const own = dimRsSteps.find(s => s.step_no === el.dataset.stepNo);
+            const m   = mSteps.find(s => s.step_no === el.dataset.stepNo);
+            if (!own || !m || own.dim_min == null || own.dim_max == null
+                || m.dim_min == null || m.dim_max == null) return;
+            const fMin = parseFloat(own.dim_min) - parseFloat(m.dim_max);
+            const fMax = parseFloat(own.dim_max) - parseFloat(m.dim_min);
+            const ok = Math.abs(fMin - origFitMin) < EPS && Math.abs(fMax - origFitMax) < EPS;
+            el.textContent = 'fit ' + fMin.toFixed(4) + '…' + fMax.toFixed(4);
+            el.style.color = ok ? '' : '#dc3545';
+            el.title = ok ? 'Matches the orig-limits fit of the pair'
+                          : 'Differs from orig fit (' + origFitMin.toFixed(4) + '…' + origFitMax.toFixed(4) + ') — check step dims of ' + (mating.description || 'mating');
+        });
+    }
+
+    async function loadRepairSteps(paramId) {
+        dimRsParamId = paramId;
+        dimRsSteps   = [];
+        renderRepairSteps();
+        if (!paramId) return;
+        try {
+            dimRsSteps = await apiFetch('/parameters/' + paramId + '/repair-steps');
+            renderRepairSteps();
+        } catch (e) { console.error('loadRepairSteps', e); }
+    }
+
+    function openRepairStepForm(editId) {
+        const form = document.getElementById('dimRepairStepForm');
+        const err  = document.getElementById('dimRsErr');
+        err.classList.add('d-none');
+        document.getElementById('dimRsCompList').style.display = 'none';
+        document.getElementById('dimRsCompList').innerHTML = '';
+
+        if (editId) {
+            const s = dimRsSteps.find(function (x) { return x.id === editId; });
+            document.getElementById('dimRsEditId').value  = editId;
+            document.getElementById('dimRsStepNo').value  = s ? s.step_no : '';
+            document.getElementById('dimRsDimMin').value  = s ? (s.dim_min || '') : '';
+            document.getElementById('dimRsDimMax').value  = s ? (s.dim_max || '') : '';
+            document.getElementById('dimRsIpl').value     = s && s.component ? s.component.ipl_num : '';
+            document.getElementById('dimRsComponentId').value = s && s.component ? s.component.id : '';
+            document.getElementById('dimRsCompInfo').textContent = s && s.component
+                ? (s.component.ipl_num + ' — ' + (s.component.part_number || '') + (s.component.name ? ' ' + s.component.name : ''))
+                : '';
+        } else {
+            document.getElementById('dimRsEditId').value  = '';
+            document.getElementById('dimRsStepNo').value  = '';
+            document.getElementById('dimRsDimMin').value  = '';
+            document.getElementById('dimRsDimMax').value  = '';
+            document.getElementById('dimRsIpl').value     = '';
+            document.getElementById('dimRsComponentId').value = '';
+            document.getElementById('dimRsCompInfo').textContent = '';
+        }
+        form.classList.remove('d-none');
+        document.getElementById('dimAddRepairStepBtn').classList.add('d-none');
+        document.getElementById('dimRsStepNo').focus();
+    }
+
+    function closeRepairStepForm() {
+        document.getElementById('dimRepairStepForm').classList.add('d-none');
+        document.getElementById('dimAddRepairStepBtn').classList.remove('d-none');
+    }
+
+    document.getElementById('dimAddRepairStepBtn').addEventListener('click', function () {
+        openRepairStepForm(null);
+    });
+
+    document.getElementById('dimRsCancelBtn').addEventListener('click', closeRepairStepForm);
+
+    // IPL# autocomplete for component in repair step form
+    document.getElementById('dimRsIpl').addEventListener('input', function () {
+        clearTimeout(dimRsIplTimer);
+        const val = this.value.trim();
+        document.getElementById('dimRsComponentId').value = '';
+        document.getElementById('dimRsCompInfo').textContent = '';
+        if (!val) { document.getElementById('dimRsCompList').style.display = 'none'; return; }
+        dimRsIplTimer = setTimeout(async function () {
+            try {
+                const items = await apiFetch('/manuals/' + MANUAL_ID + '/inspection-components/component-search?ipl_num=' + encodeURIComponent(val));
+                const list  = document.getElementById('dimRsCompList');
+                list.innerHTML = '';
+                if (!items || !items.length) {
+                    document.getElementById('dimRsCompInfo').textContent = 'Not found';
+                    list.style.display = 'none';
+                } else if (items.length === 1) {
+                    selectRsComponent(items[0]);
+                } else {
+                    items.forEach(function (c) {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'list-group-item list-group-item-action py-1 px-2';
+                        btn.innerHTML = '<span class="fw-semibold">' + escHtml(c.ipl_num) + '</span> <span class="text-secondary">' + escHtml(c.part_number || '') + '</span>';
+                        btn.addEventListener('click', function () { selectRsComponent(c); });
+                        list.appendChild(btn);
+                    });
+                    list.style.display = 'block';
+                }
+            } catch (e) {}
+        }, 350);
+    });
+
+    function selectRsComponent(c) {
+        document.getElementById('dimRsIpl').value          = c.ipl_num;
+        document.getElementById('dimRsComponentId').value  = c.id;
+        document.getElementById('dimRsCompInfo').textContent = c.ipl_num + ' — ' + (c.part_number || '') + (c.name ? ' ' + c.name : '');
+        document.getElementById('dimRsCompList').style.display = 'none';
+        document.getElementById('dimRsCompList').innerHTML  = '';
+    }
+
+    document.getElementById('dimRsSaveBtn').addEventListener('click', async function () {
+        const err    = document.getElementById('dimRsErr');
+        err.classList.add('d-none');
+        const editId = document.getElementById('dimRsEditId').value;
+        const stepNo = document.getElementById('dimRsStepNo').value.trim();
+        const dimMin = document.getElementById('dimRsDimMin').value;
+        const dimMax = document.getElementById('dimRsDimMax').value;
+        const compId = document.getElementById('dimRsComponentId').value || null;
+        const ipl    = document.getElementById('dimRsIpl').value.trim();
+
+        if (!stepNo) { err.textContent = 'Step No. is required.'; err.classList.remove('d-none'); return; }
+
+        const body = {
+            step_no:      stepNo,
+            component_id: compId ? parseInt(compId) : null,
+            dim_min:      dimMin !== '' ? parseFloat(dimMin) : null,
+            dim_max:      dimMax !== '' ? parseFloat(dimMax) : null,
+        };
+
+        // New parameter not saved yet → hold the step locally (temp negative id);
+        // it is created via API after the parameter is saved (dimSpecSaveBtn).
+        if (!dimRsParamId) {
+            const local = Object.assign({}, body, {
+                component: compId ? { id: parseInt(compId), ipl_num: ipl } : null,
+            });
+            const eid = editId !== '' ? parseInt(editId) : null;
+            if (eid != null) {
+                const idx = dimRsSteps.findIndex(function (s) { return s.id === eid; });
+                if (idx !== -1) dimRsSteps[idx] = Object.assign(local, { id: eid });
+            } else {
+                dimPendingStepSeq -= 1;
+                dimRsSteps.push(Object.assign(local, { id: dimPendingStepSeq }));
+            }
+            renderRepairSteps();
+            closeRepairStepForm();
+            return;
+        }
+
+        this.disabled = true;
+        try {
+            let saved;
+            if (editId) {
+                saved = await apiFetch('/repair-steps/' + editId, { method: 'PATCH', body: JSON.stringify(body) });
+                const idx = dimRsSteps.findIndex(function (s) { return s.id == editId; });
+                if (idx !== -1) dimRsSteps[idx] = saved;
+            } else {
+                saved = await apiFetch('/parameters/' + dimRsParamId + '/repair-steps', { method: 'POST', body: JSON.stringify(body) });
+                dimRsSteps.push(saved);
+            }
+            renderRepairSteps();
+            closeRepairStepForm();
+        } catch (e) {
+            err.textContent = e.message;
+            err.classList.remove('d-none');
+        } finally {
+            this.disabled = false;
+        }
+    });
+
+    // ==========================
+    // Repair Rule modal
+    // ==========================
+    let dimRuleProcesses = [];
+    let dimRuleTriggers  = [];
+    let activeRuleParam  = null;
+    const ruleModal = new bootstrap.Modal(document.getElementById('dimRepairRuleModal'));
+
+    function dimProcessLabel(manualProcessId) {
+        const p = DIM_PROCESSES.find(function (x) { return x.id === manualProcessId; });
+        return p ? p.label : '?';
+    }
+
+    function renderRuleProcessList() {
+        const wrap = document.getElementById('dimRuleProcessList');
+        if (!wrap) return;
+        if (dimRuleProcesses.length === 0) {
+            wrap.innerHTML = '<div class="text-secondary" style="font-size:11px">No processes added</div>';
+            return;
+        }
+        wrap.innerHTML = dimRuleProcesses.map(function (p, i) {
+            const drawBtn = p.rule_process_id
+                ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-draw" data-rpid="${p.rule_process_id}" data-label="${escHtml(p.label)}" title="${p.has_drawing ? 'Process drawing (has image)' : 'Add process drawing'}" style="font-size:11px;color:${p.has_drawing ? '#0d6efd' : 'var(--bs-secondary-color)'};opacity:${p.has_drawing ? '1' : '.5'}"><i class="bi bi-${p.has_drawing ? 'pencil-square' : 'image'}"></i></button>`
+                : '';
+            const gateBtn = `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-gate" data-idx="${i}" title="${p.is_gate ? 'EC gate anchor — click to clear' : 'Set EC gate anchor here (freeze everything after it on EC)'}" style="font-size:14px;line-height:1;text-decoration:none;color:${p.is_gate ? 'var(--bs-info)' : 'var(--bs-secondary-color)'};opacity:${p.is_gate ? '1' : '.5'}">⚓</button>`;
+            const scope = p.scope || null;
+            const scopeColor = scope === 'part' ? '#198754' : scope === 'point' ? '#fd7e14' : '#6c757d';
+            const scopeTitle = scope === 'part' ? 'scope=part: одна строка на деталь (click → point)' : scope === 'point' ? 'scope=point: строка на каждую точку (click → part)' : 'scope не задан (click → part)';
+            const scopeBtn = p.process_names_id
+                ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-scope" data-idx="${i}" data-pnid="${p.process_names_id}" title="${scopeTitle}" style="font-size:9px;font-weight:700;color:${scopeColor};border:1px solid ${scopeColor};border-radius:3px;padding:0 4px;line-height:16px;text-decoration:none">${scope || '?'}</button>`
+                : '';
+            return `<div class="dim-rule-process-item" data-idx="${i}">
+                <span class="dim-rule-proc-drag" draggable="true" data-idx="${i}" title="Drag to reorder" style="cursor:grab;color:var(--bs-secondary-color);font-size:12px;padding:0 2px">⠿</span>
+                <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
+                <span style="flex:0 0 35%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
+                ${scopeBtn}
+                <input type="text" class="form-control form-control-sm dim-rule-proc-note flex-grow-1 ms-1"
+                       data-idx="${i}" value="${escHtml(p.description || '')}"
+                       placeholder="notes (напр. fig. 6039)" style="font-size:11px;height:24px">
+                ${gateBtn}${drawBtn}
+                <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-proc-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>`;
+        }).join('');
+        wrap.querySelectorAll('.dim-rule-proc-note').forEach(function (inp) {
+            inp.addEventListener('input', function () {
+                dimRuleProcesses[parseInt(inp.dataset.idx)].description = inp.value;
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-proc-remove').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dimRuleProcesses.splice(parseInt(btn.dataset.idx), 1);
+                renderRuleProcessList();
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-proc-draw').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                openProcessDocumentsModal(parseInt(btn.dataset.rpid), btn.dataset.label);
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-proc-gate').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const idx = parseInt(btn.dataset.idx);
+                const wasGate = !!dimRuleProcesses[idx].is_gate;
+                dimRuleProcesses.forEach(function (p) { p.is_gate = false; }); // one anchor per rule
+                dimRuleProcesses[idx].is_gate = !wasGate;
+                renderRuleProcessList();
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-proc-scope').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                const idx   = parseInt(btn.dataset.idx);
+                const pnId  = parseInt(btn.dataset.pnid);
+                const cur   = dimRuleProcesses[idx].scope || null;
+                const next  = cur === 'part' ? 'point' : 'part';
+                btn.disabled = true;
+                try {
+                    await fetch('/process-names/' + pnId + '/scope', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+                        body: JSON.stringify({ scope: next }),
+                    });
+                    // Update all processes in the list that share this process_names_id
+                    dimRuleProcesses.forEach(function (p) {
+                        if (p.process_names_id === pnId) p.scope = next;
+                    });
+                    renderRuleProcessList();
+                } catch(e) { alert('Error: ' + e.message); btn.disabled = false; }
+            });
+        });
+        // drag & drop reorder (order persists on Save via sort_order)
+        let rpDragFrom = null;
+        wrap.querySelectorAll('.dim-rule-proc-drag').forEach(function (h) {
+            h.addEventListener('dragstart', function (e) {
+                rpDragFrom = parseInt(h.dataset.idx);
+                e.dataTransfer.effectAllowed = 'move';
+                const row = h.closest('.dim-rule-process-item'); if (row) row.style.opacity = '.4';
+            });
+            h.addEventListener('dragend', function () {
+                wrap.querySelectorAll('.dim-rule-process-item').forEach(function (r) { r.style.opacity = ''; });
+            });
+        });
+        wrap.querySelectorAll('.dim-rule-process-item').forEach(function (row) {
+            row.addEventListener('dragover', function (e) { e.preventDefault(); });
+            row.addEventListener('drop', function (e) {
+                e.preventDefault();
+                const to = parseInt(row.dataset.idx);
+                if (rpDragFrom === null || isNaN(to) || rpDragFrom === to) return;
+                dimRuleProcesses.splice(to, 0, dimRuleProcesses.splice(rpDragFrom, 1)[0]);
+                rpDragFrom = null;
+                renderRuleProcessList();
+            });
+        });
+    }
+
+    const TRIGGER_LABELS = {
+        below_orig:          'Below orig min',
+        above_orig:          'Above orig max',
+        below_wear:          'Below wear min',
+        above_wear:          'Above wear max',
+        finding_measurement: 'Finding — Measurement',
+        finding_inspection:  'Finding — Inspection',
+        finding:             'Finding',
+        manual:              'Manual',
+    };
+
+    function renderRuleTriggerList() {
+        const wrap = document.getElementById('dimRuleTriggerList');
+        if (!wrap) return;
+        if (dimRuleTriggers.length === 0) {
+            wrap.innerHTML = '<div class="text-secondary" style="font-size:11px">No triggers — add at least one</div>';
+            return;
+        }
+        wrap.innerHTML = dimRuleTriggers.map(function (t, i) {
+            const tl = TRIGGER_LABELS[t.trigger] || t.trigger;
+            const isFindTrigger = t.trigger === 'finding' || t.trigger === 'finding_measurement' || t.trigger === 'finding_inspection';
+            const cl = t.code_name ? ' · ' + escHtml(t.code_name) : (isFindTrigger ? ' · any defect' : '');
+            return `<div class="dim-rule-process-item">
+                <span class="flex-grow-1" style="font-size:12px">${escHtml(tl)}${cl}</span>
+                <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-rule-trig-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>`;
+        }).join('');
+        wrap.querySelectorAll('.dim-rule-trig-remove').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dimRuleTriggers.splice(parseInt(btn.dataset.idx), 1);
+                renderRuleTriggerList();
+            });
+        });
+    }
+
+    function fillTriggerCodeSelect(param) {
+        const sel = document.getElementById('dimRuleTriggerCode');
+        sel.innerHTML = '<option value="">— Any defect —</option>';
+        (param ? (param.codes || []) : []).forEach(function (c) {
+            if (!c.name) return;
+            const opt = document.createElement('option');
+            opt.value = c.codes_id;
+            opt.textContent = c.name;
+            sel.appendChild(opt);
+        });
+    }
+
+    // "Part — Parameter (point)" context for the rule modal header
+    function ruleModalContext(param) {
+        const ic  = inspComponents.find(c => c.id === param.inspection_component_id);
+        const pts = (param.points || [])
+            .map(pp => { const fp = (activeFigure && activeFigure.points || []).find(p => p.id === pp.id); return fp ? fp.code : null; })
+            .filter(Boolean).join(', ');
+        return (ic ? ic.label + ' — ' : '') + (param.description || '') + (pts ? ' (' + pts + ')' : '');
+    }
+
+    function openAddRuleModal(param) {
+        activeRuleParam  = param;
+        dimRuleProcesses = [];
+        dimRuleTriggers  = [];
+        document.getElementById('dimRuleId').value      = '';
+        document.getElementById('dimRuleParamId').value = param.id;
+        document.getElementById('dimRuleName').value    = '';
+        document.getElementById('dimRuleActionRepair').checked = true;
+        document.getElementById('dimRuleNotes').value   = '';
+        document.getElementById('dimRuleTriggerSel').value = '';
+        document.getElementById('dimRuleTriggerCode').classList.add('d-none');
+        document.getElementById('dimRuleTriggerAddBtn').classList.add('d-none');
+        document.getElementById('dimRuleError').classList.add('d-none');
+        document.getElementById('dimRuleDeleteBtn').classList.add('d-none');
+        document.getElementById('dimRepairRuleModalTitle').textContent = 'Add Rule · ' + ruleModalContext(param);
+        fillTriggerCodeSelect(param);
+        renderRuleTriggerList();
+        renderRuleProcessList();
+        updateProcOptButtons();
+        resetRuleProcessPicker();
+        ruleModal.show();
+    }
+
+    function openEditRuleModal(rule, param) {
+        activeRuleParam  = param;
+        dimRuleProcesses = (rule.processes || []).slice().sort(function (a, b) {
+            return (a.sort_order || 0) - (b.sort_order || 0);
+        }).map(function (p) {
+            return { manual_process_id: p.manual_process_id, label: p.label || dimProcessLabel(p.manual_process_id), description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing, is_gate: !!p.is_gate, process_names_id: p.process_names_id || null, scope: p.scope || null };
+        });
+        dimRuleTriggers = (rule.triggers || []).map(function (t) {
+            return { trigger: t.trigger, codes_id: t.codes_id || null, code_name: t.code_name || null };
+        });
+        document.getElementById('dimRuleId').value      = rule.id;
+        document.getElementById('dimRuleParamId').value = param.id;
+        document.getElementById('dimRuleName').value    = rule.name || '';
+        const ruleAction = rule.action || (rule.order_replacement ? 'order_new' : 'repair');
+        document.getElementById(
+            ruleAction === 'ec' ? 'dimRuleActionEc'
+            : ruleAction === 'order_new' ? 'dimRuleActionReplace'
+            : 'dimRuleActionRepair'
+        ).checked = true;
+        document.getElementById('dimRuleNotes').value   = rule.notes || '';
+        document.getElementById('dimRuleTriggerSel').value = '';
+        document.getElementById('dimRuleTriggerCode').classList.add('d-none');
+        document.getElementById('dimRuleTriggerAddBtn').classList.add('d-none');
+        document.getElementById('dimRuleError').classList.add('d-none');
+        document.getElementById('dimRuleDeleteBtn').classList.remove('d-none');
+        document.getElementById('dimRepairRuleModalTitle').textContent = 'Edit Rule · ' + ruleModalContext(param);
+        fillTriggerCodeSelect(param);
+        renderRuleTriggerList();
+        renderRuleProcessList();
+        updateProcOptButtons();
+        resetRuleProcessPicker();
+        ruleModal.show();
+    }
+
+    document.getElementById('dimRuleTriggerSel').addEventListener('change', function () {
+        const val      = this.value;
+        const codeEl   = document.getElementById('dimRuleTriggerCode');
+        const addBtn   = document.getElementById('dimRuleTriggerAddBtn');
+        const isFinding = val === 'finding' || val === 'finding_measurement' || val === 'finding_inspection';
+        codeEl.classList.toggle('d-none', !isFinding);
+        addBtn.classList.toggle('d-none', !val);
+    });
+
+    document.getElementById('dimRuleTriggerAddBtn').addEventListener('click', function () {
+        const triggerVal = document.getElementById('dimRuleTriggerSel').value;
+        if (!triggerVal) return;
+        const isFinding  = triggerVal === 'finding' || triggerVal === 'finding_measurement' || triggerVal === 'finding_inspection';
+        const codesIdVal = isFinding ? (document.getElementById('dimRuleTriggerCode').value || null) : null;
+        const codeName   = isFinding && codesIdVal
+            ? (document.getElementById('dimRuleTriggerCode').options[document.getElementById('dimRuleTriggerCode').selectedIndex]?.text || null)
+            : null;
+        dimRuleTriggers.push({ trigger: triggerVal, codes_id: codesIdVal ? parseInt(codesIdVal) : null, code_name: codeName });
+        document.getElementById('dimRuleTriggerSel').value = '';
+        document.getElementById('dimRuleTriggerCode').classList.add('d-none');
+        document.getElementById('dimRuleTriggerAddBtn').classList.add('d-none');
+        renderRuleTriggerList();
+    });
+
+    function resetRuleProcessPicker() {
+        $('#dimRuleProcessName').val(null).trigger('change');
+        const wrap = document.getElementById('dimRuleProcessOptions');
+        if (wrap) { wrap.classList.add('d-none'); wrap.innerHTML = ''; }
+    }
+
+    document.getElementById('dimRuleSaveBtn').addEventListener('click', async function () {
+        const errEl = document.getElementById('dimRuleError');
+        errEl.classList.add('d-none');
+        const id      = document.getElementById('dimRuleId').value;
+        const paramId = document.getElementById('dimRuleParamId').value;
+        const notes   = document.getElementById('dimRuleNotes').value.trim();
+
+        if (!paramId) { errEl.textContent = 'No parameter selected.'; errEl.classList.remove('d-none'); return; }
+        if (dimRuleTriggers.length === 0) { errEl.textContent = 'Add at least one trigger.'; errEl.classList.remove('d-none'); return; }
+
+        const body = {
+            name:              document.getElementById('dimRuleName').value.trim() || null,
+            action:            (document.querySelector('input[name="dimRuleAction"]:checked')?.value || 'repair'),
+            notes:             notes || null,
+            triggers:          dimRuleTriggers.map(function (t) {
+                return { trigger: t.trigger, codes_id: t.codes_id || null };
+            }),
+            processes:         dimRuleProcesses.map(function (p, i) {
+                return { id: p.rule_process_id || null, manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, is_gate: !!p.is_gate, sort_order: i };
+            }),
+        };
+
+        try {
+            let saved;
+            if (id) {
+                saved = await apiFetch('/parameter-rules/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+            } else {
+                saved = await apiFetch('/parameters/' + paramId + '/rules', { method: 'POST', body: JSON.stringify(body) });
+            }
+            // Update local parameters array
+            const param = parameters.find(function (p) { return p.id == paramId; });
+            if (param) {
+                if (id) {
+                    const idx = (param.repair_rules || []).findIndex(function (r) { return r.id == id; });
+                    if (idx !== -1) param.repair_rules[idx] = saved;
+                    else { if (!param.repair_rules) param.repair_rules = []; param.repair_rules.push(saved); }
+                } else {
+                    if (!param.repair_rules) param.repair_rules = [];
+                    param.repair_rules.push(saved);
+                }
+            }
+            ruleModal.hide();
+            if (activePoint) renderSpecsPanel(activePoint);
+            pdwTreeRefreshAfterRule();
+        } catch (e) {
+            errEl.textContent = e.message;
+            errEl.classList.remove('d-none');
+        }
+    });
+
+    document.getElementById('dimRuleDeleteBtn').addEventListener('click', async function () {
+        const id      = document.getElementById('dimRuleId').value;
+        const paramId = document.getElementById('dimRuleParamId').value;
+        if (!id || !confirm('Delete this repair rule?')) return;
+        try {
+            await apiFetch('/parameter-rules/' + id, { method: 'DELETE' });
+            const param = parameters.find(function (p) { return p.id == paramId; });
+            if (param) {
+                param.repair_rules = (param.repair_rules || []).filter(function (r) { return r.id != id; });
+            }
+            ruleModal.hide();
+            if (activePoint) renderSpecsPanel(activePoint);
+            pdwTreeRefreshAfterRule();
+        } catch (e) { alert(e.message); }
+    });
+
+    // ==========================
+    // Figure modal helpers
+    // ==========================
+    function resetFigureUploadUI() {
+        document.getElementById('dimFigureImagePath').value  = '';
+        document.getElementById('dimFigureFileInput').value  = '';
+        document.getElementById('dimFigureUploadName').textContent = 'No file chosen';
+        document.getElementById('dimFigurePreviewWrap').classList.add('d-none');
+        document.getElementById('dimFigureUploadProgress').classList.add('d-none');
+        document.getElementById('dimFigureWidth').value  = '';
+        document.getElementById('dimFigureHeight').value = '';
+    }
+
+    function setFigurePreview(url, name) {
+        const preview = document.getElementById('dimFigurePreview');
+        const wrap    = document.getElementById('dimFigurePreviewWrap');
+        preview.src = url;
+        wrap.classList.remove('d-none');
+        if (name) document.getElementById('dimFigureUploadName').textContent = name;
+    }
+
+    // "Choose file" button → trigger hidden input
+    document.getElementById('dimFigureUploadBtn').addEventListener('click', function () {
+        document.getElementById('dimFigureFileInput').click();
+    });
+
+    // File selected → upload immediately
+    document.getElementById('dimFigureFileInput').addEventListener('change', async function () {
+        const file = this.files[0];
+        if (!file) return;
+        const progress = document.getElementById('dimFigureUploadProgress');
+        const errEl    = document.getElementById('dimFigureError');
+        errEl.classList.add('d-none');
+        progress.classList.remove('d-none');
+
+        const fd = new FormData();
+        fd.append('image', file);
+        fd.append('_token', CSRF);
+
+        try {
+            const res  = await fetch('/manuals/' + MANUAL_ID + '/dimension-figures/upload-image', { method: 'POST', body: fd });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || 'Upload failed');
+
+            document.getElementById('dimFigureImagePath').value = json.path;
+            setFigurePreview(json.path, file.name);
+            // detect dimensions client-side
+            const img = new Image();
+            img.onload = function () {
+                document.getElementById('dimFigureWidth').value  = img.naturalWidth;
+                document.getElementById('dimFigureHeight').value = img.naturalHeight;
+            };
+            img.src = json.path;
+        } catch (e) {
+            errEl.textContent = e.message;
+            errEl.classList.remove('d-none');
+        } finally {
+            progress.classList.add('d-none');
+        }
+    });
+
+    // ==========================
+    // Figure modal open
+    // ==========================
+    document.getElementById('dimAddFigureBtn').addEventListener('click', function () {
+        document.getElementById('dimFigureId').value    = '';
+        document.getElementById('dimFigureTitle').value = '';
+        document.getElementById('dimFigureType').value  = 'detail';
+        document.getElementById('dimFigureSort').value  = '0';
+        document.getElementById('dimFigureModalTitle').textContent = 'Add Figure';
+        document.getElementById('dimFigureError').classList.add('d-none');
+        resetFigureUploadUI();
+        populateFigureParentSelect(null);
+        figureModal.show();
+    });
+
+    document.getElementById('dimEditFigureBtn').addEventListener('click', function () {
+        if (!activeFigure) return;
+        const fig = activeFigure;
+        document.getElementById('dimFigureId').value    = fig.id;
+        document.getElementById('dimFigureTitle').value = fig.title;
+        document.getElementById('dimFigureType').value  = fig.figure_type;
+        document.getElementById('dimFigureSort').value  = fig.sort_order || 0;
+        document.getElementById('dimFigureModalTitle').textContent = 'Edit Figure';
+        document.getElementById('dimFigureError').classList.add('d-none');
+        resetFigureUploadUI();
+        document.getElementById('dimFigureImagePath').value = fig.image_path || '';
+        document.getElementById('dimFigureWidth').value     = fig.image_width  || '';
+        document.getElementById('dimFigureHeight').value    = fig.image_height || '';
+        if (fig.image_path) {
+            setFigurePreview(fig.image_path, fig.image_path.split('/').pop());
+        }
+        populateFigureParentSelect(fig.parent_figure_id);
+        figureModal.show();
+    });
+
+    function populateFigureParentSelect(selectedId) {
+        const sel = document.getElementById('dimFigureParent');
+        sel.innerHTML = '<option value="">— None —</option>';
+        figures.forEach(function (f) {
+            const opt = document.createElement('option');
+            opt.value = f.id;
+            opt.textContent = f.title;
+            if (selectedId && f.id == selectedId) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    }
+
+    document.getElementById('dimFigureSaveBtn').addEventListener('click', async function () {
+        const errEl = document.getElementById('dimFigureError');
+        errEl.classList.add('d-none');
+        const id    = document.getElementById('dimFigureId').value;
+        const body  = {
+            title:            document.getElementById('dimFigureTitle').value.trim(),
+            figure_type:      document.getElementById('dimFigureType').value,
+            parent_figure_id: document.getElementById('dimFigureParent').value || null,
+            image_path:       document.getElementById('dimFigureImagePath').value.trim(),
+            image_width:      parseInt(document.getElementById('dimFigureWidth').value) || null,
+            image_height:     parseInt(document.getElementById('dimFigureHeight').value) || null,
+            sort_order:       parseInt(document.getElementById('dimFigureSort').value) || 0,
+        };
+        try {
+            let saved;
+            if (id) {
+                saved = await apiFetch('/dimension-figures/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+                const idx = figures.findIndex(f => f.id == id);
+                if (idx !== -1) { figures[idx] = Object.assign(figures[idx], saved); }
+                // image may be replaced under the SAME url — bust the browser cache
+                figures[idx]._imgRev = Date.now();
+                if (activeFigure && activeFigure.id == id) activeFigure = figures[idx];
+            } else {
+                saved = await apiFetch('/manuals/' + MANUAL_ID + '/dimension-figures', { method: 'POST', body: JSON.stringify(body) });
+                saved.points = [];
+                figures.push(saved);
+            }
+            figureModal.hide();
+            renderFiguresList();
+            if (activeFigure && activeFigure.id == saved.id) {
+                selectFigure(activeFigure); // re-render immediately (title, image, points)
+            }
+        } catch (e) {
+            errEl.textContent = e.message;
+            errEl.classList.remove('d-none');
+        }
+    });
+
+    document.getElementById('dimDeleteFigureBtn').addEventListener('click', async function () {
+        if (!activeFigure) return;
+        if (!confirm('Delete figure "' + activeFigure.title + '"? All points and specs will be deleted.')) return;
+        try {
+            await apiFetch('/dimension-figures/' + activeFigure.id, { method: 'DELETE' });
+            figures = figures.filter(f => f.id !== activeFigure.id);
+            activeFigure = null;
+            activePoint  = null;
+            renderFiguresList();
+            viewerTitle.textContent = 'Select a figure';
+            viewerActions.classList.add('d-none');
+            emptyState.classList.remove('d-none');
+            imgContainer.classList.add('d-none');
+            clearSpecsPanel();
+        } catch (e) { alert(e.message); }
+    });
+
+    // ==========================
+    // Point modal
+    // ==========================
+    function applyPointTypeUI(type) {
+        const isMeas = type === 'measurement';
+        const isText = type === 'text';
+        const isView = type === 'view';
+        const isArea = type === 'circle' || type === 'navigation';
+        document.getElementById('dimPointCodeWrap').classList.toggle('d-none', isText);
+        document.getElementById('dimPointIcWrap').classList.toggle('d-none', !isText);
+        document.getElementById('dimPointChildFigureWrap').classList.toggle('d-none', !(isArea || isView));
+        document.getElementById('dimPointFitsWrap').classList.toggle('d-none', !isMeas);
+        // Extra arrows apply to a callout (measurement+label) or a part label.
+        document.getElementById('dimExtraArrowsWrap').classList.toggle('d-none', !(isMeas || isText));
+        if (!isMeas) document.getElementById('dimPointFits').checked = false;
+    }
+
+    // Working copy of the point's extra leader anchors while the modal is open.
+    let editingExtraAnchors = [];
+    function updateExtraArrowCount() {
+        document.getElementById('dimExtraArrowCount').textContent = editingExtraAnchors.length + ' arrow(s)';
+    }
+    document.getElementById('dimExtraArrowAdd').addEventListener('click', function () {
+        const baseX = parseFloat(document.getElementById('dimPointXDisplay').value) || 50;
+        const baseY = parseFloat(document.getElementById('dimPointYDisplay').value) || 50;
+        const n = editingExtraAnchors.length;
+        editingExtraAnchors.push({
+            x_pct: Math.min(95, baseX + 6 + n * 3).toFixed(2),
+            y_pct: Math.min(95, baseY + 6 + n * 3).toFixed(2),
+        });
+        updateExtraArrowCount();
+    });
+    document.getElementById('dimExtraArrowRemove').addEventListener('click', function () {
+        editingExtraAnchors.pop();
+        updateExtraArrowCount();
+    });
+
+    function openAddPointModal(xPct, yPct, widthPct, heightPct, x2Pct, y2Pct, labelXPct, labelYPct) {
+        const isArea = widthPct !== null && widthPct !== undefined;
+        const isLine = x2Pct   !== null && x2Pct   !== undefined;
+        const ptType = isArea ? 'navigation' : 'measurement';
+        const title  = isArea ? 'Add Area' : (isLine ? 'Add Line' : 'Add Point');
+        document.getElementById('dimPointId').value            = '';
+        document.getElementById('dimPointCode').value          = '';
+        document.getElementById('dimPointType').value          = ptType;
+        document.getElementById('dimPointDescription').value   = '';
+        document.getElementById('dimPointFits').checked        = false;
+        document.getElementById('dimPointXPct').value          = xPct;
+        document.getElementById('dimPointYPct').value          = yPct;
+        document.getElementById('dimPointXDisplay').value      = xPct;
+        document.getElementById('dimPointYDisplay').value      = yPct;
+        document.getElementById('dimPointWidthDisplay').value  = isArea ? widthPct : '';
+        document.getElementById('dimPointHeightDisplay').value = isArea ? heightPct : '';
+        document.getElementById('dimPointX2Pct').value         = isLine ? x2Pct : '';
+        document.getElementById('dimPointY2Pct').value         = isLine ? y2Pct : '';
+        document.getElementById('dimPointX2Display').value     = isLine ? x2Pct : '';
+        document.getElementById('dimPointY2Display').value     = isLine ? y2Pct : '';
+        document.getElementById('dimPointLabelXPct').value     = labelXPct ?? '';
+        document.getElementById('dimPointLabelYPct').value     = labelYPct ?? '';
+        document.getElementById('dimPointLabelXDisplay').value = labelXPct ?? '';
+        document.getElementById('dimPointLabelYDisplay').value = labelYPct ?? '';
+        document.getElementById('dimPointSort').value          = '0';
+        document.getElementById('dimPointModalTitle').textContent = title;
+        document.getElementById('dimPointDeleteBtn').classList.add('d-none');
+        document.getElementById('dimPointError').classList.add('d-none');
+        applyPointTypeUI(ptType);
+        editingExtraAnchors = []; updateExtraArrowCount();
+        populateChildFigureSelect(null);
+        pointModal.show();
+    }
+
+    function openAddCircleModal(cx, cy, rx, ry, labelXPct, labelYPct) {
+        document.getElementById('dimPointId').value            = '';
+        document.getElementById('dimPointCode').value          = '';
+        document.getElementById('dimPointType').value          = 'circle';
+        document.getElementById('dimPointDescription').value   = '';
+        document.getElementById('dimPointFits').checked        = false;
+        document.getElementById('dimPointXPct').value          = cx;
+        document.getElementById('dimPointYPct').value          = cy;
+        document.getElementById('dimPointXDisplay').value      = cx;
+        document.getElementById('dimPointYDisplay').value      = cy;
+        document.getElementById('dimPointWidthDisplay').value  = rx;
+        document.getElementById('dimPointHeightDisplay').value = ry;
+        document.getElementById('dimPointX2Pct').value         = '';
+        document.getElementById('dimPointY2Pct').value         = '';
+        document.getElementById('dimPointX2Display').value     = '';
+        document.getElementById('dimPointY2Display').value     = '';
+        document.getElementById('dimPointLabelXPct').value     = labelXPct ?? '';
+        document.getElementById('dimPointLabelYPct').value     = labelYPct ?? '';
+        document.getElementById('dimPointLabelXDisplay').value = labelXPct ?? '';
+        document.getElementById('dimPointLabelYDisplay').value = labelYPct ?? '';
+        document.getElementById('dimPointSort').value          = '0';
+        document.getElementById('dimPointModalTitle').textContent = 'Add Circle';
+        document.getElementById('dimPointDeleteBtn').classList.add('d-none');
+        document.getElementById('dimPointError').classList.add('d-none');
+        applyPointTypeUI('circle');
+        populateChildFigureSelect(null);
+        pointModal.show();
+    }
+
+    function openEditPointModal(pt) {
+        const isLine = pt.x2_pct !== null && pt.x2_pct !== undefined;
+        const title  = pt.point_type === 'text'   ? 'Edit Part Label' :
+                       pt.point_type === 'circle'  ? 'Edit Circle'     :
+                       pt.point_type === 'navigation' ? 'Edit Area'    :
+                       pt.point_type === 'view'    ? 'Edit View'       :
+                       isLine ? 'Edit Line' : 'Edit Point';
+        document.getElementById('dimPointId').value            = pt.id;
+        document.getElementById('dimPointCode').value          = pt.code || '';
+        document.getElementById('dimPointType').value          = pt.point_type;
+        document.getElementById('dimPointDescription').value   = pt.description || '';
+        document.getElementById('dimPointFits').checked        = !!pt.is_fits_clearance;
+        document.getElementById('dimPointXPct').value          = pt.x_pct;
+        document.getElementById('dimPointYPct').value          = pt.y_pct;
+        document.getElementById('dimPointXDisplay').value      = pt.x_pct;
+        document.getElementById('dimPointYDisplay').value      = pt.y_pct;
+        document.getElementById('dimPointWidthDisplay').value  = pt.width_pct  ?? '';
+        document.getElementById('dimPointHeightDisplay').value = pt.height_pct ?? '';
+        document.getElementById('dimPointX2Pct').value         = pt.x2_pct     ?? '';
+        document.getElementById('dimPointY2Pct').value         = pt.y2_pct     ?? '';
+        document.getElementById('dimPointX2Display').value     = pt.x2_pct     ?? '';
+        document.getElementById('dimPointY2Display').value     = pt.y2_pct     ?? '';
+        document.getElementById('dimPointLabelXPct').value     = pt.label_x_pct ?? '';
+        document.getElementById('dimPointLabelYPct').value     = pt.label_y_pct ?? '';
+        document.getElementById('dimPointLabelXDisplay').value = pt.label_x_pct ?? '';
+        document.getElementById('dimPointLabelYDisplay').value = pt.label_y_pct ?? '';
+        document.getElementById('dimPointSort').value          = pt.sort_order || 0;
+        document.getElementById('dimPointModalTitle').textContent = title;
+        document.getElementById('dimPointDeleteBtn').classList.remove('d-none');
+        document.getElementById('dimPointError').classList.add('d-none');
+        applyPointTypeUI(pt.point_type);
+        editingExtraAnchors = Array.isArray(pt.extra_anchors)
+            ? pt.extra_anchors.map(function (a) { return { x_pct: a.x_pct, y_pct: a.y_pct }; })
+            : [];
+        updateExtraArrowCount();
+        populateChildFigureSelect(pt.child_figure_id);
+        if (pt.point_type === 'text') populatePointIcSelect(pt.child_ic_id);
+        pointModal.show();
+    }
+
+    function populatePointIcSelect(selectedId) {
+        const $sel = $('#dimPointIcSelect');
+        $sel.empty().append('<option value="">— Select part —</option>');
+        inspComponents.forEach(function (ic) {
+            $sel.append(new Option(ic.label, ic.id, false, String(ic.id) === String(selectedId)));
+        });
+        $sel.trigger('change');
+    }
+
+    function openAddTextModal(dotX, dotY, labelXPct, labelYPct) {
+        document.getElementById('dimPointId').value            = '';
+        document.getElementById('dimPointCode').value          = '';
+        document.getElementById('dimPointType').value          = 'text';
+        document.getElementById('dimPointDescription').value   = '';
+        document.getElementById('dimPointFits').checked        = false;
+        document.getElementById('dimPointXPct').value          = dotX;
+        document.getElementById('dimPointYPct').value          = dotY;
+        document.getElementById('dimPointXDisplay').value      = dotX;
+        document.getElementById('dimPointYDisplay').value      = dotY;
+        document.getElementById('dimPointLabelXPct').value     = labelXPct;
+        document.getElementById('dimPointLabelYPct').value     = labelYPct;
+        document.getElementById('dimPointLabelXDisplay').value = labelXPct;
+        document.getElementById('dimPointLabelYDisplay').value = labelYPct;
+        document.getElementById('dimPointX2Pct').value         = '';
+        document.getElementById('dimPointY2Pct').value         = '';
+        document.getElementById('dimPointX2Display').value     = '';
+        document.getElementById('dimPointY2Display').value     = '';
+        document.getElementById('dimPointWidthDisplay').value  = '';
+        document.getElementById('dimPointHeightDisplay').value = '';
+        document.getElementById('dimPointSort').value          = '0';
+        document.getElementById('dimPointModalTitle').textContent = 'Add Part Label';
+        document.getElementById('dimPointDeleteBtn').classList.add('d-none');
+        document.getElementById('dimPointError').classList.add('d-none');
+        applyPointTypeUI('text');
+        editingExtraAnchors = []; updateExtraArrowCount();
+        populatePointIcSelect(null);
+        pointModal.show();
+    }
+
+    function populateChildFigureSelect(selectedId) {
+        const sel = document.getElementById('dimPointChildFigure');
+        sel.innerHTML = '<option value="">— Select figure —</option>';
+        figures.forEach(function (f) {
+            if (activeFigure && f.id === activeFigure.id) return;
+            const opt = document.createElement('option');
+            opt.value = f.id;
+            opt.textContent = f.title;
+            if (selectedId && f.id == selectedId) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    }
+
+    document.getElementById('dimPointSaveBtn').addEventListener('click', async function () {
+        const errEl = document.getElementById('dimPointError');
+        errEl.classList.add('d-none');
+        const id      = document.getElementById('dimPointId').value;
+        const ptType  = document.getElementById('dimPointType').value;
+        const isText  = ptType === 'text';
+        const isView  = ptType === 'view';
+        const isArea  = ptType === 'circle' || ptType === 'navigation';
+        const x2Val   = document.getElementById('dimPointX2Display').value;
+        const isLine  = x2Val !== '';
+        const wPct    = document.getElementById('dimPointWidthDisplay').value;
+        const hPct    = document.getElementById('dimPointHeightDisplay').value;
+        const labelXVal = document.getElementById('dimPointLabelXDisplay').value;
+        const labelYVal = document.getElementById('dimPointLabelYDisplay').value;
+        const body = {
+            code:            isText ? null : document.getElementById('dimPointCode').value.trim(),
+            point_type:      ptType,
+            description:     document.getElementById('dimPointDescription').value.trim() || null,
+            child_figure_id: (isArea || isView) ? (document.getElementById('dimPointChildFigure').value || null) : null,
+            child_ic_id:     isText ? ($('#dimPointIcSelect').val() || null) : null,
+            x_pct:           parseFloat(document.getElementById('dimPointXDisplay').value),
+            y_pct:           parseFloat(document.getElementById('dimPointYDisplay').value),
+            width_pct:       isArea && wPct !== '' ? parseFloat(wPct) : null,
+            height_pct:      isArea && hPct !== '' ? parseFloat(hPct) : null,
+            x2_pct:          isLine ? parseFloat(x2Val) : null,
+            y2_pct:          isLine ? parseFloat(document.getElementById('dimPointY2Display').value) : null,
+            label_x_pct:     labelXVal !== '' ? parseFloat(labelXVal) : null,
+            label_y_pct:     labelYVal !== '' ? parseFloat(labelYVal) : null,
+            is_fits_clearance:  document.getElementById('dimPointFits').checked,
+            extra_anchors:      (!document.getElementById('dimExtraArrowsWrap').classList.contains('d-none') && editingExtraAnchors.length)
+                                    ? editingExtraAnchors : null,
+            sort_order:         parseInt(document.getElementById('dimPointSort').value) || 0,
+        };
+        try {
+            let saved;
+            if (id) {
+                saved = await apiFetch('/dimension-points/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+                const pts = activeFigure.points || [];
+                const idx = pts.findIndex(p => p.id == id);
+                if (idx !== -1) { pts[idx] = Object.assign(pts[idx], saved); }
+                activeFigure.points = pts;
+            } else {
+                saved = await apiFetch('/dimension-figures/' + activeFigure.id + '/points', { method: 'POST', body: JSON.stringify(body) });
+                // Attach child_ic lookup data so renderTextLabel can display label immediately
+                if (saved.point_type === 'text' && saved.child_ic_id) {
+                    const ic = inspComponents.find(function (c) { return c.id === saved.child_ic_id; });
+                    if (ic) saved._ic_label = ic.label;
+                }
+                if (!activeFigure.points) activeFigure.points = [];
+                activeFigure.points.push(saved);
+                deactivateAllModes();
+            }
+            pointModal.hide();
+            renderPoints(activeFigure.points);
+        } catch (e) {
+            errEl.textContent = e.message;
+            errEl.classList.remove('d-none');
+        }
+    });
+
+    document.getElementById('dimEditPointBtn').addEventListener('click', function () {
+        if (activePoint) openEditPointModal(activePoint);
+    });
+
+    document.getElementById('dimPointDeleteBtn').addEventListener('click', async function () {
+        const id = document.getElementById('dimPointId').value;
+        if (!id || !confirm('Delete this point?')) return;
+        try {
+            await apiFetch('/dimension-points/' + id, { method: 'DELETE' });
+            activeFigure.points = (activeFigure.points || []).filter(p => p.id != id);
+            if (activePoint && activePoint.id == id) {
+                activePoint = null;
+                clearSpecsPanel();
+            }
+            pointModal.hide();
+            renderPoints(activeFigure.points);
+        } catch (e) { alert(e.message); }
+    });
+
+    // ==========================
+    // Spec modal
+    // ==========================
+    document.getElementById('dimAddSpecBtn').addEventListener('click', function () {
+        openAddParamModal(null);
+    });
+
+    document.getElementById('dimSpecSaveBtn').addEventListener('click', async function () {
+        const errEl = document.getElementById('dimSpecError');
+        errEl.classList.add('d-none');
+        const id   = document.getElementById('dimSpecId').value;
+        const desc = document.getElementById('dimSpecDescription').value.trim();
+        if (!id && !desc) { errEl.textContent = 'Description is required.'; errEl.classList.remove('d-none'); return; }
+
+        const body = {
+            description:             desc || undefined,
+            inspection_component_id: $('#dimSpecComponent').val() || null,
+            is_required:             document.getElementById('dimSpecRequired').checked,
+            requires_value:          document.getElementById('dimSpecRequiresValue').checked,
+            qty:                     parseInt(document.getElementById('dimSpecQty').value) || 1,
+            orig_dim_min:            document.getElementById('dimSpecOrigMin').value || null,
+            orig_dim_max:            document.getElementById('dimSpecOrigMax').value || null,
+            wear_dim_min:            document.getElementById('dimSpecWearMin').value || null,
+            wear_dim_max:            document.getElementById('dimSpecWearMax').value || null,
+            repair_dim_min:          document.getElementById('dimSpecRepairMin').value || null,
+            repair_dim_max:          document.getElementById('dimSpecRepairMax').value || null,
+            flange_clearance_min:    document.getElementById('dimSpecFlangeClrMin').value || null,
+            flange_clearance_max:    document.getElementById('dimSpecFlangeClrMax').value || null,
+            inspection:              document.getElementById('dimSpecInspection').value.trim() || null,
+            sort_order:              parseInt(document.getElementById('dimSpecSort').value) || 0,
+        };
+
+        try {
+            let saved;
+            if (id && !document.getElementById('dimSpecModalTitle').textContent.startsWith('Assign')) {
+                // Editing existing parameter
+                saved = await apiFetch('/parameters/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+                // Sync codes: add new, remove deleted
+                const param = parameters.find(function (p) { return p.id == id; });
+                if (param) {
+                    const newIds = dimSpecCodes.map(function (c) { return c.id; });
+                    for (const c of dimSpecCodes) {
+                        const existing = (param.codes || []).find(function (e) { return e.codes_id === c.id; });
+                        if (!existing) {
+                            await apiFetch('/parameters/' + id + '/codes', { method: 'POST', body: JSON.stringify({ codes_id: c.id, finding_context: c.finding_context }) });
+                        } else if (existing.finding_context !== c.finding_context) {
+                            // context changed → delete and re-create
+                            await apiFetch('/parameter-codes/' + existing.id, { method: 'DELETE' });
+                            await apiFetch('/parameters/' + id + '/codes', { method: 'POST', body: JSON.stringify({ codes_id: c.id, finding_context: c.finding_context }) });
+                        }
+                    }
+                    for (const existing of (param.codes || [])) {
+                        if (newIds.indexOf(existing.codes_id) === -1) {
+                            await apiFetch('/parameter-codes/' + existing.id, { method: 'DELETE' });
+                        }
+                    }
+                }
+                saved = await apiFetch('/parameters/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+                const idx = parameters.findIndex(function (p) { return p.id == id; });
+                if (idx !== -1) parameters[idx] = saved;
+            } else {
+                // Create new or assign existing parameter to this point
+                body.manual_parameter_id = id || undefined;
+                body.codes_ids = dimSpecCodes.map(function (c) { return c.id; });
+                saved = await apiFetch('/dimension-points/' + activePoint.id + '/parameters', { method: 'POST', body: JSON.stringify(body) });
+                // create repair steps that were added before the parameter existed (temp negative ids)
+                const pendingSteps = dimRsSteps.filter(function (s) { return typeof s.id === 'number' && s.id < 0; });
+                for (const s of pendingSteps) {
+                    await apiFetch('/parameters/' + saved.id + '/repair-steps', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            step_no:      s.step_no,
+                            component_id: s.component_id ?? (s.component ? s.component.id : null),
+                            dim_min:      s.dim_min,
+                            dim_max:      s.dim_max,
+                        }),
+                    });
+                }
+                const existing = parameters.find(function (p) { return p.id === saved.id; });
+                if (existing) {
+                    Object.assign(existing, saved);
+                } else {
+                    parameters.push(saved);
+                }
+            }
+            specModal.hide();
+            if (activePoint) renderSpecsPanel(activePoint);
+        } catch (e) {
+            errEl.textContent = e.message;
+            errEl.classList.remove('d-none');
+        }
+    });
+
+    document.getElementById('dimSpecDetachBtn').addEventListener('click', async function () {
+        const id = document.getElementById('dimSpecId').value;
+        if (!id || !activePoint || !confirm('Detach this parameter from point ' + activePoint.code + '?')) return;
+        try {
+            const result = await apiFetch('/parameters/' + id + '/points/' + activePoint.id, { method: 'DELETE' });
+            if (result.deleted) {
+                parameters = parameters.filter(function (p) { return p.id != id; });
+            } else {
+                const param = parameters.find(function (p) { return p.id == id; });
+                if (param) {
+                    param.points = (param.points || []).filter(function (pt) { return pt.id !== activePoint.id; });
+                }
+            }
+            specModal.hide();
+            renderSpecsPanel(activePoint);
+        } catch (e) { alert(e.message); }
+    });
+
+    document.getElementById('dimSpecDeleteBtn').addEventListener('click', async function () {
+        const id = document.getElementById('dimSpecId').value;
+        if (!id || !confirm('Delete this parameter from all points?')) return;
+        try {
+            await apiFetch('/parameters/' + id, { method: 'DELETE' });
+            parameters = parameters.filter(function (p) { return p.id != id; });
+            specModal.hide();
+            if (activePoint) renderSpecsPanel(activePoint);
+        } catch (e) { alert(e.message); }
+    });
+
+
+    // ==========================
+    // Repair Plan (MasterRule) modal
+    // ==========================
+    let masterRuleModal = null;
+    let dimMrData       = null;  // current master rule {id, phase_rules:[]}
+    let dimMrIcId       = null;
+
+    function getMasterRuleModal() {
+        if (!masterRuleModal) masterRuleModal = new bootstrap.Modal(document.getElementById('dimMasterRuleModal'));
+        return masterRuleModal;
+    }
+
+    let dimMrProcesses = []; // selected processes [{manual_process_id, label}]
+
+    function renderMrProcessList() {
+        const wrap = document.getElementById('dimMrProcessList');
+        if (!wrap) return;
+        if (!dimMrProcesses.length) {
+            wrap.innerHTML = '<div class="text-secondary" style="font-size:11px">No processes added</div>';
+            return;
+        }
+        wrap.innerHTML = dimMrProcesses.map(function (p, i) {
+            const drawBtn = p.rule_process_id
+                ? `<button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-mr-proc-doc" data-rpid="${p.rule_process_id}" data-label="${escHtml(p.label)}" title="${p.has_drawing ? 'Documents (has image)' : 'Add documents'}" style="font-size:11px;color:${p.has_drawing ? '#0d6efd' : 'var(--bs-secondary-color)'};opacity:${p.has_drawing ? '1' : '.5'}"><i class="bi bi-${p.has_drawing ? 'file-earmark-text-fill' : 'file-earmark-text'}"></i></button>`
+                : '';
+            return `<div class="dim-rule-process-item">
+                <span class="text-secondary me-1" style="min-width:14px">${i + 1}.</span>
+                <span style="flex:0 0 38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
+                <input type="text" class="form-control form-control-sm dim-mr-proc-note flex-grow-1 ms-1"
+                       data-idx="${i}" value="${escHtml(p.description || '')}"
+                       placeholder="notes (напр. fig. 6039)" style="font-size:11px;height:24px">
+                ${drawBtn}
+                <button type="button" class="btn btn-link btn-sm p-0 ms-1 dim-mr-proc-remove" data-idx="${i}" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-x"></i></button>
+            </div>`;
+        }).join('');
+        wrap.querySelectorAll('.dim-mr-proc-note').forEach(function (inp) {
+            inp.addEventListener('input', function () {
+                dimMrProcesses[parseInt(inp.dataset.idx)].description = inp.value;
+            });
+        });
+        wrap.querySelectorAll('.dim-mr-proc-doc').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                openProcessDocumentsModal(parseInt(btn.dataset.rpid), btn.dataset.label, 'phase');
+            });
+        });
+        wrap.querySelectorAll('.dim-mr-proc-remove').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dimMrProcesses.splice(parseInt(btn.dataset.idx), 1);
+                renderMrProcessList();
+                updateMrProcOptButtons();
+            });
+        });
+    }
+
+    function updateMrProcOptButtons() {
+        const wrap = document.getElementById('dimMrProcessOptions');
+        if (!wrap) return;
+        wrap.querySelectorAll('.dim-mr-proc-opt').forEach(function (btn) {
+            const id = parseInt(btn.dataset.id);
+            const already = dimMrProcesses.some(function (p) { return p.manual_process_id === id; });
+            btn.classList.toggle('active', already);
+            btn.onclick = function () {
+                const idx = dimMrProcesses.findIndex(function (p) { return p.manual_process_id === id; });
+                if (idx !== -1) dimMrProcesses.splice(idx, 1);
+                else dimMrProcesses.push({ manual_process_id: id, label: btn.dataset.label, description: '' });
+                renderMrProcessList();
+                updateMrProcOptButtons();
+            };
+        });
+    }
+
+    // init process name Select2 + option buttons once
+    (function initMrProcessSelect() {
+        const sel = document.getElementById('dimMrProcessName');
+        Object.keys(DIM_PROCESSES_BY_NAME).sort().forEach(function (name) {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            sel.appendChild(opt);
+        });
+        $('#dimMrProcessName').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#dimMasterRuleModal'),
+            placeholder: 'Process name...',
+            allowClear: true,
+            width: '100%',
+        });
+        $('#dimMrProcessName').on('change', function () {
+            const name = this.value;
+            const wrap = document.getElementById('dimMrProcessOptions');
+            if (!name) { wrap.classList.add('d-none'); wrap.innerHTML = ''; return; }
+            const procs  = DIM_PROCESSES_BY_NAME[name] || [];
+            const prefix = name + ' — ';
+            wrap.innerHTML = procs.map(function (p) {
+                const shortLabel = p.label.startsWith(prefix) ? p.label.slice(prefix.length) : p.label;
+                return `<button type="button" class="btn btn-outline-secondary btn-sm dim-mr-proc-opt" data-id="${p.id}" data-label="${escHtml(p.label)}" style="font-size:12px">${escHtml(shortLabel)}</button>`;
+            }).join('');
+            wrap.classList.remove('d-none');
+            updateMrProcOptButtons();
+        });
+        // defect picker for condition
+        const dsel = document.getElementById('dimMrCondDefects');
+        (DIM_CODES || []).forEach(function (c) {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            dsel.appendChild(opt);
+        });
+        $('#dimMrCondDefects').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#dimMasterRuleModal'),
+            placeholder: 'Select defect(s)...',
+            width: '100%',
+            closeOnSelect: false,
+        });
+        // main process picker (for has_main_process)
+        const psel = document.getElementById('dimMrCondProcs');
+        DIM_PROCESS_NAMES.forEach(function (p) {
+            const opt = document.createElement('option');
+            opt.value = p.id; opt.textContent = p.name;
+            psel.appendChild(opt);
+        });
+        $('#dimMrCondProcs').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#dimMasterRuleModal'),
+            placeholder: 'Select Main process(es)...',
+            width: '100%',
+            closeOnSelect: false,
+        });
+        // toggle extra inputs by condition type
+        document.getElementById('dimMrCondType').addEventListener('change', function () {
+            document.getElementById('dimMrCondDefectWrap').classList.toggle('d-none', this.value !== 'has_defect');
+            document.getElementById('dimMrCondProcWrap').classList.toggle('d-none', this.value !== 'has_main_process');
+        });
+    })();
+
+    async function openMasterRuleModal(icId, label) {
+        dimMrIcId = icId;
+        document.getElementById('dimMrTitle').textContent = 'Repair Plan — ' + (label || '');
+        closeMrForm();
+        document.getElementById('dimMrStartList').innerHTML  = '<div class="text-secondary" style="font-size:11px">Loading…</div>';
+        document.getElementById('dimMrFinishList').innerHTML = '';
+        getMasterRuleModal().show();
+        try {
+            dimMrData = await apiFetch('/inspection-components/' + icId + '/master-rule');
+            renderMrPhases();
+        } catch (e) {
+            document.getElementById('dimMrStartList').innerHTML = '<div class="text-danger" style="font-size:11px">' + escHtml(e.message) + '</div>';
+        }
+    }
+
+    function mrConditionLabel(cond) {
+        if (!cond || !cond.type || cond.type === 'always') return '';
+        let txt = '';
+        if (cond.type === 'has_defect') {
+            const names = (cond.codes_ids || []).map(function (id) {
+                const c = (DIM_CODES || []).find(function (x) { return x.id == id; });
+                return c ? c.name : id;
+            });
+            txt = 'if defect: ' + names.join(', ');
+        } else if (cond.type === 'has_main_process') {
+            const names = (cond.process_name_ids || []).map(function (id) {
+                const p = DIM_PROCESS_NAMES.find(function (x) { return x.id == id; });
+                return p ? p.name : id;
+            });
+            txt = 'if Main has: ' + names.join(', ');
+        } else if (cond.type === 'any_point_fail') {
+            txt = 'if any point repaired';
+        } else {
+            txt = cond.type;
+        }
+        return ` <span class="badge bg-warning text-dark" style="font-size:9px;font-weight:500">${escHtml(txt)}</span>`;
+    }
+
+    function renderMrPhases() {
+        ['start', 'finish'].forEach(function (phase) {
+            const wrap = document.getElementById(phase === 'start' ? 'dimMrStartList' : 'dimMrFinishList');
+            const rules = (dimMrData.phase_rules || []).filter(function (r) { return r.phase === phase; });
+            if (!rules.length) {
+                wrap.innerHTML = '<div class="text-secondary" style="font-size:11px">No ' + phase + ' rules</div>';
+                return;
+            }
+            wrap.innerHTML = rules.map(function (r) {
+                const procs = (r.processes || []).map(function (p) { return escHtml(p.label); }).join(', ') || '<span class="text-secondary">no processes</span>';
+                const condHtml = mrConditionLabel(r.condition);
+                return `<div class="d-flex align-items-start gap-2 py-1 border-bottom" style="font-size:12px">
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold">${escHtml(r.name || '(unnamed)')}${condHtml}</div>
+                        <div class="text-secondary" style="font-size:11px">${procs}</div>
+                    </div>
+                    <button type="button" class="btn btn-link btn-sm p-0 dim-mr-edit" data-id="${r.id}" title="Edit" style="color:var(--bs-secondary-color);font-size:11px"><i class="bi bi-pencil"></i></button>
+                    <button type="button" class="btn btn-link btn-sm p-0 dim-mr-del" data-id="${r.id}" title="Delete" style="color:#dc3545;font-size:11px"><i class="bi bi-trash3"></i></button>
+                </div>`;
+            }).join('');
+            wrap.querySelectorAll('.dim-mr-edit').forEach(function (b) {
+                b.addEventListener('click', function () { openMrForm(phase, parseInt(b.dataset.id)); });
+            });
+            wrap.querySelectorAll('.dim-mr-del').forEach(function (b) {
+                b.addEventListener('click', async function () {
+                    if (!confirm('Delete this rule?')) return;
+                    try {
+                        await apiFetch('/master-rule-phase-rules/' + b.dataset.id, { method: 'DELETE' });
+                        dimMrData.phase_rules = dimMrData.phase_rules.filter(function (r) { return r.id != b.dataset.id; });
+                        renderMrPhases();
+                    } catch (e) { alert(e.message); }
+                });
+            });
+        });
+    }
+
+    function openMrForm(phase, editId) {
+        document.getElementById('dimMrFormPhase').value  = phase;
+        document.getElementById('dimMrFormEditId').value = editId || '';
+        document.getElementById('dimMrErr').classList.add('d-none');
+        let name = '', cond = null;
+        dimMrProcesses = [];
+        if (editId) {
+            const r = (dimMrData.phase_rules || []).find(function (x) { return x.id === editId; });
+            if (r) {
+                name = r.name || '';
+                dimMrProcesses = (r.processes || []).map(function (p) { return { manual_process_id: p.manual_process_id, label: p.label, description: p.description || '', rule_process_id: p.id, has_drawing: !!p.has_drawing }; });
+                cond = r.condition || null;
+            }
+        }
+        document.getElementById('dimMrName').value = name;
+        renderMrProcessList();
+        // reset process name picker
+        $('#dimMrProcessName').val(null).trigger('change');
+        const optWrap = document.getElementById('dimMrProcessOptions');
+        if (optWrap) { optWrap.classList.add('d-none'); optWrap.innerHTML = ''; }
+        // condition
+        const condType = (cond && cond.type) ? cond.type : 'always';
+        document.getElementById('dimMrCondType').value = condType;
+        document.getElementById('dimMrCondDefectWrap').classList.toggle('d-none', condType !== 'has_defect');
+        document.getElementById('dimMrCondProcWrap').classList.toggle('d-none', condType !== 'has_main_process');
+        const defIds = (cond && cond.codes_ids) ? cond.codes_ids.map(String) : [];
+        $('#dimMrCondDefects').val(defIds).trigger('change');
+        const procIds2 = (cond && cond.process_name_ids) ? cond.process_name_ids.map(String) : [];
+        $('#dimMrCondProcs').val(procIds2).trigger('change');
+        document.getElementById('dimMrForm').classList.remove('d-none');
+    }
+
+    function closeMrForm() {
+        const f = document.getElementById('dimMrForm');
+        if (f) f.classList.add('d-none');
+    }
+
+    document.querySelectorAll('.dim-mr-add').forEach(function (btn) {
+        btn.addEventListener('click', function () { openMrForm(btn.dataset.phase, null); });
+    });
+
+    document.getElementById('dimMrCancelBtn').addEventListener('click', closeMrForm);
+
+    document.getElementById('dimMrSaveBtn').addEventListener('click', async function () {
+        const err    = document.getElementById('dimMrErr');
+        err.classList.add('d-none');
+        const phase  = document.getElementById('dimMrFormPhase').value;
+        const editId = document.getElementById('dimMrFormEditId').value;
+        const name   = document.getElementById('dimMrName').value.trim();
+        const procs  = dimMrProcesses.map(function (p, i) { return { manual_process_id: p.manual_process_id, description: (p.description || '').trim() || null, sort_order: i }; });
+
+        // build condition
+        const condType = document.getElementById('dimMrCondType').value;
+        let condition = null;
+        if (condType === 'has_defect') {
+            const codes = ($('#dimMrCondDefects').val() || []).map(function (v) { return parseInt(v); });
+            condition = { type: 'has_defect', codes_ids: codes };
+        } else if (condType === 'has_main_process') {
+            const pn = ($('#dimMrCondProcs').val() || []).map(function (v) { return parseInt(v); });
+            condition = { type: 'has_main_process', process_name_ids: pn };
+        } else if (condType === 'any_point_fail') {
+            condition = { type: 'any_point_fail' };
+        } // 'always' → null
+
+        this.disabled = true;
+        try {
+            const body = { phase: phase, name: name || null, processes: procs, condition: condition };
+            let saved;
+            if (editId) {
+                saved = await apiFetch('/master-rule-phase-rules/' + editId, { method: 'PATCH', body: JSON.stringify(body) });
+                const idx = dimMrData.phase_rules.findIndex(function (r) { return r.id == editId; });
+                if (idx !== -1) dimMrData.phase_rules[idx] = saved;
+            } else {
+                saved = await apiFetch('/master-rules/' + dimMrData.id + '/phase-rules', { method: 'POST', body: JSON.stringify(body) });
+                dimMrData.phase_rules.push(saved);
+            }
+            renderMrPhases();
+            closeMrForm();
+        } catch (e) {
+            err.textContent = e.message;
+            err.classList.remove('d-none');
+        } finally {
+            this.disabled = false;
+        }
+    });
+
+    // ==========================
+    // Process Documents editor (documents -> pages -> elements)
+    // ==========================
+    let pdwModal = null;
+    let pdwRuleProcessId = null;
+    let pdwDocs = [];           // all documents of the process
+    let pdwSourceParams = [];   // measurement source params (F&C)
+    let pdwDoc = null;          // currently open document
+    let pdwPage = null;         // currently active page
+    let pdwScale = 1, pdwTx = 0, pdwTy = 0;
+    let pdwDragging = false, pdwDragSX = 0, pdwDragSY = 0, pdwDragTx = 0, pdwDragTy = 0;
+    let pdwMode = null, pdwDimStage = null;
+
+    const pdwCanvas    = document.getElementById('pdw-canvas');
+    const pdwImgCont   = document.getElementById('pdw-img-container');
+    const pdwImg       = document.getElementById('pdw-img');
+    const pdwOverlay   = document.getElementById('pdw-overlay');
+    const pdwSvg       = document.getElementById('pdw-svg');
+    const pdwEmpty     = document.getElementById('pdw-empty');
+    const pdwDocScreen = document.getElementById('pdw-doc-screen');
+    const pdwEdScreen  = document.getElementById('pdw-editor-screen');
+
+    // Part Documents lives in its own (hidden) tab next to Dimensions, not a modal.
+    // Move the host into the tab pane once, then show/activate the tab on demand.
+    (function () {
+        const host = document.getElementById('pdw-host');
+        const mount = document.getElementById('pdw-host-mount');
+        if (host && mount && host.parentElement !== mount) {
+            host.style.display = 'flex';
+            host.style.flexDirection = 'column';
+            mount.appendChild(host);
+        }
+        // Rule modals are opened from the Part Documents tab too; move them to <body>
+        // so they aren't trapped inside the (hidden) Dimensions pane when shown.
+        ['dimRepairRuleModal', 'dimMasterRuleModal'].forEach(function (id) {
+            const m = document.getElementById(id);
+            if (m && m.parentElement !== document.body) document.body.appendChild(m);
+        });
+    })();
+    function pdwActivate() {
+        const navBtn = document.getElementById('nav-partdocs-tab');
+        if (!navBtn) return;
+        navBtn.classList.remove('d-none');
+        bootstrap.Tab.getOrCreateInstance(navBtn).show();
+    }
+    function pdwIsActive() {
+        const pane = document.getElementById('nav-partdocs');
+        return !!(pane && pane.classList.contains('active'));
+    }
+    // Back to Dimensions
+    document.getElementById('pdwCloseBtn').addEventListener('click', function () {
+        const d = document.getElementById('nav-dimensions-tab');
+        if (d) bootstrap.Tab.getOrCreateInstance(d).show();
+    });
+    // Switching to any other tab hides the Part Documents tab again.
+    document.querySelectorAll('#nav-tab button[data-bs-toggle="tab"]').forEach(function (b) {
+        b.addEventListener('shown.bs.tab', function (ev) {
+            if (ev.target && ev.target.id !== 'nav-partdocs-tab') {
+                document.getElementById('nav-partdocs-tab').classList.add('d-none');
+            }
+        });
+    });
+
+    const PDW_TYPE_LABEL = { drawing: 'Drawing', manual_page: 'Manual page', test_report: 'Test report' };
+
+    const pdwTreeScreen = document.getElementById('pdw-tree-screen');
+    let pdwTree = [], pdwTreeIcId = null, pdwTreeLabel = '', pdwFromTree = false, pdwTreeEditingRule = false;
+    let pdwActiveRpKey = null; // "<kind>:<rule_process_id>" of the process whose docs are open
+
+    // Reflect "has document" of the currently-open process in the tree without refetching.
+    function pdwTreeMarkDocs() {
+        if (!pdwTree) return;
+        const has = (pdwDocs || []).length > 0;
+        const visit = function (rules) {
+            (rules || []).forEach(function (r) {
+                (r.processes || []).forEach(function (pr) {
+                    if (String(pr.rule_process_id) === String(pdwRuleProcessId) && (pr.kind || 'main') === pdwProcKind) {
+                        pr.has_document = has;
+                    }
+                });
+            });
+        };
+        visit(pdwTree.start);
+        (pdwTree.points || []).forEach(function (pt) { visit(pt.rules); });
+        visit(pdwTree.finish);
+        renderDocTree();
+    }
+
+    function pdwApplyTreeActive() {
+        const wrap = document.getElementById('pdw-tree');
+        if (!wrap) return;
+        wrap.querySelectorAll('.pdw-tree-proc.active').forEach(function (n) { n.classList.remove('active'); });
+        if (!pdwActiveRpKey) return;
+        wrap.querySelectorAll('.pdw-tree-proc').forEach(function (n) {
+            if (((n.dataset.kind || 'main') + ':' + n.dataset.rp) === pdwActiveRpKey) n.classList.add('active');
+        });
+    }
+
+    // ---- right-column switching (tree on the left stays visible) ----
+    const pdwRightEmpty = document.getElementById('pdw-right-empty');
+    function pdwShowTreeScreen() {      // nothing selected → placeholder on the right
+        pdwSetMode(null);
+        pdwActiveRpKey = null; pdwApplyTreeActive();
+        pdwRightEmpty.classList.remove('d-none');
+        pdwDocScreen.classList.add('d-none');
+        pdwEdScreen.classList.add('d-none'); pdwEdScreen.classList.remove('d-flex');
+    }
+    function pdwShowDocScreen() {
+        pdwSetMode(null);
+        pdwRightEmpty.classList.add('d-none');
+        pdwDocScreen.classList.remove('d-none');
+        pdwEdScreen.classList.add('d-none'); pdwEdScreen.classList.remove('d-flex');
+        document.getElementById('pdwTreeBackBtn').classList.add('d-none'); // tree always visible now
+        renderDocList();
+    }
+    function pdwShowEditorScreen() {
+        pdwRightEmpty.classList.add('d-none');
+        pdwDocScreen.classList.add('d-none');
+        pdwEdScreen.classList.remove('d-none'); pdwEdScreen.classList.add('d-flex');
+    }
+
+    // ---- Part document hub: Part → Point → Rule → Process tree ----
+    async function openDocumentTree(icId, label) {
+        pdwTreeIcId = icId; pdwTreeLabel = label || ''; pdwFromTree = true;
+        document.getElementById('pdwTitle').textContent = 'Part Documents — ' + pdwTreeLabel;
+        document.getElementById('pdw-tree').innerHTML = '<div class="text-secondary" style="font-size:12px">Loading…</div>';
+        pdwActivate();
+        pdwShowTreeScreen();
+        try {
+            const data = await apiFetch('/inspection-components/' + icId + '/document-tree');
+            pdwTree = data || {};
+            renderDocTree();
+        } catch (e) {
+            document.getElementById('pdw-tree').innerHTML = '<div class="text-danger" style="font-size:12px">' + escHtml(e.message) + '</div>';
+        }
+    }
+
+    function pdwProcHtml(pr) {
+        const dot = pr.has_document
+            ? '<i class="bi bi-file-earmark-check-fill" style="color:var(--bs-warning)"></i>'
+            : '<i class="bi bi-file-earmark" style="color:var(--bs-secondary-color)"></i>';
+        const gate = pr.is_gate ? '<span style="color:var(--bs-info)" title="EC gate">⚓</span> ' : '';
+        return `<div class="pdw-tree-proc d-flex align-items-center gap-2" data-rp="${pr.rule_process_id}" data-kind="${pr.kind || 'main'}" data-label="${escHtml(pr.label)}"
+                     style="padding:3px 8px;cursor:pointer;border-radius:4px;font-size:12px">
+            ${dot}<span class="flex-grow-1">${gate}${escHtml(pr.label)}</span>
+            <span class="text-secondary" style="font-size:10px">${pr.has_document ? 'edit' : 'add'} ›</span>
+        </div>`;
+    }
+    const pdwCollapsedRules = new Set(); // rule keys with a hidden process list
+    function pdwRuleHtml(r, editable, paramId) {
+        const procs = (r.processes || []).map(pdwProcHtml).join('')
+            || '<div style="font-size:11px;color:var(--bs-secondary-color);padding-left:8px">no processes</div>';
+        const badge = r.action ? `<span class="badge bg-secondary" style="font-size:9px;text-transform:uppercase">${escHtml(r.action)}</span>` : '';
+        const editBtn = editable
+            ? `<button class="pdw-tree-rule-edit btn btn-link btn-sm p-0 ms-1" data-param="${paramId}" data-rule="${r.rule_id}" title="Edit rule (processes / descriptions)" style="font-size:11px;color:var(--bs-info)"><i class="bi bi-pencil"></i></button>`
+            : '';
+        const key = (paramId || 'ph') + ':' + r.rule_id;
+        const collapsed = pdwCollapsedRules.has(key);
+        return `<div style="margin-left:16px;margin-top:3px">
+            <div style="font-size:11px;color:var(--bs-secondary-color)">
+                <span class="pdw-rule-toggle" data-key="${key}" style="cursor:pointer;text-decoration:underline" title="Show/hide processes">
+                    <i class="bi bi-chevron-${collapsed ? 'right' : 'down'}" style="font-size:9px"></i>
+                    <i class="bi bi-wrench"></i> ${escHtml(r.label)}
+                </span> ${badge}${editBtn}</div>
+            <div class="pdw-rule-procs" data-key="${key}" style="${collapsed ? 'display:none' : ''}">${procs}</div>
+        </div>`;
+    }
+    function pdwPhaseSection(title, rules) {
+        if (!rules || !rules.length) return '';
+        return `<div style="margin-bottom:10px">
+            <div class="fw-semibold" style="font-size:12px;color:#ffc107"><i class="bi bi-flag-fill"></i> ${title}
+                <button class="pdw-tree-edit-phase btn btn-link btn-sm p-0 ms-1" title="Edit Start/Finish plan" style="font-size:11px;color:var(--bs-info)"><i class="bi bi-pencil"></i></button></div>
+            ${rules.map(function (r) { return pdwRuleHtml(r, false, null); }).join('')}
+        </div>`;
+    }
+
+    function renderDocTree() {
+        const wrap = document.getElementById('pdw-tree');
+        const t = pdwTree || {};
+        const hasAny = (t.start && t.start.length) || (t.points && t.points.length) || (t.finish && t.finish.length);
+        if (!hasAny) { wrap.innerHTML = '<div class="text-secondary" style="font-size:12px">No points / rules for this part yet.</div>'; return; }
+
+        let html = pdwPhaseSection('START', t.start);
+        (t.points || []).forEach(function (pt) {
+            const rules = (pt.rules || []).map(function (r) { return pdwRuleHtml(r, true, pt.param_id); }).join('')
+                || '<div style="margin-left:16px;font-size:11px;color:var(--bs-secondary-color)">no repair rules</div>';
+            html += `<div style="margin-bottom:10px">
+                <div class="fw-semibold" style="font-size:12px;color:#5ee3ff"><i class="bi bi-geo-alt-fill"></i> ${escHtml(pt.label)}
+                    <button class="pdw-tree-add-rule btn btn-link btn-sm p-0 ms-2" data-param="${pt.param_id}" title="Add repair rule" style="font-size:11px;color:var(--bs-secondary-color)"><i class="bi bi-plus-circle"></i></button></div>
+                ${rules}
+            </div>`;
+        });
+        html += pdwPhaseSection('FINISH', t.finish);
+        wrap.innerHTML = html;
+
+        wrap.querySelectorAll('.pdw-tree-proc').forEach(function (row) {
+            row.addEventListener('click', function () {
+                const kind = row.dataset.kind || 'main';
+                pdwActiveRpKey = kind + ':' + row.dataset.rp;
+                pdwApplyTreeActive();
+                openProcessDocumentsModal(parseInt(row.dataset.rp), row.dataset.label, kind, true);
+            });
+        });
+        pdwApplyTreeActive(); // re-highlight the open process after a re-render
+        // collapse/expand a rule's process list
+        wrap.querySelectorAll('.pdw-rule-toggle').forEach(function (t) {
+            t.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                const key   = t.dataset.key;
+                const procs = wrap.querySelector('.pdw-rule-procs[data-key="' + CSS.escape(key) + '"]');
+                const icon  = t.querySelector('.bi-chevron-down, .bi-chevron-right');
+                const hide  = !pdwCollapsedRules.has(key);
+                if (hide) pdwCollapsedRules.add(key); else pdwCollapsedRules.delete(key);
+                if (procs) procs.style.display = hide ? 'none' : '';
+                if (icon)  icon.className = 'bi bi-chevron-' + (hide ? 'right' : 'down');
+            });
+        });
+        // edit a rule (add process / change description) without leaving the hub
+        wrap.querySelectorAll('.pdw-tree-rule-edit').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                const param = (typeof parameters !== 'undefined' ? parameters : []).find(function (p) { return p.id == b.dataset.param; });
+                const rule  = param && (param.repair_rules || []).find(function (r) { return r.id == b.dataset.rule; });
+                if (param && rule) { pdwTreeEditingRule = true; openEditRuleModal(rule, param); }
+                else alert('Rule data not loaded — open it from the Dimensions panel.');
+            });
+        });
+        wrap.querySelectorAll('.pdw-tree-add-rule').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                const param = (typeof parameters !== 'undefined' ? parameters : []).find(function (p) { return p.id == b.dataset.param; });
+                if (param) { pdwTreeEditingRule = true; openAddRuleModal(param); }
+                else alert('Parameter data not loaded — open it from the Dimensions panel.');
+            });
+        });
+        // edit Start/Finish plan (MasterRule) from the hub
+        wrap.querySelectorAll('.pdw-tree-edit-phase').forEach(function (b) {
+            b.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                if (pdwTreeIcId) { pdwTreeEditingRule = true; openMasterRuleModal(pdwTreeIcId, pdwTreeLabel); }
+            });
+        });
+    }
+
+    // After a rule is saved/deleted from the tree, refresh the tree (new processes, etc.).
+    // Guard: only when the hub modal is actually open, so a stale flag can't re-open it.
+    function pdwTreeRefreshAfterRule() {
+        if (!pdwTreeEditingRule) return;
+        pdwTreeEditingRule = false;
+        if (pdwTreeIcId && pdwIsActive()) {
+            openDocumentTree(pdwTreeIcId, pdwTreeLabel);
+        }
+    }
+    document.getElementById('dimRepairRuleModal').addEventListener('hidden.bs.modal', function () {
+        pdwTreeEditingRule = false; // reset on cancel (save already consumed it)
+    });
+    // MasterRule (Start/Finish) modal stays open for multi-edit → refresh the tree on close.
+    document.getElementById('dimMasterRuleModal').addEventListener('hidden.bs.modal', function () {
+        pdwTreeRefreshAfterRule();
+    });
+
+    document.getElementById('pdwTreeBackBtn').addEventListener('click', function () {
+        openDocumentTree(pdwTreeIcId, pdwTreeLabel); // refetch → refreshes has-document marks
+    });
+
+    // ---- open: load documents, show list ----
+    let pdwProcKind = 'main'; // 'main' (point rule) | 'phase' (Start/Finish)
+    function pdwDocsBase() {
+        if (pdwProcKind === 'manual') return '/manuals/' + MANUAL_ID + '/documents';
+        return pdwProcKind === 'phase'
+            ? '/phase-rule-processes/' + pdwRuleProcessId + '/documents'
+            : '/rule-processes/' + pdwRuleProcessId + '/documents';
+    }
+
+    async function openProcessDocumentsModal(ruleProcessId, label, kind, fromTree) {
+        pdwRuleProcessId = ruleProcessId;
+        pdwProcKind = (kind === 'phase') ? 'phase' : (kind === 'manual' ? 'manual' : 'main');
+        // manual-level doc: no process tree, "Attach existing" is process-only
+        document.getElementById('pdw-host')?.classList.toggle('pdw-manual-mode', kind === 'manual');
+        document.getElementById('pdwAttachDocBtn')?.classList.toggle('d-none', kind === 'manual');
+        pdwFromTree = !!fromTree;
+        pdwDocs = []; pdwSourceParams = []; pdwDoc = null; pdwPage = null;
+        document.getElementById('pdwDocScreenTitle').textContent = label || 'Documents';
+        if (!fromTree) document.getElementById('pdwTitle').textContent = 'Process Documents — ' + (label || '');
+        document.getElementById('pdw-doc-list').innerHTML = '<div class="text-secondary" style="font-size:12px">Loading…</div>';
+        pdwHideDocForm();
+        pdwActivate();
+        pdwShowDocScreen();
+        try {
+            const data = await apiFetch(pdwDocsBase());
+            pdwDocs = data.documents || [];
+            pdwSourceParams = data.source_parameters || [];
+            renderDocList();
+            // doc_type is a free string — suggest the types already in use
+            const dl = document.getElementById('pdwDocTypeList');
+            if (dl) {
+                const known = new Set([...dl.options].map(o => o.value));
+                pdwDocs.forEach(d => {
+                    if (d.doc_type && !known.has(d.doc_type)) {
+                        const opt = document.createElement('option');
+                        opt.value = d.doc_type;
+                        dl.appendChild(opt);
+                        known.add(d.doc_type);
+                    }
+                });
+            }
+        } catch (e) {
+            document.getElementById('pdw-doc-list').innerHTML = '<div class="text-danger" style="font-size:12px">' + escHtml(e.message) + '</div>';
+        }
+    }
+
+    // ---- attach existing document (clone with shared scan) ----
+    document.getElementById('pdwAttachDocBtn')?.addEventListener('click', async function () {
+        const wrap = document.getElementById('pdw-attach-wrap');
+        const sel  = document.getElementById('pdwAttachSelect');
+        wrap.classList.remove('d-none');
+        sel.innerHTML = '<option value="">Loading…</option>';
+        try {
+            const docs = await apiFetch('/manuals/' + MANUAL_ID + '/process-documents');
+            const others = docs.filter(d => !pdwDocs.some(x => x.id === d.id));
+            sel.innerHTML = others.length
+                ? '<option value="">Select document…</option>' + others.map(d =>
+                    `<option value="${d.id}">${escHtml((d.title || '(untitled)') + ' · ' + (d.owner_label || d.doc_type) + ' · ' + d.pages + ' pg')}</option>`).join('')
+                : '<option value="">No other documents in this manual</option>';
+        } catch (e) { sel.innerHTML = '<option value="">' + escHtml(e.message) + '</option>'; }
+    });
+
+    document.getElementById('pdwAttachCancel')?.addEventListener('click', function () {
+        document.getElementById('pdw-attach-wrap').classList.add('d-none');
+    });
+
+    document.getElementById('pdwAttachConfirm')?.addEventListener('click', async function () {
+        const srcId = parseInt(document.getElementById('pdwAttachSelect').value);
+        if (!srcId) return;
+        this.disabled = true;
+        try {
+            const base = pdwProcKind === 'phase'
+                ? '/phase-rule-processes/' + pdwRuleProcessId + '/documents/attach-existing'
+                : '/rule-processes/' + pdwRuleProcessId + '/documents/attach-existing';
+            const doc = await apiFetch(base, { method: 'POST', body: JSON.stringify({ source_document_id: srcId }) });
+            pdwDocs.push(doc);
+            document.getElementById('pdw-attach-wrap').classList.add('d-none');
+            renderDocList();
+            pdwUpdateProcessFlag();
+            pdwTreeMarkDocs();
+        } catch (e) { alert(e.message); }
+        finally { this.disabled = false; }
+    });
+
+    function pdwProcessHasImage() {
+        return pdwDocs.some(function (d) { return (d.pages || []).some(function (p) { return p.image_path; }); });
+    }
+    function pdwUpdateProcessFlag() {
+        if (pdwProcKind === 'manual') return; // manual-level doc — no process row to flag
+        const hasImg = pdwProcessHasImage();
+        if (pdwProcKind === 'phase') {
+            const rp = dimMrProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
+            if (rp) { rp.has_drawing = hasImg; renderMrProcessList(); }
+        } else {
+            const rp = dimRuleProcesses.find(function (p) { return p.rule_process_id === pdwRuleProcessId; });
+            if (rp) { rp.has_drawing = hasImg; renderRuleProcessList(); }
+        }
+    }
+
+    // ---- document list ----
+    function renderDocList() {
+        const wrap = document.getElementById('pdw-doc-list');
+        if (!pdwDocs.length) {
+            wrap.innerHTML = '<div class="text-secondary" style="font-size:12px">No documents yet. Click “Add document”.</div>';
+            return;
+        }
+        wrap.innerHTML = pdwDocs.map(function (d) {
+            const pages = (d.pages || []).length;
+            const withImg = (d.pages || []).filter(function (p) { return p.image_path; }).length;
+            return `<div class="pdw-doc-row" data-doc-id="${d.id}">
+                <span class="pdw-doc-type">${escHtml(PDW_TYPE_LABEL[d.doc_type] || d.doc_type)}</span>
+                <span class="flex-grow-1 fw-semibold">${escHtml(d.title || '(untitled)')}</span>
+                <span class="text-secondary" style="font-size:11px">${pages} page${pages===1?'':'s'}${withImg<pages?(' · '+withImg+' with image'):''}</span>
+                <button class="btn btn-link btn-sm p-0 ms-1 pdw-doc-edit" data-id="${d.id}" title="Edit" style="color:var(--bs-secondary-color);font-size:12px"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-link btn-sm p-0 ms-1 pdw-doc-del" data-id="${d.id}" title="Remove document" style="color:#dc3545;font-size:12px"><i class="bi bi-trash3"></i></button>
+            </div>`;
+        }).join('');
+        wrap.querySelectorAll('.pdw-doc-row').forEach(function (row) {
+            row.addEventListener('click', function (ev) {
+                if (ev.target.closest('.pdw-doc-edit, .pdw-doc-del')) return;
+                const d = pdwDocs.find(function (x) { return x.id == row.dataset.docId; });
+                if (d) openDocEditor(d);
+            });
+        });
+        wrap.querySelectorAll('.pdw-doc-edit').forEach(function (b) {
+            b.addEventListener('click', function () { pdwShowDocForm(parseInt(b.dataset.id)); });
+        });
+        wrap.querySelectorAll('.pdw-doc-del').forEach(function (b) {
+            b.addEventListener('click', async function () {
+                if (!confirm('Remove this entire document?')) return;
+                try {
+                    await apiFetch('/process-documents/' + b.dataset.id, { method: 'DELETE' });
+                    pdwDocs = pdwDocs.filter(function (d) { return d.id != b.dataset.id; });
+                    renderDocList();
+                    pdwUpdateProcessFlag();
+                    pdwTreeMarkDocs();
+                } catch (e) { alert(e.message); }
+            });
+        });
+    }
+
+    // ---- add / edit document form ----
+    function pdwShowDocForm(editId) {
+        document.getElementById('pdwDocEditId').value = editId || '';
+        if (editId) {
+            const d = pdwDocs.find(function (x) { return x.id === editId; });
+            document.getElementById('pdwDocType').value = d ? d.doc_type : 'drawing';
+            document.getElementById('pdwDocTitle').value = d ? (d.title || '') : '';
+        } else {
+            document.getElementById('pdwDocType').value = 'drawing';
+            document.getElementById('pdwDocTitle').value = '';
+        }
+        document.getElementById('pdw-doc-form').classList.remove('d-none');
+    }
+    function pdwHideDocForm() { document.getElementById('pdw-doc-form').classList.add('d-none'); }
+    document.getElementById('pdwAddDocBtn').addEventListener('click', function () { pdwShowDocForm(null); });
+
+    // ---- Add from PDF: create a document and fill its pages from the PDF ----
+    document.getElementById('pdwAddPdfBtn')?.addEventListener('click', function () {
+        document.getElementById('pdwAddPdfInput').click();
+    });
+    document.getElementById('pdwAddPdfInput')?.addEventListener('change', async function () {
+        const file = this.files[0]; this.value = '';
+        if (!file) return;
+        try {
+            const doc = await apiFetch(pdwDocsBase(), {
+                method: 'POST',
+                body: JSON.stringify({ doc_type: 'manual_page', title: file.name.replace(/\.pdf$/i, '') }),
+            });
+            pdwDocs.push(doc);
+            renderDocList();
+            openDocEditor(doc);
+            // ensure a first page exists — pdwUploadPdf fills page 1 then auto-adds the rest
+            if (!pdwDoc.pages.length) {
+                const page = await apiFetch('/process-documents/' + pdwDoc.id + '/pages', { method: 'POST' });
+                pdwDoc.pages.push(page);
+                renderPageTabs();
+                selectPage(page);
+            }
+            await pdwUploadPdf(file);
+        } catch (e) { alert(e.message); }
+    });
+    document.getElementById('pdwDocCancelBtn').addEventListener('click', pdwHideDocForm);
+    document.getElementById('pdwDocSaveBtn').addEventListener('click', async function () {
+        const editId = document.getElementById('pdwDocEditId').value;
+        const body = { doc_type: document.getElementById('pdwDocType').value, title: document.getElementById('pdwDocTitle').value.trim() || null };
+        try {
+            if (editId) {
+                const saved = await apiFetch('/process-documents/' + editId, { method: 'PATCH', body: JSON.stringify(body) });
+                const idx = pdwDocs.findIndex(function (d) { return d.id == editId; });
+                if (idx !== -1) pdwDocs[idx] = Object.assign(pdwDocs[idx], saved);
+            } else {
+                const saved = await apiFetch(pdwDocsBase(), { method: 'POST', body: JSON.stringify(body) });
+                pdwDocs.push(saved);
+            }
+            pdwHideDocForm();
+            renderDocList();
+            pdwTreeMarkDocs();
+        } catch (e) { alert(e.message); }
+    });
+
+    // ---- open document editor (pages) ----
+    function openDocEditor(doc) {
+        pdwDoc = doc;
+        if (!doc.pages) doc.pages = [];
+        document.getElementById('pdwEditorTitle').textContent = (PDW_TYPE_LABEL[doc.doc_type] || doc.doc_type) + ' · ' + (doc.title || '(untitled)');
+        pdwShowEditorScreen();
+        renderPageTabs();
+        if (doc.pages.length) {
+            selectPage(doc.pages[0]);
+        } else {
+            pdwPage = null;
+            pdwEmpty.classList.remove('d-none');
+            pdwImgCont.classList.add('d-none');
+            pdwOverlay.innerHTML = ''; pdwSvg.innerHTML = '';
+            document.getElementById('pdwHint').textContent = 'Add a page to start (+ Page)';
+        }
+    }
+
+    document.getElementById('pdwBackBtn').addEventListener('click', pdwShowDocScreen);
+
+    // ---- page navigator ----
+    function renderPageTabs() {
+        const wrap = document.getElementById('pdw-page-tabs');
+        wrap.innerHTML = (pdwDoc.pages || []).map(function (p, i) {
+            return `<button class="pdw-page-tab${pdwPage && pdwPage.id === p.id ? ' active' : ''}" data-page-id="${p.id}">${i + 1}</button>`;
+        }).join('');
+        wrap.querySelectorAll('.pdw-page-tab').forEach(function (b) {
+            b.addEventListener('click', function () {
+                const p = pdwDoc.pages.find(function (x) { return x.id == b.dataset.pageId; });
+                if (p) selectPage(p);
+            });
+        });
+        document.getElementById('pdwDelPageBtn').classList.toggle('d-none', (pdwDoc.pages || []).length <= 1);
+    }
+
+    function selectPage(page) {
+        pdwPage = page;
+        pdwSetMode(null);
+        pdwHideElemForm();
+        renderPageTabs();
+        if (page.image_path) pdwShowImage(page.image_path);
+        else { pdwEmpty.classList.remove('d-none'); pdwImgCont.classList.add('d-none'); pdwOverlay.innerHTML = ''; pdwSvg.innerHTML = ''; }
+    }
+
+    document.getElementById('pdwAddPageBtn').addEventListener('click', async function () {
+        if (!pdwDoc) return;
+        try {
+            const page = await apiFetch('/process-documents/' + pdwDoc.id + '/pages', { method: 'POST' });
+            pdwDoc.pages.push(page);
+            renderPageTabs();
+            selectPage(page);
+        } catch (e) { alert(e.message); }
+    });
+
+    document.getElementById('pdwDelPageBtn').addEventListener('click', async function () {
+        if (!pdwPage || (pdwDoc.pages || []).length <= 1) return;
+        if (!confirm('Remove this page?')) return;
+        try {
+            await apiFetch('/process-document-pages/' + pdwPage.id, { method: 'DELETE' });
+            pdwDoc.pages = pdwDoc.pages.filter(function (p) { return p.id !== pdwPage.id; });
+            renderPageTabs();
+            selectPage(pdwDoc.pages[0]);
+            pdwUpdateProcessFlag();
+        } catch (e) { alert(e.message); }
+    });
+
+    function pdwShowImage(src) {
+        pdwEmpty.classList.add('d-none');
+        pdwImgCont.classList.remove('d-none');
+        if (pdwImg.src !== src) {
+            pdwImg.onload = function () { pdwFit(); pdwRenderElements(); };
+            pdwImg.src = src;
+        } else { pdwFit(); pdwRenderElements(); }
+    }
+
+    function pdwFit() {
+        if (!pdwImg.naturalWidth) return;
+        const r = pdwCanvas.getBoundingClientRect();
+        const iw = pdwImg.naturalWidth, ih = pdwImg.naturalHeight;
+        pdwImg.style.width = iw + 'px'; pdwImg.style.height = ih + 'px';
+        pdwImgCont.style.width = iw + 'px'; pdwImgCont.style.height = ih + 'px';
+        pdwScale = Math.min(r.width / iw, r.height / ih) * 0.95;
+        pdwTx = (r.width - iw * pdwScale) / 2;
+        pdwTy = (r.height - ih * pdwScale) / 2;
+        pdwApply();
+    }
+
+    function pdwApply() {
+        pdwImgCont.style.transform = 'translate(' + pdwTx + 'px,' + pdwTy + 'px) scale(' + pdwScale + ')';
+        pdwPositionElements();
+    }
+
+    function pdwPositionElements() {
+        const iw = pdwImg.naturalWidth, ih = pdwImg.naturalHeight;
+        if (!iw || !ih) return;
+        // Overlay/SVG live INSIDE #pdw-img-container, which carries the pan/zoom
+        // transform — so element coords are in NATURAL image px (no pdwTx/pdwScale).
+        pdwOverlay.querySelectorAll('[data-xp]').forEach(function (el) {
+            const xp = parseFloat(el.dataset.xp), yp = parseFloat(el.dataset.yp);
+            el.style.left = (xp / 100 * iw) + 'px';
+            el.style.top  = (yp / 100 * ih) + 'px';
+        });
+        pdwDrawSvg();
+    }
+
+    function pdwDrawSvg() {
+        const iw = pdwImg.naturalWidth, ih = pdwImg.naturalHeight;
+        pdwSvg.innerHTML = '';
+        if (!iw || !ih || !pdwPage) return;
+        const ns = 'http://www.w3.org/2000/svg';
+        (pdwPage.elements || []).forEach(function (e) {
+            if (e.element_type === 'dimension' && e.x2_pct != null) {
+                // Natural image px (the SVG is inside the transformed container).
+                const ax = e.x_pct / 100 * iw, ay = e.y_pct / 100 * ih;
+                const bx = e.x2_pct / 100 * iw, by = e.y2_pct / 100 * ih;
+                const ln = document.createElementNS(ns, 'line');
+                ln.setAttribute('x1', ax); ln.setAttribute('y1', ay); ln.setAttribute('x2', bx); ln.setAttribute('y2', by);
+                ln.setAttribute('stroke', '#0d6efd'); ln.setAttribute('stroke-width', (1.5 / (pdwScale || 1)).toFixed(2));
+                ln.setAttribute('marker-start', 'url(#pdw-arrow)'); ln.setAttribute('marker-end', 'url(#pdw-arrow)');
+                pdwSvg.appendChild(ln);
+            } else if (e.element_type === 'label' && e.label_x_pct != null) {
+                // leader from anchor (x/y) to the text box (label_x/label_y)
+                const ax = e.x_pct / 100 * iw, ay = e.y_pct / 100 * ih;
+                const bx = e.label_x_pct / 100 * iw, by = e.label_y_pct / 100 * ih;
+                const ln = document.createElementNS(ns, 'line');
+                ln.setAttribute('x1', ax); ln.setAttribute('y1', ay); ln.setAttribute('x2', bx); ln.setAttribute('y2', by);
+                ln.setAttribute('stroke', '#14b8a6'); ln.setAttribute('stroke-width', (1 / (pdwScale || 1)).toFixed(2));
+                pdwSvg.appendChild(ln);
+            }
+        });
+        const defs = document.createElementNS(ns, 'defs');
+        defs.innerHTML = '<marker id="pdw-arrow" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M0,0 L0,5 L6,2.5 z" fill="#0d6efd"/></marker>';
+        pdwSvg.appendChild(defs);
+    }
+
+    function pdwFmt(v) { return v != null ? parseFloat(v).toFixed(4).replace(/\.?0+$/, '') : ''; }
+
+    function pdwRenderElements() {
+        pdwOverlay.innerHTML = '';
+        if (!pdwPage) return;
+        (pdwPage.elements || []).forEach(function (e) {
+            if (e.element_type === 'steps_table') {
+                const box = document.createElement('div');
+                box.className = 'pdw-text-label';
+                box.style.borderStyle = 'dashed';
+                box.style.transform = 'none'; // click point = TOP-LEFT corner of the table
+                const sp = (pdwSourceParams || []).find(function (p) { return p.id == e.source_parameter_id; });
+                box.innerHTML = '<i class="bi bi-table"></i> Steps: ' + escHtml(sp ? (sp.description || '#' + sp.id) : '⟨param⟩');
+                box.dataset.xp = e.x_pct; box.dataset.yp = e.y_pct;
+                pdwFinishElement(box, e, 'anchor');
+                return;
+            }
+            if (e.element_type === 'dimension') {
+                const el = document.createElement('div');
+                el.className = 'pdw-dim-label';
+                const prefix = pdwMaskPrefix(e.mask);
+                let valTxt;
+                if (e.value_source === 'measurement' || e.value_source === 'calc') {
+                    const sp = (pdwSourceParams || []).find(function (p) { return p.id == e.source_parameter_id; });
+                    const pname = sp ? (sp.description || 'param') : (e.value_source === 'calc' ? 'mating' : 'measure');
+                    valTxt = (e.value_source === 'calc' ? '≈⟨' : '⟨') + pname + '⟩';
+                    el.style.borderStyle = 'dashed';
+                } else if (e.value_source === 'formula') {
+                    const expr = e.formula_expression || '?';
+                    const p = e.formula_tol_plus  ? '+' + pdwFmt(e.formula_tol_plus)  : '';
+                    const m = e.formula_tol_minus ? '-' + pdwFmt(e.formula_tol_minus) : '';
+                    const tol = (p || m) ? ' (' + [p, m].filter(Boolean).join('/') + ')' : '';
+                    valTxt = 'ƒ(' + expr + ')' + tol;
+                    el.style.borderStyle = 'dashed';
+                    el.style.borderColor = '#6f42c1';
+                    el.style.color       = '#6f42c1';
+                } else if (e.value_source === 'torque') {
+                    valTxt = '⟨torque⟩';
+                    el.style.borderStyle = 'dashed';
+                    el.style.borderColor = '#fd7e14';
+                    el.style.color       = '#fd7e14';
+                } else {
+                    valTxt = pdwFmt(e.static_value);
+                }
+                el.textContent = prefix + valTxt;
+                let xp = e.label_x_pct, yp = e.label_y_pct;
+                if (xp == null) {
+                    if (e.mask === 'linear' && e.x2_pct != null) { xp = (parseFloat(e.x_pct) + parseFloat(e.x2_pct)) / 2; yp = (parseFloat(e.y_pct) + parseFloat(e.y2_pct)) / 2; }
+                    else { xp = e.x_pct; yp = e.y_pct; }
+                }
+                el.dataset.xp = xp; el.dataset.yp = yp;
+                // one-click value marks have no leader/arrow — dragging moves the
+                // anchor itself, otherwise a leader would appear out of nowhere
+                pdwFinishElement(el, e, (e.label_x_pct != null || e.x2_pct != null) ? 'label' : 'anchor');
+            } else {
+                // label: anchor dot (x/y) + text box on a leader (label_x/label_y)
+                const hasLeader = e.label_x_pct != null;
+                const box = document.createElement('div');
+                box.className = 'pdw-text-label';
+                if (e.placeholder) { box.textContent = e.placeholder; box.style.borderStyle = 'dashed'; }
+                else if (e.source_parameter_id) {
+                    const sp = (pdwSourceParams || []).find(function (p) { return p.id == e.source_parameter_id; });
+                    box.textContent = sp ? pdwParamLabel(sp) : '⟨param⟩';
+                    box.style.borderStyle = 'dashed';
+                }
+                else box.textContent = e.text || '';
+                box.dataset.xp = hasLeader ? e.label_x_pct : e.x_pct;
+                box.dataset.yp = hasLeader ? e.label_y_pct : e.y_pct;
+                pdwFinishElement(box, e, hasLeader ? 'label' : 'anchor');
+                if (hasLeader) {
+                    const dot = document.createElement('div');
+                    dot.className = 'pdw-anchor-dot';
+                    dot.dataset.xp = e.x_pct; dot.dataset.yp = e.y_pct;
+                    dot.title = 'Anchor — drag to move';
+                    pdwFinishElement(dot, e, 'anchor');
+                }
+            }
+        });
+        pdwPositionElements();
+    }
+
+    function pdwFinishElement(el, e, coord) {
+        el.dataset.elId = e.id;
+        if (e.font_size && !el.classList.contains('pdw-anchor-dot')) el.style.fontSize = e.font_size + 'pt';
+        if (!el.title) el.title = 'Click to edit · drag to move';
+        pdwAddElementDrag(el, e, coord);
+        pdwOverlay.appendChild(el);
+    }
+
+    function pdwAddElementDrag(el, e, coord) {
+        el.addEventListener('mousedown', function (ev) {
+            if (ev.button !== 0 || pdwMode) return;
+            ev.stopPropagation();
+            const sx = ev.clientX, sy = ev.clientY; let moved = false;
+            function mv(ev2) {
+                const dx = ev2.clientX - sx, dy = ev2.clientY - sy;
+                if (!moved && Math.hypot(dx, dy) > 4) moved = true;
+                // element is inside the scaled container → convert screen delta to container px
+                if (moved) {
+                    const s = pdwScale || 1;
+                    el.style.transform = 'translate(calc(-50% + ' + (dx / s) + 'px), calc(-50% + ' + (dy / s) + 'px))';
+                }
+            }
+            async function up(ev2) {
+                document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
+                el.style.transform = '';
+                if (!moved) { pdwOpenEditForm(e); return; }
+                const iw = pdwImg.naturalWidth, ih = pdwImg.naturalHeight;
+                const dxp = (ev2.clientX - sx) / (iw * pdwScale) * 100;
+                const dyp = (ev2.clientY - sy) / (ih * pdwScale) * 100;
+                const newX = Math.min(Math.max(parseFloat(el.dataset.xp) + dxp, 0), 100);
+                const newY = Math.min(Math.max(parseFloat(el.dataset.yp) + dyp, 0), 100);
+                // coord 'label' → the text box (label_x/label_y); 'anchor' → the point (x/y)
+                const body = (coord === 'label')
+                    ? { label_x_pct: newX, label_y_pct: newY }
+                    : { x_pct: newX, y_pct: newY };
+                try {
+                    const saved = await apiFetch('/process-document-elements/' + e.id, { method: 'PATCH', body: JSON.stringify(body) });
+                    const idx = pdwPage.elements.findIndex(function (x) { return x.id === e.id; });
+                    if (idx !== -1) pdwPage.elements[idx] = saved;
+                    pdwRenderElements();
+                } catch (err) { alert(err.message); pdwRenderElements(); }
+            }
+            document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+        });
+    }
+
+    // ---- zoom / pan ----
+    pdwCanvas.addEventListener('wheel', function (ev) {
+        if (pdwImgCont.classList.contains('d-none')) return;
+        ev.preventDefault();
+        const r = pdwCanvas.getBoundingClientRect();
+        const mx = ev.clientX - r.left, my = ev.clientY - r.top;
+        const d = ev.deltaY < 0 ? 1.12 : 1 / 1.12;
+        const ns = Math.min(Math.max(pdwScale * d, 0.1), 10);
+        pdwTx = mx - (mx - pdwTx) * (ns / pdwScale); pdwTy = my - (my - pdwTy) * (ns / pdwScale); pdwScale = ns;
+        pdwApply();
+    }, { passive: false });
+    pdwCanvas.addEventListener('mousedown', function (ev) {
+        if (ev.button !== 0 || pdwMode) return;
+        if (ev.target.closest('[data-el-id]')) return;
+        pdwDragging = true; pdwDragSX = ev.clientX; pdwDragSY = ev.clientY; pdwDragTx = pdwTx; pdwDragTy = pdwTy;
+        pdwCanvas.classList.add('grabbing');
+    });
+    window.addEventListener('mousemove', function (ev) {
+        if (!pdwDragging) return;
+        pdwTx = pdwDragTx + (ev.clientX - pdwDragSX); pdwTy = pdwDragTy + (ev.clientY - pdwDragSY); pdwApply();
+    });
+    window.addEventListener('mouseup', function () { if (pdwDragging) { pdwDragging = false; pdwCanvas.classList.remove('grabbing'); } });
+    document.getElementById('pdwZoomReset').addEventListener('click', pdwFit);
+
+    // ---- dimension placement preview (temporary dots + dashed line) ----
+    function pdwUpdateDimPreview() {
+        const ns = 'http://www.w3.org/2000/svg';
+        let g = pdwSvg.querySelector('#pdw-dim-preview');
+        if (!g) {
+            g = document.createElementNS(ns, 'g');
+            g.id = 'pdw-dim-preview';
+            pdwSvg.appendChild(g);
+        }
+        g.innerHTML = '';
+        if (!pdwDimStage) return;
+
+        function dot(xp, yp) {
+            const c = document.createElementNS(ns, 'circle');
+            c.setAttribute('cx', xp + '%'); c.setAttribute('cy', yp + '%');
+            c.setAttribute('r', '5'); c.setAttribute('fill', '#0d6efd');
+            c.setAttribute('stroke', 'white'); c.setAttribute('stroke-width', '2');
+            g.appendChild(c);
+        }
+
+        dot(pdwDimStage.x_pct, pdwDimStage.y_pct);
+
+        if (pdwDimStage.x2_pct != null) {
+            const line = document.createElementNS(ns, 'line');
+            line.setAttribute('x1', pdwDimStage.x_pct + '%'); line.setAttribute('y1', pdwDimStage.y_pct + '%');
+            line.setAttribute('x2', pdwDimStage.x2_pct + '%'); line.setAttribute('y2', pdwDimStage.y2_pct + '%');
+            line.setAttribute('stroke', '#0d6efd'); line.setAttribute('stroke-width', '1.5');
+            line.setAttribute('stroke-dasharray', '5 3');
+            g.appendChild(line);
+            dot(pdwDimStage.x2_pct, pdwDimStage.y2_pct);
+        }
+    }
+
+    // ---- add modes ----
+    function pdwSetMode(mode) {
+        pdwMode = mode; pdwDimStage = null;
+        pdwUpdateDimPreview(); // clear preview when mode is reset
+        document.querySelectorAll('.pdw-mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === mode); });
+        pdwCanvas.classList.toggle('add-mode', !!mode);
+        const dim = (mode === 'linear' || mode === 'diameter' || mode === 'radius');
+        document.getElementById('pdwHint').textContent = dim ? 'Click arrow start'
+            : mode === 'label' ? 'Click where to place the label' : '';
+    }
+    document.querySelectorAll('.pdw-mode-btn').forEach(function (b) {
+        b.addEventListener('click', function () { pdwSetMode(pdwMode === b.dataset.mode ? null : b.dataset.mode); });
+    });
+
+    // WO placeholders available for labels
+    const PDW_PLACEHOLDERS = [
+        { value: '{wo_number}',        label: 'WO Number' },
+        { value: '{repair_number}',    label: 'Repair Number' },
+        { value: '{serial_number}',    label: 'Serial Number' },
+        { value: '{component_pn}',     label: 'Component P/N' },
+        { value: '{technician_name}',  label: 'Technician Name' },
+        { value: '{manual_number}',    label: 'Manual Number' },
+        { value: '{manual_lib}',       label: 'Manual Library #' },
+        { value: '{date}',             label: 'Date' },
+        { value: '{qty}',              label: 'Qty (per position)' },
+        { value: '{point}',            label: 'Point Number' },
+    ];
+    let pdwPending = null; // {element_type, coords...} awaiting form fill
+
+    pdwImgCont.addEventListener('click', function (ev) {
+        if (!pdwMode || !pdwPage) return;
+        const r = pdwImg.getBoundingClientRect();
+        const xp = ((ev.clientX - r.left) / r.width * 100).toFixed(2);
+        const yp = ((ev.clientY - r.top) / r.height * 100).toFixed(2);
+
+        if (pdwMode === 'linear' || pdwMode === 'diameter' || pdwMode === 'radius') {
+            // 3 clicks: arrow start → arrow end → value position
+            if (!pdwDimStage) {
+                pdwDimStage = { mask: pdwMode, x_pct: xp, y_pct: yp };
+                pdwUpdateDimPreview(); // show dot at start point
+                document.getElementById('pdwHint').textContent = 'Click arrow end';
+                return;
+            }
+            if (pdwDimStage.x2_pct == null) {
+                pdwDimStage.x2_pct = xp; pdwDimStage.y2_pct = yp;
+                pdwUpdateDimPreview(); // show line start→end
+                document.getElementById('pdwHint').textContent = 'Click where the value goes';
+                return;
+            }
+            pdwPending = {
+                element_type: 'dimension', mask: pdwDimStage.mask,
+                x_pct: pdwDimStage.x_pct, y_pct: pdwDimStage.y_pct,
+                x2_pct: pdwDimStage.x2_pct, y2_pct: pdwDimStage.y2_pct,
+                label_x_pct: xp, label_y_pct: yp,
+            };
+            pdwDimStage = null;
+            pdwUpdateDimPreview(); // clear preview after completing
+            pdwShowElemForm('dimension');
+        } else if (pdwMode === 'label') {
+            pdwPending = { element_type: 'label', x_pct: xp, y_pct: yp };
+            pdwShowLabelPreview(xp, yp); // teal dot while form is open
+            pdwShowElemForm('label');
+        } else if (pdwMode === 'steps') {
+            pdwPending = { element_type: 'steps_table', x_pct: xp, y_pct: yp };
+            pdwShowElemForm('steps');
+        } else if (pdwMode === 'value') {
+            // one-click value mark: dimension without an arrow/leader
+            pdwPending = { element_type: 'dimension', mask: null, x_pct: xp, y_pct: yp };
+            pdwShowElemForm('dimension');
+            document.getElementById('pdw-ef-source').value = 'measurement';
+            pdwSyncDimFields('measurement');
+        }
+        pdwSetMode(null);
+    });
+
+    function pdwMaskPrefix(mask) { return mask === 'diameter' ? 'Ø' : mask === 'radius' ? 'R' : ''; }
+
+    // Parameter option label: "Main Fitting · AA3 · ID 11-10" (part · point · dimension).
+    function pdwParamLabel(p) {
+        const parts = [];
+        if (p.part) parts.push(p.part);
+        if (p.points) parts.push(p.points);
+        parts.push(p.description || ('#' + p.id));
+        return parts.join(' · ');
+    }
+    function pdwParamOptions(selectedId) {
+        return (pdwSourceParams || []).map(function (p) {
+            return `<option value="${p.id}"${String(selectedId) === String(p.id) ? ' selected' : ''}>${escHtml(pdwParamLabel(p))}</option>`;
+        }).join('');
+    }
+
+    // ---- element settings form ----
+    function pdwShowElemForm(type) {
+        const form = document.getElementById('pdw-elem-form');
+        document.getElementById('pdw-ef-dim').classList.toggle('d-none', type !== 'dimension');
+        document.getElementById('pdw-ef-lbl').classList.toggle('d-none', type !== 'label');
+        document.getElementById('pdw-ef-steps').classList.toggle('d-none', type !== 'steps');
+        if (type === 'steps') {
+            document.getElementById('pdw-ef-steps-param').innerHTML = pdwParamOptions();
+        }
+        if (type === 'dimension') {
+            // populate source params
+            const psel = document.getElementById('pdw-ef-param');
+            psel.innerHTML = pdwParamOptions();
+            document.getElementById('pdw-ef-source').value = 'static';
+            document.getElementById('pdw-ef-static').value = '';
+            document.getElementById('pdw-ef-fexpr').value = '';
+            document.getElementById('pdw-ef-ftol-plus').value = '';
+            document.getElementById('pdw-ef-ftol-minus').value = '';
+            pdwSyncDimFields('static');
+        } else {
+            const plsel = document.getElementById('pdw-ef-placeholder');
+            plsel.innerHTML = PDW_PLACEHOLDERS.map(function (p) { return `<option value="${p.value}">${escHtml(p.label)}</option>`; }).join('');
+            document.getElementById('pdw-ef-lblparam').innerHTML = pdwParamOptions();
+            document.getElementById('pdw-ef-lbltype').value = 'text';
+            document.getElementById('pdw-ef-text').value = '';
+            document.getElementById('pdw-ef-text-wrap').classList.remove('d-none');
+            document.getElementById('pdw-ef-token-pick').classList.add('d-none');
+            plsel.classList.add('d-none');
+            document.getElementById('pdw-ef-lblparam').classList.add('d-none');
+        }
+        // default font size per element type (editable afterwards)
+        const isValueMark = type === 'dimension' && !(pdwPending && pdwPending.mask);
+        const defFs = type === 'label' ? 14
+                    : type === 'steps' ? 12
+                    : isValueMark ? 11   // one-click value mark
+                    : 13;                // linear / Ø / R
+        document.getElementById('pdw-ef-fontsize').value = String(defFs);
+        form.classList.remove('d-none');
+    }
+    function pdwShowLabelPreview(xp, yp) {
+        const ns = 'http://www.w3.org/2000/svg';
+        let g = pdwSvg.querySelector('#pdw-label-preview');
+        if (!g) { g = document.createElementNS(ns, 'g'); g.id = 'pdw-label-preview'; pdwSvg.appendChild(g); }
+        g.innerHTML = '';
+        const c = document.createElementNS(ns, 'circle');
+        c.setAttribute('cx', xp + '%'); c.setAttribute('cy', yp + '%');
+        c.setAttribute('r', '5'); c.setAttribute('fill', '#14b8a6');
+        c.setAttribute('stroke', 'white'); c.setAttribute('stroke-width', '2');
+        g.appendChild(c);
+    }
+    function pdwClearLabelPreview() {
+        const g = pdwSvg.querySelector('#pdw-label-preview');
+        if (g) g.innerHTML = '';
+    }
+
+    function pdwHideElemForm() {
+        document.getElementById('pdw-elem-form').classList.add('d-none');
+        document.getElementById('pdw-ef-save').textContent = 'Add';
+        document.getElementById('pdw-ef-delete').classList.add('d-none');
+        pdwPending = null;
+        pdwClearLabelPreview();
+    }
+
+    function pdwOpenEditForm(e) {
+        // Set pending with existing element id so Save uses PATCH
+        pdwPending = Object.assign({}, e);
+
+        if (e.element_type === 'steps_table') {
+            document.getElementById('pdw-ef-steps-param').innerHTML = pdwParamOptions(e.source_parameter_id);
+            document.getElementById('pdw-ef-steps').classList.remove('d-none');
+            document.getElementById('pdw-ef-dim').classList.add('d-none');
+            document.getElementById('pdw-ef-lbl').classList.add('d-none');
+            document.getElementById('pdw-ef-fontsize').value = e.font_size || '';
+            document.getElementById('pdw-ef-save').textContent = 'Save';
+            document.getElementById('pdw-ef-delete').classList.remove('d-none');
+            document.getElementById('pdw-elem-form').classList.remove('d-none');
+            return;
+        }
+        document.getElementById('pdw-ef-steps').classList.add('d-none');
+
+        if (e.element_type === 'dimension') {
+            document.getElementById('pdw-ef-param').innerHTML = pdwParamOptions();
+            const src = e.value_source || 'static';
+            document.getElementById('pdw-ef-source').value = src;
+            document.getElementById('pdw-ef-static').value = e.static_value != null ? e.static_value : '';
+            document.getElementById('pdw-ef-param').value  = e.source_parameter_id || '';
+            document.getElementById('pdw-ef-fexpr').value  = e.formula_expression || '';
+            document.getElementById('pdw-ef-ftol-plus').value  = e.formula_tol_plus  != null ? e.formula_tol_plus  : '';
+            document.getElementById('pdw-ef-ftol-minus').value = e.formula_tol_minus != null ? e.formula_tol_minus : '';
+            pdwSyncDimFields(src);
+            document.getElementById('pdw-ef-dim').classList.remove('d-none');
+            document.getElementById('pdw-ef-lbl').classList.add('d-none');
+        } else {
+            document.getElementById('pdw-ef-placeholder').innerHTML = PDW_PLACEHOLDERS.map(function (p) {
+                return `<option value="${p.value}">${escHtml(p.label)}</option>`;
+            }).join('');
+            document.getElementById('pdw-ef-lblparam').innerHTML = pdwParamOptions();
+            let lbltype = 'text';
+            if (e.placeholder)         { lbltype = 'placeholder'; }
+            else if (e.source_parameter_id) { lbltype = 'parameter'; }
+            document.getElementById('pdw-ef-lbltype').value = lbltype;
+            document.getElementById('pdw-ef-text').value    = e.text || '';
+            document.getElementById('pdw-ef-placeholder').value = e.placeholder || '';
+            document.getElementById('pdw-ef-lblparam').value    = e.source_parameter_id || '';
+            document.getElementById('pdw-ef-text-wrap').classList.toggle('d-none', lbltype !== 'text');
+            document.getElementById('pdw-ef-token-pick').classList.add('d-none');
+            document.getElementById('pdw-ef-placeholder').classList.toggle('d-none', lbltype !== 'placeholder');
+            document.getElementById('pdw-ef-lblparam').classList.toggle('d-none', lbltype !== 'parameter');
+            document.getElementById('pdw-ef-dim').classList.add('d-none');
+            document.getElementById('pdw-ef-lbl').classList.remove('d-none');
+        }
+        document.getElementById('pdw-ef-fontsize').value = e.font_size || '';
+        document.getElementById('pdw-ef-save').textContent   = 'Save';
+        document.getElementById('pdw-ef-delete').classList.remove('d-none');
+        document.getElementById('pdw-elem-form').classList.remove('d-none');
+    }
+    document.getElementById('pdw-ef-source').addEventListener('change', function () {
+        pdwSyncDimFields(this.value);
+    });
+    function pdwSyncDimFields(src) {
+        const needsParam  = src === 'measurement' || src === 'calc';
+        const isFormula   = src === 'formula';
+        const isTorque    = src === 'torque';
+        document.getElementById('pdw-ef-static').classList.toggle('d-none', needsParam || isFormula || isTorque);
+        document.getElementById('pdw-ef-param').classList.toggle('d-none', !needsParam);
+        document.getElementById('pdw-ef-formula').classList.toggle('d-none', !isFormula);
+        if (isFormula) {
+            document.getElementById('pdw-ef-fparam-pick').innerHTML = pdwParamOptions();
+        }
+    }
+    document.getElementById('pdw-ef-lbltype').addEventListener('change', function () {
+        const v = this.value;
+        document.getElementById('pdw-ef-text-wrap').classList.toggle('d-none', v !== 'text');
+        document.getElementById('pdw-ef-placeholder').classList.toggle('d-none', v !== 'placeholder');
+        document.getElementById('pdw-ef-lblparam').classList.toggle('d-none', v !== 'parameter');
+        // hide token picker when switching away from free text
+        if (v !== 'text') {
+            document.getElementById('pdw-ef-token-pick').classList.add('d-none');
+        }
+    });
+
+    // Free-text: "+ token" button inserts {placeholder} at cursor
+    document.getElementById('pdw-ef-tpick').addEventListener('click', function () {
+        const pick = document.getElementById('pdw-ef-token-pick');
+        if (pick.classList.contains('d-none')) {
+            pick.innerHTML = PDW_PLACEHOLDERS.map(function (p) {
+                return '<option value="' + p.value + '">' + escHtml(p.label) + '</option>';
+            }).join('');
+            pick.value = '';
+        }
+        pick.classList.toggle('d-none');
+    });
+    document.getElementById('pdw-ef-token-pick').addEventListener('change', function () {
+        if (!this.value) return;
+        const inp = document.getElementById('pdw-ef-text');
+        const token = this.value; // already in {braces}
+        const start = inp.selectionStart ?? inp.value.length;
+        const end   = inp.selectionEnd   ?? inp.value.length;
+        inp.value = inp.value.slice(0, start) + token + inp.value.slice(end);
+        inp.focus();
+        inp.setSelectionRange(start + token.length, start + token.length);
+        this.value = '';
+        this.classList.add('d-none');
+    });
+    // Delete element from edit form
+    document.getElementById('pdw-ef-delete').addEventListener('click', async function () {
+        if (!pdwPending?.id) return;
+        if (!confirm('Delete this element?')) return;
+        try {
+            await apiFetch('/process-document-elements/' + pdwPending.id, { method: 'DELETE' });
+            pdwPage.elements = pdwPage.elements.filter(function (x) { return x.id !== pdwPending.id; });
+            pdwHideElemForm();
+            pdwRenderElements();
+        } catch (err) { alert(err.message); }
+    });
+
+    // Formula: "+ param" button inserts [p:ID] token at cursor position
+    document.getElementById('pdw-ef-fpick').addEventListener('click', function () {
+        const pick = document.getElementById('pdw-ef-fparam-pick');
+        pick.classList.toggle('d-none');
+    });
+    document.getElementById('pdw-ef-fparam-pick').addEventListener('change', function () {
+        if (!this.value) return;
+        const inp = document.getElementById('pdw-ef-fexpr');
+        const token = '[p:' + this.value + ']';
+        const start = inp.selectionStart ?? inp.value.length;
+        const end   = inp.selectionEnd   ?? inp.value.length;
+        inp.value = inp.value.slice(0, start) + token + inp.value.slice(end);
+        inp.focus();
+        inp.setSelectionRange(start + token.length, start + token.length);
+        this.value = '';
+        this.classList.add('d-none');
+    });
+
+    document.getElementById('pdw-ef-cancel').addEventListener('click', pdwHideElemForm);
+    document.getElementById('pdw-ef-save').addEventListener('click', async function () {
+        if (!pdwPending) return;
+        const body = Object.assign({}, pdwPending);
+        if (pdwPending.element_type === 'steps_table') {
+            body.source_parameter_id = parseInt(document.getElementById('pdw-ef-steps-param').value) || null;
+        } else if (pdwPending.element_type === 'dimension') {
+            const src = document.getElementById('pdw-ef-source').value;
+            body.value_source = src;
+            if (src === 'measurement' || src === 'calc') {
+                body.source_parameter_id = parseInt(document.getElementById('pdw-ef-param').value) || null;
+            } else if (src === 'formula') {
+                body.formula_expression = document.getElementById('pdw-ef-fexpr').value.trim() || null;
+                const tolP = document.getElementById('pdw-ef-ftol-plus').value;
+                const tolM = document.getElementById('pdw-ef-ftol-minus').value;
+                body.formula_tol_plus  = tolP !== '' ? parseFloat(tolP) : null;
+                body.formula_tol_minus = tolM !== '' ? parseFloat(tolM) : null;
+            } else if (src === 'torque') {
+                // free WO-filled value (keyed by element id) — no template value
+                body.static_value = null;
+                body.source_parameter_id = null;
+            } else {
+                const v = document.getElementById('pdw-ef-static').value;
+                body.static_value = v !== '' ? parseFloat(v) : null;
+            }
+        } else {
+            const lt = document.getElementById('pdw-ef-lbltype').value;
+            if (lt === 'placeholder') body.placeholder = document.getElementById('pdw-ef-placeholder').value;
+            else if (lt === 'parameter') {
+                body.source_parameter_id = parseInt(document.getElementById('pdw-ef-lblparam').value) || null;
+                // point/parameter labels get a short leader (anchor → text box)
+                body.label_x_pct = Math.min(parseFloat(body.x_pct) + 8, 100);
+                body.label_y_pct = Math.max(parseFloat(body.y_pct) - 6, 0);
+            }
+            else body.text = document.getElementById('pdw-ef-text').value;
+            // placeholder (WO number, …) and free text are stamped at the click point — no leader.
+        }
+        const fs = parseInt(document.getElementById('pdw-ef-fontsize').value);
+        body.font_size = (fs >= 5 && fs <= 72) ? fs : null;
+        if (pdwPending.id) {
+            await pdwUpdateElement(pdwPending.id, body);
+        } else {
+            await pdwCreateElement(body);
+        }
+        pdwHideElemForm();
+    });
+
+    async function pdwUpdateElement(id, body) {
+        if (!pdwPage) return;
+        try {
+            const saved = await apiFetch('/process-document-elements/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+            const idx = pdwPage.elements.findIndex(function (x) { return x.id === id; });
+            if (idx !== -1) pdwPage.elements[idx] = saved;
+            pdwRenderElements();
+        } catch (err) { alert(err.message); }
+    }
+
+    async function pdwCreateElement(body) {
+        if (!pdwPage) return;
+        try {
+            const saved = await apiFetch('/process-document-pages/' + pdwPage.id + '/elements', { method: 'POST', body: JSON.stringify(body) });
+            if (!pdwPage.elements) pdwPage.elements = [];
+            pdwPage.elements.push(saved);
+            pdwRenderElements();
+        } catch (e) { alert(e.message); }
+    }
+
+    // ---- image upload (to current page) ----
+    document.getElementById('pdwUploadBtn').addEventListener('click', function () { document.getElementById('pdwFileInput').click(); });
+    document.getElementById('pdwFileInput').addEventListener('change', async function () {
+        const file = this.files[0]; if (!file || !pdwPage) return;
+        this.value = '';
+        if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+            await pdwUploadPdf(file);
+            return;
+        }
+        try {
+            await pdwUploadImageBlob(pdwPage, file);
+            pdwShowImage(pdwPage.image_path);
+            pdwUpdateProcessFlag();
+        } catch (e) { alert(e.message); }
+    });
+
+    // Upload one image blob/file to a page; updates the page record + local state
+    async function pdwUploadImageBlob(page, blob, filename) {
+        const fd = new FormData();
+        fd.append('image', blob, filename || (blob.name || 'page.png'));
+        fd.append('_token', CSRF);
+        const res = await fetch('/process-document-pages/' + page.id + '/image', { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || 'Upload failed');
+        await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = async function () {
+                try {
+                    await apiFetch('/process-document-pages/' + page.id, { method: 'PATCH', body: JSON.stringify({ image_path: json.path, image_width: img.naturalWidth, image_height: img.naturalHeight }) });
+                    page.image_path = json.path;
+                    resolve();
+                } catch (err) { reject(err); }
+            };
+            img.onerror = () => reject(new Error('Image load failed'));
+            img.src = json.path;
+        });
+    }
+
+    // PDF upload: render every page client-side (pdf.js) → PNG → document pages.
+    // Page 1 goes to the CURRENT page, the rest auto-create new pages.
+    let pdfjsReady = null;
+    function loadPdfJs() {
+        if (pdfjsReady) return pdfjsReady;
+        pdfjsReady = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = '/assets/pdfjs/pdf.min.js';
+            s.onload = () => {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/pdfjs/pdf.worker.min.js';
+                resolve(window.pdfjsLib);
+            };
+            s.onerror = () => reject(new Error('pdf.js failed to load'));
+            document.head.appendChild(s);
+        });
+        return pdfjsReady;
+    }
+
+    async function pdwUploadPdf(file) {
+        const hint = document.getElementById('pdwHint');
+        try {
+            hint.textContent = 'Reading PDF…';
+            const pdfjs = await loadPdfJs();
+            const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+            const total = pdf.numPages;
+
+            for (let n = 1; n <= total; n++) {
+                hint.textContent = 'PDF page ' + n + ' / ' + total + '…';
+                const pg = await pdf.getPage(n);
+                const viewport = pg.getViewport({ scale: 2 }); // ~150 dpi quality
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width; canvas.height = viewport.height;
+                await pg.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+
+                let target;
+                if (n === 1) target = pdwPage;
+                else {
+                    target = await apiFetch('/process-documents/' + pdwDoc.id + '/pages', { method: 'POST' });
+                    pdwDoc.pages.push(target);
+                }
+                await pdwUploadImageBlob(target, blob, 'pdf-page-' + n + '.png');
+            }
+
+            hint.textContent = 'PDF: ' + total + ' page(s) added ✓';
+            setTimeout(() => { if (hint.textContent.startsWith('PDF:')) hint.textContent = ''; }, 4000);
+            renderPageTabs();
+            selectPage(pdwPage);
+            pdwShowImage(pdwPage.image_path);
+            pdwUpdateProcessFlag();
+        } catch (e) {
+            hint.textContent = '';
+            alert('PDF import failed: ' + e.message);
+        }
+    }
+
+    // ==========================
+    // Init
+    // ==========================
+    renderFiguresList();
+    loadInspComponents();
+    loadParameters();
+    if (figures.length > 0) selectFigure(figures[0]);
+
+});
