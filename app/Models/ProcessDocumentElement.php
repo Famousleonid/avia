@@ -29,7 +29,12 @@ class ProcessDocumentElement extends Model
         'formula_tol_minus',
     ];
 
+    // FK ids as integers — some PDO/PHP setups return them as strings ("25"),
+    // and the Dimensions/Measurements JS matches ids strictly (===).
     protected $casts = [
+        'page_id'             => 'integer',
+        'source_parameter_id' => 'integer',
+        'sort_order'          => 'integer',
         'x_pct'             => 'decimal:2',
         'y_pct'             => 'decimal:2',
         'x2_pct'            => 'decimal:2',

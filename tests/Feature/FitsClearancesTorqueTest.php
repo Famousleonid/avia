@@ -374,6 +374,74 @@ class FitsClearancesTorqueTest extends TestCase
         $this->assertSame($param->id, $meas['manual_parameter_id']);
     }
 
+    public function test_measurements_data_payload_ids_are_integers_everywhere(): void
+    {
+        // Contract: every id/FK in the data() payload is an integer. The grid JS
+        // matches ids strictly (===); a string id anywhere silently unbinds data
+        // (seen on prod: measurements not shown, callouts rendered as "lbl_25",
+        // defect codes duplicated on save).
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        $ic = $this->createInspectionComponent($manual, 'Pin');
+        $component = $this->createComponent($manual, ['ipl_num' => '1-40']);
+        $this->attachComponentToIc($ic, $component);
+
+        $param = $this->createParameter($manual, $ic, [
+            'description' => 'OD', 'orig_dim_min' => 0.99, 'orig_dim_max' => 1.00,
+        ]);
+        $point = $this->createDimensionPoint($manual, 'A1', false, ['child_ic_id' => $ic->id]);
+        $this->attachParamToPoint($param, $point);
+
+        $damage = \App\Models\Code::query()->firstOrCreate(['name' => 'Damage'], ['code' => 'D']);
+        \App\Models\ManualParameterCode::query()->create([
+            'manual_parameter_id' => $param->id,
+            'codes_id'            => $damage->id,
+            'finding_context'     => 'inspection',
+        ]);
+        $rule = \App\Models\ManualParameterRepairRule::query()->create([
+            'manual_parameter_id' => $param->id, 'name' => 'Rechrome', 'sort_order' => 1,
+        ]);
+        \App\Models\ManualParameterRuleTrigger::query()->create([
+            'repair_rule_id' => $rule->id, 'trigger' => 'finding_inspection', 'codes_id' => $damage->id,
+        ]);
+        $this->createMeasurement($wo, $param, [
+            'stage' => 'initial', 'actual_value' => 0.985, 'result' => 'FAIL', 'codes_id' => $damage->id,
+        ]);
+
+        $d = $this->actingAs($this->admin())
+            ->getJson(route('workorders.measurements.data', $wo->id))
+            ->assertOk()
+            ->json();
+
+        // inspection_components
+        $icRow = collect($d['inspection_components'])->firstWhere('id', $ic->id);
+        $this->assertIsInt($icRow['id']);
+        foreach ($icRow['component_ids'] as $cid) $this->assertIsInt($cid);
+
+        // parameters (+ nested codes / rules / triggers / points)
+        $pRow = collect($d['parameters'])->firstWhere('id', $param->id);
+        $this->assertIsInt($pRow['id']);
+        $this->assertIsInt($pRow['inspection_component_id']);
+        $this->assertIsInt($pRow['codes'][0]['id']);
+        $this->assertIsInt($pRow['repair_rules'][0]['id']);
+        $this->assertIsInt($pRow['repair_rules'][0]['triggers'][0]['codes_id']);
+        $this->assertIsInt($pRow['points'][0]['id']);
+        $this->assertIsInt($pRow['points'][0]['pivot_id']);
+
+        // figures (+ points, child_ic_id)
+        $fig = collect($d['figures'])->first(fn ($f) => collect($f['points'])->contains('id', $point->id));
+        $this->assertIsInt($fig['id']);
+        $ptRow = collect($fig['points'])->firstWhere('id', $point->id);
+        $this->assertIsInt($ptRow['id']);
+        $this->assertIsInt($ptRow['child_ic_id']);
+
+        // measurements
+        $mRow = $d['measurements'][0];
+        $this->assertIsInt($mRow['manual_parameter_id']);
+        $this->assertIsInt($mRow['codes_id']);
+    }
+
     public function test_measurements_fc_table_numbers_members_when_refs_differ(): void
     {
         $manual = $this->createManual();

@@ -135,7 +135,7 @@ class WoMeasurementController extends Controller
                 ])->values(),
                 'points'              => $p->points->map(fn($pt) => [
                     'id'       => $pt->id,
-                    'pivot_id' => $pt->pivot->id,
+                    'pivot_id' => (int) $pt->pivot->id, // pivot id has no model cast
                 ])->values(),
                 'repair_surface_side' => $p->repair_surface_side,
                 'max_repair_depth_a'  => $p->max_repair_depth_a,

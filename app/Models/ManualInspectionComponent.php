@@ -15,6 +15,13 @@ class ManualInspectionComponent extends Model
         'sort_order',
     ];
 
+    // FK ids as integers — some PDO/PHP setups return them as strings ("25"),
+    // and the Dimensions/Measurements JS matches ids strictly (===).
+    protected $casts = [
+        'manual_id'  => 'integer',
+        'sort_order' => 'integer',
+    ];
+
     public function manual(): BelongsTo
     {
         return $this->belongsTo(Manual::class);

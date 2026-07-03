@@ -17,6 +17,14 @@ class MasterRulePhaseRuleProcess extends Model
         'sort_order',
     ];
 
+    // FK ids as integers — some PDO/PHP setups return them as strings ("25"),
+    // and the Dimensions/Measurements JS matches ids strictly (===).
+    protected $casts = [
+        'phase_rule_id'     => 'integer',
+        'manual_process_id' => 'integer',
+        'sort_order'        => 'integer',
+    ];
+
     public function phaseRule(): BelongsTo
     {
         return $this->belongsTo(MasterRulePhaseRule::class, 'phase_rule_id');

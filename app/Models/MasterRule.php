@@ -14,6 +14,13 @@ class MasterRule extends Model
         'name',
     ];
 
+    // FK ids as integers — some PDO/PHP setups return them as strings ("25"),
+    // and the Dimensions/Measurements JS matches ids strictly (===).
+    protected $casts = [
+        'manual_id'               => 'integer',
+        'inspection_component_id' => 'integer',
+    ];
+
     public function manual(): BelongsTo
     {
         return $this->belongsTo(Manual::class);

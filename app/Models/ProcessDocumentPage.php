@@ -18,6 +18,17 @@ class ProcessDocumentPage extends Model
         'sort_order',
     ];
 
+    // FK ids as integers — some PDO/PHP setups return them as strings ("25"),
+    // and the Dimensions/Measurements JS matches ids strictly (===).
+    protected $casts = [
+        'document_id'  => 'integer',
+        'parameter_id' => 'integer',
+        'page_no'      => 'integer',
+        'image_width'  => 'integer',
+        'image_height' => 'integer',
+        'sort_order'   => 'integer',
+    ];
+
     public function document(): BelongsTo
     {
         return $this->belongsTo(ProcessDocument::class, 'document_id');

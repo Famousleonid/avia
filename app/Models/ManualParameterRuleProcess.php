@@ -19,7 +19,12 @@ class ManualParameterRuleProcess extends Model
         'sort_order',
     ];
 
+    // FK ids as integers — some PDO/PHP setups return them as strings ("25"),
+    // and the Dimensions/Measurements JS matches ids strictly (===).
     protected $casts = [
+        'repair_rule_id'    => 'integer',
+        'manual_process_id' => 'integer',
+        'sort_order'        => 'integer',
         'is_gate' => 'boolean',
     ];
 

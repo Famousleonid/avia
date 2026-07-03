@@ -15,6 +15,13 @@ class ManualParameterRuleTrigger extends Model
         'codes_id',
     ];
 
+    // FK ids as integers — some PDO/PHP setups return them as strings ("25"),
+    // and the Dimensions/Measurements JS matches ids strictly (===).
+    protected $casts = [
+        'repair_rule_id' => 'integer',
+        'codes_id'       => 'integer',
+    ];
+
     public function rule(): BelongsTo
     {
         return $this->belongsTo(ManualParameterRepairRule::class, 'repair_rule_id');
