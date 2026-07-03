@@ -60,7 +60,14 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            ]) + [
+                // Native prepared statements: integer/decimal columns come back
+                // typed (int/float), not as strings. Kills the whole class of
+                // "FK id is a string on prod → strict === in JS fails" bugs
+                // (measurements not shown, lbl_25 callouts). NB: added outside
+                // array_filter — false is falsy and would be dropped by it.
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ] : [],
         ],
 
         'pgsql' => [
