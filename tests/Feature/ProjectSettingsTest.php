@@ -22,15 +22,20 @@ class ProjectSettingsTest extends TestCase
             ->get(route('admin.project-settings.index'))
             ->assertOk()
             ->assertSee('Project Settings')
-            ->assertSee('QR code mark');
+            ->assertSee('QR code mark')
+            ->assertSee('WO Estimate Date email recipients');
 
         $this->actingAs($admin)
             ->post(route('admin.project-settings.update'), [
                 'print_forms_qr_enabled' => '0',
+                'marketing_wo_estimate_email_recipients' => "sales@example.test\nManager@Example.Test",
+                'marketing_wo_estimate_email_delay_days' => '3',
             ])
             ->assertRedirect(route('admin.project-settings.index'));
 
         $this->assertFalse(ProjectSetting::boolean(ProjectSetting::PRINT_FORMS_QR_ENABLED, true));
+        $this->assertSame(['sales@example.test', 'manager@example.test'], ProjectSetting::marketingWoEstimateEmailRecipients());
+        $this->assertSame(3, ProjectSetting::marketingWoEstimateEmailDelayDays());
     }
 
     public function test_admin_role_without_is_admin_cannot_open_project_settings(): void

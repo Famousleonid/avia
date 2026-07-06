@@ -75,9 +75,17 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
 .header-page { font-size: var(--process-header-data-font-size, 16px); }
 .header-page .component-name-value { font-size: var(--component-name-font-size, 16px) !important; }
 .header-page .component-name-value[data-long="1"] { line-height: 1.1; letter-spacing: -0.3px; }
+.process-sheet-title-row {
+    min-width: 0;
+}
+.process-sheet-title-row--machining {
+    padding-right: var(--process-header-qr-clearance, calc(var(--print-mark-qr-size, 40px) + 8mm));
+}
 .machining-sheet-header-meta {
     position: relative;
     top: -8px;
+    line-height: 1.1;
+    min-width: 0;
 }
 .process-ro-line {
     display: flex;

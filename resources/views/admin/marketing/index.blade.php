@@ -645,6 +645,38 @@
             box-sizing: border-box;
         }
 
+        .marketing-page input::placeholder,
+        .marketing-page textarea::placeholder,
+        .marketing-page .form-control::placeholder,
+        .marketing-page .form-control-sm::placeholder {
+            color: rgba(108, 117, 125, .52);
+            opacity: 1;
+        }
+
+        html[data-bs-theme="dark"] .marketing-page input::placeholder,
+        html[data-bs-theme="dark"] .marketing-page textarea::placeholder,
+        html[data-bs-theme="dark"] .marketing-page .form-control::placeholder,
+        html[data-bs-theme="dark"] .marketing-page .form-control-sm::placeholder {
+            color: rgba(222, 226, 230, .38);
+            opacity: 1;
+        }
+
+        .marketing-page .select2-container--default .select2-selection--single .select2-selection__placeholder {
+            color: rgba(108, 117, 125, .58);
+        }
+
+        html[data-bs-theme="dark"] .marketing-page .select2-container--default .select2-selection--single .select2-selection__placeholder {
+            color: rgba(222, 226, 230, .42);
+        }
+
+        #marketingWorkorderSalesModal .form-control.is-marketing-empty-date {
+            color: rgba(108, 117, 125, .62);
+        }
+
+        html[data-bs-theme="dark"] #marketingWorkorderSalesModal .form-control.is-marketing-empty-date {
+            color: rgba(222, 226, 230, .46);
+        }
+
         .marketing-field .marketing-country-select + .select2,
         .marketing-field .marketing-aircraft-select + .select2 {
             width: 100% !important;
@@ -1982,8 +2014,20 @@
                 <div class="modal-body">
                     <div class="marketing-form-grid">
                         <div class="marketing-field">
+                            <label>Terms</label>
+                            <input name="wo_terms" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off">
+                        </div>
+                        <div class="marketing-field">
+                            <label>WO Estimate</label>
+                            <input name="wo_estimate_amount" class="form-control form-control-sm" type="text" maxlength="60" placeholder="$0.00" inputmode="decimal" autocomplete="off">
+                        </div>
+                        <div class="marketing-field">
+                            <label>WO Estimate Date</label>
+                            <input name="estimate_date" class="form-control form-control-sm" type="date" autocomplete="off">
+                        </div>
+                        <div class="marketing-field">
                             <label>Invoice</label>
-                            <input name="sales_invoice_amount" class="form-control form-control-sm" type="text" maxlength="60" placeholder="$15,453" inputmode="decimal" autocomplete="off">
+                            <input name="sales_invoice_amount" class="form-control form-control-sm" type="text" maxlength="60" placeholder="$0.00" inputmode="decimal" autocomplete="off">
                         </div>
                         <div class="marketing-field">
                             <label>Invoice Date</label>
@@ -2092,6 +2136,9 @@
             const salesReportPrint = document.getElementById('marketingSalesReportPrint');
             const workorderSalesModalEl = document.getElementById('marketingWorkorderSalesModal');
             const workorderSalesForm = document.getElementById('marketingWorkorderSalesForm');
+            const workorderSalesDateInputs = workorderSalesForm
+                ? Array.from(workorderSalesForm.querySelectorAll('input[type="date"]'))
+                : [];
             const workorderSalesTitle = document.getElementById('marketingWorkorderSalesTitle');
             const mediaModalEl = document.getElementById('marketingMediaModal');
             const mediaTitle = document.getElementById('marketingMediaTitle');
@@ -3134,7 +3181,7 @@
   <td>${escapeHtml(wo.serial_number || '-')}</td>
   <td>${escapeHtml(wo.task || '-')}</td>
   <td>${escapeHtml(wo.terms || '-')}</td>
-  <td>${wo.estimate_amount ? escapeHtml(wo.estimate_amount) : '-'}</td>
+  <td>${escapeHtml(wo.estimate_amount?.display || '-')}</td>
   <td>${escapeHtml(wo.estimate_date?.display || '-')}</td>
   <td>${escapeHtml(wo.approval_date?.display || '-')}</td>
   <td>${escapeHtml(wo.sales_invoice_amount?.display || '-')}</td>
@@ -3165,6 +3212,12 @@
                 workordersRows.insertAdjacentHTML('beforeend', html);
             }
 
+            function syncWorkorderSalesDatePlaceholderState() {
+                workorderSalesDateInputs.forEach((input) => {
+                    input.classList.toggle('is-marketing-empty-date', !input.value);
+                });
+            }
+
             function openWorkorderSalesModal(id) {
                 const wo = state.workordersById.get(Number(id));
                 if (!wo || !workorderSalesForm || !workorderSalesModalEl) return;
@@ -3172,10 +3225,14 @@
                 state.editingWorkorderId = Number(id);
                 workorderSalesTitle.textContent = `Edit ${wo.number_label || 'WO'}`;
                 workorderSalesForm.reset();
+                workorderSalesForm.elements.wo_terms.value = wo.terms || '';
+                workorderSalesForm.elements.wo_estimate_amount.value = wo.estimate_amount?.value || '';
+                workorderSalesForm.elements.estimate_date.value = wo.estimate_date?.iso || '';
                 workorderSalesForm.elements.sales_invoice_amount.value = wo.sales_invoice_amount?.value || '';
                 workorderSalesForm.elements.sales_invoice_date.value = wo.sales_invoice_date?.iso || '';
                 workorderSalesForm.elements.shipping_shipment_at.value = wo.shipping_shipment_at?.iso || '';
                 workorderSalesForm.elements.shipping_awb_no.value = wo.shipping_awb_no || '';
+                syncWorkorderSalesDatePlaceholderState();
                 bootstrap.Modal.getOrCreateInstance(workorderSalesModalEl).show();
             }
 
@@ -3733,6 +3790,7 @@
 
             workorderSalesModalEl?.addEventListener('shown.bs.modal', (event) => {
                 disableAutocomplete(event.currentTarget);
+                syncWorkorderSalesDatePlaceholderState();
                 workorderSalesForm?.elements?.sales_invoice_amount?.focus();
             });
 
@@ -3747,6 +3805,8 @@
             noteForm.addEventListener('submit', addNote);
             createForm.addEventListener('submit', addCompany);
             workorderSalesForm?.addEventListener('submit', saveWorkorderSalesFields);
+            workorderSalesForm?.addEventListener('input', syncWorkorderSalesDatePlaceholderState);
+            workorderSalesForm?.addEventListener('change', syncWorkorderSalesDatePlaceholderState);
 
             contactsList.addEventListener('input', handleDirtyFieldChange);
             contactsList.addEventListener('change', handleDirtyFieldChange);

@@ -10,12 +10,17 @@ use App\Models\GeneralTask;
 use App\Models\Main;
 use App\Models\MarketingCompanyType;
 use App\Models\MarketingSegment;
+use App\Models\MarketingWoEstimateNotification;
+use App\Models\ProjectSetting;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\UserFeatureAccess;
+use App\Mail\MarketingWoEstimateDateMail;
 use App\Services\SalesReportQuantumInvoiceProvider;
 use App\Notifications\NewMessageNotification;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
 use Tests\BuildsDomainData;
@@ -114,6 +119,11 @@ class MarketingTest extends TestCase
             ->assertSee('id="marketingShell"', false)
             ->assertSee('id="marketingSplitter"', false)
             ->assertSee('placeholder="Company, contact, country, city, A/C"', false)
+            ->assertSee('placeholder="$0.00"', false)
+            ->assertSee('.marketing-page input::placeholder', false)
+            ->assertSee('.select2-selection__placeholder', false)
+            ->assertSee('is-marketing-empty-date', false)
+            ->assertSee('syncWorkorderSalesDatePlaceholderState', false)
             ->assertSee('id="marketingCountry"', false)
             ->assertSee('id="detailCountryId"', false)
             ->assertSee('id="detailCity"', false)
@@ -325,6 +335,9 @@ class MarketingTest extends TestCase
             'serial_number' => 'SER-FILTER-001',
             'description' => 'Fallback description',
             'open_at' => '2026-05-01 08:00:00',
+            'wo_terms' => 'NET 60',
+            'wo_estimate_amount' => '12345.00',
+            'wo_estimate_date' => '2026-05-01',
             'approve_at' => '2026-05-10 08:00:00',
         ]);
 
@@ -415,6 +428,25 @@ class MarketingTest extends TestCase
 
         $this->actingAs($admin)->getJson(route('marketing.customers.workorders', [
             'customer' => $customer,
+            'wo_terms' => 'NET 60',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('items.0.id', $matching->id)
+            ->assertJsonPath('items.0.terms', 'NET 60')
+            ->assertJsonCount(1, 'items');
+
+        $this->actingAs($admin)->getJson(route('marketing.customers.workorders', [
+            'customer' => $customer,
+            'wo_estimate' => '12345',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('items.0.id', $matching->id)
+            ->assertJsonPath('items.0.estimate_amount.value', '12345.00')
+            ->assertJsonPath('items.0.estimate_amount.display', '$12,345')
+            ->assertJsonCount(1, 'items');
+
+        $this->actingAs($admin)->getJson(route('marketing.customers.workorders', [
+            'customer' => $customer,
             'wo_estimate_date' => '01/May/2026',
         ]))
             ->assertOk()
@@ -444,15 +476,23 @@ class MarketingTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)->patchJson(route('marketing.workorders.sales-fields.update', $workorder), [
+            'wo_terms' => 'NET 30',
+            'wo_estimate_amount' => '$12,345',
             'sales_invoice_amount' => '$15,453',
             'sales_invoice_date' => '29/jun/2026',
             'shipping_shipment_at' => '01/jul/2026',
             'shipping_awb_no' => '1565df16565',
+            'estimate_date' => '30/jun/2026',
         ]);
 
         $response->assertOk()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('workorder.id', $workorder->id)
+            ->assertJsonPath('workorder.terms', 'NET 30')
+            ->assertJsonPath('workorder.estimate_amount.value', '12345.00')
+            ->assertJsonPath('workorder.estimate_amount.display', '$12,345')
+            ->assertJsonPath('workorder.estimate_date.iso', '2026-06-30')
+            ->assertJsonPath('workorder.estimate_date.display', '30/Jun/2026')
             ->assertJsonPath('workorder.sales_invoice_amount.value', '15453.00')
             ->assertJsonPath('workorder.sales_invoice_amount.display', '$15,453')
             ->assertJsonPath('workorder.sales_invoice_date.iso', '2026-06-29')
@@ -463,11 +503,99 @@ class MarketingTest extends TestCase
 
         $this->assertDatabaseHas('workorders', [
             'id' => $workorder->id,
+            'wo_terms' => 'NET 30',
+            'wo_estimate_amount' => '12345.00',
+            'wo_estimate_date' => '2026-06-30',
             'sales_invoice_amount' => '15453.00',
             'sales_invoice_date' => '2026-06-29',
             'shipping_shipment_at' => '2026-07-01',
             'shipping_awb_no' => '1565df16565',
         ]);
+    }
+
+    public function test_marketing_estimate_date_update_queues_email_when_date_appears(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-06-30 08:15:00'));
+
+        try {
+            $admin = $this->createUserWithRole('Admin');
+            $this->grantMarketingAccess($admin);
+
+            ProjectSetting::setMarketingWoEstimateEmailSettings(['sales@example.test'], 3);
+
+            $customer = $this->createCustomer(['name' => 'Estimate Alert Customer']);
+            $workorder = $this->createWorkorder([
+                'customer_id' => $customer->id,
+                'number' => 107778,
+                'open_at' => '2026-06-15',
+                'wo_estimate_date' => null,
+            ]);
+
+            $response = $this->actingAs($admin)->patchJson(route('marketing.workorders.sales-fields.update', $workorder), [
+                'estimate_date' => '02/jul/2026',
+            ]);
+
+            $response->assertOk()
+                ->assertJsonPath('workorder.estimate_date.iso', '2026-07-02')
+                ->assertJsonPath('workorder.estimate_date.display', '02/Jul/2026');
+
+            $this->assertDatabaseHas('marketing_wo_estimate_notifications', [
+                'workorder_id' => $workorder->id,
+                'customer_id' => $customer->id,
+                'estimate_date' => '2026-07-02',
+                'due_at' => '2026-07-03 08:15:00',
+                'sent_at' => null,
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_marketing_wo_estimate_date_email_command_sends_due_mail(): void
+    {
+        Mail::fake();
+        Carbon::setTestNow(Carbon::parse('2026-06-30 07:20:00'));
+
+        try {
+            ProjectSetting::setMarketingWoEstimateEmailSettings([
+                'sales@example.test',
+                'manager@example.test',
+            ], 0);
+
+            $customer = $this->createCustomer(['name' => 'Email Alert Customer']);
+            $workorder = $this->createWorkorder([
+                'customer_id' => $customer->id,
+                'number' => 107779,
+                'open_at' => '2026-06-30',
+                'wo_terms' => 'NET 15',
+                'wo_estimate_amount' => '4200.00',
+                'wo_estimate_date' => '2026-06-30',
+                'customer_po' => 'RO-107779',
+            ]);
+
+            $notification = MarketingWoEstimateNotification::query()->create([
+                'workorder_id' => $workorder->id,
+                'customer_id' => $customer->id,
+                'estimate_date' => '2026-06-30',
+                'triggered_at' => now()->subHour(),
+                'due_at' => now()->subMinute(),
+            ]);
+
+            $this->artisan('marketing:send-wo-estimate-date-emails')->assertExitCode(0);
+
+            Mail::assertSent(MarketingWoEstimateDateMail::class, function (MarketingWoEstimateDateMail $mail) use ($notification) {
+                return $mail->notification->is($notification) && $mail->hasTo('sales@example.test');
+            });
+            Mail::assertSent(MarketingWoEstimateDateMail::class, function (MarketingWoEstimateDateMail $mail) use ($notification) {
+                return $mail->notification->is($notification) && $mail->hasTo('manager@example.test');
+            });
+
+            $notification->refresh();
+            $this->assertNotNull($notification->sent_at);
+            $this->assertSame(['sales@example.test', 'manager@example.test'], $notification->recipients);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_marketing_customer_sales_report_endpoint_returns_selected_customer_workorders(): void

@@ -469,10 +469,10 @@ class TdrController extends Controller
                 });
         }
 
-        $components = $this->filterComponentsForUnit(
+        $components = $this->sortComponentsForIplSelection($this->filterComponentsForUnit(
             $componentsQuery->get(),
             $current_wo
-        );
+        ));
 
         // Условия для Component - без фильтрации
         $component_conditions = Condition::where('unit', false)->get();
@@ -526,6 +526,8 @@ class TdrController extends Controller
                 $components = $this->filterComponentsForUnit($components, $workorder);
             }
         }
+
+        $components = $this->sortComponentsForIplSelection($components);
 
         return response()->json(['components' => $components]);
     }
@@ -1251,13 +1253,13 @@ class TdrController extends Controller
         $manuals = Manual::all();  // или можно отфильтровать только тот, который связан с unit
 
         // Извлекаем компоненты, которые связаны с этим manual_id
-        $components = $this->filterComponentsForUnit(
+        $components = $this->sortComponentsForIplSelection($this->filterComponentsForUnit(
             Component::where('manual_id', $manual_id)
                 ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
                 ->select('id', 'manual_id', 'part_number', 'assy_part_number', 'name', 'ipl_num', 'assy_ipl_num', 'units_assy', 'eff_code', 'kit', 'np', 'kit_e')
                 ->get(),
             $current_wo
-        );
+        ));
 
         // Ограничиваем процессы только текущим Workorder: берём id связанных TDR
         $tdrIds = Tdr::where('workorder_id', $current_wo->id)
@@ -1390,12 +1392,12 @@ class TdrController extends Controller
         }
 
         // Получаем связанные данные
-        $components = $this->filterComponentsForUnit(
+        $components = $this->sortComponentsForIplSelection($this->filterComponentsForUnit(
             Component::where('manual_id', $manual_id)
                 ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
                 ->get(),
             $current_wo
-        );
+        ));
         $manualProcesses = ManualProcess::where('manual_id', $manual_id)
             ->pluck('processes_id');
 
@@ -1697,12 +1699,12 @@ class TdrController extends Controller
         $showDestructionCert = LogCardDestructionCertificate::availableFor($current_wo);
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
         $hasBushings = Component::where('manual_id', $manual_id)->where('is_bush', 1)->exists();
-        $components = $this->filterComponentsForUnit(
+        $components = $this->sortComponentsForIplSelection($this->filterComponentsForUnit(
             Component::where('manual_id', $manual_id)
                 ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
                 ->get(),
             $current_wo
-        );
+        ));
         $bushingPrlCount = $woBushing ? $woBushing->lines()->whereHas('component')->count() : 0;
         $kitComponents = $components->filter(fn ($component): bool => ! (bool) ($component->is_bush ?? false));
         $kitPrlCount = $this->countKitPrlGroups($kitComponents->where('kit', true));
@@ -1939,17 +1941,7 @@ class TdrController extends Controller
                 $components->push($current_tdr->component);
             }
 
-            $components = $components
-                ->sort(function (Component $left, Component $right): int {
-                    $iplCompare = StdProcess::compareIplValues((string) $left->ipl_num, (string) $right->ipl_num);
-
-                    if ($iplCompare !== 0) {
-                        return $iplCompare;
-                    }
-
-                    return strnatcasecmp((string) $left->part_number, (string) $right->part_number);
-                })
-                ->values();
+            $components = $this->sortComponentsForIplSelection($components);
         }
 
         return view('admin.tdrs.partials.component-inspection-edit-form', compact(
@@ -1977,6 +1969,7 @@ class TdrController extends Controller
 
         // Валидация входных данных
         $rules = [
+            'serial_number' => 'nullable|string',
             'assy_serial_number' => 'nullable|string',
             'codes_id' => 'nullable|exists:codes,id',
             'necessaries_id' => 'nullable|exists:necessaries,id',
@@ -1986,13 +1979,12 @@ class TdrController extends Controller
 
         if ($canReplaceTdrComponent) {
             $rules['component_id'] = 'nullable|exists:components,id';
-            $rules['serial_number'] = 'nullable|string';
         }
 
         $validated = $request->validate($rules);
 
         if (! $canReplaceTdrComponent) {
-            unset($validated['component_id'], $validated['serial_number']);
+            unset($validated['component_id']);
         }
 
         // Проверяем, если выбран необходимый пункт "Order New"
@@ -2321,6 +2313,27 @@ class TdrController extends Controller
                     $this->displayPartNumberForTdrModalRow($left),
                     $this->displayPartNumberForTdrModalRow($right)
                 );
+
+                if ($partCompare !== 0) {
+                    return $partCompare;
+                }
+
+                return ((int) $left->id) <=> ((int) $right->id);
+            })
+            ->values();
+    }
+
+    private function sortComponentsForIplSelection($components)
+    {
+        return $components
+            ->sort(function (Component $left, Component $right): int {
+                $iplCompare = StdProcess::compareIplValues((string) $left->ipl_num, (string) $right->ipl_num);
+
+                if ($iplCompare !== 0) {
+                    return $iplCompare;
+                }
+
+                $partCompare = strnatcasecmp((string) $left->part_number, (string) $right->part_number);
 
                 if ($partCompare !== 0) {
                     return $partCompare;

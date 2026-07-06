@@ -302,6 +302,8 @@ class QualityAssuranceTest extends TestCase
         $response->assertDontSee('28/oct/2025');
         $response->assertSee('arc-date-hint');
         $response->assertSee('Date (dd/mmm/yyyy)');
+        $response->assertSee('--arc-print-installer-bottom-clearance: 2mm;', false);
+        $response->assertSee('--arc-print-sheet-height: calc(7.74in + var(--arc-print-installer-bottom-clearance));', false);
         $response->assertSee('Lower Stay Assy');
         $response->assertDontSee('190-70260-407');
         $response->assertSee('190-70262-007');
@@ -316,6 +318,11 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('Rev #');
         $response->assertSee(' dated ');
         $response->assertSee('For the replacement parts refer to Teardown Report.');
+        $response->assertSee('Replacement parts: None.');
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*data-certificate-replacement-parts-option)(?=[^>]*value="tdr")(?=[^>]*checked)[^>]*>/s',
+            $response->getContent()
+        );
         $response->assertSee('data-certificate-overhauled-on-remark', false);
         $response->assertSee('data-certificate-overhauled-on-date', false);
         $response->assertSee('data-setting-key="include_overhauled_on"', false);
@@ -385,8 +392,32 @@ class QualityAssuranceTest extends TestCase
             ->get(route('quality.forms.certificate', $workorder));
 
         $response->assertOk();
-        $response->assertSee('Replacements parts: None.');
-        $response->assertDontSee('For the replacement parts refer to Teardown Report.');
+        $response->assertSee('Replacement parts: None.');
+        $response->assertSee('For the replacement parts refer to Teardown Report.');
+        $response->assertSee('data-certificate-replacement-parts-remark', false);
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*data-certificate-replacement-parts-option)(?=[^>]*value="none")(?=[^>]*checked)[^>]*>/s',
+            $response->getContent()
+        );
+
+        $workorder->forceFill([
+            'certificate_data' => [
+                'item_settings' => [
+                    'main' => [
+                        'certificate_replacement_parts_remark' => 'tdr',
+                    ],
+                ],
+            ],
+        ])->save();
+
+        $savedResponse = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $savedResponse->assertOk();
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*data-certificate-replacement-parts-option)(?=[^>]*value="tdr")(?=[^>]*checked)[^>]*>/s',
+            $savedResponse->getContent()
+        );
     }
 
     public function test_certificate_can_use_selected_log_card_detail_item(): void
@@ -526,7 +557,7 @@ class QualityAssuranceTest extends TestCase
             $response->getContent()
         );
         $this->assertMatchesRegularExpression(
-            '/<span[^>]*data-certificate-life-remark[^>]*>\s*N\/A\s*<\/span>/s',
+            '/<span[^>]*data-certificate-life-remark[^>]*>\s*CSN:\s*N\/A\s*<\/span>/s',
             $response->getContent()
         );
         $this->assertMatchesRegularExpression(
@@ -794,6 +825,90 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('Tested/Inspected in accordance with CMM # 32-21-06', false);
     }
 
+    public function test_certificate_status_remark_prints_base_cmm_number_without_manual_variant_suffix(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $testInspectInstruction = $this->createInstruction(['name' => 'Test & inspect']);
+        $this->createInstruction(['name' => 'Repair']);
+        $this->createOverhaulInstruction();
+        $manual = $this->createManual([
+            'number' => '32-31-05 02',
+            'revision_date' => '2025-02-28',
+        ]);
+        ManualRevisionCheck::query()->create([
+            'manual_id' => $manual->id,
+            'revision_number' => '9',
+            'revision_date' => '2025-02-28',
+            'checked_at' => '2025-02-28',
+            'status' => ManualRevisionCheck::STATUS_UNCHANGED,
+        ]);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'instruction_id' => $testInspectInstruction->id,
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('Tested/Inspected in accordance with CMM # 32-31-05', false);
+        $response->assertSee('data-certificate-cmm-extra-text', false);
+        $response->assertSee('>, Rev # </span>', false);
+        $response->assertSee('>9</span>', false);
+        $response->assertSee('>28/Feb/2025</span>', false);
+        $response->assertDontSee('CMM # 32-31-05 02', false);
+    }
+
+    public function test_certificate_status_remark_has_saved_optional_cmm_extra_text(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $testInspectInstruction = $this->createInstruction(['name' => 'Test & inspect']);
+        $this->createInstruction(['name' => 'Repair']);
+        $this->createOverhaulInstruction();
+        $manual = $this->createManual([
+            'number' => '32-31-02',
+            'revision_date' => '2025-09-15',
+        ]);
+        ManualRevisionCheck::query()->create([
+            'manual_id' => $manual->id,
+            'revision_number' => '11',
+            'revision_date' => '2025-09-15',
+            'checked_at' => '2025-09-15',
+            'status' => ManualRevisionCheck::STATUS_UNCHANGED,
+        ]);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'instruction_id' => $testInspectInstruction->id,
+        ]);
+        $workorder->forceFill([
+            'certificate_data' => [
+                'item_settings' => [
+                    'main' => [
+                        'certificate_cmm_extra_text' => 'Supplement A',
+                    ],
+                ],
+            ],
+        ])->save();
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $response->assertSee('Tested/Inspected in accordance with CMM # 32-31-02', false);
+        $response->assertSee('data-certificate-cmm-extra-text', false);
+        $response->assertSee('value="Supplement A"', false);
+        $response->assertSee('data-raw-value="Supplement A"', false);
+        $response->assertSee('>, Supplement A</span>', false);
+        $response->assertSee('>11</span>', false);
+        $response->assertSee('>15/Sep/2025</span>', false);
+    }
+
     public function test_certificate_manager_name_switch_is_limited_to_certificate_signers(): void
     {
         $manager = $this->createUserWithRole('Manager', [
@@ -839,9 +954,9 @@ class QualityAssuranceTest extends TestCase
         $managerResponse->assertSee('data-certificate-date-picker', false);
         $managerResponse->assertSee('value="03/Nov/2025"', false);
         $managerResponse->assertSee('value="2025-11-03"', false);
-        $managerResponse->assertSee('Replacements parts: None.');
+        $managerResponse->assertSee('Replacement parts: None.');
         $managerResponse->assertSee('Landing Gear Log Card attached');
-        $managerResponse->assertSee('N/A');
+        $managerResponse->assertSee('CSN: N/A');
         $managerResponse->assertSee('data-setting-key="include_landing_gear_log_card"', false);
         $managerResponse->assertSee('is-print-disabled');
         $managerResponse->assertSee('Serviced with ROYCO LGF (Yellow)');
@@ -911,6 +1026,30 @@ class QualityAssuranceTest extends TestCase
         $certificateData = $workorder->fresh()->certificate_data;
         $this->assertTrue($certificateData['item_settings']['log:0']['include_royco_service']);
         $this->assertArrayNotHasKey('include_royco_service', $certificateData);
+
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_replacement_parts_remark',
+                'value' => 'none',
+                'item_source' => 'main',
+            ])
+            ->assertOk();
+
+        $certificateData = $workorder->fresh()->certificate_data;
+        $this->assertSame('none', $certificateData['item_settings']['main']['certificate_replacement_parts_remark']);
+        $this->assertArrayNotHasKey('certificate_replacement_parts_remark', $certificateData);
+
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_cmm_extra_text',
+                'value' => 'Supplement A',
+                'item_source' => 'main',
+            ])
+            ->assertOk();
+
+        $certificateData = $workorder->fresh()->certificate_data;
+        $this->assertSame('Supplement A', $certificateData['item_settings']['main']['certificate_cmm_extra_text']);
+        $this->assertArrayNotHasKey('certificate_cmm_extra_text', $certificateData);
 
         $signer = $this->createUserWithRole('Manager', [
             'can_sign_certificates' => true,

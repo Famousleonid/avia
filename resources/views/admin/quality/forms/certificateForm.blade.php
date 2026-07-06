@@ -25,6 +25,16 @@
     $status = $formatStatusWork($selectedStatusWork);
     $manualRevisionDateSource = $latestRevisionCheck?->revision_date ?? $manual?->revision_date;
     $manualRevisionNumber = trim((string) ($latestRevisionCheck?->revision_number ?? ''));
+    $formatCertificateManualNumber = static function ($number): string {
+        $number = trim((string) $number);
+
+        if (preg_match('/^(\d{2}-\d{2}-\d{2})\s+\d{2}$/', $number, $matches)) {
+            return $matches[1];
+        }
+
+        return $number;
+    };
+    $certificateManualNumber = $formatCertificateManualNumber($manual?->number ?? '');
     $formatCertificateDate = static function ($date): string {
         $formatted = format_project_date($date);
         if (! $formatted) {
@@ -152,7 +162,8 @@
 
         return $lifeRemark !== '' ? $lifeRemark . '.' : '';
     };
-    $defaultLifeRemarkText = $logRowLifeRemarkText($logRows[0] ?? [], true) ?: 'N/A';
+    $lifeRemarkFallbackText = 'CSN: N/A';
+    $defaultLifeRemarkText = $logRowLifeRemarkText($logRows[0] ?? [], true) ?: $lifeRemarkFallbackText;
     $certificateDetailOptions = collect([
         [
             'key' => 'main',
@@ -171,7 +182,7 @@
         ],
     ]);
     $logDetailOptions = collect($logRows)
-        ->map(function (array $row, int $index) use ($firstNonBlank, $formatDetailOptionLabel, $certificateLogComponents, $logRowLifeRemarkText): array {
+        ->map(function (array $row, int $index) use ($firstNonBlank, $formatDetailOptionLabel, $certificateLogComponents, $logRowLifeRemarkText, $lifeRemarkFallbackText): array {
             $component = $certificateLogComponents->get((int) ($row['component_id'] ?? 0));
             $description = $firstNonBlank(
                 $row['qa_description'] ?? null,
@@ -204,7 +215,7 @@
                 'description' => $description,
                 'part_number' => collect($partNumberLines)->filter()->implode("\n"),
                 'serial_number' => collect($serialNumberLines)->filter()->implode("\n"),
-                'life_remark_text' => $logRowLifeRemarkText($row) ?: 'N/A',
+                'life_remark_text' => $logRowLifeRemarkText($row) ?: $lifeRemarkFallbackText,
             ];
         })
         ->filter(fn (array $option): bool => $option['description'] !== '' || $option['part_number'] !== '' || $option['serial_number'] !== '')
@@ -336,18 +347,37 @@
         $revisionControlPrefix = ', Rev # ';
         $revisionText = $revisionControlPrefix . $manualRevisionNumber . ' dated ' . $manualDate;
     }
-    $statusRemarkBaseSuffix = ' in accordance with CMM # ' . (string) ($manual?->number ?? '');
-    $statusRemarkSuffix = $statusRemarkBaseSuffix . $revisionText . '.';
+    $certificateCmmExtraText = trim((string) ($selectedCertificateItemSettings['certificate_cmm_extra_text'] ?? ''));
+    $certificateCmmExtraSuffix = $certificateCmmExtraText !== '' ? ', ' . $certificateCmmExtraText : '';
+    $statusRemarkBaseSuffix = ' in accordance with CMM # ' . $certificateManualNumber;
+    $statusRemarkSuffix = $statusRemarkBaseSuffix . $certificateCmmExtraSuffix . $revisionText . '.';
+    $replacementPartsRemarkOptions = [
+        'tdr' => 'For the replacement parts refer to Teardown Report.',
+        'none' => 'Replacement parts: None.',
+    ];
+    $defaultReplacementPartsRemark = $hasOrderedReplacementParts ? 'tdr' : 'none';
+    $selectedReplacementPartsRemark = strtolower(trim((string) ($selectedCertificateItemSettings['certificate_replacement_parts_remark'] ?? '')));
+    if (! array_key_exists($selectedReplacementPartsRemark, $replacementPartsRemarkOptions)) {
+        $selectedReplacementPartsRemark = $defaultReplacementPartsRemark;
+    }
     $remarks = [
         [
             'text' => trim($status . $statusRemarkSuffix),
             'status_remark_suffix' => $statusRemarkSuffix,
+            'status_remark_base_suffix' => $statusRemarkBaseSuffix,
+            'status_remark_cmm_extra_text' => $certificateCmmExtraText,
             'status_remark_revision_prefix' => $hasRevisionControls
-                ? $statusRemarkBaseSuffix . $revisionControlPrefix
+                ? $revisionControlPrefix
                 : '',
         ],
         ['text' => 'Full details of work performed in work order W' . $current_wo->number . '.'],
-        ['text' => $hasOrderedReplacementParts ? 'For the replacement parts refer to Teardown Report.' : 'Replacements parts: None.'],
+        [
+            'text' => $replacementPartsRemarkOptions[$selectedReplacementPartsRemark],
+            'replacement_parts_remark' => true,
+            'replacement_parts_options' => $replacementPartsRemarkOptions,
+            'replacement_parts_selected' => $selectedReplacementPartsRemark,
+            'replacement_parts_default' => $defaultReplacementPartsRemark,
+        ],
         [
             'text' => $airworthinessText,
             'airworthiness_remark' => true,
@@ -396,6 +426,7 @@
         foreach ($remarks as $remarkIndex => $remark) {
             $isSourceControlledRemark = array_key_exists('status_remark_suffix', $remark)
                 || ! empty($remark['life_remark'])
+                || ! empty($remark['replacement_parts_remark'])
                 || ! empty($remark['airworthiness_remark'])
                 || ! empty($remark['separate_remark_key'])
                 || ! empty($remark['overhauled_on_remark'])
@@ -965,6 +996,34 @@
             color: #777;
         }
 
+        .arc-replacement-parts-print-value {
+            display: none;
+        }
+
+        .arc-replacement-parts-choice {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.18in;
+            min-width: 0;
+            white-space: nowrap;
+        }
+
+        .arc-replacement-parts-choice label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.035in;
+            margin: 0;
+            line-height: inherit;
+            white-space: nowrap;
+        }
+
+        .arc-replacement-parts-choice input {
+            width: 13px;
+            height: 13px;
+            margin: 0;
+            flex: 0 0 auto;
+        }
+
         .arc-remark-toggle {
             display: inline-flex;
             align-items: center;
@@ -1004,6 +1063,12 @@
         .arc-manual-revision-date-input {
             width: 1.03in;
             min-width: 1.03in;
+        }
+
+        .arc-manual-cmm-extra-input {
+            width: 0.94in;
+            min-width: 0.94in;
+            text-align: left;
         }
 
         .arc-remark-print-date {
@@ -1273,7 +1338,8 @@
 
         @media print {
             :root {
-                --arc-print-sheet-height: 7.74in;
+                --arc-print-installer-bottom-clearance: 2mm;
+                --arc-print-sheet-height: calc(7.74in + var(--arc-print-installer-bottom-clearance));
                 --arc-print-top-height: calc(0.78in - 2mm);
                 --arc-print-org-height: 0.88in;
                 --arc-print-items-header-height: 0.22in;
@@ -1328,6 +1394,14 @@
             }
 
             .arc-remark-line.is-print-disabled {
+                display: none !important;
+            }
+
+            .arc-replacement-parts-print-value {
+                display: inline !important;
+            }
+
+            .arc-replacement-parts-choice {
                 display: none !important;
             }
 
@@ -1651,12 +1725,20 @@
                     $isCorrectionRemark = ! empty($remark['c_correction_remark']);
                     $isStatusRemark = array_key_exists('status_remark_suffix', $remark);
                     $isOverhauledOnRemark = ! empty($remark['overhauled_on_remark']);
+                    $isReplacementPartsRemark = ! empty($remark['replacement_parts_remark']);
                     $isAirworthinessRemark = ! empty($remark['airworthiness_remark']);
                     $separateRemarkKey = trim((string) ($remark['separate_remark_key'] ?? ''));
+                    $statusRemarkBaseSuffix = (string) ($remark['status_remark_base_suffix'] ?? '');
                     $statusRemarkRevisionPrefix = (string) ($remark['status_remark_revision_prefix'] ?? '');
+                    $statusRemarkCmmExtraText = trim((string) ($remark['status_remark_cmm_extra_text'] ?? ''));
+                    $replacementPartsOptions = is_array($remark['replacement_parts_options'] ?? null)
+                        ? $remark['replacement_parts_options']
+                        : [];
+                    $replacementPartsSelected = (string) ($remark['replacement_parts_selected'] ?? 'none');
+                    $replacementPartsDefault = (string) ($remark['replacement_parts_default'] ?? 'none');
                     $hasStatusRevisionInputs = $isStatusRemark && $statusRemarkRevisionPrefix !== '';
                     $remarkDisplayText = $hasStatusRevisionInputs
-                        ? $status . $statusRemarkRevisionPrefix
+                        ? $status . $statusRemarkBaseSuffix
                         : $remarkText;
                     $hideRemarkRow = $remarkText === ''
                         || ($isLifeRemark && $remarkText === '')
@@ -1671,9 +1753,9 @@
                         @if($isOverhauledOnRemark) data-certificate-overhauled-on-row @endif
                     >
                         <span
-                            class="arc-remark-text arc-c-editable"
+                            class="arc-remark-text arc-c-editable {{ $isReplacementPartsRemark ? 'arc-replacement-parts-print-value' : '' }}"
                             role="textbox"
-                            contenteditable="{{ $selectedCertificateStateKey === 'main:c' && ! $isStatusRemark && ! $isLifeRemark && ! $isOverhauledOnRemark ? 'true' : 'false' }}"
+                            contenteditable="{{ $selectedCertificateStateKey === 'main:c' && ! $isStatusRemark && ! $isLifeRemark && ! $isOverhauledOnRemark && ! $isReplacementPartsRemark ? 'true' : 'false' }}"
                             data-certificate-remark-text
                             data-remark-index="{{ $loop->index }}"
                             data-default-value="{{ $remarkDisplayText }}"
@@ -1682,13 +1764,17 @@
                             spellcheck="false"
                             @if($isStatusRemark)
                                 data-certificate-status-remark
-                                data-remark-suffix="{{ $hasStatusRevisionInputs ? $statusRemarkRevisionPrefix : $remark['status_remark_suffix'] }}"
+                                data-remark-suffix="{{ $hasStatusRevisionInputs ? $statusRemarkBaseSuffix : $remark['status_remark_suffix'] }}"
                             @endif
                             @if($isLifeRemark)
                                 data-certificate-life-remark
                             @endif
                             @if($isAirworthinessRemark)
                                 data-certificate-airworthiness-remark
+                            @endif
+                            @if($isReplacementPartsRemark)
+                                data-certificate-replacement-parts-remark
+                                data-default-choice="{{ $replacementPartsDefault }}"
                             @endif
                             @if($separateRemarkKey !== '')
                                 data-certificate-separate-remark-key="{{ $separateRemarkKey }}"
@@ -1700,7 +1786,41 @@
                                 data-certificate-overhauled-on-remark
                             @endif
                         >{{ $isOverhauledOnRemark ? 'Overhauled on' : $remarkDisplayText }}</span>
+                        @if($isReplacementPartsRemark)
+                            <span class="arc-replacement-parts-choice" data-certificate-replacement-parts-choice>
+                                @foreach($replacementPartsOptions as $replacementPartsValue => $replacementPartsText)
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="certificate_replacement_parts_remark"
+                                            value="{{ $replacementPartsValue }}"
+                                            data-certificate-replacement-parts-option
+                                            data-print-text="{{ $replacementPartsText }}"
+                                            @checked($replacementPartsSelected === $replacementPartsValue)
+                                        >
+                                        <span>{{ $replacementPartsText }}</span>
+                                    </label>
+                                @endforeach
+                            </span>
+                        @endif
                         @if($hasStatusRevisionInputs)
+                            <span
+                                class="arc-remark-print-date arc-manual-cmm-extra-print"
+                                data-certificate-cmm-extra-print
+                                data-raw-value="{{ $statusRemarkCmmExtraText }}"
+                                @if($statusRemarkCmmExtraText === '') hidden @endif
+                            >{{ $statusRemarkCmmExtraText !== '' ? ', ' . $statusRemarkCmmExtraText : '' }}</span>
+                            <input
+                                type="text"
+                                class="arc-remark-number-input arc-manual-cmm-extra-input"
+                                data-certificate-cmm-extra-text
+                                data-original-value="{{ $statusRemarkCmmExtraText }}"
+                                value="{{ $statusRemarkCmmExtraText }}"
+                                placeholder="..."
+                                aria-label="Additional CMM text"
+                                spellcheck="false"
+                            >
+                            <span class="arc-status-revision-prefix">{{ $statusRemarkRevisionPrefix }}</span>
                             <span
                                 class="arc-remark-print-date"
                                 data-certificate-manual-revision-print-number
@@ -1939,6 +2059,8 @@
             include_landing_gear_log_card: @json($includeLandingGearLogCard),
             include_royco_service: @json($includeRoycoService),
             include_overhauled_on: @json($includeOverhauledOn),
+            certificate_replacement_parts_remark: @json($defaultReplacementPartsRemark),
+            certificate_cmm_extra_text: '',
             certificate_manager_id: @json($selectedCertificateManagerId),
             certificate_manager_name: @json($certificateManagerName),
             certificate_date: @json($certificateDateInputValue),
@@ -1958,10 +2080,14 @@
         const overhauledOnRemark = document.querySelector('[data-certificate-overhauled-on-remark]');
         const overhauledOnDateInput = document.querySelector('[data-certificate-overhauled-on-date]');
         const overhauledOnPrintDate = document.querySelector('[data-certificate-overhauled-on-print-date]');
+        const replacementPartsRemark = document.querySelector('[data-certificate-replacement-parts-remark]');
+        const replacementPartsOptions = Array.from(document.querySelectorAll('[data-certificate-replacement-parts-option]'));
         const manualRevisionNumberInput = document.querySelector('[data-certificate-manual-revision-number]');
         const manualRevisionPrintNumber = document.querySelector('[data-certificate-manual-revision-print-number]');
         const manualRevisionDateInput = document.querySelector('[data-certificate-manual-revision-date]');
         const manualRevisionPrintDate = document.querySelector('[data-certificate-manual-revision-print-date]');
+        const manualCmmExtraInput = document.querySelector('[data-certificate-cmm-extra-text]');
+        const manualCmmExtraPrint = document.querySelector('[data-certificate-cmm-extra-print]');
         const detailWorkOrder = document.querySelector('[data-certificate-work-order]');
         const remarksBox = document.querySelector('.arc-remarks');
         const remarksLines = document.querySelector('.arc-remarks-lines');
@@ -1996,6 +2122,7 @@
                 element.hasAttribute('data-certificate-status-remark')
                 || element.hasAttribute('data-certificate-life-remark')
                 || element.hasAttribute('data-certificate-overhauled-on-remark')
+                || element.hasAttribute('data-certificate-replacement-parts-remark')
             ));
         }
 
@@ -2055,6 +2182,87 @@
 
             setEditableValue(detailLifeRemark, value || '');
             syncRemarkRowVisibility(detailLifeRemark);
+        }
+
+        function replacementPartsDefaultChoice() {
+            return replacementPartsRemark?.dataset.defaultChoice
+                || certificateStateDefaults.certificate_replacement_parts_remark
+                || 'none';
+        }
+
+        function normalizeReplacementPartsChoice(value) {
+            const choice = String(value || '').trim().toLowerCase();
+
+            return replacementPartsOptions.some((option) => option.value === choice)
+                ? choice
+                : replacementPartsDefaultChoice();
+        }
+
+        function replacementPartsTextFor(choice) {
+            const selectedOption = replacementPartsOptions.find((option) => option.value === choice)
+                || replacementPartsOptions.find((option) => option.value === replacementPartsDefaultChoice())
+                || replacementPartsOptions[0];
+
+            return selectedOption?.dataset.printText || selectedOption?.nextElementSibling?.textContent.trim() || '';
+        }
+
+        function setReplacementPartsChoice(value) {
+            if (!replacementPartsRemark || replacementPartsOptions.length === 0) {
+                return;
+            }
+
+            const choice = normalizeReplacementPartsChoice(value);
+            replacementPartsOptions.forEach((option) => {
+                option.checked = option.value === choice;
+            });
+            setEditableValue(replacementPartsRemark, replacementPartsTextFor(choice));
+            syncRemarkRowVisibility(replacementPartsRemark);
+        }
+
+        function syncReplacementPartsChoice() {
+            setReplacementPartsChoice(
+                getCertificateStateValue('certificate_replacement_parts_remark', replacementPartsDefaultChoice())
+            );
+        }
+
+        function manualCmmExtraText() {
+            return manualCmmExtraInput?.value.trim()
+                || manualCmmExtraPrint?.dataset.rawValue
+                || '';
+        }
+
+        function manualCmmExtraPhrase() {
+            const text = manualCmmExtraText();
+
+            return text ? ', ' + text : '';
+        }
+
+        function updateManualCmmExtraPrint(value) {
+            if (!manualCmmExtraPrint) {
+                return;
+            }
+
+            const text = String(value || '').trim();
+            manualCmmExtraPrint.dataset.rawValue = text;
+            manualCmmExtraPrint.textContent = text ? ', ' + text : '';
+            manualCmmExtraPrint.hidden = text === '';
+        }
+
+        function setManualCmmExtraText(value, updateOriginal = true) {
+            const text = String(value || '').trim();
+            if (manualCmmExtraInput) {
+                manualCmmExtraInput.value = text;
+                if (updateOriginal) {
+                    manualCmmExtraInput.dataset.originalValue = text;
+                }
+            }
+            updateManualCmmExtraPrint(text);
+        }
+
+        function syncManualCmmExtraText() {
+            setManualCmmExtraText(
+                getCertificateStateValue('certificate_cmm_extra_text', '')
+            );
         }
 
         function overhauledOnRemarkText(value) {
@@ -2374,6 +2582,8 @@
                     }
                     syncRemarkRowVisibility(remark);
                 });
+                syncReplacementPartsChoice();
+                syncManualCmmExtraText();
                 fitRemarksText();
                 return;
             }
@@ -2407,6 +2617,8 @@
                 setEditableValue(remark, value);
                 syncRemarkRowVisibility(remark);
             });
+            syncReplacementPartsChoice();
+            syncManualCmmExtraText();
             syncCorrectionRemarkVisibility();
 
             const savedStatusId = String(getCertificateStateValue('certificate_status_instruction_id', '') || '');
@@ -2724,6 +2936,69 @@
 
         remarkTexts.forEach(bindRemarkText);
 
+        replacementPartsOptions.forEach(function (option) {
+            option.addEventListener('change', function () {
+                if (!option.checked) {
+                    return;
+                }
+
+                const choice = normalizeReplacementPartsChoice(option.value);
+                setCertificateStateValue('certificate_replacement_parts_remark', choice);
+                setReplacementPartsChoice(choice);
+                saveSetting('certificate_replacement_parts_remark', choice, {itemSource: currentCertificateStateKey});
+                fitRemarksText();
+            });
+        });
+
+        async function saveManualCmmExtraText() {
+            if (!manualCmmExtraInput) {
+                return;
+            }
+
+            const value = (manualCmmExtraInput.value || '').trim();
+            updateManualCmmExtraPrint(value);
+            if (value === (manualCmmExtraInput.dataset.originalValue || '')) {
+                fitRemarksText();
+                return;
+            }
+
+            manualCmmExtraInput.disabled = true;
+            manualCmmExtraInput.classList.remove('is-invalid');
+            manualCmmExtraInput.classList.add('is-saving');
+            try {
+                setCertificateStateValue('certificate_cmm_extra_text', value);
+                await saveSetting('certificate_cmm_extra_text', value, {itemSource: currentCertificateStateKey});
+                manualCmmExtraInput.dataset.originalValue = value;
+            } catch (error) {
+                console.error('Failed to save CMM extra text', error);
+                manualCmmExtraInput.classList.add('is-invalid');
+            } finally {
+                manualCmmExtraInput.disabled = false;
+                manualCmmExtraInput.classList.remove('is-saving');
+                fitRemarksText();
+            }
+        }
+
+        if (manualCmmExtraInput) {
+            manualCmmExtraInput.addEventListener('input', function () {
+                updateManualCmmExtraPrint(manualCmmExtraInput.value);
+                fitRemarksText();
+            });
+            manualCmmExtraInput.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    manualCmmExtraInput.blur();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    setManualCmmExtraText(manualCmmExtraInput.dataset.originalValue || '');
+                    manualCmmExtraInput.classList.remove('is-invalid');
+                    manualCmmExtraInput.blur();
+                }
+            });
+            manualCmmExtraInput.addEventListener('change', saveManualCmmExtraText);
+            manualCmmExtraInput.addEventListener('blur', saveManualCmmExtraText);
+        }
+
         bindCertificateEditable(detailWorkOrder, 'certificate_work_order');
         bindCertificateEditable(detailPart, 'certificate_item_part');
         bindCertificateEditable(detailSerial, 'certificate_item_serial');
@@ -2841,7 +3116,7 @@
             const revisionNumber = manualRevisionNumberDisplay();
             const revisionDate = manualRevisionDateDisplay();
 
-            return display + suffix + revisionNumber + ' dated ' + revisionDate + '.';
+            return display + suffix + manualCmmExtraPhrase() + ', Rev # ' + revisionNumber + ' dated ' + revisionDate + '.';
         }
 
         function setStatusRemarkDisplay(display) {

@@ -36,10 +36,7 @@
             <div class="col-md-6">
                 <label for="edit_serial_number" class="form-label">{{ __('Serial Number') }}</label>
                 <input id="edit_serial_number" type="text" value="{{ $current_tdr->serial_number }}"
-                       class="form-control" name="serial_number" @disabled(! $canReplaceTdrComponent)>
-                @unless($canReplaceTdrComponent)
-                    <small class="text-muted d-block mt-1">{{ __('Only system admin can change S/N.') }}</small>
-                @endunless
+                       class="form-control" name="serial_number">
             </div>
             @if($current_tdr->assy_serial_number != null)
                 <div class="col-md-6">

@@ -22,10 +22,18 @@
             min-width: 0;
         }
 
+        .project-settings-page .settings-card + .settings-card {
+            margin-top: 16px;
+        }
+
         .project-settings-page .form-check-input {
             cursor: pointer;
             height: 1.35rem;
             width: 2.55rem;
+        }
+
+        .project-settings-page textarea {
+            min-height: 98px;
         }
     </style>
 @endsection
@@ -39,6 +47,12 @@
 
         @if(session('success'))
             <div class="alert alert-success py-2">{{ session('success') }}</div>
+        @endif
+
+        @if($errors->any())
+            <div class="alert alert-danger py-2">
+                {{ $errors->first() }}
+            </div>
         @endif
 
         <form method="POST" action="{{ route('admin.project-settings.update') }}">
@@ -69,6 +83,60 @@
                                 @checked($qrEnabled)
                             >
                             <label class="visually-hidden" for="printFormsQrEnabled">QR code mark</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-end">
+                    <button type="submit" class="btn btn-outline-primary">
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+
+            <div class="card bg-gradient settings-card">
+                <div class="card-header">
+                    <strong>Marketing</strong>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="marketingWoEstimateEmailRecipients">
+                            WO Estimate Date email recipients
+                        </label>
+                        <textarea
+                            id="marketingWoEstimateEmailRecipients"
+                            name="marketing_wo_estimate_email_recipients"
+                            class="form-control @error('marketing_wo_estimate_email_recipients') is-invalid @enderror"
+                            placeholder="sales@example.com&#10;manager@example.com"
+                        >{{ old('marketing_wo_estimate_email_recipients', $marketingWoEstimateEmailRecipientsText ?? '') }}</textarea>
+                        <div class="form-text">
+                            One or more emails separated by line breaks, commas, semicolons, or spaces.
+                        </div>
+                        @error('marketing_wo_estimate_email_recipients')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="row g-3 align-items-end">
+                        <div class="col-sm-4">
+                            <label class="form-label fw-semibold" for="marketingWoEstimateEmailDelayDays">
+                                Send after days
+                            </label>
+                            <input
+                                id="marketingWoEstimateEmailDelayDays"
+                                name="marketing_wo_estimate_email_delay_days"
+                                class="form-control @error('marketing_wo_estimate_email_delay_days') is-invalid @enderror"
+                                type="number"
+                                min="0"
+                                max="365"
+                                step="1"
+                                value="{{ old('marketing_wo_estimate_email_delay_days', $marketingWoEstimateEmailDelayDays ?? 0) }}"
+                            >
+                            @error('marketing_wo_estimate_email_delay_days')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-sm-8 text-muted small">
+                            When WO Estimate Date is filled from empty in Marketing, the email is queued and sent after this many days.
                         </div>
                     </div>
                 </div>

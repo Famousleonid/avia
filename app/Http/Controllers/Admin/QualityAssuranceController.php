@@ -586,6 +586,8 @@ class QualityAssuranceController extends Controller
                     'certificate_royco_service_remark',
                     'certificate_c_correction_remark',
                     'certificate_overhauled_on_date',
+                    'certificate_replacement_parts_remark',
+                    'certificate_cmm_extra_text',
                     'include_airworthiness_remark',
                     'include_landing_gear_log_card',
                     'include_royco_service',
@@ -603,6 +605,9 @@ class QualityAssuranceController extends Controller
             $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
         } elseif ($key === 'certificate_tracking_mode') {
             $value = strtolower(trim((string) $value)) === 'c' ? 'c' : '';
+        } elseif ($key === 'certificate_replacement_parts_remark') {
+            $value = strtolower(trim((string) $value));
+            abort_unless(in_array($value, ['tdr', 'none'], true), 422, 'Invalid replacement parts remark.');
         } elseif ($key === 'certificate_manager_id') {
             $value = trim((string) $value);
             if ($value !== '') {
@@ -636,7 +641,7 @@ class QualityAssuranceController extends Controller
         } elseif (in_array($key, ['certificate_airworthiness_remark', 'certificate_landing_gear_log_card_remark', 'certificate_royco_service_remark', 'certificate_c_correction_remark'], true)) {
             $value = trim((string) $value);
             abort_unless(mb_strlen($value) <= 2000, 422, 'Certificate value is too long.');
-        } elseif (in_array($key, ['certificate_work_order', 'certificate_item_description', 'certificate_item_part', 'certificate_item_serial', 'certificate_status_work'], true)) {
+        } elseif (in_array($key, ['certificate_cmm_extra_text', 'certificate_work_order', 'certificate_item_description', 'certificate_item_part', 'certificate_item_serial', 'certificate_status_work'], true)) {
             $value = trim((string) $value);
             abort_unless(mb_strlen($value) <= 1000, 422, 'Certificate value is too long.');
         } else {
@@ -668,6 +673,8 @@ class QualityAssuranceController extends Controller
             'certificate_royco_service_remark',
             'certificate_c_correction_remark',
             'certificate_overhauled_on_date',
+            'certificate_replacement_parts_remark',
+            'certificate_cmm_extra_text',
             'include_airworthiness_remark',
             'include_landing_gear_log_card',
             'include_royco_service',

@@ -14,6 +14,7 @@ use App\Models\MarketingSegment;
 use App\Models\Plane;
 use App\Models\User;
 use App\Models\Workorder;
+use App\Services\MarketingWoEstimateNotificationService;
 use App\Services\SalesReportService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -459,23 +460,50 @@ class MarketingController extends Controller
         ]);
     }
 
-    public function updateWorkorderSalesFields(Request $request, Workorder $workorder): JsonResponse
+    public function updateWorkorderSalesFields(
+        Request $request,
+        Workorder $workorder,
+        MarketingWoEstimateNotificationService $estimateNotifications
+    ): JsonResponse
     {
         abort_if($workorder->is_draft, 404);
 
+        $hasEstimateDateInput = $request->has('estimate_date');
+        $oldEstimateDate = $workorder->wo_estimate_date?->toDateString();
+
         $data = $request->validate([
+            'wo_terms' => ['nullable', 'string', 'max:120'],
+            'wo_estimate_amount' => ['nullable', 'string', 'max:60'],
+            'estimate_date' => ['nullable', 'string', 'max:32'],
             'sales_invoice_amount' => ['nullable', 'string', 'max:60'],
             'sales_invoice_date' => ['nullable', 'string', 'max:32'],
             'shipping_shipment_at' => ['nullable', 'string', 'max:32'],
             'shipping_awb_no' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $workorder->forceFill([
+        $updates = [
+            'wo_terms' => trim((string) ($data['wo_terms'] ?? '')) ?: null,
+            'wo_estimate_amount' => $this->parseMoneyInput($data['wo_estimate_amount'] ?? null, 'wo_estimate_amount'),
             'sales_invoice_amount' => $this->parseMoneyInput($data['sales_invoice_amount'] ?? null, 'sales_invoice_amount'),
             'sales_invoice_date' => $this->parseDateInput($data['sales_invoice_date'] ?? null, 'sales_invoice_date'),
             'shipping_shipment_at' => $this->parseDateInput($data['shipping_shipment_at'] ?? null, 'shipping_shipment_at'),
             'shipping_awb_no' => trim((string) ($data['shipping_awb_no'] ?? '')) ?: null,
-        ])->save();
+        ];
+
+        if ($hasEstimateDateInput) {
+            $updates['wo_estimate_date'] = $this->parseDateInput($data['estimate_date'] ?? null, 'estimate_date');
+        }
+
+        $workorder->forceFill($updates)->save();
+
+        if ($hasEstimateDateInput) {
+            $workorder->refresh();
+            $estimateNotifications->handleEstimateDateChange(
+                $workorder,
+                $oldEstimateDate,
+                $workorder->wo_estimate_date?->toDateString()
+            );
+        }
 
         $customer = $workorder->customer()->firstOrFail();
         $profile = $this->ensureProfile($customer);
@@ -863,10 +891,10 @@ class MarketingController extends Controller
             'serial_number' => (string) ($workorder->serial_number ?? ''),
             'aircraft_type' => (string) ($workorder->unit?->manual?->plane?->type ?? ''),
             'task' => (string) ($workorder->instruction?->name ?? ''),
-            'terms' => (string) ($profile->terms_label ?? ''),
+            'terms' => (string) ($workorder->wo_terms ?? ''),
             'status' => $status,
-            'estimate_amount' => null,
-            'estimate_date' => $this->datePayload($workorder->open_at),
+            'estimate_amount' => $this->moneyPayload($workorder->wo_estimate_amount),
+            'estimate_date' => $this->datePayload($workorder->wo_estimate_date),
             'approval_date' => $this->datePayload($workorder->approve_at),
             'sales_invoice_amount' => $this->moneyPayload($workorder->sales_invoice_amount),
             'sales_invoice_date' => $this->datePayload($workorder->sales_invoice_date),
@@ -896,9 +924,9 @@ class MarketingController extends Controller
         $this->applyMarketingWorkorderDescriptionFilter($query, (string) ($filters['wo_description'] ?? ''));
         $this->applyMarketingWorkorderLikeFilter($query, 'serial_number', (string) ($filters['wo_serial'] ?? ''));
         $this->applyMarketingWorkorderRelationFilter($query, 'instruction', 'name', (string) ($filters['wo_task'] ?? ''));
-        $this->applyMarketingWorkorderTermsFilter($query, (string) ($filters['wo_terms'] ?? ''), $profile);
-        $this->applyMarketingWorkorderEstimateFilter($query, (string) ($filters['wo_estimate'] ?? ''));
-        $this->applyMarketingWorkorderDateFilter($query, 'open_at', (string) ($filters['wo_estimate_date'] ?? ''));
+        $this->applyMarketingWorkorderLikeFilter($query, 'wo_terms', (string) ($filters['wo_terms'] ?? ''));
+        $this->applyMarketingWorkorderMoneyFilter($query, 'wo_estimate_amount', (string) ($filters['wo_estimate'] ?? ''));
+        $this->applyMarketingWorkorderDateFilter($query, 'wo_estimate_date', (string) ($filters['wo_estimate_date'] ?? ''));
         $this->applyMarketingWorkorderDateFilter($query, 'approve_at', (string) ($filters['wo_approval_date'] ?? ''));
         $this->applyMarketingWorkorderMoneyFilter($query, 'sales_invoice_amount', (string) ($filters['wo_invoice'] ?? ''));
         $this->applyMarketingWorkorderDateFilter($query, 'sales_invoice_date', (string) ($filters['wo_invoice_date'] ?? ''));
@@ -912,13 +940,13 @@ class MarketingController extends Controller
         $number = $this->workorderNumberSearchValue($value);
         $date = $this->parseSearchDate($value);
         $money = $this->normalizeMoneySearchValue($value);
-        $termsMatch = $this->containsSearchText($profile->terms_label ?? '', $value);
 
-        $query->where(function ($inner) use ($like, $number, $date, $money, $termsMatch, $value): void {
+        $query->where(function ($inner) use ($like, $number, $date, $money, $value): void {
             $inner->where('customer_po', 'like', $like)
+                ->orWhere('wo_terms', 'like', $like)
                 ->orWhere('description', 'like', $like)
                 ->orWhere('serial_number', 'like', $like)
-                ->orWhere('open_at', 'like', $like)
+                ->orWhere('wo_estimate_date', 'like', $like)
                 ->orWhere('approve_at', 'like', $like)
                 ->orWhere('sales_invoice_date', 'like', $like)
                 ->orWhere('shipping_shipment_at', 'like', $like)
@@ -935,18 +963,16 @@ class MarketingController extends Controller
             }
 
             if ($date !== null) {
-                $inner->orWhereDate('open_at', $date)
+                $inner->orWhereDate('wo_estimate_date', $date)
                     ->orWhereDate('approve_at', $date)
                     ->orWhereDate('sales_invoice_date', $date)
                     ->orWhereDate('shipping_shipment_at', $date);
             }
 
             if ($money !== '') {
-                $inner->orWhere('sales_invoice_amount', 'like', '%' . $this->escapeLike($money) . '%');
-            }
-
-            if ($termsMatch) {
-                $inner->orWhereRaw('1 = 1');
+                $moneyLike = '%' . $this->escapeLike($money) . '%';
+                $inner->orWhere('wo_estimate_amount', 'like', $moneyLike)
+                    ->orWhere('sales_invoice_amount', 'like', $moneyLike);
             }
 
             $this->orWhereMarketingWorkorderStatusTextMatches($inner, $value);
@@ -1010,25 +1036,6 @@ class MarketingController extends Controller
                         ->orWhere('description', 'like', $like);
                 });
         });
-    }
-
-    private function applyMarketingWorkorderTermsFilter($query, string $value, CustomerMarketingProfile $profile): void
-    {
-        $value = trim($value);
-        if ($value === '') {
-            return;
-        }
-
-        if (! $this->containsSearchText($profile->terms_label ?? '', $value)) {
-            $query->whereRaw('1 = 0');
-        }
-    }
-
-    private function applyMarketingWorkorderEstimateFilter($query, string $value): void
-    {
-        if (trim($value) !== '' && ! $this->containsSearchText('-', $value)) {
-            $query->whereRaw('1 = 0');
-        }
     }
 
     private function applyMarketingWorkorderMoneyFilter($query, string $column, string $value): void

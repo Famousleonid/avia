@@ -1,19 +1,20 @@
 <div class="header-page">
+    @php($isMachiningPrintedForm = isset($process_name) && \App\Models\ProcessName::isMachiningPrintedForm($process_name))
     <div class="row">
         <div class="col-3">
             <img src="{{ asset('img/icons/AT_logo-rb.svg') }}" alt="Logo"
                  style="width: 120px; margin: 6px 10px 0;">
         </div>
         <div class="col-9">
-            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mt-4">
+            <div class="process-sheet-title-row {{ $isMachiningPrintedForm ? 'process-sheet-title-row--machining' : '' }} d-flex flex-wrap justify-content-between align-items-start gap-2 mt-4">
                 <h4 class="mb-0 text-black">
                     <strong>{{ $process_name->process_sheet_name ?? $process_name->name ?? ($header_title ?? 'PROCESS') }} PROCESS SHEET</strong>
                 </h4>
-                @if(isset($process_name) && \App\Models\ProcessName::isMachiningPrintedForm($process_name))
+                @if($isMachiningPrintedForm)
                     @php($mhLibs = $machining_header_manual_libs ?? [])
                     @auth
                         <div class="machining-sheet-header-meta text-md-end ms-md-auto">
-                            {{ auth()->user()->name }}@if(count($mhLibs) > 0) (lib: {{ implode(', ', $mhLibs) }}@endif)
+                            {{ auth()->user()->name }}@if(count($mhLibs) > 0) (lib: {{ implode(', ', $mhLibs) }})@endif
                         </div>
                     @endauth
                 @endif

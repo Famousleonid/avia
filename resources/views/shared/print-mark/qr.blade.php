@@ -78,6 +78,10 @@
         @endphp
         @once
         <style>
+            :root {
+                --print-mark-qr-size: {{ $printMarkQrSize }}px;
+            }
+
             .system-print-qr {
                 background: #fff;
                 height: {{ $printMarkQrSize }}px;

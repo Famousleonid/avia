@@ -287,7 +287,7 @@ class TdrsTest extends TestCase
         $this->assertSame('PO-999', $tdr->po_num);
     }
 
-    public function test_only_system_admin_can_replace_tdr_component_and_serial_number_from_edit(): void
+    public function test_non_system_admin_can_update_serial_number_but_cannot_replace_tdr_component_from_edit(): void
     {
         $roleOnlyAdmin = $this->createUserWithRole('Admin', ['is_admin' => false]);
         $workorder = $this->createWorkorder(['user_id' => $roleOnlyAdmin->id]);
@@ -322,7 +322,7 @@ class TdrsTest extends TestCase
 
         $tdr->refresh();
         $this->assertSame($firstComponent->id, $tdr->component_id);
-        $this->assertSame('SN-OLD', $tdr->serial_number);
+        $this->assertSame('SN-NEW', $tdr->serial_number);
         $this->assertSame('After', $tdr->description);
     }
 
@@ -532,6 +532,53 @@ class TdrsTest extends TestCase
 
         $this->assertContains($effBase->id, $componentIds);
         $this->assertContains($letterVariant->id, $componentIds);
+    }
+
+    public function test_tdr_add_part_component_lists_sort_by_ipl_rule(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'unit_id' => $unit->id,
+        ]);
+
+        foreach (['10-10', '2-10', '1-20A', '11-10', '1-20', '1-10'] as $ipl) {
+            Component::query()->create([
+                'manual_id' => $manual->id,
+                'ipl_num' => $ipl,
+                'part_number' => 'PN-'.$ipl,
+                'name' => 'Part '.$ipl,
+            ]);
+        }
+
+        $expectedOrder = ['1-10', '1-20', '1-20A', '2-10', '10-10', '11-10'];
+
+        $apiResponse = $this->actingAs($admin)->getJson(route('api.get-components-by-manual', [
+            'manual_id' => $manual->id,
+            'workorder_id' => $workorder->id,
+        ]));
+
+        $apiResponse->assertOk();
+        $this->assertSame($expectedOrder, collect($apiResponse->json('components'))->pluck('ipl_num')->all());
+
+        $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+        $showResponse->assertOk();
+
+        $content = $showResponse->getContent();
+        $inlineSelect = $this->htmlBetween($content, 'id="tdr_inline_component_id"', '</select>');
+        $modalSelect = $this->htmlBetween($content, 'id="i_component_id"', '</select>');
+
+        foreach ([$inlineSelect, $modalSelect] as $selectHtml) {
+            $previousPosition = -1;
+            foreach ($expectedOrder as $ipl) {
+                $position = strpos($selectHtml, 'data-ipl="'.$ipl.'"');
+                $this->assertNotFalse($position, "IPL [{$ipl}] was not rendered in the add-part select.");
+                $this->assertGreaterThan($previousPosition, $position, "IPL [{$ipl}] is not in IPL sort order.");
+                $previousPosition = $position;
+            }
+        }
     }
 
     public function test_show_missing_and_ordered_parts_modals_sort_by_ipl_rule(): void
@@ -2019,6 +2066,73 @@ class TdrsTest extends TestCase
         $response->assertSee('SGP-PN-1-' . $suffix);
         $response->assertSee('SGP-PN-2-' . $suffix);
         $response->assertDontSee('SGP-PN-3-' . $suffix);
+    }
+
+    public function test_machining_process_form_reserves_header_space_for_print_qr(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['lib' => '295']);
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'part_number' => '4259A0000-02',
+        ]);
+        $workorder = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'unit_id' => $unit->id,
+            'number' => 107789,
+            'serial_number' => '00762',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'part_number' => '2821-0067',
+            'name' => 'PIN PINTLE',
+            'ipl_num' => '9-550',
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Machining Header QR ' . uniqid(),
+            'process_sheet_name' => 'MACHINING',
+            'form_number' => '018',
+            'print_form' => true,
+            'show_in_process_picker' => true,
+        ]);
+        $process = Process::query()->create([
+            'process_names_id' => $processName->id,
+            'process' => 'CMM 32-11-15',
+        ]);
+
+        ManualProcess::query()->create([
+            'manual_id' => $manual->id,
+            'processes_id' => $process->id,
+        ]);
+
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'SN L 1556',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $tdrProcess = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'processes' => [$process->id],
+            'sort_order' => 1,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdr-processes.show', [
+            'tdr_process' => $tdrProcess->id,
+            'process_id' => $process->id,
+            'omit_form_header_date' => 1,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('MACHINING PROCESS SHEET');
+        $response->assertSee('Admin User (lib: 295)');
+        $response->assertSee('process-sheet-title-row--machining', false);
+        $response->assertSee('padding-right: var(--process-header-qr-clearance, calc(var(--print-mark-qr-size, 40px) + 8mm));', false);
+        $response->assertSee('--print-mark-qr-size: 40px;', false);
+        $response->assertSee('system-print-qr', false);
     }
 
     private function htmlBetween(string $html, string $startNeedle, string $endNeedle): string
