@@ -134,6 +134,107 @@ class FitsClearancesTorqueTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_deleting_parameter_removes_its_orphaned_points(): void
+    {
+        // Deleting a parameter drops its measurement points when no other
+        // parameter uses them (ghost marks on the WO figure); a point shared
+        // with another parameter survives.
+        $manual = $this->createManual();
+        $ic = $this->createInspectionComponent($manual, 'Pin');
+        $own = $this->createParameter($manual, $ic, ['description' => 'OD']);
+        $other = $this->createParameter($manual, $ic, ['description' => 'ID']);
+        $ownPoint = $this->createDimensionPoint($manual, 'P1', false);
+        $sharedPoint = $this->createDimensionPoint($manual, 'P2', false);
+        $this->attachParamToPoint($own, $ownPoint);
+        $this->attachParamToPoint($own, $sharedPoint);
+        $this->attachParamToPoint($other, $sharedPoint);
+
+        $this->actingAs($this->admin())
+            ->deleteJson(route('parameters.destroy', $own->id))
+            ->assertOk();
+
+        $this->assertDatabaseMissing('manual_dimension_points', ['id' => $ownPoint->id]);
+        $this->assertDatabaseHas('manual_dimension_points', ['id' => $sharedPoint->id]);
+    }
+
+    public function test_cleanup_unattached_points_removes_orphans_only(): void
+    {
+        $manual = $this->createManual();
+        $ic = $this->createInspectionComponent($manual, 'Pin');
+        $param = $this->createParameter($manual, $ic, ['description' => 'OD']);
+        $linked = $this->createDimensionPoint($manual, 'L1', false);
+        $this->attachParamToPoint($param, $linked);
+        $orphanMeas = $this->createDimensionPoint($manual, 'O1', false); // measurement, no params
+        // callout that lost its part (child_ic SET NULL) and has no text of its own
+        $orphanCallout = \App\Models\ManualDimensionPoint::query()->create([
+            'manual_dimension_figure_id' => $linked->manual_dimension_figure_id,
+            'point_type' => 'text', 'code' => 'lbl_x', 'child_ic_id' => null,
+            'x_pct' => 5, 'y_pct' => 5, 'label_x_pct' => 8, 'label_y_pct' => 8, 'sort_order' => 0,
+        ]);
+        // legit free-text annotation — must survive
+        $freeText = \App\Models\ManualDimensionPoint::query()->create([
+            'manual_dimension_figure_id' => $linked->manual_dimension_figure_id,
+            'point_type' => 'text', 'code' => 'lbl_y', 'child_ic_id' => null, 'description' => 'Surface inspection',
+            'x_pct' => 6, 'y_pct' => 6, 'label_x_pct' => 9, 'label_y_pct' => 9, 'sort_order' => 0,
+        ]);
+
+        $this->actingAs($this->admin())
+            ->postJson(route('manuals.dimension-points.cleanup', $manual->id))
+            ->assertOk()
+            ->assertJsonPath('measurement', 1)
+            ->assertJsonPath('callouts', 1);
+
+        $this->assertDatabaseMissing('manual_dimension_points', ['id' => $orphanMeas->id]);
+        $this->assertDatabaseMissing('manual_dimension_points', ['id' => $orphanCallout->id]);
+        $this->assertDatabaseHas('manual_dimension_points', ['id' => $linked->id]);
+        $this->assertDatabaseHas('manual_dimension_points', ['id' => $freeText->id]);
+    }
+
+    public function test_single_member_fit_stores_and_renders_in_fc_table(): void
+    {
+        // Real Table 8001 has single rows: the mate lives in another manual, or
+        // the row is a linear Between/Across Faces dimension — a fit may carry
+        // just ONE member (plus single_kind for faces).
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+        $ic = $this->createInspectionComponent($manual, 'Bushing');
+        $od = $this->createParameter($manual, $ic, ['description' => 'OD ext-mate', 'orig_dim_min' => 1.0, 'orig_dim_max' => 1.001]);
+        $faces = $this->createParameter($manual, $ic, ['description' => 'Across flanges', 'orig_dim_min' => 0.5, 'orig_dim_max' => 0.52]);
+        $this->attachParamToPoint($od, $this->createDimensionPoint($manual, 'S1', true));
+        $this->attachParamToPoint($faces, $this->createDimensionPoint($manual, 'S2', true));
+
+        // no member at all → rejected
+        $this->actingAs($this->admin())
+            ->postJson(route('manuals.fits.store', $manual->id), ['ref_no' => '9'])
+            ->assertStatus(422);
+
+        // single OD (mate in another manual) — single_kind derived
+        $this->actingAs($this->admin())
+            ->postJson(route('manuals.fits.store', $manual->id), ['od_param_id' => $od->id, 'ref_no' => '7'])
+            ->assertStatus(201)
+            ->assertJsonPath('single_kind', 'od')
+            ->assertJsonPath('id_member', null);
+
+        // Between/Across Faces — explicit kind, od slot
+        $this->actingAs($this->admin())
+            ->postJson(route('manuals.fits.store', $manual->id), [
+                'od_param_id' => $faces->id, 'single_kind' => 'faces', 'ref_no' => '8',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('single_kind', 'faces');
+
+        // WO F&C print: both singles render as fc rows with their refs, no dup in extra
+        $html = $this->actingAs($this->admin())
+            ->get(route('workorders.measurements.fc-table', $wo->id))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('data-ref="7" data-type="fc"', $html);
+        $this->assertStringContainsString('data-ref="8" data-type="fc"', $html);
+        $this->assertStringContainsString('OD ext-mate', $html);
+        $this->assertStringContainsString('Across flanges', $html);
+        $this->assertSame(1, substr_count($html, 'OD ext-mate'), 'single member must not duplicate into Extra rows');
+    }
+
     public function test_fit_stores_per_member_ref_no(): void
     {
         $manual = $this->createManual();

@@ -398,7 +398,11 @@
     <div id="dim-figures-panel">
         <div class="px-2 py-2 border-bottom d-flex align-items-center gap-2">
             <span class="fw-semibold" style="font-size:13px">Figures</span>
-            <button class="btn btn-outline-primary btn-sm ms-auto" style="font-size:11px;padding:2px 8px" id="dimAddFigureBtn">
+            <button class="btn btn-outline-secondary btn-sm ms-auto" style="font-size:11px;padding:2px 8px" id="dimCleanPointsBtn"
+                    title="Remove unattached points: measurement points with no parameter and callouts that lost their part (deleted parameter/part leaves them behind)">
+                <i class="bi bi-eraser"></i>
+            </button>
+            <button class="btn btn-outline-primary btn-sm" style="font-size:11px;padding:2px 8px" id="dimAddFigureBtn">
                 <i class="bi bi-plus-lg"></i>
             </button>
         </div>

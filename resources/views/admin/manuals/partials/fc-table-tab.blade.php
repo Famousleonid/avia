@@ -47,30 +47,39 @@
         <input type="hidden" id="fcEditId">
         <div class="row g-2 align-items-end">
             <div class="col-md-2">
-                <label class="form-label mb-1 text-secondary">OD member</label>
+                <label class="form-label mb-1 text-secondary">Type</label>
+                <select id="fcTypeSelect" class="form-select form-select-sm">
+                    <option value="pair">Pair (OD ↔ ID)</option>
+                    <option value="od">Single — OD only</option>
+                    <option value="id">Single — ID only</option>
+                    <option value="faces">Between/Across Faces</option>
+                </select>
+            </div>
+            <div class="col-md-2" id="fcOdCol">
+                <label class="form-label mb-1 text-secondary" id="fcOdLabel">OD member</label>
                 <select id="fcOdSelect" class="form-select form-select-sm"></select>
             </div>
-            <div class="col-md-1">
-                <label class="form-label mb-1 text-secondary">OD Ref</label>
+            <div class="col-md-1" id="fcOdRefCol">
+                <label class="form-label mb-1 text-secondary">Ref</label>
                 <input id="fcRefNo" class="form-control form-control-sm" placeholder="1">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-2" id="fcIdCol">
                 <label class="form-label mb-1 text-secondary">ID member</label>
                 <select id="fcIdSelect" class="form-select form-select-sm"></select>
             </div>
-            <div class="col-md-1">
+            <div class="col-md-1" id="fcIdRefCol">
                 <label class="form-label mb-1 text-secondary">ID Ref</label>
                 <input id="fcIdRefNo" class="form-control form-control-sm" placeholder="same">
             </div>
-            <div class="col-md-1">
+            <div class="col-md-1" id="fcAsmMinCol">
                 <label class="form-label mb-1 text-secondary">Asm min</label>
                 <input id="fcAsmMin" class="form-control form-control-sm" placeholder="auto">
             </div>
-            <div class="col-md-1">
+            <div class="col-md-1" id="fcAsmMaxCol">
                 <label class="form-label mb-1 text-secondary">Asm max</label>
                 <input id="fcAsmMax" class="form-control form-control-sm" placeholder="auto">
             </div>
-            <div class="col-md-1">
+            <div class="col-md-1" id="fcPermCol">
                 <label class="form-label mb-1 text-secondary">Perm</label>
                 <input id="fcPerm" class="form-control form-control-sm" placeholder="auto">
             </div>
@@ -162,6 +171,7 @@
     const idSel   = document.getElementById('fcIdSelect');
     const refNo   = document.getElementById('fcRefNo');
     const idRefNo = document.getElementById('fcIdRefNo');
+    const typeSel = document.getElementById('fcTypeSelect');
     const asmMin  = document.getElementById('fcAsmMin');
     const asmMax  = document.getElementById('fcAsmMax');
     const perm    = document.getElementById('fcPerm');
@@ -238,6 +248,31 @@
 
         const html = ordered.map(f => {
             const odm = f.od_member || {}, idm = f.id_member || {};
+            // single-member row: mate in another manual / Between-Across Faces linear
+            if (!f.od_member || !f.id_member) {
+                const m = f.od_member || f.id_member || {};
+                const sRef = refStr(f.ref_no) || refStr(f.id_ref_no);
+                const tag = f.single_kind === 'faces'
+                    ? ' <span class="badge text-bg-secondary" style="font-size:9px" title="Between/Across Faces — linear dimension, no mate">B/F</span>'
+                    : ' <span class="text-secondary" style="font-size:10px" title="Single member — mate not in this manual">single</span>';
+                return '<tbody>'
+                    + '<tr>'
+                    +   '<td class="text-center align-middle fw-semibold">' + esc(sRef || '—') + '</td>'
+                    +   '<td>' + memberCell(m) + tag + '</td>'
+                    +   '<td class="text-end">' + fmt(m.orig_min) + '</td>'
+                    +   '<td class="text-end">' + fmt(m.orig_max) + '</td>'
+                    +   '<td class="text-end text-secondary">—</td>'
+                    +   '<td class="text-end text-secondary">—</td>'
+                    +   '<td class="text-end">' + fmt(m.wear_min) + '</td>'
+                    +   '<td class="text-end">' + fmt(m.wear_max) + '</td>'
+                    +   '<td class="text-end text-secondary">—</td>'
+                    +   '<td class="text-center align-middle fc-no-print">'
+                    +     '<button class="btn btn-outline-secondary btn-sm p-0 px-1 fc-edit" data-id="' + f.id + '" title="Edit"><i class="bi bi-pencil"></i></button> '
+                    +     '<button class="btn btn-outline-danger btn-sm p-0 px-1 fc-del" data-id="' + f.id + '" title="Delete"><i class="bi bi-trash"></i></button>'
+                    +   '</td>'
+                    + '</tr>'
+                    + '</tbody>';
+            }
             const warn = f.mismatch ? ' <span class="text-danger" title="stored clearance differs from derived">⚠</span>' : '';
             const aMinCls = f.assembly_clearance_min == null ? 'text-secondary' : '';
             const aMaxCls = f.assembly_clearance_max == null ? 'text-secondary' : '';
@@ -299,11 +334,31 @@
         }
     }
 
+    // Type drives which member fields make sense: pair = both; singles = one
+    // member + its ref (clearances hidden — no mate, nothing to derive).
+    function syncFitType() {
+        const t = typeSel.value;
+        document.getElementById('fcOdCol').classList.toggle('d-none', t === 'id');
+        // fcOdRefCol stays visible always — it is the generic "Ref" for singles too
+        document.getElementById('fcIdCol').classList.toggle('d-none', t === 'od' || t === 'faces');
+        document.getElementById('fcIdRefCol').classList.toggle('d-none', t !== 'pair');
+        ['fcAsmMinCol', 'fcAsmMaxCol', 'fcPermCol'].forEach(id =>
+            document.getElementById(id).classList.toggle('d-none', t !== 'pair'));
+        document.getElementById('fcOdLabel').textContent =
+            t === 'faces' ? 'Member (Between/Across Faces)' : 'OD member';
+    }
+    typeSel.addEventListener('change', syncFitType);
+
     function showForm(fit) {
         editId.value = fit ? fit.id : '';
         odSel.value  = fit ? fit.od_param_id : '';
         idSel.value  = fit ? fit.id_param_id : '';
-        refNo.value   = fit ? (fit.ref_no || '') : '';
+        typeSel.value = !fit ? 'pair'
+            : (fit.single_kind === 'faces' ? 'faces'
+            : (fit.od_param_id && fit.id_param_id ? 'pair' : (fit.od_param_id ? 'od' : 'id')));
+        syncFitType();
+        // an ID-single keeps its ref in id_ref_no — show it in the generic Ref box
+        refNo.value   = fit ? ((typeSel.value === 'id' ? fit.id_ref_no : fit.ref_no) || '') : '';
         idRefNo.value = fit ? (fit.id_ref_no || '') : '';
         asmMin.value = (fit && fit.assembly_clearance_min != null) ? fit.assembly_clearance_min : '';
         asmMax.value = (fit && fit.assembly_clearance_max != null) ? fit.assembly_clearance_max : '';
@@ -316,15 +371,18 @@
 
     async function save() {
         const numOrNull = (el) => el.value.trim() === '' ? null : el.value.trim();
+        const t = typeSel.value;
         const payload = {
-            od_param_id: odSel.value || null,
-            id_param_id: idSel.value || null,
-            ref_no: refNo.value.trim() || null,
-            id_ref_no: idRefNo.value.trim() || null,
+            // singles carry ONE member; 'faces' lives in the od slot (single_kind says what it is)
+            od_param_id: t === 'id' ? null : (odSel.value || null),
+            id_param_id: (t === 'od' || t === 'faces') ? null : (idSel.value || null),
+            single_kind: t === 'faces' ? 'faces' : null,
+            ref_no: t === 'id' ? null : (refNo.value.trim() || null),
+            id_ref_no: t === 'pair' ? (idRefNo.value.trim() || null) : (t === 'id' ? (refNo.value.trim() || null) : null),
             is_fc: isFc.checked,
-            assembly_clearance_min: numOrNull(asmMin),
-            assembly_clearance_max: numOrNull(asmMax),
-            permitted_clearance: numOrNull(perm),
+            assembly_clearance_min: t === 'pair' ? numOrNull(asmMin) : null,
+            assembly_clearance_max: t === 'pair' ? numOrNull(asmMax) : null,
+            permitted_clearance: t === 'pair' ? numOrNull(perm) : null,
         };
         try {
             if (editId.value) await api('/fits/' + editId.value, { method: 'PATCH', body: JSON.stringify(payload) });

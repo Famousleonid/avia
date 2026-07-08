@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Manual;
 use App\Models\ManualDimensionFigure;
 use App\Models\ManualDimensionPoint;
 use App\Models\ManualFit;
@@ -108,5 +109,37 @@ class ManualDimensionPointController extends Controller
         $manualDimensionPoint->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Remove the manual's unattached points — leftovers of deleted parameters
+     * and parts that linger as ghost marks on the WO Measurements figure:
+     *   - measurement points no parameter is attached to;
+     *   - text callouts that lost their part (child_ic FK is SET NULL on part
+     *     delete) and carry no free-text description of their own.
+     */
+    public function cleanupUnattached(Manual $manual)
+    {
+        $figureIds = $manual->dimensionFigures()->pluck('id');
+
+        $orphanMeasurement = ManualDimensionPoint::whereIn('manual_dimension_figure_id', $figureIds)
+            ->where('point_type', 'measurement')
+            ->whereDoesntHave('parameters')
+            ->pluck('id');
+
+        $orphanCallouts = ManualDimensionPoint::whereIn('manual_dimension_figure_id', $figureIds)
+            ->where('point_type', 'text')
+            ->whereNull('child_ic_id')
+            ->where(fn ($q) => $q->whereNull('description')->orWhere('description', ''))
+            ->pluck('id');
+
+        $deleted = $orphanMeasurement->merge($orphanCallouts);
+        ManualDimensionPoint::whereIn('id', $deleted)->delete();
+
+        return response()->json([
+            'measurement' => $orphanMeasurement->count(),
+            'callouts'    => $orphanCallouts->count(),
+            'deleted_ids' => $deleted->values(),
+        ]);
     }
 }

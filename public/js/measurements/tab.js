@@ -4,6 +4,7 @@
     const CSRF  = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
     let inspComponents = [], figures = [], parameters = [], measurements = [], USE_WEAR = false;
+    let linkedPointIdsAll = new Set();
     let allCodes = [], MISSING_CODE_ID = null;
     let partsTree = [];
     let icsWithTdr = new Set(), icsMissingTdr = new Set(), icsTdrLabel = new Map(), icsSyncedMeas = new Map();
@@ -209,10 +210,27 @@
         else msClearSelection(); // у детали нет точек измерения → не оставляем панель предыдущей детали
     }
 
+    // Codes of the part's F&C-checked points (natural-sorted). Empty = not an F&C part.
+    function partFcCodes(part) {
+        const codes = new Set();
+        part.params.forEach(p => (p.locations || []).forEach(l => {
+            if (l.pt && l.pt.is_fc && l.pt.code) codes.add(String(l.pt.code));
+        }));
+        return [...codes].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+    }
+
+    // Params shown for the selected part: F&C mode narrows the entry pane (and
+    // the figure's linked markers) to parameters sitting on F&C-checked points.
+    function visibleParams(part) {
+        if (msViewMode !== 'fc') return part.params;
+        return part.params.filter(p => (p.locations || []).some(l => l.pt && l.pt.is_fc));
+    }
+
     // Is the part visible in the current view mode?
     function partVisibleInMode(part) {
         if (msViewMode === 'single') return part.id === msSingleIc;
         if (msViewMode === 'new')    return partIsNewMode(part);
+        if (msViewMode === 'fc')     return partFcCodes(part).length > 0;
         return part.is_bush || !(partTdrFlags(part).repair || partIsNewMode(part));
     }
 
@@ -240,6 +258,17 @@
             const first = partsTree.find(p => partIsNewMode(p));
             if (first) selectComponent(first);
         }
+        if (mode === 'fc' && activePartId === null) {
+            const first = fcOrderedParts()[0];
+            if (first) selectComponent(first);
+        }
+    }
+
+    // F&C mode: parts ordered by their first F&C point code (natural).
+    function fcOrderedParts() {
+        return partsTree
+            .filter(p => partFcCodes(p).length > 0)
+            .sort((a, b) => partFcCodes(a)[0].localeCompare(partFcCodes(b)[0], undefined, { numeric: true, sensitivity: 'base' }));
     }
 
     /* ── Status ───────────────────────────────────────────────── */
@@ -355,15 +384,26 @@
                 ? '<i class="bi bi-rulers"></i> Inspect — repaired part'
                 : msViewMode === 'new'
                     ? '<i class="bi bi-box-seam"></i> Ordered — replacement verification (orig limits)'
-                    : '';
+                    : msViewMode === 'fc'
+                        ? '<i class="bi bi-link-45deg"></i> F&amp;C — by point code'
+                        : '';
         }
         document.getElementById('ms-new-parts-btn')?.classList.toggle('d-none', msViewMode !== 'all');
+        const fcBtn = document.getElementById('ms-fc-parts-btn');
+        if (fcBtn) {
+            fcBtn.classList.toggle('d-none', msViewMode !== 'all' && msViewMode !== 'fc');
+            fcBtn.classList.toggle('active', msViewMode === 'fc');
+        }
         let shown = 0;
-        partsTree.forEach(part => {
+        // F&C mode walks the list in F&C point-code order, not the authored order
+        const renderList = msViewMode === 'fc' ? fcOrderedParts() : partsTree;
+        renderList.forEach(part => {
             if (msViewMode === 'single') {
                 if (part.id !== msSingleIc) return;
             } else if (msViewMode === 'new') {
                 if (!partIsNewMode(part)) return;
+            } else if (msViewMode === 'fc') {
+                // fcOrderedParts() already filtered to F&C parts
             } else {
                 // Measurements: clean parts only. Repaired → TDR Inspect tab;
                 // Order New (non-bush) → NEW Parts tab; bushings stay (own flow).
@@ -381,8 +421,9 @@
                 : /order new/i.test(tdrLabel) ? '#dc3545'
                 : /repair/i.test(tdrLabel) ? '#fd7e14'
                 : '#6c757d';
-            const total = part.params.length;
-            const done  = part.params.filter(p => paramStatus(p) !== 'none').length;
+            const progParams = visibleParams(part); // fc mode: progress over F&C params only
+            const total = progParams.length;
+            const done  = progParams.filter(p => paramStatus(p) !== 'none').length;
             let pSt, progHtml;
             if (fcDone && part.is_bush) {
                 // Bushing missing + mating bore confirmed → show ✓
@@ -406,16 +447,24 @@
                         : `<span class="ms-part-prog">${done}/${total}</span>`)
                     : '';
             }
+            // F&C mode: show the part's F&C point codes so the tech can follow the table
+            const fcCodesHtml = msViewMode === 'fc'
+                ? `<span class="ms-pt-code" style="color:#0d9488">${esc(partFcCodes(part).slice(0, 4).join(', '))}</span>`
+                : '';
             const el = document.createElement('div');
             el.className = 'ms-tab-param-item' + (isActive ? ' active' : '');
             el.style.cssText = 'padding:6px 10px;border-left-width:3px';
-            el.innerHTML = `<span class="ms-pdot ${pSt}"></span><span class="ms-tab-param-desc" style="font-size:12px;font-weight:600">${esc(part.label)}</span>${progHtml}`;
+            el.innerHTML = `<span class="ms-pdot ${pSt}"></span><span class="ms-tab-param-desc" style="font-size:12px;font-weight:600">${esc(part.label)}</span>${fcCodesHtml}${progHtml}`;
             el.addEventListener('click', () => selectComponent(part));
             partsList.appendChild(el);
         });
         if (!shown && msViewMode === 'new') {
             partsList.insertAdjacentHTML('beforeend',
                 '<div class="px-3 py-2 text-secondary" style="font-size:11px">No Order New parts yet</div>');
+        }
+        if (!shown && msViewMode === 'fc') {
+            partsList.insertAdjacentHTML('beforeend',
+                '<div class="px-3 py-2 text-secondary" style="font-size:11px">No F&amp;C points in this manual (checkbox on the point)</div>');
         }
     }
 
@@ -480,8 +529,9 @@
         if(!iw||!ih) return;
 
         // Collect point IDs already handled by parameters (to avoid double-rendering)
+        const shownParams = visibleParams(part); // fc mode: only F&C params get full markers
         const linkedPointIds = new Set();
-        part.params.forEach(param=>{
+        shownParams.forEach(param=>{
             param.locations.filter(l=>l.fig.id===fig.id).forEach(({pt})=>linkedPointIds.add(pt.id));
         });
 
@@ -489,6 +539,10 @@
         (fig.points||[]).forEach(pt=>{
             if(linkedPointIds.has(pt.id)) return;
             if(pt.x_pct==null||pt.y_pct==null) return;
+            // ghost marks: a measurement point NO parameter is attached to, or a
+            // callout that lost its part — leftovers of deletions, skip them
+            if(pt.point_type==='measurement' && !linkedPointIdsAll.has(pt.id)) return;
+            if(pt.point_type==='text' && pt.child_ic_id==null && !pt.description) return;
             if(pt.point_type==='text' && pt.label_x_pct!=null && pt.label_y_pct!=null){
                 const ic = inspComponents.find(c=>c.id===pt.child_ic_id);
                 const lbl = document.createElement('div');
@@ -518,7 +572,7 @@
         });
 
         // Render parameter-linked points with status colors
-        part.params.forEach(param=>{
+        shownParams.forEach(param=>{
             const isActiveParam = activeParam && param.id===activeParam.id;
             const st=paramStatus(param);
             const color=STATUS_COLORS[st]||STATUS_COLORS.none;
@@ -580,7 +634,7 @@
         renderPartsList();
         renderComponentPanel(part);
         // Show the figure using the first param's location (markers all dim, none active)
-        const firstParam = part.params[0] || null;
+        const firstParam = visibleParams(part)[0] || null;
         if (firstParam) {
             const figs = uniqueFigures(firstParam);
             const fig = figs[0] || null;
@@ -629,7 +683,7 @@
         updatePrintSketchBtnState(part);
 
         accWrap.innerHTML = '';
-        part.params.forEach(param => accWrap.appendChild(buildAccordionRow(part, param)));
+        visibleParams(part).forEach(param => accWrap.appendChild(buildAccordionRow(part, param)));
     }
 
     function updateMissingPartBtnState(part) {
@@ -1620,6 +1674,9 @@ ${sections}
             inspComponents=data.inspection_components;
             figures=data.figures;
             parameters=data.parameters;
+            // point ids ANY parameter is attached to — orphan measurement points
+            // (leftovers of deleted parameters) are hidden from the figure
+            linkedPointIdsAll = new Set(parameters.flatMap(p => (p.points||[]).map(pt => pt.id)));
             measurements=data.measurements;
             allCodes=data.codes||[];
             MISSING_CODE_ID=data.missing_code_id||null;
@@ -1961,6 +2018,10 @@ ${sections}
         if (!li || !btn) return;
         li.classList.remove('d-none');
         bootstrap.Tab.getOrCreateInstance(btn).show();
+    });
+    // F&C button (PARTS header) — toggle: only F&C parts, ordered by point code
+    document.getElementById('ms-fc-parts-btn')?.addEventListener('click', function () {
+        msSetViewMode(msViewMode === 'fc' ? 'all' : 'fc');
     });
     if(document.getElementById('content-measurements')?.classList.contains('active')){
         loaded=true; loadData();

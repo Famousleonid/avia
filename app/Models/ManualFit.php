@@ -23,6 +23,7 @@ class ManualFit extends Model
         'manual_id',
         'od_param_id',
         'id_param_id',
+        'single_kind',
         'ref_no',
         'id_ref_no',
         'is_fc',
@@ -46,6 +47,22 @@ class ManualFit extends Model
     public function manual(): BelongsTo
     {
         return $this->belongsTo(Manual::class);
+    }
+
+    /**
+     * Single-member row (mate in another manual / linear Between-Across Faces
+     * dimension). single_kind: 'od' | 'id' | 'faces'; null = ordinary pair.
+     * A 'faces' member lives in the od_param_id slot.
+     */
+    public function isSingle(): bool
+    {
+        return $this->od_param_id === null || $this->id_param_id === null;
+    }
+
+    /** The one member of a single-member row (od slot first, faces included). */
+    public function singleParam(): ?ManualParameter
+    {
+        return $this->odParam ?? $this->idParam;
     }
 
     public function odParam(): BelongsTo

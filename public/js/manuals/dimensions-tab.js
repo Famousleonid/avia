@@ -3214,6 +3214,20 @@ document.addEventListener('DOMContentLoaded', function () {
     // ==========================
     // Figure modal open
     // ==========================
+    // Clean unattached points: measurement points without a parameter and
+    // callouts that lost their part — leftovers of deletions, ghost marks in
+    // the WO Measurements figure. Server decides; client drops them from state.
+    document.getElementById('dimCleanPointsBtn')?.addEventListener('click', async function () {
+        if (!confirm('Remove unattached points?\n— measurement points no parameter is attached to\n— callouts that lost their part')) return;
+        try {
+            const r = await apiFetch('/manuals/' + MANUAL_ID + '/dimension-points/cleanup', { method: 'POST' });
+            const gone = new Set(r.deleted_ids || []);
+            figures.forEach(f => { if (Array.isArray(f.points)) f.points = f.points.filter(p => !gone.has(p.id)); });
+            if (activeFigure) selectFigure(activeFigure);
+            alert('Removed: ' + r.measurement + ' measurement point(s), ' + r.callouts + ' callout(s).');
+        } catch (e) { alert(e.message); }
+    });
+
     document.getElementById('dimAddFigureBtn').addEventListener('click', function () {
         document.getElementById('dimFigureId').value    = '';
         document.getElementById('dimFigureTitle').value = '';

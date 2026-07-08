@@ -138,7 +138,17 @@ class ManualParameterController extends Controller
             ], 409);
         }
 
+        // A deleted parameter often leaves its measurement points orphaned — they
+        // linger as ghost marks on the WO Measurements figure. Drop the ones no
+        // other parameter uses (a point shared with another parameter survives).
+        $pointIds = $manualParameter->points()->pluck('manual_dimension_points.id');
+
         $manualParameter->delete();
+
+        \App\Models\ManualDimensionPoint::whereIn('id', $pointIds)
+            ->where('point_type', 'measurement')
+            ->whereDoesntHave('parameters')
+            ->delete();
 
         return response()->json(['ok' => true]);
     }

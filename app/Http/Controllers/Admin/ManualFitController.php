@@ -167,8 +167,9 @@ class ManualFitController extends Controller
 
         $fit = ManualFit::create([
             'manual_id'              => $manual->id,
-            'od_param_id'            => $data['od_param_id'],
-            'id_param_id'            => $data['id_param_id'],
+            'od_param_id'            => $data['od_param_id'] ?? null,
+            'id_param_id'            => $data['id_param_id'] ?? null,
+            'single_kind'            => $data['single_kind'] ?? null,
             'ref_no'                 => $data['ref_no'] ?? null,
             'id_ref_no'              => $data['id_ref_no'] ?? null,
             'is_fc'                  => $data['is_fc'] ?? true,
@@ -199,11 +200,10 @@ class ManualFitController extends Controller
 
     private function validateData(Request $request, Manual $manual, bool $partial = false, ?int $ignoreId = null): array
     {
-        $req = $partial ? 'sometimes|' : 'required|';
-
         $data = $request->validate([
-            'od_param_id'            => $req . 'integer|exists:manual_parameters,id',
-            'id_param_id'            => $req . 'integer|exists:manual_parameters,id',
+            'od_param_id'            => 'nullable|integer|exists:manual_parameters,id',
+            'id_param_id'            => 'nullable|integer|exists:manual_parameters,id',
+            'single_kind'            => 'nullable|in:od,id,faces',
             'ref_no'                 => 'nullable|string|max:40',
             'id_ref_no'              => 'nullable|string|max:40',
             'is_fc'                  => 'nullable|boolean',
@@ -212,6 +212,23 @@ class ManualFitController extends Controller
             'permitted_clearance'    => 'nullable|numeric',
             'sort_order'             => 'nullable|integer',
         ]);
+
+        // A fit is a pair OR a single-member row (mate in another manual /
+        // Between-Across Faces linear dimension) — at least one member always.
+        if (! $partial && empty($data['od_param_id']) && empty($data['id_param_id'])) {
+            throw ValidationException::withMessages(['od_param_id' => 'Select at least one member (OD, ID or Between/Across Faces).']);
+        }
+
+        // single_kind bookkeeping: derive for one-member saves, clear for pairs
+        if (array_key_exists('od_param_id', $data) || array_key_exists('id_param_id', $data)) {
+            $od = $data['od_param_id'] ?? null;
+            $id = $data['id_param_id'] ?? null;
+            if ($od !== null && $id !== null) {
+                $data['single_kind'] = null;
+            } elseif (($data['single_kind'] ?? null) !== 'faces') {
+                $data['single_kind'] = $od !== null ? 'od' : ($id !== null ? 'id' : null);
+            }
+        }
 
         // Both members must belong to this manual and be distinct.
         foreach (['od_param_id', 'id_param_id'] as $key) {
@@ -248,6 +265,7 @@ class ManualFitController extends Controller
             'id'                     => $fit->id,
             'ref_no'                 => $fit->ref_no,
             'id_ref_no'              => $fit->id_ref_no,
+            'single_kind'            => $fit->single_kind,
             'is_fc'                  => (bool) $fit->is_fc,
             'sort_order'             => $fit->sort_order,
             'od_param_id'            => $fit->od_param_id,

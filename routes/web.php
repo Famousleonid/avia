@@ -359,6 +359,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::post('/dimension-figures/{manualDimensionFigure}/points', [ManualDimensionPointController::class, 'store'])->name('dimension-figures.points.store');
     Route::patch('/dimension-points/{manualDimensionPoint}', [ManualDimensionPointController::class, 'update'])->name('dimension-points.update');
     Route::delete('/dimension-points/{manualDimensionPoint}', [ManualDimensionPointController::class, 'destroy'])->name('dimension-points.destroy');
+    Route::post('/manuals/{manual}/dimension-points/cleanup', [ManualDimensionPointController::class, 'cleanupUnattached'])->name('manuals.dimension-points.cleanup');
 
     // --- Inspection Components ---
     Route::get('/manuals/{manual}/inspection-components', [ManualInspectionComponentController::class, 'index'])->name('manuals.inspection-components.index');

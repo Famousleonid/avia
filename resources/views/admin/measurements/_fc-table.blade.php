@@ -193,6 +193,31 @@ if (! function_exists('figLabel')) {
 
     {{-- ── F&C rows (pairs) ──────────────────────────────── --}}
     @foreach($fcRows as $row)
+    @if($row['single'] ?? false)
+    @php
+        // Single-member F&C row: mate in another manual / Between-Across Faces
+        // linear dimension — one line, its ref and limits, clearances n/a.
+        $sr   = $row['resultA'];
+        $sVal = $row['measA']?->actual_value;
+        $sSt  = $row['measA'] ? ' <span class="stage-tag">('.($row['measA']->new_part ? 'new' : e($row['measA']->stage)).')</span>' : '';
+        $sFix = $row['measA'] && $row['measA']->stage === 'final' && $sr === 'PASS';
+    @endphp
+    <tr data-ref="{{ $row['ref'] }}" data-type="fc">
+        <td class="c col-figure" style="color:#666;font-size:10px">{{ figLabel($row['fig']) }}</td>
+        <td class="c" style="font-weight:700">{{ $row['ref'] }}</td>
+        <td class="col-part">{{ $row['pA']->description }}@if($row['compA']?->ipl_num) <span style="color:#888">({{ $row['compA']->ipl_num }})</span>@endif</td>
+        <td class="r">{{ wfmt($row['pA']->orig_dim_min) }}</td>
+        <td class="r">{{ wfmt($row['pA']->orig_dim_max) }}</td>
+        <td class="na">—</td>
+        <td class="na">—</td>
+        <td class="r">{{ wfmt($row['aWearMin']) }}</td>
+        <td class="r">{{ wfmt($row['aWearMax']) }}</td>
+        <td class="na">—</td>
+        <td class="r {{ $sr === 'FAIL' ? 'val-fail' : ($sr === 'PASS' ? 'val-pass' : '') }}">{!! $sVal !== null ? wfmt($sVal).$sSt : '—' !!}</td>
+        <td class="c col-defect" style="color:#dc3545;font-size:10px">{{ $row['findingA'] ?? '—' }}@if($row['findingA'] && $sFix) <span style="color:#198754;font-weight:700">/ OK</span>@endif</td>
+        <td class="c col-result">@if($sr)<span class="{{ strtolower($sr) }}">{{ $sr }}</span>@else —@endif</td>
+    </tr>
+    @else
     @php
         // Two members of the pair (A = ID/bore, B = OD/shaft). Per-member Ref.No:
         // when refSplit, each member is its own numbered row ordered by Ref.No;
@@ -249,6 +274,7 @@ if (! function_exists('figLabel')) {
         <td class="c col-result">@if($r)<span class="{{ strtolower($r) }}">{{ $r }}</span>@else —@endif</td>
     </tr>
     @endforeach
+    @endif
     @endforeach
 
     {{-- ── Extra rows (single) ───────────────────────────── --}}

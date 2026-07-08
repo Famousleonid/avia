@@ -70,6 +70,7 @@ class WoMeasurementController extends Controller
                     'code'        => $pt->code,
                     'description' => $pt->description,
                     'point_type'  => $pt->point_type,
+                    'is_fc'       => (bool) $pt->is_fits_clearance,
                     'child_ic_id' => $pt->child_ic_id,
                     'x_pct'       => $pt->x_pct,
                     'y_pct'       => $pt->y_pct,
@@ -452,7 +453,33 @@ class WoMeasurementController extends Controller
         foreach ($fcFits as $fit) {
             $pA = $fit->idParam;  // ID = bore
             $pB = $fit->odParam;  // OD = shaft
+
+            // Single-member row (mate in another manual / Between-Across Faces):
+            // one F&C line with its ref and limits, no clearances.
             if (! $pA || ! $pB) {
+                $p = $pA ?? $pB;
+                if (! $p) {
+                    continue;
+                }
+                $pairedParamIds[$p->id] = true;
+                $pt  = $p->points->first();
+                $meas = $measByParam[$p->id] ?? null;
+                $lim  = $p->effectiveLimits($useWear);
+                $fcRows[] = [
+                    'single'       => true,
+                    'fig'          => $pt?->figure,
+                    'pt'           => $pt,
+                    'ref'          => trim((string) $fit->ref_no) ?: (trim((string) $fit->id_ref_no) ?: ($pt?->code ?? '—')),
+                    'refOd'        => '', 'refId' => '', 'refSplit' => false,
+                    'sortRef'      => trim((string) $fit->ref_no) ?: (trim((string) $fit->id_ref_no) ?: (string) ($pt?->code ?? '')),
+                    'pA'           => $p,
+                    'compA'        => $p->inspectionComponent?->variants->first()?->component,
+                    'measA'        => $meas,
+                    'aWearMin'     => $p->wear_dim_min ?? $p->orig_dim_min,
+                    'aWearMax'     => $p->wear_dim_max ?? $p->orig_dim_max,
+                    'findingA'     => $findingByParam[$p->id] ?? null,
+                    'resultA'      => $meas?->result ?? $this->computeResult($meas?->actual_value, $lim),
+                ];
                 continue;
             }
             $pairedParamIds[$pA->id] = true;

@@ -101,8 +101,13 @@
         <div class="px-2 py-2 border-bottom d-flex align-items-center" style="font-size:13px;font-weight:700;flex-shrink:0;color:var(--bs-secondary-color)">
             <span>PARTS</span>
             <span id="ms-parts-mode" class="d-none ms-2" style="font-size:10px;font-weight:600;color:var(--bs-info)"></span>
+            <button type="button" id="ms-fc-parts-btn"
+               class="btn btn-outline-success btn-sm ms-auto py-0 px-2" style="font-size:11px;font-weight:700"
+               title="Only parts with Fits & Clearances points (checkbox on the point), ordered by point code — enter F&C measurements top-down. Click again to return.">
+                F&amp;C
+            </button>
             <button type="button" id="ms-new-parts-btn"
-               class="btn btn-outline-info btn-sm ms-auto py-0 px-2" style="font-size:11px;font-weight:700"
+               class="btn btn-outline-info btn-sm ms-1 py-0 px-2" style="font-size:11px;font-weight:700"
                title="Order New positions — verify the replacement parts (orig limits)">
                 Ordered
             </button>
