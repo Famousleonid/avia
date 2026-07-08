@@ -1130,6 +1130,15 @@
                                            style="width:90px;font-size:12px" placeholder="0.0000">
                                 </div>
                             </div>
+                            {{-- torque range (CMM) — enables Auto-fill on the F&C Doc fill page --}}
+                            <div id="pdw-ef-torque" class="d-none d-flex gap-1 align-items-center">
+                                <span style="font-size:12px;color:#fd7e14">range</span>
+                                <input id="pdw-ef-tq-min" type="number" step="0.01" min="0" class="form-control form-control-sm"
+                                       style="width:90px;font-size:12px" placeholder="min">
+                                <span style="font-size:12px;color:#6c757d">–</span>
+                                <input id="pdw-ef-tq-max" type="number" step="0.01" min="0" class="form-control form-control-sm"
+                                       style="width:90px;font-size:12px" placeholder="max">
+                            </div>
                             {{-- param picker for formula (hidden popover) --}}
                             <select id="pdw-ef-fparam-pick" class="form-select form-select-sm d-none" style="width:auto;font-size:12px"></select>
                         </div>

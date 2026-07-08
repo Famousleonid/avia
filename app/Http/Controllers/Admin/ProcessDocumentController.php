@@ -267,6 +267,10 @@ class ProcessDocumentController extends Controller
             ->filter(fn($e) => $e->value_source === 'torque')
             ->pluck('id')->values();
         $hasTorque = $torqueIds->isNotEmpty();
+        // Auto-fill is offered only when at least one torque mark carries a CMM range.
+        $hasTorqueRange = $doc->pages->flatMap(fn($p) => $p->elements)
+            ->contains(fn($e) => $e->value_source === 'torque'
+                && $e->torque_min !== null && $e->torque_max !== null);
         $torqueSaveUrl = route('workorders.torque-values.save', ['workorder' => $workorder->id]);
 
         $pagesHtml = '';
@@ -327,6 +331,7 @@ body{font-family:Arial,sans-serif;font-size:12px;background:#f8f9fa;color:#21252
     <span><i style="background:#dc3545"></i>Fail</span>
     <span><i style="background:#b58900"></i>no data</span>
   </span>
+  ' . ($hasTorqueRange ? '<button class="btn" id="autoTorqueBtn" title="Suggestions are drafted on open for empty fields (CMM range); this re-rolls them. Fields you typed/edited are never touched. Nothing is stored until Save torque." style="background:#fff;color:#fd7e14;border:1px solid #fd7e14">&#9881; Re-roll</button>' : '') . '
   ' . ($hasTorque ? '<button class="btn" id="saveTorqueBtn" style="background:#fd7e14;color:#fff">&#128295; Save torque</button>' : '') . '
   <button class="btn btn-success" id="savePdfBtn">&#128190; Save PDF</button>
   <button class="btn btn-primary" onclick="window.print()" title="Select «Print on both sides» (duplex) in the print dialog">&#9112; Print</button>
@@ -367,6 +372,48 @@ document.querySelectorAll(".pdw-torque-input").forEach(function (i) {
     });
     sync();
 });
+// Auto-fill: suggest a realistic wrench setting inside the CMM range for every
+// EMPTY torque field that carries data-tq-min/max. Step depends on the range
+// width — narrow (<5) uses whole units, wider uses multiples of 5 — so the
+// value reads like an actual wrench setting (175, not 173.42).
+// Runs once on page open (draft suggestions); the button re-rolls. Values the
+// tech typed or edited are NEVER overwritten, and nothing is persisted until
+// Save torque — the save stays the explicit confirmation step.
+function fcTorqueSuggest(min, max) {
+    const range = max - min;
+    const step = range < 5 ? 1 : 5;
+    const lo = Math.ceil(min / step) * step;
+    const hi = Math.floor(max / step) * step;
+    if (lo > hi) return Math.round(((min + max) / 2) * 100) / 100; // no step candidate inside
+    const n = Math.floor((hi - lo) / step) + 1;
+    return lo + step * Math.floor(Math.random() * n);
+}
+function fcAutoFillTorque() {
+    let filled = 0, skipped = 0;
+    document.querySelectorAll(".pdw-torque-input").forEach(function (i) {
+        // fillable = empty, or an untouched auto-suggestion (re-roll)
+        if (i.value.trim() !== "" && i.dataset.auto !== "1") return;
+        const min = parseFloat(i.dataset.tqMin), max = parseFloat(i.dataset.tqMax);
+        if (isNaN(min) || isNaN(max)) { if (i.value.trim() === "") skipped++; return; }
+        i.value = fcTorqueSuggest(min, max).toFixed(2);
+        i.dispatchEvent(new Event("input"));
+        i.dataset.auto = "1"; // re-mark: the input handler clears it on manual edits
+        filled++;
+    });
+    return { filled: filled, skipped: skipped };
+}
+// a manual edit claims the field — re-roll will not touch it anymore
+document.querySelectorAll(".pdw-torque-input").forEach(function (i) {
+    i.addEventListener("input", function (ev) { if (ev.isTrusted) delete i.dataset.auto; });
+});
+const fcAutoBtn = document.getElementById("autoTorqueBtn");
+if (fcAutoBtn) {
+    fcAutoBtn.addEventListener("click", function () {
+        const r = fcAutoFillTorque();
+        this.textContent = "⚙ Re-roll (" + r.filled + (r.skipped ? ", manual: " + r.skipped : "") + ")";
+    });
+    fcAutoFillTorque(); // draft suggestions appear right away; tech adjusts & saves
+}
 const fcTorqueBtn = document.getElementById("saveTorqueBtn");
 if (fcTorqueBtn) {
     fcTorqueBtn.addEventListener("click", async function () {
@@ -1191,6 +1238,8 @@ document.addEventListener(\'mouseup\', function (e) {
             'formula_expression'  => 'nullable|string|max:500',
             'formula_tol_plus'    => 'nullable|numeric|min:0',
             'formula_tol_minus'   => 'nullable|numeric|min:0',
+            'torque_min'          => 'nullable|numeric|min:0',
+            'torque_max'          => 'nullable|numeric|min:0|gte:torque_min',
             'placeholder'         => 'nullable|string|max:100',
             'text'                => 'nullable|string|max:255',
             'font_size'           => 'nullable|integer|min:5|max:72',
@@ -1292,6 +1341,8 @@ document.addEventListener(\'mouseup\', function (e) {
             'formula_expression'  => $e->formula_expression,
             'formula_tol_plus'    => $e->formula_tol_plus,
             'formula_tol_minus'   => $e->formula_tol_minus,
+            'torque_min'          => $e->torque_min,
+            'torque_max'          => $e->torque_max,
             'placeholder'         => $e->placeholder,
             'text'                => $e->text,
             'font_size'           => $e->font_size,

@@ -300,6 +300,54 @@ class FitsClearancesTorqueTest extends TestCase
     // The actual Save-PDF JS gate (block until filled) needs a browser test (Dusk);
     // here we assert the server-rendered prerequisites only.
 
+    public function test_torque_range_round_trips_and_enables_auto_fill(): void
+    {
+        // A torque mark may carry the CMM range (min/max). The fill page then
+        // exposes it as data-tq-min/max on the input and offers the Auto-fill
+        // button; marks without a range stay manual-only (no button).
+        $manual = $this->createManual();
+        $doc = $manual->documents()->create(['doc_type' => 'manual', 'title' => 'Torque', 'sort_order' => 0]);
+        $page = $doc->pages()->create(['page_no' => 1, 'image_path' => 't/torque.png', 'image_width' => 1000, 'image_height' => 800, 'sort_order' => 0]);
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        // range round-trips via the element endpoint (editor save path)
+        $created = $this->actingAs($this->admin())
+            ->postJson(route('process-document-pages.elements.store', $page->id), [
+                'element_type' => 'dimension', 'value_source' => 'torque',
+                'x_pct' => 50, 'y_pct' => 50, 'torque_min' => 160, 'torque_max' => 190,
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('torque_min', 160)
+            ->assertJsonPath('torque_max', 190)
+            ->json();
+
+        // max < min is rejected
+        $this->actingAs($this->admin())
+            ->patchJson(route('process-document-elements.update', $created['id']), ['torque_min' => 200, 'torque_max' => 190])
+            ->assertStatus(422);
+
+        $resp = $this->actingAs($this->admin())->get(route('workorders.fc-document', $wo->id))->assertOk();
+        $resp->assertSee('data-tq-min="160" data-tq-max="190"', false);
+        $resp->assertSee('id="autoTorqueBtn"', false);
+    }
+
+    public function test_fc_document_without_range_has_no_auto_fill_button(): void
+    {
+        $manual = $this->createManual();
+        $doc = $manual->documents()->create(['doc_type' => 'manual', 'title' => 'Torque', 'sort_order' => 0]);
+        $page = $doc->pages()->create(['page_no' => 1, 'image_path' => 't/torque.png', 'image_width' => 1000, 'image_height' => 800, 'sort_order' => 0]);
+        $page->elements()->create(['element_type' => 'dimension', 'value_source' => 'torque', 'x_pct' => 50, 'y_pct' => 50, 'sort_order' => 0]);
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        $resp = $this->actingAs($this->admin())->get(route('workorders.fc-document', $wo->id))->assertOk();
+        $resp->assertSee('FC_HAS_TORQUE = true', false);
+        // the JS helper is always present; the BUTTON only renders with a range
+        $resp->assertDontSee('id="autoTorqueBtn"', false);
+        // an unfilled torque input must be truly empty — the show_missing "—"
+        // placeholder would make auto-fill and the "all filled" gate see it as filled
+        $resp->assertDontSee('value="—"', false);
+    }
+
     public function test_fc_document_shows_torque_inputs_and_save_button(): void
     {
         $manual = $this->createManual();

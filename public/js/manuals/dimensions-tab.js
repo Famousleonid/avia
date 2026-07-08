@@ -4897,6 +4897,8 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('pdw-ef-fexpr').value = '';
             document.getElementById('pdw-ef-ftol-plus').value = '';
             document.getElementById('pdw-ef-ftol-minus').value = '';
+            document.getElementById('pdw-ef-tq-min').value = '';
+            document.getElementById('pdw-ef-tq-max').value = '';
             pdwSyncDimFields('static');
         } else {
             const plsel = document.getElementById('pdw-ef-placeholder');
@@ -4968,6 +4970,8 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('pdw-ef-fexpr').value  = e.formula_expression || '';
             document.getElementById('pdw-ef-ftol-plus').value  = e.formula_tol_plus  != null ? e.formula_tol_plus  : '';
             document.getElementById('pdw-ef-ftol-minus').value = e.formula_tol_minus != null ? e.formula_tol_minus : '';
+            document.getElementById('pdw-ef-tq-min').value = e.torque_min != null ? e.torque_min : '';
+            document.getElementById('pdw-ef-tq-max').value = e.torque_max != null ? e.torque_max : '';
             pdwSyncDimFields(src);
             document.getElementById('pdw-ef-dim').classList.remove('d-none');
             document.getElementById('pdw-ef-lbl').classList.add('d-none');
@@ -5005,6 +5009,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('pdw-ef-static').classList.toggle('d-none', needsParam || isFormula || isTorque);
         document.getElementById('pdw-ef-param').classList.toggle('d-none', !needsParam);
         document.getElementById('pdw-ef-formula').classList.toggle('d-none', !isFormula);
+        document.getElementById('pdw-ef-torque').classList.toggle('d-none', !isTorque);
         if (isFormula) {
             document.getElementById('pdw-ef-fparam-pick').innerHTML = pdwParamOptions();
         }
@@ -5094,6 +5099,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 // free WO-filled value (keyed by element id) — no template value
                 body.static_value = null;
                 body.source_parameter_id = null;
+                const tqMin = document.getElementById('pdw-ef-tq-min').value;
+                const tqMax = document.getElementById('pdw-ef-tq-max').value;
+                body.torque_min = tqMin !== '' ? parseFloat(tqMin) : null;
+                body.torque_max = tqMax !== '' ? parseFloat(tqMax) : null;
             } else {
                 const v = document.getElementById('pdw-ef-static').value;
                 body.static_value = v !== '' ? parseFloat(v) : null;

@@ -27,6 +27,8 @@ class ProcessDocumentElement extends Model
         'formula_expression',
         'formula_tol_plus',
         'formula_tol_minus',
+        'torque_min',
+        'torque_max',
     ];
 
     // FK ids as integers — some PDO/PHP setups return them as strings ("25"),
@@ -44,6 +46,10 @@ class ProcessDocumentElement extends Model
         'static_value'      => 'decimal:4',
         'formula_tol_plus'  => 'decimal:4',
         'formula_tol_minus' => 'decimal:4',
+        // float (не decimal) — decimal-каст отдаёт строку, а JS auto-fill
+        // читает границы из data-атрибутов как числа
+        'torque_min'        => 'float',
+        'torque_max'        => 'float',
     ];
 
     public function page(): BelongsTo

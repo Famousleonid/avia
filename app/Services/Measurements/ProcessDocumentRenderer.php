@@ -229,7 +229,12 @@ class ProcessDocumentRenderer
                 }
                 if ($this->isEmptyDimValue($rawText)) {
                     if (empty($context['show_missing'])) continue; // no value — skip
-                    $rawText = ($e->mask === 'diameter' ? 'Ø' : ($e->mask === 'radius' ? 'R' : '')) . '—';
+                    // torque-edit renders an <input> — keep it truly empty so the
+                    // fill-page JS (auto-fill, the "all filled" gate) sees it as
+                    // unfilled instead of holding the "—" placeholder
+                    if (!($e->value_source === 'torque' && !empty($context['torque_edit']))) {
+                        $rawText = ($e->mask === 'diameter' ? 'Ø' : ($e->mask === 'radius' ? 'R' : '')) . '—';
+                    }
                 }
             }
 
@@ -289,7 +294,12 @@ class ProcessDocumentRenderer
             // Torque marks become inline inputs when the doc is opened in
             // torque-edit mode (tech fills the value during F&C Doc generation).
             if ($e->value_source === 'torque' && !empty($context['torque_edit'])) {
-                $els .= '<input class="pdw-el pdw-torque-input" type="text" inputmode="decimal" placeholder="0.00" title="Enter a number (0.00) or N/A" data-element-id="' . (int) $e->id . '" value="' . $text . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">';
+                // CMM range (when authored) lets the fill page suggest a wrench
+                // setting inside [min, max] — see the Auto-fill button JS.
+                $range = ($e->torque_min !== null && $e->torque_max !== null)
+                    ? ' data-tq-min="' . (float) $e->torque_min . '" data-tq-max="' . (float) $e->torque_max . '"'
+                    : '';
+                $els .= '<input class="pdw-el pdw-torque-input" type="text" inputmode="decimal" placeholder="0.00" title="Enter a number (0.00) or N/A" data-element-id="' . (int) $e->id . '"' . $range . ' value="' . $text . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">';
             } else {
                 $els .= '<div class="' . $cls . '" data-element-id="' . (int) $e->id . '" style="left:' . $xp . '%;top:' . $yp . '%' . $fs . '">' . $text . '</div>';
             }
