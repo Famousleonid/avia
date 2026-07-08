@@ -26,6 +26,8 @@ class AccessManagementTest extends TestCase
             ->assertSee('Quality Assurance')
             ->assertSee('EC')
             ->assertSee('Vendor Tracking')
+            ->assertSee('Countries')
+            ->assertSee('Type of Business')
             ->assertSee('Can sign certificates')
             ->assertSee('Manuals full access')
             ->assertSee('Manage locked manual processes')
@@ -165,6 +167,33 @@ class AccessManagementTest extends TestCase
         $this->assertTrue(Gate::forUser($second->fresh())->allows('feature.quality_assurance'));
         $this->assertTrue($first->fresh()->canAccessQualityAssurancePage());
         $this->assertTrue($second->fresh()->canAccessQualityAssurancePage());
+    }
+
+    public function test_library_reference_access_can_be_granted_per_user(): void
+    {
+        $systemAdmin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $countryUser = $this->createUserWithRole('Technician', ['name' => 'Country Access User']);
+        $businessTypeUser = $this->createUserWithRole('Manager', ['name' => 'Business Type Access User']);
+
+        $this->assertFalse(Gate::forUser($countryUser)->allows('feature.library.countries'));
+        $this->assertFalse(Gate::forUser($businessTypeUser)->allows('feature.library.type_of_business'));
+
+        $this->actingAs($systemAdmin)
+            ->post(route('admin.access.store'), [
+                'feature_key' => 'library.countries',
+                'user_ids' => [$countryUser->id],
+            ])
+            ->assertRedirect(route('admin.access.index'));
+
+        $this->actingAs($systemAdmin)
+            ->post(route('admin.access.store'), [
+                'feature_key' => 'library.type_of_business',
+                'user_ids' => [$businessTypeUser->id],
+            ])
+            ->assertRedirect(route('admin.access.index'));
+
+        $this->assertTrue(Gate::forUser($countryUser->fresh())->allows('feature.library.countries'));
+        $this->assertTrue(Gate::forUser($businessTypeUser->fresh())->allows('feature.library.type_of_business'));
     }
 
     public function test_vendor_crud_requires_vendor_tracking_access(): void

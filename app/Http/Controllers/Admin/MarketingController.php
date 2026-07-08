@@ -26,6 +26,14 @@ use Illuminate\Validation\ValidationException;
 
 class MarketingController extends Controller
 {
+    private const ADDRESS_CATEGORY_LABELS = [
+        'logistics' => 'Logistics',
+        'shipping' => 'Shipping',
+        'marketing' => 'Marketing',
+        'accounting' => 'Accounting',
+        'purchasing' => 'Purchasing',
+    ];
+
     public function index(): View
     {
         return view('admin.marketing.index', [
@@ -35,6 +43,7 @@ class MarketingController extends Controller
             'planes' => Plane::query()->orderBy('type')->get(['id', 'type']),
             'users' => User::query()->orderBy('name')->get(['id', 'name']),
             'lifecycleOptions' => $this->lifecycleOptions(),
+            'addressCategoryLabels' => $this->addressCategoryLabels(),
         ]);
     }
 
@@ -80,7 +89,9 @@ class MarketingController extends Controller
                             ->orWhere('street_address', 'like', $like)
                             ->orWhere('city', 'like', $like)
                             ->orWhere('state_province', 'like', $like)
+                            ->orWhere('post_code', 'like', $like)
                             ->orWhere('company_notes', 'like', $like)
+                            ->orWhereRaw('CAST(address_categories AS CHAR) LIKE ?', [$like])
                             ->orWhere('terms_label', 'like', $like);
                     })
                     ->orWhereHas('marketingProfile.countryRef', function ($country) use ($like) {
@@ -172,6 +183,57 @@ class MarketingController extends Controller
                 'total' => $customers->total(),
             ],
         ]);
+    }
+
+    public function cities(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'q' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $query = CustomerMarketingProfile::query()
+            ->whereNotNull('city')
+            ->whereRaw("TRIM(city) <> ''");
+
+        if (!empty($filters['country_id'])) {
+            $selectedCountry = Country::query()->find((int) $filters['country_id']);
+            $legacyCountryNames = $selectedCountry ? $this->countryFilterAliases($selectedCountry) : [];
+
+            $query->where(function ($inner) use ($filters, $legacyCountryNames): void {
+                $inner->where('country_id', (int) $filters['country_id']);
+
+                if ($legacyCountryNames !== []) {
+                    $inner->orWhere(function ($legacy) use ($legacyCountryNames): void {
+                        foreach ($legacyCountryNames as $legacyName) {
+                            $legacy->orWhereRaw('LOWER(TRIM(country)) = ?', [$legacyName]);
+                        }
+                    });
+                }
+            });
+        }
+
+        $q = trim((string) ($filters['q'] ?? ''));
+        if ($q !== '') {
+            $query->where('city', 'like', '%' . $this->escapeLike($q) . '%');
+        }
+
+        $cities = $query
+            ->select('city')
+            ->distinct()
+            ->orderBy('city')
+            ->limit(25)
+            ->pluck('city')
+            ->map(fn ($city): string => trim((string) $city))
+            ->filter()
+            ->unique()
+            ->values()
+            ->map(fn (string $city): array => [
+                'id' => $city,
+                'text' => $city,
+            ]);
+
+        return response()->json(['results' => $cities]);
     }
 
     public function storeCustomer(Request $request): JsonResponse
@@ -561,7 +623,15 @@ class MarketingController extends Controller
             'street_address' => ['nullable', 'string', 'max:2000'],
             'city' => ['nullable', 'string', 'max:120'],
             'state_province' => ['nullable', 'string', 'max:120'],
+            'post_code' => ['nullable', 'string', 'max:40'],
             'company_notes' => ['nullable', 'string', 'max:8000'],
+            'address_categories' => ['nullable', 'array'],
+            'address_categories.*.key' => ['required_with:address_categories', Rule::in(array_keys(self::ADDRESS_CATEGORY_LABELS))],
+            'address_categories.*.country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'address_categories.*.city' => ['nullable', 'string', 'max:120'],
+            'address_categories.*.state_province' => ['nullable', 'string', 'max:120'],
+            'address_categories.*.post_code' => ['nullable', 'string', 'max:40'],
+            'address_categories.*.street_address' => ['nullable', 'string', 'max:2000'],
             'company_type_id' => ['nullable', 'integer', 'exists:marketing_company_types,id'],
             'segment_id' => ['nullable', 'integer', 'exists:marketing_segments,id'],
             'terms_label' => ['nullable', 'string', 'max:120'],
@@ -644,15 +714,30 @@ class MarketingController extends Controller
             $streetAddress = $this->nullableString($data['address']);
         }
 
+        $city = array_key_exists('city', $data) ? $this->nullableString($data['city']) : $profile->city;
+        $stateProvince = array_key_exists('state_province', $data) ? $this->nullableString($data['state_province']) : $profile->state_province;
+        $postCode = array_key_exists('post_code', $data) ? $this->nullableString($data['post_code']) : $profile->post_code;
+        $addressCategories = array_key_exists('address_categories', $data)
+            ? $this->normalizeAddressCategoriesForStorage($data['address_categories'], $profile, [
+                'country_id' => $countryId,
+                'city' => $city,
+                'state_province' => $stateProvince,
+                'post_code' => $postCode,
+                'street_address' => $streetAddress,
+            ])
+            : $profile->address_categories;
+
         $profile->fill([
             'lifecycle_status' => array_key_exists('lifecycle_status', $data) ? ($data['lifecycle_status'] ?? CustomerMarketingProfile::STATUS_EXISTING) : ($profile->lifecycle_status ?? CustomerMarketingProfile::STATUS_EXISTING),
             'country_id' => $countryId,
             'country' => $countryName,
             'address' => $streetAddress,
             'street_address' => $streetAddress,
-            'city' => array_key_exists('city', $data) ? $this->nullableString($data['city']) : $profile->city,
-            'state_province' => array_key_exists('state_province', $data) ? $this->nullableString($data['state_province']) : $profile->state_province,
+            'city' => $city,
+            'state_province' => $stateProvince,
+            'post_code' => $postCode,
             'company_notes' => array_key_exists('company_notes', $data) ? $this->nullableString($data['company_notes']) : $profile->company_notes,
+            'address_categories' => $addressCategories,
             'company_type_id' => array_key_exists('company_type_id', $data) ? $data['company_type_id'] : $profile->company_type_id,
             'segment_id' => array_key_exists('segment_id', $data) ? $data['segment_id'] : $profile->segment_id,
             'terms_label' => array_key_exists('terms_label', $data) ? $this->nullableString($data['terms_label']) : $profile->terms_label,
@@ -791,9 +876,10 @@ class MarketingController extends Controller
             'street_address' => $streetAddress,
             'city' => (string) ($profile?->city ?? ''),
             'state_province' => (string) ($profile?->state_province ?? ''),
+            'post_code' => (string) ($profile?->post_code ?? ''),
             'company_notes' => (string) ($profile?->company_notes ?? ''),
             'formatted_address' => $formattedAddress,
-            'address_categories' => $this->addressCategories($formattedAddress),
+            'address_categories' => $this->addressCategories($profile),
             'company_type' => $profile?->companyType?->name,
             'company_type_id' => $profile?->company_type_id,
             'segment' => $profile?->segment?->name,
@@ -826,9 +912,10 @@ class MarketingController extends Controller
             'street_address' => $streetAddress,
             'city' => (string) ($profile?->city ?? ''),
             'state_province' => (string) ($profile?->state_province ?? ''),
+            'post_code' => (string) ($profile?->post_code ?? ''),
             'company_notes' => (string) ($profile?->company_notes ?? ''),
             'formatted_address' => $formattedAddress,
-            'address_categories' => $this->addressCategories($formattedAddress),
+            'address_categories' => $this->addressCategories($profile),
             'company_type_id' => $profile?->company_type_id,
             'company_type' => $profile?->companyType?->name,
             'segment_id' => $profile?->segment_id,
@@ -1172,10 +1259,14 @@ class MarketingController extends Controller
         }
 
         $streetAddress = $this->nullableString($profile->street_address ?? $profile->address);
-        $cityLine = collect([
+        $cityRegion = collect([
             $this->nullableString($profile->city),
             $this->nullableString($profile->state_province),
         ])->filter()->implode(', ');
+        $cityLine = collect([
+            $cityRegion !== '' ? $cityRegion : null,
+            $this->nullableString($profile->post_code),
+        ])->filter()->implode(' ');
 
         return collect([
             $streetAddress,
@@ -1184,14 +1275,147 @@ class MarketingController extends Controller
         ])->filter()->implode("\n");
     }
 
-    private function addressCategories(string $formattedAddress): array
+    private function addressCategories(?CustomerMarketingProfile $profile): array
     {
-        return collect(['Logistics', 'Shipping', 'Marketing', 'Accounting', 'Purchasing'])
-            ->map(fn (string $label): array => [
-                'label' => $label,
-                'address' => $formattedAddress,
-            ])
+        $stored = is_array($profile?->address_categories) ? $profile->address_categories : [];
+        $base = $this->baseAddressPayload($profile);
+        $countryNamesById = collect($stored)
+            ->filter(fn ($item): bool => is_array($item) && !empty($item['country_id']))
+            ->map(fn (array $item): int => (int) $item['country_id'])
+            ->push($base['country_id'] ? (int) $base['country_id'] : null)
+            ->filter()
+            ->unique()
+            ->values()
+            ->pipe(fn ($ids): array => $ids->isEmpty()
+                ? []
+                : Country::query()->whereIn('id', $ids->all())->pluck('name', 'id')->all());
+
+        return collect(self::ADDRESS_CATEGORY_LABELS)
+            ->map(function (string $label, string $key) use ($stored, $base, $countryNamesById): array {
+                $item = $this->storedAddressCategoryByKey($stored, $key) ?? [];
+                $parts = [
+                    'country_id' => array_key_exists('country_id', $item) ? $item['country_id'] : $base['country_id'],
+                    'country' => array_key_exists('country', $item) ? $item['country'] : $base['country'],
+                    'city' => array_key_exists('city', $item) ? $item['city'] : $base['city'],
+                    'state_province' => array_key_exists('state_province', $item) ? $item['state_province'] : $base['state_province'],
+                    'post_code' => array_key_exists('post_code', $item) ? $item['post_code'] : $base['post_code'],
+                    'street_address' => array_key_exists('street_address', $item) ? $item['street_address'] : $base['street_address'],
+                ];
+
+                return [
+                    'key' => $key,
+                    'label' => $label,
+                    'country_id' => $parts['country_id'] ? (int) $parts['country_id'] : null,
+                    'country' => $this->countryNameFromAddressParts($parts, $countryNamesById),
+                    'city' => (string) ($parts['city'] ?? ''),
+                    'state_province' => (string) ($parts['state_province'] ?? ''),
+                    'post_code' => (string) ($parts['post_code'] ?? ''),
+                    'street_address' => (string) ($parts['street_address'] ?? ''),
+                    'address' => $this->formattedAddressFromParts($parts, $countryNamesById),
+                ];
+            })
+            ->values()
             ->all();
+    }
+
+    private function normalizeAddressCategoriesForStorage(mixed $items, ?CustomerMarketingProfile $profile, array $baseOverrides = []): array
+    {
+        $base = array_merge($this->baseAddressPayload($profile), $baseOverrides);
+        $byKey = [];
+
+        foreach ((array) $items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $key = (string) ($item['key'] ?? '');
+            if (! array_key_exists($key, self::ADDRESS_CATEGORY_LABELS)) {
+                continue;
+            }
+
+            $byKey[$key] = $item;
+        }
+
+        return collect(self::ADDRESS_CATEGORY_LABELS)
+            ->map(function (string $label, string $key) use ($byKey, $base): array {
+                $item = $byKey[$key] ?? [];
+
+                return [
+                    'key' => $key,
+                    'label' => $label,
+                    'country_id' => array_key_exists('country_id', $item)
+                        ? ($item['country_id'] ? (int) $item['country_id'] : null)
+                        : ($base['country_id'] ? (int) $base['country_id'] : null),
+                    'city' => array_key_exists('city', $item) ? $this->nullableString($item['city']) : $this->nullableString($base['city'] ?? null),
+                    'state_province' => array_key_exists('state_province', $item) ? $this->nullableString($item['state_province']) : $this->nullableString($base['state_province'] ?? null),
+                    'post_code' => array_key_exists('post_code', $item) ? $this->nullableString($item['post_code']) : $this->nullableString($base['post_code'] ?? null),
+                    'street_address' => array_key_exists('street_address', $item) ? $this->nullableString($item['street_address']) : $this->nullableString($base['street_address'] ?? null),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function baseAddressPayload(?CustomerMarketingProfile $profile): array
+    {
+        return [
+            'country_id' => $profile?->country_id,
+            'country' => $this->countryName($profile),
+            'city' => $profile?->city,
+            'state_province' => $profile?->state_province,
+            'post_code' => $profile?->post_code,
+            'street_address' => $profile?->street_address ?? $profile?->address,
+        ];
+    }
+
+    private function storedAddressCategoryByKey(array $stored, string $key): ?array
+    {
+        foreach ($stored as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            if (($item['key'] ?? null) === $key) {
+                return $item;
+            }
+        }
+
+        return null;
+    }
+
+    private function formattedAddressFromParts(array $parts, array $countryNamesById = []): string
+    {
+        $cityRegion = collect([
+            $this->nullableString($parts['city'] ?? null),
+            $this->nullableString($parts['state_province'] ?? null),
+        ])->filter()->implode(', ');
+
+        $cityLine = collect([
+            $cityRegion !== '' ? $cityRegion : null,
+            $this->nullableString($parts['post_code'] ?? null),
+        ])->filter()->implode(' ');
+
+        return collect([
+            $this->nullableString($parts['street_address'] ?? null),
+            $cityLine !== '' ? $cityLine : null,
+            $this->countryNameFromAddressParts($parts, $countryNamesById) ?: null,
+        ])->filter()->implode("\n");
+    }
+
+    private function countryNameFromAddressParts(array $parts, array $countryNamesById = []): string
+    {
+        if (!empty($parts['country_id'])) {
+            $countryId = (int) $parts['country_id'];
+
+            return (string) ($countryNamesById[$countryId] ?? Country::query()->whereKey($countryId)->value('name') ?? '');
+        }
+
+        return (string) ($parts['country'] ?? '');
+    }
+
+    private function addressCategoryLabels(): array
+    {
+        return self::ADDRESS_CATEGORY_LABELS;
     }
 
     private function countryFilterAliases(Country $country): array
@@ -1368,6 +1592,7 @@ class MarketingController extends Controller
             'street address' => (string) ($profile?->street_address ?? $profile?->address ?? ''),
             'city' => (string) ($profile?->city ?? ''),
             'state/province' => (string) ($profile?->state_province ?? ''),
+            'post code' => (string) ($profile?->post_code ?? ''),
             'company notes' => (string) ($profile?->company_notes ?? ''),
             'type' => (string) ($profile?->companyType?->name ?? ''),
             'segment' => (string) ($profile?->segment?->name ?? ''),

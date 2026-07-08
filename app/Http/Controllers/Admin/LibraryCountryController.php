@@ -14,11 +14,7 @@ class LibraryCountryController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(function (Request $request, $next) {
-            abort_unless(auth()->check() && auth()->user()->roleIs('Admin'), 403);
-
-            return $next($request);
-        });
+        $this->middleware('can:feature.library.countries');
     }
 
     public function index(Request $request): View

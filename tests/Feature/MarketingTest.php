@@ -100,6 +100,105 @@ class MarketingTest extends TestCase
         ]);
     }
 
+    public function test_library_country_reference_requires_country_access(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $countryUser = $this->createUserWithRole('Technician', ['name' => 'Country Library User']);
+        $this->grantFeatureAccess($countryUser, 'library.countries');
+
+        $this->actingAs($technician)
+            ->get(route('library.countries.index'))
+            ->assertForbidden();
+
+        $this->actingAs($countryUser)
+            ->get(route('library.countries.index'))
+            ->assertOk()
+            ->assertSee('Library')
+            ->assertSee('Countries')
+            ->assertDontSee('/library/units', false)
+            ->assertDontSee('/library/type-of-business', false);
+    }
+
+    public function test_library_type_of_business_reference_can_be_managed_by_admin(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+
+        $this->actingAs($admin)
+            ->post(route('library.type-of-business.store'), [
+                'name' => 'Test Business Type',
+                'sort_order' => 902,
+            ])
+            ->assertRedirect(route('library.type-of-business.index'));
+
+        $companyType = MarketingCompanyType::query()
+            ->where('name', 'Test Business Type')
+            ->firstOrFail();
+
+        $this->actingAs($admin)
+            ->get(route('library.type-of-business.index', ['q' => 'Test Business Type']))
+            ->assertOk()
+            ->assertSee('Test Business Type');
+
+        $this->actingAs($admin)
+            ->put(route('library.type-of-business.update', $companyType), [
+                'name' => 'Test Business Type Updated',
+                'sort_order' => 903,
+            ])
+            ->assertRedirect(route('library.type-of-business.index'));
+
+        $this->assertDatabaseHas('marketing_company_types', [
+            'id' => $companyType->id,
+            'name' => 'Test Business Type Updated',
+            'sort_order' => 903,
+        ]);
+
+        $customer = $this->createCustomer(['name' => 'Business Type Lock Customer']);
+        CustomerMarketingProfile::query()->create([
+            'customer_id' => $customer->id,
+            'lifecycle_status' => CustomerMarketingProfile::STATUS_EXISTING,
+            'company_type_id' => $companyType->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('library.type-of-business.destroy', $companyType->fresh()))
+            ->assertRedirect(route('library.type-of-business.index'));
+
+        $this->assertDatabaseHas('marketing_company_types', [
+            'id' => $companyType->id,
+        ]);
+
+        CustomerMarketingProfile::query()
+            ->where('customer_id', $customer->id)
+            ->delete();
+
+        $this->actingAs($admin)
+            ->delete(route('library.type-of-business.destroy', $companyType->fresh()))
+            ->assertRedirect(route('library.type-of-business.index'));
+
+        $this->assertDatabaseMissing('marketing_company_types', [
+            'id' => $companyType->id,
+        ]);
+    }
+
+    public function test_library_type_of_business_reference_requires_business_type_access(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $businessTypeUser = $this->createUserWithRole('Technician', ['name' => 'Business Type Library User']);
+        $this->grantFeatureAccess($businessTypeUser, 'library.type_of_business');
+
+        $this->actingAs($technician)
+            ->get(route('library.type-of-business.index'))
+            ->assertForbidden();
+
+        $this->actingAs($businessTypeUser)
+            ->get(route('library.type-of-business.index'))
+            ->assertOk()
+            ->assertSee('Library')
+            ->assertSee('Type of Business')
+            ->assertDontSee('/library/units', false)
+            ->assertDontSee('/library/countries', false);
+    }
+
     public function test_marketing_customer_profile_can_be_updated_and_listed(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -128,10 +227,14 @@ class MarketingTest extends TestCase
             ->assertSee('id="detailCountryId"', false)
             ->assertSee('id="detailCity"', false)
             ->assertSee('id="detailStateProvince"', false)
+            ->assertSee('id="detailPostCode"', false)
             ->assertSee('id="detailStreetAddress"', false)
             ->assertSee('id="detailCompanyNotes"', false)
             ->assertSee('id="marketingAddressCategories"', false)
+            ->assertSee('marketing-city-select', false)
+            ->assertSee('data-address-category', false)
             ->assertSee('Company (Name)')
+            ->assertSee('Post Code')
             ->assertSee('Street Address')
             ->assertSee('Company Notes')
             ->assertSee('id="marketingWorkordersScroll"', false)
@@ -203,8 +306,27 @@ class MarketingTest extends TestCase
             'country_id' => $canada->id,
             'city' => 'Toronto',
             'state_province' => 'Ontario',
+            'post_code' => 'M5V 1A1',
             'street_address' => '123 Airport Road',
             'company_notes' => 'Send quotes to purchasing before calling.',
+            'address_categories' => [
+                [
+                    'key' => 'logistics',
+                    'country_id' => $canada->id,
+                    'city' => 'Toronto',
+                    'state_province' => 'Ontario',
+                    'post_code' => 'M5V 1A1',
+                    'street_address' => '123 Airport Road',
+                ],
+                [
+                    'key' => 'shipping',
+                    'country_id' => $unitedStates->id,
+                    'city' => 'Miami',
+                    'state_province' => 'Florida',
+                    'post_code' => '33101',
+                    'street_address' => '400 Aviation Way',
+                ],
+            ],
             'company_type_id' => $companyType->id,
             'segment_id' => $segment->id,
             'terms_label' => 'NET 30',
@@ -217,10 +339,15 @@ class MarketingTest extends TestCase
             ->assertJsonPath('customer.profile.country_id', $canada->id)
             ->assertJsonPath('customer.profile.city', 'Toronto')
             ->assertJsonPath('customer.profile.state_province', 'Ontario')
+            ->assertJsonPath('customer.profile.post_code', 'M5V 1A1')
             ->assertJsonPath('customer.profile.street_address', '123 Airport Road')
             ->assertJsonPath('customer.profile.company_notes', 'Send quotes to purchasing before calling.')
-            ->assertJsonPath('customer.profile.formatted_address', "123 Airport Road\nToronto, Ontario\nCanada")
+            ->assertJsonPath('customer.profile.formatted_address', "123 Airport Road\nToronto, Ontario M5V 1A1\nCanada")
             ->assertJsonPath('customer.profile.address_categories.0.label', 'Logistics')
+            ->assertJsonPath('customer.profile.address_categories.1.label', 'Shipping')
+            ->assertJsonPath('customer.profile.address_categories.1.city', 'Miami')
+            ->assertJsonPath('customer.profile.address_categories.1.post_code', '33101')
+            ->assertJsonPath('customer.profile.address_categories.1.address', "400 Aviation Way\nMiami, Florida 33101\nUnited States")
             ->assertJsonPath('customer.profile.address_categories.4.label', 'Purchasing')
             ->assertJsonPath('customer.aircraft.0.type', 'CL601');
 
@@ -230,6 +357,7 @@ class MarketingTest extends TestCase
             'country' => 'Canada',
             'city' => 'Toronto',
             'state_province' => 'Ontario',
+            'post_code' => 'M5V 1A1',
             'street_address' => '123 Airport Road',
             'company_notes' => 'Send quotes to purchasing before calling.',
             'terms_label' => 'NET 30',
@@ -248,6 +376,14 @@ class MarketingTest extends TestCase
         $list->assertOk()
             ->assertJsonPath('items.0.name', 'SkyService Ltd')
             ->assertJsonPath('items.0.company_type', 'MRO');
+
+        $cities = $this->actingAs($admin)->getJson(route('marketing.cities', [
+            'country_id' => $canada->id,
+            'q' => 'Tor',
+        ]));
+
+        $cities->assertOk()
+            ->assertJsonPath('results.0.text', 'Toronto');
 
         $legacyCustomer = $this->createCustomer(['name' => 'Legacy Country Customer']);
         CustomerMarketingProfile::query()->create([
@@ -271,6 +407,7 @@ class MarketingTest extends TestCase
             'country_id' => $unitedStates->id,
             'city' => 'Miami',
             'state_province' => 'Florida',
+            'post_code' => '33101',
             'street_address' => '400 Aviation Way',
             'company_notes' => 'Prefers email follow-up.',
             'company_type_id' => $companyType->id,
@@ -295,6 +432,7 @@ class MarketingTest extends TestCase
             'country' => 'United States',
             'city' => 'Miami',
             'state_province' => 'Florida',
+            'post_code' => '33101',
             'street_address' => '400 Aviation Way',
             'company_notes' => 'Prefers email follow-up.',
         ]);

@@ -359,6 +359,11 @@
             text-overflow: ellipsis;
         }
 
+        .marketing-table th:first-child,
+        .marketing-table td:first-child {
+            padding-left: 12px;
+        }
+
         .marketing-shell.is-company-only .marketing-table {
             min-width: 100%;
             table-layout: fixed;
@@ -636,13 +641,40 @@
             color: #b9c1c8;
         }
 
-        .marketing-field .form-control-sm,
+        .marketing-field .form-control-sm:not(textarea),
         .marketing-field .form-select-sm,
         .marketing-field .select2-container--default .select2-selection--single {
             height: var(--marketing-control-sm-height) !important;
             min-height: var(--marketing-control-sm-height) !important;
             max-height: var(--marketing-control-sm-height) !important;
             box-sizing: border-box;
+        }
+
+        .marketing-field textarea.form-control-sm {
+            min-height: var(--marketing-control-sm-height);
+            max-height: none;
+            overflow: auto;
+            resize: vertical;
+            line-height: 1.35;
+        }
+
+        .marketing-field textarea[name="company_notes"] {
+            min-height: var(--marketing-control-sm-height);
+        }
+
+        .marketing-address-line {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: 10% minmax(0, 1fr);
+            gap: 9px;
+            align-items: start;
+            min-width: 0;
+        }
+
+        .marketing-post-code-field .form-control-sm {
+            padding-right: .35rem;
+            padding-left: .35rem;
+            font-size: .8rem;
         }
 
         .marketing-page input::placeholder,
@@ -678,11 +710,13 @@
         }
 
         .marketing-field .marketing-country-select + .select2,
+        .marketing-field .marketing-city-select + .select2,
         .marketing-field .marketing-aircraft-select + .select2 {
             width: 100% !important;
         }
 
-        .marketing-field .marketing-country-select + .select2 .select2-selection--single {
+        .marketing-field .marketing-country-select + .select2 .select2-selection--single,
+        .marketing-field .marketing-city-select + .select2 .select2-selection--single {
             height: var(--marketing-control-sm-height) !important;
             min-height: var(--marketing-control-sm-height) !important;
             max-height: var(--marketing-control-sm-height) !important;
@@ -690,7 +724,8 @@
             border-radius: 6px !important;
         }
 
-        .marketing-field .marketing-country-select + .select2 .select2-selection__rendered {
+        .marketing-field .marketing-country-select + .select2 .select2-selection__rendered,
+        .marketing-field .marketing-city-select + .select2 .select2-selection__rendered {
             height: var(--marketing-control-sm-inner-height) !important;
             min-height: var(--marketing-control-sm-inner-height) !important;
             padding-left: .75rem !important;
@@ -698,11 +733,13 @@
             line-height: var(--marketing-control-sm-inner-height) !important;
         }
 
-        html[data-bs-theme="dark"] .marketing-page .marketing-field .marketing-country-select + .select2 .select2-selection--single .select2-selection__rendered {
+        html[data-bs-theme="dark"] .marketing-page .marketing-field .marketing-country-select + .select2 .select2-selection--single .select2-selection__rendered,
+        html[data-bs-theme="dark"] .marketing-page .marketing-field .marketing-city-select + .select2 .select2-selection--single .select2-selection__rendered {
             padding-left: .75rem !important;
         }
 
-        .marketing-field .marketing-country-select + .select2 .select2-selection__arrow {
+        .marketing-field .marketing-country-select + .select2 .select2-selection__arrow,
+        .marketing-field .marketing-city-select + .select2 .select2-selection__arrow {
             height: var(--marketing-control-sm-inner-height) !important;
         }
 
@@ -755,6 +792,42 @@
 
         html[data-bs-theme="dark"] .marketing-address-text {
             color: #e7ecef;
+        }
+
+        .marketing-address-category-switcher {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .marketing-address-category-button {
+            flex: 0 0 auto;
+            font-weight: 800;
+        }
+
+        .marketing-address-category-button.is-active {
+            color: #fff;
+            background: var(--bs-info);
+            border-color: var(--bs-info);
+        }
+
+        .marketing-overview-footer {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: end;
+            margin-top: 10px;
+        }
+
+        .marketing-overview-footer .marketing-section {
+            min-width: 0;
+            margin-bottom: 0;
+        }
+
+        .marketing-overview-footer .marketing-actions {
+            align-self: end;
+            margin-top: 0;
         }
 
         .marketing-actions {
@@ -1352,6 +1425,18 @@
                 grid-template-columns: 1fr;
             }
 
+            .marketing-address-line {
+                grid-template-columns: 1fr;
+            }
+
+            .marketing-overview-footer {
+                grid-template-columns: 1fr;
+            }
+
+            .marketing-overview-footer .marketing-actions {
+                justify-content: flex-start;
+            }
+
             .marketing-contact-actions {
                 grid-row: auto;
             }
@@ -1482,7 +1567,7 @@
             </div>
 
             <div class="marketing-filter">
-                <label for="marketingCompanyType">Type</label>
+                <label for="marketingCompanyType">Type of Business</label>
                 <select id="marketingCompanyType" class="form-select form-select-sm">
                     <option value="">All</option>
                     @foreach($companyTypes as $type)
@@ -1546,7 +1631,7 @@
                             <th style="width: 220px;">Company</th>
                             <th style="width: 110px;">Status</th>
                             <th style="width: 120px;">Country</th>
-                            <th style="width: 150px;">Type</th>
+                            <th style="width: 150px;">Type of Business</th>
                             <th style="width: 150px;">Segment</th>
                             <th style="width: 260px;">A/C Type</th>
                             <th style="width: 120px;">Contacts</th>
@@ -1620,7 +1705,7 @@
                                         </select>
                                     </div>
                                     <div class="marketing-field">
-                                        <label for="detailCompanyType">Type</label>
+                                        <label for="detailCompanyType">Type of Business</label>
                                         <select id="detailCompanyType" name="company_type_id" class="form-select form-select-sm" autocomplete="off">
                                             <option value=""></option>
                                             @foreach($companyTypes as $type)
@@ -1639,19 +1724,25 @@
                                     </div>
                                     <div class="marketing-field">
                                         <label for="detailCity">City</label>
-                                        <input id="detailCity" name="city" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
+                                        <select id="detailCity" name="city" class="form-select form-select-sm marketing-city-select" data-country-select="#detailCountryId" autocomplete="off"></select>
                                     </div>
                                     <div class="marketing-field">
                                         <label for="detailStateProvince">State/Province</label>
                                         <input id="detailStateProvince" name="state_province" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
                                     </div>
-                                    <div class="marketing-field span-2">
-                                        <label for="detailStreetAddress">Street Address</label>
-                                        <textarea id="detailStreetAddress" name="street_address" class="form-control form-control-sm" rows="2" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                                    <div class="marketing-address-line span-2">
+                                        <div class="marketing-field marketing-post-code-field">
+                                            <label for="detailPostCode">Post Code</label>
+                                            <input id="detailPostCode" name="post_code" class="form-control form-control-sm" type="text" maxlength="40" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+                                        </div>
+                                        <div class="marketing-field">
+                                            <label for="detailStreetAddress">Street Address</label>
+                                            <textarea id="detailStreetAddress" name="street_address" class="form-control form-control-sm" rows="1" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                                        </div>
                                     </div>
                                     <div class="marketing-field span-2">
                                         <label for="detailCompanyNotes">Company Notes</label>
-                                        <textarea id="detailCompanyNotes" name="company_notes" class="form-control form-control-sm" rows="3" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                                        <textarea id="detailCompanyNotes" name="company_notes" class="form-control form-control-sm" rows="1" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
                                     </div>
                                     <div class="marketing-field span-2">
                                         <label for="detailTerms">Terms</label>
@@ -1666,19 +1757,21 @@
                                         </select>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div class="marketing-overview-footer">
+                                <div class="marketing-section">
+                                    <h3 class="marketing-section-title">Address by Category</h3>
+                                    <div id="marketingAddressCategories" class="marketing-address-category-switcher" role="group" aria-label="Address categories"></div>
+                                </div>
                                 <div class="marketing-actions">
-                                    <button class="btn btn-sm btn-primary marketing-save-button" type="submit" data-save-button title="Save">
+                                    <button class="btn btn-sm btn-primary marketing-save-button" type="button" data-save-button data-profile-save-button title="Save">
                                         <i class="bi bi-check-lg" data-save-icon></i>
                                         <span>Save</span>
                                     </button>
                                 </div>
                             </div>
                         </form>
-
-                        <div class="marketing-section">
-                            <h3 class="marketing-section-title">Address by Category</h3>
-                            <div id="marketingAddressCategories" class="marketing-address-grid"></div>
-                        </div>
                     </div>
 
                     <div id="marketingPaneContacts" class="marketing-pane" data-pane="contacts" role="tabpanel" aria-labelledby="marketingTabContacts">
@@ -1950,7 +2043,7 @@
                             </select>
                         </div>
                         <div class="marketing-field">
-                            <label>Type</label>
+                            <label>Type of Business</label>
                             <select name="company_type_id" class="form-select form-select-sm" autocomplete="off">
                                 <option value=""></option>
                                 @foreach($companyTypes as $type)
@@ -1969,19 +2062,25 @@
                         </div>
                         <div class="marketing-field">
                             <label>City</label>
-                            <input name="city" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
+                            <select id="createCity" name="city" class="form-select form-select-sm marketing-city-select" data-country-select="#createCountryId" autocomplete="off"></select>
                         </div>
                         <div class="marketing-field">
                             <label>State/Province</label>
                             <input name="state_province" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
                         </div>
-                        <div class="marketing-field span-2">
-                            <label>Street Address</label>
-                            <textarea name="street_address" class="form-control form-control-sm" rows="2" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                        <div class="marketing-address-line span-2">
+                            <div class="marketing-field marketing-post-code-field">
+                                <label>Post Code</label>
+                                <input name="post_code" class="form-control form-control-sm" type="text" maxlength="40" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+                            </div>
+                            <div class="marketing-field">
+                                <label>Street Address</label>
+                                <textarea name="street_address" class="form-control form-control-sm" rows="1" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                            </div>
                         </div>
                         <div class="marketing-field span-2">
                             <label>Company Notes</label>
-                            <textarea name="company_notes" class="form-control form-control-sm" rows="3" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+                            <textarea name="company_notes" class="form-control form-control-sm" rows="1" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
                         </div>
                         <div class="marketing-field span-2">
                             <label>A/C Type</label>
@@ -2067,6 +2166,24 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="marketingUnsavedModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Unsaved changes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    You have unsaved changes. Leave without saving?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Stay</button>
+                    <button type="button" class="btn btn-sm btn-warning" data-unsaved-confirm>Leave</button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
@@ -2074,6 +2191,7 @@
         (function () {
             const routes = {
                 customers: @json(route('marketing.customers.index')),
+                cities: @json(route('marketing.cities')),
                 storeCustomer: @json(route('marketing.customers.store')),
                 showCustomer: @json(route('marketing.customers.show', ['customer' => '__ID__'])),
                 updateProfile: @json(route('marketing.customers.profile.update', ['customer' => '__ID__'])),
@@ -2095,7 +2213,11 @@
             const layoutKey = 'layout';
             const tabKey = 'active_tab';
             const selectedCustomerKey = 'selected_customer_id';
+            const overviewTextareaHeightsKey = 'overview_textarea_heights';
             const allowedTabs = ['overview', 'contacts', 'notes', 'workorders', 'sales_report'];
+            const addressCategoryLabels = @json($addressCategoryLabels);
+            const addressCategoryKeys = Object.keys(addressCategoryLabels);
+            const profileAddressFieldNames = ['country_id', 'city', 'state_province', 'post_code', 'street_address'];
 
             const shell = document.getElementById('marketingShell');
             const splitter = document.getElementById('marketingSplitter');
@@ -2115,6 +2237,10 @@
             const contactsList = document.getElementById('marketingContactsList');
             const notesList = document.getElementById('marketingNotesList');
             const addressCategories = document.getElementById('marketingAddressCategories');
+            const overviewTextareaFields = {
+                street_address: document.getElementById('detailStreetAddress'),
+                company_notes: document.getElementById('detailCompanyNotes'),
+            };
             const noteContact = document.getElementById('noteContact');
             const workordersRows = document.getElementById('marketingWorkordersRows');
             const workordersScroll = document.getElementById('marketingWorkordersScroll');
@@ -2143,6 +2269,8 @@
             const mediaModalEl = document.getElementById('marketingMediaModal');
             const mediaTitle = document.getElementById('marketingMediaTitle');
             const mediaBody = document.getElementById('marketingMediaBody');
+            const unsavedModalEl = document.getElementById('marketingUnsavedModal');
+            const unsavedConfirmButton = unsavedModalEl?.querySelector('[data-unsaved-confirm]');
             const workordersColumnCount = 16;
 
             const filterEls = {
@@ -2175,7 +2303,15 @@
                 salesReportLoaded: false,
                 salesReportLoading: false,
                 salesReportMode: 'customer',
+                activeAddressCategory: addressCategoryKeys[0] || '',
+                addressDrafts: [],
             };
+            let overviewTextareaHeights = {};
+            let overviewTextareaHeightsRestored = false;
+            let overviewTextareaHeightsSaveTimer = null;
+            let applyingOverviewTextareaHeights = false;
+            let unsavedPromptPromise = null;
+            const unsavedChangesMessage = 'You have unsaved changes. Continue without saving?';
 
             const loadingDotsHtml = '<span class="marketing-loading-dots"><span></span><span></span><span></span></span>';
 
@@ -2310,11 +2446,23 @@
                     data[key] = Array.from(select.selectedOptions).map((option) => option.value);
                 });
 
+                if (form === profileForm) {
+                    data.address_categories = addressCategoriesForSubmit();
+                } else if (form === createForm) {
+                    data.address_categories = addressCategoriesFromForm(createForm);
+                }
+
                 return data;
             }
 
             function formStateSignature(form) {
-                return JSON.stringify(formDataObject(form));
+                const data = formDataObject(form);
+
+                if (form === profileForm) {
+                    profileAddressFieldNames.forEach((key) => delete data[key]);
+                }
+
+                return JSON.stringify(data);
             }
 
             function setSaveButtonDirty(form, dirty) {
@@ -2356,6 +2504,47 @@
 
                 const cleanState = form.dataset.cleanState;
                 setSaveButtonDirty(form, !!cleanState && formStateSignature(form) !== cleanState);
+            }
+
+            function hasUnsavedChanges() {
+                return Boolean(document.querySelector('[data-marketing-page] .marketing-save-button.is-dirty'));
+            }
+
+            function confirmDiscardUnsavedChanges() {
+                if (!hasUnsavedChanges()) return Promise.resolve(true);
+                if (!unsavedModalEl || !window.bootstrap?.Modal) {
+                    return Promise.resolve(window.confirm(unsavedChangesMessage));
+                }
+                if (unsavedPromptPromise) return unsavedPromptPromise;
+
+                unsavedPromptPromise = new Promise((resolve) => {
+                    const modal = window.bootstrap.Modal.getOrCreateInstance(unsavedModalEl);
+                    let resolved = false;
+
+                    function finish(result, hideModal = true) {
+                        if (resolved) return;
+                        resolved = true;
+                        unsavedConfirmButton?.removeEventListener('click', onConfirm);
+                        unsavedModalEl.removeEventListener('hidden.bs.modal', onHidden);
+                        unsavedPromptPromise = null;
+                        resolve(result);
+                        if (hideModal) modal.hide();
+                    }
+
+                    function onConfirm() {
+                        finish(true);
+                    }
+
+                    function onHidden() {
+                        finish(false, false);
+                    }
+
+                    unsavedConfirmButton?.addEventListener('click', onConfirm);
+                    unsavedModalEl.addEventListener('hidden.bs.modal', onHidden);
+                    modal.show();
+                });
+
+                return unsavedPromptPromise;
             }
 
             function handleDirtyFieldChange(event) {
@@ -2504,10 +2693,94 @@
             async function restoreActiveTab() {
                 try {
                     const saved = await window.UserUiSettings?.get(scope, tabKey, 'overview');
-                    switchTab(saved || 'overview', false);
+                    await switchTab(saved || 'overview', false, { skipUnsavedCheck: true });
                 } catch (_) {
-                    switchTab('overview', false);
+                    await switchTab('overview', false, { skipUnsavedCheck: true });
                 }
+            }
+
+            function overviewTextareaEntries() {
+                return Object.entries(overviewTextareaFields).filter(([, element]) => element instanceof HTMLElement);
+            }
+
+            function overviewTextareaMinHeight(element) {
+                const minHeight = Number.parseFloat(window.getComputedStyle(element).minHeight);
+                return Number.isFinite(minHeight) ? minHeight : 0;
+            }
+
+            function applyOverviewTextareaHeights() {
+                applyingOverviewTextareaHeights = true;
+                overviewTextareaEntries().forEach(([key, element]) => {
+                    const savedHeight = Number(overviewTextareaHeights?.[key] || 0);
+
+                    if (savedHeight > 0) {
+                        const minHeight = Math.ceil(overviewTextareaMinHeight(element));
+                        element.style.height = `${Math.max(Math.round(savedHeight), minHeight)}px`;
+                    } else {
+                        element.style.height = '';
+                    }
+                });
+
+                window.requestAnimationFrame(() => {
+                    applyingOverviewTextareaHeights = false;
+                });
+            }
+
+            async function restoreOverviewTextareaHeights() {
+                try {
+                    const saved = await window.UserUiSettings?.get(scope, overviewTextareaHeightsKey, {});
+                    overviewTextareaHeights = saved && typeof saved === 'object' ? saved : {};
+                } catch (_) {
+                    overviewTextareaHeights = {};
+                } finally {
+                    overviewTextareaHeightsRestored = true;
+                    applyOverviewTextareaHeights();
+                }
+            }
+
+            function currentOverviewTextareaHeights() {
+                const nextHeights = { ...(overviewTextareaHeights || {}) };
+
+                overviewTextareaEntries().forEach(([key, element]) => {
+                    const renderedHeight = element.getBoundingClientRect().height;
+                    if (renderedHeight <= 0) return;
+
+                    nextHeights[key] = Math.round(Math.max(renderedHeight, overviewTextareaMinHeight(element)));
+                });
+
+                return nextHeights;
+            }
+
+            function scheduleOverviewTextareaHeightSave() {
+                if (!overviewTextareaHeightsRestored || applyingOverviewTextareaHeights) return;
+
+                window.clearTimeout(overviewTextareaHeightsSaveTimer);
+                overviewTextareaHeightsSaveTimer = window.setTimeout(() => {
+                    overviewTextareaHeights = currentOverviewTextareaHeights();
+                    window.UserUiSettings?.set(scope, overviewTextareaHeightsKey, overviewTextareaHeights)?.catch(() => {});
+                }, 220);
+            }
+
+            function initOverviewTextareaResizePersistence() {
+                const entries = overviewTextareaEntries();
+                if (!entries.length) return;
+
+                if ('ResizeObserver' in window) {
+                    const trackedElements = new Set(entries.map(([, element]) => element));
+                    const observer = new ResizeObserver((resizeEntries) => {
+                        if (resizeEntries.some((entry) => trackedElements.has(entry.target))) {
+                            scheduleOverviewTextareaHeightSave();
+                        }
+                    });
+
+                    entries.forEach(([, element]) => observer.observe(element));
+                    return;
+                }
+
+                entries.forEach(([, element]) => {
+                    element.addEventListener('mouseup', scheduleOverviewTextareaHeightSave);
+                    element.addEventListener('keyup', scheduleOverviewTextareaHeightSave);
+                });
             }
 
             function startResize(event) {
@@ -2681,7 +2954,11 @@
                 };
             }
 
-            async function openCustomer(id) {
+            async function openCustomer(id, options = {}) {
+                if (!options.skipUnsavedCheck && Number(id) !== Number(state.selectedId) && !(await confirmDiscardUnsavedChanges())) {
+                    return false;
+                }
+
                 state.selectedId = id;
                 state.workordersLoaded = false;
                 state.workordersPage = 1;
@@ -2726,7 +3003,10 @@
                     }
                 } catch (error) {
                     notify(error.message, 'error');
+                    return false;
                 }
+
+                return true;
             }
 
             function selectedAircraftIds(customer) {
@@ -2762,6 +3042,151 @@
                 });
             }
 
+            function countrySelectForCity(select) {
+                const selector = select?.dataset?.countrySelect || '';
+                return selector ? document.querySelector(selector) : select?.closest('form')?.querySelector('[name="country_id"]');
+            }
+
+            function setCitySelectValue(select, value) {
+                if (!select) return;
+
+                const clean = value ? String(value) : '';
+                if (clean && !Array.from(select.options).some((option) => option.value === clean)) {
+                    select.add(new Option(clean, clean, true, true));
+                }
+
+                setSelectValue(select, clean);
+            }
+
+            function ownValue(object, key, fallback = '') {
+                if (object && Object.prototype.hasOwnProperty.call(object, key)) {
+                    return object[key] ?? '';
+                }
+
+                return fallback ?? '';
+            }
+
+            function addressCategoryLabel(key) {
+                return addressCategoryLabels[key] || key;
+            }
+
+            function addressDraftValue(object, key, fallback = '') {
+                const value = ownValue(object, key, fallback);
+                return value === null || typeof value === 'undefined' ? '' : String(value);
+            }
+
+            function normalizeAddressDraft(item, key, fallback = {}) {
+                return {
+                    key,
+                    label: addressCategoryLabel(key),
+                    country_id: addressDraftValue(item, 'country_id', fallback.country_id),
+                    city: addressDraftValue(item, 'city', fallback.city),
+                    state_province: addressDraftValue(item, 'state_province', fallback.state_province),
+                    post_code: addressDraftValue(item, 'post_code', fallback.post_code),
+                    street_address: addressDraftValue(item, 'street_address', fallback.street_address),
+                };
+            }
+
+            function findAddressCategory(categories, key) {
+                return (categories || []).find((item) => item?.key === key) || null;
+            }
+
+            function baseAddressFromCustomer(customer) {
+                const profile = customer?.profile || {};
+
+                return {
+                    country_id: profile.country_id || customer?.country_id || '',
+                    city: profile.city || customer?.city || '',
+                    state_province: profile.state_province || customer?.state_province || '',
+                    post_code: profile.post_code || customer?.post_code || '',
+                    street_address: profile.street_address || profile.address || customer?.street_address || customer?.address || '',
+                };
+            }
+
+            function addressCategoriesFromCustomer(customer) {
+                const profile = customer?.profile || {};
+                const categories = Array.isArray(profile.address_categories)
+                    ? profile.address_categories
+                    : (Array.isArray(customer?.address_categories) ? customer.address_categories : []);
+                const fallback = baseAddressFromCustomer(customer);
+
+                return addressCategoryKeys.map((key) => normalizeAddressDraft(findAddressCategory(categories, key), key, fallback));
+            }
+
+            function baseAddressFromForm(form) {
+                return {
+                    country_id: form?.elements?.country_id?.value || '',
+                    city: form?.elements?.city?.value || '',
+                    state_province: form?.elements?.state_province?.value || '',
+                    post_code: form?.elements?.post_code?.value || '',
+                    street_address: form?.elements?.street_address?.value || '',
+                };
+            }
+
+            function addressCategoriesFromForm(form) {
+                const fallback = baseAddressFromForm(form);
+                return addressCategoryKeys.map((key) => normalizeAddressDraft({}, key, fallback));
+            }
+
+            function collectCurrentAddressDraft() {
+                return normalizeAddressDraft(baseAddressFromForm(profileForm), state.activeAddressCategory);
+            }
+
+            function stashActiveAddressDraft() {
+                if (!state.activeAddressCategory || !profileForm) return;
+
+                const current = collectCurrentAddressDraft();
+                const byKey = new Map((state.addressDrafts || []).map((item) => [item.key, item]));
+                byKey.set(state.activeAddressCategory, current);
+                state.addressDrafts = addressCategoryKeys.map((key) => normalizeAddressDraft(byKey.get(key), key));
+            }
+
+            function addressCategoriesForSubmit() {
+                stashActiveAddressDraft();
+                const byKey = new Map((state.addressDrafts || []).map((item) => [item.key, item]));
+
+                return addressCategoryKeys.map((key) => normalizeAddressDraft(byKey.get(key), key));
+            }
+
+            function renderAddressCategoryButtons() {
+                if (!addressCategories) return;
+
+                addressCategories.innerHTML = addressCategoryKeys.map((key) => {
+                    const active = key === state.activeAddressCategory;
+                    return `<button class="btn btn-sm btn-outline-info marketing-address-category-button ${active ? 'is-active' : ''}" type="button" data-address-category="${escapeHtml(key)}" aria-pressed="${active ? 'true' : 'false'}">${escapeHtml(addressCategoryLabel(key))}</button>`;
+                }).join('');
+            }
+
+            function applyAddressDraftToForm(key) {
+                const draft = (state.addressDrafts || []).find((item) => item.key === key) || normalizeAddressDraft({}, key);
+
+                setSelectValue(profileForm.country_id, draft.country_id || '');
+                setCitySelectValue(profileForm.city, draft.city || '');
+                profileForm.state_province.value = draft.state_province || '';
+                profileForm.post_code.value = draft.post_code || '';
+                profileForm.street_address.value = draft.street_address || '';
+            }
+
+            function selectAddressCategory(key) {
+                if (!addressCategoryKeys.includes(key) || key === state.activeAddressCategory) return;
+
+                stashActiveAddressDraft();
+                state.activeAddressCategory = key;
+                applyAddressDraftToForm(key);
+                renderAddressCategoryButtons();
+                refreshFormDirtyState(profileForm);
+            }
+
+            function renderAddressCategories(customer) {
+                const previousKey = state.activeAddressCategory;
+                state.addressDrafts = addressCategoriesFromCustomer(customer);
+                state.activeAddressCategory = addressCategoryKeys.includes(previousKey)
+                    ? previousKey
+                    : (state.addressDrafts[0]?.key || addressCategoryKeys[0] || '');
+                renderAddressCategoryButtons();
+                applyAddressDraftToForm(state.activeAddressCategory);
+            }
+
             function initMarketingCountrySelects(root = document) {
                 if (!window.jQuery?.fn?.select2) return;
 
@@ -2775,6 +3200,44 @@
                         placeholder: this.id === 'marketingCountry' ? 'All' : 'Select country',
                         allowClear: true,
                         dropdownParent: modal ? window.jQuery(modal) : window.jQuery(document.body),
+                    });
+                });
+            }
+
+            function initMarketingCitySelects(root = document) {
+                if (!window.jQuery?.fn?.select2) return;
+
+                window.jQuery(root).find('.marketing-city-select').each(function () {
+                    const $select = window.jQuery(this);
+                    if ($select.data('select2')) return;
+
+                    const select = this;
+                    const modal = select.closest('.modal');
+                    $select.select2({
+                        width: '100%',
+                        placeholder: 'Select city',
+                        allowClear: true,
+                        tags: true,
+                        dropdownParent: modal ? window.jQuery(modal) : window.jQuery(document.body),
+                        ajax: {
+                            url: routes.cities,
+                            dataType: 'json',
+                            delay: 180,
+                            data(params) {
+                                return {
+                                    q: params.term || '',
+                                    country_id: countrySelectForCity(select)?.value || '',
+                                };
+                            },
+                            processResults(data) {
+                                return { results: data.results || [] };
+                            },
+                            cache: true,
+                        },
+                        createTag(params) {
+                            const term = (params.term || '').trim();
+                            return term ? { id: term, text: term, newTag: true } : null;
+                        },
                     });
                 });
             }
@@ -2797,27 +3260,6 @@
                 });
             }
 
-            function renderAddressCategories(customer) {
-                if (!addressCategories) return;
-
-                const categories = customer.profile?.address_categories || customer.address_categories || [];
-                const fallbackAddress = customer.profile?.formatted_address || customer.formatted_address || '';
-                const addressItems = categories.length
-                    ? categories
-                    : ['Logistics', 'Shipping', 'Marketing', 'Accounting', 'Purchasing'].map((label) => ({ label, address: fallbackAddress }));
-
-                if (!fallbackAddress) {
-                    addressCategories.innerHTML = '<div class="marketing-empty">No address</div>';
-                    return;
-                }
-
-                addressCategories.innerHTML = addressItems.map((item) => `
-<div class="marketing-address-item">
-  <div class="marketing-address-label">${escapeHtml(item.label)}</div>
-  <div class="marketing-address-text">${escapeHtml(item.address || fallbackAddress)}</div>
-</div>`).join('');
-            }
-
             function renderDetail() {
                 const customer = state.selectedCustomer;
                 if (!customer) return;
@@ -2828,19 +3270,16 @@
 
                 profileForm.name.value = customer.name || '';
                 profileForm.lifecycle_status.value = customer.profile?.lifecycle_status || 'existing';
-                setSelectValue(profileForm.country_id, customer.profile?.country_id || '');
-                profileForm.city.value = customer.profile?.city || '';
-                profileForm.state_province.value = customer.profile?.state_province || '';
-                profileForm.street_address.value = customer.profile?.street_address || customer.profile?.address || '';
                 profileForm.company_notes.value = customer.profile?.company_notes || '';
                 profileForm.company_type_id.value = customer.profile?.company_type_id || '';
                 profileForm.segment_id.value = customer.profile?.segment_id || '';
                 profileForm.terms_label.value = customer.profile?.terms_label || '';
+                renderAddressCategories(customer);
+                applyOverviewTextareaHeights();
                 setSelectMultiple(document.getElementById('detailAircraft'), selectedAircraftIds(customer));
                 markFormClean(profileForm);
                 setNewContactFormVisible(false);
 
-                renderAddressCategories(customer);
                 renderContacts(customer.contacts || []);
                 renderNoteContactOptions(customer.contacts || []);
                 renderNotes(customer.notes || []);
@@ -2996,8 +3435,8 @@
                 }).join('');
             }
 
-            async function saveProfile(event) {
-                event.preventDefault();
+            async function saveProfile(event = null) {
+                event?.preventDefault?.();
                 if (!state.selectedCustomer) return;
 
                 setSaveButtonSaving(profileForm, true);
@@ -3628,8 +4067,10 @@
                 }
             }
 
-            function switchTab(tab, persist = true) {
+            async function switchTab(tab, persist = true, options = {}) {
                 if (!allowedTabs.includes(tab)) tab = 'overview';
+                if (tab === state.activeTab) return true;
+                if (!options.skipUnsavedCheck && !(await confirmDiscardUnsavedChanges())) return false;
 
                 state.activeTab = tab;
                 document.querySelectorAll('.marketing-tab').forEach((btn) => {
@@ -3650,11 +4091,18 @@
                 if (tab === 'sales_report' && !state.salesReportLoaded) {
                     loadSalesReport(true);
                 }
+
+                return true;
             }
 
             rowsEl.addEventListener('click', (event) => {
                 const row = event.target.closest('[data-customer-id]');
                 if (row) openCustomer(row.dataset.customerId);
+            });
+
+            addressCategories?.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-address-category]');
+                if (button) selectAddressCategory(button.dataset.addressCategory);
             });
 
             initFilterClearButtons();
@@ -3785,6 +4233,7 @@
             document.getElementById('marketingCreateModal')?.addEventListener('shown.bs.modal', (event) => {
                 disableAutocomplete(event.currentTarget);
                 initMarketingCountrySelects(event.currentTarget);
+                initMarketingCitySelects(event.currentTarget);
                 initMarketingAircraftSelects(event.currentTarget);
             });
 
@@ -3799,6 +4248,7 @@
             });
 
             profileForm.addEventListener('submit', saveProfile);
+            profileForm.querySelector('[data-profile-save-button]')?.addEventListener('click', saveProfile);
             profileForm.addEventListener('input', handleDirtyFieldChange);
             profileForm.addEventListener('change', handleDirtyFieldChange);
             contactForm.addEventListener('submit', addContact);
@@ -3862,6 +4312,33 @@
                 btn.addEventListener('click', () => switchTab(btn.dataset.tab));
             });
 
+            document.addEventListener('click', (event) => {
+                if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+                const link = event.target.closest('a[href]');
+                if (!link || !document.contains(link)) return;
+                if (link.target && link.target !== '_self') return;
+
+                const href = link.getAttribute('href') || '';
+                if (!href || href.startsWith('#') || href.toLowerCase().startsWith('javascript:')) return;
+
+                const url = new URL(link.href, window.location.href);
+                if (url.href === window.location.href || !hasUnsavedChanges()) return;
+
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                confirmDiscardUnsavedChanges().then((confirmed) => {
+                    if (confirmed) window.location.href = url.href;
+                });
+            }, true);
+
+            window.addEventListener('beforeunload', (event) => {
+                if (!hasUnsavedChanges()) return;
+
+                event.preventDefault();
+                event.returnValue = '';
+            });
+
             splitter?.addEventListener('pointerdown', startResize);
             splitter?.addEventListener('keydown', resizeWithKeyboard);
             window.addEventListener('resize', () => {
@@ -3877,6 +4354,7 @@
                 disableAutocomplete(document.querySelector('[data-marketing-page]') || document);
                 disableAutocomplete(document.getElementById('marketingCreateModal') || document.createElement('div'));
                 initMarketingCountrySelects(document);
+                initMarketingCitySelects(document);
                 initMarketingAircraftSelects(document);
                 initMarketingReportAircraftSelects(document);
                 updateSalesReportModeUi();
@@ -3885,6 +4363,8 @@
                 try {
                     await restorePanelLayout();
                     await restoreActiveTab();
+                    await restoreOverviewTextareaHeights();
+                    initOverviewTextareaResizePersistence();
                 } finally {
                     shell?.classList.add('is-layout-ready');
                 }

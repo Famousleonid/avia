@@ -58,6 +58,22 @@ return [
         'allow_is_admin' => false,
     ],
 
+    'library.countries' => [
+        'label' => 'Countries',
+        'group' => 'Library',
+        'managed' => true,
+        'roles' => [],
+        'allow_is_admin' => false,
+    ],
+
+    'library.type_of_business' => [
+        'label' => 'Type of Business',
+        'group' => 'Library',
+        'managed' => true,
+        'roles' => [],
+        'allow_is_admin' => false,
+    ],
+
     'certificates.sign' => [
         'label' => 'Can sign certificates',
         'group' => 'Capabilities',

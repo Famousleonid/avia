@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\ExtraProcessController;
 use App\Http\Controllers\Admin\GeneralTaskController;
 use App\Http\Controllers\Admin\LogCardController;
 use App\Http\Controllers\Admin\LibraryCountryController;
+use App\Http\Controllers\Admin\LibraryMarketingCompanyTypeController;
 use App\Http\Controllers\Admin\LibraryUnitController;
 use App\Http\Controllers\Admin\ManualProcessController;
 use App\Http\Controllers\Admin\ManualProcessLockController;
@@ -239,6 +240,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::middleware('can:feature.marketing')->group(function () {
         Route::get('/marketing', [MarketingController::class, 'index'])->name('marketing.index');
         Route::get('/marketing/customers', [MarketingController::class, 'customers'])->name('marketing.customers.index');
+        Route::get('/marketing/cities', [MarketingController::class, 'cities'])->name('marketing.cities');
         Route::post('/marketing/customers', [MarketingController::class, 'storeCustomer'])->name('marketing.customers.store');
         Route::get('/marketing/customers/{customer}', [MarketingController::class, 'showCustomer'])->name('marketing.customers.show');
         Route::patch('/marketing/customers/{customer}/profile', [MarketingController::class, 'updateProfile'])->name('marketing.customers.profile.update');
@@ -522,6 +524,10 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::resource('/general-tasks',  GeneralTaskController::class);
     Route::resource('/library/countries', LibraryCountryController::class)
         ->names('library.countries')
+        ->except(['create', 'edit', 'show']);
+    Route::resource('/library/type-of-business', LibraryMarketingCompanyTypeController::class)
+        ->parameters(['type-of-business' => 'companyType'])
+        ->names('library.type-of-business')
         ->except(['create', 'edit', 'show']);
     Route::resource('/library/units', LibraryUnitController::class)
         ->names('library.units')

@@ -51,6 +51,15 @@
         && $sidebarUser->can('manager.qa');
     $showEcMenu = $sidebarUser
         && $sidebarUser->can('ec.access');
+    $canManageLibraryCountries = $sidebarUser
+        && $sidebarUser->can('feature.library.countries');
+    $canManageLibraryBusinessTypes = $sidebarUser
+        && $sidebarUser->can('feature.library.type_of_business');
+    $canSeeLegacyLibraryMenu = $sidebarUser
+        && $sidebarUser->roleIs(['Admin', 'Manager']);
+    $showLibraryMenu = $canSeeLegacyLibraryMenu
+        || $canManageLibraryCountries
+        || $canManageLibraryBusinessTypes;
 @endphp
 @if($minimalShopSidebar)
     <li class="nav-item">
@@ -140,9 +149,9 @@
     </li>
 
     {{--------------------------------------------------------------}}
-    @hasanyrole("Admin|Manager")
+    @if($showLibraryMenu)
     @php
-        $libraryAdmin = auth()->user()->roleIs('Admin');
+        $libraryAdmin = $sidebarUser->roleIs('Admin');
     @endphp
     <li class="nav-item">
         <button class="nav-link w-100 d-flex align-items-center flex-nowrap text-start"
@@ -173,16 +182,27 @@
             <li class="nav-item press-spinner">
                 <a href="{{ route('library.units.index') }}" class="nav-link {{ request()->routeIs('library.units.*') ? 'active' : '' }}"><i class="bi bi-dot"></i><span>Units</span></a>
             </li>
+            @endif
 
+            @if($canManageLibraryCountries)
             <li class="nav-item press-spinner">
                 <a href="{{ route('library.countries.index') }}" class="nav-link {{ request()->routeIs('library.countries.*') ? 'active' : '' }}"><i class="bi bi-dot"></i><span>Countries</span></a>
             </li>
+            @endif
 
+            @if($canManageLibraryBusinessTypes)
+            <li class="nav-item press-spinner">
+                <a href="{{ route('library.type-of-business.index') }}" class="nav-link {{ request()->routeIs('library.type-of-business.*') ? 'active' : '' }}"><i class="bi bi-dot"></i><span>Type of Business</span></a>
+            </li>
+            @endif
+
+            @if($libraryAdmin)
             <li class="nav-item press-spinner">
                 <a href="{{route('roles.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Roles</span></a>
             </li>
             @endif
 
+            @if($canSeeLegacyLibraryMenu)
             <li class="nav-item press-spinner">
                 <a href="{{route('teams.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Teams</span></a>
             </li>
@@ -218,6 +238,7 @@
             <li class="nav-item press-spinner">
                 <a href="{{route('planes.index')}}" class="nav-link"><i class="bi bi-dot"></i><span>Planes</span></a>
             </li>
+            @endif
 
             @if($libraryAdmin)
             <li class="nav-item press-spinner">
@@ -234,7 +255,7 @@
 
     {{--------------------------------------------------------------}}
 
-    @endhasanyrole
+    @endif
 
     @if ($showManualsMenu)
         <li class="nav-item">

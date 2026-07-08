@@ -19,8 +19,10 @@ class CustomerMarketingProfile extends Model
         'address',
         'city',
         'state_province',
+        'post_code',
         'street_address',
         'company_notes',
+        'address_categories',
         'company_type_id',
         'segment_id',
         'terms_label',
@@ -31,6 +33,7 @@ class CustomerMarketingProfile extends Model
 
     protected $casts = [
         'country_id' => 'integer',
+        'address_categories' => 'array',
         'last_contact_at' => 'date',
         'next_follow_up_at' => 'date',
     ];
