@@ -261,11 +261,12 @@
                     +   '<td>' + memberCell(m) + tag + '</td>'
                     +   '<td class="text-end">' + fmt(m.orig_min) + '</td>'
                     +   '<td class="text-end">' + fmt(m.orig_max) + '</td>'
-                    +   '<td class="text-end text-secondary">—</td>'
-                    +   '<td class="text-end text-secondary">—</td>'
+                    // stored (manual) clearances — nothing derivable without a mate
+                    +   '<td class="text-end">' + fmt(f.assembly_clearance_min) + '</td>'
+                    +   '<td class="text-end">' + fmt(f.assembly_clearance_max) + '</td>'
                     +   '<td class="text-end">' + fmt(m.wear_min) + '</td>'
                     +   '<td class="text-end">' + fmt(m.wear_max) + '</td>'
-                    +   '<td class="text-end text-secondary">—</td>'
+                    +   '<td class="text-end">' + fmt(f.permitted_clearance) + '</td>'
                     +   '<td class="text-center align-middle fc-no-print">'
                     +     '<button class="btn btn-outline-secondary btn-sm p-0 px-1 fc-edit" data-id="' + f.id + '" title="Edit"><i class="bi bi-pencil"></i></button> '
                     +     '<button class="btn btn-outline-danger btn-sm p-0 px-1 fc-del" data-id="' + f.id + '" title="Delete"><i class="bi bi-trash"></i></button>'
@@ -342,8 +343,8 @@
         // fcOdRefCol stays visible always — it is the generic "Ref" for singles too
         document.getElementById('fcIdCol').classList.toggle('d-none', t === 'od' || t === 'faces');
         document.getElementById('fcIdRefCol').classList.toggle('d-none', t !== 'pair');
-        ['fcAsmMinCol', 'fcAsmMaxCol', 'fcPermCol'].forEach(id =>
-            document.getElementById(id).classList.toggle('d-none', t !== 'pair'));
+        // clearances stay for singles too — the manual often prints them even
+        // when the mate lives in another manual (manual entry, nothing derived)
         document.getElementById('fcOdLabel').textContent =
             t === 'faces' ? 'Member (Between/Across Faces)' : 'OD member';
     }
@@ -380,9 +381,9 @@
             ref_no: t === 'id' ? null : (refNo.value.trim() || null),
             id_ref_no: t === 'pair' ? (idRefNo.value.trim() || null) : (t === 'id' ? (refNo.value.trim() || null) : null),
             is_fc: isFc.checked,
-            assembly_clearance_min: t === 'pair' ? numOrNull(asmMin) : null,
-            assembly_clearance_max: t === 'pair' ? numOrNull(asmMax) : null,
-            permitted_clearance: t === 'pair' ? numOrNull(perm) : null,
+            assembly_clearance_min: numOrNull(asmMin),
+            assembly_clearance_max: numOrNull(asmMax),
+            permitted_clearance: numOrNull(perm),
         };
         try {
             if (editId.value) await api('/fits/' + editId.value, { method: 'PATCH', body: JSON.stringify(payload) });

@@ -208,11 +208,21 @@ if (! function_exists('figLabel')) {
         <td class="col-part">{{ $row['pA']->description }}@if($row['compA']?->ipl_num) <span style="color:#888">({{ $row['compA']->ipl_num }})</span>@endif</td>
         <td class="r">{{ wfmt($row['pA']->orig_dim_min) }}</td>
         <td class="r">{{ wfmt($row['pA']->orig_dim_max) }}</td>
+        {{-- stored (manual) clearances of a single row; «—» when not entered --}}
+        @if(($row['clearOrigMin'] ?? null) !== null || ($row['clearOrigMax'] ?? null) !== null)
+        <td class="r{{ $row['clearOrigMin'] !== null && $row['clearOrigMin'] < 0 ? ' neg' : '' }}">{{ wfmt($row['clearOrigMin']) }}</td>
+        <td class="r{{ $row['clearOrigMax'] !== null && $row['clearOrigMax'] < 0 ? ' neg' : '' }}">{{ wfmt($row['clearOrigMax']) }}</td>
+        @else
         <td class="na">—</td>
         <td class="na">—</td>
+        @endif
         <td class="r">{{ wfmt($row['aWearMin']) }}</td>
         <td class="r">{{ wfmt($row['aWearMax']) }}</td>
+        @if(($row['permClearMax'] ?? null) !== null)
+        <td class="r{{ $row['permClearMax'] < 0 ? ' neg' : '' }}">{{ wfmt($row['permClearMax']) }}</td>
+        @else
         <td class="na">—</td>
+        @endif
         <td class="r {{ $sr === 'FAIL' ? 'val-fail' : ($sr === 'PASS' ? 'val-pass' : '') }}">{!! $sVal !== null ? wfmt($sVal).$sSt : '—' !!}</td>
         <td class="c col-defect" style="color:#dc3545;font-size:10px">{{ $row['findingA'] ?? '—' }}@if($row['findingA'] && $sFix) <span style="color:#198754;font-weight:700">/ OK</span>@endif</td>
         <td class="c col-result">@if($sr)<span class="{{ strtolower($sr) }}">{{ $sr }}</span>@else —@endif</td>

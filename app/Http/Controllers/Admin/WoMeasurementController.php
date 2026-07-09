@@ -467,6 +467,10 @@ class WoMeasurementController extends Controller
                 $lim  = $p->effectiveLimits($useWear);
                 $fcRows[] = [
                     'single'       => true,
+                    // stored (manual) clearances — nothing derivable without a mate
+                    'clearOrigMin' => $fit->assembly_clearance_min !== null ? (float) $fit->assembly_clearance_min : null,
+                    'clearOrigMax' => $fit->assembly_clearance_max !== null ? (float) $fit->assembly_clearance_max : null,
+                    'permClearMax' => $fit->permitted_clearance !== null ? (float) $fit->permitted_clearance : null,
                     'fig'          => $pt?->figure,
                     'pt'           => $pt,
                     'ref'          => trim((string) $fit->ref_no) ?: (trim((string) $fit->id_ref_no) ?: ($pt?->code ?? '—')),

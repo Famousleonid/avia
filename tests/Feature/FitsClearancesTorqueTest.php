@@ -208,12 +208,18 @@ class FitsClearancesTorqueTest extends TestCase
             ->postJson(route('manuals.fits.store', $manual->id), ['ref_no' => '9'])
             ->assertStatus(422);
 
-        // single OD (mate in another manual) — single_kind derived
+        // single OD (mate in another manual) — the FORM posts the absent side as
+        // an explicit null and may carry manual clearances; single_kind derived
         $this->actingAs($this->admin())
-            ->postJson(route('manuals.fits.store', $manual->id), ['od_param_id' => $od->id, 'ref_no' => '7'])
+            ->postJson(route('manuals.fits.store', $manual->id), [
+                'od_param_id' => $od->id, 'id_param_id' => null, 'ref_no' => '7',
+                'assembly_clearance_min' => 0.0002, 'permitted_clearance' => 0.006,
+            ])
             ->assertStatus(201)
             ->assertJsonPath('single_kind', 'od')
-            ->assertJsonPath('id_member', null);
+            ->assertJsonPath('id_member', null)
+            ->assertJsonPath('assembly_clearance_min', '0.0002')
+            ->assertJsonPath('permitted_clearance', '0.0060');
 
         // Between/Across Faces — explicit kind, od slot
         $this->actingAs($this->admin())

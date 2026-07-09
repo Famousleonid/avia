@@ -231,8 +231,10 @@ class ManualFitController extends Controller
         }
 
         // Both members must belong to this manual and be distinct.
+        // NB: the form posts the absent side of a single as an explicit null —
+        // that's a legal single-member row, not a foreign parameter.
         foreach (['od_param_id', 'id_param_id'] as $key) {
-            if (array_key_exists($key, $data)) {
+            if (! empty($data[$key])) {
                 $belongs = ManualParameter::where('id', $data[$key])
                     ->where('manual_id', $manual->id)
                     ->exists();
