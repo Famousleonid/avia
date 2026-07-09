@@ -710,13 +710,11 @@
         }
 
         .marketing-field .marketing-country-select + .select2,
-        .marketing-field .marketing-city-select + .select2,
         .marketing-field .marketing-aircraft-select + .select2 {
             width: 100% !important;
         }
 
-        .marketing-field .marketing-country-select + .select2 .select2-selection--single,
-        .marketing-field .marketing-city-select + .select2 .select2-selection--single {
+        .marketing-field .marketing-country-select + .select2 .select2-selection--single {
             height: var(--marketing-control-sm-height) !important;
             min-height: var(--marketing-control-sm-height) !important;
             max-height: var(--marketing-control-sm-height) !important;
@@ -724,8 +722,7 @@
             border-radius: 6px !important;
         }
 
-        .marketing-field .marketing-country-select + .select2 .select2-selection__rendered,
-        .marketing-field .marketing-city-select + .select2 .select2-selection__rendered {
+        .marketing-field .marketing-country-select + .select2 .select2-selection__rendered {
             height: var(--marketing-control-sm-inner-height) !important;
             min-height: var(--marketing-control-sm-inner-height) !important;
             padding-left: .75rem !important;
@@ -733,13 +730,11 @@
             line-height: var(--marketing-control-sm-inner-height) !important;
         }
 
-        html[data-bs-theme="dark"] .marketing-page .marketing-field .marketing-country-select + .select2 .select2-selection--single .select2-selection__rendered,
-        html[data-bs-theme="dark"] .marketing-page .marketing-field .marketing-city-select + .select2 .select2-selection--single .select2-selection__rendered {
+        html[data-bs-theme="dark"] .marketing-page .marketing-field .marketing-country-select + .select2 .select2-selection--single .select2-selection__rendered {
             padding-left: .75rem !important;
         }
 
-        .marketing-field .marketing-country-select + .select2 .select2-selection__arrow,
-        .marketing-field .marketing-city-select + .select2 .select2-selection__arrow {
+        .marketing-field .marketing-country-select + .select2 .select2-selection__arrow {
             height: var(--marketing-control-sm-inner-height) !important;
         }
 
@@ -1724,7 +1719,8 @@
                                     </div>
                                     <div class="marketing-field">
                                         <label for="detailCity">City</label>
-                                        <select id="detailCity" name="city" class="form-select form-select-sm marketing-city-select" data-country-select="#detailCountryId" autocomplete="off"></select>
+                                        <input id="detailCity" name="city" class="form-control form-control-sm marketing-city-input" type="text" maxlength="120" list="detailCityOptions" data-country-select="#detailCountryId" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true" placeholder="Type city">
+                                        <datalist id="detailCityOptions"></datalist>
                                     </div>
                                     <div class="marketing-field">
                                         <label for="detailStateProvince">State/Province</label>
@@ -2062,7 +2058,8 @@
                         </div>
                         <div class="marketing-field">
                             <label>City</label>
-                            <select id="createCity" name="city" class="form-select form-select-sm marketing-city-select" data-country-select="#createCountryId" autocomplete="off"></select>
+                            <input id="createCity" name="city" class="form-control form-control-sm marketing-city-input" type="text" maxlength="120" list="createCityOptions" data-country-select="#createCountryId" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true" placeholder="Type city">
+                            <datalist id="createCityOptions"></datalist>
                         </div>
                         <div class="marketing-field">
                             <label>State/Province</label>
@@ -2308,6 +2305,7 @@
             };
             let overviewTextareaHeights = {};
             let overviewTextareaHeightsRestored = false;
+            const citySuggestionTimers = new WeakMap();
             let overviewTextareaHeightsSaveTimer = null;
             let applyingOverviewTextareaHeights = false;
             let unsavedPromptPromise = null;
@@ -2367,6 +2365,7 @@
                 root.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]), textarea').forEach((el) => {
                     const type = String(el.getAttribute('type') || (el.tagName === 'TEXTAREA' ? 'textarea' : 'text')).toLowerCase();
                     const fieldName = String(el.getAttribute('name') || el.id || '').toLowerCase();
+                    const hasDatalist = el.matches('input[list]');
                     const supportsWritingAssist = !['date', 'email', 'hidden', 'number', 'password', 'search', 'tel', 'url'].includes(type)
                         && !el.matches('[data-project-date]')
                         && !fieldName.includes('email')
@@ -2375,7 +2374,7 @@
                         && !fieldName.includes('amount')
                         && !fieldName.includes('awb');
 
-                    el.setAttribute('autocomplete', 'new-password');
+                    el.setAttribute('autocomplete', hasDatalist ? 'off' : 'new-password');
                     el.setAttribute('autocorrect', supportsWritingAssist ? 'on' : 'off');
                     el.setAttribute('autocapitalize', supportsWritingAssist ? (el.tagName === 'TEXTAREA' ? 'sentences' : 'words') : 'off');
                     el.setAttribute('spellcheck', supportsWritingAssist ? 'true' : 'false');
@@ -3051,11 +3050,79 @@
                 if (!select) return;
 
                 const clean = value ? String(value) : '';
+                if (select.tagName !== 'SELECT') {
+                    select.value = clean;
+                    return;
+                }
+
                 if (clean && !Array.from(select.options).some((option) => option.value === clean)) {
                     select.add(new Option(clean, clean, true, true));
                 }
 
                 setSelectValue(select, clean);
+            }
+
+            function cityDatalistForInput(input) {
+                const listId = input?.getAttribute?.('list') || '';
+
+                return listId ? document.getElementById(listId) : null;
+            }
+
+            function renderCitySuggestions(input, cities) {
+                const datalist = cityDatalistForInput(input);
+                if (!datalist) return;
+
+                datalist.replaceChildren(...(cities || []).map((item) => {
+                    const option = document.createElement('option');
+                    option.value = item.text || item.id || '';
+
+                    return option;
+                }));
+            }
+
+            async function loadCitySuggestions(input) {
+                if (!input || !input.isConnected) return;
+
+                const params = new URLSearchParams();
+                const q = String(input.value || '').trim();
+                const countryId = countrySelectForCity(input)?.value || '';
+
+                if (q !== '') params.set('q', q);
+                if (countryId !== '') params.set('country_id', countryId);
+
+                try {
+                    const query = params.toString();
+                    const data = await requestJson(query ? `${routes.cities}?${query}` : routes.cities);
+                    renderCitySuggestions(input, data.results || []);
+                } catch (error) {
+                    renderCitySuggestions(input, []);
+                }
+            }
+
+            function scheduleCitySuggestions(input, delay = 180) {
+                const previous = citySuggestionTimers.get(input);
+                if (previous) window.clearTimeout(previous);
+
+                const timer = window.setTimeout(() => {
+                    citySuggestionTimers.delete(input);
+                    loadCitySuggestions(input);
+                }, delay);
+
+                citySuggestionTimers.set(input, timer);
+            }
+
+            function initMarketingCityInputs(root = document) {
+                root.querySelectorAll('.marketing-city-input').forEach((input) => {
+                    if (input.dataset.marketingCityInputReady === '1') return;
+
+                    input.dataset.marketingCityInputReady = '1';
+                    input.addEventListener('focus', () => scheduleCitySuggestions(input, 0));
+                    input.addEventListener('input', () => scheduleCitySuggestions(input));
+
+                    countrySelectForCity(input)?.addEventListener('change', () => {
+                        scheduleCitySuggestions(input, 0);
+                    });
+                });
             }
 
             function ownValue(object, key, fallback = '') {
@@ -3205,41 +3272,7 @@
             }
 
             function initMarketingCitySelects(root = document) {
-                if (!window.jQuery?.fn?.select2) return;
-
-                window.jQuery(root).find('.marketing-city-select').each(function () {
-                    const $select = window.jQuery(this);
-                    if ($select.data('select2')) return;
-
-                    const select = this;
-                    const modal = select.closest('.modal');
-                    $select.select2({
-                        width: '100%',
-                        placeholder: 'Select city',
-                        allowClear: true,
-                        tags: true,
-                        dropdownParent: modal ? window.jQuery(modal) : window.jQuery(document.body),
-                        ajax: {
-                            url: routes.cities,
-                            dataType: 'json',
-                            delay: 180,
-                            data(params) {
-                                return {
-                                    q: params.term || '',
-                                    country_id: countrySelectForCity(select)?.value || '',
-                                };
-                            },
-                            processResults(data) {
-                                return { results: data.results || [] };
-                            },
-                            cache: true,
-                        },
-                        createTag(params) {
-                            const term = (params.term || '').trim();
-                            return term ? { id: term, text: term, newTag: true } : null;
-                        },
-                    });
-                });
+                initMarketingCityInputs(root);
             }
 
             function initMarketingAircraftSelects(root = document) {

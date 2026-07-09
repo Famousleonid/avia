@@ -917,11 +917,22 @@ class WorkorderController extends Controller
 
         // Чекбоксы
         if ($wasDraft && !$newIsDraft) {
-            $unit = Unit::find($request->input('unit_id'));
+            $unit = Unit::query()->with('manual')->find($request->input('unit_id'));
             if (!$unit || !$unit->manual_id) {
                 return back()
                     ->withErrors(['unit_id' => 'Assign Manual to this Unit before releasing Draft.'])
                     ->withInput();
+            }
+
+            $submittedDescription = trim((string) $request->input('description', ''));
+            if ($submittedDescription === '') {
+                $existingUnitName = trim((string) $unit->name);
+                $manualTitle = trim((string) ($unit->manual?->title ?? ''));
+                $fallbackDescription = $existingUnitName !== '' ? $existingUnitName : $manualTitle;
+
+                if ($fallbackDescription !== '') {
+                    $request->merge(['description' => $fallbackDescription]);
+                }
             }
         }
 

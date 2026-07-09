@@ -271,6 +271,7 @@ class UnitController extends Controller
         $data = $request->validate([
             'manual_id' => ['required', 'exists:manuals,id'],
         ]);
+        $manual = Manual::query()->findOrFail($data['manual_id']);
 
         $duplicate = Unit::query()
             ->where('manual_id', $data['manual_id'])
@@ -284,18 +285,28 @@ class UnitController extends Controller
             ]);
         }
 
-        $unit->update([
-            'manual_id' => $data['manual_id'],
+        $updates = [
+            'manual_id' => $manual->id,
             'verified' => true,
-        ]);
+        ];
 
-        $unit->load('manual');
+        $manualTitle = trim((string) $manual->title);
+        if (trim((string) $unit->name) === '' && $manualTitle !== '') {
+            $updates['name'] = $manualTitle;
+        }
+
+        $unit->update($updates);
+
+        $unit->setRelation('manual', $manual);
 
         return response()->json([
             'success' => true,
             'id' => $unit->id,
             'part_number' => $unit->part_number,
             'manual_id' => $unit->manual_id,
+            'name' => $unit->name,
+            'description' => $unit->description,
+            'manual_title' => optional($unit->manual)->title,
             'manual_number' => optional($unit->manual)->number,
             'verified' => (bool) $unit->verified,
         ]);

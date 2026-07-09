@@ -359,7 +359,7 @@
                         <select class="form-select" id="assignManualSelect">
                             <option value="">{{ __('Select CMM') }}</option>
                             @foreach($manuals as $manual)
-                                <option value="{{ $manual->id }}">
+                                <option value="{{ $manual->id }}" data-title="{{ $manual->title }}">
                                     {{ $manual->number }} {{ $manual->title }} @if($manual->lib) ({{ $manual->lib }}) @endif
                                 </option>
                             @endforeach
@@ -621,6 +621,19 @@
                 return (opt?.textContent || '').trim();
             }
 
+            function selectedAssignManualTitle() {
+                const opt = assignManualSelect?.options[assignManualSelect.selectedIndex] || null;
+                return String(opt?.getAttribute('data-title') || '').trim();
+            }
+
+            function fillBlankWorkorderDescription(value) {
+                const description = String(value || '').trim();
+                if (!description || !workorderDescriptionInput) return;
+                if (String(workorderDescriptionInput.value || '').trim() !== '') return;
+
+                workorderDescriptionInput.value = description;
+            }
+
             async function assignManualToSelectedUnit() {
                 const opt = selectedUnitOption();
                 const unitId = opt?.value || '';
@@ -640,6 +653,7 @@
 
                 try {
                     if (currentManualId && currentManualId === String(manualId)) {
+                        fillBlankWorkorderDescription(opt?.getAttribute('data-name') || selectedAssignManualTitle());
                         assignManualModal?.hide();
                         const form = document.getElementById('createForm');
                         form.dataset.readyToSubmit = '1';
@@ -651,6 +665,7 @@
                     if (existingOption) {
                         unitSelect.value = existingOption.value;
                         $('#unit_id').val(existingOption.value).trigger('change');
+                        fillBlankWorkorderDescription(existingOption.getAttribute('data-name') || selectedAssignManualTitle());
                         assignManualModal?.hide();
                         const form = document.getElementById('createForm');
                         form.dataset.readyToSubmit = '1';
@@ -676,10 +691,12 @@
                     }
 
                     opt.setAttribute('data-manual-id', data.manual_id || manualId);
+                    opt.setAttribute('data-name', data.name || '');
                     opt.setAttribute('data-verified', data.verified ? '1' : '0');
                     opt.textContent = data.manual_number
                         ? `${data.part_number} (${data.manual_number})`
                         : data.part_number;
+                    fillBlankWorkorderDescription(data.name || data.manual_title);
                     $('#unit_id').trigger('change.select2');
 
                     assignManualModal?.hide();

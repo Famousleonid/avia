@@ -200,6 +200,35 @@ class WorkordersWriteTest extends TestCase
         ]);
     }
 
+    public function test_assign_manual_to_pending_unit_fills_empty_name_from_manual_title(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['title' => 'Auto Assigned CMM Title']);
+        $pendingUnit = Unit::query()->create([
+            'part_number' => 'PENDING-' . uniqid(),
+            'manual_id' => null,
+            'verified' => false,
+            'name' => null,
+            'description' => null,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->patchJson(route('units.assignManual', $pendingUnit), [
+                'manual_id' => $manual->id,
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('manual_id', $manual->id);
+        $response->assertJsonPath('manual_title', 'Auto Assigned CMM Title');
+        $response->assertJsonPath('name', 'Auto Assigned CMM Title');
+
+        $pendingUnit->refresh();
+        $this->assertSame($manual->id, (int) $pendingUnit->manual_id);
+        $this->assertTrue((bool) $pendingUnit->verified);
+        $this->assertSame('Auto Assigned CMM Title', $pendingUnit->name);
+    }
+
     public function test_draft_release_requires_unit_manual(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -236,6 +265,51 @@ class WorkordersWriteTest extends TestCase
         $workorder->refresh();
         $this->assertTrue((bool) $workorder->is_draft);
         $this->assertSame(123, (int) $workorder->number);
+    }
+
+    public function test_draft_release_uses_manual_title_when_description_is_empty(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $draftInstruction = $this->createDraftInstruction();
+        $releasedInstruction = $this->createInstruction(['name' => 'Released ' . uniqid()]);
+        $customer = $this->createCustomer();
+        $manual = $this->createManual(['title' => 'Release Fallback CMM Title']);
+        $unit = Unit::query()->create([
+            'part_number' => 'PENDING-' . uniqid(),
+            'manual_id' => $manual->id,
+            'verified' => true,
+            'name' => null,
+            'description' => null,
+        ]);
+        $draft = $this->createWorkorder([
+            'number' => 124,
+            'draft_number' => 124,
+            'instruction_id' => $draftInstruction->id,
+            'customer_id' => $customer->id,
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'description' => null,
+            'is_draft' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('workorders.update', $draft), [
+                'number' => 700124,
+                'unit_id' => $unit->id,
+                'customer_id' => $customer->id,
+                'instruction_id' => $releasedInstruction->id,
+                'user_id' => $admin->id,
+                'description' => '',
+            ])
+            ->assertRedirect(route('workorders.index'))
+            ->assertSessionHasNoErrors();
+
+        $draft->refresh();
+        $unit->refresh();
+
+        $this->assertFalse((bool) $draft->is_draft);
+        $this->assertSame(700124, (int) $draft->number);
+        $this->assertSame('Release Fallback CMM Title', $unit->name);
     }
 
     public function test_released_draft_keeps_draft_number_and_next_draft_continues_sequence(): void
