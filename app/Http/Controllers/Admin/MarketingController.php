@@ -500,7 +500,7 @@ class MarketingController extends Controller
 
         $query = Workorder::query()
             ->where('customer_id', $customer->id)
-            ->with(['unit.manual.plane', 'instruction', 'main.task', 'media'])
+            ->with(['unit.manual.plane', 'unit.manual.planes', 'instruction', 'main.task', 'media'])
             ->orderByDesc('open_at')
             ->orderByDesc('number');
 
@@ -569,7 +569,7 @@ class MarketingController extends Controller
 
         $customer = $workorder->customer()->firstOrFail();
         $profile = $this->ensureProfile($customer);
-        $workorder->load(['unit.manual.plane', 'instruction', 'main.task', 'media']);
+        $workorder->load(['unit.manual.plane', 'unit.manual.planes', 'instruction', 'main.task', 'media']);
 
         return response()->json([
             'ok' => true,
@@ -976,7 +976,8 @@ class MarketingController extends Controller
             'part_number' => (string) ($workorder->unit?->part_number ?? ''),
             'description' => (string) ($workorder->displayDescription() ?? $workorder->description ?? ''),
             'serial_number' => (string) ($workorder->serial_number ?? ''),
-            'aircraft_type' => (string) ($workorder->unit?->manual?->plane?->type ?? ''),
+            // full plane set of the CMM (multi-plane manuals list every type)
+            'aircraft_type' => (string) ($workorder->unit?->manual?->planeTypesLabel() ?? ''),
             'task' => (string) ($workorder->instruction?->name ?? ''),
             'terms' => (string) ($workorder->wo_terms ?? ''),
             'status' => $status,

@@ -52,9 +52,31 @@ class Manual extends Model implements HasMedia
 
     public $mediaUrlName = 'manuals';
 
+    /** Denormalized "primary" plane (first of planes()); legacy readers use it. */
     public function plane()
     {
         return $this->belongsTo(Plane::class, 'planes_id');
+    }
+
+    /**
+     * All aircraft this CMM applies to (one unit may fly on several planes of
+     * the same builder). Source of truth is the manual_plane pivot; planes_id
+     * mirrors the first entry for legacy readers.
+     */
+    public function planes()
+    {
+        return $this->belongsToMany(Plane::class, 'manual_plane', 'manual_id', 'plane_id');
+    }
+
+    /** "E170, E175" — for headers/lists. Falls back to the primary plane. */
+    public function planeTypesLabel(): string
+    {
+        $types = $this->planes->pluck('type')->filter()->values();
+        if ($types->isEmpty() && $this->plane) {
+            $types = collect([$this->plane->type]);
+        }
+
+        return $types->implode(', ');
     }
 
     public function processes()

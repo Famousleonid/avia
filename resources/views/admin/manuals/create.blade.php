@@ -176,10 +176,11 @@
                                 <div class="col-12 col-md-6">
                                     <label class="form-label">{{ __('AirCraft Type') }}</label>
                                     <div class="d-flex gap-2 align-items-start">
-                                        <select id="planes_id" name="planes_id" class="form-select" required>
-                                            <option value="">{{ __('Select AirCraft') }}</option>
+                                        {{-- multi: a CMM may apply to several planes of one builder --}}
+                                        <select id="planes_id" name="planes[]" class="form-select" multiple size="4" required
+                                                title="{{ __('Ctrl+click — select several') }}">
                                             @foreach ($planes as $plane)
-                                                <option value="{{ $plane->id }}" {{ (string) old('planes_id') === (string) $plane->id ? 'selected' : '' }}>{{ $plane->type }}</option>
+                                                <option value="{{ $plane->id }}" {{ in_array((string) $plane->id, (array) old('planes', []), false) ? 'selected' : '' }}>{{ $plane->type }}</option>
                                             @endforeach
                                         </select>
 

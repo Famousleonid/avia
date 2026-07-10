@@ -441,8 +441,8 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="create_cmm_planes_id">{{ __('AirCraft Type') }}</label>
-                                <select id="create_cmm_planes_id" name="planes_id" class="form-select" required>
-                                    <option value="">{{ __('Select AirCraft') }}</option>
+                                <select id="create_cmm_planes_id" name="planes[]" class="form-select" multiple size="4" required
+                                        title="{{ __('Ctrl+click — select several') }}">
                                     @foreach ($planes as $plane)
                                         <option value="{{ $plane->id }}">{{ $plane->type }}</option>
                                     @endforeach
@@ -553,8 +553,8 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="edit_cmm_planes_id">{{ __('AirCraft Type') }}</label>
-                                <select id="edit_cmm_planes_id" name="planes_id" class="form-select" required>
-                                    <option value="">{{ __('Select AirCraft') }}</option>
+                                <select id="edit_cmm_planes_id" name="planes[]" class="form-select" multiple size="4" required
+                                        title="{{ __('Ctrl+click — select several') }}">
                                     @foreach ($planes as $plane)
                                         <option value="{{ $plane->id }}">{{ $plane->type }}</option>
                                     @endforeach
@@ -955,7 +955,14 @@
                 setEditValue('lib', manual.lib);
                 setEditValue('title', manual.title);
                 setEditValue('unit_name', manual.unit_name);
-                setEditValue('planes_id', manual.planes_id);
+                // multi-select: tick every plane of the CMM (plane_ids), not just the primary
+                (function () {
+                    const sel = document.getElementById('edit_cmm_planes_id');
+                    if (!sel) return;
+                    const ids = (manual.plane_ids && manual.plane_ids.length ? manual.plane_ids : [manual.planes_id])
+                        .filter(v => v != null).map(String);
+                    [...sel.options].forEach(o => { o.selected = ids.includes(o.value); });
+                })();
                 setEditValue('unit_name_training', manual.unit_name_training);
                 setEditValue('builders_id', manual.builders_id);
                 setEditValue('training_hours', manual.training_hours);

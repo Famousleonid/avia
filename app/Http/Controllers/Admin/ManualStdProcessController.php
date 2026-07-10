@@ -211,10 +211,22 @@ class ManualStdProcessController extends Controller
 
     protected function ensureSamePlaneBuilder(Manual $page, Manual $other): void
     {
-        if ((int) $page->planes_id !== (int) $other->planes_id
-            || (int) $page->builders_id !== (int) $other->builders_id) {
-            abort(403, 'Выбранный CMM должен совпадать по Plane и Builder с текущим.');
+        // Kinship: same builder + plane sets intersect (a manual may cover
+        // several planes of one builder; any shared plane makes them kin).
+        if ((int) $page->builders_id !== (int) $other->builders_id
+            || $this->planeIdsOf($page)->intersect($this->planeIdsOf($other))->isEmpty()) {
+            abort(403, 'Выбранный CMM должен совпадать по Builder и пересекаться по Plane с текущим.');
         }
+    }
+
+    /** Plane set of a manual (multi via manual_plane; planes_id as pre-pivot safety). */
+    private function planeIdsOf(Manual $manual): \Illuminate\Support\Collection
+    {
+        $ids = $manual->planes()->pluck('planes.id');
+
+        return $ids->isEmpty() && $manual->planes_id
+            ? collect([(int) $manual->planes_id])
+            : $ids;
     }
 
     protected function ensureComponentAllowedForStdAdd(Manual $pageManual, Component $component): void

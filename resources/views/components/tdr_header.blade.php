@@ -186,7 +186,7 @@
                     {{ $current_wo->unit->manuals->title }} </p>
                 <p><strong>{{ __('Revision Date:')}}</strong> {{ format_project_date($current_wo->unit->manuals->revision_date) ?? '-' }}</p>
                 <p><strong>{{ __('AirCraft Type:')}}</strong>
-                    {{ $planes[$current_wo->unit->manuals->planes_id] ?? 'N/A' }}</p>
+                    {{ $current_wo->unit->manuals->planeTypesLabel() ?: ($planes[$current_wo->unit->manuals->planes_id] ?? 'N/A') }}</p>
                 <p><strong>{{ __('MFR:') }}</strong> {{$builders[$current_wo->unit->manuals->builders_id] ?? 'N/A' }}</p>
                 <p><strong>{{ __('Scope:') }}</strong> {{$scopes[$current_wo->unit->manuals->scopes_id] ?? 'N/A' }}</p>
                 <p><strong>{{ __('Library:') }}</strong> {{$current_wo->unit->manuals->lib }}</p>

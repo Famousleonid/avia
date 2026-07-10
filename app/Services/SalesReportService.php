@@ -60,7 +60,8 @@ class SalesReportService
 
             $rows[] = [
                 'company' => (string) ($workorder->customer?->name ?? ''),
-                'aircraft_type' => (string) ($workorder->unit?->manual?->plane?->type ?? ''),
+                // full plane set of the CMM (multi-plane manuals list every type)
+                'aircraft_type' => (string) ($workorder->unit?->manual?->planeTypesLabel() ?? ''),
                 'wo_number' => $woNumber,
                 'part_number' => (string) ($workorder->unit?->part_number ?? ''),
                 'serial_number' => (string) ($workorder->serial_number ?? ''),
@@ -114,13 +115,18 @@ class SalesReportService
     private function workorders(string $reportType, array $filters): Collection
     {
         return Workorder::query()
-            ->with(['customer', 'unit.manual.plane'])
+            ->with(['customer', 'unit.manual.plane', 'unit.manual.planes'])
             ->when($reportType === 'customer', function ($query) use ($filters): void {
                 $query->where('customer_id', (int) $filters['customer_id']);
             })
             ->when($reportType === 'component', function ($query) use ($filters): void {
+                // multi-plane CMM: match by ANY of the manual's planes
                 $query->whereHas('unit.manual', function ($manual) use ($filters): void {
-                    $manual->where('planes_id', (int) $filters['plane_id']);
+                    $planeId = (int) $filters['plane_id'];
+                    $manual->where(function ($q) use ($planeId): void {
+                        $q->whereHas('planes', fn ($p) => $p->where('planes.id', $planeId))
+                          ->orWhere('planes_id', $planeId); // manuals created outside the sync path
+                    });
                 });
             })
             ->orderBy('number')

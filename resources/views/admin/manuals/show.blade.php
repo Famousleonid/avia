@@ -811,11 +811,7 @@
             </div>
             <div class="ms-3 me-5">
                 <h5 class="ms-2"><strong class="text-secondary">{{__('AirCraft Type:')}}</strong>
-                        @foreach($planes as $plane)
-                            @if($plane->id == $cmm->planes_id )
-                                {{$plane->type}}
-                            @endif
-                        @endforeach
+                    {{ $cmm->planeTypesLabel() ?: 'N/A' }}
                 </h5>
                 <h5 class="ms-2"><strong class="text-secondary">{{__('MFR:')}}</strong>
                         @foreach($builders as $builder)

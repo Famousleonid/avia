@@ -113,7 +113,9 @@ class ManualController extends Controller
             'ovh_life' => 'nullable',
             'reg_sb' => 'nullable',
 
-            'planes_id' => 'required|exists:planes,id',
+            'planes' => 'nullable|array',
+            'planes.*' => 'integer|exists:planes,id',
+            'planes_id' => 'nullable|exists:planes,id',
             'builders_id' => 'required|exists:builders,id',
             'scopes_id' => 'required|exists:scopes,id',
             'lib' => 'required',
@@ -123,12 +125,15 @@ class ManualController extends Controller
             'unit_names.*' => 'nullable|string|max:255',
         ]);
 
-        $manual = DB::transaction(function () use ($request) {
+        $planeIds = $this->resolvePlaneIds($request);
+
+        $manual = DB::transaction(function () use ($request, $planeIds) {
             // Создаем новый CMM
             $manual = Manual::create($request->only([
                 'number', 'title', 'revision_date', 'unit_name','unit_name_training','training_hours','ovh_life','reg_sb',
-                'planes_id', 'builders_id', 'scopes_id', 'lib',
-            ]));
+                'builders_id', 'scopes_id', 'lib',
+            ]) + ['planes_id' => $planeIds[0]]);
+            $manual->planes()->sync($planeIds);
 
             if ($request->hasFile('img')) {
                 $manual->addMedia($request->file('img'))->toMediaCollection('manuals');
@@ -334,8 +339,17 @@ class ManualController extends Controller
         $stdProcessAuditWarnings = app(StdProcessAuditService::class)
             ->warningsByStdProcessIdForManual((int) $cmm->id);
 
+        // Kin CMMs: same builder + plane sets INTERSECT (a manual may apply to
+        // several planes of one builder — any shared plane makes them kin).
+        $cmmPlaneIds = $cmm->planes()->pluck('planes.id');
+        if ($cmmPlaneIds->isEmpty() && $cmm->planes_id) {
+            $cmmPlaneIds = collect([(int) $cmm->planes_id]); // pre-pivot safety
+        }
         $stdAddSourceManuals = Manual::query()
-            ->where('planes_id', $cmm->planes_id)
+            ->where(function ($q) use ($cmmPlaneIds) {
+                $q->whereHas('planes', fn ($p) => $p->whereIn('planes.id', $cmmPlaneIds))
+                  ->orWhereIn('planes_id', $cmmPlaneIds); // manuals created outside the sync path
+            })
             ->where('builders_id', $cmm->builders_id)
             ->when(! auth()->user()->roleIs('Admin') && ! auth()->user()->hasFullManualsAccess(), function ($q) {
                 $q->whereHas('permittedUsers', function ($q2) {
@@ -478,6 +492,7 @@ class ManualController extends Controller
                     'ovh_life' => $cmm->ovh_life,
                     'reg_sb' => $cmm->reg_sb,
                     'planes_id' => $cmm->planes_id,
+                    'plane_ids' => $cmm->planes()->pluck('planes.id')->values(),
                     'builders_id' => $cmm->builders_id,
                     'scopes_id' => $cmm->scopes_id,
                     'lib' => $cmm->lib,
@@ -507,7 +522,9 @@ class ManualController extends Controller
             'training_hours' => 'nullable',
             'ovh_life' => 'nullable',
             'reg_sb' => 'nullable',
-            'planes_id' => 'required|exists:planes,id',
+            'planes' => 'nullable|array',
+            'planes.*' => 'integer|exists:planes,id',
+            'planes_id' => 'nullable|exists:planes,id',
             'builders_id' => 'required|exists:builders,id',
             'scopes_id' => 'required|exists:scopes,id',
             'lib' => 'required',
@@ -518,6 +535,10 @@ class ManualController extends Controller
             'permitted_user_ids' => 'nullable|array',
             'permitted_user_ids.*' => 'integer|exists:users,id',
         ]);
+
+        $planeIds = $this->resolvePlaneIds($request);
+        $validatedData['planes_id'] = $planeIds[0];
+        $cmm->planes()->sync($planeIds);
 
         if ($request->hasFile('img')) {
             if ($cmm->getMedia('manuals')->isNotEmpty()) {
@@ -532,7 +553,7 @@ class ManualController extends Controller
             $cmm->addMedia($request->file('log_img'))->toMediaCollection('manuals_log');
         }
 
-        $cmm->update(collect($validatedData)->except('permitted_user_ids')->all());
+        $cmm->update(collect($validatedData)->except(['permitted_user_ids', 'planes'])->all());
 
         // Обновляем units если они предоставлены
         if ($request->has('units') && is_array($request->units)) {
@@ -685,6 +706,28 @@ class ManualController extends Controller
             (int) $matches[3],
             strtoupper($matches[4] ?? ''),
         ];
+    }
+
+    /**
+     * Aircraft set of the CMM from the request: multi-select planes[] (new) with
+     * a legacy single planes_id fallback. At least one required; the first id
+     * mirrors into manuals.planes_id (denormalized "primary" for old readers).
+     *
+     * @return array<int, int>
+     */
+    private function resolvePlaneIds(Request $request): array
+    {
+        $ids = array_values(array_unique(array_map('intval', (array) $request->input('planes', []))));
+
+        if ($ids === [] && $request->filled('planes_id')) {
+            $ids = [(int) $request->input('planes_id')];
+        }
+
+        if ($ids === []) {
+            throw ValidationException::withMessages(['planes' => 'Select at least one aircraft type.']);
+        }
+
+        return $ids;
     }
 }
 
