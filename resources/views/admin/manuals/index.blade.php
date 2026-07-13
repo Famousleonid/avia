@@ -440,13 +440,13 @@
                                 <input id="create_cmm_unit_name" type="text" class="form-control" name="unit_name">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label" for="create_cmm_planes_id">{{ __('AirCraft Type') }}</label>
-                                <select id="create_cmm_planes_id" name="planes[]" class="form-select" multiple size="4" required
-                                        title="{{ __('Ctrl+click — select several') }}">
-                                    @foreach ($planes as $plane)
-                                        <option value="{{ $plane->id }}">{{ $plane->type }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <label class="form-label mb-0">{{ __('AirCraft Type') }}</label>
+                                    <button type="button" class="btn btn-outline-info btn-sm py-0 px-2 ms-auto" data-plane-picker="#create_cmm_planes_id">
+                                        {{ __('Add') }}
+                                    </button>
+                                </div>
+                                <div id="create_cmm_planes_id" class="plane-chip-box d-flex flex-column gap-1"></div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="create_cmm_unit_name_training">{{ __('Component Training Part No:') }}</label>
@@ -552,13 +552,13 @@
                                 <input id="edit_cmm_unit_name" type="text" class="form-control" name="unit_name">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label" for="edit_cmm_planes_id">{{ __('AirCraft Type') }}</label>
-                                <select id="edit_cmm_planes_id" name="planes[]" class="form-select" multiple size="4" required
-                                        title="{{ __('Ctrl+click — select several') }}">
-                                    @foreach ($planes as $plane)
-                                        <option value="{{ $plane->id }}">{{ $plane->type }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <label class="form-label mb-0">{{ __('AirCraft Type') }}</label>
+                                    <button type="button" class="btn btn-outline-info btn-sm py-0 px-2 ms-auto" data-plane-picker="#edit_cmm_planes_id">
+                                        {{ __('Add') }}
+                                    </button>
+                                </div>
+                                <div id="edit_cmm_planes_id" class="plane-chip-box d-flex flex-column gap-1"></div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="edit_cmm_unit_name_training">{{ __('Component Training Part No:') }}</label>
@@ -955,14 +955,11 @@
                 setEditValue('lib', manual.lib);
                 setEditValue('title', manual.title);
                 setEditValue('unit_name', manual.unit_name);
-                // multi-select: tick every plane of the CMM (plane_ids), not just the primary
-                (function () {
-                    const sel = document.getElementById('edit_cmm_planes_id');
-                    if (!sel) return;
-                    const ids = (manual.plane_ids && manual.plane_ids.length ? manual.plane_ids : [manual.planes_id])
-                        .filter(v => v != null).map(String);
-                    [...sel.options].forEach(o => { o.selected = ids.includes(o.value); });
-                })();
+                // multi-plane: chips reflect the full set of the CMM (plane_ids)
+                window.planeChipsSet?.(
+                    document.getElementById('edit_cmm_planes_id'),
+                    (manual.plane_ids && manual.plane_ids.length ? manual.plane_ids : [manual.planes_id])
+                );
                 setEditValue('unit_name_training', manual.unit_name_training);
                 setEditValue('builders_id', manual.builders_id);
                 setEditValue('training_hours', manual.training_hours);
@@ -1051,6 +1048,13 @@
                     if (deleteForm) deleteForm.submit();
                 });
             }
+        });
+    </script>
+    @include('admin.manuals.partials.plane-picker')
+    <script>
+        // create-drawer opens fresh — no leftover plane chips from a prior attempt
+        document.getElementById('createCmmDrawerForm')?.addEventListener('reset', function () {
+            window.planeChipsSet?.(document.getElementById('create_cmm_planes_id'), []);
         });
     </script>
 @endsection

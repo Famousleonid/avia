@@ -260,19 +260,20 @@
                                        value="{{ old('reg_sb', $cmm->reg_sb) }}" required>
                             </div>
                             <div class="form-group ">
-                                <label for="planes_id" class="form-label">{{ __('AirCraft Type') }}</label>
-                                <div class="d-flex gap-2 align-items-start">
-                                    {{-- multi: a CMM may apply to several planes of one builder --}}
-                                    @php $cmmPlaneIds = array_map('strval', (array) old('planes', $cmm->planes->pluck('id')->all() ?: [$cmm->planes_id])); @endphp
-                                    <select id="planes_id" name="planes[]" class="form-select" multiple size="4" required
-                                            title="{{ __('Ctrl+click — select several') }}">
-                                        @foreach ($planes as $plane)
-                                            <option value="{{ $plane->id }}" {{ in_array((string) $plane->id, $cmmPlaneIds, false) ? 'selected' : '' }}>{{ $plane->type }}</option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" class="btn btn-outline-info inline-add" data-bs-toggle="modal"
-                                            data-bs-target="#addAirCraftModal">+ {{ __('Add') }}</button>
+                                {{-- multi: COMPONENTS-style picker — Add opens a modal, picked
+                                     planes render below as chip rows with × (plane-picker partial). --}}
+                                @php $cmmPlaneIds = array_values(array_map('intval', (array) old('planes', $cmm->planes->pluck('id')->all() ?: [$cmm->planes_id]))); @endphp
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <label class="form-label mb-0">{{ __('AirCraft Type') }}</label>
+                                    <button type="button" class="btn btn-outline-info btn-sm py-0 px-2 ms-auto" data-plane-picker="#planes_id">
+                                        {{ __('Add') }}
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info btn-sm py-0 px-2 inline-add" data-bs-toggle="modal"
+                                            data-bs-target="#addAirCraftModal"
+                                            title="{{ __('Create a NEW aircraft type in the dictionary') }}">+ {{ __('New type') }}</button>
                                 </div>
+                                <div id="planes_id" class="plane-chip-box d-flex flex-column gap-1"
+                                     data-init='@json($cmmPlaneIds)'></div>
                             </div>
 
                             <div class="form-group mt-3">
@@ -511,10 +512,16 @@
                     .then(response => response.json())
                     .then(data => {
                         let select = document.getElementById(selectId);
-                        let option = document.createElement('option');
-                        option.value = data[dataKey];
-                        option.text = data[dataValue];
-                        select.add(option);
+                        if (select.tagName !== 'SELECT') {
+                            // chip-контейнер мульти-Plane: новый тип — в справочник и сразу в набор
+                            if (window.PLANE_TYPES) window.PLANE_TYPES[data[dataKey]] = data[dataValue];
+                            window.planeChipsAdd?.(select, data[dataKey], data[dataValue]);
+                        } else {
+                            let option = document.createElement('option');
+                            option.value = data[dataKey];
+                            option.text = data[dataValue];
+                            select.add(option);
+                        }
 
                         // 2. Закрываем модальное окно вручную
                         let modalElement = document.getElementById(modalId);
@@ -593,4 +600,5 @@
             syncManualUnitNamesFromDescription();
         });
     </script>
+    @include('admin.manuals.partials.plane-picker')
 @endsection
