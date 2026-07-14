@@ -47,7 +47,7 @@ class ProcessReadyForNextReminderEvent implements EventDefinition
         $workorder = $this->workorderFor($subject);
         $processName = (string) ($subject->processName?->name ?? 'Process');
         $previousName = $this->previousProcessName($subject);
-        $workorderUserName = trim((string) ($workorder?->user?->name ?? ''));
+        $workorderUserName = trim((string) ($workorder?->user?->selection_name ?? ''));
         $detail = $this->detailInfo($subject);
 
         return [

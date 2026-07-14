@@ -46,3 +46,7 @@ Quantum knowledge rule:
 - When new Quantum facts are confirmed against real data, update the relevant file in `quantum/`; when a previous note is proven wrong, correct it there instead of leaving duplicate conflicting notes.
 - Keep hypotheses and unresolved items in `quantum/open-questions.md` until they are verified.
 - Store Quantum CSV/XLS/log exports under `quantum/log/`, not in the root of `quantum/`, so the knowledge files stay separate from generated outputs.
+
+Codex local browser login:
+- For visual QA that requires signing in to `avia.loc`, use the local ignored credentials file at `storage/app/codex/browser-admin-login.json`.
+- The account is `codex.admin@avia.local` with Admin role; do not commit or print the password.

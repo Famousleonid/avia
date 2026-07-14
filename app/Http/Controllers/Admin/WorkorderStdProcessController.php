@@ -130,17 +130,17 @@ class WorkorderStdProcessController extends Controller
         }
 
         if ($isAjax) {
-            $stdProcess->loadMissing(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name']);
+            $stdProcess->loadMissing(['dateStartUpdatedBy:id,name,selection_name_order', 'dateFinishUpdatedBy:id,name,selection_name_order']);
 
             return response()->json([
                 'success' => true,
-                'user' => auth()->user()->name ?? 'system',
+                'user' => auth()->user()->selection_name ?? 'system',
                 'date_start' => $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null,
                 'date_finish' => $stdProcess->date_finish ? $stdProcess->date_finish->format('Y-m-d') : null,
                 'date_promise' => $stdProcess->date_promise ? $stdProcess->date_promise->format('Y-m-d') : null,
                 'repair_order' => $stdProcess->repair_order,
-                'date_start_user' => $stdProcess->date_start_user ?: $stdProcess->dateStartUpdatedBy?->name,
-                'date_finish_user' => $stdProcess->date_finish_user ?: $stdProcess->dateFinishUpdatedBy?->name,
+                'date_start_user' => $stdProcess->dateStartUpdatedBy?->selection_name ?: $stdProcess->date_start_user,
+                'date_finish_user' => $stdProcess->dateFinishUpdatedBy?->selection_name ?: $stdProcess->date_finish_user,
             ], 200);
         }
 
@@ -168,7 +168,7 @@ class WorkorderStdProcessController extends Controller
 
         return response()->json([
             'success' => true,
-            'user' => auth()->user()?->name ?? 'system',
+            'user' => auth()->user()?->selection_name ?? 'system',
             'repair_order' => $stdProcess->repair_order,
             'vendor_id' => $stdProcess->vendor_id,
             'vendor_name' => $stdProcess->vendor?->name,
@@ -188,7 +188,7 @@ class WorkorderStdProcessController extends Controller
         app(ManualDateRepairOrderSync::class)->sync($stdProcess, $this->allowsManualDateEditing($stdProcess));
         $stdProcess->user_id = auth()->id();
         $stdProcess->save();
-        $stdProcess->loadMissing(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name']);
+        $stdProcess->loadMissing(['dateStartUpdatedBy:id,name,selection_name_order', 'dateFinishUpdatedBy:id,name,selection_name_order']);
 
         $rowName = $stdProcess->processName()->value('name') ?? 'STD Process';
         $updatedAt = now()->format('d ') . Str::lower(now()->format('M')) . now()->format(' Y');
@@ -199,13 +199,13 @@ class WorkorderStdProcessController extends Controller
                 ? "Row ignored ({$rowName}) {$updatedAt}"
                 : "Row restored ({$rowName}) {$updatedAt}",
             'ignore_row' => (bool) $stdProcess->ignore_row,
-            'user' => auth()->user()?->name ?? 'system',
+            'user' => auth()->user()?->selection_name ?? 'system',
             'updated_at' => $updatedAt,
             'repair_order' => $stdProcess->repair_order,
             'date_start' => $stdProcess->date_start ? $stdProcess->date_start->format('Y-m-d') : null,
             'date_finish' => $stdProcess->date_finish ? $stdProcess->date_finish->format('Y-m-d') : null,
-            'date_start_user' => $stdProcess->date_start_user ?: $stdProcess->dateStartUpdatedBy?->name,
-            'date_finish_user' => $stdProcess->date_finish_user ?: $stdProcess->dateFinishUpdatedBy?->name,
+            'date_start_user' => $stdProcess->dateStartUpdatedBy?->selection_name ?: $stdProcess->date_start_user,
+            'date_finish_user' => $stdProcess->dateFinishUpdatedBy?->selection_name ?: $stdProcess->date_finish_user,
         ]);
     }
 
@@ -223,6 +223,6 @@ class WorkorderStdProcessController extends Controller
 
     private function dateEditorName(): string
     {
-        return auth()->user()?->name ?? 'system';
+        return auth()->user()?->selection_name ?? 'system';
     }
 }

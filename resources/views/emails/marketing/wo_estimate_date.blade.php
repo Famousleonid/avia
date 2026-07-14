@@ -8,7 +8,7 @@
     $estimateAmount = $workorder?->wo_estimate_amount !== null ? '$' . number_format((float) $workorder->wo_estimate_amount, 2, '.', ',') : '-';
 @endphp
 
-<p>WO Estimate Date was set in Marketing.</p>
+<p>This WO is still Waiting Approval after its WO Estimate Date.</p>
 
 <table style="border-collapse: collapse; width: 100%;" cellpadding="6">
     <tbody>

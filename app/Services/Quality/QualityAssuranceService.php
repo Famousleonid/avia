@@ -257,7 +257,7 @@ class QualityAssuranceService
                 'expired' => false,
                 'status' => 'na',
                 'warning' => 'Training check not available',
-                'user_name' => $user?->name ?? '—',
+                'user_name' => $user?->selection_name ?? '—',
                 'last_training' => null,
                 'days_since' => null,
             ];
@@ -273,7 +273,7 @@ class QualityAssuranceService
                 'expired' => false,
                 'status' => 'warning',
                 'warning' => 'No training record',
-                'user_name' => $user->name,
+                'user_name' => $user->selection_name,
                 'last_training' => null,
                 'days_since' => null,
             ];
@@ -289,7 +289,7 @@ class QualityAssuranceService
             'expired' => $expired,
             'status' => $expired ? 'warning' : 'ok',
             'warning' => $expired ? 'Training expired' : '—',
-            'user_name' => $user->name,
+            'user_name' => $user->selection_name,
             'last_training' => format_project_date($lastDate),
             'days_since' => $daysSince,
         ];

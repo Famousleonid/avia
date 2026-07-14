@@ -24,7 +24,7 @@
                 </a>
             </div>
 
-            <h4 class="profile-username text-center mb-1">{{ $user->name }}</h4>
+            <h4 class="profile-username text-center mb-1">{{ $user->selection_name }}</h4>
             @if($user->team)
                 <p class="text-muted text-center mb-3">{{ $user->team->name }}</p>
             @else

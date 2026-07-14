@@ -36,6 +36,7 @@ use App\Services\LogCardTdrAccessService;
 use App\Services\ManualIplBranchRuleResolver;
 use App\Services\TdrInspectionLinesBuilder;
 use App\Services\WorkorderStdListProcessesService;
+use App\Support\BushingPrlGrouping;
 use App\Support\KitPrlGrouping;
 use App\Support\LogCardDestructionCertificate;
 use App\Support\WoBushingProcessColumnKey;
@@ -1698,14 +1699,17 @@ class TdrController extends Controller
         $logCardTdrAccess = app(LogCardTdrAccessService::class)->forWorkorder($current_wo, $user);
         $showDestructionCert = LogCardDestructionCertificate::availableFor($current_wo);
         $woBushing = WoBushing::where('workorder_id', $current_wo->id)->first();
-        $hasBushings = Component::where('manual_id', $manual_id)->where('is_bush', 1)->exists();
         $components = $this->sortComponentsForIplSelection($this->filterComponentsForUnit(
             Component::where('manual_id', $manual_id)
                 ->with('assemblies:id,component_id,assy_part_number,assy_ipl_num,units_assy,sort_order')
                 ->get(),
             $current_wo
         ));
-        $bushingPrlCount = $woBushing ? $woBushing->lines()->whereHas('component')->count() : 0;
+        $bushingComponents = $components->filter(fn ($component): bool => (bool) ($component->is_bush ?? false))->values();
+        $hasBushings = $bushingComponents->isNotEmpty();
+        $bushingPrlCount = $bushingComponents
+            ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component))
+            ->count();
         $kitComponents = $components->filter(fn ($component): bool => ! (bool) ($component->is_bush ?? false));
         $kitPrlCount = $this->countKitPrlGroups($kitComponents->where('kit', true));
         $stdFormCounts = [

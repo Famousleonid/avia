@@ -89,9 +89,9 @@
                                 <div class="form-group col-lg-3 mt-2">
                                     <label for="user_id">Technik</label>
                                     <select name="user_id" id="user_id" class="form-control">
-                                        <option hidden selected value="{{$current_wo->user->id}}"> {{$current_wo->user->name}}</option>
+                                        <option hidden selected value="{{$current_wo->user->id}}"> {{$current_wo->user->selection_name}}</option>
                                         @foreach ($users as $user)
-                                            <option value="{{$user->id}}">{{$user->name}}</option>
+                                            <option value="{{$user->id}}">{{$user->selection_name}}</option>
                                         @endforeach
                                     </select>
                                 </div>

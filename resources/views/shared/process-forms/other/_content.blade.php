@@ -72,7 +72,7 @@
                 <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px">
                     @foreach($manuals ?? [] as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center mt-2">{{ substr($manual->number, 0, 8) }}</h6>
+                            <h6 class="text-center mt-2">{{ $manual->number }}</h6>
                         @endif
                     @endforeach
                 </div>
@@ -116,7 +116,7 @@
                 <div class="col-2 border-l-b-r details-cell text-center" style="min-height: 34px">
                     @foreach($manuals ?? [] as $manual)
                         @if($manual->id == $current_wo->unit->manual_id)
-                            <h6 class="text-center mt-2">{{ substr($manual->number, 0, 8) }}</h6>
+                            <h6 class="text-center mt-2">{{ $manual->number }}</h6>
                         @endif
                     @endforeach
                 </div>

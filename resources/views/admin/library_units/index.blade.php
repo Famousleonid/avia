@@ -41,28 +41,28 @@
         .library-units-page .table-responsive {
             flex: 1 1 0;
             min-height: 0;
-            background: var(--sidebar-bg, #343A40);
-            border: 1px solid rgba(255, 255, 255, .14);
+            background: var(--avia-panel);
+            border: 1px solid var(--avia-border);
             max-height: none;
             overflow: auto;
         }
 
         .library-units-page .table {
-            --bs-table-bg: var(--sidebar-bg, #343A40);
-            --bs-table-color: #ffffff;
-            --bs-table-border-color: rgba(255, 255, 255, .16);
-            --bs-table-hover-bg: #495057;
-            --bs-table-hover-color: #ffffff;
-            --bs-table-striped-bg: var(--sidebar-bg, #343A40);
-            --bs-table-striped-color: #ffffff;
-            background: var(--sidebar-bg, #343A40) !important;
-            color: #ffffff;
+            --bs-table-bg: var(--avia-panel);
+            --bs-table-color: var(--avia-text);
+            --bs-table-border-color: var(--avia-border);
+            --bs-table-hover-bg: var(--avia-hover);
+            --bs-table-hover-color: var(--avia-text);
+            --bs-table-striped-bg: var(--avia-surface);
+            --bs-table-striped-color: var(--avia-text);
+            background: var(--avia-panel) !important;
+            color: var(--avia-text);
         }
 
         .library-units-page .table > :not(caption) > * > * {
-            background-color: var(--sidebar-bg, #343A40) !important;
-            border-color: rgba(255, 255, 255, .16);
-            color: #ffffff;
+            background-color: var(--avia-panel) !important;
+            border-color: var(--avia-border);
+            color: var(--avia-text);
         }
 
         .library-units-page .table > :not(caption) > * > .text-warning {
@@ -70,8 +70,8 @@
         }
 
         .library-units-page .table-hover > tbody > tr:hover > * {
-            background-color: #495057 !important;
-            color: #ffffff;
+            background-color: var(--avia-hover) !important;
+            color: var(--avia-text);
         }
 
         .library-units-page .library-unit-row {
@@ -79,7 +79,7 @@
         }
 
         .library-units-page thead th {
-            background: var(--sidebar-bg, #343A40) !important;
+            background: var(--avia-surface-raised) !important;
             position: sticky;
             top: 0;
             z-index: 2;

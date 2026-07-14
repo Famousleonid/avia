@@ -129,14 +129,14 @@
                                 min="0"
                                 max="365"
                                 step="1"
-                                value="{{ old('marketing_wo_estimate_email_delay_days', $marketingWoEstimateEmailDelayDays ?? 0) }}"
+                                value="{{ old('marketing_wo_estimate_email_delay_days', $marketingWoEstimateEmailDelayDays ?? 5) }}"
                             >
                             @error('marketing_wo_estimate_email_delay_days')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
                         <div class="col-sm-8 text-muted small">
-                            When WO Estimate Date is filled from empty in Marketing, the email is queued and sent after this many days.
+                            If the WO is still Waiting Approval, the reminder is sent this many calendar days after WO Estimate Date.
                         </div>
                     </div>
                 </div>

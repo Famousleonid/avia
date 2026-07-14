@@ -578,6 +578,108 @@ class VendorTrackingTest extends TestCase
         ]);
     }
 
+    public function test_vendor_tracking_excludes_completed_workorders_from_table_search_and_total(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $vendor = Vendor::query()->create(['name' => 'Open WO Vendor ' . uniqid()]);
+        $openWorkorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $completedWorkorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $completedWorkorder->forceFill(['done_at' => '2026-07-01'])->save();
+
+        $totalBefore = $this->vendorTrackingTotalRowsCount();
+
+        $this->createVendorTrackingTdrProcess($openWorkorder, $vendor, 'OPEN-WO-RO');
+        $this->createVendorTrackingTdrProcess($completedWorkorder, $vendor, 'COMPLETED-WO-RO');
+
+        $stdProcessName = ProcessName::query()->create([
+            'name' => 'Completed WO STD ' . uniqid(),
+            'process_sheet_name' => 'VT',
+            'form_number' => 'VT',
+        ]);
+        WorkorderStdProcess::query()->create([
+            'workorder_id' => $completedWorkorder->id,
+            'std_type' => 'ndt',
+            'process_name_id' => $stdProcessName->id,
+            'repair_order' => 'COMPLETED-STD-RO',
+            'vendor_id' => $vendor->id,
+            'date_start' => '2026-06-20',
+        ]);
+
+        $bushingProcessName = ProcessName::query()->create([
+            'name' => 'Completed WO Bushing ' . uniqid(),
+            'process_sheet_name' => 'VT',
+            'form_number' => 'VT',
+        ]);
+        $bushingProcess = Process::query()->create([
+            'process_names_id' => $bushingProcessName->id,
+            'process' => 'Completed WO Bushing',
+        ]);
+        $bushingComponent = Component::query()->create([
+            'manual_id' => $completedWorkorder->unit->manual_id,
+            'part_number' => 'COMPLETED-BUSH-PN-' . uniqid(),
+            'name' => 'Completed WO Bushing Component',
+            'ipl_num' => '9-9',
+            'eff_code' => 'ALL',
+        ]);
+        $woBushing = WoBushing::query()->create(['workorder_id' => $completedWorkorder->id]);
+        $woBushingLine = WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $completedWorkorder->id,
+            'component_id' => $bushingComponent->id,
+            'qty' => 1,
+            'qty_remaining' => 1,
+            'group_key' => 'completed-vendor-tracking',
+            'sort_order' => 1,
+        ]);
+        WoBushingProcess::query()->create([
+            'wo_bushing_line_id' => $woBushingLine->id,
+            'process_id' => $bushingProcess->id,
+            'qty' => 1,
+            'repair_order' => 'COMPLETED-BUSH-PROCESS-RO',
+            'vendor_id' => $vendor->id,
+            'date_start' => '2026-06-21',
+        ]);
+        WoBushingBatch::query()->create([
+            'workorder_id' => $completedWorkorder->id,
+            'process_id' => $bushingProcess->id,
+            'process_column_key' => 'completed-vendor-tracking',
+            'repair_order' => 'COMPLETED-BUSH-BATCH-RO',
+            'vendor_id' => $vendor->id,
+            'date_start' => '2026-06-22',
+        ]);
+
+        $this->assertSame($totalBefore + 1, $this->vendorTrackingTotalRowsCount());
+
+        $this->actingAs($admin)
+            ->get(route('vendor-tracking.index', [
+                'vendor_id' => $vendor->id,
+                'include_vendor_null' => 0,
+                'sources' => ['part', 'std', 'bushing'],
+            ]))
+            ->assertOk()
+            ->assertSee('OPEN-WO-RO')
+            ->assertDontSee('COMPLETED-WO-RO')
+            ->assertDontSee('COMPLETED-STD-RO')
+            ->assertDontSee('COMPLETED-BUSH-PROCESS-RO')
+            ->assertDontSee('COMPLETED-BUSH-BATCH-RO');
+
+        $this->actingAs($admin)
+            ->get(route('vendor-tracking.index', [
+                'vendor_id' => $vendor->id,
+                'include_vendor_null' => 0,
+                'sources' => ['part', 'std', 'bushing'],
+                'workorder' => (string) $completedWorkorder->number,
+            ]))
+            ->assertOk()
+            ->assertSee('Workorder W' . $completedWorkorder->number . ' is already completed')
+            ->assertSee('01/Jul/2026')
+            ->assertDontSee('OPEN-WO-RO')
+            ->assertDontSee('COMPLETED-WO-RO')
+            ->assertDontSee('COMPLETED-STD-RO')
+            ->assertDontSee('COMPLETED-BUSH-PROCESS-RO')
+            ->assertDontSee('COMPLETED-BUSH-BATCH-RO');
+    }
+
     public function test_vendor_tracking_can_sort_by_last_changed_rows(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -873,6 +975,8 @@ class VendorTrackingTest extends TestCase
     public function test_mains_show_renders_date_edit_forms_for_manual_date_editable_process_names(): void
     {
         $admin = $this->createUserWithRole('Admin');
+        $manager = $this->createUserWithRole('Manager');
+        $technician = $this->createUserWithRole('Technician');
         $workorder = $this->createWorkorder([
             'user_id' => $admin->id,
             'instruction_id' => $this->createOverhaulInstruction()->id,
@@ -902,6 +1006,22 @@ class VendorTrackingTest extends TestCase
                 'show_in_process_picker' => true,
             ]
         );
+        $quarantineName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Quarantine'],
+            [
+                'process_sheet_name' => 'QUARANTINE',
+                'form_number' => 'QTN',
+                'show_in_process_picker' => true,
+            ]
+        );
+        $ecName = ProcessName::query()->firstOrCreate(
+            ['name' => 'EC'],
+            [
+                'process_sheet_name' => 'EC',
+                'form_number' => 'EC',
+                'show_in_process_picker' => true,
+            ]
+        );
         $regularName = ProcessName::query()->create([
             'name' => 'Readonly Main Process ' . uniqid(),
             'process_sheet_name' => 'QA',
@@ -913,10 +1033,22 @@ class VendorTrackingTest extends TestCase
             'sort_order' => 1,
             'date_start' => '2026-05-25',
         ]);
+        $quarantineTdrProcess = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $quarantineName->id,
+            'sort_order' => 2,
+            'date_start' => '2026-05-25',
+        ]);
+        $ecTdrProcess = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $ecName->id,
+            'sort_order' => 3,
+            'date_start' => '2026-05-25',
+        ]);
         $readonlyTdrProcess = TdrProcess::query()->create([
             'tdrs_id' => $tdr->id,
             'process_names_id' => $regularName->id,
-            'sort_order' => 2,
+            'sort_order' => 4,
             'date_start' => '2026-05-26',
         ]);
         $stdPaintName = ProcessName::query()->firstOrCreate(
@@ -938,13 +1070,21 @@ class VendorTrackingTest extends TestCase
             ]
         );
 
-        $response = $this->actingAs($admin)->get(route('mains.show', $workorder));
+        $response = $this->actingAs($technician)->get(route('mains.show', $workorder));
 
         $response
             ->assertOk()
             ->assertSee(route('tdrprocesses.updateDate', $editableTdrProcess), false)
+            ->assertSee(route('tdrprocesses.updateDate', $quarantineTdrProcess), false)
             ->assertSee(route('workorder_std_processes.updateDate', $stdPaint), false)
+            ->assertDontSee(route('tdrprocesses.updateDate', $ecTdrProcess), false)
             ->assertDontSee(route('tdrprocesses.updateDate', $readonlyTdrProcess), false);
+
+        $managerResponse = $this->actingAs($manager)->get(route('mains.show', $workorder));
+
+        $managerResponse
+            ->assertOk()
+            ->assertSee(route('tdrprocesses.updateDate', $ecTdrProcess), false);
     }
 
     public function test_vendor_tracking_groups_tdr_traveler_processes(): void

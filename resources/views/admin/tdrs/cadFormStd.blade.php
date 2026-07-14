@@ -5,7 +5,7 @@
     @php
         $tdrFormConfig = config('tdr_forms.cadFormStd');
         $componentName = (string) $current_wo->displayDescription();
-        $manualNumber = substr((string) ($manual->number ?? ''), 0, 8);
+        $manualNumber = (string) ($manual->number ?? '');
         $cad_table_pages = $cad_table_pages ?? [[]];
         $cad_total_pages = max(1, count($cad_table_pages));
         $cadGlobalRowIndex = 1;

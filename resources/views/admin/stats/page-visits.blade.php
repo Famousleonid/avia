@@ -158,7 +158,7 @@
                             <option value="">All users</option>
                             @foreach($users as $user)
                                 <option value="{{ $user->id }}" @selected((string)($filters['user_id'] ?? '') === (string)$user->id)>
-                                    {{ $user->name }}
+                                    {{ $user->selection_name }}
                                 </option>
                             @endforeach
                         </select>
@@ -205,7 +205,7 @@
                         @forelse($dateGroups as $group)
                             <tr>
                                 <td>
-                                    <div class="page-visit-user">{{ $group->user->name ?? 'Unknown user' }}</div>
+                                    <div class="page-visit-user">{{ $group->user->selection_name ?? 'Unknown user' }}</div>
                                     @if($group->user?->email)
                                         <div class="page-visit-email">{{ $group->user->email }}</div>
                                     @endif
@@ -242,7 +242,7 @@
                                         <td rowspan="{{ $group->visits->count() }}" class="text-center">{{ $group->visits_count }}</td>
                                     @endif
                                     <td><span class="page-visit-time">{{ $visit->time }}</span></td>
-                                    <td><div class="page-visit-user">{{ $visit->user->name ?? 'Unknown user' }}</div></td>
+                                    <td><div class="page-visit-user">{{ $visit->user->selection_name ?? 'Unknown user' }}</div></td>
                                     <td>
                                         <span class="page-visit-path">{{ $visit->path }}</span>
                                         @if($visit->route_name)

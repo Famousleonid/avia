@@ -9,10 +9,10 @@
         /* ----------------------------------- Select 2 Dark Theme -------------------------------------*/
 
         html[data-bs-theme="dark"] .select2-selection--single {
-            background-color: #121212 !important;
+            background-color: var(--avia-input) !important;
             color: gray !important;
             height: 38px !important;
-            border: 1px solid #495057 !important;
+            border: 1px solid var(--avia-border) !important;
             align-items: center !important;
             border-radius: 8px;
         }
@@ -23,7 +23,7 @@
         }
 
         html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field {
-            background-color: #343A40 !important;
+            background-color: var(--avia-surface-raised) !important;
             color: #999999;
         }
 
@@ -37,7 +37,7 @@
             border: 1px solid #ccc !important;
             border-radius: 8px;
             color: white;
-            background-color: #121212 !important;
+            background-color: var(--avia-input) !important;
         }
 
         html[data-bs-theme="light"] .select2-container .select2-dropdown {
@@ -114,7 +114,7 @@
                         <div class="col-md-12">
                             <div class="card-header row">
                                 <p class="text-bold">Create workorder for user: ( &nbsp;&nbsp;
-                                    <span class="text-info" style="font-size: 1.2rem">{{auth()->user()->name}}</span>
+                                    <span class="text-info" style="font-size: 1.2rem">{{auth()->user()->selection_name}}</span>
                                     <span>&nbsp;&nbsp; ) email: {{auth()->user()->email}}</span>
                                 </p>
                             </div>
@@ -218,7 +218,7 @@
                                                 @foreach ($users as $user)
                                                     <option value="{{ $user->id }}"
                                                             @if((string) old('user_id', $currentUser->id ?? auth()->user()->id) === (string) $user->id) selected @endif>
-                                                        {{ $user->name }}
+                                                        {{ $user->selection_name }}
                                                     </option>
                                                 @endforeach
                                             </select>

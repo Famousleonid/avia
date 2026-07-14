@@ -141,7 +141,9 @@ class MainController extends Controller
 
         $this->syncWaitingApproveMain($current_workorder);
 
-        $users = User::all();
+        $users = User::all()
+            ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+            ->values();
 
         $general_tasks = $this->workorderVisibility->visibleGeneralTasksFor($request->user());
 
@@ -176,8 +178,8 @@ class MainController extends Controller
                             $qq->with([
                                 'processName',
                                 'updatedBy',
-                                'dateStartUpdatedBy:id,name',
-                                'dateFinishUpdatedBy:id,name',
+                                'dateStartUpdatedBy:id,name,selection_name_order',
+                                'dateFinishUpdatedBy:id,name,selection_name_order',
                                 'vendor:id,name',
                             ])
                                 ->orderBy('sort_order')
@@ -774,7 +776,7 @@ class MainController extends Controller
                     'date_start' => optional($main->date_start)?->format('Y-m-d'),
                     'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
                     'ignore_row' => (bool) $main->ignore_row,
-                    'user_name' => $main->user?->name ?? '',
+                    'user_name' => $main->user?->selection_name ?? '',
                     'general_task_all_finished' => $this->isGeneralTaskAllFinished(
                         (int) $main->workorder_id,
                         (int) $main->general_task_id
@@ -831,7 +833,7 @@ class MainController extends Controller
                 'date_start' => optional($main->date_start)?->format('Y-m-d'),
                 'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
                 'ignore_row' => (bool) $main->ignore_row,
-                'user_name' => $main->user?->name ?? '',
+                'user_name' => $main->user?->selection_name ?? '',
                 'general_task_all_finished' => $this->isGeneralTaskAllFinished(
                     (int) $main->workorder_id,
                     (int) $main->general_task_id
@@ -895,7 +897,7 @@ class MainController extends Controller
 
         return response()->json([
             'success' => true,
-            'user' => auth()->user()?->name ?? 'system',
+            'user' => auth()->user()?->selection_name ?? 'system',
             'vendor_id' => $woBushingProcess->vendor_id,
             'vendor_name' => $woBushingProcess->vendor?->name,
             'updated_at' => now()->format('d.m.Y H:i'),
@@ -996,7 +998,7 @@ class MainController extends Controller
 
             return response()->json([
                 'success' => true,
-                'user' => auth()->user()?->name ?? 'system',
+                'user' => auth()->user()?->selection_name ?? 'system',
                 'date_start' => $woBushingProcess->date_start?->format('Y-m-d'),
                 'date_finish' => $woBushingProcess->date_finish?->format('Y-m-d'),
                 'date_promise' => $woBushingProcess->date_promise?->format('Y-m-d'),
@@ -1029,7 +1031,7 @@ class MainController extends Controller
 
         return response()->json([
             'success' => true,
-            'user' => auth()->user()?->name ?? 'system',
+            'user' => auth()->user()?->selection_name ?? 'system',
             'vendor_id' => $woBushingBatch->vendor_id,
             'vendor_name' => $woBushingBatch->vendor?->name,
             'updated_at' => now()->format('d.m.Y H:i'),
@@ -1121,7 +1123,7 @@ class MainController extends Controller
 
             return response()->json([
                 'success' => true,
-                'user' => auth()->user()?->name ?? 'system',
+                'user' => auth()->user()?->selection_name ?? 'system',
                 'date_start' => $woBushingBatch->date_start?->format('Y-m-d'),
                 'date_finish' => $woBushingBatch->date_finish?->format('Y-m-d'),
                 'date_promise' => $woBushingBatch->date_promise?->format('Y-m-d'),
@@ -1168,7 +1170,7 @@ class MainController extends Controller
 
         return response()->json([
             'success' => true,
-            'user' => auth()->user()?->name ?? 'system',
+            'user' => auth()->user()?->selection_name ?? 'system',
             'vendor_id' => $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null,
             'updated_at' => now()->format('d.m.Y H:i'),
         ]);
@@ -1245,7 +1247,7 @@ class MainController extends Controller
 
             return response()->json([
                 'success' => true,
-                'user' => auth()->user()?->name ?? 'system',
+                'user' => auth()->user()?->selection_name ?? 'system',
                 'date_start' => $first?->date_start?->format('Y-m-d'),
                 'date_finish' => $first?->date_finish?->format('Y-m-d'),
             ], 200);
@@ -1291,7 +1293,7 @@ class MainController extends Controller
 
         return response()->json([
             'success' => true,
-            'user' => auth()->user()?->name ?? 'system',
+            'user' => auth()->user()?->selection_name ?? 'system',
             'vendor_id' => $tdrProcess->vendor_id,
             'vendor_name' => $tdrProcess->vendor?->name,
             'updated_at' => now()->format('d.m.Y H:i'),
@@ -1343,7 +1345,7 @@ class MainController extends Controller
 
         return response()->json([
             'success' => true,
-            'user' => auth()->user()?->name ?? 'system',
+            'user' => auth()->user()?->selection_name ?? 'system',
             'vendor_id' => $request->filled('vendor_id') ? (int) $request->input('vendor_id') : null,
             'updated_at' => now()->format('d.m.Y H:i'),
         ]);
@@ -1370,7 +1372,7 @@ class MainController extends Controller
                 ? "Row ignored ({$rowName}) {$updatedAt}"
                 : "Row restored ({$rowName}) {$updatedAt}",
             'ignore_row' => (bool) $tdrProcess->ignore_row,
-            'user' => auth()->user()?->name ?? 'system',
+            'user' => auth()->user()?->selection_name ?? 'system',
             'updated_at' => $updatedAt,
         ]);
     }

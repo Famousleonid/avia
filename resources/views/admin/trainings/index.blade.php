@@ -100,7 +100,7 @@
                                         onchange="window.location.href='{{ route('trainings.index') }}?user_id=' + this.value">
                                     @foreach($users as $u)
                                         <option value="{{ $u->id }}" {{ $selectedUserId == $u->id ? 'selected' : '' }}>
-                                            {{ $u->stamp }} — {{ $u->name }}
+                                            {{ $u->stamp }} — {{ $u->selection_name }}
                                         </option>
                                     @endforeach
                                 </select>

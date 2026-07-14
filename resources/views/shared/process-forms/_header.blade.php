@@ -14,7 +14,7 @@
                     @php($mhLibs = $machining_header_manual_libs ?? [])
                     @auth
                         <div class="machining-sheet-header-meta text-md-end ms-md-auto">
-                            {{ auth()->user()->name }}@if(count($mhLibs) > 0) (lib: {{ implode(', ', $mhLibs) }})@endif
+                            {{ auth()->user()->selection_name }}@if(count($mhLibs) > 0) (lib: {{ implode(', ', $mhLibs) }})@endif
                         </div>
                     @endauth
                 @endif

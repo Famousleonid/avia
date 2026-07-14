@@ -18,7 +18,7 @@
         }, true);
     </script>
     @php
-        $technicianDisplayName = trim((string) optional($current_wo->user)->name);
+        $technicianDisplayName = trim((string) optional($current_wo->user)->selection_name);
     @endphp
 
     <style>

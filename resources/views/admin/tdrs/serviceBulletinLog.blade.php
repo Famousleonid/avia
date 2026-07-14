@@ -129,7 +129,7 @@
                                             @if($log?->stampUser || $log?->stamped_at)
                                                 <span class="sb-stamp-meta">
                                                     Last stamp:
-                                                    {{ $log?->stampUser?->name ?? 'Unknown user' }}
+                                                    {{ $log?->stampUser?->selection_name ?? 'Unknown user' }}
                                                     @if($log?->stamped_at)
                                                         on {{ $log->stamped_at->format('d/M/Y H:i') }}
                                                     @endif

@@ -158,7 +158,7 @@
                 @else
                     <span class="text-info">W {{ $workorder->number }}</span>
                 @endif
-                <div class="fw-normal" style="font-size: 14px;">{{ $workorder->user->name }}</div>
+                <div class="fw-normal" style="font-size: 14px;">{{ $workorder->user->selection_name }}</div>
                 @if($workorder->open_at)
                     <span class="text-secondary fw-normal fs-6 me-4">
                         Open:{{ $workorder->open_at->format('d-M-y') }}

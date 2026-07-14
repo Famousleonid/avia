@@ -5,14 +5,14 @@
         .photos-page {
             flex: 1 1 0%;
             min-height: 0;
-            background: #212529;
+            background: var(--avia-bg);
             display: flex;
             flex-direction: column;
         }
 
         .photos-shell {
-            background-color: #343A40;
-            color: #f8f9fa;
+            background-color: var(--avia-surface);
+            color: var(--avia-text);
             flex: 1 1 0%;
             min-height: 0;
             display: flex;

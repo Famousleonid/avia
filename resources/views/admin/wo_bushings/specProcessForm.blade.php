@@ -853,7 +853,7 @@
                 </div>
                 <div class="text-center spec-technician-spacer"></div>
                 <div class="spec-technician-label">Technician</div>
-                <div class="spec-technician-name-line">{{ $current_wo->user?->name }}</div>
+                <div class="spec-technician-name-line">{{ $current_wo->user?->selection_name }}</div>
                 <div class="spec-header-square"></div>
             </div>
 

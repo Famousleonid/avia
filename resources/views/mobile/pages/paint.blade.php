@@ -450,7 +450,7 @@
                                 data-wo-id="{{ (int) $wo->id }}"
                                 data-is-master="{{ $isMaster ? 1 : 0 }}"
                                 data-owner-user-id="{{ $isMaster && $wo->user_id ? (int) $wo->user_id : '' }}"
-                                data-owner-name="{{ $isMaster && $wo->user ? e($wo->user->name) : '' }}"
+                                data-owner-name="{{ $isMaster && $wo->user ? e($wo->user->selection_name) : '' }}"
                                 data-detail-label="{{ e($row->detail_label ?? '') }}"
                                 data-sort-order="{{ (int) $loop->index }}"
                                 data-queue-pos="{{ $qp !== null ? (int) $qp : '' }}"

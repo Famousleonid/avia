@@ -22,9 +22,9 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers, LogsActivity, softDeletes;
 
     // TODO(access): drop legacy access columns after production verifies user_feature_access.
-    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'is_admin', 'can_manage_locked_manual_processes', 'can_manage_locked_manual_parts', 'qa_access', 'ec_access', 'can_sign_certificates', 'role_id', 'phone', 'stamp', 'team_id', 'birthday', 'notification_prefs'];
+    protected $fillable = ['name', 'selection_name_order', 'email', 'password', 'email_verified_at', 'is_admin', 'can_manage_locked_manual_processes', 'can_manage_locked_manual_parts', 'qa_access', 'ec_access', 'can_sign_certificates', 'role_id', 'phone', 'stamp', 'team_id', 'birthday', 'notification_prefs'];
     protected $casts = ['email_verified_at' => 'datetime', 'notification_prefs' => 'array', 'birthday' => 'date', 'can_manage_locked_manual_processes' => 'boolean', 'can_manage_locked_manual_parts' => 'boolean', 'qa_access' => 'boolean', 'ec_access' => 'boolean', 'can_sign_certificates' => 'boolean'];
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'selection_name_order'];
     protected static $logAttributes = ['name',  'phone', 'stamp'];
     protected $dates = ['deleted_at'];
 
@@ -77,6 +77,19 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     public function roleName(): ?string
     {
         return $this->role?->name;
+    }
+
+    public function getSelectionNameAttribute(): string
+    {
+        $parts = preg_split('/\s+/u', trim((string) $this->name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        if (count($parts) < 2 || $this->selection_name_order === 'first_last') {
+            return implode(' ', $parts);
+        }
+
+        $lastName = array_shift($parts);
+
+        return implode(' ', [...$parts, $lastName]);
     }
 
     public function permittedManuals()

@@ -19,7 +19,7 @@ class PageVisitStatController extends Controller
         ]);
 
         $query = PageVisit::query()
-            ->with('user:id,name,email')
+            ->with('user:id,name,selection_name_order,email')
             ->when(
                 $filters['user_id'] ?? null,
                 fn ($query, $userId) => $query->where('user_id', $userId),
@@ -58,7 +58,9 @@ class PageVisitStatController extends Controller
 
         $users = User::query()
             ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+            ->get(['id', 'name', 'selection_name_order', 'email'])
+            ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+            ->values();
 
         return view('admin.stats.page-visits', [
             'visits' => $visits,

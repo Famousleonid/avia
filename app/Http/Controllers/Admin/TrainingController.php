@@ -94,13 +94,7 @@ class TrainingController extends Controller
                 ->where('stamp', '<>', '')
                 ->whereNull('deleted_at')
                 ->get()
-                ->sortBy(function ($u) {
-                    $stamp = trim($u->stamp ?? '');
-                    if (preg_match('/^\d+/', $stamp, $m)) {
-                        return '0_' . str_pad((int) $m[0], 10, '0', STR_PAD_LEFT) . '_' . $stamp;
-                    }
-                    return '1_' . strtoupper($stamp);
-                })
+                ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
                 ->values();
         }
 
@@ -581,26 +575,13 @@ class TrainingController extends Controller
                 ->orderBy('title')
                 ->get();
 
-            // Получаем всех пользователей и сортируем по stamp
-            // Сначала цифры (по возрастанию), потом буквы (по алфавиту)
+            // Сортируем так же, как имя отображается в пользовательских списках.
             $users = User::whereNotNull('stamp')
                 ->where('stamp', '<>', '')
                 ->where('is_admin', false)
                 ->whereNull('deleted_at') // Исключаем удаленных пользователей
                 ->get()
-                ->sortBy(function ($user) {
-                    $stamp = trim($user->stamp ?? '');
-                    // Проверяем, начинается ли stamp с цифры
-                    if (preg_match('/^\d+/', $stamp, $matches)) {
-                        // Извлекаем числовую часть
-                        $numericPart = (int)$matches[0];
-                        // Для цифр используем числовую сортировку с дополнением нулями
-                        return '0_' . str_pad($numericPart, 10, '0', STR_PAD_LEFT) . '_' . $stamp;
-                    } else {
-                        // Для букв используем алфавитную сортировку
-                        return '1_' . strtoupper($stamp);
-                    }
-                })
+                ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
                 ->values();
 
             // Получаем все тренинги одним запросом для оптимизации

@@ -68,9 +68,9 @@
                         <div class="form-group col-lg ">
                             <label class="sf" for="user_id">Technik</label>
                             <select name="user_id" id="user_id" class="form-control">
-                                <option selected value="{{ Auth::user()->id }}">{{ Auth::user()->name }}</option>
+                                <option selected value="{{ Auth::user()->id }}">{{ Auth::user()->selection_name }}</option>
                                 @foreach ($users as $user)
-                                    <option value="{{$user->id}}">{{$user->name}}</option>
+                                    <option value="{{$user->id}}">{{$user->selection_name}}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -168,7 +168,7 @@
                                 <td hidden>{{$component_main->created_at}}</td>
                                 <td>{{$component_main->component}}</td>
                                 <td>{{$component_main->task->name}}</td>
-                                <td>{{$component_main->user->name}}</td>
+                                <td>{{$component_main->user->selection_name}}</td>
                                 <td>{{$component_main->description}}</td>
                                 <td class="text-center"><span>{{date('d-M-Y',strtotime($component_main->date_start))}}</span></td>
 

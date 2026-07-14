@@ -13,6 +13,7 @@ use App\Models\Vendor;
 use App\Models\UserUiSetting;
 use App\Models\WoBushingBatch;
 use App\Models\WoBushingProcess;
+use App\Models\Workorder;
 use App\Models\WorkorderStdProcess;
 use App\Services\WorkorderStdListProcessesService;
 use Illuminate\Database\Eloquent\Builder;
@@ -63,6 +64,7 @@ class VendorTrackingController extends Controller
         $this->authorizeVendorTracking();
 
         $filters = $this->filtersFromRequest($request);
+        $completedWorkorderSearch = $this->completedWorkorderFromFilter($filters);
         $totalRowsCount = $this->totalRowsCount();
         $allRows = $this->collectRows($filters);
 
@@ -91,6 +93,7 @@ class VendorTrackingController extends Controller
             'vendors',
             'customers',
             'filters',
+            'completedWorkorderSearch',
             'summary',
             'quantumRecentRows',
             'quantumRecentTotal',
@@ -377,6 +380,20 @@ class VendorTrackingController extends Controller
         return $filters;
     }
 
+    private function completedWorkorderFromFilter(array $filters): ?Workorder
+    {
+        $workorderNumber = trim((string) ($filters['workorder'] ?? ''));
+
+        if ($workorderNumber === '' || ! ctype_digit($workorderNumber)) {
+            return null;
+        }
+
+        return Workorder::query()
+            ->where('number', $workorderNumber)
+            ->whereNotNull('done_at')
+            ->first(['id', 'number', 'done_at']);
+    }
+
     private function exportColumnsFromRequest(Request $request): array
     {
         $columns = $request->input('columns', self::EXPORTABLE_COLUMNS);
@@ -455,7 +472,7 @@ class VendorTrackingController extends Controller
             ->where(function ($q): void {
                 $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
             })
-            ->whereHas('tdr.workorder')
+            ->whereHas('tdr.workorder', fn (Builder $workorder) => $workorder->notCompleted())
             ->when($stdProcessNameIds->isNotEmpty(), fn ($q) => $q->whereNotIn('process_names_id', $stdProcessNameIds))
             ->when($filters['vendor_id'] > 0, fn ($q) => $q->where('vendor_id', $filters['vendor_id']))
             ->when($filters['status'] === 'open', fn ($q) => $q->whereNotNull('date_start')->whereNull('date_finish'))
@@ -679,7 +696,7 @@ class VendorTrackingController extends Controller
             ->where(function ($q): void {
                 $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
             })
-            ->whereHas('workorder')
+            ->whereHas('workorder', fn (Builder $workorder) => $workorder->notCompleted())
             ->when($filters['vendor_id'] > 0, fn ($q) => $q->where('vendor_id', $filters['vendor_id']))
             ->when($filters['status'] === 'open', fn ($q) => $q->whereNotNull('date_start')->whereNull('date_finish'))
             ->when($filters['status'] === 'returned', fn ($q) => $q->whereNotNull('date_finish'))
@@ -1218,7 +1235,7 @@ class VendorTrackingController extends Controller
             ->where(function ($q): void {
                 $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
             })
-            ->whereHas('line.workorder')
+            ->whereHas('line.workorder', fn (Builder $workorder) => $workorder->notCompleted())
             ->when($filters['vendor_id'] > 0, fn ($q) => $q->where('vendor_id', $filters['vendor_id']))
             ->when($filters['status'] === 'open', fn ($q) => $q->whereNotNull('date_start')->whereNull('date_finish'))
             ->when($filters['status'] === 'returned', fn ($q) => $q->whereNotNull('date_finish'))
@@ -1256,7 +1273,7 @@ class VendorTrackingController extends Controller
             ->where(function ($q): void {
                 $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
             })
-            ->whereHas('workorder')
+            ->whereHas('workorder', fn (Builder $workorder) => $workorder->notCompleted())
             ->when($filters['vendor_id'] > 0, fn ($q) => $q->where('vendor_id', $filters['vendor_id']))
             ->when($filters['status'] === 'open', fn ($q) => $q->whereNotNull('date_start')->whereNull('date_finish'))
             ->when($filters['status'] === 'returned', fn ($q) => $q->whereNotNull('date_finish'))
@@ -1360,7 +1377,7 @@ class VendorTrackingController extends Controller
             ->where(function ($q): void {
                 $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
             })
-            ->whereHas('tdr.workorder')
+            ->whereHas('tdr.workorder', fn (Builder $workorder) => $workorder->notCompleted())
             ->when($stdProcessNameIds->isNotEmpty(), fn ($q) => $q->whereNotIn('process_names_id', $stdProcessNameIds));
 
         $tdrCount = (clone $tdrBaseQuery)
@@ -1379,7 +1396,7 @@ class VendorTrackingController extends Controller
             ->where(function ($q): void {
                 $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
             })
-            ->whereHas('workorder')
+            ->whereHas('workorder', fn (Builder $workorder) => $workorder->notCompleted())
             ->count();
 
         $bushingProcessCount = 0;
@@ -1388,7 +1405,7 @@ class VendorTrackingController extends Controller
                 ->where(function ($q): void {
                     $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
                 })
-                ->whereHas('line.workorder')
+                ->whereHas('line.workorder', fn (Builder $workorder) => $workorder->notCompleted())
                 ->count();
         }
 
@@ -1398,7 +1415,7 @@ class VendorTrackingController extends Controller
                 ->where(function ($q): void {
                     $q->whereNotNull('date_start')->orWhereNotNull('date_finish');
                 })
-                ->whereHas('workorder')
+                ->whereHas('workorder', fn (Builder $workorder) => $workorder->notCompleted())
                 ->count();
         }
 

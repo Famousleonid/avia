@@ -223,7 +223,7 @@
             <h5><strong>Trainee Name:</strong></h5>
         </div>
         <div class="col-6 text-black text-center border-bottom border-dark">
-            <h5><strong>{{ $training->user->name }}</strong></h5>
+            <h5><strong>{{ $training->user->selection_name }}</strong></h5>
         </div>
     </div>
     <div class="row mt-1" style="width: 900px">
@@ -1317,7 +1317,7 @@
             TRAINEE NAME:
         </div>
         <div class="col-5 border-l text-center pt-1">
-            {{ $training->user->name }}
+            {{ $training->user->selection_name }}
         </div>
     </div>
     <div class="row border-l-r" style="width: 920px">

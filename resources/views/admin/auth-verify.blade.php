@@ -10,6 +10,11 @@
     @include('partials.user-scoped-storage')
     <link rel="stylesheet" href="{{asset('assets/Bootstrap 5/bootstrap.min.css')}}">
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('css/custom_bootstrap.css') }}?v={{ filemtime(public_path('css/custom_bootstrap.css')) }}">
+    <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}?v={{ filemtime(public_path('css/admin-theme.css')) }}">
+    <script>
+        document.documentElement.setAttribute('data-bs-theme', window.UserScopedStorage.getItem('theme') || 'dark');
+    </script>
 </head>
 <style>
     .spinner-win {
@@ -20,7 +25,7 @@
         text-align: center;
     }
 </style>
-<body class="p-0 m-0 g-0 " style="background-color: #343A40;">
+<body class="p-0 m-0 g-0" style="background-color: var(--avia-bg);">
 
 <div id="spinner-load" class=" spinner-border text-warning spinner-win" role="status">
     <span class="visually-hidden">Loading...</span>

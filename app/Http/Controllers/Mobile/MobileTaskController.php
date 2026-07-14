@@ -67,7 +67,7 @@ class MobileTaskController extends Controller
         $rows = '';
 
         foreach ($mains as $main) {
-            $technik = e($main->user->name ?? '-');
+            $technik = e($main->user->selection_name ?? '-');
             $category = e($main->generalTask->name ?? '-');
             $taskName = e($main->task->name ?? '-');
 

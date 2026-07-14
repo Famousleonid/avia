@@ -27,6 +27,7 @@ trait BuildsDomainData
 
         $defaults = [
             'name' => $roleName . ' User',
+            'selection_name_order' => 'first_last',
             'email' => strtolower($roleName) . '.' . uniqid() . '@example.test',
             'password' => bcrypt('password'),
             'email_verified_at' => now(),

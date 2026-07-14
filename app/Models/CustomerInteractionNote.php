@@ -15,6 +15,7 @@ class CustomerInteractionNote extends Model
         'customer_id',
         'contact_id',
         'user_id',
+        'subject',
         'note',
         'interaction_at',
         'follow_up_at',

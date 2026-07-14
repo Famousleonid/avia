@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ProjectSetting;
+use App\Services\MarketingWoEstimateNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -21,7 +22,10 @@ class ProjectSettingController extends Controller
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(
+        Request $request,
+        MarketingWoEstimateNotificationService $estimateNotifications
+    ): RedirectResponse
     {
         $data = $request->validate([
             'marketing_wo_estimate_email_recipients' => ['nullable', 'string', 'max:4000'],
@@ -42,10 +46,11 @@ class ProjectSettingController extends Controller
             $request->boolean('print_forms_qr_enabled')
         );
 
-        ProjectSetting::setMarketingWoEstimateEmailSettings(
-            $emails,
-            (int) ($data['marketing_wo_estimate_email_delay_days'] ?? 0)
-        );
+        $delayDays = (int) ($data['marketing_wo_estimate_email_delay_days']
+            ?? ProjectSetting::marketingWoEstimateEmailDelayDays());
+
+        ProjectSetting::setMarketingWoEstimateEmailSettings($emails, $delayDays);
+        $estimateNotifications->reschedulePending($delayDays);
 
         return redirect()
             ->route('admin.project-settings.index')

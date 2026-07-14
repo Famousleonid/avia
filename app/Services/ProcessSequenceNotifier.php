@@ -34,7 +34,7 @@ class ProcessSequenceNotifier
         $completedProcess->loadMissing(['processName']);
 
         $actor = auth()->user();
-        $workorderUserName = trim((string) ($workorder->user?->name ?? ''));
+        $workorderUserName = trim((string) ($workorder->user?->selection_name ?? ''));
         $detail = $this->detailInfo($nextProcess);
         $msg = [
             'fromUserId' => (int) ($actor?->id ?? 0),

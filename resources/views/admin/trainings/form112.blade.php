@@ -184,7 +184,7 @@
             <h5><strong>Trainee (Please print name):</strong></h5>
         </div>
         <div class="col-4 text-black text-center border-bottom border-dark">
-            <h5><strong>{{ $training->user->name }}</strong></h5>
+            <h5><strong>{{ $training->user->selection_name }}</strong></h5>
         </div>
         <div class="col-4 border-bottom border-dark"></div>
     </div>

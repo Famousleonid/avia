@@ -36,7 +36,7 @@
             --shipping-log-border: rgba(255, 255, 255, .18);
             --shipping-log-head-bg: linear-gradient(180deg, #151719 0%, #2e3338 100%);
             --shipping-log-head-cover: #151719;
-            --shipping-log-row-bg: #212529;
+            --shipping-log-row-bg: var(--avia-panel);
         }
 
         html[data-bs-theme="light"] .shipping-log-table {

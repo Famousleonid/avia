@@ -23,7 +23,7 @@ class ToolController extends Controller
         $activeTool = (string) $request->get('tool', $tools[0]['key'] ?? '');
         $workorderId = $request->integer('workorder_id') ?: null;
         $prefillWorkorder = trim((string) $request->get('workorder', ''));
-        $prefillUserName = trim((string) $request->get('user', Auth::user()?->name ?? ''));
+        $prefillUserName = trim((string) $request->get('user', Auth::user()?->selection_name ?? ''));
         $currentManualNumber = null;
 
         if ($workorderId) {

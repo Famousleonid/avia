@@ -1,7 +1,7 @@
 /* =========================================================
    ADMIN UI-KIT (one file)
    Works with: data-bs-theme="dark|light"
-   Base app background: #232525
+   Dark palette: Aviation Night
    ========================================================= */
 
 /* ---------- Global base background (no seams) ---------- */
@@ -9,60 +9,179 @@ html[data-bs-theme="dark"],
 html[data-bs-theme="dark"] body,
 html[data-bs-theme="dark"] .container-fluid,
 html[data-bs-theme="dark"] .page-layout {
-    background-color: #232525 !important;
+    background-color: var(--avia-bg) !important;
 }
 
 /* =========================================================
    THEME TOKENS — DARK
    ========================================================= */
 :root {
-    --dir-bg: #232525;
+    --dir-bg: var(--avia-bg, #141b24);
 
     --dir-radius-lg: .75rem;
     --dir-radius-md: .6rem;
 
-    --dir-border: rgba(255,255,255,.10);
-    --dir-border-2: rgba(255,255,255,.12);
+    --dir-border: var(--avia-border, #405267);
+    --dir-border-2: var(--avia-border, #405267);
 
-    --dir-topbar-bg: linear-gradient(180deg, rgba(33,37,41,.92), rgba(52,58,64,.80));
-    --dir-panel-bg: linear-gradient(180deg, rgba(33,37,41,.92), rgba(52,58,64,.72));
+    --dir-topbar-bg: linear-gradient(180deg, var(--avia-surface-raised, #263544), var(--avia-surface, #1e2a37));
+    --dir-panel-bg: linear-gradient(180deg, var(--avia-surface, #1e2a37), var(--avia-panel, #202c38));
 
-    --dir-table-bg: rgba(33,37,41,.98);
-    --dir-thead-bg: #343A40;
+    --dir-table-bg: var(--avia-panel, #202c38);
+    --dir-thead-bg: var(--avia-surface-raised, #263544);
 
-    --dir-modal-bg: linear-gradient(180deg, rgba(73,80,87,.92), rgba(52,58,64,.88));
+    --dir-modal-bg: var(--avia-modal, #293746);
 
-    --dir-text: rgba(248,249,250,.92);
-    --dir-muted: rgba(248,249,250,.55);
+    --dir-text: var(--avia-text, #e8eef5);
+    --dir-muted: var(--avia-text-muted, #8293a5);
 
-    --dir-input-bg: rgba(33,37,41,.85);
-    --dir-input-border: rgba(255,255,255,.15);
-    --dir-input-text: rgba(248,249,250,.95);
-    --dir-input-ph: rgba(248,249,250,.45);
+    --dir-input-bg: var(--avia-input, #16202a);
+    --dir-input-border: var(--avia-border, #405267);
+    --dir-input-text: var(--avia-text, #e8eef5);
+    --dir-input-ph: var(--avia-text-muted, #8293a5);
 
     /* hover/active row */
-    --dir-row-hover: rgba(255,255,255,.04);
-    --dir-row-active: rgba(13,110,253,.10);
+    --dir-row-hover: var(--avia-hover, #304154);
+    --dir-row-active: var(--avia-active, #315f8c);
 
     /* legacy border/accent token */
-    --dir-row-border: rgba(13,110,253,.55);
+    --dir-row-border: var(--avia-primary, #5795d6);
 
     /* dedicated left indicator */
-    --dir-row-indicator: rgba(13,110,253,.75);
+    --dir-row-indicator: var(--avia-primary, #5795d6);
 
-    --dir-acc-item-bg: rgba(33,37,41,.92);
-    --dir-acc-item-bg2: rgba(52,58,64,.82);
+    --dir-acc-item-bg: var(--avia-panel, #202c38);
+    --dir-acc-item-bg2: var(--avia-surface, #1e2a37);
 
-    --dir-acc-btn-bg: rgba(33,37,41,.88);
-    --dir-acc-btn-bg2: rgba(52,58,64,.74);
+    --dir-acc-btn-bg: var(--avia-surface-raised, #263544);
+    --dir-acc-btn-bg2: var(--avia-surface, #1e2a37);
 
-    --dir-acc-open-bg: rgba(13,110,253,.10);
-    --dir-acc-hover-bg: rgba(13,110,253,.08);
+    --dir-acc-open-bg: var(--avia-active, #315f8c);
+    --dir-acc-hover-bg: var(--avia-hover, #304154);
 
     --dir-acc-border: var(--dir-border);
     --dir-acc-border2: var(--dir-border-2);
 
     --dir-acc-shadow: 0 6px 10px rgba(0,0,0,.30);
+}
+
+/* Bootstrap surfaces outside the dir-* UI kit. */
+html[data-bs-theme="dark"] .card,
+html[data-bs-theme="dark"] .offcanvas {
+    --bs-card-bg: var(--avia-surface);
+    --bs-card-border-color: var(--avia-border);
+    background-color: var(--avia-surface) !important;
+    border-color: var(--avia-border) !important;
+    color: var(--avia-text);
+}
+
+html[data-bs-theme="dark"] .list-group-item {
+    --bs-list-group-bg: var(--avia-panel);
+    --bs-list-group-border-color: var(--avia-border);
+    background-color: var(--avia-panel);
+    border-color: var(--avia-border);
+    color: var(--avia-text);
+}
+
+html[data-bs-theme="dark"] .list-group-item.active {
+    background-color: var(--avia-active);
+    border-color: var(--avia-primary);
+    color: #fff;
+}
+
+html[data-bs-theme="dark"] .dropdown-menu {
+    --bs-dropdown-bg: var(--avia-surface-raised);
+    --bs-dropdown-border-color: var(--avia-border);
+    background-color: var(--avia-surface-raised);
+    border-color: var(--avia-border);
+    color: var(--avia-text);
+}
+
+html[data-bs-theme="dark"] .form-control,
+html[data-bs-theme="dark"] .form-select {
+    background-color: var(--avia-input);
+    border-color: var(--avia-border);
+    color: var(--avia-text);
+}
+
+html[data-bs-theme="dark"] .table {
+    --bs-table-bg: var(--avia-panel);
+    --bs-table-color: var(--avia-text);
+    --bs-table-border-color: var(--avia-border);
+    --bs-table-striped-bg: var(--avia-surface-raised);
+    --bs-table-striped-color: var(--avia-text);
+    --bs-table-hover-bg: var(--avia-hover);
+    --bs-table-hover-color: var(--avia-text);
+}
+
+html[data-bs-theme="dark"] .form-control::placeholder {
+    color: var(--avia-text-muted);
+}
+
+html[data-bs-theme="dark"] .form-control:focus,
+html[data-bs-theme="dark"] .form-select:focus {
+    background-color: var(--avia-input);
+    border-color: var(--avia-primary);
+    color: var(--avia-text);
+    box-shadow: 0 0 0 .18rem rgba(var(--bs-primary-rgb), .2);
+}
+
+/* Legacy page templates define Select2 colors after this stylesheet and often
+   use !important. Extra body specificity keeps every admin form on the shared
+   palette without relying on each page's historical gray values. */
+html[data-bs-theme="dark"] body .select2-container .select2-selection--single,
+html[data-bs-theme="dark"] body .select2-container .select2-selection--multiple {
+    background-color: var(--avia-input) !important;
+    border-color: var(--avia-border) !important;
+    color: var(--avia-text) !important;
+}
+
+html[data-bs-theme="dark"] body .select2-container .select2-selection__rendered,
+html[data-bs-theme="dark"] body .select2-container .select2-selection__choice {
+    color: var(--avia-text-secondary) !important;
+}
+
+html[data-bs-theme="dark"] body .select2-container .select2-dropdown,
+html[data-bs-theme="dark"] body .select2-search--dropdown .select2-search__field {
+    background-color: var(--avia-surface-raised) !important;
+    border-color: var(--avia-border) !important;
+    color: var(--avia-text) !important;
+}
+
+html[data-bs-theme="dark"] body .select2-container .select2-results__option--selected {
+    background-color: var(--avia-panel) !important;
+    color: var(--avia-text) !important;
+}
+
+html[data-bs-theme="dark"] body .select2-container .select2-results__option {
+    background-color: var(--avia-surface-raised) !important;
+    color: var(--avia-text) !important;
+}
+
+html[data-bs-theme="dark"] body .select2-container .select2-results__option--highlighted {
+    background-color: var(--avia-active) !important;
+    color: #fff !important;
+}
+
+html[data-bs-theme="dark"] .text-muted,
+html[data-bs-theme="dark"] .form-text {
+    color: var(--avia-text-muted) !important;
+}
+
+html[data-bs-theme="dark"] .btn-primary {
+    --bs-btn-bg: var(--avia-primary);
+    --bs-btn-border-color: var(--avia-primary);
+    --bs-btn-hover-bg: #6aa4df;
+    --bs-btn-hover-border-color: #6aa4df;
+    --bs-btn-active-bg: #477fb9;
+    --bs-btn-active-border-color: #477fb9;
+}
+
+html[data-bs-theme="dark"] .btn-info {
+    --bs-btn-bg: var(--avia-info);
+    --bs-btn-border-color: var(--avia-info);
+    --bs-btn-hover-bg: #62c3ca;
+    --bs-btn-hover-border-color: #62c3ca;
 }
 
 /* =========================================================
@@ -564,11 +683,11 @@ html[data-bs-theme="dark"] .accordion-body .table-striped > tbody > tr:nth-of-ty
 
 /* When dropdown is inside container (normal case) */
 html[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown .select2-search__field {
-    background-color: #212529 !important;
-    color: #f8f9fa !important;
-    -webkit-text-fill-color: #f8f9fa !important;
-    caret-color: #f8f9fa !important;
-    border: 1px solid #495057 !important;
+    background-color: var(--avia-input) !important;
+    color: var(--avia-text) !important;
+    -webkit-text-fill-color: var(--avia-text) !important;
+    caret-color: var(--avia-text) !important;
+    border: 1px solid var(--avia-border) !important;
     border-radius: 8px !important;
     outline: none !important;
 }
@@ -584,9 +703,9 @@ html[data-bs-theme="dark"] .select2-container--bootstrap-5 .select2-results__mes
 
 /* When dropdown is appended to body (e.g. in modals with dropdownParent: body) */
 html[data-bs-theme="dark"] .select2-dropdown {
-    background-color: #121212 !important;
-    color: #e9ecef !important;
-    border: 1px solid #495057 !important;
+    background-color: var(--avia-surface-raised) !important;
+    color: var(--avia-text) !important;
+    border: 1px solid var(--avia-border) !important;
     border-radius: 8px !important;
 }
 
@@ -595,14 +714,14 @@ html[data-bs-theme="dark"] .select2-dropdown .select2-results__option {
 }
 
 html[data-bs-theme="dark"] .select2-dropdown .select2-results__option[aria-disabled="true"] {
-    color: #8f98a3 !important;
-    background-color: #1b1f23 !important;
+    color: var(--avia-text-muted) !important;
+    background-color: var(--avia-panel) !important;
 }
 
 html[data-bs-theme="dark"] .select2-dropdown .select2-results__option[aria-selected="true"],
 html[data-bs-theme="dark"] .select2-dropdown .select2-results__option--selected {
-    background-color: #20262d !important;
-    color: #f8f9fa !important;
+    background-color: var(--avia-hover) !important;
+    color: var(--avia-text) !important;
 }
 
 html[data-bs-theme="dark"] .select2-dropdown .select2-results__option[aria-selected="true"] *,
@@ -613,7 +732,7 @@ html[data-bs-theme="dark"] .select2-dropdown .select2-results__option--selected 
 html[data-bs-theme="dark"] .select2-dropdown .select2-results__option--highlighted[aria-selected],
 html[data-bs-theme="dark"] .select2-dropdown .select2-results__option--highlighted.select2-results__option--selectable,
 html[data-bs-theme="dark"] .select2-dropdown .select2-results__option:hover {
-    background-color: #0d6efd !important;
+    background-color: var(--avia-active) !important;
     color: #ffffff !important;
 }
 
@@ -624,11 +743,11 @@ html[data-bs-theme="dark"] .select2-dropdown .select2-results__option:hover * {
 }
 
 html[data-bs-theme="dark"] .select2-dropdown .select2-search__field {
-    background-color: #343A40 !important;
-    color: #e9ecef !important;
-    -webkit-text-fill-color: #e9ecef !important;
-    caret-color: #e9ecef !important;
-    border: 1px solid #495057 !important;
+    background-color: var(--avia-input) !important;
+    color: var(--avia-text) !important;
+    -webkit-text-fill-color: var(--avia-text) !important;
+    caret-color: var(--avia-text) !important;
+    border: 1px solid var(--avia-border) !important;
 }
 
 html[data-bs-theme="dark"] .select2-dropdown .select2-results__message {

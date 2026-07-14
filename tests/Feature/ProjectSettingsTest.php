@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\MarketingWoEstimateNotification;
 use App\Models\PrintMark;
 use App\Models\ProjectSetting;
 use Carbon\Carbon;
@@ -17,6 +18,19 @@ class ProjectSettingsTest extends TestCase
     public function test_system_admin_can_open_and_update_project_settings(): void
     {
         $admin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $customer = $this->createCustomer(['name' => 'Settings Reminder Customer']);
+        $workorder = $this->createWorkorder([
+            'customer_id' => $customer->id,
+            'number' => 108001,
+            'wo_estimate_date' => '2026-07-01',
+        ]);
+        $notification = MarketingWoEstimateNotification::query()->create([
+            'workorder_id' => $workorder->id,
+            'customer_id' => $customer->id,
+            'estimate_date' => '2026-07-01',
+            'triggered_at' => '2026-07-01 08:00:00',
+            'due_at' => '2026-07-02 08:00:00',
+        ]);
 
         $this->actingAs($admin)
             ->get(route('admin.project-settings.index'))
@@ -36,6 +50,10 @@ class ProjectSettingsTest extends TestCase
         $this->assertFalse(ProjectSetting::boolean(ProjectSetting::PRINT_FORMS_QR_ENABLED, true));
         $this->assertSame(['sales@example.test', 'manager@example.test'], ProjectSetting::marketingWoEstimateEmailRecipients());
         $this->assertSame(3, ProjectSetting::marketingWoEstimateEmailDelayDays());
+        $this->assertDatabaseHas('marketing_wo_estimate_notifications', [
+            'id' => $notification->id,
+            'due_at' => '2026-07-04 00:00:00',
+        ]);
     }
 
     public function test_admin_role_without_is_admin_cannot_open_project_settings(): void

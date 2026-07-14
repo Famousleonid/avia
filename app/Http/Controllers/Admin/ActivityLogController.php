@@ -306,8 +306,8 @@ class ActivityLogController extends Controller
         )));
         $userMap = User::query()
             ->whereIn('id', $userIds)
-            ->get(['id', 'name'])
-            ->mapWithKeys(fn(User $u) => [$u->id => (string)$u->name])
+            ->get(['id', 'name', 'selection_name_order'])
+            ->mapWithKeys(fn(User $u) => [$u->id => (string)$u->selection_name])
             ->all();
 
         $manualIds = array_values(array_unique(array_merge($idBuckets['manual_id'], $idBuckets['manuals_id'])));
@@ -513,13 +513,14 @@ class ActivityLogController extends Controller
         $customerNoteMap = CustomerInteractionNote::query()
             ->whereIn('id', array_unique($idBuckets['customer_interaction_note_id']))
             ->with(['customer:id,name', 'contact:id,first_name,last_name,email'])
-            ->get(['id', 'customer_id', 'contact_id', 'interaction_at'])
+            ->get(['id', 'customer_id', 'contact_id', 'subject', 'interaction_at'])
             ->mapWithKeys(function (CustomerInteractionNote $note) use ($customerContactMap): array {
                 $company = trim((string) ($note->customer?->name ?? ''));
                 $contact = $note->contact_id ? ($customerContactMap[$note->contact_id] ?? '') : '';
+                $subject = trim((string) ($note->subject ?? ''));
                 $date = $note->interaction_at ? format_project_date($note->interaction_at) : '';
 
-                return [$note->id => trim(implode(' - ', array_filter([$company, $contact, $date], fn ($value) => $value !== '')))];
+                return [$note->id => trim(implode(' - ', array_filter([$company, $contact, $subject, $date], fn ($value) => $value !== '')))];
             })
             ->all();
 
@@ -551,14 +552,14 @@ class ActivityLogController extends Controller
         )));
         $doneUserMap = User::query()
             ->whereIn('id', $doneUserIds)
-            ->get(['id', 'name'])
-            ->mapWithKeys(fn(User $u) => [$u->id => (string)$u->name])
+            ->get(['id', 'name', 'selection_name_order'])
+            ->mapWithKeys(fn(User $u) => [$u->id => (string)$u->selection_name])
             ->all();
 
         $notifyUserMap = User::query()
             ->whereIn('id', array_unique($idBuckets['notify_user_id']))
-            ->get(['id', 'name'])
-            ->mapWithKeys(fn(User $u) => [$u->id => (string)$u->name])
+            ->get(['id', 'name', 'selection_name_order'])
+            ->mapWithKeys(fn(User $u) => [$u->id => (string)$u->selection_name])
             ->all();
 
         // -------------------------
@@ -579,7 +580,9 @@ class ActivityLogController extends Controller
 
         $causers = User::query()
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'selection_name_order'])
+            ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+            ->values();
 
         $purgeDaysOptions = [30, 60, 90, 180, 365, 730, 1095];
         $purgeCounts = collect($purgeDaysOptions)

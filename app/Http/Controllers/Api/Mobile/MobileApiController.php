@@ -452,7 +452,7 @@ class MobileApiController extends Controller
         app(WorkorderNotifyService::class)->draftCreated(
             $workorder,
             (int) $request->user()->id,
-            (string) $request->user()->name
+            (string) $request->user()->selection_name
         );
 
         $workorder->load(['unit.manual', 'customer', 'instruction', 'user', 'media']);
@@ -499,7 +499,7 @@ class MobileApiController extends Controller
             ->get()
             ->groupBy('general_task_id');
         $mains = Main::query()
-            ->with(['user:id,name', 'task'])
+            ->with(['user:id,name,selection_name_order', 'task'])
             ->where('workorder_id', $workorder->id)
             ->get()
             ->keyBy('task_id');
@@ -578,7 +578,7 @@ class MobileApiController extends Controller
 
         $workorder->recalcGeneralTaskStatuses($main->general_task_id);
         $workorder->syncDoneByCompletedTask();
-        $main->load(['user:id,name', 'task']);
+        $main->load(['user:id,name,selection_name_order', 'task']);
 
         return $this->ok(['main' => $this->mainPayload($main)]);
     }
@@ -858,7 +858,7 @@ class MobileApiController extends Controller
             ->whereNull('done_at')
             ->where('is_draft', 0)
             ->with([
-                'user:id,name',
+                'user:id,name,selection_name_order',
                 'unit.manual.plane:id,type',
                 'tdrs' => function ($q) {
                     $q->with([
@@ -874,7 +874,7 @@ class MobileApiController extends Controller
 
         $rows = app(PaintIndexRowsBuilder::class)->build($workorders);
         $lostParts = Paint::query()
-            ->with(['user:id,name', 'media'])
+            ->with(['user:id,name,selection_name_order', 'media'])
             ->latest()
             ->limit(100)
             ->get();
@@ -917,7 +917,7 @@ class MobileApiController extends Controller
         ]);
 
         $paint->addMediaFromRequest('photo')->toMediaCollection('lost');
-        $paint->load(['user:id,name', 'media']);
+        $paint->load(['user:id,name,selection_name_order', 'media']);
 
         return $this->ok([
             'lost_part' => $this->paintLostPayload($paint),
@@ -978,12 +978,12 @@ class MobileApiController extends Controller
 
         $recipient->notify(new NewMessageNotification(
             fromUserId: (int) $user->id,
-            fromName: (string) $user->name,
+            fromName: (string) $user->selection_name,
             text: (string) $data['message']
         ));
 
         return $this->ok([
-            'recipient' => ['id' => $recipient->id, 'name' => $recipient->name],
+            'recipient' => ['id' => $recipient->id, 'name' => $recipient->selection_name],
         ], [], 'Message sent.');
     }
 
@@ -1020,7 +1020,7 @@ class MobileApiController extends Controller
 
         $workorder = Workorder::query()
             ->with(array_merge([
-                'user:id,name',
+                'user:id,name,selection_name_order',
                 'customer:id,name',
             ], $this->mobileMachiningRelations()))
             ->findOrFail($workorderId);
@@ -1048,8 +1048,8 @@ class MobileApiController extends Controller
             $machinistNames = User::query()
                 ->withTrashed()
                 ->whereIn('id', $stepMachinistIds->all())
-                ->get(['id', 'name'])
-                ->mapWithKeys(static fn (User $u) => [(int) $u->id => trim((string) ($u->name ?? ''))])
+                ->get(['id', 'name', 'selection_name_order'])
+                ->mapWithKeys(static fn (User $u) => [(int) $u->id => trim($u->selection_name)])
                 ->all();
         }
 
@@ -1333,7 +1333,7 @@ class MobileApiController extends Controller
     {
         return [
             'id' => $user->id,
-            'name' => $user->name,
+            'name' => $user->selection_name,
             'email' => $user->email,
             'role' => $user->roleName(),
             'team' => $user->team ? ['id' => $user->team->id, 'name' => $user->team->name] : null,
@@ -1398,7 +1398,7 @@ class MobileApiController extends Controller
     private function workorderDetailPayload(Workorder $workorder, User $user): array
     {
         return array_merge($this->workorderMiniPayload($workorder), [
-            'owner' => $workorder->user ? ['id' => $workorder->user->id, 'name' => $workorder->user->name] : null,
+            'owner' => $workorder->user ? ['id' => $workorder->user->id, 'name' => $workorder->user->selection_name] : null,
             'serial_number' => $workorder->serial_number,
             'description' => $workorder->displayDescription(),
             'customer_po' => $workorder->customer_po,
@@ -1534,7 +1534,7 @@ class MobileApiController extends Controller
             'date_start' => optional($main->date_start)?->format('Y-m-d'),
             'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
             'ignore_row' => (bool) $main->ignore_row,
-            'user' => $main->user ? ['id' => $main->user->id, 'name' => $main->user->name] : null,
+            'user' => $main->user ? ['id' => $main->user->id, 'name' => $main->user->selection_name] : null,
         ];
     }
 
@@ -1789,7 +1789,7 @@ class MobileApiController extends Controller
             'is_queue_master' => $isMaster,
             'queue_position' => $queuePosition,
             'queue_display' => $queuePosition !== null && $isMaster ? str_pad((string) $queuePosition, 2, '0', STR_PAD_LEFT) : ($queuePosition !== null ? '' : '—'),
-            'owner' => $isMaster && $workorder->user ? ['id' => $workorder->user->id, 'name' => $workorder->user->name] : null,
+            'owner' => $isMaster && $workorder->user ? ['id' => $workorder->user->id, 'name' => $workorder->user->selection_name] : null,
             'start_date' => optional($lineStart)?->format('Y-m-d'),
             'finish_date' => optional($lineFinish)?->format('Y-m-d'),
             'editable_process_id' => $editTp?->id,
@@ -1804,7 +1804,7 @@ class MobileApiController extends Controller
             'part_number' => $paint->part_number,
             'serial_number' => $paint->serial_number,
             'comment' => $paint->comment,
-            'owner' => $paint->user ? ['id' => $paint->user->id, 'name' => $paint->user->name] : null,
+            'owner' => $paint->user ? ['id' => $paint->user->id, 'name' => $paint->user->selection_name] : null,
             'photo' => $this->firstMediaPayload($paint->getMedia('lost')),
         ];
     }
@@ -1876,15 +1876,15 @@ class MobileApiController extends Controller
                 $q->with([
                     'component:id,part_number,name,ipl_num',
                     'tdrProcesses.processName',
-                    'tdrProcesses.machiningWorkSteps.machinist:id,name',
+                    'tdrProcesses.machiningWorkSteps.machinist:id,name,selection_name_order',
                 ]);
             },
             'woBushingProcesses' => function ($q) {
                 $q->with([
                     'line.component',
                     'process.process_name',
-                    'batch.machiningWorkSteps.machinist:id,name',
-                    'machiningWorkSteps.machinist:id,name',
+                    'batch.machiningWorkSteps.machinist:id,name,selection_name_order',
+                    'machiningWorkSteps.machinist:id,name,selection_name_order',
                 ]);
             },
         ];
@@ -1896,7 +1896,7 @@ class MobileApiController extends Controller
             ->whereNull('done_at')
             ->whereMachiningHasDateSent()
             ->with(array_merge([
-                'user:id,name',
+                'user:id,name,selection_name_order',
                 'customer:id,name',
             ], $this->mobileMachiningRelations()))
             ->orderByRaw('CASE WHEN machining_queue_order IS NULL THEN 1 ELSE 0 END ASC')

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -64,6 +65,27 @@ class Component extends Model implements  hasMedia
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    public function tapActivity(Activity $activity, string $eventName): void
+    {
+        if (auth()->check()) {
+            $activity->causer()->associate(auth()->user());
+        }
+
+        if ($eventName !== 'created' || ! request()->routeIs('components.storeFromInspection')) {
+            return;
+        }
+
+        $workorderId = request()->integer('current_wo');
+        if ($workorderId <= 0) {
+            return;
+        }
+
+        $activity->properties = $activity->properties->merge([
+            'source' => 'tdr_add_part',
+            'workorder_id' => $workorderId,
+        ]);
     }
 
 

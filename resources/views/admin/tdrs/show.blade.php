@@ -216,7 +216,7 @@
         }
 
         #tdrShowTabList {
-            --tdr-tabs-bg: #212529;
+            --tdr-tabs-bg: var(--avia-surface);
             border-bottom: 0 !important;
             align-items: flex-end;
         }
@@ -307,9 +307,9 @@
         /* Select2 Dark Theme for dropdown (when appended to body) */
         html[data-bs-theme="dark"] .select2-dropdown,
         html[data-bs-theme="dark"] .select2-container--default .select2-results > .select2-results__options {
-            background-color: #121212 !important;
+            background-color: var(--avia-input) !important;
             color: #e9ecef !important;
-            border: 1px solid #495057 !important;
+            border: 1px solid var(--avia-border) !important;
         }
 
         html[data-bs-theme="dark"] .select2-results__option {
@@ -322,9 +322,9 @@
         }
 
         html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field {
-            background-color: #343A40 !important;
+            background-color: var(--avia-surface-raised) !important;
             color: #e9ecef !important;
-            border: 1px solid #495057 !important;
+            border: 1px solid var(--avia-border) !important;
         }
 
         /* Edit Part Process and related modals (iframe) - ensure on top */

@@ -58,7 +58,9 @@ class ManualController extends Controller
         $builders = Builder::all();
         $scopes = Scope::all();
         $users = auth()->user()?->roleIs('Admin')
-            ? User::orderBy('name')->get(['id', 'name', 'email'])
+            ? User::orderBy('name')->get(['id', 'name', 'selection_name_order', 'email'])
+                ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+                ->values()
             : collect();
 
         return view('admin.manuals.index', compact('cmms', 'planes', 'builders', 'scopes', 'users', 'showDeleted'));
@@ -380,7 +382,7 @@ class ManualController extends Controller
 
         $revisionChecks = ManualRevisionCheck::query()
             ->where('manual_id', $cmm->id)
-            ->with('checkedBy:id,name')
+            ->with('checkedBy:id,name,selection_name_order')
             ->latest('checked_at')
             ->latest('id')
             ->get();
@@ -472,7 +474,9 @@ class ManualController extends Controller
         $planes = Plane::all();
         $builders = Builder::all();
         $scopes = Scope::all();
-        $users = User::orderBy('name')->get(['id', 'name', 'email']);
+        $users = User::orderBy('name')->get(['id', 'name', 'selection_name_order', 'email'])
+            ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+            ->values();
         $permittedUserIds = $cmm->permittedUsers()
             ->pluck('users.id')
             ->map(fn ($id) => (int) $id)

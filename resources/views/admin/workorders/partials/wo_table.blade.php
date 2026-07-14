@@ -276,7 +276,7 @@
                 </td>
 
                 <td class="text-center td-technik no-print">
-                    {{ $technik?->name ?? '' }}
+                    {{ $technik?->selection_name ?? '' }}
                 </td>
 
                 @role('Admin')

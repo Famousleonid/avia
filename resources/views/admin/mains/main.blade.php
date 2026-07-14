@@ -161,7 +161,7 @@
                                         $serialValue = (string)($current_workorder->serial_number ?? ($current_workorder->unit->serial_number ?? '—'));
                                         $instructionValue = (string)($current_workorder->instruction->name ?? '—');
                                         $customerValue = (string)($current_workorder->customer->name ?? '—');
-                                        $technikValue = (string)($current_workorder->user->name ?? '—');
+                                        $technikValue = (string)($current_workorder->user->selection_name ?? '—');
                                         $manualValue = (string)(($manual->number ?? '—') . ' | Lib: ' . ($manual->lib ?? '—'));
                                         $descriptionValue = (string)($current_workorder->displayDescription() ?? '—');
                                         $openedValue = (string)($current_workorder->open_at?->format('d-M-y') ?? '—');
@@ -199,7 +199,7 @@
                                                     @endif
                                                 </a>
 
-                                                <a href="{{ route('tools.index', ['workorder_id' => $current_workorder->id, 'workorder' => $current_workorder->number, 'user' => auth()->user()?->name]) }}"
+                                                <a href="{{ route('tools.index', ['workorder_id' => $current_workorder->id, 'workorder' => $current_workorder->number, 'user' => auth()->user()?->selection_name]) }}"
                                                    class="btn btn-outline-primary dir-top-square-btn ms-2"
                                                    data-tippy-content="{{ __('Tools') }}"
                                                    onclick="showLoadingSpinner()">
@@ -453,14 +453,14 @@
                                                             data-tippy-content="
                                                                 <span style='color:#adb5bd'>Updated by:</span>
                                                                 <span style='color:#0dcaf0;font-weight:500'>
-                                                                    {{ $main?->user?->name ?? '—' }}
+                                                                    {{ $main?->user?->selection_name ?? '—' }}
                                                                 </span>
                                                                 <br>
                                                                 <span style='color:#adb5bd'>Updated at:</span>
                                                                 <span style='color:#20c997;font-weight:500'>
                                                                     {{ $main?->updated_at?->format('d-M-Y H:i') ?? '—' }}
                                                                 </span>">
-                                                            {{ $main?->user?->name ?? '' }}
+                                                            {{ $main?->user?->selection_name ?? '' }}
 
                                                         </td>
 
@@ -909,8 +909,8 @@
                                             @php
                                                 $isClosed = !empty($pr->date_finish);
                                                 $isIgnoredStd = (bool) ($pr->ignore_row ?? false);
-                                                $startEditedBy = $pr->date_start_user ?: $pr->dateStartUpdatedBy?->name;
-                                                $finishEditedBy = $pr->date_finish_user ?: $pr->dateFinishUpdatedBy?->name;
+                                                $startEditedBy = $pr->dateStartUpdatedBy?->selection_name ?: $pr->date_start_user;
+                                                $finishEditedBy = $pr->dateFinishUpdatedBy?->selection_name ?: $pr->date_finish_user;
                                                 $dateUserName = ! empty($pr->date_finish)
                                                     ? ($finishEditedBy ?: '—')
                                                     : (! empty($pr->date_start) ? ($startEditedBy ?: '—') : '—');
@@ -1064,6 +1064,12 @@
                                                     ['sort_order', 'asc'],
                                                     ['id', 'asc'],
                                                 ])->values();
+                                                $mainCurrentUser = auth()->user();
+                                                $mainCanEditExactEcProcessDates = auth()->check()
+                                                    && (
+                                                        (bool) ($mainCurrentUser?->isSystemAdmin() ?? false)
+                                                        || (bool) ($mainCurrentUser?->hasAnyRole('Admin|Manager') ?? false)
+                                                    );
                                             @endphp
                                             @if($prs->isNotEmpty())
                                                 <div class="mt-2 ps-2">
@@ -1113,8 +1119,8 @@
                                                                         return ! empty($p->date_finish);
                                                                     });
                                                                     $trUserRow = $travelerUpdatedByRow ?? $travelerLeader;
-                                                                    $trStartEditedBy = $travelerLeader->date_start_user ?: $travelerLeader->dateStartUpdatedBy?->name;
-                                                                    $trFinishEditedBy = $travelerLeader->date_finish_user ?: $travelerLeader->dateFinishUpdatedBy?->name;
+                                                                    $trStartEditedBy = $travelerLeader->dateStartUpdatedBy?->selection_name ?: $travelerLeader->date_start_user;
+                                                                    $trFinishEditedBy = $travelerLeader->dateFinishUpdatedBy?->selection_name ?: $travelerLeader->date_finish_user;
                                                                     $trDateUserName = ! empty($travelerLeader->date_finish)
                                                                         ? ($trFinishEditedBy ?: '—')
                                                                         : (! empty($travelerLeader->date_start) ? ($trStartEditedBy ?: '—') : '—');
@@ -1157,8 +1163,8 @@
                                                                 @php
                                                                     $pr = $mainProcessRow['process'];
                                                                     $isClosed = !empty($pr->date_finish);
-                                                                    $startEditedBy = $pr->date_start_user ?: $pr->dateStartUpdatedBy?->name;
-                                                                    $finishEditedBy = $pr->date_finish_user ?: $pr->dateFinishUpdatedBy?->name;
+                                                                    $startEditedBy = $pr->dateStartUpdatedBy?->selection_name ?: $pr->date_start_user;
+                                                                    $finishEditedBy = $pr->dateFinishUpdatedBy?->selection_name ?: $pr->date_finish_user;
                                                                     $dateUserName = ! empty($pr->date_finish)
                                                                         ? ($finishEditedBy ?: '—')
                                                                         : (! empty($pr->date_start) ? ($startEditedBy ?: '—') : '—');
@@ -1167,7 +1173,11 @@
                                                                     $processRoDisplay = $mainReadonlyText($pr->repair_order ?? '');
                                                                     $processStartDisplay = $mainReadonlyDate($pr->date_start);
                                                                     $processFinishDisplay = $mainReadonlyDate($pr->date_finish);
-                                                                    $processCanEditDates = (bool) ($pr->processName?->allowsManualDateEditing() ?? false);
+                                                                    $processCanEditDates = (bool) ($pr->processName?->allowsManualDateEditing() ?? false)
+                                                                        || (
+                                                                            \App\Models\ProcessName::isExactEcName($pr->processName?->name)
+                                                                            && $mainCanEditExactEcProcessDates
+                                                                        );
                                                                 @endphp
 
                                                             <tr data-closed="{{ $isClosed ? 1 : 0 }}"

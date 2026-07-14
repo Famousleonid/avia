@@ -4,23 +4,27 @@ namespace Tests\Feature;
 
 use App\Models\Country;
 use App\Models\CustomerAircraft;
+use App\Models\CustomerContact;
 use App\Models\CustomerInteractionNote;
 use App\Models\CustomerMarketingProfile;
 use App\Models\GeneralTask;
 use App\Models\Main;
 use App\Models\MarketingCompanyType;
 use App\Models\MarketingSegment;
+use App\Models\MarketingWoFile;
 use App\Models\MarketingWoEstimateNotification;
 use App\Models\ProjectSetting;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\UserFeatureAccess;
 use App\Mail\MarketingWoEstimateDateMail;
+use App\Mail\MarketingWoFileMail;
 use App\Services\SalesReportQuantumInvoiceProvider;
 use App\Notifications\NewMessageNotification;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Activitylog\Models\Activity;
 use Tests\BuildsDomainData;
@@ -243,10 +247,15 @@ class MarketingTest extends TestCase
             ->assertSee('Post Code')
             ->assertSee('Street Address')
             ->assertSee('Company Notes')
+            ->assertSee('class="table table-sm table-hover align-middle mb-0 dir-table dir-table--ellipsis marketing-table"', false)
             ->assertSee('id="marketingWorkordersScroll"', false)
             ->assertSee('id="marketingWorkordersSearch"', false)
             ->assertSee('data-workorder-filter="number"', false)
             ->assertSee('data-workorder-filter="status"', false)
+            ->assertSee('data-workorder-filter="estimate_date" placeholder="Date" maxlength="11" data-project-date', false)
+            ->assertSee('data-workorder-filter="approval_date" placeholder="Date" maxlength="11" data-project-date', false)
+            ->assertSee('data-workorder-filter="invoice_date" placeholder="Date" maxlength="11" data-project-date', false)
+            ->assertSee('data-workorder-filter="ship_date" placeholder="Date" maxlength="11" data-project-date', false)
             ->assertDontSee('data-workorder-filter="files"', false)
             ->assertSee('currentWorkorderFilters', false)
             ->assertSee('reloadWorkordersForFilterChange', false)
@@ -273,12 +282,35 @@ class MarketingTest extends TestCase
             ->assertSee('border-bottom: 0;', false)
             ->assertSee('class="table table-sm table-hover align-middle mb-0 dir-table dir-table--ellipsis marketing-workorders-table"', false)
             ->assertSee('id="marketingMediaModal"', false)
+            ->assertSee('id="marketingFileUploadForm"', false)
+            ->assertSee('Manager Files', false)
+            ->assertSee('Production Files', false)
+            ->assertSee('Send email notification', false)
+            ->assertSee('js-marketing-files', false)
+            ->assertDontSee('js-marketing-media', false)
             ->assertSee('id="marketingProfileForm" data-no-spinner', false)
-            ->assertSee('id="marketingContactForm" class="marketing-section" data-no-spinner', false)
-            ->assertSee('id="marketingContactForm" class="marketing-section" data-no-spinner autocomplete="off" hidden', false)
+            ->assertSee('name="estimate_date" class="form-control form-control-sm" type="text" maxlength="11" placeholder=".... /.... /......" data-project-date', false)
+            ->assertSee('name="sales_invoice_date" class="form-control form-control-sm" type="text" maxlength="11" placeholder=".... /.... /......" data-project-date', false)
+            ->assertSee('name="shipping_shipment_at" class="form-control form-control-sm" type="text" maxlength="11" placeholder=".... /.... /......" data-project-date', false)
+            ->assertSee("workorderSalesForm.querySelectorAll('input[data-project-date]')", false)
+            ->assertSee("input.addEventListener('change', debouncedWorkorderFilterReload);", false)
+            ->assertDontSee("workorderSalesForm.querySelectorAll('input[type=\"date\"]')", false)
+            ->assertDontSee('id="marketingContactForm"', false)
             ->assertSee('id="marketingNoteForm" class="marketing-section" data-no-spinner', false)
+            ->assertSee('Subject Line', false)
+            ->assertSee('name="subject"', false)
             ->assertSee('id="marketingCreateForm" data-no-spinner', false)
-            ->assertSee('data-contact-id="${contact.id}" data-no-spinner', false)
+            ->assertSee('class="table table-sm table-hover align-middle mb-0 dir-table dir-table--ellipsis marketing-contacts-table"', false)
+            ->assertSee('Email 2', false)
+            ->assertSee('Office #', false)
+            ->assertSee('Cell #', false)
+            ->assertSee('Type of Contact', false)
+            ->assertSee('data-contact-sort="type"', false)
+            ->assertSee("const contactTypeOptions = ['WO Estimates', 'WO Estimates/ Invoices', 'Invoices', 'Other'];", false)
+            ->assertSee('contactTypeRank(a.contact_type)', false)
+            ->assertDontSee('Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary))', false)
+            ->assertSee('data-contact-id="${contact.id}"', false)
+            ->assertSee('data-contact-new="1"', false)
             ->assertSee('data-contact-new-toggle', false)
             ->assertSee('data-contact-copy="all"', false)
             ->assertSee('data-contact-copy="emails"', false)
@@ -303,7 +335,9 @@ class MarketingTest extends TestCase
             ->assertSee('detailMeta.hidden = true;', false)
             ->assertSee('marketing-workorder-complete', false)
             ->assertSee("String(wo.status || '').trim().toLowerCase() === 'complete'", false)
-            ->assertSee('btn-outline-info js-marketing-media', false)
+            ->assertSee('marketing-files-cell-button js-marketing-files', false)
+            ->assertSee('Files are attached to a specific WO; select a company with workorders to use Manager Files.', false)
+            ->assertSee('marketing-workorders-empty-content', false)
             ->assertDontSee('size="8"', false);
 
         $update = $this->actingAs($admin)->patchJson(route('marketing.customers.profile.update', $customer), [
@@ -657,6 +691,117 @@ class MarketingTest extends TestCase
         ]);
     }
 
+    public function test_marketing_managers_can_share_private_workorder_files_and_mark_them_read(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-14 10:30:00'));
+        Notification::fake();
+        File::cleanDirectory(base_path('codex-test-runtime/disks/private'));
+
+        try {
+            $uploader = $this->createUserWithRole('Admin');
+            $recipient = $this->createUserWithRole('Manager');
+            $this->grantMarketingAccess($uploader);
+            $this->grantMarketingAccess($recipient);
+
+            $customer = $this->createCustomer(['name' => 'Manager File Customer']);
+            $workorder = $this->createWorkorder([
+                'customer_id' => $customer->id,
+                'number' => 107781,
+            ]);
+
+            $upload = $this->actingAs($uploader)->post(route('marketing.workorders.files.store', $workorder), [
+                'files' => [$this->makeUploadedFile('customer-approval.pdf', '%PDF-1.4 approval', 'application/pdf')],
+                'category' => 'customer_approval',
+                'display_name' => 'Signed Customer Approval.pdf',
+                'comment' => 'Approved estimate received.',
+                'recipient_ids' => [$recipient->id],
+                'send_email' => '0',
+            ], ['Accept' => 'application/json']);
+
+            $upload->assertCreated()
+                ->assertJsonPath('manager_files.0.display_name', 'Signed Customer Approval.pdf')
+                ->assertJsonPath('manager_files.0.category_label', 'Customer Approval')
+                ->assertJsonPath('manager_files.0.uploaded_at', '14/Jul/2026 10:30')
+                ->assertJsonPath('manager_files.0.notification_label', 'In-app only')
+                ->assertJsonPath('summary.manager_count', 1);
+
+            $marketingFile = MarketingWoFile::query()->firstOrFail();
+            $this->assertSame('private', $marketingFile->media->disk);
+            $this->assertDatabaseHas('marketing_wo_file_recipients', [
+                'marketing_wo_file_id' => $marketingFile->id,
+                'user_id' => $recipient->id,
+                'email_requested' => false,
+            ]);
+
+            Notification::assertSentTo($recipient, NewMessageNotification::class, function (NewMessageNotification $notification) use ($workorder): bool {
+                return $notification->event === 'uploaded'
+                    && $notification->type === 'marketing_file'
+                    && str_contains($notification->text, 'W' . $workorder->number);
+            });
+
+            $this->actingAs($recipient)->getJson(route('marketing.customers.workorders', $customer))
+                ->assertOk()
+                ->assertJsonPath('items.0.marketing_file_count', 1)
+                ->assertJsonPath('items.0.marketing_unread_file_count', 1);
+
+            $this->actingAs($recipient)->getJson(route('marketing.workorders.files.index', $workorder))
+                ->assertOk()
+                ->assertJsonPath('manager_files.0.id', $marketingFile->id)
+                ->assertJsonPath('summary.unread_count', 0);
+
+            $this->assertDatabaseHas('marketing_wo_file_reads', [
+                'marketing_wo_file_id' => $marketingFile->id,
+                'user_id' => $recipient->id,
+                'read_at' => '2026-07-14 10:30:00',
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_marketing_workorder_file_email_is_optional_and_sent_by_scheduler_command(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-14 10:40:00'));
+        Notification::fake();
+        Mail::fake();
+        File::cleanDirectory(base_path('codex-test-runtime/disks/private'));
+
+        try {
+            $uploader = $this->createUserWithRole('Admin');
+            $recipient = $this->createUserWithRole('Manager');
+            $this->grantMarketingAccess($uploader);
+            $this->grantMarketingAccess($recipient);
+
+            $customer = $this->createCustomer(['name' => 'Manager File Email Customer']);
+            $workorder = $this->createWorkorder([
+                'customer_id' => $customer->id,
+                'number' => 107782,
+            ]);
+
+            $this->actingAs($uploader)->post(route('marketing.workorders.files.store', $workorder), [
+                'files' => [$this->makeUploadedFile('estimate.pdf', '%PDF-1.4 estimate', 'application/pdf')],
+                'category' => 'estimate',
+                'comment' => 'Updated commercial estimate.',
+                'recipient_ids' => [$recipient->id],
+                'send_email' => '1',
+            ], ['Accept' => 'application/json'])->assertCreated();
+
+            $marketingFile = MarketingWoFile::query()->firstOrFail();
+            $outbox = $marketingFile->recipients()->firstOrFail();
+            $this->assertTrue($outbox->email_requested);
+            $this->assertNull($outbox->email_sent_at);
+
+            $this->artisan('marketing:send-wo-file-emails')->assertExitCode(0);
+
+            Mail::assertSent(MarketingWoFileMail::class, function (MarketingWoFileMail $mail) use ($marketingFile, $recipient): bool {
+                return $mail->marketingFile->is($marketingFile) && $mail->hasTo($recipient->email);
+            });
+            $this->assertNotNull($outbox->fresh()->email_sent_at);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_marketing_estimate_date_update_queues_email_when_date_appears(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-06-30 08:15:00'));
@@ -687,7 +832,7 @@ class MarketingTest extends TestCase
                 'workorder_id' => $workorder->id,
                 'customer_id' => $customer->id,
                 'estimate_date' => '2026-07-02',
-                'due_at' => '2026-07-03 08:15:00',
+                'due_at' => '2026-07-05 00:00:00',
                 'sent_at' => null,
             ]);
         } finally {
@@ -737,6 +882,42 @@ class MarketingTest extends TestCase
             $notification->refresh();
             $this->assertNotNull($notification->sent_at);
             $this->assertSame(['sales@example.test', 'manager@example.test'], $notification->recipients);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_marketing_wo_estimate_date_email_skips_workorder_that_is_no_longer_waiting_approval(): void
+    {
+        Mail::fake();
+        Carbon::setTestNow(Carbon::parse('2026-07-05 07:20:00'));
+
+        try {
+            ProjectSetting::setMarketingWoEstimateEmailSettings(['sales@example.test'], 3);
+
+            $customer = $this->createCustomer(['name' => 'Approved Estimate Customer']);
+            $workorder = $this->createWorkorder([
+                'customer_id' => $customer->id,
+                'number' => 107780,
+                'open_at' => '2026-06-30',
+                'wo_estimate_date' => '2026-07-02',
+                'approve_at' => '2026-07-04 12:00:00',
+            ]);
+
+            $notification = MarketingWoEstimateNotification::query()->create([
+                'workorder_id' => $workorder->id,
+                'customer_id' => $customer->id,
+                'estimate_date' => '2026-07-02',
+                'triggered_at' => now()->subDays(3),
+                'due_at' => now()->subMinute(),
+            ]);
+
+            $this->artisan('marketing:send-wo-estimate-date-emails')->assertExitCode(0);
+
+            Mail::assertNothingSent();
+            $this->assertDatabaseMissing('marketing_wo_estimate_notifications', [
+                'id' => $notification->id,
+            ]);
         } finally {
             Carbon::setTestNow();
         }
@@ -976,6 +1157,7 @@ class MarketingTest extends TestCase
 
         $noteResponse = $this->actingAs($admin)->postJson(route('marketing.notes.store', $customer), [
             'contact_id' => $contactId,
+            'subject' => 'Overhaul forecast',
             'note' => 'Discussed overhaul forecast and pricing.',
             'interaction_at' => '12/may/2026',
             'follow_up_at' => '15/may/2026',
@@ -983,8 +1165,14 @@ class MarketingTest extends TestCase
         ]);
 
         $noteResponse->assertCreated()
+            ->assertJsonPath('note.subject', 'Overhaul forecast')
             ->assertJsonPath('note.note', 'Discussed overhaul forecast and pricing.');
         $noteId = (int) $noteResponse->json('note.id');
+
+        $this->assertDatabaseHas('customer_interaction_notes', [
+            'id' => $noteId,
+            'subject' => 'Overhaul forecast',
+        ]);
 
         $noteCreated = Activity::query()
             ->where('log_name', 'marketing')
@@ -995,6 +1183,7 @@ class MarketingTest extends TestCase
         $this->assertNotNull($noteCreated);
         $this->assertSame($admin->id, $noteCreated->causer_id);
         $this->assertSame('Audit Trail Customer', $noteCreated->properties['customer']);
+        $this->assertSame('Overhaul forecast', $noteCreated->properties['new']['subject line']);
         $this->assertSame('Discussed overhaul forecast and pricing.', $noteCreated->properties['new']['note']);
         $this->assertSame('Jane Buyer <jane.buyer@example.test>', $noteCreated->properties['new']['contact']);
 
@@ -1014,6 +1203,7 @@ class MarketingTest extends TestCase
         $this->assertNotNull($noteDeleted);
         $this->assertSame($admin->id, $noteDeleted->causer_id);
         $this->assertSame('Audit Trail Customer', $noteDeleted->properties['customer']);
+        $this->assertSame('Overhaul forecast', $noteDeleted->properties['old']['subject line']);
         $this->assertSame('Discussed overhaul forecast and pricing.', $noteDeleted->properties['old']['note']);
 
         $this->actingAs($admin)
@@ -1034,6 +1224,108 @@ class MarketingTest extends TestCase
         $this->assertSame('Audit Trail Customer', $contactDeleted->properties['customer']);
         $this->assertSame('Jane Buyer <jane.buyer@example.test>', $contactDeleted->properties['old']['contact']);
         $this->assertSame('jane.buyer@example.test', $contactDeleted->properties['old']['email']);
+    }
+
+    public function test_marketing_contacts_store_update_and_sort_by_contact_type(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->grantMarketingAccess($admin);
+
+        $customer = $this->createCustomer(['name' => 'Contact Type Customer']);
+        $other = CustomerContact::query()->create([
+            'customer_id' => $customer->id,
+            'first_name' => 'Other',
+            'contact_type' => 'Other',
+        ]);
+        CustomerContact::query()->create([
+            'customer_id' => $customer->id,
+            'first_name' => 'Invoice',
+            'contact_type' => 'Invoices',
+        ]);
+
+        $storeResponse = $this->actingAs($admin)->postJson(route('marketing.contacts.store', $customer), [
+            'first_name' => 'Estimate',
+            'last_name' => 'Lead',
+            'position' => 'Purchasing',
+            'email' => 'estimate@example.test',
+            'email_2' => 'estimate.alt@example.test',
+            'phone' => '416 555 1000',
+            'cell_phone' => '647 555 1000',
+            'contact_type' => 'WO Estimates',
+        ]);
+
+        $storeResponse->assertCreated()
+            ->assertJsonPath('contact.email_2', 'estimate.alt@example.test')
+            ->assertJsonPath('contact.cell_phone', '647 555 1000')
+            ->assertJsonPath('contact.contact_type', 'WO Estimates');
+
+        $this->assertSame(
+            ['WO Estimates', 'Invoices', 'Other'],
+            array_column($storeResponse->json('customer.contacts'), 'contact_type')
+        );
+
+        $updateResponse = $this->actingAs($admin)->patchJson(route('marketing.contacts.update', $other), [
+            'first_name' => 'Estimate Invoice',
+            'contact_type' => 'WO Estimates/ Invoices',
+        ]);
+
+        $updateResponse->assertOk()
+            ->assertJsonPath('contact.first_name', 'Estimate Invoice')
+            ->assertJsonPath('contact.contact_type', 'WO Estimates/ Invoices');
+
+        $this->assertDatabaseHas('customer_contacts', [
+            'id' => $other->id,
+            'first_name' => 'Estimate Invoice',
+            'contact_type' => 'WO Estimates/ Invoices',
+        ]);
+
+        $this->assertSame(
+            ['WO Estimates', 'WO Estimates/ Invoices', 'Invoices'],
+            array_column($updateResponse->json('customer.contacts'), 'contact_type')
+        );
+    }
+
+    public function test_marketing_contact_primary_flag_can_be_moved_to_another_contact(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->grantMarketingAccess($admin);
+
+        $customer = $this->createCustomer(['name' => 'Primary Contact Customer']);
+        $currentPrimary = CustomerContact::query()->create([
+            'customer_id' => $customer->id,
+            'first_name' => 'Current',
+            'is_primary' => true,
+        ]);
+        $nextPrimary = CustomerContact::query()->create([
+            'customer_id' => $customer->id,
+            'first_name' => 'Next',
+            'is_primary' => false,
+        ]);
+
+        $response = $this->actingAs($admin)->patchJson(route('marketing.contacts.update', $nextPrimary), [
+            'is_primary' => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('contact.id', $nextPrimary->id)
+            ->assertJsonPath('contact.is_primary', true);
+
+        $this->assertDatabaseHas('customer_contacts', [
+            'id' => $nextPrimary->id,
+            'is_primary' => true,
+        ]);
+        $this->assertDatabaseHas('customer_contacts', [
+            'id' => $currentPrimary->id,
+            'is_primary' => false,
+        ]);
+        $this->assertSame(
+            $nextPrimary->id,
+            $response->json('customer.primary_contact.id')
+        );
+        $this->assertSame(
+            [$currentPrimary->id, $nextPrimary->id],
+            array_column($response->json('customer.contacts'), 'id')
+        );
     }
 
     public function test_marketing_note_follow_up_command_sends_due_notifications(): void

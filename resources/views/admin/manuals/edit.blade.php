@@ -383,7 +383,7 @@
                                                     {{ $checked ? 'checked' : '' }}
                                                 >
                                                 <span class="text-truncate">
-                                                    {{ $u->name }}
+                                                    {{ $u->selection_name }}
                                                 </span>
                                             </label>
                                         @endforeach

@@ -14,6 +14,7 @@ use App\Models\Process;
 use App\Models\ProcessName;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
+use App\Models\UserUiSetting;
 use App\Models\WoBushing;
 use App\Models\WoBushingLine;
 use App\Models\WorkorderUnitInspection;
@@ -1654,6 +1655,7 @@ class TdrsTest extends TestCase
             'part_number' => 'BUSH-PN-100',
             'name' => 'Bushing First',
             'ipl_num' => '1-100',
+            'bush_ipl_num' => '1-100',
             'is_bush' => true,
         ]);
         $bushingB = Component::query()->create([
@@ -1661,6 +1663,7 @@ class TdrsTest extends TestCase
             'part_number' => 'BUSH-PN-110',
             'name' => 'Bushing Second',
             'ipl_num' => '1-110',
+            'bush_ipl_num' => '1-100',
             'is_bush' => true,
         ]);
         $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
@@ -1727,21 +1730,33 @@ class TdrsTest extends TestCase
         $bushingResponse->assertOk();
         $bushingResponse->assertSee('PARTS REPLACEMENT LIST');
         $bushingResponse->assertDontSee('BUSHING PARTS REPLACEMENT LIST');
+        $bushingResponse->assertSee('const PRINT_SETTINGS_PROFILE = "bush-prl";', false);
         $bushingResponse->assertSee('BUSH-PN-100');
         $bushingResponse->assertSee('BUSH-PN-110');
+        $bushingResponse->assertSee('KIT-BUSH-PN-80');
+        $this->assertSame(1, substr_count($bushingResponse->getContent(), 'data-prl-bushing-group="1-100"'));
+        $this->assertMatchesRegularExpression(
+            '/data-prl-bushing-group="1-100".*?<div class="col-1 prl-col-qty[^>]*>.*?data-prl-option-qty="2"[^>]*>2<\/span>.*?data-prl-option-qty="1"[^>]*>1<\/span>/s',
+            $bushingResponse->getContent()
+        );
+        $this->assertSame(1, substr_count($bushingResponse->getContent(), 'data-prl-crossed-out="1"'));
         $bushingResponse->assertSee('<h6>K</h6>', false);
 
         $bushResponse = $this->actingAs($admin)->get(route('tdrs.bushPrlForm', ['id' => $workorder->id]));
         $bushResponse->assertOk();
         $bushResponse->assertSee('PARTS REPLACEMENT LIST');
+        $bushResponse->assertSee('const PRINT_SETTINGS_PROFILE = "bush-prl";', false);
         $bushResponse->assertSee('BUSH-PN-100');
         $bushResponse->assertSee('BUSH-PN-110');
+        $bushResponse->assertSee('KIT-BUSH-PN-80');
+        $this->assertSame(1, substr_count($bushResponse->getContent(), 'data-prl-crossed-out="1"'));
         $bushResponse->assertSee('<h6>K</h6>', false);
 
         $kitResponse = $this->actingAs($admin)->get(route('tdrs.kitForm', ['id' => $workorder->id]));
         $kitResponse->assertOk();
         $kitResponse->assertDontSee('system-print-qr');
         $kitResponse->assertSee('PARTS REPLACEMENT LIST - KIT');
+        $kitResponse->assertSee('const PRINT_SETTINGS_PROFILE = "kit";', false);
         $kitResponse->assertDontSee('KIT PARTS REPLACEMENT LIST');
         $kitResponse->assertDontSee('2<br />' . "\n" . '2', false);
         $kitResponse->assertSee('50A');
@@ -1781,6 +1796,130 @@ class TdrsTest extends TestCase
             route('tdrs.paintStd', ['workorder_id' => $workorder->id]),
         ], false);
         $showResponse->assertSee('>2</span>', false);
+        $bushingResponse->assertSee('`prlForm_print_settings:${PRINT_SETTINGS_PROFILE}`', false);
+
+        $bushSettings = json_encode(['prlTableRows' => '9']);
+        $prlSettings = json_encode(['prlTableRows' => '17']);
+        foreach ([
+            'prlForm_print_settings:bush-prl' => $bushSettings,
+            'prlForm_print_settings:prl' => $prlSettings,
+        ] as $key => $value) {
+            $this->actingAs($admin)->postJson(route('user-ui-settings.store'), [
+                'scope' => 'browser-storage',
+                'key' => $key,
+                'value' => $value,
+            ])->assertOk();
+        }
+
+        $savedPrintSettings = UserUiSetting::query()
+            ->where('user_id', $admin->id)
+            ->where('scope', 'browser-storage')
+            ->whereIn('key', [
+                'prlForm_print_settings:bush-prl',
+                'prlForm_print_settings:prl',
+            ])
+            ->pluck('value', 'key');
+        $this->assertSame($bushSettings, $savedPrintSettings->get('prlForm_print_settings:bush-prl'));
+        $this->assertSame($prlSettings, $savedPrintSettings->get('prlForm_print_settings:prl'));
+    }
+
+    public function test_bushing_prl_prints_all_bushings_crossed_out_when_none_are_ordered(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'BUSH-NONE-100',
+            'name' => 'Initial Bushing',
+            'ipl_num' => '8-230',
+            'bush_ipl_num' => '8-230',
+            'units_assy' => 2,
+            'is_bush' => true,
+        ]);
+        Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'BUSH-NONE-110',
+            'name' => 'Oversize Bushing',
+            'ipl_num' => '8-231',
+            'bush_ipl_num' => '8-230',
+            'units_assy' => 1,
+            'is_bush' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.bushPrlForm', ['id' => $workorder->id]));
+
+        $response->assertOk();
+        $response->assertSee('BUSH-NONE-100');
+        $response->assertSee('BUSH-NONE-110');
+        $this->assertSame(1, substr_count($response->getContent(), 'data-prl-bushing-group="8-230"'));
+        $this->assertSame(1, substr_count($response->getContent(), 'data-prl-crossed-out="1"'));
+        $this->assertSame(2, substr_count($response->getContent(), 'data-prl-part-number-crossed-out="1"'));
+
+        $showResponse = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+
+        $showResponse->assertOk();
+        $showResponse->assertSee(route('tdrs.bushPrlForm', ['id' => $workorder->id]), false);
+        $showResponse->assertSee('>1</span>', false);
+    }
+
+    public function test_bushing_prl_groups_initial_and_oversize_part_numbers_in_one_cell(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $partNumbers = [
+            'BUSH-GROUP-INITIAL',
+            'BUSH-GROUP-OS-1',
+            'BUSH-GROUP-OS-2',
+            'BUSH-GROUP-OS-3',
+        ];
+        $components = collect($partNumbers)->map(function (string $partNumber, int $index) use ($workorder): Component {
+            return Component::query()->create([
+                'manual_id' => $workorder->unit->manual_id,
+                'part_number' => $partNumber,
+                'name' => 'Grouped Bushing ' . $index,
+                'ipl_num' => '8-' . (230 + $index),
+                'bush_ipl_num' => '8-230',
+                'units_assy' => 2,
+                'is_bush' => true,
+            ]);
+        });
+        Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'BUSH-GROUP-OS-3',
+            'name' => 'Grouped Bushing duplicate PN',
+            'ipl_num' => '8-234',
+            'bush_ipl_num' => '8-230',
+            'units_assy' => 2,
+            'is_bush' => true,
+        ]);
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+        WoBushingLine::query()->create([
+            'wo_bushing_id' => $woBushing->id,
+            'workorder_id' => $workorder->id,
+            'component_id' => $components->last()->id,
+            'qty' => 2,
+            'qty_remaining' => 2,
+            'sort_order' => 1,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.bushPrlForm', ['id' => $workorder->id]));
+        $content = $response->getContent();
+
+        $response->assertOk();
+        $this->assertSame(1, substr_count($content, 'data-prl-bushing-group="8-230"'));
+        $this->assertSame(3, substr_count($content, 'data-prl-part-number-crossed-out="1"'));
+        $this->assertMatchesRegularExpression(
+            '/<div class="col-3 prl-col-part[^>]*>.*?BUSH-GROUP-INITIAL.*?BUSH-GROUP-OS-1.*?BUSH-GROUP-OS-2.*?BUSH-GROUP-OS-3.*?<\/div>/s',
+            $content
+        );
+        $this->assertMatchesRegularExpression(
+            '/class="prl-part-number-line "[^>]*>BUSH-GROUP-OS-3<\/span>/',
+            $content
+        );
+        $this->assertSame(1, substr_count($content, '>BUSH-GROUP-OS-3</span>'));
+        $this->assertSame(1, substr_count($content, 'data-prl-option-qty="2"'));
+        $this->assertSame(3, substr_count($content, 'data-prl-option-qty-empty="1"'));
     }
 
     public function test_kit_form_groups_db_choice_items_without_summing_qty(): void

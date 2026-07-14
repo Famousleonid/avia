@@ -40,7 +40,7 @@
                 @else
                     <li class="nav-item dropdown">
                         <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            {{ Auth::user()->name }}
+                            {{ Auth::user()->selection_name }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end text-end me-1 bg-transparent border-0" aria-labelledby="navbarDropdown">
                             @if (Auth::user()->isAdmin())

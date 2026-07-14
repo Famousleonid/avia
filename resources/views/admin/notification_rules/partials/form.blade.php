@@ -51,7 +51,7 @@
         <select name="recipient_users[]" class="form-select" multiple>
             @foreach($users as $user)
                 <option value="{{ $user->id }}" @selected(in_array((string) $user->id, $selectedUsers, true))>
-                    {{ $user->name }}@if($user->email) ({{ $user->email }})@endif
+                    {{ $user->selection_name }}@if($user->email) ({{ $user->email }})@endif
                 </option>
             @endforeach
         </select>

@@ -622,7 +622,7 @@
                 </h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" style="background-color: #232525">
+            <div class="modal-body" style="background-color: var(--avia-modal)">
                 @include('admin.tdrs.partials.component-inspection-form')
             </div>
         </div>

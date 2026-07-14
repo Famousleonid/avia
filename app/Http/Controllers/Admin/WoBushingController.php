@@ -332,7 +332,6 @@ class WoBushingController extends Controller
 
                 $processRows[] = [
                     'key' => $key,
-                    'process_id' => (int) $woProcess->process_id,
                     'order' => $sortOrder[$key] ?? 999,
                 ];
             }
@@ -343,11 +342,11 @@ class WoBushingController extends Controller
 
             usort($processRows, function (array $left, array $right): int {
                 return ((int) $left['order'] <=> (int) $right['order'])
-                    ?: ((int) $left['process_id'] <=> (int) $right['process_id']);
+                    ?: strcmp((string) $left['key'], (string) $right['key']);
             });
 
             $processSignature = implode('|', array_values(array_unique(array_map(
-                fn (array $row): string => $row['key'] . ':' . $row['process_id'],
+                fn (array $row): string => $row['key'],
                 $processRows
             ))));
             $partNumber = trim((string) $component->part_number);

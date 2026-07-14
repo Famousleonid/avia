@@ -490,6 +490,35 @@ class FitsClearancesTorqueTest extends TestCase
         $this->assertStringContainsString('value="3.60"', $edit);
     }
 
+    public function test_process_document_technician_placeholder_uses_selection_name(): void
+    {
+        $manual = $this->createManual();
+        $doc = $manual->documents()->create(['doc_type' => 'manual', 'title' => 'Technician', 'sort_order' => 0]);
+        $page = $doc->pages()->create(['page_no' => 1, 'image_path' => 't/technician.png', 'image_width' => 1000, 'image_height' => 800, 'sort_order' => 0]);
+        $page->elements()->create([
+            'element_type' => 'label',
+            'placeholder' => '{technician_name}',
+            'x_pct' => 50,
+            'y_pct' => 50,
+            'font_size' => 10,
+            'sort_order' => 0,
+        ]);
+        $technician = $this->createUserWithRole('Technician', [
+            'name' => 'Lyfar Eduard',
+            'selection_name_order' => 'last_first',
+        ]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $this->createUnit(['manual_id' => $manual->id])->id,
+            'user_id' => $technician->id,
+        ]);
+
+        $html = (new \App\Services\Measurements\ProcessDocumentRenderer())
+            ->renderSinglePageHtml($page->fresh()->load('elements'), $workorder->fresh()->load('user'), []);
+
+        $this->assertStringContainsString('Eduard Lyfar', $html);
+        $this->assertStringNotContainsString('Lyfar Eduard', $html);
+    }
+
     // ---- B1. F&C Document page exposes the torque fill UI (server scaffolding) ----
     // The actual Save-PDF JS gate (block until filled) needs a browser test (Dusk);
     // here we assert the server-rendered prerequisites only.

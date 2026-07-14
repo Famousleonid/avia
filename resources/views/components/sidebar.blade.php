@@ -20,8 +20,8 @@
     .sidebar {
         overflow: visible;              /* ключ! */
         scrollbar-gutter: stable;
-        background-color:#343A40;
-        color:#B9BEC7;
+        background-color: var(--sidebar-bg, #192431);
+        color: var(--nav-link-color, #b0becc);
     }
     .sidebar-scroll{
         flex: 1 1 auto;
@@ -39,7 +39,7 @@
         overflow: visible; /* allow bell dropdown to render */
     }
     .user-panel {
-        background-color: #343A40;
+        background-color: var(--sidebar-bg, #192431);
         color: var(--sidebar-color);
     }
 
@@ -54,6 +54,7 @@
 
     .sidebar .nav-link:hover {
         color: var(--nav-link-hover-color);
+        background-color: var(--nav-link-hover-color-bg, #304154);
     }
 
     .sidebar .nav-link.active {
@@ -68,12 +69,18 @@
     }
 
     .sidebar-toggle {
-        background-color: #343A40;
+        background-color: var(--sidebar-bg, #192431);
     }
 
     .sidebar-toggle .btn {
         padding: .15rem .4rem;
         font-size: .8rem;
+    }
+
+    html[data-bs-theme="dark"] .sidebar .nav-link.bg-primary,
+    html[data-bs-theme="dark"] .sidebar .nav-link.active {
+        color: #fff !important;
+        background-color: var(--nav-link-active-bg, #315f8c) !important;
     }
 
     /* ================= СВЕРНУТОЕ СОСТОЯНИЕ (только иконки) ================= */
@@ -172,7 +179,7 @@
                     </div>
 
                     <div class="h5 ms-2 mt-2 text-white user-info-text">
-                        <span>{{ Auth::user()->name }}</span>
+                        <span>{{ Auth::user()->selection_name }}</span>
                         <span class="text-secondary fs-6 user-role-text">
                             {{ Auth::user()->roleName() ?? '—' }}
                         </span>
@@ -251,7 +258,7 @@
                 </a>
             </div>
             <div class="h5 ms-2 mt-2">
-                {{Auth::user()->name}}
+                {{Auth::user()->selection_name}}
             </div>
         </div>
     </div>

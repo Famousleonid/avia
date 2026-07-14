@@ -288,7 +288,7 @@
             color: #fff !important;
         }
         html[data-bs-theme="dark"] .select2-container--default .select2-results__option--selected{
-            background: #20262d !important;
+            background: var(--avia-panel) !important;
             color: #fff !important;
         }
         html[data-bs-theme="dark"] .select2-container--default .select2-results__option--selected *{
@@ -439,7 +439,7 @@
             position: sticky;
             bottom: 0;
             z-index: 2;
-            background: #212529;
+            background: var(--avia-surface);
             border-top: 1px solid rgba(255,255,255,.1);
             margin-left: -1rem;
             margin-right: -1rem;

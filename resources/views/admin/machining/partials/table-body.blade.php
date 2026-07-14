@@ -166,7 +166,7 @@
                                         (string) ($wo->customer?->name ?? ''),
                                         (string) ($wo->unit?->manual?->plane?->type ?? ''),
                                         (string) ($wo->unit?->part_number ?? ''),
-                                        (string) ($wo->user?->name ?? ''),
+                                        (string) ($wo->user?->selection_name ?? ''),
                                         (string) ($row->detail_label ?? ''),
                                         (string) ($row->detail_name ?? ''),
                                         $machiningDetailProcessesLabel !== '' ? $machiningDetailProcessesLabel : null,
@@ -297,7 +297,7 @@
                                             <button type="button"
                                                     class="btn btn-link btn-sm  p-0 js-machining-msg-owner"
                                                     data-user-id="{{ (int) $wo->user_id }}">
-                                                {{ $wo->user->name }}
+                                                {{ $wo->user->selection_name }}
                                             </button>
                                         @endif
                                     </td>

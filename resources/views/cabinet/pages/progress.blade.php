@@ -8,7 +8,7 @@
 
                 <div class="row ">
                     <div class="ml-2 col-3  pt-1">
-                        <span class="h5">For technik: </span> <span class="text-primary h5" id="orders_count" style="display:inline-block; min-width:4ch">{{$user->name }}</span>
+                        <span class="h5">For technik: </span> <span class="text-primary h5" id="orders_count" style="display:inline-block; min-width:4ch">{{$user->selection_name }}</span>
                     </div>
                     <div class="col-3">
                         <form action="{{route('underway.technik')}}" name="form_technik" method="post">
@@ -16,7 +16,7 @@
                             <select name="technik" id="sl_technik" class="form-control">
                                 <option value="" selected disabled>--Select a technician from your team--</option>
                                 @foreach ($team_techniks as $team_technik)
-                                    <option value="{{$team_technik->id}}">{{$team_technik->name}}</option>
+                                    <option value="{{$team_technik->id}}">{{$team_technik->selection_name}}</option>
                                 @endforeach
                             </select>
                         </form>

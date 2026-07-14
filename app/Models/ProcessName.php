@@ -19,7 +19,7 @@ class ProcessName extends Model
     private const MANUAL_DATE_EDITABLE_NAME_KEYS = [
         'machining',
         'machiningec',
-        'ec',
+        'quarantine',
         'stressrelief',
         'paint',
         'stdstressrelieflist',
@@ -57,10 +57,21 @@ class ProcessName extends Model
 
     public static function allowsManualDateEditingForName(?string $name): bool
     {
-        $key = preg_replace('/[^a-z0-9]+/', '', strtolower((string) $name));
+        $key = self::normalizedNameKey($name);
 
         return in_array($key, self::MANUAL_DATE_EDITABLE_NAME_KEYS, true);
     }
+
+    public static function isExactEcName(?string $name): bool
+    {
+        return self::normalizedNameKey($name) === 'ec';
+    }
+
+    public static function normalizedNameKey(?string $name): string
+    {
+        return preg_replace('/[^a-z0-9]+/', '', strtolower((string) $name)) ?? '';
+    }
+
     public function processes()
     {
         return $this->hasMany(Process::class, 'process_names_id');

@@ -20,14 +20,17 @@ abstract class TestCase extends BaseTestCase
         $runtimePath = base_path('codex-test-runtime');
         $viewPath = $runtimePath . DIRECTORY_SEPARATOR . 'views';
         $publicDiskPath = $runtimePath . DIRECTORY_SEPARATOR . 'disks' . DIRECTORY_SEPARATOR . 'public';
+        $privateDiskPath = $runtimePath . DIRECTORY_SEPARATOR . 'disks' . DIRECTORY_SEPARATOR . 'private';
         $temporaryMediaPath = $runtimePath . DIRECTORY_SEPARATOR . 'temp-media';
 
         File::ensureDirectoryExists($viewPath);
         File::ensureDirectoryExists($publicDiskPath);
+        File::ensureDirectoryExists($privateDiskPath);
         File::ensureDirectoryExists($temporaryMediaPath);
 
         config()->set('view.compiled', $viewPath);
         config()->set('filesystems.disks.public.root', $publicDiskPath);
+        config()->set('filesystems.disks.private.root', $privateDiskPath);
         config()->set('media-library.disk_name', 'public');
         config()->set('media-library.temporary_directory_path', $temporaryMediaPath);
     }

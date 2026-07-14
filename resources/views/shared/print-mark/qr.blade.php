@@ -18,12 +18,13 @@
     $printMarkQrPrintRight = $printMarkQrPrintRight ?? '8mm';
     $printMarkQrScreenPlacement = $printMarkQrScreenPlacement ?? 'page';
     $printMarkQrHostSelector = $printMarkQrHostSelector ?? '.tdr-primary-sheet, .form-page-block, .std-sheet-container, .page, .std-page, .cert-wrap, .page-wrap, .container-fluid, main.content, body';
+    $printMarkLabel = trim((string) ($printMarkLabel ?? ''));
 @endphp
 
 @if($printMarkWoNumber !== '' && $printMarkQrEnabled)
     @php
         $printMarkPrintedAt = $printMarkPrintedAt ?? now();
-        $printMarkPrintedBy = $printMarkPrintedBy ?? (optional(auth()->user())->name ?: 'system');
+        $printMarkPrintedBy = $printMarkPrintedBy ?? (optional(auth()->user())->selection_name ?: 'system');
         $printMarkRouteName = optional(request()->route())->getName();
         $printMarkRouteFormNames = [
             'tdrs.wo_BoxTitle' => 'WO Box Title',
@@ -84,13 +85,33 @@
 
             .system-print-qr {
                 background: #fff;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
                 height: {{ $printMarkQrSize }}px;
+                min-width: {{ $printMarkQrSize }}px;
                 pointer-events: none;
                 position: fixed;
                 right: {{ $printMarkQrRight }};
                 top: {{ $printMarkQrTop }};
-                width: {{ $printMarkQrSize }}px;
+                width: auto;
                 z-index: 9999;
+            }
+
+            .system-print-qr__label {
+                color: #000;
+                font-family: Arial, sans-serif;
+                font-size: 13px;
+                font-weight: 700;
+                line-height: 1;
+                white-space: nowrap;
+            }
+
+            .system-print-qr__code {
+                display: block;
+                flex: 0 0 {{ $printMarkQrSize }}px;
+                height: {{ $printMarkQrSize }}px;
+                width: {{ $printMarkQrSize }}px;
             }
 
             @media screen {
@@ -114,8 +135,8 @@
                 visibility: visible;
             }
 
-            .system-print-qr svg,
-            .system-print-qr img {
+            .system-print-qr__code svg,
+            .system-print-qr__code img {
                 display: block;
                 height: {{ $printMarkQrSize }}px;
                 width: {{ $printMarkQrSize }}px;
@@ -139,7 +160,7 @@
             class="system-print-qr"
             data-screen-placement="{{ $printMarkQrScreenPlacement }}"
             aria-hidden="true"
-        >{!! \App\Support\SimpleQrSvg::svg($printMarkPayload, $printMarkQrSize) !!}</div>
+        >@if($printMarkLabel !== '')<span class="system-print-qr__label">{{ $printMarkLabel }}</span>@endif<span class="system-print-qr__code">{!! \App\Support\SimpleQrSvg::svg($printMarkPayload, $printMarkQrSize) !!}</span></div>
 
         @if($printMarkQrScreenPlacement === 'page')
             <script>

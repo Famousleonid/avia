@@ -78,7 +78,7 @@
                         <select name="causer_id" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto; max-width:220px">
                             <option value="all">All users</option>
                             @foreach($causers as $u)
-                                <option value="{{ $u->id }}" @selected((string)request('causer_id','all')===(string)$u->id)>{{ $u->name }}</option>
+                                <option value="{{ $u->id }}" @selected((string)request('causer_id','all')===(string)$u->id)>{{ $u->selection_name }}</option>
                             @endforeach
                         </select>
 
@@ -726,7 +726,7 @@
                                 @endphp
                                 <tr>
                                     <td class="text-center small">{{ $a->created_at ? $a->created_at->format('d').'.'.\Illuminate\Support\Str::lower($a->created_at->format('M')).'.'.$a->created_at->format('Y H:i') : '—' }}</td>
-                                    <td class="text-center small">{{ $a->causer?->name ?? 'system' }}</td>
+                                    <td class="text-center small">{{ $a->causer?->selection_name ?? 'system' }}</td>
                                     <td class="text-center small text-info">{{ class_basename($a->subject_type) }}</td>
                                     <td class="props small">
                                         <pre class="props-pre">{{ $objectText }}@if($objectMetaText)

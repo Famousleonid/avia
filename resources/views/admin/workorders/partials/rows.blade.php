@@ -190,7 +190,7 @@
         </td>
         @endhasanyrole
         <td class="text-center td-technik no-print">
-            {{ data_get($workorder, 'user.name', '—') }}
+            {{ $workorder->user?->selection_name ?? '—' }}
         </td>
 
         @role('Admin')

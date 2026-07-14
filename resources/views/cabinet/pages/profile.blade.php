@@ -42,7 +42,7 @@
                                 </div>
                             </div>
 
-                            <h3 class="profile-username text-center">{{$user->name}}</h3>
+                            <h3 class="profile-username text-center">{{$user->selection_name}}</h3>
                             @if(Auth()->user()->getRole() == 1)
                                 <p class="text-muted text-center">Aviation team lieder</p>
                             @else

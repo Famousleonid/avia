@@ -23,8 +23,8 @@ td.r { text-align: right; font-family: monospace; }
 /* ── dark theme (inherited from the parent app) ───────────── */
 html[data-bs-theme="dark"] body { background: #1a1d21; color: #dee2e6; }
 html[data-bs-theme="dark"] .doc-meta { color: #9aa0a6; }
-html[data-bs-theme="dark"] th, html[data-bs-theme="dark"] td { border-color: #495057; }
-html[data-bs-theme="dark"] thead th { background: #2b3035; color: #dee2e6; }
+html[data-bs-theme="dark"] th, html[data-bs-theme="dark"] td { border-color: var(--avia-border); }
+html[data-bs-theme="dark"] thead th { background: var(--avia-surface-raised); color: var(--avia-text); }
 html[data-bs-theme="dark"] .miss { color: #ea868f; }
 @media print {
     .action-bar { display: none !important; }

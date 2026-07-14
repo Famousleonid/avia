@@ -440,6 +440,7 @@ class ComponentController extends Controller
         $current_wo = $request->current_wo;
 
         $validated = $request->validate([
+            'current_wo' => 'required|exists:workorders,id',
             'name' => 'required|string|max:250',
             'manual_id' => 'required|exists:manuals,id',
             'part_number' => 'required|string|max:50',
@@ -451,6 +452,7 @@ class ComponentController extends Controller
 //            'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
 //            'assy_img' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
+        unset($validated['current_wo']);
         $user = auth()->user();
         $manualId = (int) $validated['manual_id'];
         $manual = Manual::with('partLock.lockedBy')->findOrFail($manualId);

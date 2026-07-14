@@ -159,8 +159,8 @@
 
         /* Select2 theme support */
         [data-bs-theme="dark"] .select2-container--default .select2-selection--single {
-            background-color: #212529 !important;
-            border: 1px solid #495057 !important;
+            background-color: var(--avia-input) !important;
+            border: 1px solid var(--avia-border) !important;
             color: #fff !important;
             height: 38px;
         }
@@ -183,12 +183,12 @@
         }
 
         [data-bs-theme="dark"] .select2-dropdown {
-            background-color: #212529 !important;
-            border: 1px solid #495057 !important;
+            background-color: var(--avia-input) !important;
+            border: 1px solid var(--avia-border) !important;
         }
 
         [data-bs-theme="dark"] .select2-container--default .select2-results__option {
-            background-color: #212529 !important;
+            background-color: var(--avia-input) !important;
             color: #fff !important;
         }
 
@@ -203,8 +203,8 @@
         }
 
         [data-bs-theme="dark"] .select2-search--dropdown .select2-search__field {
-            background-color: #212529 !important;
-            border: 1px solid #495057 !important;
+            background-color: var(--avia-input) !important;
+            border: 1px solid var(--avia-border) !important;
             color: #fff !important;
         }
 

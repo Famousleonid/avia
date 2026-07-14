@@ -42,7 +42,7 @@
 
                                 <span class="text-info text-bold" style="font-size: 1.2rem">Create workorder&nbsp;&nbsp;</span>
                                 <span class="text-info text-bold" style="font-size: 1.2rem">for user: &nbsp;&nbsp;</span>
-                                <span class="text-indigo text-bold" style="font-size: 1.2rem">{{$current_user->name}}</span>
+                                <span class="text-indigo text-bold" style="font-size: 1.2rem">{{$current_user->selection_name}}</span>
 
 
                             </div>
@@ -96,9 +96,9 @@
                                 <div class="form-group col-lg-3 mt-2">
                                     <label for="user_id">Technik</label>
                                     <select name="user_id" id="user_id" class="form-control">
-                                        <option selected value="{{$current_user->id}}"> {{$current_user->name}}</option>
+                                        <option selected value="{{$current_user->id}}"> {{$current_user->selection_name}}</option>
                                         @foreach ($users as $user)
-                                            <option value="{{$user->id}}">{{$user->name}}</option>
+                                            <option value="{{$user->id}}">{{$user->selection_name}}</option>
                                         @endforeach
                                     </select>
                                 </div>

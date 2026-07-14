@@ -36,7 +36,18 @@ class Customer extends Model
 
     public function marketingContacts(): HasMany
     {
-        return $this->hasMany(CustomerContact::class)->orderByDesc('is_primary')->orderBy('sort_order')->orderBy('id');
+        return $this->hasMany(CustomerContact::class)
+            ->orderByRaw("
+                CASE contact_type
+                    WHEN 'WO Estimates' THEN 0
+                    WHEN 'WO Estimates/ Invoices' THEN 1
+                    WHEN 'Invoices' THEN 2
+                    WHEN 'Other' THEN 3
+                    ELSE 4
+                END
+            ")
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function marketingNotes(): HasMany

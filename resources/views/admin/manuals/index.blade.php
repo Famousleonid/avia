@@ -624,7 +624,7 @@
                                 @foreach(($users ?? collect()) as $u)
                                     <label class="d-flex align-items-center gap-2 mb-2" style="white-space: nowrap; cursor: pointer;">
                                         <input type="checkbox" name="permitted_user_ids[]" value="{{ $u->id }}">
-                                        <span class="text-truncate">{{ $u->name }}</span>
+                                        <span class="text-truncate">{{ $u->selection_name }}</span>
                                     </label>
                                 @endforeach
                             </div>

@@ -130,6 +130,11 @@ class Workorder extends Model implements HasMedia
         return $this->hasMany(Main::class);
     }
 
+    public function marketingFiles()
+    {
+        return $this->hasMany(MarketingWoFile::class);
+    }
+
     public function registerMediaConversions(\Spatie\MediaLibrary\MediaCollections\Models\Media $media = null): void
     {
         $this->addMediaConversion('thumb')
@@ -141,6 +146,23 @@ class Workorder extends Model implements HasMedia
 
     public function registerMediaCollections(): void
     {
+        $this->addMediaCollection(MarketingWoFile::COLLECTION)
+            ->useDisk('private')
+            ->acceptsFile(function (File $file) {
+                return in_array(strtolower($file->mimeType ?? ''), [
+                    'application/pdf',
+                    'image/jpeg',
+                    'image/png',
+                    'image/webp',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'application/vnd.ms-excel',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'text/csv',
+                    'text/plain',
+                ], true);
+            });
+
         $this->addMediaCollection('quality')
             ->acceptsFile(function (File $file) {
                 return in_array(strtolower($file->mimeType ?? ''), [
@@ -315,6 +337,18 @@ class Workorder extends Model implements HasMedia
     public function scopeWithDrafts(Builder $query): Builder
     {
         return $query->withoutGlobalScope('exclude_drafts');
+    }
+
+    /**
+     * Workorders that have not been closed by the Completed task.
+     *
+     * The Completed task date is synchronized into workorders.done_at by
+     * syncDoneByCompletedTask(), so list queries can use the direct WO field
+     * without joining the workflow tables each time.
+     */
+    public function scopeNotCompleted(Builder $query): Builder
+    {
+        return $query->whereNull($query->qualifyColumn('done_at'));
     }
 
     /**

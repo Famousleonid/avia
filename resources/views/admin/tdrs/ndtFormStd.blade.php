@@ -6,7 +6,7 @@
         $tdrFormConfig = config('tdr_forms.ndtFormStd');
         $componentName = $current_wo->unit->name;
         $componentName = (string) $componentName;
-        $manualNumber = substr((string) ($manual->number ?? ''), 0, 8);
+        $manualNumber = (string) ($manual->number ?? '');
         $findNdtProcess = function ($processNameId) use ($ndt_processes) {
             if (!$processNameId) {
                 return '';

@@ -151,7 +151,7 @@
                         <td class="" data-toggle="tooltip" title="@if($workorder->notes) {{$workorder->notes}} @endif">{{ $workorder->displayDescription() }}</td>
                         <td class="">{{$workorder->instruction->name}}</td>
                         <td class="text-center">{{$workorder->manual}}</td>
-                        <td class="">{{$workorder->user->name}}</td>
+                        <td class="">{{$workorder->user->selection_name}}</td>
                         <td class="">{{$workorder->customer->name}}</td>
                         <td class="">{{$workorder->serial_number}}</td>
                         <td class="">{{$workorder->place}}</td>

@@ -14,6 +14,7 @@ use App\Services\Ai\Tools\LookupSerialNumberTool;
 use App\Services\Ai\Tools\LookupWorkorderPartsTool;
 use App\Services\Ai\Tools\ListManualRevisionChecksDueTool;
 use App\Services\Ai\Tools\SearchMyWorkordersByOpenProcessTool;
+use App\Services\Ai\Tools\SearchActivityLogsTool;
 use App\Services\Ai\Tools\SearchWorkordersByOpenProcessTool;
 use App\Services\Ai\Tools\SearchWorkordersTool;
 use Illuminate\Support\Facades\Http;
@@ -29,6 +30,7 @@ class AiAgentService
         protected SearchWorkordersTool $searchWorkordersTool,
         protected SearchMyWorkordersByOpenProcessTool $searchMyWorkordersByOpenProcessTool,
         protected SearchWorkordersByOpenProcessTool $searchWorkordersByOpenProcessTool,
+        protected SearchActivityLogsTool $searchActivityLogsTool,
         protected LookupManualEditPermissionsTool $lookupManualEditPermissionsTool,
         protected ListManualRevisionChecksDueTool $listManualRevisionChecksDueTool,
         protected CountWorkorderImagesTool $countWorkorderImagesTool,
@@ -73,6 +75,7 @@ class AiAgentService
             $this->analyzeWorkorderTool->schema(),
             $this->searchMyWorkordersByOpenProcessTool->schema(),
             $this->searchWorkordersByOpenProcessTool->schema(),
+            $this->searchActivityLogsTool->schema(),
             $this->createWorkorderNoteTool->schema(),
             $this->lookupWorkorderPartsTool->schema(),
             $this->lookupManualEditPermissionsTool->schema(),
@@ -207,6 +210,7 @@ class AiAgentService
             'analyzeWorkorder' => $this->analyzeWorkorderTool->run($user, $arguments),
             'searchMyWorkordersByOpenProcess' => $this->searchMyWorkordersByOpenProcessTool->run($user, $arguments),
             'searchWorkordersByOpenProcess' => $this->searchWorkordersByOpenProcessTool->run($user, $arguments),
+            'searchActivityLogs' => $this->searchActivityLogsTool->run($user, $arguments),
             'createWorkorderNote' => $this->createWorkorderNoteTool->run($user, $arguments),
             'lookupWorkorderParts' => $this->lookupWorkorderPartsTool->run($user, $arguments),
             'lookupManualEditPermissions' => $this->lookupManualEditPermissionsTool->run($user, $arguments),
@@ -645,6 +649,7 @@ What you can actually do in THIS app (strict — if the user asks «what can you
 - analyzeWorkorder: task progress, closed = isDone(); status/step = first unfinished general task stage by sort_order; photos do not affect status or closed state.
 - searchMyWorkordersByOpenProcess: find only current user's workorders (workorders.user_id = current user) where in tdr_process date_start is set and date_finish is empty; optional process-name filter (e.g. machining); return links to open the main page.
 - searchWorkordersByOpenProcess: find all visible workorders (not only mine) with open process rows (date_start set, date_finish empty, ignore_row=0); optional customer and process filters; return links to open the main page.
+- searchActivityLogs: System Admin-only read-only audit search. Find who created, changed, or deleted records and when; combine WO, CMM manual number, P/N, actor, event, log category, area, free text, and date range. It understands Parts created from the TDR Add Part modal, manual Parts, ordinary Parts/TDR references, and Bushing before/after snapshots.
 - createWorkorderNote: propose appending a note to a workorder — only after explicit user intent and UI confirmation (not instant).
 - lookupWorkorderParts: look up manual/parts lines for a workorder (read-only).
 - lookupManualEditPermissions: from manual_user_permissions — which CMM manuals a user may edit, who may edit a manual, list all manuals with responsible users, and map manual number ↔ LIB (by manual number or LIB fragments); read-only.
@@ -670,6 +675,7 @@ Important behavior:
 - If the user wants a list of workorders matching text, use searchWorkorders (all WO fields + related customer/unit/instruction/user). Format each line as: `[WO <number>](open_url) — description…` (link text = WO number only). Optionally add a second markdown link to open the Workorder table with search pre-filled if origin is in context (`…/workorders?q=…`). Missing photos does not affect workorder status or whether it is closed.
 - If the user asks about number of pictures/photos/images on workorders, use countWorkorderImages. For "sum/total across all workorders", call it with `mode: "total"` and answer with the total image count plus how many workorders have images. For "top 10 with most pictures", call it with limit 10 and format each result as `[WO <number>](url) — <N> images`.
 - If the user asks to find a part/unit by serial number, S/N, SN, or asks which workorder a serial belongs to, use lookupSerialNumber. Format matches as `[WO <number>](url) — <source>, <part name>, P/N <part_number>, IPL <ipl_num>, S/N <serial>` when fields exist. If there are multiple matches, list them briefly. If no match is found, say no matching serial number was found.
+- If the user asks who/when created, added, changed, removed, or deleted something, asks for an audit trail/history/logs, or combines audit criteria such as WO + CMM + P/N + person + date, use searchActivityLogs. Pass every criterion the user supplied because the tool combines them with AND. For "who entered/created a Part through Add Part in a WO", pass `workorder_number`, `area: components`, and `event: created`; add P/N when supplied, and identify matches whose area is `TDR Add Part`. For "who added Parts to manual/CMM", pass `manual_number`, `area: components`, and normally `event: created`; add P/N only when the user supplied one. Use exact P/N matching unless the user explicitly asks for partial matching. For "this/current WO", pass the human WO number shown in context; for "this/current CMM", pass the human CMM number shown in context. For global searches, do not silently add a WO or CMM restriction. Report actor, date/time, event, WO/CMM number, P/N, and changed fields when present. Never expose activity ids, subject ids, component ids, manual ids, or other internal ids. If access is denied, say Activity Log search is limited to System Admin. If nothing matches, state that no matching saved log was found; do not guess who performed the action.
 - If the user asks which manuals/CMMs need revision checks soon, are due, overdue, or asks for top 10/15/20 manuals with less than X days before revision check, use listManualRevisionChecksDue. Format each result as `[<manual_number>](manual_url) — <title>, rev <last_revision_number if present>, last check <last_checked_at or never>, due <next_due_at>, <days_until_due> days`.
 - If the user asks to create or modify something, first confirm details.
 - If a tool returns an error, explain it plainly in human language.

@@ -24,7 +24,7 @@ class PaintController extends Controller
             ->whereNull('done_at')
             ->where('is_draft', 0)
             ->with([
-                'user:id,name',
+                'user:id,name,selection_name_order',
                 'customer:id,name',
                 'unit' => function ($q) {
                     $q->select('id', 'part_number', 'name', 'manual_id')
@@ -53,7 +53,7 @@ class PaintController extends Controller
         $user = auth()->user();
 
         $lostParts = Paint::query()
-            ->with(['user:id,name', 'media'])
+            ->with(['user:id,name,selection_name_order', 'media'])
             ->latest()
             ->limit(100)
             ->get();

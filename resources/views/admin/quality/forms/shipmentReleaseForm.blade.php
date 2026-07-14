@@ -365,7 +365,7 @@
         </tr>
         <tr>
             <td class="label-cell center">{{ __('Technician') }}:</td>
-            <td class="center qa-data-slot">{{ $current_wo->user?->name ?? '' }}</td>
+            <td class="center qa-data-slot">{{ $current_wo->user?->selection_name ?? '' }}</td>
             <td class="label-cell center">{{ __('Extra parts') }}</td>
             <td class="stamp-cell">{{ __('stamp') }}</td>
             <td class="label-cell center">{{ __('Technician') }}:</td>

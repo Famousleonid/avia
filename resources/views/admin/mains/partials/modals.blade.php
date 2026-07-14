@@ -102,7 +102,7 @@
 <div class="modal fade" id="logModal" tabindex="-1"
      aria-labelledby="logModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content" style="background-color:#212529;color:#f8f9fa;">
+        <div class="modal-content" style="background-color:var(--avia-modal);color:var(--avia-text);">
             <div class="modal-header">
                 <h5 class="modal-title" id="logModalLabel">Activity log</h5>
                 <button type="button" class="btn-close btn-close-white"

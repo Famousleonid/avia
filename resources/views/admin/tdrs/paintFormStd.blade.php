@@ -5,7 +5,7 @@
     @php
         $tdrFormConfig = config('tdr_forms.paintFormStd');
         $componentName = (string) $current_wo->displayDescription();
-        $manualNumber = substr((string) ($manual->number ?? ''), 0, 8);
+        $manualNumber = (string) ($manual->number ?? '');
         $paint_table_pages = $paint_table_pages ?? [[]];
         $paint_total_pages = max(1, count($paint_table_pages));
         $paintGlobalRowIndex = 1;

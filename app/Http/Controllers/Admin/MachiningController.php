@@ -64,7 +64,7 @@ class MachiningController extends Controller
             ->whereNull('done_at')
             ->whereMachiningHasDateSent()
             ->with([
-                'user:id,name',
+                'user:id,name,selection_name_order',
                 'customer:id,name',
                 'unit' => function ($q) {
                     $q->select('id', 'part_number', 'name', 'manual_id')
@@ -74,15 +74,15 @@ class MachiningController extends Controller
                     $q->with([
                         'component:id,part_number,name,ipl_num',
                         'tdrProcesses.processName',
-                        'tdrProcesses.machiningWorkSteps.machinist:id,name',
+                        'tdrProcesses.machiningWorkSteps.machinist:id,name,selection_name_order',
                     ]);
                 },
                 'woBushingProcesses' => function ($q) {
                     $q->with([
                         'line.component',
                         'process.process_name',
-                        'batch.machiningWorkSteps.machinist:id,name',
-                        'machiningWorkSteps.machinist:id,name',
+                        'batch.machiningWorkSteps.machinist:id,name,selection_name_order',
+                        'machiningWorkSteps.machinist:id,name,selection_name_order',
                     ]);
                 },
             ])
@@ -134,7 +134,9 @@ class MachiningController extends Controller
         $machiningMachinists = User::query()
             ->whereHas('role', static fn ($q) => $q->where('name', 'Machining'))
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'selection_name_order'])
+            ->sortBy(fn (User $machinist) => mb_strtolower($machinist->selection_name))
+            ->values();
 
         return [
             'rows' => $rows,

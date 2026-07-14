@@ -427,6 +427,29 @@
             min-height: var(--prl-row-height, 32px);
         }
 
+        .prl-row-crossed-out .prl-col-fig h6,
+        .prl-row-crossed-out .prl-col-item h6,
+        .prl-row-crossed-out .prl-col-desc,
+        .prl-row-crossed-out .prl-col-part h6,
+        .prl-row-crossed-out .prl-col-code h6,
+        .prl-row-crossed-out .prl-col-po h6,
+        .prl-row-crossed-out .prl-col-notes h6 {
+            text-decoration-line: line-through;
+            text-decoration-thickness: 1px;
+        }
+
+        .prl-part-number-line,
+        .prl-qty-line {
+            display: block;
+            line-height: 1.2;
+            min-height: 1.2em;
+        }
+
+        .prl-part-number-crossed-out {
+            text-decoration-line: line-through;
+            text-decoration-thickness: 1px;
+        }
+
     </style>
 </head>
 
@@ -514,12 +537,12 @@
                             @endphp
                             @if($hasMultipleManuals && count($uniqueManuals) > 0)
                                 {{-- Показываем все номера manual через ';' --}}
-                                <h6 class=""><strong>{{ implode('; ', array_map(function($num) { return substr($num, 0, 8); }, $uniqueManuals)) }}</strong></h6>
+                                <h6 class=""><strong>{{ implode('; ', $uniqueManuals) }}</strong></h6>
                             @else
                                 {{-- Показываем основной manual --}}
                                 @foreach($manuals as $manual)
                                     @if($manual->id == $current_wo->unit->manual_id)
-                                        <h6 class=""><strong> {{substr($manual->number, 0, 8)}}</strong></h6>
+                                        <h6 class=""><strong> {{ $manual->number }}</strong></h6>
                                     @endif
                                 @endforeach
                             @endif
@@ -642,6 +665,9 @@
                         $partNumberDisplay = !empty($assyPartNumber) ? $assyPartNumber : $partNumber;
                     }
                     $descriptionDisplay = $component ? ($selectedAssembly ? $componentName . ' ASSY' : $componentName) : '';
+                    $isCrossedOut = $isArray ? ! empty($tdr['prl_crossed_out']) : ! empty($tdr->prl_crossed_out ?? false);
+                    $bushingGroup = $isArray ? ($tdr['prl_bushing_group'] ?? null) : ($tdr->prl_bushing_group ?? null);
+                    $partNumberOptions = $isArray ? ($tdr['prl_part_numbers'] ?? []) : ($tdr->prl_part_numbers ?? []);
                 @endphp
 
                 @if($shouldInsertManualRow)
@@ -684,7 +710,11 @@
                     @php $rowIndex++; @endphp
                 @endif
 
-                <div class="row data-row-prl ms-3" style="width: 100%" data-row-index="{{ $rowIndex }}">
+                <div class="row data-row-prl ms-3 {{ $isCrossedOut ? 'prl-row-crossed-out' : '' }}"
+                     style="width: 100%"
+                     data-row-index="{{ $rowIndex }}"
+                     @if($bushingGroup !== null) data-prl-bushing-group="{{ $bushingGroup }}" @endif
+                     @if($isCrossedOut) data-prl-crossed-out="1" @endif>
                     <div class="col-1 prl-col-fig border-l-b text-center pt-1 align-content-center">
                         <h6>{!! nl2br(e($first_part)) !!}</h6>
                             </div>
@@ -695,7 +725,19 @@
                                 {!! nl2br(e($descriptionDisplay)) !!}
                             </div>
                     <div class="col-3 prl-col-part border-l-b text-center pt-2 align-content-center">
-                                @if($component)
+                                @if(!empty($partNumberOptions))
+                                    <h6>
+                                        @foreach($partNumberOptions as $partNumberOption)
+                                            @php
+                                                $option = is_array($partNumberOption) ? $partNumberOption : (array) $partNumberOption;
+                                                $optionCrossedOut = ! empty($option['crossed_out']);
+                                            @endphp
+                                            <span class="prl-part-number-line {{ $optionCrossedOut ? 'prl-part-number-crossed-out' : '' }}"
+                                                  data-prl-component-id="{{ $option['component_id'] ?? '' }}"
+                                                  @if($optionCrossedOut) data-prl-part-number-crossed-out="1" @endif>{{ $option['part_number'] ?? '' }}</span>
+                                        @endforeach
+                                    </h6>
+                                @elseif($component)
                                     <h6>
                                         {!! nl2br(e($partNumberDisplay)) !!}
                                     </h6>
@@ -704,7 +746,21 @@
                                 @endif
                             </div>
                     <div class="col-1 prl-col-qty border-l-b text-center pt-2 align-content-center">
-                                <h6>{{ $isArray ? ($tdr['qty'] ?? '') : ($tdr->qty ?? '') }}</h6>
+                                @if(!empty($partNumberOptions))
+                                    <h6>
+                                        @foreach($partNumberOptions as $partNumberOption)
+                                            @php
+                                                $option = is_array($partNumberOption) ? $partNumberOption : (array) $partNumberOption;
+                                                $optionQty = $option['qty'] ?? null;
+                                            @endphp
+                                            <span class="prl-qty-line"
+                                                  data-prl-component-id="{{ $option['component_id'] ?? '' }}"
+                                                  @if($optionQty !== null) data-prl-option-qty="{{ $optionQty }}" @else data-prl-option-qty-empty="1" @endif>@if($optionQty !== null){{ $optionQty }}@else&nbsp;@endif</span>
+                                        @endforeach
+                                    </h6>
+                                @else
+                                    <h6>{{ $isArray ? ($tdr['qty'] ?? '') : ($tdr->qty ?? '') }}</h6>
+                                @endif
                             </div>
                     <div class="col-1 prl-col-code border-l-b text-center pt-2 align-content-center">
                                 @php
@@ -1051,7 +1107,8 @@
 
 <script>
     // Ключ для сохранения настроек печати
-    const PRINT_SETTINGS_KEY = 'prlForm_print_settings';
+    const PRINT_SETTINGS_PROFILE = @json($printSettingsProfile ?? 'prl');
+    const PRINT_SETTINGS_KEY = `prlForm_print_settings:${PRINT_SETTINGS_PROFILE}`;
     const PRINT_SETTINGS_LAYOUT_VERSION = 'prl-family-v2';
     const TOOLTIP_LANG_KEY = 'prlForm_tooltip_lang';
 

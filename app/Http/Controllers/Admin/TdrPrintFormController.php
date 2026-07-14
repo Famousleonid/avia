@@ -27,6 +27,7 @@ use App\Services\ManualIplBranchRuleResolver;
 use App\Services\TdrInspectionLinesBuilder;
 use App\Services\WorkorderStdProcessItemsService;
 use App\Services\WorkorderStdListProcessesService;
+use App\Support\BushingPrlGrouping;
 use App\Support\KitPrlGrouping;
 use App\Support\LogCardDestructionCertificate;
 use Illuminate\Http\Request;
@@ -169,7 +170,7 @@ class TdrPrintFormController extends Controller
         $current_wo = Workorder::findOrFail($id);
         $ordersParts = $this->buildBushingPrlRows($current_wo);
 
-        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST');
+        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST', true, 'bush-prl');
     }
 
     public function bushPrlForm(Request $request, $id)
@@ -177,7 +178,7 @@ class TdrPrintFormController extends Controller
         $current_wo = Workorder::findOrFail($id);
         $ordersParts = $this->buildBushingPrlRows($current_wo);
 
-        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST');
+        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST', true, 'bush-prl');
     }
 
     public function kitForm(Request $request, $id)
@@ -185,10 +186,16 @@ class TdrPrintFormController extends Controller
         $current_wo = Workorder::findOrFail($id);
         $ordersParts = $this->buildKitPrlRows($current_wo);
 
-        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST - KIT', false);
+        return $this->renderPrlForm($current_wo, $ordersParts, 'PARTS REPLACEMENT LIST - KIT', false, 'kit');
     }
 
-    private function renderPrlForm(Workorder $current_wo, $ordersParts, string $formTitle = 'PARTS REPLACEMENT LIST', bool $showPrintMarkQr = true)
+    private function renderPrlForm(
+        Workorder $current_wo,
+        $ordersParts,
+        string $formTitle = 'PARTS REPLACEMENT LIST',
+        bool $showPrintMarkQr = true,
+        string $printSettingsProfile = 'prl'
+    )
     {
         $manual_id = $current_wo->unit->manual_id;
         $components = $this->filterComponentsForUnit(
@@ -220,53 +227,116 @@ class TdrPrintFormController extends Controller
             'uniqueManuals',
             'hasMultipleManuals',
             'formTitle',
-            'showPrintMarkQr'
+            'showPrintMarkQr',
+            'printSettingsProfile'
         ));
     }
 
     private function buildBushingPrlRows(Workorder $workorder)
     {
-        return WoBushingLine::query()
+        $manualId = (int) ($workorder->unit->manual_id ?? 0);
+        $selectedByComponent = WoBushingLine::query()
             ->where(function ($query) use ($workorder): void {
                 $query->where('workorder_id', $workorder->id)
                     ->orWhereHas('woBushing', fn ($woBushing) => $woBushing->where('workorder_id', $workorder->id));
             })
-            ->with(['component' => function ($query): void {
-                $query->select('id', 'name', 'part_number', 'ipl_num', 'assy_part_number', 'assy_ipl_num', 'manual_id')
-                    ->with('manual:id,number');
-            }])
+            ->whereHas('component')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
-            ->filter(fn (WoBushingLine $line): bool => $line->component !== null)
-            ->sort(function (WoBushingLine $left, WoBushingLine $right): int {
+            ->groupBy('component_id')
+            ->map(function ($lines): array {
+                return [
+                    'qty' => $lines->sum(fn (WoBushingLine $line): int => max(1, (int) ($line->qty ?? 1))),
+                ];
+            });
+
+        $bushingComponents = $this->filterComponentsForUnit(
+            Component::query()
+                ->where('manual_id', $manualId)
+                ->where('is_bush', true)
+                ->with('manual:id,number')
+                ->get(),
+            $workorder
+        );
+
+        return $bushingComponents
+            ->sort(function (Component $left, Component $right): int {
                 $manualCompare = strnatcasecmp(
-                    (string) ($left->component->manual->number ?? ''),
-                    (string) ($right->component->manual->number ?? '')
+                    (string) ($left->manual->number ?? ''),
+                    (string) ($right->manual->number ?? '')
                 );
                 if ($manualCompare !== 0) {
                     return $manualCompare;
                 }
 
                 $iplCompare = StdProcess::compareIplValues(
-                    (string) ($left->component->ipl_num ?? ''),
-                    (string) ($right->component->ipl_num ?? '')
+                    (string) ($left->ipl_num ?? ''),
+                    (string) ($right->ipl_num ?? '')
                 );
                 if ($iplCompare !== 0) {
                     return $iplCompare;
                 }
 
                 return strnatcasecmp(
-                    (string) ($left->component->part_number ?? ''),
-                    (string) ($right->component->part_number ?? '')
+                    (string) ($left->part_number ?? ''),
+                    (string) ($right->part_number ?? '')
                 );
             })
-            ->map(function (WoBushingLine $line): array {
-                $row = $this->makePrlArrayRow(
-                    $line->component,
-                    max(1, (int) ($line->qty ?? 1))
-                );
+            ->groupBy(fn (Component $component): string => BushingPrlGrouping::groupKeyForComponent($component))
+            ->map(function ($group) use ($selectedByComponent): array {
+                $components = $group->values();
+                $initial = $components->first(function (Component $component): bool {
+                    return trim((string) ($component->ipl_num ?? '')) === trim((string) ($component->bush_ipl_num ?? ''));
+                }) ?? $components->first();
+                $selectedComponents = $components
+                    ->filter(fn (Component $component): bool => $selectedByComponent->has($component->id))
+                    ->values();
+                $displayComponent = $selectedComponents->first() ?? $initial;
+                $qty = $selectedComponents->isNotEmpty()
+                    ? $selectedComponents->sum(function (Component $component) use ($selectedByComponent): int {
+                        return max(1, (int) ($selectedByComponent->get($component->id)['qty'] ?? 1));
+                    })
+                    : max(1, (int) ($initial->units_assy ?? 1));
+                $bushIpl = trim((string) ($initial->bush_ipl_num ?? ''));
+                $row = $this->makePrlArrayRow($displayComponent, $qty);
+                $row['component']['ipl_num'] = $bushIpl !== ''
+                    ? $bushIpl
+                    : (string) ($initial->ipl_num ?? '');
                 $row['codes'] = ['code' => 'K'];
+                $row['prl_crossed_out'] = $selectedComponents->isEmpty();
+                $row['prl_bushing_group'] = $bushIpl !== ''
+                    ? $bushIpl
+                    : 'component-' . (int) $initial->id;
+                $row['prl_part_numbers'] = $components
+                    ->groupBy(function (Component $component): string {
+                        $partNumber = strtoupper(trim((string) ($component->part_number ?? '')));
+
+                        return $partNumber !== ''
+                            ? 'part-number|' . $partNumber
+                            : 'component|' . (int) $component->id;
+                    })
+                    ->map(function ($partNumberComponents) use ($selectedByComponent): array {
+                        $component = $partNumberComponents->first();
+                        $selectedPartNumberComponents = $partNumberComponents
+                            ->filter(fn (Component $candidate): bool => $selectedByComponent->has($candidate->id))
+                            ->values();
+                        $selectedComponent = $selectedPartNumberComponents->first();
+                        $optionQty = $selectedPartNumberComponents->isNotEmpty()
+                            ? $selectedPartNumberComponents->sum(function (Component $candidate) use ($selectedByComponent): int {
+                                return max(1, (int) ($selectedByComponent->get($candidate->id)['qty'] ?? 1));
+                            })
+                            : null;
+
+                        return [
+                            'component_id' => (int) ($selectedComponent->id ?? $component->id),
+                            'part_number' => (string) ($component->part_number ?? ''),
+                            'crossed_out' => $selectedComponent === null,
+                            'qty' => $optionQty,
+                        ];
+                    })
+                    ->values()
+                    ->all();
 
                 return $row;
             })
@@ -1619,7 +1689,9 @@ class TdrPrintFormController extends Controller
 //        $unit_pn = $unit_wo->part_number;
         $units = Unit::all();
         $customers = Customer::all();
-        $users = \App\Models\User::all();
+        $users = User::all()
+            ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+            ->values();
 
 
         return view('admin.tdrs.wo_BoxTitle', compact('current_wo', 'units', 'customers', 'users'));

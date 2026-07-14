@@ -171,7 +171,7 @@ class WoMeasurementController extends Controller
                 'codes_id'                     => $m->codes_id,
                 'manual_parameter_repair_rule_id' => $m->manual_parameter_repair_rule_id,
                 'notes'                        => $m->notes,
-                'user'                         => $m->user ? ['name' => $m->user->name] : null,
+                'user'                         => $m->user ? ['name' => $m->user->selection_name] : null,
             ]);
 
         $codes = Code::orderBy('name')->get(['id', 'name', 'code']);

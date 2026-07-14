@@ -2,11 +2,8 @@
 
 @section('style')
     <style>
-        .content {
-            overflow-y: auto !important;
-        }
-
         .content:has(.vendor-tracking-page) {
+            overflow: hidden !important;
             padding-top: 0 !important;
         }
 
@@ -15,10 +12,11 @@
             background: #ffffff !important;
         }
 
-        .content-inner {
-            display: block !important;
-            height: auto !important;
-            min-height: 100%;
+        .content:has(.vendor-tracking-page) .content-inner {
+            display: flex !important;
+            flex-direction: column;
+            height: 100% !important;
+            min-height: 0;
         }
 
         .vendor-tracking-page .card,
@@ -30,7 +28,12 @@
 
         .vendor-tracking-page {
             color: #1f2937;
-            min-height: 100%;
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .vendor-tracking-page .card {
@@ -215,6 +218,7 @@
         }
 
         .vendor-tracking-sticky-shell {
+            flex: 0 0 auto;
             position: sticky;
             top: 0;
             z-index: 30;
@@ -235,8 +239,26 @@
         }
 
         .vendor-tracking-results-card {
-            min-height: var(--vendor-tracking-results-min-height, 420px);
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
             position: relative;
+        }
+
+        .vendor-tracking-results-card > .card-body {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .vendor-tracking-results-card > .card-body > .table-responsive {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
         }
 
         .vendor-tracking-results-card.is-filtering {
@@ -1067,34 +1089,37 @@
         }
 
         .vendor-tracking-page .table-responsive {
-            background: #2B3035;
+            background: var(--avia-panel);
             border-radius: 10px;
         }
 
         .vendor-tracking-table {
-            --bs-table-bg: #2B3035;
-            --bs-table-color: #f8f9fa;
+            --bs-table-bg: var(--avia-panel);
+            --bs-table-color: var(--avia-text);
             --bs-table-border-color: #d7e0ea;
             margin-bottom: 0;
-            background: #2B3035;
+            background: var(--avia-panel);
         }
 
         .vendor-tracking-table > thead > tr > th {
-            background: #2B3035;
-            color: #f8f9fa;
+            background: var(--avia-surface-raised);
+            color: var(--avia-text);
             border-color: #d7e0ea;
+            position: sticky;
+            top: 0;
             vertical-align: middle;
+            z-index: 4;
         }
 
         .vendor-tracking-table > tbody > tr > td {
-            background: #2B3035;
-            color: #f8f9fa;
+            background: var(--avia-panel);
+            color: var(--avia-text);
             border-color: #d7e0ea;
             vertical-align: middle;
         }
 
         .vendor-tracking-traveler-row > td {
-            background: #2B3035 !important;
+            background: var(--avia-panel) !important;
         }
 
         .vendor-tracking-traveler-toggle {
@@ -1115,7 +1140,7 @@
         }
 
         .vendor-tracking-detail-cell {
-            background: #2B3035 !important;
+            background: var(--avia-panel) !important;
             padding: .45rem .65rem !important;
             text-align: left;
         }
@@ -1127,8 +1152,8 @@
             min-width: 300px;
             margin-left: 0;
             margin-right: auto;
-            --dir-table-bg: #2D2D2D;
-            background: #2D2D2D;
+            --dir-table-bg: var(--avia-surface-raised);
+            background: var(--avia-surface-raised);
         }
 
         .vendor-tracking-detail-table {
@@ -1144,8 +1169,8 @@
             grid-template-columns: auto max-content max-content;
             align-items: stretch;
             gap: 0;
-            --dir-table-bg: #2D2D2D;
-            background: #2D2D2D;
+            --dir-table-bg: var(--avia-surface-raised);
+            background: var(--avia-surface-raised);
         }
 
         .vendor-tracking-detail-table th,
@@ -1171,7 +1196,7 @@
             padding: .25rem .45rem;
             border: 1px solid var(--dir-border-2, #495057);
             border-left: 0;
-            background: #2D2D2D;
+            background: var(--avia-surface-raised);
             white-space: nowrap;
         }
 
@@ -1204,23 +1229,23 @@
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-page {
-            color: #f8f9fa;
-            background: #232525 !important;
+            color: var(--avia-text);
+            background: var(--avia-bg) !important;
         }
 
         html[data-bs-theme="dark"] .content:has(.vendor-tracking-page),
         html[data-bs-theme="dark"] .content:has(.vendor-tracking-page) .content-inner {
-            background: #232525 !important;
+            background: var(--avia-bg) !important;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-page .card {
-            background: #232525 !important;
+            background: var(--avia-surface) !important;
             border: 1px solid rgba(255, 255, 255, 0.08) !important;
             box-shadow: none;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-sticky-shell {
-            background: #232525;
+            background: var(--avia-surface);
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-sticky-shell::after {
@@ -1311,54 +1336,54 @@
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-page .table-responsive {
-            background: #2B3035;
+            background: var(--avia-panel);
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-loading-dots {
-            background: rgba(43, 48, 53, .78);
+            background: rgba(var(--bs-dark-rgb), .78);
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-table {
-            --bs-table-bg: #2B3035;
-            --bs-table-color: #f8f9fa;
+            --bs-table-bg: var(--avia-panel);
+            --bs-table-color: var(--avia-text);
             --bs-table-border-color: rgba(255, 255, 255, 0.12);
-            background: #2B3035;
+            background: var(--avia-panel);
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-table > thead > tr > th {
-            background: #2B3035;
-            color: #adb5bd;
+            background: var(--avia-surface-raised);
+            color: var(--avia-text-secondary);
             border-color: rgba(255, 255, 255, 0.12);
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-table > tbody > tr > td {
-            background: #2B3035;
-            color: #f8f9fa;
+            background: var(--avia-panel);
+            color: var(--avia-text);
             border-color: rgba(255, 255, 255, 0.12);
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-traveler-row > td {
-            background: #2B3035 !important;
+            background: var(--avia-panel) !important;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-detail-cell {
-            background: #2B3035 !important;
+            background: var(--avia-panel) !important;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-detail-panel {
-            --dir-table-bg: #2D2D2D;
-            background: #2D2D2D;
+            --dir-table-bg: var(--avia-surface-raised);
+            background: var(--avia-surface-raised);
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-detail-table th,
         html[data-bs-theme="dark"] .vendor-tracking-detail-table td {
-            color: #f8f9fa;
+            color: var(--avia-text);
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-detail-layout,
         html[data-bs-theme="dark"] .vendor-tracking-detail-action-col {
-            --dir-table-bg: #2D2D2D;
-            background: #2D2D2D;
+            --dir-table-bg: var(--avia-surface-raised);
+            background: var(--avia-surface-raised);
             border-color: var(--dir-border-2, #495057);
         }
 
@@ -1373,7 +1398,7 @@
 
         html[data-bs-theme="dark"] .vendor-tracking-page .text-muted,
         html[data-bs-theme="dark"] .vendor-tracking-page .small.text-muted {
-            color: #adb5bd !important;
+            color: var(--avia-text-secondary) !important;
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-page .vendor-tracking-filter-active {
@@ -1382,14 +1407,14 @@
         }
 
         html[data-bs-theme="dark"] .vendor-tracking-filter-clear {
-            color: #adb5bd;
+            color: var(--avia-text-secondary);
         }
 
         html[data-bs-theme="dark"] #vendorTrackingSettingsModal .modal-content,
         html[data-bs-theme="dark"] #vendorInfoModal .modal-content,
         html[data-bs-theme="dark"] #quantumRoBufferModal .modal-content {
-            background: #232525;
-            color: #f8f9fa;
+            background: var(--avia-modal);
+            color: var(--avia-text);
             border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
@@ -1407,11 +1432,11 @@
         }
 
         html[data-bs-theme="dark"] .quantum-buffer-title-meta {
-            color: #adb5bd;
+            color: var(--avia-text-secondary);
         }
 
         html[data-bs-theme="dark"] .quantum-buffer-header-toggle {
-            color: #f8f9fa;
+            color: var(--avia-text);
         }
 
         html[data-bs-theme="dark"] .quantum-buffer-status-count {
@@ -1424,27 +1449,27 @@
 
         html[data-bs-theme="dark"] .quantum-buffer-table-wrap {
             border-color: rgba(255, 255, 255, 0.12);
-            background: #2B3035;
+            background: var(--avia-panel);
         }
 
         html[data-bs-theme="dark"] .quantum-buffer-table {
-            --bs-table-bg: #2B3035;
-            --bs-table-color: #f8f9fa;
+            --bs-table-bg: var(--avia-panel);
+            --bs-table-color: var(--avia-text);
             --bs-table-border-color: rgba(255, 255, 255, 0.12);
         }
 
         html[data-bs-theme="dark"] .quantum-buffer-table th {
-            background: #1f2329;
-            color: #adb5bd;
+            background: var(--avia-input);
+            color: var(--avia-text-secondary);
         }
 
         html[data-bs-theme="dark"] .quantum-buffer-message,
         html[data-bs-theme="dark"] .quantum-buffer-message .quantum-message-muted {
-            color: #94a3b8;
+            color: var(--avia-text-muted);
         }
 
         html[data-bs-theme="dark"] .quantum-buffer-splitter {
-            background: #1f2329;
+            background: var(--avia-input);
             border-color: rgba(255, 255, 255, 0.12);
         }
 
@@ -1508,7 +1533,7 @@
 @endsection
 
 @section('content')
-    <div class="container-fluid vendor-tracking-page my-1">
+    <div class="container-fluid vendor-tracking-page mt-1 mb-0">
         @php
             $currentSort = $filters['sort'] ?? 'sent_date';
             $currentDirection = $filters['direction'] ?? 'asc';
@@ -1936,7 +1961,17 @@
                                 @endif
                             @empty
                                 <tr>
-                                    <td colspan="17" class="text-muted text-center py-4 vendor-tracking-empty-cell">No vendor process records found.</td>
+                                    <td colspan="17" class="text-muted text-center py-4 vendor-tracking-empty-cell">
+                                        @if($completedWorkorderSearch)
+                                            Workorder W{{ $completedWorkorderSearch->number }} is already completed
+                                            @if($completedWorkorderSearch->done_at)
+                                                ({{ format_project_date($completedWorkorderSearch->done_at) }})
+                                            @endif
+                                            and is not shown in Vendor Tracking.
+                                        @else
+                                            No vendor process records found.
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>

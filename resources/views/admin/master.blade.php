@@ -75,7 +75,7 @@
     <link href="{{asset('assets/Bootstrap 5/bootstrap-icons.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="{{asset('assets/jquery/jquery.fancybox.min.css')}}">
     <link href="{{asset('assets/select2/css/select2.min.css')}}" rel="stylesheet"/>
-    <link rel="stylesheet" href="{{asset('css/custom_bootstrap.css')}}">
+    <link rel="stylesheet" href="{{ asset('css/custom_bootstrap.css') }}?v={{ filemtime(public_path('css/custom_bootstrap.css')) }}">
     <link rel="stylesheet" href="{{asset('css/main.css')}}">
     <link rel="stylesheet" href="{{ asset('css/paper-button.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
@@ -133,11 +133,15 @@
         html[data-bs-theme="dark"] body,
         html[data-bs-theme="dark"] .container-fluid,
         html[data-bs-theme="dark"] .page-layout {
-            background-color: #232525 !important;
+            background-color: var(--avia-bg, #141b24) !important;
+        }
+
+        :root {
+            --admin-footer-height: 35px;
         }
 
         .page-layout {
-            height: calc(100vh - 35px);
+            height: calc(100dvh - var(--admin-footer-height));
             overflow: visible; /* allow sidebar dropdowns (notifications) */
         }
 
@@ -290,7 +294,7 @@
 
         // Bootstrap tooltips (атрибут data-toggle="tooltip")
         document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-            new bootstrap.Tooltip(el);
+            bootstrap.Tooltip.getOrCreateInstance(el);
         });
 
         // Обновление иконки темы (солнышко / луна)

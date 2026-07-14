@@ -255,7 +255,7 @@ class WorkorderController extends Controller
                 'description' => $log->description,
                 'event'       => $log->event,
                 'log_name'    => $log->log_name,
-                'causer_name' => optional($log->causer)->name,
+                'causer_name' => $log->causer?->selection_name,
                 'changes'     => $changes,
             ];
         })->values();
@@ -284,7 +284,9 @@ class WorkorderController extends Controller
         }
 
         $customers = Customer::query()->orderBy('name')->get(['id', 'name']);
-        $users = User::query()->orderBy('name')->get(['id', 'name']);
+        $users = User::query()->orderBy('name')->get(['id', 'name', 'selection_name_order'])
+            ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+            ->values();
         $uiSettings = UserUiSetting::query()
             ->where('user_id', request()->user()->id)
             ->where('scope', 'workorders.index')
@@ -631,7 +633,7 @@ class WorkorderController extends Controller
             })
             ->with([
                 'tdr:id,workorder_id',
-                'updatedBy:id,name',
+                'updatedBy:id,name,selection_name_order',
             ])
             ->get();
 
@@ -650,7 +652,7 @@ class WorkorderController extends Controller
                 'user_name' => null,
             ];
 
-            $userName = optional($row->updatedBy)->name;
+            $userName = $row->updatedBy?->selection_name;
 
             if (!empty($row->date_finish)) {
                 $current['state'] = 'finished';
@@ -706,7 +708,9 @@ class WorkorderController extends Controller
             ->orderBy('number')
             ->orderBy('title')
             ->get();
-        $users = User::query()->orderBy('name')->get(['id', 'name']);
+        $users = User::query()->orderBy('name')->get(['id', 'name', 'selection_name_order'])
+            ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+            ->values();
         $currentUser = Auth::user();
         $draftInstructionId = Instruction::where('name','Draft')->value('id');
 
@@ -862,7 +866,9 @@ class WorkorderController extends Controller
             ->orderBy('number')
             ->orderBy('title')
             ->get();
-        $users = User::query()->orderBy('name')->get(['id', 'name']);
+        $users = User::query()->orderBy('name')->get(['id', 'name', 'selection_name_order'])
+            ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+            ->values();
         $open_at = format_project_date($current_wo->open_at);
         $hasTdrs = $workorder->tdrs()->exists();
         $canChangeTechnik = auth()->user()?->hasAnyRole('Admin|Manager') ?? false;
@@ -1409,7 +1415,7 @@ class WorkorderController extends Controller
             ])
             ->log($old === '' ? 'workorder_notes_created' : 'workorder_notes_updated');
 
-        return response()->json(['success' => true, 'notes' => $new, 'user' => auth()->user()->name]);
+        return response()->json(['success' => true, 'notes' => $new, 'user' => auth()->user()->selection_name]);
     }
 
     public function notesLogs(Workorder $workorder)

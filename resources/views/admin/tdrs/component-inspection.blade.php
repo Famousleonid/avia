@@ -12,10 +12,10 @@
 
 
         html[data-bs-theme="dark"]  .select2-selection--single {
-            background-color: #121212 !important;
+            background-color: var(--avia-input) !important;
             color: gray !important;
             height: 38px !important;
-            border: 1px solid #495057 !important;
+            border: 1px solid var(--avia-border) !important;
             align-items: center !important;
             border-radius: 8px;
         }
@@ -26,7 +26,7 @@
         }
 
         html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field  {
-            background-color: #343A40 !important;
+            background-color: var(--avia-surface-raised) !important;
         }
 
         html[data-bs-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered {
@@ -39,7 +39,7 @@
             border: 1px solid #ccc !important;
             border-radius: 8px;
             color: white;
-            background-color: #121212 !important;
+            background-color: var(--avia-input) !important;
         }
 
         html[data-bs-theme="light"] .select2-container .select2-dropdown {
@@ -70,7 +70,7 @@
                 <h5 class="text-info col">{{__('Add Part Inspection')}}</h5>
                 <h5 class="text-info col"> {{__('Work Order')}} <span class="text-white">{{$current_wo->number}}</span></h5>
             </div>
-            <div class="card-body" style="background-color: #232525">
+            <div class="card-body" style="background-color: var(--avia-surface)">
                 <form id="createForm" class="createForm" role="form" method="POST"
                       action="{{route('tdrs.store')}}" enctype="multipart/form-data">
                     @csrf

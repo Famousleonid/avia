@@ -24,7 +24,7 @@ class MarketingWoEstimateDateMail extends Mailable
         $customerName = trim((string) ($customer?->name ?? 'Customer'));
 
         return $this
-            ->subject("WO Estimate Date set for {$woLabel} / {$customerName}")
+            ->subject("WO Waiting Approval reminder: {$woLabel} / {$customerName}")
             ->view('emails.marketing.wo_estimate_date')
             ->with([
                 'notification' => $this->notification,

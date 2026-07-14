@@ -77,7 +77,7 @@ class ShippingLogBookController extends Controller
             app(WorkorderNotifyService::class)->shippingLogUpdated(
                 $workorder,
                 (int) $request->user()->id,
-                (string) $request->user()->name,
+                (string) $request->user()->selection_name,
                 $changedShippingFields
             );
         }

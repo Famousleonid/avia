@@ -40,9 +40,9 @@
                         <div class="form-group col ">
                             <label class="sf" for="user_id">Technik</label>
                             <select name="user_id" id="user_id" class="form-control ">
-                                <option selected value="{{ Auth::user()->id }}">{{ Auth::user()->name }}</option>
+                                <option selected value="{{ Auth::user()->id }}">{{ Auth::user()->selection_name }}</option>
                                 @foreach ($users as $user)
-                                    <option value="{{$user->id}}">{{$user->name}}</option>
+                                    <option value="{{$user->id}}">{{$user->selection_name}}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -82,7 +82,7 @@
                             <tr>
                                 <td hidden>{{$main->created_at}}</td>
                                 <td>{{$main->generaltask->name}}</td>
-                                <td>{{$main->user->name}}</td>
+                                <td>{{$main->user->selection_name}}</td>
                                 <td>{{$main->description}}</td>
                                 <td class="text-center">
                                     @if ($main->date_start)<span>{{date('d-M-Y', strtotime($main->date_start))}}</span> @endif

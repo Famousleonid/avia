@@ -441,7 +441,9 @@ class QualityAssuranceController extends Controller
             ->with('role')
             ->whereHas('featureAccesses', fn ($query) => $query->where('feature_key', 'certificates.sign'))
             ->orderBy('name')
-            ->get(['id', 'name', 'role_id']);
+            ->get(['id', 'name', 'selection_name_order', 'role_id'])
+            ->sortBy(fn (User $manager) => mb_strtolower($manager->selection_name))
+            ->values();
         $certificateData = is_array($workorder->certificate_data) ? $workorder->certificate_data : [];
         $certificateStringSetting = static function (string $key, string $default = '') use ($certificateData): string {
             if (! array_key_exists($key, $certificateData)) {
@@ -531,7 +533,7 @@ class QualityAssuranceController extends Controller
             ->sortBy(fn (Instruction $instruction): int => array_search($instruction->name, $certificateInstructionNames, true))
             ->values();
         $certificateManagerName = trim((string) (
-            $selectedManager?->name
+            $selectedManager?->selection_name
             ?: $this->resolveCertificateManagerName($workorder, $user)
         ));
 
@@ -1016,7 +1018,7 @@ class QualityAssuranceController extends Controller
                 ->usingFileName($safeName)
                 ->withCustomProperties([
                     'uploaded_by' => $request->user()->id,
-                    'uploaded_by_name' => $request->user()->name,
+                    'uploaded_by_name' => $request->user()->selection_name,
                 ])
                 ->toMediaCollection('quality');
         }
@@ -1074,18 +1076,20 @@ class QualityAssuranceController extends Controller
     {
         $approvedBy = trim((string) ($workorder->approve_name ?? ''));
         if ($approvedBy !== '') {
-            return $approvedBy;
+            return User::query()
+                ->where('name', $approvedBy)
+                ->first()?->selection_name ?? $approvedBy;
         }
 
         if ($workorder->doneUser?->canSignCertificates()) {
-            return (string) $workorder->doneUser->name;
+            return (string) $workorder->doneUser->selection_name;
         }
 
         if ($workorder->user?->canSignCertificates()) {
-            return (string) $workorder->user->name;
+            return (string) $workorder->user->selection_name;
         }
 
-        return $user?->canSignCertificates() ? (string) $user->name : '';
+        return $user?->canSignCertificates() ? (string) $user->selection_name : '';
     }
 
     private function normalizeWorkorderSearch(string $query): string
@@ -1188,7 +1192,7 @@ class QualityAssuranceController extends Controller
         return [
             'customer' => $workorder->customer?->name ?? '-',
             'instruction' => $workorder->instruction?->name ?? '-',
-            'technician' => $workorder->user?->name ?? '-',
+            'technician' => $workorder->user?->selection_name ?? '-',
             'unit_id' => $workorder->unit_id ? (int) $workorder->unit_id : null,
             'unit_manual_id' => $workorder->unit?->manual_id ? (int) $workorder->unit->manual_id : null,
             'unit' => $workorder->unit?->part_number ?? '-',

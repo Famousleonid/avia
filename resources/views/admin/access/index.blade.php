@@ -427,12 +427,12 @@
                                                     <div class="access-assigned-row">
                                                         <div class="min-w-0">
                                                             <div class="access-user-name">
-                                                                {{ $access->user?->name ?? 'Deleted user' }}@if($access->user?->role)<span class="access-role-inline"> / {{ $access->user->role->name }}</span>@endif
+                                                                {{ $access->user?->selection_name ?? 'Deleted user' }}@if($access->user?->role)<span class="access-role-inline"> / {{ $access->user->role->name }}</span>@endif
                                                             </div>
                                                             <div class="access-assigned-meta">
                                                                 {{ format_project_date($access->created_at) }}
-                                                                @if($access->grantedBy?->name)
-                                                                    by {{ $access->grantedBy->name }}
+                                                                @if($access->grantedBy?->selection_name)
+                                                                    by {{ $access->grantedBy->selection_name }}
                                                                 @endif
                                                             </div>
                                                         </div>
@@ -495,7 +495,7 @@
                                                                    value="{{ $user->id }}">
                                                             <span class="min-w-0">
                                                                 <span class="access-user-name">
-                                                                    {{ $user->name }}@if($user->role)<span class="access-role-inline"> / {{ $user->role->name }}</span>@endif
+                                                                    {{ $user->selection_name }}@if($user->role)<span class="access-role-inline"> / {{ $user->role->name }}</span>@endif
                                                                 </span>
                                                             </span>
                                                         </label>

@@ -2,8 +2,17 @@
 
 @section('content')
     <style>
-        .table-wrapper {
-            height: calc(100vh - 170px);
+        .library-list-panel {
+            flex: 1 1 auto;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .library-list-panel .table-wrapper {
+            flex: 1 1 auto;
+            min-height: 0;
+            height: auto;
             overflow-y: auto;
             overflow-x: hidden;
         }
@@ -49,7 +58,7 @@
         .modal-content .form-control::placeholder { color: #9aa1a9; opacity: 1; }
         .modal-content .form-control:focus,
         .modal-content .form-select:focus {
-            background-color: #343a40;
+            background-color: var(--avia-surface-raised);
             color: #fff;
             border-color: #4c8bf5; /* подсветка */
             box-shadow: 0 0 0 .2rem rgba(76,139,245,.15);
@@ -58,7 +67,7 @@
 
     </style>
 
-    <div class="card dir-panel">
+    <div class="card dir-panel library-list-panel">
         @include('components.status')
 
         <div class="card-header my-1 shadow">

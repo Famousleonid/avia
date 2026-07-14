@@ -2,8 +2,17 @@
 
 @section('content')
     <style>
-        .table-wrapper {
-            height: calc(100vh - 170px);
+        .library-list-panel {
+            flex: 1 1 auto;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .library-list-panel .table-wrapper {
+            flex: 1 1 auto;
+            min-height: 0;
+            height: auto;
             overflow-y: auto;
             overflow-x: hidden;
         }
@@ -50,7 +59,7 @@
 
 
 
-    <div class="card dir-panel">
+    <div class="card dir-panel library-list-panel">
         @include('components.status')
         <div class="card-header my-1 shadow">
             <div class="d-flex justify-content-between">

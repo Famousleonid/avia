@@ -263,7 +263,7 @@
                                     $step->loadMissing([
                                         'machinist' => static fn ($q) => $q->withTrashed(),
                                     ]);
-                                    $stepMachinistName = trim((string) ($step->machinist?->name ?? ''));
+                                    $stepMachinistName = trim((string) ($step->machinist?->selection_name ?? ''));
                                 }
                                 if ($stepMachinistName === '' && $displayMachinistId > 0) {
                                     $nm = $machiningStepMachinistNames[$displayMachinistId] ?? $machiningStepMachinistNames[(string) $displayMachinistId] ?? '';
@@ -366,7 +366,7 @@
                         $step->loadMissing([
                             'machinist' => static fn ($q) => $q->withTrashed(),
                         ]);
-                        $stepMachinistName = trim((string) ($step->machinist?->name ?? ''));
+                        $stepMachinistName = trim((string) ($step->machinist?->selection_name ?? ''));
                     }
                     if ($stepMachinistName === '' && $displayMachinistId > 0) {
                         $nm = $machiningStepMachinistNames[$displayMachinistId] ?? $machiningStepMachinistNames[(string) $displayMachinistId] ?? '';

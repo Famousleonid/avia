@@ -12,7 +12,7 @@
             min-height: 0;
             flex: 1 1 auto;
             overflow: hidden;
-            background: #2B3035;
+            background: var(--avia-bg);
         }
 
         .qa-page .text-success,
@@ -22,7 +22,7 @@
 
         .content,
         .content-inner {
-            background: #2B3035 !important;
+            background: var(--avia-bg) !important;
         }
 
         .qa-header {
@@ -127,7 +127,7 @@
             overflow: auto;
             border: 1px solid rgba(13, 202, 240, .35);
             border-radius: .45rem;
-            background: #343A40;
+            background: var(--avia-surface-raised);
             box-shadow: 0 .8rem 2rem rgba(0, 0, 0, .42);
         }
 
@@ -315,7 +315,7 @@
         }
 
         .qa-top-row > .qa-block {
-            background: #343A40;
+            background: var(--avia-surface-raised);
         }
 
         .qa-repair-block {
@@ -400,7 +400,7 @@
             min-width: 0;
             border: 1px solid rgba(255, 255, 255, .08);
             border-radius: .55rem;
-            background: #343A40;
+            background: var(--avia-surface-raised);
             padding: .75rem .85rem;
         }
 
@@ -709,13 +709,13 @@
 
         .select2-dropdown {
             min-width: 290px;
-            background-color: #212529;
+            background-color: var(--avia-input);
             color: var(--bs-body-color);
             border-color: rgba(255, 255, 255, .18);
         }
 
         .select2-dropdown .select2-search__field {
-            background-color: #111;
+            background-color: var(--avia-input);
             color: var(--bs-body-color);
             border-color: rgba(255, 255, 255, .18);
         }
@@ -753,7 +753,7 @@
         }
 
         .qa-info-select option {
-            background-color: #212529;
+            background-color: var(--avia-input);
             color: var(--bs-body-color);
         }
 

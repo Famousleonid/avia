@@ -340,7 +340,7 @@
                                     autocomplete="off">
                                 <option value="">Any</option>
                                 @foreach($machiningMachinists ?? [] as $mu)
-                                    <option value="{{ (int) $mu->id }}">{{ $mu->name }}</option>
+                                    <option value="{{ (int) $mu->id }}">{{ $mu->selection_name }}</option>
                                 @endforeach
                             </select>
                         </div>

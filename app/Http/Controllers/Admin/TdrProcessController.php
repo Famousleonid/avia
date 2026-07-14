@@ -560,6 +560,7 @@ class TdrProcessController extends Controller
             'manual',
             'repairNum',
             'vendorName',
+            'travelerGroup',
             'formConfig'
         ));
     }
@@ -1956,7 +1957,22 @@ class TdrProcessController extends Controller
             return $this->updateTravelerProcessDateFields($request, $tdrProcess, $data, $isAjax);
         }
 
-        $allowsManualDateEditing = $this->allowsManualDateEditing($tdrProcess);
+        $isExactEcProcess = $this->isExactEcProcess($tdrProcess);
+        $canEditExactEcProcessDates = $this->userCanEditExactEcProcessDates();
+
+        if ($isExactEcProcess && ! $canEditExactEcProcessDates) {
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only Manager/Admin can edit EC process dates.',
+                ], 403);
+            }
+
+            abort(403);
+        }
+
+        $allowsManualDateEditing = $this->allowsManualDateEditing($tdrProcess)
+            || ($isExactEcProcess && $canEditExactEcProcessDates);
 
         if (! $allowsManualDateEditing
             && ! $this->userCanBypassProcessSequence()
@@ -2213,17 +2229,17 @@ class TdrProcessController extends Controller
         }
 
         if ($isAjax) {
-            $tdrProcess->loadMissing(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name']);
+            $tdrProcess->loadMissing(['dateStartUpdatedBy:id,name,selection_name_order', 'dateFinishUpdatedBy:id,name,selection_name_order']);
 
             return response()->json([
                 'success'               => true,
-                'user'                  => auth()->user()->name ?? 'system',
+                'user'                  => auth()->user()->selection_name ?? 'system',
                 'date_start'            => $tdrProcess->date_start ? $tdrProcess->date_start->format('Y-m-d') : null,
                 'date_finish'           => $tdrProcess->date_finish ? $tdrProcess->date_finish->format('Y-m-d') : null,
                 'date_promise'          => $tdrProcess->date_promise ? $tdrProcess->date_promise->format('Y-m-d') : null,
                 'repair_order'          => $tdrProcess->repair_order,
-                'date_start_user'       => $tdrProcess->date_start_user ?: $tdrProcess->dateStartUpdatedBy?->name,
-                'date_finish_user'      => $tdrProcess->date_finish_user ?: $tdrProcess->dateFinishUpdatedBy?->name,
+                'date_start_user'       => $tdrProcess->dateStartUpdatedBy?->selection_name ?: $tdrProcess->date_start_user,
+                'date_finish_user'      => $tdrProcess->dateFinishUpdatedBy?->selection_name ?: $tdrProcess->date_finish_user,
                 'paint_queue_changed'   => $paintQueueDequeued,
             ], 200);
         }
@@ -2384,7 +2400,7 @@ class TdrProcessController extends Controller
                     $query->orWhereNull('traveler_group');
                 }
             })
-            ->with(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name'])
+            ->with(['dateStartUpdatedBy:id,name,selection_name_order', 'dateFinishUpdatedBy:id,name,selection_name_order'])
             ->orderBy('id')
             ->first();
 
@@ -2395,12 +2411,12 @@ class TdrProcessController extends Controller
         if ($isAjax) {
             return response()->json([
                 'success'          => true,
-                'user'             => auth()->user()->name ?? 'system',
+                'user'             => auth()->user()->selection_name ?? 'system',
                 'date_start'       => $leader?->date_start ? $leader->date_start->format('Y-m-d') : null,
                 'date_finish'      => $leader?->date_finish ? $leader->date_finish->format('Y-m-d') : null,
                 'date_promise'     => $leader?->date_promise ? $leader->date_promise->format('Y-m-d') : null,
-                'date_start_user'  => $leader?->date_start_user ?: $leader?->dateStartUpdatedBy?->name,
-                'date_finish_user' => $leader?->date_finish_user ?: $leader?->dateFinishUpdatedBy?->name,
+                'date_start_user'  => $leader?->dateStartUpdatedBy?->selection_name ?: $leader?->date_start_user,
+                'date_finish_user' => $leader?->dateFinishUpdatedBy?->selection_name ?: $leader?->date_finish_user,
             ], 200);
         }
 
@@ -2647,7 +2663,7 @@ class TdrProcessController extends Controller
                     ->where('tdrs_id', (int) $tdr->id)
                     ->where('in_traveler', true)
                     ->when($travelerGroup > 0, fn ($query) => $query->where('traveler_group', $travelerGroup))
-                    ->with(['dateStartUpdatedBy:id,name', 'dateFinishUpdatedBy:id,name'])
+                    ->with(['dateStartUpdatedBy:id,name,selection_name_order', 'dateFinishUpdatedBy:id,name,selection_name_order'])
                     ->orderBy('id')
                     ->first();
 
@@ -2666,12 +2682,12 @@ class TdrProcessController extends Controller
 
                 return response()->json([
                     'success'          => true,
-                    'user'             => auth()->user()->name ?? 'system',
+                    'user'             => auth()->user()->selection_name ?? 'system',
                     'date_start'       => $leader?->date_start ? $leader->date_start->format('Y-m-d') : null,
                     'date_finish'      => $leader?->date_finish ? $leader->date_finish->format('Y-m-d') : null,
                     'date_promise'     => $leader?->date_promise ? $leader->date_promise->format('Y-m-d') : null,
-                    'date_start_user'  => $leader?->date_start_user ?: $leader?->dateStartUpdatedBy?->name,
-                    'date_finish_user' => $leader?->date_finish_user ?: $leader?->dateFinishUpdatedBy?->name,
+                    'date_start_user'  => $leader?->dateStartUpdatedBy?->selection_name ?: $leader?->date_start_user,
+                    'date_finish_user' => $leader?->dateFinishUpdatedBy?->selection_name ?: $leader?->date_finish_user,
                 ], 200);
             }
 
@@ -2859,9 +2875,27 @@ class TdrProcessController extends Controller
         return (bool) ($tdrProcess->processName?->allowsManualDateEditing() ?? false);
     }
 
+    private function isExactEcProcess(TdrProcess $tdrProcess): bool
+    {
+        $tdrProcess->loadMissing('processName');
+
+        return ProcessName::isExactEcName($tdrProcess->processName?->name);
+    }
+
+    private function userCanEditExactEcProcessDates(): bool
+    {
+        $user = auth()->user();
+
+        return auth()->check()
+            && (
+                (bool) ($user?->isSystemAdmin() ?? false)
+                || (bool) ($user?->hasAnyRole('Admin|Manager') ?? false)
+            );
+    }
+
     private function dateEditorName(): string
     {
-        return auth()->user()?->name ?? 'system';
+        return auth()->user()?->selection_name ?? 'system';
     }
 
     private function logTdrProcessDateChange(

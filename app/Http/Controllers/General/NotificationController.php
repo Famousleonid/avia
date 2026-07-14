@@ -32,7 +32,7 @@ class NotificationController extends Controller
                     'payload' => $d['payload'] ?? [],
                     'from_name' => $d['from_name'] ?? $d['by_user_name'] ?? 'System',
                     'from_user_id' => $d['from_user_id'] ?? null,
-                    'to_name' => $user->name,
+                    'to_name' => $user->selection_name,
                     'text' => $d['text'] ?? '',
                     'url' => $d['url'] ?? null,
                     'created_at_human' => optional($n->created_at)->diffForHumans(),
@@ -77,7 +77,7 @@ class NotificationController extends Controller
                 'text' => $d['text'] ?? '',
                 'url' => $d['url'] ?? null,
                 'from_name' => $d['from_name'] ?? $d['by_user_name'] ?? 'System',
-                'to_name' => $user->name,
+                'to_name' => $user->selection_name,
                 'created_at_human' => optional($n->created_at)->diffForHumans(),
             ];
         })->values();
@@ -141,7 +141,13 @@ class NotificationController extends Controller
         $users = User::query()
             ->where('id', '!=', $user->id)
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'selection_name_order'])
+            ->sortBy(fn (User $listedUser) => mb_strtolower($listedUser->selection_name))
+            ->values()
+            ->map(fn (User $listedUser) => [
+                'id' => $listedUser->id,
+                'name' => $listedUser->selection_name,
+            ]);
 
         return response()->json([
             'ok' => true,
@@ -256,7 +262,7 @@ class NotificationController extends Controller
         $this->workorderMetaCache[$cacheKey] = $workorder ? [
             'id' => (int) $workorder->id,
             'no' => (string) $workorder->number,
-            'owner_name' => trim((string) ($workorder->user?->name ?? '')),
+            'owner_name' => trim((string) ($workorder->user?->selection_name ?? '')),
         ] : null;
 
         return $this->workorderMetaCache[$cacheKey];

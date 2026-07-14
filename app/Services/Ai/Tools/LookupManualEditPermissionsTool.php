@@ -89,7 +89,7 @@ class LookupManualEditPermissionsTool
 
             foreach ($manual->permittedUsers as $pu) {
                 $entries[] = [
-                    'user_name' => $pu->name,
+                    'user_name' => $pu->selection_name,
                     'user_email' => $pu->email,
                     'manual_number' => $manual->number,
                     'manual_lib' => $manual->lib,

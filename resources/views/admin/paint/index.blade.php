@@ -655,7 +655,7 @@
                                         (string) ($wo->customer?->name ?? ''),
                                         (string) ($wo->unit?->manual?->plane?->type ?? ''),
                                         (string) ($wo->unit?->part_number ?? ''),
-                                        (string) ($wo->user?->name ?? ''),
+                                        (string) ($wo->user?->selection_name ?? ''),
                                         (string) ($row->detail_label ?? ''),
                                         $startStr,
                                         $finishStr,
@@ -668,8 +668,8 @@
                                     $isQueued = $wo->paint_queue_order !== null;
                                     $isMaster = (bool) ($row->is_queue_master ?? false);
                                     $canAddToPaintQueue = ! $isQueued && $isMaster && ! $hasFinish;
-                                    $startEditedBy = $editTp?->date_start_user ?: $editTp?->dateStartUpdatedBy?->name;
-                                    $finishEditedBy = $editTp?->date_finish_user ?: $editTp?->dateFinishUpdatedBy?->name;
+                                    $startEditedBy = $editTp?->dateStartUpdatedBy?->selection_name ?: $editTp?->date_start_user;
+                                    $finishEditedBy = $editTp?->dateFinishUpdatedBy?->selection_name ?: $editTp?->date_finish_user;
                                     $startDateTitle = $startEditedBy ? ('Start date last edited by ' . $startEditedBy) : 'Start date';
                                     $finishDateTitle = $finishEditedBy ? ('Finish date last edited by ' . $finishEditedBy) : 'Finish date';
                                 @endphp
@@ -738,7 +738,7 @@
                                             <button type="button"
                                                     class="btn btn-link btn-sm p-0 px-1 js-paint-msg-owner paint-owner-action"
                                                     data-user-id="{{ (int) $wo->user_id }}">
-                                                {{ $wo->user->name }}
+                                                {{ $wo->user->selection_name }}
                                             </button>
                                         @endif
                                     </td>

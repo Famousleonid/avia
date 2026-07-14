@@ -28,7 +28,7 @@
         $stepSearch = implode(' ', array_filter([
             'step'.$si,
             $finishDisp,
-            (string) ($stepRow?->machinist?->name ?? ''),
+            (string) ($stepRow?->machinist?->selection_name ?? ''),
             trim((string) ($stepRow?->description ?? '')),
             $si === 1 && $parentForSteps instanceof \App\Models\TdrProcess ? trim((string) ($parentForSteps->description ?? '')) : '',
         ]));
@@ -85,7 +85,7 @@
                         autocomplete="off">
                     <option value="">—</option>
                     @foreach($machiningMachinists as $mu)
-                        <option value="{{ (int) $mu->id }}" @selected((int) ($stepRow->machinist_user_id ?? 0) === (int) $mu->id)>{{ $mu->name }}</option>
+                        <option value="{{ (int) $mu->id }}" @selected((int) ($stepRow->machinist_user_id ?? 0) === (int) $mu->id)>{{ $mu->selection_name }}</option>
                     @endforeach
                 </select>
             @else

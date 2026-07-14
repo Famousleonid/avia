@@ -20,7 +20,13 @@ class MessageController extends Controller
         $users = User::query()
             ->where('id', '!=', $me) // себя не показываем
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'selection_name_order'])
+            ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+            ->values()
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->selection_name,
+            ]);
 
         return response()->json($users);
     }
@@ -49,7 +55,7 @@ class MessageController extends Controller
         // грузим получателей вместе с prefs
         $recipients = User::query()
             ->whereIn('id', $data['user_ids'])
-            ->get(['id', 'name', 'notification_prefs']);
+            ->get(['id', 'name', 'selection_name_order', 'notification_prefs']);
 
         $sent = [];
         $blocked = [];
@@ -60,17 +66,17 @@ class MessageController extends Controller
 
             // если получатель забанил отправителя — не шлём
             if (in_array($fromUser->id, $mutedUsers, true)) {
-                $blocked[] = ['id' => $user->id, 'name' => $user->name];
+                $blocked[] = ['id' => $user->id, 'name' => $user->selection_name];
                 continue;
             }
 
             $user->notify(new NewMessageNotification(
                 fromUserId: $fromUser->id,
-                fromName: $fromUser->name,
+                fromName: $fromUser->selection_name,
                 text: $data['message']
             ));
 
-            $sent[] = ['id' => $user->id, 'name' => $user->name];
+            $sent[] = ['id' => $user->id, 'name' => $user->selection_name];
         }
 
         // если НЕ отправилось никому — можно вернуть 403/422, но лучше 200 с ok=true/false по твоему вкусу

@@ -68,7 +68,7 @@ class MobileController extends Controller
             ->whereNull('done_at')
             ->where('is_draft', 0)
             ->with([
-                'user:id,name',
+                'user:id,name,selection_name_order',
                 'unit.manual.plane:id,type',
                 'tdrs' => function ($q) {
                     $q->with([
@@ -85,7 +85,7 @@ class MobileController extends Controller
         $rows = app(PaintIndexRowsBuilder::class)->build($workorders);
 
         $lostParts = Paint::query()
-            ->with(['user:id,name', 'media'])
+            ->with(['user:id,name,selection_name_order', 'media'])
             ->latest()
             ->limit(100)
             ->get();
@@ -219,10 +219,10 @@ class MobileController extends Controller
             $firstProbe = $firstProbe->steps->first();
         }
         if ($firstProbe !== null && ($firstProbe->kind ?? '') === 'step' && $firstProbe->step !== null) {
-            $firstProbe->step->loadMissing('machinist:id,name');
+            $firstProbe->step->loadMissing('machinist:id,name,selection_name_order');
             $assignedMachinistId = (int) ($firstProbe->step->machinist_user_id ?? 0);
             if ($assignedMachinistId > 0 && $assignedMachinistId !== $authId) {
-                $machinistName = trim((string) ($firstProbe->step->machinist?->name ?? ''));
+                $machinistName = trim((string) ($firstProbe->step->machinist?->selection_name ?? ''));
             }
         }
 
@@ -245,8 +245,8 @@ class MobileController extends Controller
             $machiningStepMachinistNames = User::query()
                 ->withTrashed()
                 ->whereIn('id', $stepMachinistIds->all())
-                ->get(['id', 'name'])
-                ->mapWithKeys(static fn (User $u) => [(int) $u->id => trim((string) ($u->name ?? ''))])
+                ->get(['id', 'name', 'selection_name_order'])
+                ->mapWithKeys(static fn (User $u) => [(int) $u->id => trim($u->selection_name)])
                 ->all();
         }
 
@@ -585,15 +585,15 @@ class MobileController extends Controller
                 $q->with([
                     'component:id,part_number,name,ipl_num',
                     'tdrProcesses.processName',
-                    'tdrProcesses.machiningWorkSteps.machinist:id,name',
+                    'tdrProcesses.machiningWorkSteps.machinist:id,name,selection_name_order',
                 ]);
             },
             'woBushingProcesses' => function ($q) {
                 $q->with([
                     'line.component',
                     'process.process_name',
-                    'batch.machiningWorkSteps.machinist:id,name',
-                    'machiningWorkSteps.machinist:id,name',
+                    'batch.machiningWorkSteps.machinist:id,name,selection_name_order',
+                    'machiningWorkSteps.machinist:id,name,selection_name_order',
                 ]);
             },
         ];
@@ -608,7 +608,7 @@ class MobileController extends Controller
             ->whereNull('done_at')
             ->whereMachiningHasDateSent()
             ->with(array_merge([
-                'user:id,name',
+                'user:id,name,selection_name_order',
                 'customer:id,name',
             ], $this->mobileMachiningRelations()))
             ->orderByRaw('CASE WHEN machining_queue_order IS NULL THEN 1 ELSE 0 END ASC')
@@ -1079,7 +1079,7 @@ class MobileController extends Controller
         app(WorkorderNotifyService::class)->draftCreated(
             $wo,
             (int) auth()->id(),
-            (string) auth()->user()?->name
+            (string) auth()->user()?->selection_name
         );
 
         return redirect()->route('mobile.show', $wo->id);

@@ -533,7 +533,7 @@ class ProcessDocumentRenderer
             case '{serial_number}':   return (string) ($workorder->unit?->serial_number ?? $workorder->serial_number ?? '');
             case '{repair_number}':   return (string) ($context['repair_number'] ?? '');
             case '{component_pn}':    return (string) ($context['component_pn'] ?? '');
-            case '{technician_name}': return (string) ($workorder->user?->name ?? '');
+            case '{technician_name}': return (string) ($workorder->user?->selection_name ?? '');
             case '{manual_number}':   return (string) ($workorder->unit?->manuals?->number ?? '');
             case '{manual_lib}':      return (string) ($workorder->unit?->manuals?->lib ?? '');
             case '{date}':            return now()->format('d/M/Y');

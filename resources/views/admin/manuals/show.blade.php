@@ -126,7 +126,7 @@
             position: sticky;
             bottom: 0;
             z-index: 2;
-            background: #212529;
+            background: var(--avia-surface);
             border-top: 1px solid rgba(255,255,255,.1);
             margin-left: -1rem;
             margin-right: -1rem;
@@ -556,7 +556,7 @@
         }
         #nav-tab.nav-tabs,
         #std-process-inner-tab.nav-tabs {
-            --manual-tabs-bg: #212529;
+            --manual-tabs-bg: var(--avia-surface);
             align-items: flex-end;
             border-bottom: 0 !important;
         }
@@ -851,7 +851,7 @@
                                 type="button" role="tab" aria-controls="nav-parts" aria-selected="{{ $manualShowTab === 'parts' ? 'true' : 'false' }}">
                             Parts <span class="manual-parts-tab-count">({{ $manualPartsCount }})</span>
                             @if($manualPartsLocked)
-                                <i class="bi bi-lock-fill manual-part-lock-icon ms-1" title="Locked by {{ $manualPartLock->lockedBy?->name ?? 'Unknown user' }}"></i>
+                                <i class="bi bi-lock-fill manual-part-lock-icon ms-1" title="Locked by {{ $manualPartLock->lockedBy?->selection_name ?? 'Unknown user' }}"></i>
                             @endif
                         </button>
                         <button class="nav-link @if($manualShowTab === 'processes') active @endif" id="nav-processes-tab" data-bs-toggle="tab" data-bs-target="#nav-processes"
@@ -1122,7 +1122,7 @@
                                         <span class="manual-process-inline-text">
                                             @if($groupLock)
                                                 <span class="manual-process-state-icon is-locked"
-                                                      title="Locked by {{ $groupLock->lockedBy?->name ?? 'Unknown user' }}">
+                                                      title="Locked by {{ $groupLock->lockedBy?->selection_name ?? 'Unknown user' }}">
                                                     <i class="bi bi-lock-fill"></i>
                                                 </span>
                                             @endif
@@ -1167,7 +1167,7 @@
                                             <span class="manual-process-inline-text">
                                                 @if($rowLocked)
                                                     <span class="manual-process-state-icon is-locked"
-                                                          title="Locked by {{ $mp->lockedBy?->name ?? 'Unknown user' }}">
+                                                          title="Locked by {{ $mp->lockedBy?->selection_name ?? 'Unknown user' }}">
                                                         <i class="bi bi-lock-fill"></i>
                                                     </span>
                                                 @endif
@@ -1417,7 +1417,7 @@
                                         <td class="text-center">{{ $manualRevisionDateDisplay($check->checked_at) ?? '-' }}</td>
                                         <td class="text-center">{{ $check->revision_number ?: '-' }}</td>
                                         <td class="text-center">{{ $manualRevisionDateDisplay($check->revision_date) ?? '-' }}</td>
-                                        <td>{{ $check->checkedBy?->name ?? '-' }}</td>
+                                        <td>{{ $check->checkedBy?->selection_name ?? '-' }}</td>
                                         <td class="text-center">{{ $check->checked_by_stamp ?: '-' }}</td>
                                         <td class="text-center">
                                             <span class="badge text-bg-{{ $check->status === \App\Models\ManualRevisionCheck::STATUS_CHANGED ? 'warning' : 'success' }}">

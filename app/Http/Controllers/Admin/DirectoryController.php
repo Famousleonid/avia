@@ -361,7 +361,9 @@ class DirectoryController extends Controller
         return match ($source) {
             'users' => \App\Models\User::query()
                 ->orderBy('name')
-                ->pluck('name', 'id')
+                ->get(['id', 'name', 'selection_name_order'])
+                ->sortBy(fn (\App\Models\User $user) => mb_strtolower($user->selection_name))
+                ->mapWithKeys(fn (\App\Models\User $user) => [$user->id => $user->selection_name])
                 ->toArray(),
 
             'teams' => \App\Models\Team::query()

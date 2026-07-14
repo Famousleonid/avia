@@ -25,9 +25,9 @@ td.r { text-align: right; }
 /* ── dark theme (inherited from the parent app) ───────────── */
 html[data-bs-theme="dark"] body { background: #1a1d21; color: #dee2e6; }
 html[data-bs-theme="dark"] .doc-meta { color: #9aa0a6; }
-html[data-bs-theme="dark"] th, html[data-bs-theme="dark"] td { border-color: #495057; }
-html[data-bs-theme="dark"] thead th { background: #2b3035; color: #dee2e6; }
-html[data-bs-theme="dark"] .btn-close { background: #2b3035; color: #dee2e6; border-color: #495057; }
+html[data-bs-theme="dark"] th, html[data-bs-theme="dark"] td { border-color: var(--avia-border); }
+html[data-bs-theme="dark"] thead th { background: var(--avia-surface-raised); color: var(--avia-text); }
+html[data-bs-theme="dark"] .btn-close { background: var(--avia-surface-raised); color: var(--avia-text); border-color: var(--avia-border); }
 html[data-bs-theme="dark"] .note { color: #9aa0a6; }
 html[data-bs-theme="dark"] .ovs { color: #6ea8fe; }
 html[data-bs-theme="dark"] .ok  { color: #75b798; }

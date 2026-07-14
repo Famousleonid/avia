@@ -1,6 +1,27 @@
 /* public/css/custom_bootstrap.css */
 
 :root[data-bs-theme='light'] {
+    /* Semantic counterparts keep page-level components theme-safe. */
+    --avia-bg: #ffffff;
+    --avia-sidebar: #343A40;
+    --avia-surface: #ffffff;
+    --avia-surface-raised: #f8f9fa;
+    --avia-modal: #ffffff;
+    --avia-panel: #ffffff;
+    --avia-input: #ffffff;
+    --avia-border: #dee2e6;
+    --avia-hover: #e9ecef;
+    --avia-active: #cfe2ff;
+    --avia-primary: #0d6efd;
+    --avia-info: #0dcaf0;
+    --avia-secondary: #6c757d;
+    --avia-text: #212529;
+    --avia-text-secondary: #495057;
+    --avia-text-muted: #6c757d;
+    --avia-success: #198754;
+    --avia-warning: #ffc107;
+    --avia-danger: #dc3545;
+
     --bs-primary: #ff5733;
     --bs-secondary: #33c3ff;
     --bs-body-bg: #ffffff;
@@ -16,12 +37,65 @@
 }
 
 :root[data-bs-theme='dark'] {
-    --bs-primary: #ff5733;
-    --bs-secondary: #33c3ff;
-    --bs-body-bg: #121212;
-    --bs-body-color: #ffffff;
-    --nav-link-hover-color: #ffffff;
-    --nav-link-hover-color-bg: #ffffff;
+    color-scheme: dark;
+
+    /* Aviation Night: shared dark-mode palette */
+    --avia-bg: #141b24;
+    --avia-sidebar: #192431;
+    --avia-surface: #1e2a37;
+    --avia-surface-raised: #263544;
+    --avia-modal: #293746;
+    --avia-panel: #202c38;
+    --avia-input: #16202a;
+    --avia-border: #405267;
+    --avia-hover: #304154;
+    --avia-active: #315f8c;
+    --avia-primary: #5795d6;
+    --avia-info: #4db6be;
+    --avia-secondary: #526577;
+    --avia-text: #e8eef5;
+    --avia-text-secondary: #b0becc;
+    --avia-text-muted: #8293a5;
+    --avia-success: #45d19a;
+    --avia-warning: #d8a64e;
+    --avia-danger: #d96c75;
+
+    --bs-primary: var(--avia-primary);
+    --bs-primary-rgb: 87, 149, 214;
+    --bs-secondary: var(--avia-secondary);
+    --bs-secondary-rgb: 82, 101, 119;
+    --bs-success: var(--avia-success);
+    --bs-success-rgb: 69, 209, 154;
+    --bs-info: var(--avia-info);
+    --bs-info-rgb: 77, 182, 190;
+    --bs-warning: var(--avia-warning);
+    --bs-warning-rgb: 216, 166, 78;
+    --bs-danger: var(--avia-danger);
+    --bs-danger-rgb: 217, 108, 117;
+    --bs-body-bg: var(--avia-bg);
+    --bs-body-bg-rgb: 20, 27, 36;
+    --bs-body-color: var(--avia-text);
+    --bs-body-color-rgb: 232, 238, 245;
+    --bs-secondary-color: var(--avia-text-secondary);
+    --bs-secondary-bg: var(--avia-panel);
+    --bs-secondary-bg-rgb: 32, 44, 56;
+    --bs-tertiary-color: var(--avia-text-muted);
+    --bs-tertiary-bg: var(--avia-surface-raised);
+    --bs-tertiary-bg-rgb: 38, 53, 68;
+    --bs-emphasis-color: #ffffff;
+    --bs-border-color: var(--avia-border);
+    --bs-dark: var(--avia-panel);
+    --bs-dark-rgb: 32, 44, 56;
+    --bs-link-color: #72a9df;
+    --bs-link-hover-color: #95c1eb;
+
+    --sidebar-bg: var(--avia-sidebar);
+    --sidebar-color: var(--avia-text);
+    --nav-link-color: var(--avia-text-secondary);
+    --nav-link-hover-color: var(--avia-text);
+    --nav-link-hover-color-bg: var(--avia-hover);
+    --nav-link-active-color: #ffffff;
+    --nav-link-active-bg: var(--avia-active);
 }
 /* =========================================================
    MODALS — FULL FIX FOR LIGHT / DARK + NO FLASH
@@ -34,9 +108,9 @@
     --modal-color-light: #212529;
     --modal-border-light: #dee2e6;
 
-    --modal-bg-dark: #2B3035;
-    --modal-color-dark: #f8f9fa;
-    --modal-border-dark: #3a3f44;
+    --modal-bg-dark: var(--avia-modal, #293746);
+    --modal-color-dark: var(--avia-text, #e8eef5);
+    --modal-border-dark: var(--avia-border, #405267);
 }
 
 /* LIGHT */
@@ -82,15 +156,25 @@
 
 [data-bs-theme="dark"] .modal .form-control,
 [data-bs-theme="dark"] .modal .form-select {
-    background-color: #212529;
-    color: #f8f9fa;
-    border-color: #495057;
+    background-color: var(--avia-input);
+    color: var(--avia-text);
+    border-color: var(--avia-border);
+}
+
+[data-bs-theme="dark"] .modal .form-control::placeholder {
+    color: var(--avia-text-muted);
+}
+
+[data-bs-theme="dark"] .modal .form-control:focus,
+[data-bs-theme="dark"] .modal .form-select:focus {
+    border-color: var(--avia-primary);
+    box-shadow: 0 0 0 .18rem rgba(var(--bs-primary-rgb), .2);
 }
 
 /* --- BACKDROP (blur как macOS) --- */
 .modal-backdrop.show {
     backdrop-filter: blur(6px);
-    background-color: rgba(0,0,0,.5);
+    background-color: rgba(6, 12, 20, .62);
 }
 
 /* --- macOS animation --- */

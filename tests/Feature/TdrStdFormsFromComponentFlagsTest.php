@@ -395,6 +395,31 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response->assertSee('PN-NDT-ROUTE');
     }
 
+    public function test_ndt_std_form_displays_the_complete_manual_number(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual(['number' => '32-11-15RM']);
+        $unit = $this->createUnit(['manual_id' => $manual->id]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+        ]);
+
+        Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '6-158',
+            'part_number' => '2821-2001',
+            'name' => 'Bolt',
+            'units_assy' => 1,
+            'ndt_list' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.ndtStd', $workorder->id));
+
+        $response->assertOk();
+        $response->assertSee('<div class="std-manual-ref-box std-ndt-cmm-box">32-11-15RM</div>', false);
+    }
+
     public function test_ndt_std_form_uses_fourteen_body_rows_per_page_by_default(): void
     {
         $admin = $this->createUserWithRole('Admin');

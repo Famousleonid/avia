@@ -14,7 +14,7 @@
         }
 
         html[data-bs-theme="dark"] .marketing-page {
-            background: #232525;
+            background: var(--avia-bg);
         }
 
         .marketing-toolbar {
@@ -32,8 +32,8 @@
         html[data-bs-theme="dark"] .marketing-toolbar,
         html[data-bs-theme="dark"] .marketing-table-panel,
         html[data-bs-theme="dark"] .marketing-detail {
-            background: #2d3030;
-            border-color: rgba(255, 255, 255, .12);
+            background: var(--avia-surface);
+            border-color: var(--avia-border);
         }
 
         .marketing-title-block {
@@ -109,14 +109,14 @@
         }
 
         html[data-bs-theme="dark"] .marketing-filter.is-active label {
-            color: #8bd3f7;
+            color: var(--avia-info);
         }
 
         html[data-bs-theme="dark"] .marketing-filter.is-active .form-control,
         html[data-bs-theme="dark"] .marketing-filter.is-active .form-select,
         html[data-bs-theme="dark"] .marketing-filter.is-active .select2-container--default .select2-selection--single {
-            border-color: #8bd3f7;
-            box-shadow: 0 0 0 .12rem rgba(139, 211, 247, .16);
+            border-color: var(--avia-info);
+            box-shadow: 0 0 0 .12rem rgba(var(--bs-info-rgb), .18);
         }
 
         .marketing-filter .select2-container {
@@ -284,7 +284,7 @@
         html[data-bs-theme="dark"] .marketing-splitter:focus-visible::after,
         html[data-bs-theme="dark"] .marketing-shell.is-resizing .marketing-splitter::before,
         html[data-bs-theme="dark"] .marketing-shell.is-resizing .marketing-splitter::after {
-            background: #8bd3f7;
+            background: var(--avia-info);
         }
 
         .marketing-table-panel,
@@ -389,7 +389,11 @@
         }
 
         .marketing-table tbody tr.is-active td {
-            background: rgba(13, 110, 253, .10);
+            background: rgba(13, 110, 253, .10) !important;
+        }
+
+        html[data-bs-theme="dark"] .marketing-table tbody tr.is-active td {
+            background: rgba(var(--bs-primary-rgb), .24) !important;
         }
 
         .marketing-name {
@@ -429,9 +433,9 @@
         }
 
         html[data-bs-theme="dark"] .marketing-chip {
-            color: #8bd3f7;
-            background: rgba(13, 202, 240, .10);
-            border-color: rgba(13, 202, 240, .22);
+            color: var(--avia-info);
+            background: rgba(var(--bs-info-rgb), .12);
+            border-color: rgba(var(--bs-info-rgb), .32);
         }
 
         .marketing-badge {
@@ -442,14 +446,21 @@
             border-radius: 999px;
             font-size: .74rem;
             font-weight: 800;
+            border: 1px solid transparent;
         }
 
-        .marketing-badge--existing { background: rgba(25, 135, 84, .13); color: #198754; }
+        .marketing-badge--existing { background: rgba(25, 135, 84, .13); color: #198754; font-weight: 400; }
         .marketing-badge--potential { background: rgba(13, 110, 253, .13); color: #0d6efd; }
         .marketing-badge--inactive { background: rgba(108, 117, 125, .16); color: #6c757d; }
         .marketing-badge--due { background: rgba(220, 53, 69, .14); color: #dc3545; }
         .marketing-badge--upcoming { background: rgba(255, 193, 7, .18); color: #8a6500; }
         .marketing-badge--none { background: rgba(108, 117, 125, .14); color: #6c757d; }
+
+        html[data-bs-theme="dark"] .marketing-badge--existing {
+            color: #71e7b8;
+            background: rgba(var(--bs-success-rgb), .15);
+            border-color: rgba(var(--bs-success-rgb), .32);
+        }
 
         .marketing-detail {
             position: relative;
@@ -571,15 +582,15 @@
         }
 
         html[data-bs-theme="dark"] .marketing-tab.is-active {
-            color: #8bd3f7;
-            border-color: #8bd3f7;
+            color: var(--avia-info);
+            border-color: var(--avia-info);
             border-bottom: 0;
-            background: #2d3030;
+            background: var(--avia-surface);
         }
 
         html[data-bs-theme="dark"] .marketing-tab.is-active::before,
         html[data-bs-theme="dark"] .marketing-tab.is-active::after {
-            background: #8bd3f7;
+            background: var(--avia-info);
         }
 
         .marketing-detail-body {
@@ -860,6 +871,10 @@
             text-align: center;
         }
 
+        html[data-bs-theme="dark"] .marketing-empty {
+            color: var(--avia-text-muted);
+        }
+
         .marketing-note {
             padding: 10px 0;
             border-bottom: 1px solid rgba(52, 58, 64, .12);
@@ -892,8 +907,21 @@
             overflow-wrap: anywhere;
         }
 
+        .marketing-note-subject {
+            margin-bottom: 4px;
+            color: #27313a;
+            font-size: .88rem;
+            font-weight: 800;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+
         html[data-bs-theme="dark"] .marketing-note-text {
             color: #e7ecef;
+        }
+
+        html[data-bs-theme="dark"] .marketing-note-subject {
+            color: #f5f8fa;
         }
 
         .marketing-load {
@@ -907,32 +935,102 @@
             border-color: rgba(255, 255, 255, .10);
         }
 
-        .marketing-contact-row {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
-            align-items: center;
-            padding: 9px 0;
-            border-bottom: 1px solid rgba(52, 58, 64, .12);
+        .marketing-contacts-wrap {
+            max-width: 100%;
+            overflow-x: auto;
         }
 
-        html[data-bs-theme="dark"] .marketing-contact-row {
-            border-color: rgba(255, 255, 255, .10);
+        .marketing-contacts-table {
+            min-width: 1050px;
+            margin: 0;
+            table-layout: fixed;
         }
 
-        .marketing-contact-primary-actions {
-            display: flex;
+        .marketing-contacts-table th {
+            font-size: .72rem;
+            white-space: nowrap;
+        }
+
+        .marketing-contacts-table td {
+            height: 39px;
+            padding: 4px 5px;
+            vertical-align: middle;
+        }
+
+        .marketing-contacts-table .marketing-contact-col-first,
+        .marketing-contacts-table .marketing-contact-col-last,
+        .marketing-contacts-table .marketing-contact-col-position {
+            width: 11%;
+        }
+
+        .marketing-contacts-table .marketing-contact-col-email,
+        .marketing-contacts-table .marketing-contact-col-email2 {
+            width: 15%;
+        }
+
+        .marketing-contacts-table .marketing-contact-col-phone,
+        .marketing-contacts-table .marketing-contact-col-cell {
+            width: 11%;
+        }
+
+        .marketing-contacts-table .marketing-contact-col-type {
+            width: 16%;
+        }
+
+        .marketing-contacts-table .marketing-contact-col-primary {
+            width: 58px;
+        }
+
+        .marketing-contacts-table .marketing-contact-col-actions {
+            width: 112px;
+        }
+
+        .marketing-contact-sort-button {
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
-            align-self: center;
-            min-width: 0;
+            gap: 4px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            font-weight: inherit;
+        }
+
+        .marketing-contact-cell-control.form-control-sm,
+        .marketing-contact-cell-control.form-select-sm {
+            height: 27px;
+            min-height: 27px;
+            padding-top: 2px;
+            padding-bottom: 2px;
+            font-size: .78rem;
+        }
+
+        .marketing-contact-row:not(.is-editing) .marketing-contact-cell-control {
+            border-color: transparent;
+            background-color: transparent;
+            box-shadow: none;
+            color: inherit;
+            cursor: default;
+        }
+
+        .marketing-contact-row:not(.is-editing) select.marketing-contact-cell-control {
+            appearance: none;
+            padding-right: .25rem;
+            background-image: none;
+            opacity: 1;
+        }
+
+        .marketing-contact-row.is-new > td {
+            background: rgba(13, 202, 240, .06) !important;
         }
 
         .marketing-contact-actions {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
-            flex: 0 0 auto;
+            justify-content: flex-end;
+            gap: 4px;
+            width: 100%;
         }
 
         .marketing-contact-copy-actions {
@@ -946,12 +1044,10 @@
         .marketing-contact-row:not(.is-editing) .marketing-contact-save,
         .marketing-contact-row:not(.is-editing) .marketing-contact-cancel,
         .marketing-contact-row:not(.is-editing) .js-contact-delete,
-        .marketing-contact-row.is-editing .marketing-contact-edit {
+        .marketing-contact-row.is-editing .marketing-contact-edit,
+        .marketing-contact-row.is-new .marketing-contact-edit,
+        .marketing-contact-row.is-new .js-contact-delete {
             display: none;
-        }
-
-        .marketing-contact-row:not(.is-editing) input[readonly] {
-            cursor: text;
         }
 
         #aiAssistantWidget,
@@ -963,6 +1059,24 @@
             max-height: min(62vh, 620px);
             overflow: auto;
             position: relative;
+        }
+
+        .marketing-workorders-empty-cell {
+            height: 116px;
+            padding: 0 !important;
+            text-align: left !important;
+        }
+
+        .marketing-workorders-empty-content {
+            position: sticky;
+            left: 14px;
+            display: inline-flex;
+            align-items: center;
+            max-width: calc(100vw - 48px);
+            min-height: 104px;
+            padding: 12px 18px;
+            white-space: normal;
+            line-height: 1.45;
         }
 
         .marketing-workorders-table {
@@ -1317,11 +1431,11 @@
         }
 
         html[data-bs-theme="dark"] .marketing-media-group-title {
-            color: #aeb6bd;
+            color: var(--avia-text-secondary);
         }
 
         html[data-bs-theme="dark"] .marketing-media-group-title::after {
-            border-color: rgba(255, 255, 255, .16);
+            border-color: var(--avia-border);
         }
 
         .marketing-media-thumb {
@@ -1359,9 +1473,252 @@
             background: #fff;
         }
 
+        html[data-bs-theme="dark"] .marketing-media-thumb {
+            background: var(--avia-surface-raised);
+            border-color: var(--avia-border);
+        }
+
+        .marketing-files-shell {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr);
+            gap: 14px;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .marketing-files-panel {
+            min-width: 0;
+            padding: 12px;
+            border: 1px solid rgba(52, 58, 64, .14);
+            border-radius: 8px;
+            background: var(--bs-body-bg);
+        }
+
+        html[data-bs-theme="dark"] .marketing-files-panel {
+            background: var(--avia-panel);
+            border-color: var(--avia-border);
+        }
+
+        .marketing-files-panel-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin: 0 0 10px;
+            font-size: .92rem;
+            font-weight: 900;
+        }
+
+        .marketing-file-upload-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .marketing-file-upload-grid .span-2 {
+            grid-column: 1 / -1;
+        }
+
+        .marketing-file-upload-grid label {
+            display: block;
+            margin-bottom: 3px;
+            color: #68717a;
+            font-size: .7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        html[data-bs-theme="dark"] .marketing-file-upload-grid label {
+            color: var(--avia-text-secondary);
+        }
+
+        .marketing-file-notify-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .marketing-file-version-state {
+            display: none;
+            padding: 7px 9px;
+            border: 1px solid rgba(13, 110, 253, .28);
+            border-radius: 6px;
+            background: rgba(13, 110, 253, .07);
+            font-size: .78rem;
+        }
+
+        .marketing-file-version-state.is-active {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .marketing-manager-files-list {
+            max-height: 44vh;
+            min-height: 0;
+            margin-top: 12px;
+            overflow: auto;
+        }
+
+        .marketing-file-item {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid rgba(52, 58, 64, .12);
+        }
+
+        .marketing-file-item:first-child {
+            border-top: 0;
+        }
+
+        html[data-bs-theme="dark"] .marketing-file-item {
+            border-color: var(--avia-border);
+        }
+
+        .marketing-file-name {
+            color: var(--bs-body-color);
+            font-size: .86rem;
+            font-weight: 850;
+            overflow-wrap: anywhere;
+        }
+
+        .marketing-file-meta,
+        .marketing-file-comment,
+        .marketing-file-recipients {
+            margin-top: 3px;
+            color: var(--bs-secondary-color, #6c757d);
+            font-size: .74rem;
+            overflow-wrap: anywhere;
+        }
+
+        .marketing-file-comment {
+            color: var(--bs-body-color);
+        }
+
+        .marketing-file-actions {
+            display: flex;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 4px;
+        }
+
+        .marketing-files-production-body {
+            max-height: 68vh;
+            min-height: 0;
+            overflow: auto;
+        }
+
+        .marketing-files-production-group + .marketing-files-production-group {
+            margin-top: 18px;
+        }
+
+        .marketing-files-production .marketing-media-pdf-layout {
+            grid-template-columns: 1fr;
+            min-height: 0;
+        }
+
+        .marketing-files-production .marketing-media-pdf-frame {
+            height: 420px;
+        }
+
+        .marketing-files-cell-button {
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .marketing-files-unread {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            min-width: 17px;
+            height: 17px;
+            padding: 0 4px;
+            border: 2px solid var(--bs-body-bg);
+            border-radius: 999px;
+            background: var(--bs-danger);
+            color: #fff;
+            font-size: .62rem;
+            font-weight: 900;
+            line-height: 13px;
+            text-align: center;
+        }
+
+        /* Calm typography: visual hierarchy without the previous 700–900 weight everywhere. */
+        .marketing-title,
+        .marketing-detail-title h2,
+        .marketing-section-title,
+        .marketing-files-panel-title {
+            font-weight: 600;
+        }
+
+        .marketing-table th,
+        .marketing-contacts-table th,
+        .marketing-sales-report-table th,
+        .marketing-media-group-title,
+        .marketing-sales-report-total td {
+            font-weight: 600;
+        }
+
+        .marketing-count,
+        .marketing-note-meta {
+            font-weight: 400;
+        }
+
+        .marketing-filter label,
+        .marketing-field label,
+        .marketing-address-label,
+        .marketing-file-upload-grid label,
+        .marketing-sales-report-filters label,
+        .marketing-name,
+        .marketing-chip,
+        .marketing-badge,
+        .marketing-tab,
+        .marketing-address-category-button,
+        .marketing-note-subject,
+        .marketing-sales-report-company,
+        .marketing-sales-report-mode .btn,
+        .marketing-sales-report-aircraft .select2-container--default .select2-selection__clear,
+        .marketing-file-name {
+            font-weight: 500;
+        }
+
+        .marketing-badge--existing {
+            font-weight: 400;
+        }
+
+        .marketing-sales-report-warning {
+            font-weight: 500;
+        }
+
+        .marketing-files-unread {
+            font-weight: 600;
+        }
+
         @media (max-width: 767.98px) {
             .marketing-media-pdf-layout {
                 grid-template-columns: 1fr;
+            }
+
+            .marketing-files-shell,
+            .marketing-file-upload-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .marketing-file-upload-grid .span-2 {
+                grid-column: auto;
+            }
+
+            .marketing-file-item {
+                grid-template-columns: 1fr;
+            }
+
+            .marketing-file-actions {
+                justify-content: flex-start;
             }
         }
 
@@ -1415,7 +1772,6 @@
             }
 
             .marketing-form-grid,
-            .marketing-contact-row,
             .marketing-address-grid {
                 grid-template-columns: 1fr;
             }
@@ -1432,12 +1788,8 @@
                 justify-content: flex-start;
             }
 
-            .marketing-contact-actions {
-                grid-row: auto;
-            }
-
-            .marketing-contact-primary-actions {
-                grid-column: auto;
+            .marketing-contacts-table {
+                min-width: 980px;
             }
         }
 
@@ -1620,7 +1972,7 @@
                 </div>
 
                 <div class="marketing-table-scroll" id="marketingTableScroll">
-                    <table class="table table-sm table-hover align-middle marketing-table">
+                    <table class="table table-sm table-hover align-middle mb-0 dir-table dir-table--ellipsis marketing-table">
                         <thead>
                         <tr>
                             <th style="width: 220px;">Company</th>
@@ -1771,42 +2123,6 @@
                     </div>
 
                     <div id="marketingPaneContacts" class="marketing-pane" data-pane="contacts" role="tabpanel" aria-labelledby="marketingTabContacts">
-                        <form id="marketingContactForm" class="marketing-section" data-no-spinner autocomplete="off" hidden>
-                            <h3 class="marketing-section-title">New Contact</h3>
-                            <div class="marketing-form-grid">
-                                <div class="marketing-field">
-                                    <label>First Name</label>
-                                    <input name="first_name" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
-                                </div>
-                                <div class="marketing-field">
-                                    <label>Last Name</label>
-                                    <input name="last_name" class="form-control form-control-sm" type="text" maxlength="120" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
-                                </div>
-                                <div class="marketing-field">
-                                    <label>Position</label>
-                                    <input name="position" class="form-control form-control-sm" type="text" maxlength="160" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true">
-                                </div>
-                                <div class="marketing-field">
-                                    <label>Email</label>
-                                    <input name="email" class="form-control form-control-sm" type="email" maxlength="190" autocomplete="off">
-                                </div>
-                                <div class="marketing-field">
-                                    <label>Phone</label>
-                                    <input name="phone" class="form-control form-control-sm" type="text" maxlength="80" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-                                </div>
-                                <label class="d-flex align-items-center gap-2 mt-4 small fw-bold">
-                                    <input name="is_primary" class="form-check-input mt-0" type="checkbox" value="1">
-                                    Primary
-                                </label>
-                            </div>
-                            <div class="marketing-actions">
-                                <button class="btn btn-sm btn-outline-primary" type="submit">
-                                    <i class="bi bi-plus-lg"></i>
-                                    <span>Add</span>
-                                </button>
-                            </div>
-                        </form>
-
                         <div class="marketing-section">
                             <h3 class="marketing-section-title">
                                 <span>Contacts</span>
@@ -1856,6 +2172,10 @@
                                 <div class="marketing-field">
                                     <label>Follow-up</label>
                                     <input name="follow_up_at" class="form-control form-control-sm" type="text" maxlength="11" placeholder=".... /.... /......" data-project-date data-project-date-capital autocomplete="off">
+                                </div>
+                                <div class="marketing-field span-2">
+                                    <label>Subject Line</label>
+                                    <input name="subject" class="form-control form-control-sm" type="text" maxlength="255" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true">
                                 </div>
                                 <div class="marketing-field span-2">
                                     <label>Notes</label>
@@ -1918,17 +2238,17 @@
                                         <th><input type="search" data-workorder-filter="task" placeholder="Task"></th>
                                         <th><input type="search" data-workorder-filter="terms" placeholder="Terms"></th>
                                         <th><input type="search" data-workorder-filter="estimate" placeholder="Estimate"></th>
-                                        <th><input type="search" data-workorder-filter="estimate_date" placeholder="Date"></th>
-                                        <th><input type="search" data-workorder-filter="approval_date" placeholder="Date"></th>
+                                        <th><input type="text" data-workorder-filter="estimate_date" placeholder="Date" maxlength="11" data-project-date data-project-date-capital autocomplete="off"></th>
+                                        <th><input type="text" data-workorder-filter="approval_date" placeholder="Date" maxlength="11" data-project-date data-project-date-capital autocomplete="off"></th>
                                         <th><input type="search" data-workorder-filter="invoice" placeholder="Invoice"></th>
-                                        <th><input type="search" data-workorder-filter="invoice_date" placeholder="Date"></th>
-                                        <th><input type="search" data-workorder-filter="ship_date" placeholder="Date"></th>
+                                        <th><input type="text" data-workorder-filter="invoice_date" placeholder="Date" maxlength="11" data-project-date data-project-date-capital autocomplete="off"></th>
+                                        <th><input type="text" data-workorder-filter="ship_date" placeholder="Date" maxlength="11" data-project-date data-project-date-capital autocomplete="off"></th>
                                         <th><input type="search" data-workorder-filter="awb" placeholder="AWB #"></th>
                                         <th></th>
                                     </tr>
                                     </thead>
                                     <tbody id="marketingWorkordersRows">
-                                    <tr><td colspan="16" class="text-center text-muted py-4">Select company</td></tr>
+                                    <tr><td colspan="16" class="marketing-workorders-empty-cell text-muted"><span class="marketing-workorders-empty-content">Select a company to view workorders. Files are attached to a specific WO.</span></td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -2119,7 +2439,7 @@
                         </div>
                         <div class="marketing-field">
                             <label>WO Estimate Date</label>
-                            <input name="estimate_date" class="form-control form-control-sm" type="date" autocomplete="off">
+                            <input name="estimate_date" class="form-control form-control-sm" type="text" maxlength="11" placeholder=".... /.... /......" data-project-date data-project-date-capital autocomplete="off">
                         </div>
                         <div class="marketing-field">
                             <label>Invoice</label>
@@ -2127,11 +2447,11 @@
                         </div>
                         <div class="marketing-field">
                             <label>Invoice Date</label>
-                            <input name="sales_invoice_date" class="form-control form-control-sm" type="date" autocomplete="off">
+                            <input name="sales_invoice_date" class="form-control form-control-sm" type="text" maxlength="11" placeholder=".... /.... /......" data-project-date data-project-date-capital autocomplete="off">
                         </div>
                         <div class="marketing-field">
                             <label>Ship Date</label>
-                            <input name="shipping_shipment_at" class="form-control form-control-sm" type="date" autocomplete="off">
+                            <input name="shipping_shipment_at" class="form-control form-control-sm" type="text" maxlength="11" placeholder=".... /.... /......" data-project-date data-project-date-capital autocomplete="off">
                         </div>
                         <div class="marketing-field">
                             <label>AWB #</label>
@@ -2158,7 +2478,85 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" id="marketingMediaBody">
-                    <div class="text-center text-muted py-4">Loading<span class="marketing-loading-dots"><span></span><span></span><span></span></span></div>
+                    <div class="marketing-files-shell">
+                        <section class="marketing-files-panel">
+                            <h6 class="marketing-files-panel-title">
+                                <span><i class="bi bi-people me-1"></i>Manager Files</span>
+                                <span class="badge bg-secondary" id="marketingManagerFilesCount">0</span>
+                            </h6>
+                            <form id="marketingFileUploadForm" data-no-spinner enctype="multipart/form-data" autocomplete="off">
+                                <input type="hidden" name="version_of_id" value="">
+                                <div class="marketing-file-version-state" id="marketingFileVersionState">
+                                    <span id="marketingFileVersionLabel"></span>
+                                    <button class="btn btn-sm btn-outline-secondary py-0" type="button" data-marketing-version-cancel>Cancel</button>
+                                </div>
+                                <div class="marketing-file-upload-grid mt-2">
+                                    <div class="span-2">
+                                        <label for="marketingFileInput">Files</label>
+                                        <input class="form-control form-control-sm" id="marketingFileInput" name="files[]" type="file" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt">
+                                        <div class="form-text">Up to 10 files, 10 MB each.</div>
+                                    </div>
+                                    <div>
+                                        <label for="marketingFileCategory">Category</label>
+                                        <select class="form-select form-select-sm" id="marketingFileCategory" name="category" required>
+                                            @foreach(\App\Models\MarketingWoFile::CATEGORIES as $key => $label)
+                                                <option value="{{ $key }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="marketingFileDisplayName">Display Name</label>
+                                        <input class="form-control form-control-sm" id="marketingFileDisplayName" name="display_name" type="text" maxlength="255" placeholder="Optional for one file">
+                                    </div>
+                                    <div class="span-2">
+                                        <label for="marketingFileComment">Comment</label>
+                                        <textarea class="form-control form-control-sm" id="marketingFileComment" name="comment" rows="2" maxlength="2000" placeholder="What should other managers know?"></textarea>
+                                    </div>
+                                    <div class="span-2">
+                                        <label for="marketingFileRecipients">Notify Managers</label>
+                                        <select class="form-select form-select-sm" id="marketingFileRecipients" name="recipient_ids[]" multiple size="4">
+                                            @foreach($marketingFileRecipients as $recipient)
+                                                @if((int) $recipient->id !== (int) auth()->id())
+                                                    <option value="{{ $recipient->id }}">{{ $recipient->selection_name }} — {{ $recipient->email }}</option>
+                                                @endif
+                                            @endforeach
+                                        </select>
+                                        <div class="form-text">Selected managers receive an in-app notification.</div>
+                                    </div>
+                                    <div class="span-2 marketing-file-notify-row">
+                                        <label class="form-check d-flex align-items-center gap-2 mb-0 text-capitalize" for="marketingFileSendEmail">
+                                            <input class="form-check-input mt-0" id="marketingFileSendEmail" name="send_email" type="checkbox" value="1">
+                                            <span>Send email notification</span>
+                                        </label>
+                                        <button class="btn btn-sm btn-primary" type="submit" data-marketing-file-upload>
+                                            <i class="bi bi-upload"></i>
+                                            <span>Upload</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                            <div class="marketing-manager-files-list" id="marketingManagerFilesList">
+                                <div class="text-center text-muted py-4">Select a workorder.</div>
+                            </div>
+                        </section>
+
+                        <section class="marketing-files-panel marketing-files-production">
+                            <h6 class="marketing-files-panel-title">
+                                <span><i class="bi bi-tools me-1"></i>Production Files</span>
+                            </h6>
+                            <div class="small text-muted mb-3">Existing WO photos and generated/uploaded production PDFs are shown separately.</div>
+                            <div class="marketing-files-production-body" id="marketingProductionFilesBody">
+                                <section class="marketing-files-production-group">
+                                    <h6 class="marketing-media-group-title">Images <span class="badge bg-secondary" id="marketingProductionImagesCount">0</span></h6>
+                                    <div id="marketingProductionImages"><div class="marketing-empty">No images</div></div>
+                                </section>
+                                <section class="marketing-files-production-group">
+                                    <h6 class="marketing-media-group-title">PDF <span class="badge bg-secondary" id="marketingProductionPdfsCount">0</span></h6>
+                                    <div id="marketingProductionPdfs"><div class="marketing-empty">No PDF files</div></div>
+                                </section>
+                            </div>
+                        </section>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2214,6 +2612,7 @@
             const allowedTabs = ['overview', 'contacts', 'notes', 'workorders', 'sales_report'];
             const addressCategoryLabels = @json($addressCategoryLabels);
             const addressCategoryKeys = Object.keys(addressCategoryLabels);
+            const contactTypeOptions = ['WO Estimates', 'WO Estimates/ Invoices', 'Invoices', 'Other'];
             const profileAddressFieldNames = ['country_id', 'city', 'state_province', 'post_code', 'street_address'];
 
             const shell = document.getElementById('marketingShell');
@@ -2227,7 +2626,6 @@
             const detailTitle = document.getElementById('detailTitle');
             const detailMeta = document.getElementById('detailMeta');
             const profileForm = document.getElementById('marketingProfileForm');
-            const contactForm = document.getElementById('marketingContactForm');
             const contactNewToggle = document.querySelector('[data-contact-new-toggle]');
             const noteForm = document.getElementById('marketingNoteForm');
             const createForm = document.getElementById('marketingCreateForm');
@@ -2260,12 +2658,21 @@
             const workorderSalesModalEl = document.getElementById('marketingWorkorderSalesModal');
             const workorderSalesForm = document.getElementById('marketingWorkorderSalesForm');
             const workorderSalesDateInputs = workorderSalesForm
-                ? Array.from(workorderSalesForm.querySelectorAll('input[type="date"]'))
+                ? Array.from(workorderSalesForm.querySelectorAll('input[data-project-date]'))
                 : [];
             const workorderSalesTitle = document.getElementById('marketingWorkorderSalesTitle');
             const mediaModalEl = document.getElementById('marketingMediaModal');
             const mediaTitle = document.getElementById('marketingMediaTitle');
             const mediaBody = document.getElementById('marketingMediaBody');
+            const marketingFileUploadForm = document.getElementById('marketingFileUploadForm');
+            const marketingManagerFilesList = document.getElementById('marketingManagerFilesList');
+            const marketingManagerFilesCount = document.getElementById('marketingManagerFilesCount');
+            const marketingFileVersionState = document.getElementById('marketingFileVersionState');
+            const marketingFileVersionLabel = document.getElementById('marketingFileVersionLabel');
+            const marketingProductionImages = document.getElementById('marketingProductionImages');
+            const marketingProductionPdfs = document.getElementById('marketingProductionPdfs');
+            const marketingProductionImagesCount = document.getElementById('marketingProductionImagesCount');
+            const marketingProductionPdfsCount = document.getElementById('marketingProductionPdfsCount');
             const unsavedModalEl = document.getElementById('marketingUnsavedModal');
             const unsavedConfirmButton = unsavedModalEl?.querySelector('[data-unsaved-confirm]');
             const workordersColumnCount = 16;
@@ -2302,6 +2709,8 @@
                 salesReportMode: 'customer',
                 activeAddressCategory: addressCategoryKeys[0] || '',
                 addressDrafts: [],
+                contactDraftOpen: false,
+                activeWorkorderFiles: null,
             };
             let overviewTextareaHeights = {};
             let overviewTextareaHeightsRestored = false;
@@ -2421,11 +2830,31 @@
                 return data;
             }
 
+            async function requestFormData(url, formData, method = 'POST') {
+                const response = await fetch(url, {
+                    method,
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    spinner: false,
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const message = data.message || Object.values(data.errors || {}).flat().join(' ') || `HTTP ${response.status}`;
+                    throw new Error(message);
+                }
+
+                return data;
+            }
+
             function formDataObject(form) {
-                const fd = new FormData(form);
                 const data = {};
 
-                fd.forEach((value, key) => {
+                const appendValue = (key, value) => {
                     if (key.endsWith('[]')) {
                         const cleanKey = key.slice(0, -2);
                         data[cleanKey] = data[cleanKey] || [];
@@ -2434,13 +2863,33 @@
                     }
 
                     data[key] = value === '' ? null : value;
-                });
+                };
 
-                form.querySelectorAll('input[type="checkbox"][name]').forEach((input) => {
+                if (form?.tagName === 'FORM') {
+                    const fd = new FormData(form);
+                    fd.forEach((value, key) => appendValue(key, value));
+                } else {
+                    form?.querySelectorAll?.('input[name], select[name], textarea[name]')?.forEach((field) => {
+                        if (field.type === 'checkbox') {
+                            data[field.name] = field.checked ? 1 : 0;
+                            return;
+                        }
+
+                        if (field.multiple) {
+                            const key = field.name.replace(/\[\]$/, '');
+                            data[key] = Array.from(field.selectedOptions).map((option) => option.value);
+                            return;
+                        }
+
+                        appendValue(field.name, field.value);
+                    });
+                }
+
+                form?.querySelectorAll?.('input[type="checkbox"][name]')?.forEach((input) => {
                     data[input.name] = input.checked ? 1 : 0;
                 });
 
-                form.querySelectorAll('select[multiple][name]').forEach((select) => {
+                form?.querySelectorAll?.('select[multiple][name]')?.forEach((select) => {
                     const key = select.name.replace(/\[\]$/, '');
                     data[key] = Array.from(select.selectedOptions).map((option) => option.value);
                 });
@@ -2690,6 +3139,12 @@
             }
 
             async function restoreActiveTab() {
+                const urlTab = new URLSearchParams(window.location.search).get('tab');
+                if (urlTab && allowedTabs.includes(urlTab)) {
+                    await switchTab(urlTab, false, { skipUnsavedCheck: true });
+                    return;
+                }
+
                 try {
                     const saved = await window.UserUiSettings?.get(scope, tabKey, 'overview');
                     await switchTab(saved || 'overview', false, { skipUnsavedCheck: true });
@@ -3324,7 +3779,7 @@
                 if (!form) return;
 
                 form.classList.toggle('is-editing', editing);
-                form.querySelectorAll('input[name="first_name"], input[name="last_name"], input[name="position"], input[name="email"], input[name="phone"]').forEach((input) => {
+                form.querySelectorAll('input[name="first_name"], input[name="last_name"], input[name="position"], input[name="email"], input[name="email_2"], input[name="phone"], input[name="cell_phone"]').forEach((input) => {
                     input.readOnly = !editing;
                 });
 
@@ -3332,16 +3787,20 @@
                     input.disabled = !editing;
                 });
 
+                form.querySelectorAll('select[name="contact_type"]').forEach((select) => {
+                    select.disabled = !editing;
+                });
+
                 refreshFormDirtyState(form);
             }
 
             function contactCopyText(contacts, mode) {
                 if (mode === 'emails') {
-                    return contacts.map((contact) => contact.email || '').filter(Boolean).join('\n');
+                    return contacts.flatMap((contact) => [contact.email || '', contact.email_2 || '']).filter(Boolean).join('\n');
                 }
 
                 if (mode === 'phones') {
-                    return contacts.map((contact) => contact.phone || '').filter(Boolean).join('\n');
+                    return contacts.flatMap((contact) => [contact.phone || '', contact.cell_phone || '']).filter(Boolean).join('\n');
                 }
 
                 return contacts.map((contact) => {
@@ -3349,7 +3808,10 @@
                         contact.full_name || [contact.first_name, contact.last_name].filter(Boolean).join(' '),
                         contact.position,
                         contact.email,
+                        contact.email_2,
                         contact.phone,
+                        contact.cell_phone,
+                        contact.contact_type,
                         contact.is_primary ? 'Primary contact' : '',
                     ].filter(Boolean);
 
@@ -3390,46 +3852,116 @@
             }
 
             function setNewContactFormVisible(visible) {
-                contactForm.hidden = !visible;
+                state.contactDraftOpen = !!visible;
                 contactNewToggle?.classList.toggle('active', visible);
                 contactNewToggle?.setAttribute('aria-expanded', visible ? 'true' : 'false');
+                renderContacts(state.selectedCustomer?.contacts || []);
 
                 if (visible) {
-                    contactForm.querySelector('input[name="first_name"]')?.focus();
-                } else {
-                    contactForm.reset();
+                    contactsList.querySelector('.js-contact-row.is-new input[name="first_name"]')?.focus();
                 }
             }
 
+            function contactTypeRank(value) {
+                const rank = contactTypeOptions.indexOf(String(value || ''));
+                return rank >= 0 ? rank : contactTypeOptions.length;
+            }
+
+            function sortedContacts(contacts) {
+                return [...contacts].sort((a, b) => (
+                    contactTypeRank(a.contact_type) - contactTypeRank(b.contact_type)
+                    || Number(a.sort_order || 0) - Number(b.sort_order || 0)
+                    || String(a.last_name || '').localeCompare(String(b.last_name || ''))
+                    || String(a.first_name || '').localeCompare(String(b.first_name || ''))
+                    || Number(a.id || 0) - Number(b.id || 0)
+                ));
+            }
+
+            function contactTypeSelectHtml(value = '') {
+                return `<select name="contact_type" class="form-select form-select-sm marketing-contact-cell-control" autocomplete="off" disabled>
+  <option value=""></option>
+  ${contactTypeOptions.map((option) => `<option value="${escapeHtml(option)}" ${String(value || '') === option ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
+</select>`;
+            }
+
+            function contactTextInputHtml(name, value, placeholder, options = {}) {
+                return `<input name="${name}" class="form-control form-control-sm marketing-contact-cell-control" type="${options.type || 'text'}" maxlength="${options.maxlength || 120}" value="${escapeHtml(value || '')}" placeholder="${escapeHtml(placeholder)}" autocomplete="off" autocorrect="${options.autocorrect || 'off'}" autocapitalize="${options.autocapitalize || 'off'}" spellcheck="${options.spellcheck || 'false'}" readonly>`;
+            }
+
+            function contactRowHtml(contact, isNew = false) {
+                return `
+<tr class="marketing-contact-row js-contact-row ${isNew ? 'is-editing is-new' : ''}" ${isNew ? 'data-contact-new="1"' : `data-contact-id="${contact.id}"`} data-no-spinner>
+  <td class="marketing-contact-col-first">${contactTextInputHtml('first_name', contact.first_name, 'First Name', { autocorrect: 'on', autocapitalize: 'words', spellcheck: 'true' })}</td>
+  <td class="marketing-contact-col-last">${contactTextInputHtml('last_name', contact.last_name, 'Last Name', { autocorrect: 'on', autocapitalize: 'words', spellcheck: 'true' })}</td>
+  <td class="marketing-contact-col-position">${contactTextInputHtml('position', contact.position, 'Position', { maxlength: 160, autocorrect: 'on', autocapitalize: 'words', spellcheck: 'true' })}</td>
+  <td class="marketing-contact-col-email">${contactTextInputHtml('email', contact.email, 'Email', { type: 'email', maxlength: 190 })}</td>
+  <td class="marketing-contact-col-email2">${contactTextInputHtml('email_2', contact.email_2, 'Email 2', { type: 'email', maxlength: 190 })}</td>
+  <td class="marketing-contact-col-phone">${contactTextInputHtml('phone', contact.phone, 'Office #', { maxlength: 80 })}</td>
+  <td class="marketing-contact-col-cell">${contactTextInputHtml('cell_phone', contact.cell_phone, 'Cell #', { maxlength: 80 })}</td>
+  <td class="marketing-contact-col-type">${contactTypeSelectHtml(contact.contact_type)}</td>
+  <td class="marketing-contact-col-primary text-center">
+    <input name="is_primary" class="form-check-input mt-0" type="checkbox" value="1" ${contact.is_primary ? 'checked' : ''} disabled title="Primary">
+  </td>
+  <td class="marketing-contact-col-actions">
+    <div class="marketing-contact-actions">
+      <button class="btn btn-sm btn-outline-secondary marketing-contact-edit" type="button" title="Edit contact" aria-label="Edit contact"><i class="bi bi-pencil"></i></button>
+      <button class="btn btn-sm btn-outline-secondary marketing-contact-cancel" type="button" title="Cancel editing" aria-label="Cancel editing"><i class="bi bi-x-lg"></i></button>
+      <button class="btn btn-sm btn-outline-primary marketing-save-button marketing-contact-save" type="button" data-save-button title="Save" aria-label="Save contact"><i class="bi bi-check-lg" data-save-icon></i></button>
+      <button class="btn btn-sm btn-outline-danger js-contact-delete" type="button" title="Delete" aria-label="Delete contact"><i class="bi bi-trash"></i></button>
+    </div>
+  </td>
+</tr>`;
+            }
+
             function renderContacts(contacts) {
-                if (!contacts.length) {
+                if (!contacts.length && !state.contactDraftOpen) {
                     contactsList.innerHTML = '<div class="marketing-empty">No contacts</div>';
                     return;
                 }
 
-                contactsList.innerHTML = contacts.map((contact) => `
-<form class="marketing-contact-row js-contact-row" data-contact-id="${contact.id}" data-no-spinner autocomplete="off">
-  <input name="first_name" class="form-control form-control-sm" value="${escapeHtml(contact.first_name)}" placeholder="First Name" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true" readonly>
-  <input name="last_name" class="form-control form-control-sm" value="${escapeHtml(contact.last_name)}" placeholder="Last Name" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true" readonly>
-  <input name="position" class="form-control form-control-sm" value="${escapeHtml(contact.position)}" placeholder="Position" autocomplete="off" autocorrect="on" autocapitalize="words" spellcheck="true" readonly>
-  <input name="email" class="form-control form-control-sm" value="${escapeHtml(contact.email)}" placeholder="Email" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly>
-  <input name="phone" class="form-control form-control-sm" value="${escapeHtml(contact.phone)}" placeholder="Phone" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly>
-  <div class="marketing-contact-primary-actions">
-    <label class="d-flex align-items-center gap-2 small fw-bold mb-0">
-      <input name="is_primary" class="form-check-input mt-0" type="checkbox" value="1" ${contact.is_primary ? 'checked' : ''} disabled>
-      Primary
-    </label>
-    <div class="marketing-contact-actions">
-      <button class="btn btn-sm btn-outline-secondary marketing-contact-edit" type="button" title="Edit contact"><i class="bi bi-pencil"></i><span>Edit</span></button>
-      <button class="btn btn-sm btn-outline-secondary marketing-contact-cancel" type="button" title="Cancel editing"><i class="bi bi-x-lg"></i></button>
-      <button class="btn btn-sm btn-outline-primary marketing-save-button marketing-contact-save" type="submit" data-save-button title="Save"><i class="bi bi-check-lg" data-save-icon></i></button>
-      <button class="btn btn-sm btn-outline-danger js-contact-delete" type="button" title="Delete"><i class="bi bi-trash"></i></button>
-    </div>
-  </div>
-</form>`).join('');
+                const rows = sortedContacts(contacts).map((contact) => contactRowHtml(contact));
+                if (state.contactDraftOpen) {
+                    rows.push(contactRowHtml({
+                        first_name: '',
+                        last_name: '',
+                        position: '',
+                        email: '',
+                        email_2: '',
+                        phone: '',
+                        cell_phone: '',
+                        contact_type: '',
+                        is_primary: contacts.length === 0,
+                    }, true));
+                }
+
+                contactsList.innerHTML = `
+<div class="marketing-contacts-wrap dir-table-wrap">
+  <table class="table table-sm table-hover align-middle mb-0 dir-table dir-table--ellipsis marketing-contacts-table">
+    <thead>
+      <tr>
+        <th class="marketing-contact-col-first">First Name</th>
+        <th class="marketing-contact-col-last">Last Name</th>
+        <th class="marketing-contact-col-position">Position</th>
+        <th class="marketing-contact-col-email">Email</th>
+        <th class="marketing-contact-col-email2">Email 2</th>
+        <th class="marketing-contact-col-phone">Office #</th>
+        <th class="marketing-contact-col-cell">Cell #</th>
+        <th class="marketing-contact-col-type">
+          <button class="marketing-contact-sort-button" type="button" data-contact-sort="type" title="Sorted: WO Estimates, WO Estimates/ Invoices, Invoices, Other">
+            <span>Type of Contact</span>
+            <i class="bi bi-sort-down"></i>
+          </button>
+        </th>
+        <th class="marketing-contact-col-primary text-center" title="Primary contact">Primary</th>
+        <th class="marketing-contact-col-actions text-end">Action</th>
+      </tr>
+    </thead>
+    <tbody>${rows.join('')}</tbody>
+  </table>
+</div>`;
                 disableAutocomplete(contactsList);
                 contactsList.querySelectorAll('.js-contact-row').forEach((form) => {
-                    setContactFormEditing(form, false);
+                    setContactFormEditing(form, form.classList.contains('is-new'));
                     markFormClean(form);
                 });
             }
@@ -3458,6 +3990,7 @@
     <span>${escapeHtml(note.interaction_at?.display || '')} ${note.contact_name ? '/ ' + escapeHtml(note.contact_name) : ''}</span>
     <span>${follow}</span>
   </div>
+  ${note.subject ? `<div class="marketing-note-subject">${escapeHtml(note.subject)}</div>` : ''}
   <div class="marketing-note-text">${escapeHtml(note.note)}</div>
   <div class="marketing-actions">
     ${note.follow_up_status === 'open' ? `<button class="btn btn-sm btn-outline-success js-note-done" type="button" title="Mark follow-up as done"><i class="bi bi-check2-circle"></i><span>Follow-up done</span></button>` : ''}
@@ -3497,17 +4030,18 @@
                 if (index >= 0) state.rows[index] = customer;
             }
 
-            async function addContact(event) {
-                event.preventDefault();
+            async function addContact(row) {
                 if (!state.selectedCustomer) return;
+                setSaveButtonSaving(row, true);
 
                 try {
                     const data = await requestJson(urlFor(routes.storeContact, state.selectedCustomer.id), {
                         method: 'POST',
-                        body: JSON.stringify(formDataObject(contactForm)),
+                        body: JSON.stringify(formDataObject(row)),
                     });
-                    contactForm.reset();
-                    setNewContactFormVisible(false);
+                    state.contactDraftOpen = false;
+                    contactNewToggle?.classList.remove('active');
+                    contactNewToggle?.setAttribute('aria-expanded', 'false');
                     state.selectedCustomer = data.customer;
                     updateRowCache(data.customer);
                     renderDetail();
@@ -3516,6 +4050,7 @@
                 } catch (error) {
                     notify(error.message, 'error');
                 } finally {
+                    setSaveButtonSaving(row, false);
                     window.safeHideSpinner?.();
                 }
             }
@@ -3661,10 +4196,16 @@
   <td>${escapeHtml(wo.shipping_shipment_at?.display || '-')}</td>
   <td>${escapeHtml(wo.shipping_awb_no || '-')}</td>
   <td>
-    <button class="btn btn-sm btn-outline-info js-marketing-media" type="button" data-media-kind="photos" data-media-count="${Number(wo.image_count || 0)}" data-media-url="${escapeHtml(wo.urls.photos)}" data-wo-label="${escapeHtml(wo.number_label)}" title="Images"><i class="bi bi-images"></i> ${Number(wo.image_count || 0)}</button>
-    <button class="btn btn-sm btn-outline-info js-marketing-media" type="button" data-media-kind="pdfs" data-media-count="${Number(wo.pdf_count || 0)}" data-media-url="${escapeHtml(wo.urls.pdfs)}" data-wo-label="${escapeHtml(wo.number_label)}" title="PDF"><i class="bi bi-file-earmark-pdf"></i> ${Number(wo.pdf_count || 0)}</button>
+    <button class="btn btn-sm btn-outline-info marketing-files-cell-button js-marketing-files" type="button" data-workorder-id="${Number(wo.id || 0)}" data-files-url="${escapeHtml(wo.urls.files)}" data-wo-label="${escapeHtml(wo.number_label)}" title="Manager and production files">
+      <i class="bi bi-paperclip"></i> Files ${Number(wo.marketing_file_count || 0)}
+      ${Number(wo.marketing_unread_file_count || 0) > 0 ? `<span class="marketing-files-unread">${Number(wo.marketing_unread_file_count)}</span>` : ''}
+    </button>
   </td>
 </tr>`;
+            }
+
+            function workorderStatusRow(content, tone = 'muted') {
+                return `<tr><td colspan="${workordersColumnCount}" class="marketing-workorders-empty-cell text-${escapeHtml(tone)}"><span class="marketing-workorders-empty-content">${content}</span></td></tr>`;
             }
 
             function renderWorkorders(items, append = false) {
@@ -3674,7 +4215,8 @@
                 }
 
                 if (!items.length && !append) {
-                    workordersRows.innerHTML = `<tr><td colspan="${workordersColumnCount}" class="text-center text-muted py-4">No workorders</td></tr>`;
+                    const companyName = state.selectedCustomer?.name || 'this company';
+                    workordersRows.innerHTML = workorderStatusRow(`No workorders for ${escapeHtml(companyName)}. Files are attached to a specific WO; select a company with workorders to use Manager Files.`);
                     return;
                 }
 
@@ -3690,6 +4232,14 @@
                 });
             }
 
+            function setWorkorderSalesDateValue(input, value) {
+                if (!input) return;
+
+                input.value = value || '';
+                const picker = input._projectDatePicker || input._flatpickr;
+                picker?.setDate(input.value || null, false);
+            }
+
             function openWorkorderSalesModal(id) {
                 const wo = state.workordersById.get(Number(id));
                 if (!wo || !workorderSalesForm || !workorderSalesModalEl) return;
@@ -3699,10 +4249,10 @@
                 workorderSalesForm.reset();
                 workorderSalesForm.elements.wo_terms.value = wo.terms || '';
                 workorderSalesForm.elements.wo_estimate_amount.value = wo.estimate_amount?.value || '';
-                workorderSalesForm.elements.estimate_date.value = wo.estimate_date?.iso || '';
+                setWorkorderSalesDateValue(workorderSalesForm.elements.estimate_date, wo.estimate_date?.display || '');
                 workorderSalesForm.elements.sales_invoice_amount.value = wo.sales_invoice_amount?.value || '';
-                workorderSalesForm.elements.sales_invoice_date.value = wo.sales_invoice_date?.iso || '';
-                workorderSalesForm.elements.shipping_shipment_at.value = wo.shipping_shipment_at?.iso || '';
+                setWorkorderSalesDateValue(workorderSalesForm.elements.sales_invoice_date, wo.sales_invoice_date?.display || '');
+                setWorkorderSalesDateValue(workorderSalesForm.elements.shipping_shipment_at, wo.shipping_shipment_at?.display || '');
                 workorderSalesForm.elements.shipping_awb_no.value = wo.shipping_awb_no || '';
                 syncWorkorderSalesDatePlaceholderState();
                 bootstrap.Modal.getOrCreateInstance(workorderSalesModalEl).show();
@@ -3752,7 +4302,7 @@
                     state.workordersLoaded = false;
                     state.workordersHasMore = false;
                     state.workordersById.clear();
-                    workordersRows.innerHTML = `<tr><td colspan="${workordersColumnCount}" class="text-center text-muted py-4">${loadingHtml('Loading')}</td></tr>`;
+                    workordersRows.innerHTML = workorderStatusRow(loadingHtml('Loading'));
                     if (workordersScroll) workordersScroll.scrollTop = 0;
                 }
 
@@ -3794,7 +4344,7 @@
                         && Number(customerId) === Number(state.selectedCustomer?.id);
 
                     if (isCurrentRequest) {
-                        workordersRows.innerHTML = `<tr><td colspan="${workordersColumnCount}" class="text-center text-danger py-4">${escapeHtml(error.message)}</td></tr>`;
+                        workordersRows.innerHTML = workorderStatusRow(escapeHtml(error.message), 'danger');
                     }
                 } finally {
                     if (requestSeq === state.workordersRequestSeq) {
@@ -4031,13 +4581,13 @@
                 })).filter((item) => item.url);
             }
 
-            function renderPhotoModal(groups, groupName = 'marketing-media') {
+            function renderPhotoModal(groups, groupName = 'marketing-media', target = marketingProductionImages) {
                 if (!groups.length) {
-                    mediaBody.innerHTML = '<div class="marketing-empty">No images</div>';
+                    target.innerHTML = '<div class="marketing-empty">No images</div>';
                     return;
                 }
 
-                mediaBody.innerHTML = groups.map((group) => `
+                target.innerHTML = groups.map((group) => `
 <section class="marketing-media-group">
   <h6 class="marketing-media-group-title">${escapeHtml(group.label)}</h6>
   <div class="marketing-media-grid">${group.items.map((item) => `
@@ -4047,14 +4597,14 @@
 </section>`).join('');
             }
 
-            function renderPdfModal(items) {
+            function renderPdfModal(items, target = marketingProductionPdfs) {
                 if (!items.length) {
-                    mediaBody.innerHTML = '<div class="marketing-empty">No PDF files</div>';
+                    target.innerHTML = '<div class="marketing-empty">No PDF files</div>';
                     return;
                 }
 
                 const first = items[0];
-                mediaBody.innerHTML = `
+                target.innerHTML = `
 <div class="marketing-media-pdf-layout">
   <div class="marketing-media-pdf-list list-group">
     ${items.map((item, index) => `
@@ -4068,35 +4618,150 @@
 </div>`;
             }
 
-            async function openMediaModal(button) {
-                const kind = button.dataset.mediaKind;
-                const url = button.dataset.mediaUrl;
-                const woLabel = button.dataset.woLabel || 'WO';
-                const count = Number(button.dataset.mediaCount || 0);
-                if (!kind || !url) return;
+            function marketingFileIcon(mime) {
+                if (String(mime || '').startsWith('image/')) return 'bi-file-earmark-image';
+                if (String(mime || '').includes('pdf')) return 'bi-file-earmark-pdf';
+                if (String(mime || '').includes('spreadsheet') || String(mime || '').includes('excel') || String(mime || '').includes('csv')) return 'bi-file-earmark-spreadsheet';
+                if (String(mime || '').includes('word')) return 'bi-file-earmark-word';
+                return 'bi-file-earmark';
+            }
 
-                mediaTitle.textContent = `${woLabel} ${kind === 'pdfs' ? 'PDF' : 'Images'}`;
-                mediaBody.innerHTML = `<div class="text-center text-muted py-4">${loadingHtml('Loading')}</div>`;
-                bootstrap.Modal.getOrCreateInstance(mediaModalEl).show();
-
-                if (count <= 0) {
-                    if (kind === 'pdfs') {
-                        renderPdfModal([]);
-                    } else {
-                        renderPhotoModal([]);
-                    }
+            function renderManagerFiles(files) {
+                marketingManagerFilesCount.textContent = String(files.length);
+                if (!files.length) {
+                    marketingManagerFilesList.innerHTML = '<div class="marketing-empty">No manager files yet</div>';
                     return;
                 }
 
+                marketingManagerFilesList.innerHTML = files.map((file) => {
+                    const recipients = (file.recipients || []).join(', ');
+                    return `
+<article class="marketing-file-item" data-marketing-file-id="${Number(file.id)}">
+  <div>
+    <div class="marketing-file-name"><i class="bi ${marketingFileIcon(file.mime_type)} me-1"></i>${escapeHtml(file.display_name)}</div>
+    <div class="marketing-file-meta">${escapeHtml(file.category_label)} · v${Number(file.version_number || 1)} · ${escapeHtml(file.size_label)} · ${escapeHtml(file.uploader_name)} · ${escapeHtml(file.uploaded_at)}</div>
+    ${file.comment ? `<div class="marketing-file-comment">${escapeHtml(file.comment)}</div>` : ''}
+    <div class="marketing-file-recipients"><i class="bi bi-bell me-1"></i>${escapeHtml(file.notification_label)}${recipients ? ` · ${escapeHtml(recipients)}` : ''}</div>
+  </div>
+  <div class="marketing-file-actions">
+    ${file.is_previewable ? `<a class="btn btn-sm btn-outline-info" href="${escapeHtml(file.urls.preview)}" target="_blank" rel="noopener" title="Preview"><i class="bi bi-eye"></i></a>` : ''}
+    <a class="btn btn-sm btn-outline-primary" href="${escapeHtml(file.urls.download)}" title="Download"><i class="bi bi-download"></i></a>
+    <button class="btn btn-sm btn-outline-secondary js-marketing-file-version" type="button" data-file-id="${Number(file.id)}" data-file-name="${escapeHtml(file.display_name)}" data-file-category="${escapeHtml(file.category)}" title="Upload new version"><i class="bi bi-layers"></i></button>
+    ${file.can_delete ? `<button class="btn btn-sm btn-outline-danger js-marketing-file-delete" type="button" data-delete-url="${escapeHtml(file.urls.delete)}" data-file-name="${escapeHtml(file.display_name)}" title="Delete"><i class="bi bi-trash"></i></button>` : ''}
+  </div>
+</article>`;
+                }).join('');
+            }
+
+            function resetMarketingFileVersion() {
+                if (!marketingFileUploadForm) return;
+                marketingFileUploadForm.elements.version_of_id.value = '';
+                marketingFileVersionLabel.textContent = '';
+                marketingFileVersionState.classList.remove('is-active');
+            }
+
+            function updateWorkorderFileSummary(summary) {
+                const workorderId = Number(state.activeWorkorderFiles?.workorderId || 0);
+                const workorder = state.workordersById.get(workorderId);
+                if (!workorder) return;
+
+                workorder.marketing_file_count = Number(summary?.manager_count || 0);
+                workorder.marketing_unread_file_count = Number(summary?.unread_count || 0);
+                replaceRenderedWorkorderRow(workorder);
+            }
+
+            async function loadProductionFiles(data) {
+                const summary = data.summary || {};
+                marketingProductionImagesCount.textContent = String(Number(summary.production_image_count || 0));
+                marketingProductionPdfsCount.textContent = String(Number(summary.production_pdf_count || 0));
+                marketingProductionImages.innerHTML = `<div class="text-center text-muted py-3">${loadingHtml('Loading')}</div>`;
+                marketingProductionPdfs.innerHTML = `<div class="text-center text-muted py-3">${loadingHtml('Loading')}</div>`;
+
+                const photosPromise = Number(summary.production_image_count || 0) > 0
+                    ? requestJson(data.production.photos_url, { method: 'GET', headers: { 'Content-Type': 'application/json' } })
+                    : Promise.resolve({ groups: {}, media: {} });
+                const pdfsPromise = Number(summary.production_pdf_count || 0) > 0
+                    ? requestJson(data.production.pdfs_url, { method: 'GET', headers: { 'Content-Type': 'application/json' } })
+                    : Promise.resolve({ pdfs: [] });
+
+                const [photosResult, pdfsResult] = await Promise.allSettled([photosPromise, pdfsPromise]);
+                if (photosResult.status === 'fulfilled') {
+                    renderPhotoModal(normalizePhotoPayload(photosResult.value), `marketing-${data.workorder.number_label}-photos`);
+                } else {
+                    marketingProductionImages.innerHTML = `<div class="text-danger small">${escapeHtml(photosResult.reason?.message || 'Images could not be loaded.')}</div>`;
+                }
+
+                if (pdfsResult.status === 'fulfilled') {
+                    renderPdfModal(normalizePdfPayload(pdfsResult.value));
+                } else {
+                    marketingProductionPdfs.innerHTML = `<div class="text-danger small">${escapeHtml(pdfsResult.reason?.message || 'PDF files could not be loaded.')}</div>`;
+                }
+            }
+
+            function renderFilesWorkspace(data, loadProduction = true) {
+                state.activeWorkorderFiles = {
+                    ...(state.activeWorkorderFiles || {}),
+                    workorderId: Number(data.workorder.id),
+                    uploadUrl: data.urls.upload,
+                    filesUrl: state.activeWorkorderFiles?.filesUrl || '',
+                };
+                marketingFileUploadForm.action = data.urls.upload;
+                renderManagerFiles(data.manager_files || []);
+                updateWorkorderFileSummary(data.summary || {});
+                if (loadProduction) loadProductionFiles(data);
+            }
+
+            async function reloadActiveWorkorderFiles(loadProduction = false) {
+                const url = state.activeWorkorderFiles?.filesUrl;
+                if (!url) return;
+                const data = await requestJson(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+                renderFilesWorkspace(data, loadProduction);
+            }
+
+            async function openWorkorderFiles(button) {
+                const url = button.dataset.filesUrl;
+                const woLabel = button.dataset.woLabel || 'WO';
+                const workorderId = Number(button.dataset.workorderId || 0);
+                if (!url || !workorderId) return;
+
+                state.activeWorkorderFiles = { workorderId, filesUrl: url, uploadUrl: '' };
+                mediaTitle.textContent = `${woLabel} Files`;
+                marketingFileUploadForm.reset();
+                resetMarketingFileVersion();
+                marketingManagerFilesList.innerHTML = `<div class="text-center text-muted py-4">${loadingHtml('Loading')}</div>`;
+                marketingProductionImages.innerHTML = `<div class="text-center text-muted py-3">${loadingHtml('Loading')}</div>`;
+                marketingProductionPdfs.innerHTML = `<div class="text-center text-muted py-3">${loadingHtml('Loading')}</div>`;
+                bootstrap.Modal.getOrCreateInstance(mediaModalEl).show();
+
                 try {
                     const data = await requestJson(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
-                    if (kind === 'pdfs') {
-                        renderPdfModal(normalizePdfPayload(data));
-                    } else {
-                        renderPhotoModal(normalizePhotoPayload(data), `marketing-${button.dataset.woLabel || 'wo'}-photos`);
-                    }
+                    renderFilesWorkspace(data, true);
                 } catch (error) {
-                    mediaBody.innerHTML = `<div class="text-danger py-4">${escapeHtml(error.message)}</div>`;
+                    marketingManagerFilesList.innerHTML = `<div class="text-danger py-4">${escapeHtml(error.message)}</div>`;
+                }
+            }
+
+            async function uploadMarketingFiles(event) {
+                event.preventDefault();
+                const uploadUrl = state.activeWorkorderFiles?.uploadUrl || marketingFileUploadForm.action;
+                if (!uploadUrl) return;
+
+                const button = marketingFileUploadForm.querySelector('[data-marketing-file-upload]');
+                const originalHtml = button.innerHTML;
+                button.disabled = true;
+                button.innerHTML = `<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Uploading`;
+
+                try {
+                    const data = await requestFormData(uploadUrl, new FormData(marketingFileUploadForm));
+                    marketingFileUploadForm.reset();
+                    resetMarketingFileVersion();
+                    renderFilesWorkspace(data, false);
+                    notify('File uploaded');
+                } catch (error) {
+                    notify(error.message, 'error');
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = originalHtml;
                 }
             }
 
@@ -4167,6 +4832,7 @@
             workordersSearchClear?.addEventListener('click', clearWorkorderSearch);
             workorderFilterInputs.forEach((input) => {
                 input.addEventListener('input', debouncedWorkorderFilterReload);
+                input.addEventListener('change', debouncedWorkorderFilterReload);
             });
 
             tableScroll.addEventListener('scroll', () => {
@@ -4180,9 +4846,9 @@
             });
 
             workordersRows.addEventListener('click', (event) => {
-                const mediaBtn = event.target.closest('.js-marketing-media');
-                if (mediaBtn) {
-                    openMediaModal(mediaBtn);
+                const filesBtn = event.target.closest('.js-marketing-files');
+                if (filesBtn) {
+                    openWorkorderFiles(filesBtn);
                     return;
                 }
 
@@ -4242,17 +4908,50 @@
                     });
             }
 
-            mediaBody.addEventListener('click', (event) => {
+            mediaBody.addEventListener('click', async (event) => {
                 const pdfBtn = event.target.closest('.js-marketing-pdf-select');
                 const frame = mediaBody.querySelector('.marketing-media-pdf-frame');
-                if (!pdfBtn || !frame) return;
+                if (pdfBtn && frame) {
+                    mediaBody.querySelectorAll('.js-marketing-pdf-select').forEach((btn) => {
+                        btn.classList.toggle('active', btn === pdfBtn);
+                        btn.querySelector('.small')?.classList.toggle('text-white-50', btn === pdfBtn);
+                        btn.querySelector('.small')?.classList.toggle('text-muted', btn !== pdfBtn);
+                    });
+                    frame.src = pdfBtn.dataset.pdfUrl || '';
+                    return;
+                }
 
-                mediaBody.querySelectorAll('.js-marketing-pdf-select').forEach((btn) => {
-                    btn.classList.toggle('active', btn === pdfBtn);
-                    btn.querySelector('.small')?.classList.toggle('text-white-50', btn === pdfBtn);
-                    btn.querySelector('.small')?.classList.toggle('text-muted', btn !== pdfBtn);
-                });
-                frame.src = pdfBtn.dataset.pdfUrl || '';
+                const versionBtn = event.target.closest('.js-marketing-file-version');
+                if (versionBtn) {
+                    marketingFileUploadForm.reset();
+                    marketingFileUploadForm.elements.version_of_id.value = versionBtn.dataset.fileId || '';
+                    marketingFileUploadForm.elements.display_name.value = versionBtn.dataset.fileName || '';
+                    marketingFileUploadForm.elements.category.value = versionBtn.dataset.fileCategory || 'other';
+                    marketingFileVersionLabel.textContent = `New version of ${versionBtn.dataset.fileName || 'file'}`;
+                    marketingFileVersionState.classList.add('is-active');
+                    marketingFileUploadForm.elements.files.focus();
+                    return;
+                }
+
+                if (event.target.closest('[data-marketing-version-cancel]')) {
+                    marketingFileUploadForm.reset();
+                    resetMarketingFileVersion();
+                    return;
+                }
+
+                const deleteBtn = event.target.closest('.js-marketing-file-delete');
+                if (deleteBtn) {
+                    if (!window.confirm(`Delete ${deleteBtn.dataset.fileName || 'this file'}?`)) return;
+                    deleteBtn.disabled = true;
+                    try {
+                        await requestJson(deleteBtn.dataset.deleteUrl, { method: 'DELETE' });
+                        await reloadActiveWorkorderFiles(false);
+                        notify('File deleted');
+                    } catch (error) {
+                        notify(error.message, 'error');
+                        deleteBtn.disabled = false;
+                    }
+                }
             });
 
             document.addEventListener('pointerdown', (event) => {
@@ -4272,6 +4971,7 @@
 
             workorderSalesModalEl?.addEventListener('shown.bs.modal', (event) => {
                 disableAutocomplete(event.currentTarget);
+                window.initProjectDatePickers?.(event.currentTarget);
                 syncWorkorderSalesDatePlaceholderState();
                 workorderSalesForm?.elements?.sales_invoice_amount?.focus();
             });
@@ -4280,29 +4980,33 @@
                 state.editingWorkorderId = null;
             });
 
+            mediaModalEl?.addEventListener('hidden.bs.modal', () => {
+                state.activeWorkorderFiles = null;
+                marketingFileUploadForm?.reset();
+                resetMarketingFileVersion();
+            });
+
             profileForm.addEventListener('submit', saveProfile);
             profileForm.querySelector('[data-profile-save-button]')?.addEventListener('click', saveProfile);
             profileForm.addEventListener('input', handleDirtyFieldChange);
             profileForm.addEventListener('change', handleDirtyFieldChange);
-            contactForm.addEventListener('submit', addContact);
             noteForm.addEventListener('submit', addNote);
             createForm.addEventListener('submit', addCompany);
             workorderSalesForm?.addEventListener('submit', saveWorkorderSalesFields);
+            marketingFileUploadForm?.addEventListener('submit', uploadMarketingFiles);
             workorderSalesForm?.addEventListener('input', syncWorkorderSalesDatePlaceholderState);
             workorderSalesForm?.addEventListener('change', syncWorkorderSalesDatePlaceholderState);
 
             contactsList.addEventListener('input', handleDirtyFieldChange);
             contactsList.addEventListener('change', handleDirtyFieldChange);
 
-            contactsList.addEventListener('submit', (event) => {
-                const form = event.target.closest('.js-contact-row');
-                if (!form) return;
-                event.preventDefault();
-                if (!form.classList.contains('is-editing')) return;
-                saveContact(form);
-            });
-
             contactsList.addEventListener('click', (event) => {
+                const sortBtn = event.target.closest('[data-contact-sort="type"]');
+                if (sortBtn) {
+                    renderContacts(state.selectedCustomer?.contacts || []);
+                    return;
+                }
+
                 const editBtn = event.target.closest('.marketing-contact-edit');
                 if (editBtn) {
                     const form = editBtn.closest('.js-contact-row');
@@ -4311,12 +5015,26 @@
                     return;
                 }
 
+                const saveBtn = event.target.closest('.marketing-contact-save');
+                if (saveBtn) {
+                    const form = saveBtn.closest('.js-contact-row');
+                    if (!form || !form.classList.contains('is-editing')) return;
+                    if (form.classList.contains('is-new')) {
+                        addContact(form);
+                    } else {
+                        saveContact(form);
+                    }
+                    return;
+                }
+
                 const cancelBtn = event.target.closest('.marketing-contact-cancel');
                 if (cancelBtn) {
                     const form = cancelBtn.closest('.js-contact-row');
-                    form?.reset();
-                    setContactFormEditing(form, false);
-                    markFormClean(form);
+                    if (form?.classList.contains('is-new')) {
+                        setNewContactFormVisible(false);
+                        return;
+                    }
+                    renderContacts(state.selectedCustomer?.contacts || []);
                     return;
                 }
 
@@ -4329,7 +5047,7 @@
             });
 
             contactNewToggle?.addEventListener('click', () => {
-                setNewContactFormVisible(contactForm.hidden);
+                setNewContactFormVisible(!state.contactDraftOpen);
             });
 
             notesList.addEventListener('click', (event) => {
@@ -4408,9 +5126,19 @@
                 } catch (_) {}
                 await loadCustomers(true);
 
+                const initialParams = new URLSearchParams(window.location.search);
+                const initialWo = initialParams.get('wo');
+                if (initialWo && workordersSearch) {
+                    workordersSearch.value = initialWo;
+                    updateWorkorderFilterStates();
+                }
+
                 const initialCustomerId = await restoreSelectedCustomerId();
                 if (initialCustomerId) {
                     await openCustomer(initialCustomerId);
+                    if (initialParams.get('files') === '1') {
+                        document.querySelector('.js-marketing-files')?.click();
+                    }
                 }
             })();
         })();

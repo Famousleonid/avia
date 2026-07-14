@@ -171,7 +171,7 @@
                     <tbody>
                     @foreach($users as $user)
                         <tr>
-                            <td class="user-col-name" @if(is_null($user->email_verified_at)) style="color:red !important;" @endif>{{$user->name}}</td>
+                            <td class="user-col-name" @if(is_null($user->email_verified_at)) style="color:red !important;" @endif>{{$user->selection_name}}</td>
                             <td class="user-col-email">{{$user->email}}</td>
                             <td class="text-center user-col-team"
                                 style="color: {{ $user->team ? '#ffffff' : '#808080' }};">{{ $user->team->name ?? 'Unknown team' }}</td>
@@ -200,7 +200,7 @@
                                         @method('DELETE')
                                         <button class="btn btn-sm btn-outline-danger" type="button"
                                                 data-bs-toggle="modal" data-bs-target="#useConfirmDelete"
-                                                data-title="Delete Confirmation row {{$user->name}}">
+                                                data-title="Delete Confirmation row {{$user->selection_name}}">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>

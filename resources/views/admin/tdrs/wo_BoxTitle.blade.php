@@ -282,7 +282,7 @@
 <div class="container " style="margin-top: 40px">
     @php
         $printedAt = now();
-        $printedBy = optional(auth()->user())->name ?: 'system';
+        $printedBy = optional(auth()->user())->selection_name ?: 'system';
         $systemPrintMark = sprintf(
             'Aviatechnik system print - W%s - %s %s - %s',
             $current_wo->number,
@@ -333,7 +333,7 @@
         <div class="col border-l-b-r pt-2" >
             @foreach($users as $user)
                 @if($user->id == $current_wo->user_id)
-                    <h4 class="text-bold ps-2 ">   {{$user->name}}</h4>
+                    <h4 class="text-bold ps-2 ">   {{$user->selection_name}}</h4>
                 @endif
             @endforeach
         </div>

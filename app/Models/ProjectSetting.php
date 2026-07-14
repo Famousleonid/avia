@@ -76,7 +76,7 @@ class ProjectSetting extends Model
     {
         $value = self::valueFor(self::MARKETING_WO_ESTIMATE_EMAIL);
 
-        return max(0, min(365, (int) data_get($value, 'delay_days', 0)));
+        return max(0, min(365, (int) data_get($value, 'delay_days', 5)));
     }
 
     /**

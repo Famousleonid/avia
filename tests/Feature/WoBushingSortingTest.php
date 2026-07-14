@@ -577,6 +577,75 @@ class WoBushingSortingTest extends TestCase
         $this->assertStringNotContainsString('1840-0302RS01 : 2', $html);
     }
 
+    public function test_bushing_spec_process_form_groups_same_process_names_even_with_different_process_rows(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manualId = $workorder->unit->manual_id;
+        $woBushing = WoBushing::query()->create(['workorder_id' => $workorder->id]);
+
+        $machining = $this->attachProcessToManual($manualId, 'Machining', 'Machine bushings 1');
+        $ndt = $this->attachProcessToManual($manualId, 'NDT-1', 'NDT bushings 1');
+        $cad = $this->attachProcessToManual($manualId, 'Cad plate', 'CAD plating 1');
+
+        $processNamesByKey = [
+            'machining' => $machining->process_names_id,
+            'ndt' => $ndt->process_names_id,
+            'cad' => $cad->process_names_id,
+        ];
+
+        foreach (range(1, 4) as $index) {
+            $component = Component::query()->create([
+                'manual_id' => $manualId,
+                'ipl_num' => '7-'.$index,
+                'part_number' => sprintf('ROUTE-PN-%02d', $index),
+                'name' => 'Route bushing '.$index,
+                'bush_ipl_num' => '7-'.$index,
+                'is_bush' => true,
+            ]);
+
+            $line = WoBushingLine::query()->create([
+                'wo_bushing_id' => $woBushing->id,
+                'workorder_id' => $workorder->id,
+                'component_id' => $component->id,
+                'qty' => 1,
+                'qty_remaining' => 1,
+                'group_key' => '7-'.$index,
+                'sort_order' => $index,
+            ]);
+
+            foreach ($processNamesByKey as $key => $processNameId) {
+                $process = Process::query()->create([
+                    'process_names_id' => $processNameId,
+                    'process' => strtoupper($key).' process copy '.$index,
+                ]);
+
+                ManualProcess::query()->create([
+                    'manual_id' => $manualId,
+                    'processes_id' => $process->id,
+                ]);
+
+                WoBushingProcess::query()->create([
+                    'wo_bushing_line_id' => $line->id,
+                    'process_id' => $process->id,
+                    'qty' => 1,
+                ]);
+            }
+        }
+
+        $form = $this->actingAs($admin)->get(route('wo_bushings.specProcessForm', $woBushing->id));
+
+        $form->assertOk();
+        $html = $form->getContent();
+
+        $this->assertSame(1, substr_count($html, '<span class="">Bushings </span>'));
+        $this->assertSame(1, substr_count($html, '<div class="part-no-data">'));
+        $this->assertStringContainsString('ROUTE-PN-01', $html);
+        $this->assertStringContainsString('ROUTE-PN-04', $html);
+        $this->assertStringContainsString('QTY: 4', $html);
+        $this->assertStringNotContainsString('QTY: 1', $html);
+    }
+
     private function attachProcessToManual(int $manualId, string $processName, string $processText): Process
     {
         $name = ProcessName::query()->firstOrCreate(

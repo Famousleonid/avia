@@ -145,7 +145,7 @@ class TdrProcessOverdueStartEvent implements EventDefinition
 
         $workorder = $subject->tdr?->workorder;
         $workorderLabel = $workorder?->number ? ('WO ' . $workorder->number) : 'WO ?';
-        $ownerName = $workorder?->user?->name;
+        $ownerName = $workorder?->user?->selection_name;
 
         $partName = '';
         $partDisplay = '';

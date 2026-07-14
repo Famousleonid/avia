@@ -45,7 +45,7 @@
     $machiningMyWoToggleUrl = ($isMachiningRoute && request()->route('workorder'))
         ? request()->url()
         : route('mobile.machining');
-    $mobileProfileLabel = (string) (auth()->user()?->name ?: 'Profile');
+    $mobileProfileLabel = (string) (auth()->user()?->selection_name ?: 'Profile');
 @endphp
 
 <style>

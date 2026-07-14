@@ -3,10 +3,12 @@
 @section('style')
 
     <style>
-        .card {
+        .workorders-card {
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 70px);
+            flex: 1 1 auto;
+            height: 100%;
+            min-height: 0;
         }
 
         .card-header {
@@ -78,12 +80,12 @@
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
-            --wo-table-border-color: rgba(255, 255, 255, 0.12);
-            --wo-table-shell-bg: linear-gradient(180deg, #151719 0%, #24282c 100%);
-            --wo-table-head-bg: linear-gradient(180deg, #131313 0%, #2E2E2E 100%);
-            --wo-table-row-bg: linear-gradient(135deg, #212529 0%, #2c3035 100%);
-            --wo-table-row-hover-bg: linear-gradient(135deg, #27313a 0%, #343a40 100%);
-            --wo-table-text-color: #f8f9fa;
+            --wo-table-border-color: var(--avia-border);
+            --wo-table-shell-bg: linear-gradient(180deg, var(--avia-surface) 0%, var(--avia-panel) 100%);
+            --wo-table-head-bg: linear-gradient(180deg, var(--avia-surface-raised) 0%, var(--avia-surface) 100%);
+            --wo-table-row-bg: linear-gradient(135deg, var(--avia-panel) 0%, var(--avia-surface) 100%);
+            --wo-table-row-hover-bg: linear-gradient(135deg, var(--avia-hover) 0%, var(--avia-surface-raised) 100%);
+            --wo-table-text-color: var(--avia-text);
             border-color: var(--wo-table-border-color);
             background: var(--wo-table-shell-bg) !important;
         }
@@ -475,7 +477,7 @@
         })();
     </script>
 
-    <div class="card shadow">
+    <div class="card shadow workorders-card">
 
         <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
 
@@ -566,7 +568,7 @@
                         <select id="technikFilter" class="form-control form-control-sm">
                             <option value="">- All technicians -</option>
                             @foreach($users as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                <option value="{{ $user->id }}">{{ $user->selection_name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -768,15 +770,34 @@
             const initialUrlParams = new URLSearchParams(window.location.search);
 
             function initializeTooltips(root = document) {
-                root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                const candidates = [];
+
+                if (root instanceof Element && root.matches('[title], [data-bs-title], [data-bs-toggle="tooltip"]')) {
+                    candidates.push(root);
+                }
+
+                root.querySelectorAll('[title], [data-bs-title], [data-bs-toggle="tooltip"]').forEach(el => {
+                    candidates.push(el);
+                });
+
+                candidates.forEach(el => {
+                    if (!el.closest('#show-workorder')) return;
+
                     const tooltipText = (el.getAttribute('data-bs-title') || el.getAttribute('title') || '').trim();
                     if (!tooltipText) return;
 
-                    const options = el.classList.contains('workorder-description-tooltip')
-                        ? { container: 'body', delay: { show: 700, hide: 100 } }
-                        : {};
+                    // Native `title` has a browser-defined immediate popup. Convert every
+                    // table-cell hint to one delayed Bootstrap tooltip instead.
+                    el.setAttribute('data-bs-toggle', 'tooltip');
 
-                    bootstrap.Tooltip.getOrCreateInstance(el, options);
+                    const existing = bootstrap.Tooltip.getInstance(el);
+                    if (existing) existing.dispose();
+
+                    bootstrap.Tooltip.getOrCreateInstance(el, {
+                        container: 'body',
+                        boundary: 'viewport',
+                        delay: { show: 700, hide: 100 },
+                    });
                 });
             }
 

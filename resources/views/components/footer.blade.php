@@ -2,13 +2,15 @@
     footer.footer {
         position: fixed;
         bottom: 0;
-        width: 100%;
+        left: 0;
+        right: 0;
+        width: auto;
         z-index: 1050;
-        height: 4%;
+        height: var(--admin-footer-height, 35px);
         padding: 0;
         margin: 0;
         align-items: center;
-        background-color: #343A40;
+        background-color: var(--sidebar-bg, #192431);
         display: flex;
         justify-content: space-between;
 
@@ -38,6 +40,6 @@
     </div>
 
     <div class="col-2 text-end version-info pe-5 me-5" >
-        <b>Version</b> 2.2.0
+        <b>Version</b> 2.4.0
     </div>
 </footer>

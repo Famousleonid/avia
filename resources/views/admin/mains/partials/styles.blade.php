@@ -1,24 +1,24 @@
 <style>
 
     .dir-page {
-        --main-pane-bg: linear-gradient(135deg, #212529 0%, #2c3035 100%);
+        --main-pane-bg: linear-gradient(135deg, var(--avia-panel) 0%, var(--avia-surface) 100%);
         --main-pane-soft-bg: rgba(255,255,255,0.03);
         --main-pane-head-bg: rgba(0, 0, 0, .12);
-        --main-pane-border: rgba(13, 202, 240, .35);
-        --main-pane-border-soft: rgba(108,117,125,.35);
-        --main-pane-text: #f8f9fa;
-        --main-pane-muted: rgba(248,249,250,.65);
-        --main-pane-control-bg: #212529;
-        --main-pane-control-text: #f8f9fa;
-        --main-tab-text: #adb5bd;
-        --main-tab-hover-text: #f8f9fa;
-        --main-tab-active-text: #f8f9fa;
+        --main-pane-border: rgba(var(--bs-info-rgb), .35);
+        --main-pane-border-soft: var(--avia-border);
+        --main-pane-text: var(--avia-text);
+        --main-pane-muted: var(--avia-text-muted);
+        --main-pane-control-bg: var(--avia-input);
+        --main-pane-control-text: var(--avia-text);
+        --main-tab-text: var(--avia-text-secondary);
+        --main-tab-hover-text: var(--avia-text);
+        --main-tab-active-text: var(--avia-text);
         --main-tab-active-bg: var(--main-pane-bg);
-        --main-top-card-bg: #212529;
-        --main-top-card-text: #f8f9fa;
+        --main-top-card-bg: var(--avia-surface);
+        --main-top-card-text: var(--avia-text);
         --main-bush-strip-bg: rgba(255,255,255,.04);
         --main-bush-strip-active-bg: rgba(13, 202, 240, .12);
-        --main-bush-strip-text: #e9ecef;
+        --main-bush-strip-text: var(--avia-text);
         --main-tab-panel-width: var(--initial-main-tab-panel-width, 100%);
     }
 

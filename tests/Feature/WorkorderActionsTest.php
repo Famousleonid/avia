@@ -509,6 +509,126 @@ class WorkorderActionsTest extends TestCase
         $this->assertNull($editable->repair_order);
     }
 
+    public function test_quarantine_process_dates_can_be_edited_by_technician(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder();
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $quarantineName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Quarantine'],
+            [
+                'process_sheet_name' => 'QUARANTINE',
+                'form_number' => 'QTN',
+                'show_in_process_picker' => true,
+            ]
+        );
+        $quarantine = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $quarantineName->id,
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($technician)
+            ->patchJson(route('tdrprocesses.updateDate', $quarantine), [
+                'date_start' => '2026-05-09',
+                'date_finish' => '2026-05-08',
+            ])
+            ->assertOk()
+            ->assertJsonPath('date_start', '2026-05-09')
+            ->assertJsonPath('date_finish', '2026-05-08')
+            ->assertJsonPath('repair_order', 'AT')
+            ->assertJsonPath('date_start_user', $technician->name)
+            ->assertJsonPath('date_finish_user', $technician->name);
+
+        $quarantine->refresh();
+
+        $this->assertSame($technician->id, $quarantine->date_start_user_id);
+        $this->assertSame($technician->id, $quarantine->date_finish_user_id);
+        $this->assertSame('AT', $quarantine->repair_order);
+    }
+
+    public function test_exact_ec_process_dates_can_only_be_edited_by_manager_or_admin(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $manager = $this->createUserWithRole('Manager');
+        $roleAdmin = $this->createUserWithRole('Admin', ['is_admin' => false]);
+        $workorder = $this->createWorkorder();
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $ecName = ProcessName::query()->firstOrCreate(
+            ['name' => 'EC'],
+            [
+                'process_sheet_name' => 'EC',
+                'form_number' => 'EC',
+                'show_in_process_picker' => true,
+            ]
+        );
+
+        $blockedEc = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $ecName->id,
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($technician)
+            ->patchJson(route('tdrprocesses.updateDate', $blockedEc), [
+                'date_start' => '2026-05-09',
+                'date_finish' => '2026-05-08',
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('success', false);
+
+        $blockedEc->refresh();
+
+        $this->assertNull($blockedEc->date_start);
+        $this->assertNull($blockedEc->date_finish);
+        $this->assertNull($blockedEc->repair_order);
+
+        $managerEc = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $ecName->id,
+            'sort_order' => 2,
+        ]);
+
+        $this->actingAs($manager)
+            ->patchJson(route('tdrprocesses.updateDate', $managerEc), [
+                'date_start' => '2026-05-09',
+                'date_finish' => '2026-05-08',
+            ])
+            ->assertOk()
+            ->assertJsonPath('date_start', '2026-05-09')
+            ->assertJsonPath('date_finish', '2026-05-08')
+            ->assertJsonPath('repair_order', 'AT')
+            ->assertJsonPath('date_start_user', $manager->name)
+            ->assertJsonPath('date_finish_user', $manager->name);
+
+        $managerEc->refresh();
+
+        $this->assertSame($manager->id, $managerEc->date_start_user_id);
+        $this->assertSame($manager->id, $managerEc->date_finish_user_id);
+        $this->assertSame('AT', $managerEc->repair_order);
+
+        $adminEc = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $ecName->id,
+            'sort_order' => 3,
+        ]);
+
+        $this->actingAs($roleAdmin)
+            ->patchJson(route('tdrprocesses.updateDate', $adminEc), [
+                'date_start' => '2026-05-10',
+            ])
+            ->assertOk()
+            ->assertJsonPath('date_start', '2026-05-10')
+            ->assertJsonPath('repair_order', 'AT')
+            ->assertJsonPath('date_start_user', $roleAdmin->name);
+    }
+
     public function test_allowed_std_process_dates_can_be_edited_by_technician_and_write_text_user(): void
     {
         $technician = $this->createUserWithRole('Technician');

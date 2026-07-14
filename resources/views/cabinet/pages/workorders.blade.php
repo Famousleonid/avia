@@ -103,7 +103,7 @@
                                     <td class="">{{$workorder->unit->partnumber}}</td>
                                     <td class="text-center">{{$workorder->manual}}</td>
                                     <td class="">{{$workorder->instruction->name}}</td>
-                                    <td class="">{{$workorder->user->name}}</td>
+                                    <td class="">{{$workorder->user->selection_name}}</td>
 
                                     <td class="text-center">
                                         <a href="{{route('workorder.edit', ['workorder' => $workorder->id])}}"><img src="{{asset('img/set.png')}}" width="30px" alt=""></a>

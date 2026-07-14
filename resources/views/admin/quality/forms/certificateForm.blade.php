@@ -77,7 +77,7 @@
     $managerOptions = collect($managerOptions ?? []);
     $canEditCertificateManager = (bool) ($canEditCertificateManager ?? false);
     $selectedCertificateManagerId = $selectedCertificateManagerId ?? null;
-    $certificateManagerName = trim((string) ($certificateManagerName ?? auth()->user()?->name ?? ''));
+    $certificateManagerName = trim((string) ($certificateManagerName ?? auth()->user()?->selection_name ?? ''));
     $includeLandingGearLogCard = (bool) ($includeLandingGearLogCard ?? true);
     $includeRoycoService = (bool) ($includeRoycoService ?? false);
     $includeOverhauledOn = (bool) ($includeOverhauledOn ?? false);
@@ -1938,7 +1938,7 @@
                         <select class="arc-cert-value arc-cert-control arc-cert-manager-control arc-cert-boost-value" id="certificateManagerId" data-certificate-manager-select>
                             @foreach($managerOptions as $managerOption)
                                 <option value="{{ $managerOption->id }}" @selected((int) $selectedCertificateManagerId === (int) $managerOption->id)>
-                                    {{ $managerOption->name }}
+                                    {{ $managerOption->selection_name }}
                                 </option>
                             @endforeach
                         </select>

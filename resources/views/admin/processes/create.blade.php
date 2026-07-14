@@ -8,10 +8,10 @@
 
         /* Select2 — поддержка тёмной и светлой темы */
         html[data-bs-theme="dark"] .select2-selection--single {
-            background-color: #121212 !important;
+            background-color: var(--avia-input) !important;
             color: #999999 !important;
             height: 38px !important;
-            border: 1px solid #495057 !important;
+            border: 1px solid var(--avia-border) !important;
             align-items: center !important;
             border-radius: 8px;
         }
@@ -22,16 +22,16 @@
         }
 
         html[data-bs-theme="dark"] .select2-search--dropdown .select2-search__field {
-            background-color: #343A40 !important;
+            background-color: var(--avia-surface-raised) !important;
             color: #fff !important;
         }
 
         html[data-bs-theme="dark"] .select2-container .select2-dropdown {
             max-height: 40vh !important;
             overflow-y: auto !important;
-            border: 1px solid #495057 !important;
+            border: 1px solid var(--avia-border) !important;
             border-radius: 8px;
-            background-color: #121212 !important;
+            background-color: var(--avia-input) !important;
         }
 
         html[data-bs-theme="dark"] .select2-container .select2-results__option {

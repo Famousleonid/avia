@@ -120,7 +120,7 @@
                                 @endif
                             </td>
                             <td class="text-center">{{$order->customer->name}}</td>
-                            <td class="text-center">{{$order->user->name}}</td>
+                            <td class="text-center">{{$order->user->selection_name}}</td>
                             <td class="text-center">
 
                                     <a href="{{ route('tdrs.show', ['id' => $order->id]) }}" class="btn btn-outline-primary

@@ -37,7 +37,7 @@
                             @foreach ($users as $user)
                                 <tr>
                                     <td class="text-center">{{$loop->iteration}}</td>
-                                    <td @if(!$user->email_verified_at) style="color:red" @endif>{{$user->name}}</td>
+                                    <td @if(!$user->email_verified_at) style="color:red" @endif>{{$user->selection_name}}</td>
                                     <td>{{$user->email}}</td>
                                     <td class="text-center">{{$user->stamp}}</td>
                                     <td class="text-center">{{$user->team->name ?? 'Unknown team' }}</td>

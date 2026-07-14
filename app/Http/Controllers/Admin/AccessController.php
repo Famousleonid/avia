@@ -47,7 +47,9 @@ class AccessController extends Controller
                 })
                 ->orderBy('name')
                 ->orderBy('email')
-                ->get(),
+                ->get()
+                ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+                ->values(),
             'accessRecords' => $accessRecords,
             'assignedUserIdsByFeature' => $accessRecords
                 ->map(fn ($records) => $records->pluck('user_id')->map(fn ($id) => (int) $id)->all())

@@ -23,9 +23,9 @@
             white-space: nowrap;
             vertical-align: middle;
             padding: 8px 10px;
-            border: 1px solid #495057;
-            background: #212529;
-            color: #f8f9fa;
+            border: 1px solid var(--avia-border);
+            background: var(--avia-panel);
+            color: var(--avia-text);
             position: relative;
         }
 
@@ -33,8 +33,8 @@
             position: sticky;
             top: 0;
             z-index: 20;
-            background: linear-gradient(180deg, #334a66 0%, #14161a 100%);
-            color: #7db8ff;
+            background: linear-gradient(180deg, var(--avia-surface-raised) 0%, var(--avia-surface) 100%);
+            color: #8fc4f0;
             font-size: 13px;
             font-weight: 600;
             height: 34px;
@@ -50,7 +50,7 @@
             max-width: 260px;
             width: 220px;
             z-index: 30;
-            background: #212529 !important;
+            background: var(--avia-panel) !important;
             box-shadow: 2px 0 6px rgba(0, 0, 0, 0.18);
             overflow: hidden;
             text-overflow: ellipsis;
@@ -62,8 +62,8 @@
            у шапки первого столбца такой же фон, как у остальных th */
         .training-table thead th.col-unit {
             z-index: 50;
-            background: linear-gradient(180deg, #334a66 0%, #14161a 100%) !important;
-            color: #7db8ff !important;
+            background: linear-gradient(180deg, var(--avia-surface-raised) 0%, var(--avia-surface) 100%) !important;
+            color: #8fc4f0 !important;
         }
 
         /* второй столбец перекрывает первый */
@@ -75,14 +75,14 @@
             max-width: 260px;
             width: 260px;
             z-index: 40;
-            background: #2b3035 !important;
+            background: var(--avia-surface-raised) !important;
             box-shadow: 4px 0 12px rgba(0, 0, 0, 0.28);
         }
 
         .training-table thead th.col-part {
             z-index: 60;
-            background: linear-gradient(180deg, #334a66 0%, #14161a 100%) !important;
-            color: #7db8ff !important;
+            background: linear-gradient(180deg, var(--avia-surface-raised) 0%, var(--avia-surface) 100%) !important;
+            color: #8fc4f0 !important;
         }
 
         .training-table td.col-part {
@@ -98,19 +98,19 @@
         }
 
         .training-table tbody tr:nth-child(even) td {
-            background-color: #252b31;
+            background-color: var(--avia-surface);
         }
 
         .training-table tbody tr:nth-child(even) td.col-unit {
-            background: #212529 !important;
+            background: var(--avia-panel) !important;
         }
 
         .training-table tbody tr:nth-child(even) td.col-part {
-            background: #2b3035 !important;
+            background: var(--avia-surface-raised) !important;
         }
 
         .training-table .text-muted {
-            color: #adb5bd !important;
+            color: var(--avia-text-muted) !important;
         }
 
         .training-date-old {
@@ -119,7 +119,7 @@
         }
 
         .training-date-fresh {
-            color: #f8f9fa !important;
+            color: var(--avia-text) !important;
         }
 
         .training-table tbody td.col-unit,
@@ -186,7 +186,7 @@
 
                                 @foreach($filteredUsers as $user)
                                     <th class="text-center align-middle user-column">
-                                        {{ $user->name ?? 'N/A' }}
+                                        {{ $user->selection_name ?? 'N/A' }}
                                     </th>
                                 @endforeach
                             </tr>
