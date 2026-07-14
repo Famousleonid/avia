@@ -134,6 +134,93 @@ class FitsClearancesTorqueTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_bushing_sketch_case_b_accepts_initial_pass_bore(): void
+    {
+        // A PASSing initial means the bore is within limits and will never get a
+        // final (no machining) — the sketch must compute req OD from that value
+        // instead of demanding a measurement that cannot exist.
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        $bushIc = $this->createInspectionComponent($manual, 'Bushing 1-540');
+        $od = $this->createParameter($manual, $bushIc, ['description' => 'OD', 'orig_dim_min' => 0.8012, 'orig_dim_max' => 0.8020]);
+        $housingIc = $this->createInspectionComponent($manual, 'Lower Stay');
+        $bore = $this->createParameter($manual, $housingIc, ['description' => 'ID 1-540', 'orig_dim_min' => 0.8000, 'orig_dim_max' => 0.8008]);
+        $pt = $this->createDimensionPoint($manual, '2A', false);
+        $this->attachParamToPoint($od, $pt);
+        $this->attachParamToPoint($bore, $pt);
+
+        $this->createMeasurement($wo, $bore, ['stage' => 'initial', 'result' => 'PASS', 'actual_value' => 0.8003]);
+
+        $html = $this->actingAs($this->admin())
+            ->get(route('inspection-components.bushing-sketch-view', [$wo->id, $bushIc->id]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Manufacture to fit', $html);
+        $this->assertStringContainsString('0.8007', $html); // 0.8003 + fit_min 0.0004
+        $this->assertStringContainsString('0.8023', $html); // 0.8003 + fit_max 0.0020
+        $this->assertStringContainsString('(initial)', $html);
+        $this->assertStringNotContainsString('mating not measured yet', $html);
+    }
+
+    public function test_bushing_sketch_case_a_initial_pass_renders_standard(): void
+    {
+        // OD has oversize steps, but the bore PASSed initial (within limits) —
+        // the position takes the STANDARD bushing: no step, factory OD dims.
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        $bushIc = $this->createInspectionComponent($manual, 'Bushing 11-10');
+        $od = $this->createParameter($manual, $bushIc, ['description' => 'OD', 'orig_dim_min' => 1.3171, 'orig_dim_max' => 1.3180]);
+        \App\Models\ManualRepairStep::query()->create([
+            'manual_parameter_id' => $od->id, 'step_no' => 'R01',
+            'dim_min' => 1.3271, 'dim_max' => 1.3280, 'sort_order' => 1,
+        ]);
+        $housingIc = $this->createInspectionComponent($manual, 'Main Fitting');
+        $bore = $this->createParameter($manual, $housingIc, ['description' => 'ID 11-10', 'orig_dim_min' => 1.3134, 'orig_dim_max' => 1.3151]);
+        $pt = $this->createDimensionPoint($manual, 'AA3', false);
+        $this->attachParamToPoint($od, $pt);
+        $this->attachParamToPoint($bore, $pt);
+
+        $this->createMeasurement($wo, $bore, ['stage' => 'initial', 'result' => 'PASS', 'actual_value' => 1.3140]);
+
+        $html = $this->actingAs($this->admin())
+            ->get(route('inspection-components.bushing-sketch-view', [$wo->id, $bushIc->id]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('standard — bore within limits', $html);
+        $this->assertStringContainsString('Standard (bore in limits)', $html);
+        $this->assertStringContainsString('1.3171', $html); // factory OD dims, not the step
+        $this->assertStringNotContainsString('R01', $html);
+    }
+
+    public function test_bushing_sketch_initial_fail_still_requires_final(): void
+    {
+        // Initial FAIL = bore out of limits, machining pending — the sketch must
+        // NOT compute from a failed size; the position stays "not measured".
+        $manual = $this->createManual();
+        $wo = $this->createWorkorder(['unit_id' => $this->createUnit(['manual_id' => $manual->id])->id]);
+
+        $bushIc = $this->createInspectionComponent($manual, 'Bushing 1-550');
+        $od = $this->createParameter($manual, $bushIc, ['description' => 'OD', 'orig_dim_min' => 0.8012, 'orig_dim_max' => 0.8020]);
+        $housingIc = $this->createInspectionComponent($manual, 'Lower Stay');
+        $bore = $this->createParameter($manual, $housingIc, ['description' => 'ID 1-550', 'orig_dim_min' => 0.8000, 'orig_dim_max' => 0.8008]);
+        $pt = $this->createDimensionPoint($manual, 'BB-1', false);
+        $this->attachParamToPoint($od, $pt);
+        $this->attachParamToPoint($bore, $pt);
+
+        $this->createMeasurement($wo, $bore, ['stage' => 'initial', 'result' => 'FAIL', 'actual_value' => 0.8031]);
+
+        $html = $this->actingAs($this->admin())
+            ->get(route('inspection-components.bushing-sketch-view', [$wo->id, $bushIc->id]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('mating not measured yet', $html);
+    }
+
     public function test_deleting_parameter_removes_its_orphaned_points(): void
     {
         // Deleting a parameter drops its measurement points when no other

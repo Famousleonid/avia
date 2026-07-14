@@ -742,6 +742,30 @@ document.getElementById("savePdfBtn").addEventListener("click", async function (
                 });
         };
 
+        // A PASSing initial on the bore is a legal basis for the sketch too:
+        // the bore is within limits, machining will never happen, so a final
+        // measurement will never exist. Case B computes req OD from that actual
+        // size; Case A renders the STANDARD bushing (no oversize step).
+        $initialPassBore = function (int $paramId) use ($workorder) {
+            return WoMeasurement::where('workorder_id', $workorder->id)
+                ->where('manual_parameter_id', $paramId)
+                ->where('stage', 'initial')
+                ->where('result', 'PASS')
+                ->whereNotNull('actual_value')
+                ->latest('id')->first();
+        };
+        $findMatingBoreInitialPass = function ($odParam) use ($manualInspectionComponent, $initialPassBore) {
+            $odPointIds = $odParam->points->pluck('id')->all();
+            if (empty($odPointIds)) return null;
+            return ManualParameter::whereHas('points', fn($q) =>
+                    $q->whereIn('manual_dimension_points.id', $odPointIds)
+                )
+                ->where('inspection_component_id', '!=', $manualInspectionComponent->id)
+                ->with('points:id,code')
+                ->get()
+                ->first(fn($p) => $initialPassBore($p->id) !== null);
+        };
+
         // Collect repair info PER OD param — two bushing positions on different
         // lugs may have different repairs (different steps / different req OD).
         $repairInfos = [];
@@ -749,17 +773,36 @@ document.getElementById("savePdfBtn").addEventListener("click", async function (
         // Case A: discrete repair steps
         foreach ($odParamsWithSteps as $odParam) {
             $matingParam = $findMatingBore($odParam, true);
+            if ($matingParam) {
+                $meas = WoMeasurement::where('workorder_id', $workorder->id)
+                    ->where('manual_parameter_id', $matingParam->id)
+                    ->where('stage', 'final')->whereNotNull('repair_step_no')
+                    ->latest('id')->first();
+                $repairInfos[] = [
+                    'useTolerance'  => false,
+                    'standard'      => false,
+                    'boreStage'     => 'final',
+                    'odParam'       => $odParam,
+                    'matingParam'   => $matingParam,
+                    'stepNo'        => $meas->repair_step_no,
+                    'step'          => $odParam->repairSteps->first(fn($s) => $s->step_no === $meas->repair_step_no),
+                    'measuredValue' => (float) $meas->actual_value,
+                ];
+                continue;
+            }
+            // bore not machined into a step: a PASSing initial = within limits →
+            // the position takes the STANDARD bushing (no oversize, orig OD dims)
+            $matingParam = $findMatingBoreInitialPass($odParam);
             if (!$matingParam) continue;
-            $meas = WoMeasurement::where('workorder_id', $workorder->id)
-                ->where('manual_parameter_id', $matingParam->id)
-                ->where('stage', 'final')->whereNotNull('repair_step_no')
-                ->latest('id')->first();
+            $meas = $initialPassBore($matingParam->id);
             $repairInfos[] = [
                 'useTolerance'  => false,
+                'standard'      => true,
+                'boreStage'     => 'initial',
                 'odParam'       => $odParam,
                 'matingParam'   => $matingParam,
-                'stepNo'        => $meas->repair_step_no,
-                'step'          => $odParam->repairSteps->first(fn($s) => $s->step_no === $meas->repair_step_no),
+                'stepNo'        => null,
+                'step'          => null,
                 'measuredValue' => (float) $meas->actual_value,
             ];
         }
@@ -770,18 +813,23 @@ document.getElementById("savePdfBtn").addEventListener("click", async function (
         $caseAIds = collect($repairInfos)->pluck('odParam.id')->flip();
         foreach ($odParamsWithFit as $odParam) {
             if ($caseAIds->has($odParam->id)) continue;
-            $matingParam = $findMatingBore($odParam, false);
+            $matingParam = $findMatingBore($odParam, false) ?? $findMatingBoreInitialPass($odParam);
             if (!$matingParam) continue;
             if ($matingParam->orig_dim_min === null || $matingParam->orig_dim_max === null) continue;
+            // final when machined; otherwise the PASSing initial IS the bore size
             $meas = WoMeasurement::where('workorder_id', $workorder->id)
                 ->where('manual_parameter_id', $matingParam->id)
                 ->where('stage', 'final')->whereNotNull('actual_value')
-                ->latest('id')->first();
+                ->latest('id')->first()
+                ?? $initialPassBore($matingParam->id);
+            $boreStage = $meas->stage;
             $bore   = (float) $meas->actual_value;
             $fitMin = round((float)$odParam->orig_dim_min - (float)$matingParam->orig_dim_max, 4);
             $fitMax = round((float)$odParam->orig_dim_max - (float)$matingParam->orig_dim_min, 4);
             $repairInfos[] = [
                 'useTolerance'    => true,
+                'standard'        => false,
+                'boreStage'       => $boreStage,
                 'odParam'         => $odParam,
                 'matingParam'     => $matingParam,
                 'stepNo'          => null,
@@ -805,9 +853,11 @@ document.getElementById("savePdfBtn").addEventListener("click", async function (
         // print as separate sheets.
         $groups = [];
         foreach ($repairInfos as $info) {
-            $key = $info['useTolerance']
-                ? 'B|' . $info['calculatedOdMin'] . '|' . $info['calculatedOdMax']
-                : 'A|' . $info['stepNo'] . '|' . ($info['step']?->component?->part_number ?? '');
+            $key = !empty($info['standard'])
+                ? 'S|' . $info['odParam']->orig_dim_min . '|' . $info['odParam']->orig_dim_max
+                : ($info['useTolerance']
+                    ? 'B|' . $info['calculatedOdMin'] . '|' . $info['calculatedOdMax']
+                    : 'A|' . $info['stepNo'] . '|' . ($info['step']?->component?->part_number ?? ''));
             if (!isset($groups[$key])) {
                 $groups[$key] = ['info' => $info, 'points' => [], 'qty' => 0];
             }
@@ -863,17 +913,44 @@ document.getElementById("savePdfBtn").addEventListener("click", async function (
             . ($iplNums  ? ' <span style="color:#6c757d">IPL# ' . e($iplNums[0])  . '</span>' : '')
             . ($partNums ? ' <span style="color:#6c757d">'      . e($partNums[0]) . '</span>' : '');
 
-        $titleText = $icLabel . ($repairInfo ? ' — Oversize ' . $repairInfo['stepNo'] : '');
+        $titleText = $icLabel;
+        if ($repairInfo) {
+            $titleText .= !empty($repairInfo['standard']) ? ' — Standard (bore in limits)'
+                : ($repairInfo['useTolerance'] ? ' — Manufacture to fit'
+                : ' — Oversize ' . $repairInfo['stepNo']);
+        }
 
-        $buildDataPanel = function (array $info, array $pointCodes, int $qty) use ($workorder, $partCell): string {
+        $buildDataPanel = function (array $info, array $pointCodes, int $qty) use ($workorder, $partCell, $partNums, $iplNums): string {
             $posRow = $pointCodes
                 ? '<tr><td style="color:#6c757d;padding:3px 12px 3px 0">Position</td><td><strong>' . e(implode(', ', $pointCodes)) . '</strong>'
                     . ($qty > 1 ? ' <span style="color:#0d6efd;font-weight:700">· Qty ' . $qty . '</span>' : '') . '</td></tr>'
                 : '';
 
+            $stageTag = ($info['boreStage'] ?? 'final') === 'initial'
+                ? ' <span style="color:#6c757d;font-size:10px">(initial)</span>' : '';
             $boreRow = '<tr><td>Bore measured</td><td><strong>'
-                . number_format($info['measuredValue'], 4) . ' in</strong>'
+                . number_format($info['measuredValue'], 4) . ' in</strong>' . $stageTag
                 . ' <span style="color:#6c757d">(' . e($info['matingParam']->description ?? '') . ')</span></td></tr>';
+
+            // ── Standard: bore within limits — no oversize, factory OD dims ────
+            if (!empty($info['standard'])) {
+                $od = $info['odParam'];
+                $pnRow = '<tr><td>Required P/N</td><td><strong>' . e($partNums[0] ?? '—') . '</strong>'
+                    . (($iplNums[0] ?? null) ? ' <span style="color:#6c757d">(IPL# ' . e($iplNums[0]) . ')</span>' : '')
+                    . ' <span style="color:#6c757d">standard</span></td></tr>';
+                $odRows = ($od->orig_dim_min !== null && $od->orig_dim_max !== null)
+                    ? '<tr style="border-top:1px solid #dee2e6"><td style="padding-top:10px">OD required min</td><td style="padding-top:10px;font-size:14px;font-weight:700">' . number_format((float)$od->orig_dim_min, 4) . ' in</td></tr>'
+                      . '<tr><td>OD required max</td><td style="font-size:14px;font-weight:700">' . number_format((float)$od->orig_dim_max, 4) . ' in</td></tr>'
+                    : '';
+                return '
+                <table style="border-collapse:collapse;width:100%;font-size:12px">
+                  <tr><td style="color:#6c757d;padding:3px 12px 3px 0;white-space:nowrap">W/O</td><td><strong>' . e('W' . $workorder->number) . '</strong></td></tr>
+                  <tr><td style="color:#6c757d;padding:3px 12px 3px 0">Part</td><td>' . $partCell . '</td></tr>
+                  ' . $posRow . '
+                  <tr><td style="color:#6c757d;padding:3px 12px 3px 0">Repair step</td><td><span style="color:#198754;font-weight:700">standard — bore within limits</span></td></tr>
+                  ' . $boreRow . $pnRow . $odRows . '
+                </table>';
+            }
 
             if (!$info['useTolerance']) {
                 // ── Case A: discrete step ──────────────────────────────────
@@ -940,6 +1017,13 @@ document.getElementById("savePdfBtn").addEventListener("click", async function (
             if ($repairInfo && !$repairInfo['useTolerance'] && $repairInfo['step']) {
                 $drawingContext['od_dim_min'] = (float) $repairInfo['step']->dim_min;
                 $drawingContext['od_dim_max'] = (float) $repairInfo['step']->dim_max;
+            } elseif ($repairInfo && !empty($repairInfo['standard'])) {
+                // standard bushing (bore in limits) → factory OD dims on the drawing
+                $od = $repairInfo['odParam'];
+                if ($od->orig_dim_min !== null && $od->orig_dim_max !== null) {
+                    $drawingContext['od_dim_min'] = (float) $od->orig_dim_min;
+                    $drawingContext['od_dim_max'] = (float) $od->orig_dim_max;
+                }
             } elseif ($repairInfo && $repairInfo['useTolerance']) {
                 $drawingContext['od_dim_min'] = $repairInfo['calculatedOdMin'];
                 $drawingContext['od_dim_max'] = $repairInfo['calculatedOdMax'];
@@ -959,6 +1043,7 @@ document.getElementById("savePdfBtn").addEventListener("click", async function (
                 // Find mating bore for each unmeasured calculated OD param (no measurement
                 // required). Per-position: one lug measured + another not → still warn.
                 $boreMissingMessages = [];
+                $boreParamIds = []; // bore param ids already covered by the messages
                 $measuredOdIds = collect($repairInfos)->pluck('odParam.id')->flip();
                 {
                     $allOdForBore = $odParamsWithSteps->merge($odParamsWithFit)->unique('id')
@@ -980,13 +1065,17 @@ document.getElementById("savePdfBtn").addEventListener("click", async function (
                             if ($borePointCode) $parts[] = 'point ' . $borePointCode;
                             if ($icLabel)       $parts[] = $icLabel;
                             $boreMissingMessages[] = implode(' · ', $parts) . ' (required for OD calculation)';
+                            $boreParamIds[$matingBore->id] = true;
                         }
                     }
                 }
 
-                $items = array_values(array_filter(array_map(function ($mv) use ($calculatedOdParamIds) {
+                $items = array_values(array_filter(array_map(function ($mv) use ($calculatedOdParamIds, $boreParamIds) {
                     // Skip OD params that are calculated — replaced by bore messages below
                     if (isset($mv['param_id']) && isset($calculatedOdParamIds[$mv['param_id']])) return null;
+                    // The bore itself may also sit on the drawing as a plain element —
+                    // it's already listed once as "(required for OD calculation)"
+                    if (isset($mv['param_id']) && isset($boreParamIds[$mv['param_id']])) return null;
                     $prefix = $mv['mask'] === 'diameter' ? 'Ø' : ($mv['mask'] === 'radius' ? 'R' : '');
                     $parts  = [];
                     if ($mv['param_desc']) $parts[] = ($prefix . $mv['param_desc']);
