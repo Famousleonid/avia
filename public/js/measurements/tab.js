@@ -683,7 +683,157 @@
         updatePrintSketchBtnState(part);
 
         accWrap.innerHTML = '';
-        visibleParams(part).forEach(param => accWrap.appendChild(buildAccordionRow(part, param)));
+        // Split the entry pane: dimensional points first, finding-only (surface
+        // inspection) points grouped below their own collapsible header.
+        const params = visibleParams(part);
+        const dims   = params.filter(p => !isFindingOnlyParam(p));
+        const finds  = params.filter(isFindingOnlyParam);
+        if (dims.length && finds.length) accWrap.appendChild(msSection(part, 'dims', 'Dimensions', dims));
+        else dims.forEach(param => accWrap.appendChild(buildAccordionRow(part, param)));
+        if (finds.length) accWrap.appendChild(msSection(part, 'surf', 'Surface inspection', finds));
+    }
+
+    function isFindingOnlyParam(p) {
+        return p.orig_dim_min == null && p.orig_dim_max == null && !p.requires_value;
+    }
+
+    // Aggregate dot for a section header — same rules as the part dot in the
+    // left column (partStatus), but over the section's params only.
+    function msGroupStatus(params) {
+        const sts = params.map(p => paramStatus(p));
+        if (sts.includes('fail')) return 'fail';
+        if (sts.every(s => s === 'none')) return 'none';
+        if (sts.some(s => s === 'none' || s === 'partial')) return 'partial';
+        return 'pass';
+    }
+
+    const msCollapsedSections = new Set(); // "partId:key", survives panel re-renders
+
+    function msSection(part, key, title, params) {
+        const secKey    = part.id + ':' + key;
+        const collapsed = msCollapsedSections.has(secKey);
+
+        const wrap = document.createElement('div');
+        wrap.dataset.secKey = secKey;
+
+        const hdr = document.createElement('div');
+        hdr.className = 'ms-acc-section d-flex align-items-center gap-2';
+        hdr.style.cssText = 'margin:10px 2px 4px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--bs-secondary-color);cursor:pointer;user-select:none';
+        hdr.innerHTML = `<span class="ms-sdot ${msGroupStatus(params)}"></span><span>${esc(title)}</span><span style="flex:1;border-top:1px solid var(--bs-border-color)"></span>`;
+        if (key === 'surf') buildBulkFindingBtns(part, params).forEach(b => hdr.appendChild(b));
+        const chev = document.createElement('i');
+        chev.className = 'bi ms-sec-chev ' + (collapsed ? 'bi-chevron-right' : 'bi-chevron-down');
+        hdr.appendChild(chev);
+
+        const body = document.createElement('div');
+        body.className = 'ms-acc-sec-body';
+        if (collapsed) body.style.display = 'none';
+        params.forEach(p => body.appendChild(buildAccordionRow(part, p)));
+
+        hdr.addEventListener('click', () => {
+            const hide = body.style.display !== 'none';
+            body.style.display = hide ? 'none' : '';
+            chev.classList.toggle('bi-chevron-right', hide);
+            chev.classList.toggle('bi-chevron-down', !hide);
+            if (hide) msCollapsedSections.add(secKey); else msCollapsedSections.delete(secKey);
+        });
+
+        wrap.appendChild(hdr);
+        wrap.appendChild(body);
+        return wrap;
+    }
+
+    /* ── Finding-only points: bulk actions ───────────────────────────
+     *  Surface inspection is done once for the whole part, so clean points
+     *  can be recorded in bulk. Each point still gets its OWN measurement
+     *  record (traceability, sketch markers, print forms are unchanged). */
+    function buildBulkFindingBtns(part, finds) {
+        const isMissing = MISSING_CODE_ID && part.params.some(p =>
+            paramMeasurements(p).some(m => m.codes_id == MISSING_CODE_ID));
+        if (partIsNewMode(part) || isMissing) return []; // no bulk on order-new/missing parts
+
+        // not inspected yet → bulk initial "no defects"
+        const pending = finds.filter(p => paramMeasurements(p).length === 0);
+        // finding recorded, repaired, no final yet → bulk final "defect eliminated"
+        const repaired = finds.filter(p => {
+            const ms = paramMeasurements(p);
+            const inits = ms.filter(m => m.stage === 'initial');
+            const last  = inits[inits.length - 1];
+            return last && last.result === 'FAIL' && !ms.some(m => m.stage === 'final');
+        });
+
+        const mkBtn = (label, title, params, stage) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn btn-outline-success btn-sm';
+            b.style.cssText = 'font-size:10px;padding:0 8px;text-transform:none;letter-spacing:0;font-weight:500';
+            b.innerHTML = `<i class="bi bi-check2-all"></i> ${label} (${params.length})`;
+            b.title = title;
+            b.addEventListener('click', async (ev) => {
+                ev.stopPropagation(); // the section header behind toggles collapse
+                b.disabled = true;
+                try { await bulkFindingSave(part, params, stage); }
+                catch (e) { alert(e.message); }
+                finally { b.disabled = false; }
+            });
+            return b;
+        };
+        const btns = [];
+        if (pending.length) btns.push(mkBtn(
+            'No defects', 'Record initial "no defect" (PASS) for every surface point without a record',
+            pending, 'initial'));
+        if (repaired.length) btns.push(mkBtn(
+            'Defects eliminated', 'Record final re-inspection "defect eliminated" (PASS) for every repaired surface point',
+            repaired, 'final'));
+        return btns;
+    }
+
+    async function bulkFindingSave(part, params, stage) {
+        const list = params.map(p => {
+            const pts = [...new Set((p.locations || []).map(l => l.pt.code).filter(Boolean))].join(', ');
+            return '• ' + (pts ? pts + ' · ' : '') + (p.description || '');
+        }).join('\n');
+        const msg = stage === 'initial'
+            ? 'Record "no defect" (initial PASS) for:\n\n' + list
+            : 'Record final re-inspection — defect eliminated (PASS) — for:\n\n' + list;
+        if (!confirm(msg)) return;
+
+        for (const p of params) {
+            const inits = paramMeasurements(p).filter(m => m.stage === 'initial');
+            const saved = await apiFetch('/workorders/' + WO_ID + '/measurements', {
+                method: 'POST',
+                body: JSON.stringify({
+                    manual_parameter_id: p.id,
+                    stage,
+                    new_part: false,
+                    replaces_id: stage === 'final' ? (inits[inits.length - 1]?.id ?? null) : null,
+                    actual_value: null,
+                    codes_id: null,
+                    notes: null,
+                }),
+            });
+            measurements.push(saved);
+        }
+        renderComponentPanel(part);
+        refreshActive();
+    }
+
+    // Keep section headers live after a single-row save: aggregate dot + bulk
+    // button counts (a full panel re-render would close the open accordion row).
+    function refreshSectionHdrs(part) {
+        accWrap.querySelectorAll('[data-sec-key]').forEach(w => {
+            const isSurf = w.dataset.secKey.split(':').pop() === 'surf';
+            const params = visibleParams(part).filter(p => isSurf === isFindingOnlyParam(p));
+            const hdr = w.firstElementChild;
+            if (!hdr || !params.length) return;
+            const dot = hdr.querySelector('.ms-sdot');
+            if (dot) dot.className = 'ms-sdot ' + msGroupStatus(params);
+            if (isSurf) {
+                hdr.querySelectorAll('button').forEach(b => b.remove());
+                const chev = hdr.querySelector('.ms-sec-chev');
+                buildBulkFindingBtns(part, params).forEach(b => hdr.insertBefore(b, chev));
+            }
+        });
     }
 
     function updateMissingPartBtnState(part) {
@@ -1284,6 +1434,15 @@ ${sections}
         // expand this
         const row = accWrap.querySelector(`[data-param-id="${param.id}"]`);
         if (row) {
+            // jumping to a row inside a collapsed section → reveal the section first
+            const secBody = row.closest('.ms-acc-sec-body');
+            if (secBody && secBody.style.display === 'none') {
+                secBody.style.display = '';
+                const secWrap = secBody.parentElement;
+                msCollapsedSections.delete(secWrap.dataset.secKey);
+                const chev = secWrap.querySelector('.ms-sec-chev');
+                if (chev) { chev.classList.remove('bi-chevron-right'); chev.classList.add('bi-chevron-down'); }
+            }
             row.querySelector('.ms-acc-hdr').classList.add('active');
             const body = row.querySelector('.ms-acc-body');
             body.classList.add('open');
@@ -1424,8 +1583,9 @@ ${sections}
         } else {
             if(!lastInit){ frm.appendChild(buildForm(param,'initial',null)); }
             else if(lastInit.result==='FAIL'&&!lastFin){
+                const inspOnly = param.orig_dim_min == null && param.orig_dim_max == null && !param.requires_value;
                 const w=document.createElement('div'); w.className='mt-2';
-                w.innerHTML=`<button class="btn btn-outline-warning btn-sm w-100" style="font-size:11px"><i class="bi bi-plus-circle"></i> Add Final measurement (after repair)</button>`;
+                w.innerHTML=`<button class="btn btn-outline-warning btn-sm w-100" style="font-size:11px"><i class="bi bi-plus-circle"></i> Add Final ${inspOnly?'inspection':'measurement'} (after repair)</button>`;
                 w.querySelector('button').addEventListener('click',()=>w.replaceWith(buildForm(param,'final',lastInit.id)));
                 frm.appendChild(w);
             }
@@ -1514,12 +1674,15 @@ ${sections}
         const showFlange = stage === 'final' && rSide != null
             && (param.flange_clearance_min != null || param.flange_clearance_max != null);
         const inspCodes = (param.codes||[]).filter(c => c.finding_context !== 'measurement');
-        const hasInsp = stage !== 'final' && inspCodes.length > 0;
+        // Final is a re-inspection too: picking a code = defect NOT eliminated → FAIL → EC gate.
+        const hasInsp = !newPart && inspCodes.length > 0;
+        const noneLabel = stage === 'final' ? '— None (defect eliminated) —' : '— None —';
         const codesOpts = inspCodes.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+        const finalTitle = hasMeas ? 'Final measurement (after repair)' : 'Final inspection (after repair)';
 
         const d=document.createElement('div'); d.className='ms-form-wrap mt-2';
         d.innerHTML=`
-            <div style="font-size:10px;font-weight:600;color:${newPart?'#0dcaf0':'var(--bs-secondary-color)'};margin-bottom:6px">${newPart?'New part verification — judged by ORIG limits':(stage==='final'?'Final measurement (after repair)':'Record measurement')}</div>
+            <div style="font-size:10px;font-weight:600;color:${newPart?'#0dcaf0':'var(--bs-secondary-color)'};margin-bottom:6px">${newPart?'New part verification — judged by ORIG limits':(stage==='final'?finalTitle:'Record measurement')}</div>
             ${hasMeas?`
             <div class="ms-frow">
                 <div class="ms-flabel">Actual value</div>
@@ -1547,7 +1710,7 @@ ${sections}
             </div>`:''}
             ${hasInsp?`
             <div class="ms-frow"><div class="ms-flabel">Finding</div>
-                <select class="form-select form-select-sm" id="mst-code-${uid}"><option value="">— None —</option>${codesOpts}</select></div>`:''}
+                <select class="form-select form-select-sm" id="mst-code-${uid}"><option value="">${noneLabel}</option>${codesOpts}</select></div>`:''}
             <div class="ms-frow"><div class="ms-flabel">Notes</div>
                 <textarea class="form-control form-control-sm" id="mst-notes-${uid}" rows="2"></textarea></div>
             <div class="text-danger small d-none mb-1" id="mst-err-${uid}"></div>
@@ -1634,6 +1797,7 @@ ${sections}
         updateMissingPartBtnState(part);
         updateRepairActionState(part);
         updatePrintSketchBtnState(part);
+        refreshSectionHdrs(part);
         if (!activeParam) return;
         const freshParam = part.params.find(p => p.id === activeParam.id) || activeParam;
         activeParam = freshParam;
