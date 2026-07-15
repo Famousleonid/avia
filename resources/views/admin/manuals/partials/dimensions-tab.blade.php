@@ -997,11 +997,21 @@
     #pdw-img { display:block; }
     #pdw-overlay { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
     #pdw-svg { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; z-index:4; }
-    .pdw-dim-label { position:absolute; transform:translate(-50%,-50%); background:#fff; border:1.5px solid #0d6efd; border-radius:3px;
-        font-size:12px; font-weight:700; color:#0d6efd; padding:1px 6px; white-space:nowrap; cursor:pointer; z-index:10; pointer-events:all; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+    /* WYSIWYG: font-size задаётся из JS в px изображения по пропорции печати
+       (pt на листе A4). Отступы/рамки в em — бокс растёт вместе со шрифтом,
+       ровно как в PDF. */
+    .pdw-dim-label { position:absolute; transform:translate(-50%,-50%); background:#fff; border:.09em solid #0d6efd; border-radius:.2em;
+        font-size:12px; font-weight:700; color:#0d6efd; padding:0 .25em; white-space:nowrap; cursor:pointer; z-index:10; pointer-events:all; box-shadow:0 1px 3px rgba(0,0,0,.3); }
     .pdw-dim-label:hover { box-shadow:0 0 0 2px rgba(13,110,253,.35); }
-    .pdw-text-label { position:absolute; transform:translate(-50%,-50%); background:rgba(20,184,166,.12); border:1.5px solid #14b8a6;
-        border-radius:8px; padding:2px 8px; font-size:12px; font-weight:600; color:#0d9488; white-space:nowrap; cursor:pointer; z-index:10; pointer-events:all; }
+    .pdw-text-label { position:absolute; transform:translate(-50%,-50%); background:rgba(20,184,166,.12); border:.09em solid #14b8a6;
+        border-radius:.35em; padding:.05em .2em; font-size:12px; font-weight:700; color:#0d9488; white-space:nowrap; cursor:pointer; z-index:10; pointer-events:all; }
+    /* steps_table: скелет реального размера — шапка + строка на каждый шаг */
+    .pdw-steps-skeleton { background:rgba(20,184,166,.06); }
+    .pdw-steps-skeleton .pdw-steps-cap { font-size:.8em; opacity:.75; margin-bottom:.15em; }
+    .pdw-steps-skeleton table { border-collapse:collapse; background:rgba(255,255,255,.9); color:#333; font-weight:normal; }
+    .pdw-steps-skeleton th, .pdw-steps-skeleton td { border:.06em solid #888; padding:.09em .35em; }
+    .pdw-steps-skeleton th { background:#e9ecef; font-weight:700; }
+    .pdw-steps-skeleton td:nth-child(n+2) { text-align:right; opacity:.55; }
     .pdw-anchor-dot { position:absolute; width:9px; height:9px; transform:translate(-50%,-50%); background:#14b8a6; border:1.5px solid #fff;
         border-radius:50%; box-shadow:0 0 0 1px #14b8a6; cursor:pointer; z-index:11; pointer-events:all; }
     .pdw-doc-row { display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--bs-border-color); border-radius:6px; margin-bottom:6px; cursor:pointer; }

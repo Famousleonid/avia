@@ -4626,11 +4626,19 @@ document.addEventListener('DOMContentLoaded', function () {
         (pdwPage.elements || []).forEach(function (e) {
             if (e.element_type === 'steps_table') {
                 const box = document.createElement('div');
-                box.className = 'pdw-text-label';
+                box.className = 'pdw-text-label pdw-steps-skeleton';
                 box.style.borderStyle = 'dashed';
                 box.style.transform = 'none'; // click point = TOP-LEFT corner of the table
                 const sp = (pdwSourceParams || []).find(function (p) { return p.id == e.source_parameter_id; });
-                box.innerHTML = '<i class="bi bi-table"></i> Steps: ' + escHtml(sp ? (sp.description || '#' + sp.id) : '⟨param⟩');
+                // WYSIWYG skeleton: header + one row per repair step, at printed size
+                const n = sp && sp.steps_count ? sp.steps_count : 3;
+                let rows = '';
+                for (let i = 1; i <= n; i++) {
+                    rows += '<tr><td>R' + String(i * 5).padStart(2, '0') + '</td><td>0.0000</td><td>0.0000</td></tr>';
+                }
+                box.innerHTML = '<div class="pdw-steps-cap"><i class="bi bi-table"></i> '
+                    + escHtml(sp ? (sp.description || '#' + sp.id) : '⟨param⟩') + '</div>'
+                    + '<table><tr><th>Step</th><th>min</th><th>max</th></tr>' + rows + '</table>';
                 box.dataset.xp = e.x_pct; box.dataset.yp = e.y_pct;
                 pdwFinishElement(box, e, 'anchor');
                 return;
@@ -4699,9 +4707,19 @@ document.addEventListener('DOMContentLoaded', function () {
         pdwPositionElements();
     }
 
+    // pt of the printed page → px of the natural sheet image. The PDF stretches
+    // the sheet to the A4 content width (210mm − 2×8mm margins = 194mm ≈ 550pt)
+    // and draws element text in pt — the editor must use the same proportion,
+    // otherwise boxes look ~3× smaller than they print and placement is blind.
+    function pdwPxPerPt() { return (pdwImg.naturalWidth || 550) / 549.9; }
+
     function pdwFinishElement(el, e, coord) {
         el.dataset.elId = e.id;
-        if (e.font_size && !el.classList.contains('pdw-anchor-dot')) el.style.fontSize = e.font_size + 'pt';
+        if (!el.classList.contains('pdw-anchor-dot')) {
+            // WYSIWYG: PDF defaults are 9pt (elements) / 8pt (steps table)
+            const def = e.element_type === 'steps_table' ? 8 : 9;
+            el.style.fontSize = ((e.font_size || def) * pdwPxPerPt()).toFixed(2) + 'px';
+        }
         if (!el.title) el.title = 'Click to edit · drag to move';
         pdwAddElementDrag(el, e, coord);
         pdwOverlay.appendChild(el);
