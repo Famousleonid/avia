@@ -1255,7 +1255,7 @@ class MobileApiController extends Controller
         return response()->file($path);
     }
 
-    private function canAccessMedia(Request $request, Media $media): bool
+    protected function canAccessMedia(Request $request, Media $media): bool
     {
         if ($media->model_type === (new Workorder())->getMorphClass()) {
             return true;
@@ -1273,7 +1273,7 @@ class MobileApiController extends Controller
         return false;
     }
 
-    private function tdrAttachData(array $validated, int $workorderId, int $componentId): array
+    protected function tdrAttachData(array $validated, int $workorderId, int $componentId): array
     {
         $code = Code::query()->find((int) $validated['code_id']);
         $isMissing = $code && stripos((string) $code->name, 'missing') !== false;
@@ -1318,7 +1318,7 @@ class MobileApiController extends Controller
         return $data;
     }
 
-    private function findWorkorder(int $id, array $with = []): Workorder
+    protected function findWorkorder(int $id, array $with = []): Workorder
     {
         if (! in_array('main.task', $with, true)) {
             $with[] = 'main.task';
@@ -1329,7 +1329,7 @@ class MobileApiController extends Controller
             ->findOrFail($id);
     }
 
-    private function userPayload(User $user): array
+    protected function userPayload(User $user): array
     {
         return [
             'id' => $user->id,
@@ -1348,7 +1348,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function profilePayload(User $user): array
+    protected function profilePayload(User $user): array
     {
         return [
             'id' => $user->id,
@@ -1364,7 +1364,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function teamPayload(Team $team): array
+    protected function teamPayload(Team $team): array
     {
         return [
             'id' => $team->id,
@@ -1372,7 +1372,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function workorderListPayload(Workorder $workorder, User $user): array
+    protected function workorderListPayload(Workorder $workorder, User $user): array
     {
         return array_merge($this->workorderMiniPayload($workorder), [
             'owned_by_current_user' => (int) $workorder->user_id === (int) $user->id,
@@ -1381,7 +1381,7 @@ class MobileApiController extends Controller
         ]);
     }
 
-    private function workorderMiniPayload(Workorder $workorder): array
+    protected function workorderMiniPayload(Workorder $workorder): array
     {
         return [
             'id' => $workorder->id,
@@ -1395,7 +1395,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function workorderDetailPayload(Workorder $workorder, User $user): array
+    protected function workorderDetailPayload(Workorder $workorder, User $user): array
     {
         return array_merge($this->workorderMiniPayload($workorder), [
             'owner' => $workorder->user ? ['id' => $workorder->user->id, 'name' => $workorder->user->selection_name] : null,
@@ -1428,7 +1428,7 @@ class MobileApiController extends Controller
         ]);
     }
 
-    private function unitPayload(?Unit $unit): ?array
+    protected function unitPayload(?Unit $unit): ?array
     {
         if (! $unit) {
             return null;
@@ -1449,7 +1449,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function arrivalBoxPayload(Workorder $workorder, User $user): array
+    protected function arrivalBoxPayload(Workorder $workorder, User $user): array
     {
         return [
             'status' => $workorder->arrival_box_status,
@@ -1461,7 +1461,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function arrivalBoxStatusLabel(?string $status): string
+    protected function arrivalBoxStatusLabel(?string $status): string
     {
         return match ($status) {
             'ok' => 'OK',
@@ -1473,7 +1473,7 @@ class MobileApiController extends Controller
         };
     }
 
-    private function componentPayload(?Component $component, $tdrs = null): ?array
+    protected function componentPayload(?Component $component, $tdrs = null): ?array
     {
         if (! $component) {
             return null;
@@ -1494,7 +1494,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function tdrPayload(Tdr $tdr): array
+    protected function tdrPayload(Tdr $tdr): array
     {
         return [
             'id' => $tdr->id,
@@ -1510,7 +1510,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function tdrProcessPayload(TdrProcess $process): array
+    protected function tdrProcessPayload(TdrProcess $process): array
     {
         return [
             'id' => $process->id,
@@ -1525,7 +1525,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function mainPayload(Main $main): array
+    protected function mainPayload(Main $main): array
     {
         return [
             'id' => $main->id,
@@ -1538,7 +1538,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function materialPayload(Material $material): array
+    protected function materialPayload(Material $material): array
     {
         return [
             'id' => $material->id,
@@ -1549,19 +1549,19 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function mediaPayloads($media): array
+    protected function mediaPayloads($media): array
     {
         return collect($media)->map(fn (Media $item) => $this->mediaPayload($item))->values()->all();
     }
 
-    private function firstMediaPayload($media): ?array
+    protected function firstMediaPayload($media): ?array
     {
         $first = collect($media)->first();
 
         return $first ? $this->mediaPayload($first) : null;
     }
 
-    private function mediaPayload(Media $media): array
+    protected function mediaPayload(Media $media): array
     {
         return [
             'id' => $media->id,
@@ -1576,14 +1576,14 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function mediaGroups(): array
+    protected function mediaGroups(): array
     {
         $groups = config('workorder_media.groups', ['photos' => 'Photos']);
 
         return is_array($groups) && $groups !== [] ? $groups : ['photos' => 'Photos'];
     }
 
-    private function parseProfileBirthday(?string $value): ?string
+    protected function parseProfileBirthday(?string $value): ?string
     {
         $raw = trim((string) $value);
         if ($raw === '') {
@@ -1625,12 +1625,12 @@ class MobileApiController extends Controller
         return $date->format('Y-m-d');
     }
 
-    private function removeSpaces(?string $value): ?string
+    protected function removeSpaces(?string $value): ?string
     {
         return $value === null ? null : str_replace(' ', '', $value);
     }
 
-    private function navigationPayload(User $user): array
+    protected function navigationPayload(User $user): array
     {
         $workorderDetailMenu = [
             ['key' => 'workorder', 'label' => 'Workorder', 'screen' => 'workorder_detail'],
@@ -1653,7 +1653,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function screenCatalogPayload(User $user): array
+    protected function screenCatalogPayload(User $user): array
     {
         return [
             'splash' => [
@@ -1712,7 +1712,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function availableMenuModes(User $user): array
+    protected function availableMenuModes(User $user): array
     {
         $modes = ['workorders'];
         if ($user->roleIs(['Paint', 'Admin', 'Manager'])) {
@@ -1725,7 +1725,7 @@ class MobileApiController extends Controller
         return $modes;
     }
 
-    private function topMenuForMode(User $user, string $mode): array
+    protected function topMenuForMode(User $user, string $mode): array
     {
         if ($mode === 'paint') {
             return [
@@ -1760,7 +1760,7 @@ class MobileApiController extends Controller
         return $topMenu;
     }
 
-    private function availableSectionsPayload(User $user): array
+    protected function availableSectionsPayload(User $user): array
     {
         $sections = [
             ['key' => 'workorders', 'enabled' => true],
@@ -1774,7 +1774,7 @@ class MobileApiController extends Controller
         return array_values(array_filter($sections, static fn (array $section): bool => $section['enabled']));
     }
 
-    private function paintRowPayload(object $row): array
+    protected function paintRowPayload(object $row): array
     {
         $workorder = $row->workorder;
         $editTp = $row->edit_paint_process ?? null;
@@ -1797,7 +1797,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function paintLostPayload(Paint $paint): array
+    protected function paintLostPayload(Paint $paint): array
     {
         return [
             'id' => $paint->id,
@@ -1809,7 +1809,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function machiningDetailItemPayload(object $item, User $user, array $machinistNames): array
+    protected function machiningDetailItemPayload(object $item, User $user, array $machinistNames): array
     {
         if (($item->kind ?? '') === 'step_group') {
             return [
@@ -1853,7 +1853,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function machiningStepPayload(MachiningWorkStep $step): array
+    protected function machiningStepPayload(MachiningWorkStep $step): array
     {
         return [
             'id' => $step->id,
@@ -1865,7 +1865,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function mobileMachiningRelations(): array
+    protected function mobileMachiningRelations(): array
     {
         return [
             'unit' => function ($q) {
@@ -1890,7 +1890,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function mobileMachiningWorkordersQuery()
+    protected function mobileMachiningWorkordersQuery()
     {
         return Workorder::query()
             ->whereNull('done_at')
@@ -1904,7 +1904,7 @@ class MobileApiController extends Controller
             ->orderBy('number', 'asc');
     }
 
-    private function buildMobileMachiningFilteredRows(Collection $workorders, ?User $user = null, bool $onlyMyMachiningSteps = false): Collection
+    protected function buildMobileMachiningFilteredRows(Collection $workorders, ?User $user = null, bool $onlyMyMachiningSteps = false): Collection
     {
         $user = $user ?? auth()->user();
         $rows = app(MachiningListingRowsBuilder::class)->build($workorders);
@@ -1917,7 +1917,7 @@ class MobileApiController extends Controller
         return $rows->values();
     }
 
-    private function aggregateMobileMachiningWorkorderList(Collection $rows): Collection
+    protected function aggregateMobileMachiningWorkorderList(Collection $rows): Collection
     {
         $seen = [];
         $woList = collect();
@@ -1949,7 +1949,7 @@ class MobileApiController extends Controller
         })->values();
     }
 
-    private function mobileMachiningWorkorderContextCore(Workorder $workorder, User $user, bool $onlyMine = false): ?array
+    protected function mobileMachiningWorkorderContextCore(Workorder $workorder, User $user, bool $onlyMine = false): ?array
     {
         $rows = $this->buildMobileMachiningFilteredRows(collect([$workorder]), $user, false)->values();
         if ($rows->isEmpty()) {
@@ -1989,7 +1989,7 @@ class MobileApiController extends Controller
         ];
     }
 
-    private function buildMobileMachiningWorkorderDetailItems(Collection $rows, ?int $restrictStepsToMachinistId = null): Collection
+    protected function buildMobileMachiningWorkorderDetailItems(Collection $rows, ?int $restrictStepsToMachinistId = null): Collection
     {
         $items = collect();
         foreach ($rows as $row) {
@@ -2038,7 +2038,7 @@ class MobileApiController extends Controller
         return $items;
     }
 
-    private function mobileMachiningProcessCatalogForWorkorder(Workorder $workorder): array
+    protected function mobileMachiningProcessCatalogForWorkorder(Workorder $workorder): array
     {
         $machiningBoardPnIds = ProcessName::machiningMachiningEcMergeProcessNameIds();
         if ($machiningBoardPnIds === []) {
@@ -2110,7 +2110,7 @@ class MobileApiController extends Controller
         return null;
     }
 
-    private function groupMobileMachiningWorkorderDetailItems(Collection $items): Collection
+    protected function groupMobileMachiningWorkorderDetailItems(Collection $items): Collection
     {
         $out = collect();
         $buffer = [];
@@ -2137,7 +2137,7 @@ class MobileApiController extends Controller
         return $out;
     }
 
-    private function flushMobileMachiningStepGroupBuffer(array $buffer, Collection $out): void
+    protected function flushMobileMachiningStepGroupBuffer(array $buffer, Collection $out): void
     {
         if ($buffer === []) {
             return;
@@ -2292,7 +2292,7 @@ class MobileApiController extends Controller
         return $merged->unique('id')->values();
     }
 
-    private function workorderMediaCount(Workorder $workorder, string $collection, ?string $mimePrefix = null): int
+    protected function workorderMediaCount(Workorder $workorder, string $collection, ?string $mimePrefix = null): int
     {
         $query = $workorder->media()->where('collection_name', $collection);
         if ($mimePrefix !== null) {
@@ -2302,7 +2302,7 @@ class MobileApiController extends Controller
         return (int) $query->count();
     }
 
-    private function buildMachiningWorkorderDocPdfBinary(string $raw, string $mime): string
+    protected function buildMachiningWorkorderDocPdfBinary(string $raw, string $mime): string
     {
         $normalized = $this->normalizeMachiningDocImageForPdf($raw, $mime);
         $embed = $normalized ?? ['data' => $raw, 'mime' => $mime];
@@ -2351,7 +2351,7 @@ class MobileApiController extends Controller
             ->output();
     }
 
-    private function normalizeMachiningDocImageForPdf(string $raw, string $mime): ?array
+    protected function normalizeMachiningDocImageForPdf(string $raw, string $mime): ?array
     {
         if (! function_exists('imagecreatefromstring')) {
             return null;
@@ -2403,7 +2403,7 @@ class MobileApiController extends Controller
         return ['data' => $out, 'mime' => 'image/jpeg'];
     }
 
-    private function applyExifOrientationToGdImage($im, int $orientation)
+    protected function applyExifOrientationToGdImage($im, int $orientation)
     {
         $rot = null;
         $flipH = false;
@@ -2437,7 +2437,7 @@ class MobileApiController extends Controller
         return $im;
     }
 
-    private function ok($data = [], array $meta = [], ?string $message = null, int $status = 200): JsonResponse
+    protected function ok($data = [], array $meta = [], ?string $message = null, int $status = 200): JsonResponse
     {
         return response()->json([
             'ok' => true,
@@ -2447,7 +2447,7 @@ class MobileApiController extends Controller
         ], $status);
     }
 
-    private function fail(string $message, int $status = 400, array $errors = []): JsonResponse
+    protected function fail(string $message, int $status = 400, array $errors = []): JsonResponse
     {
         return response()->json([
             'ok' => false,

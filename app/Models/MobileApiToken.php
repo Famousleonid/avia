@@ -10,6 +10,7 @@ class MobileApiToken extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'platform',
         'token_hash',
         'last_used_at',
         'expires_at',

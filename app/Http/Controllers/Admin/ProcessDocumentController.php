@@ -1354,6 +1354,7 @@ document.addEventListener(\'mouseup\', function (e) {
 
         return ManualParameter::where('manual_id', $manualId)
             ->with(['inspectionComponent:id,label', 'points:id,code'])
+            ->withCount('repairSteps')
             ->orderBy('inspection_component_id')
             ->orderBy('sort_order')
             ->get()
@@ -1362,6 +1363,8 @@ document.addEventListener(\'mouseup\', function (e) {
                 'description' => $p->description,
                 'points'      => $p->points->pluck('code')->filter()->implode(', '),
                 'part'        => $p->inspectionComponent?->label,
+                // editor: real-size skeleton of the steps_table element
+                'steps_count' => $p->repair_steps_count,
             ])
             ->values()
             ->all();

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Android\AndroidApiController;
 use App\Http\Controllers\Api\ArchiveController;
 use App\Http\Controllers\Api\Mobile\MobileApiController;
 use App\Http\Controllers\Api\QuantumRoSyncController;
@@ -27,69 +28,80 @@ Route::prefix('archive')
             ->name('archive.mark-synced');
     });
 
-Route::prefix('mobile')->name('api.mobile.')->group(function () {
-    Route::get('/public/app-config', [MobileApiController::class, 'publicAppConfig'])->name('public.app-config');
-    Route::post('/auth/login', [MobileApiController::class, 'login'])->name('auth.login');
+// Shared route map of the mobile clients. Registered twice: the iOS contour
+// (/api/mobile/*, MobileApiController — source of truth) and the Android
+// contour (/api/android/*, AndroidApiController extends the iOS one and
+// overrides only platform-specific behavior). URIs/names of the iOS contour
+// are unchanged.
+$registerMobileClientRoutes = function (string $controller) {
+    Route::get('/public/app-config', [$controller, 'publicAppConfig'])->name('public.app-config');
+    Route::post('/auth/login', [$controller, 'login'])->name('auth.login');
 
-    Route::middleware('mobile.api')->group(function () {
-        Route::get('/me', [MobileApiController::class, 'me'])->name('me');
-        Route::get('/bootstrap', [MobileApiController::class, 'bootstrap'])->name('bootstrap');
-        Route::post('/auth/logout', [MobileApiController::class, 'logout'])->name('auth.logout');
-        Route::get('/profile', [MobileApiController::class, 'profile'])->name('profile.show');
-        Route::put('/profile', [MobileApiController::class, 'updateProfile'])->name('profile.update');
-        Route::post('/profile/password', [MobileApiController::class, 'updatePassword'])->name('profile.password.update');
+    Route::middleware('mobile.api')->group(function () use ($controller) {
+        Route::get('/me', [$controller, 'me'])->name('me');
+        Route::get('/bootstrap', [$controller, 'bootstrap'])->name('bootstrap');
+        Route::post('/auth/logout', [$controller, 'logout'])->name('auth.logout');
+        Route::get('/profile', [$controller, 'profile'])->name('profile.show');
+        Route::put('/profile', [$controller, 'updateProfile'])->name('profile.update');
+        Route::post('/profile/password', [$controller, 'updatePassword'])->name('profile.password.update');
 
-        Route::get('/media/{media}/thumb', [MobileApiController::class, 'mediaFile'])
+        Route::get('/media/{media}/thumb', [$controller, 'mediaFile'])
             ->defaults('variant', 'thumb')
             ->name('media.thumb');
-        Route::get('/media/{media}/file', [MobileApiController::class, 'mediaFile'])
+        Route::get('/media/{media}/file', [$controller, 'mediaFile'])
             ->defaults('variant', 'file')
             ->name('media.file');
 
-        Route::get('/workorders', [MobileApiController::class, 'workorders'])->name('workorders.index');
-        Route::get('/workorders/{workorderId}', [MobileApiController::class, 'workorder'])->name('workorders.show');
-        Route::patch('/workorders/{workorderId}/storage', [MobileApiController::class, 'updateStorage'])->name('workorders.storage.update');
-        Route::patch('/workorders/{workorderId}/arrival-box', [MobileApiController::class, 'updateArrivalBox'])->name('workorders.arrival-box.update');
-        Route::get('/workorders/{workorderId}/media', [MobileApiController::class, 'workorderMedia'])->name('workorders.media.index');
-        Route::post('/workorders/{workorderId}/media', [MobileApiController::class, 'storeWorkorderMedia'])->name('workorders.media.store');
-        Route::delete('/workorders/{workorderId}/media/{media}', [MobileApiController::class, 'deleteWorkorderMedia'])->name('workorders.media.destroy');
+        Route::get('/workorders', [$controller, 'workorders'])->name('workorders.index');
+        Route::get('/workorders/{workorderId}', [$controller, 'workorder'])->name('workorders.show');
+        Route::patch('/workorders/{workorderId}/storage', [$controller, 'updateStorage'])->name('workorders.storage.update');
+        Route::patch('/workorders/{workorderId}/arrival-box', [$controller, 'updateArrivalBox'])->name('workorders.arrival-box.update');
+        Route::get('/workorders/{workorderId}/media', [$controller, 'workorderMedia'])->name('workorders.media.index');
+        Route::post('/workorders/{workorderId}/media', [$controller, 'storeWorkorderMedia'])->name('workorders.media.store');
+        Route::delete('/workorders/{workorderId}/media/{media}', [$controller, 'deleteWorkorderMedia'])->name('workorders.media.destroy');
 
-        Route::get('/draft/options', [MobileApiController::class, 'draftOptions'])->name('draft.options');
-        Route::post('/drafts', [MobileApiController::class, 'storeDraft'])->name('drafts.store');
-        Route::post('/draft-units', [MobileApiController::class, 'storeDraftUnit'])->name('draft-units.store');
+        Route::get('/draft/options', [$controller, 'draftOptions'])->name('draft.options');
+        Route::post('/drafts', [$controller, 'storeDraft'])->name('drafts.store');
+        Route::post('/draft-units', [$controller, 'storeDraftUnit'])->name('draft-units.store');
 
-        Route::get('/workorders/{workorderId}/tasks', [MobileApiController::class, 'tasks'])->name('workorders.tasks.index');
-        Route::put('/workorders/{workorderId}/tasks/{task}/dates', [MobileApiController::class, 'updateTaskDates'])->name('workorders.tasks.dates');
+        Route::get('/workorders/{workorderId}/tasks', [$controller, 'tasks'])->name('workorders.tasks.index');
+        Route::put('/workorders/{workorderId}/tasks/{task}/dates', [$controller, 'updateTaskDates'])->name('workorders.tasks.dates');
 
-        Route::get('/workorders/{workorderId}/components', [MobileApiController::class, 'components'])->name('workorders.components.index');
-        Route::post('/workorders/{workorderId}/components', [MobileApiController::class, 'storeComponent'])->name('workorders.components.store');
-        Route::patch('/components/{component}', [MobileApiController::class, 'updateComponent'])->name('components.update');
-        Route::post('/components/{component}/photo', [MobileApiController::class, 'storeComponentPhoto'])->name('components.photo.store');
-        Route::post('/workorders/{workorderId}/component-attachments', [MobileApiController::class, 'storeComponentAttachment'])->name('workorders.component-attachments.store');
-        Route::patch('/component-attachments/{tdr}', [MobileApiController::class, 'updateComponentAttachment'])->name('component-attachments.update');
-        Route::delete('/component-attachments/{tdr}', [MobileApiController::class, 'deleteComponentAttachment'])->name('component-attachments.destroy');
+        Route::get('/workorders/{workorderId}/components', [$controller, 'components'])->name('workorders.components.index');
+        Route::post('/workorders/{workorderId}/components', [$controller, 'storeComponent'])->name('workorders.components.store');
+        Route::patch('/components/{component}', [$controller, 'updateComponent'])->name('components.update');
+        Route::post('/components/{component}/photo', [$controller, 'storeComponentPhoto'])->name('components.photo.store');
+        Route::post('/workorders/{workorderId}/component-attachments', [$controller, 'storeComponentAttachment'])->name('workorders.component-attachments.store');
+        Route::patch('/component-attachments/{tdr}', [$controller, 'updateComponentAttachment'])->name('component-attachments.update');
+        Route::delete('/component-attachments/{tdr}', [$controller, 'deleteComponentAttachment'])->name('component-attachments.destroy');
 
-        Route::get('/workorders/{workorderId}/processes', [MobileApiController::class, 'processes'])->name('workorders.processes.index');
-        Route::patch('/tdr-processes/{tdrProcess}/dates', [MobileApiController::class, 'updateTdrProcessDates'])->name('tdr-processes.dates.update');
+        Route::get('/workorders/{workorderId}/processes', [$controller, 'processes'])->name('workorders.processes.index');
+        Route::patch('/tdr-processes/{tdrProcess}/dates', [$controller, 'updateTdrProcessDates'])->name('tdr-processes.dates.update');
 
-        Route::get('/materials', [MobileApiController::class, 'materials'])->name('materials.index');
-        Route::patch('/materials/{material}', [MobileApiController::class, 'updateMaterial'])->name('materials.update');
+        Route::get('/materials', [$controller, 'materials'])->name('materials.index');
+        Route::patch('/materials/{material}', [$controller, 'updateMaterial'])->name('materials.update');
 
-        Route::get('/paint', [MobileApiController::class, 'paint'])->name('paint.index');
-        Route::post('/paint/lost', [MobileApiController::class, 'storePaintLost'])->name('paint.lost.store');
-        Route::delete('/paint/lost/{paint}', [MobileApiController::class, 'deletePaintLost'])->name('paint.lost.destroy');
-        Route::post('/paint/messages', [MobileApiController::class, 'sendPaintOwnerMessage'])->name('paint.messages.store');
+        Route::get('/paint', [$controller, 'paint'])->name('paint.index');
+        Route::post('/paint/lost', [$controller, 'storePaintLost'])->name('paint.lost.store');
+        Route::delete('/paint/lost/{paint}', [$controller, 'deletePaintLost'])->name('paint.lost.destroy');
+        Route::post('/paint/messages', [$controller, 'sendPaintOwnerMessage'])->name('paint.messages.store');
 
-        Route::get('/machining', [MobileApiController::class, 'machining'])->name('machining.index');
-        Route::get('/machining/workorders/{workorderId}', [MobileApiController::class, 'machiningWorkorder'])->name('machining.workorders.show');
-        Route::patch('/machining/steps/{machiningWorkStep}', [MobileApiController::class, 'updateMachiningStep'])->name('machining.steps.update');
-        Route::post('/machining/workorders/{workorderId}/photos', [MobileApiController::class, 'storeMachiningWorkorderPhoto'])->name('machining.workorders.photos.store');
-        Route::get('/machining/workorders/{workorderId}/photos', [MobileApiController::class, 'machiningWorkorderPhotos'])->name('machining.workorders.photos.index');
-        Route::post('/machining/workorders/{workorderId}/doc-pdfs', [MobileApiController::class, 'storeMachiningWorkorderDocPdf'])->name('machining.workorders.doc-pdfs.store');
-        Route::get('/machining/workorders/{workorderId}/pdfs', [MobileApiController::class, 'machiningWorkorderPdfs'])->name('machining.workorders.pdfs.index');
-        Route::delete('/machining/workorders/{workorderId}/media/{media}', [MobileApiController::class, 'deleteMachiningWorkorderMedia'])->name('machining.workorders.media.destroy');
+        Route::get('/machining', [$controller, 'machining'])->name('machining.index');
+        Route::get('/machining/workorders/{workorderId}', [$controller, 'machiningWorkorder'])->name('machining.workorders.show');
+        Route::patch('/machining/steps/{machiningWorkStep}', [$controller, 'updateMachiningStep'])->name('machining.steps.update');
+        Route::post('/machining/workorders/{workorderId}/photos', [$controller, 'storeMachiningWorkorderPhoto'])->name('machining.workorders.photos.store');
+        Route::get('/machining/workorders/{workorderId}/photos', [$controller, 'machiningWorkorderPhotos'])->name('machining.workorders.photos.index');
+        Route::post('/machining/workorders/{workorderId}/doc-pdfs', [$controller, 'storeMachiningWorkorderDocPdf'])->name('machining.workorders.doc-pdfs.store');
+        Route::get('/machining/workorders/{workorderId}/pdfs', [$controller, 'machiningWorkorderPdfs'])->name('machining.workorders.pdfs.index');
+        Route::delete('/machining/workorders/{workorderId}/media/{media}', [$controller, 'deleteMachiningWorkorderMedia'])->name('machining.workorders.media.destroy');
     });
-});
+};
+
+Route::prefix('mobile')->name('api.mobile.')
+    ->group(fn () => $registerMobileClientRoutes(MobileApiController::class));
+
+Route::prefix('android')->name('api.android.')
+    ->group(fn () => $registerMobileClientRoutes(AndroidApiController::class));
 
 Route::prefix('quantum')->name('api.quantum.')->group(function () {
     Route::get('/ro-sync/state', [QuantumRoSyncController::class, 'state'])->name('ro-sync.state');
