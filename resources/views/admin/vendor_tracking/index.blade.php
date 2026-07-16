@@ -1063,11 +1063,6 @@
             vertical-align: top;
         }
 
-        .quantum-buffer-table tr.is-quantum-search-match > td {
-            background-color: rgba(13, 202, 240, .18) !important;
-            box-shadow: inset 0 0 0 2px rgba(13, 202, 240, .75);
-        }
-
         .quantum-buffer-message {
             color: #64748b;
             max-width: 340px;
@@ -2028,14 +2023,14 @@
                                 data-no-spinner
                             >
                                 <input
-                                    type="text"
+                                    type="search"
                                     id="quantumWorkorderSearch"
                                     class="form-control form-control-sm quantum-buffer-wo-search"
-                                    placeholder="WO"
+                                    placeholder="WO in Reason"
                                     inputmode="numeric"
                                     autocomplete="off"
                                 >
-                                <button type="submit" class="btn btn-outline-primary btn-sm" title="Search WO">
+                                <button type="submit" class="btn btn-outline-primary btn-sm" title="Filter Reason by WO">
                                     <i class="bi bi-search"></i>
                                 </button>
                             </form>
@@ -2047,10 +2042,10 @@
                                 data-no-spinner
                             >
                                 <input
-                                    type="text"
+                                    type="search"
                                     id="quantumRepairOrderSearch"
                                     class="form-control form-control-sm quantum-buffer-ro-search"
-                                    placeholder="RO"
+                                    placeholder="RO filter"
                                     inputmode="numeric"
                                     autocomplete="off"
                                 >
@@ -2073,6 +2068,10 @@
                 </div>
                 <div class="modal-body">
                     <div class="quantum-buffer-section quantum-buffer-unparsed-section">
+                        <div class="quantum-buffer-section-head">
+                            <div class="quantum-buffer-section-title">Needs attention</div>
+                            <div class="quantum-buffer-recent-tools small text-muted">Unresolved rows only &middot; completed WO excluded</div>
+                        </div>
                         <div class="quantum-buffer-table-wrap quantum-buffer-unparsed-wrap">
                             <table class="table table-sm table-bordered align-middle quantum-buffer-table">
                                 <thead>
@@ -2093,44 +2092,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="quantumUnparsedRowsBody">
-                                    @forelse($quantumUnparsedRows as $line)
-                                        <tr
-                                            data-quantum-line-id="{{ $line->id }}"
-                                            data-quantum-wo="{{ trim((string) $line->wo_number) }}"
-                                            data-quantum-ro="{{ trim((string) $line->ro_number) }}"
-                                        >
-                                            <td>
-                                                <span class="badge {{ $line->apply_status === 'error' ? 'text-bg-danger' : 'text-bg-warning' }}">
-                                                    {{ $line->apply_status ?: 'pending' }}
-                                                </span>
-                                            </td>
-                                            <td class="quantum-buffer-message">@include('admin.vendor_tracking.partials.quantum_message', ['line' => $line])</td>
-                                            <td>{{ $line->ro_number ?: '--' }}</td>
-                                            <td>{{ $line->wo_number ?: '--' }}</td>
-                                            <td>{{ $line->vendor_name ?: '--' }}</td>
-                                            <td>{{ $line->pn ?: '--' }}</td>
-                                            <td>{{ $line->description ?: '--' }}</td>
-                                            <td>{{ $line->class ?: '--' }}</td>
-                                            <td><code>{{ $line->bom_ref ?: '--' }}</code></td>
-                                            <td>{{ format_project_date($line->out_date) ?? '--' }}</td>
-                                            <td>{{ format_project_date($line->returned_date) ?? '--' }}</td>
-                                            <td class="text-nowrap">qty - {{ $quantumRoQty($line->qty_repair) }} / {{ $quantumRoQty($line->qty_reserved) }} / {{ $quantumRoQty($line->qty_repaired) }}</td>
-                                            <td class="quantum-buffer-action-col">
-                                                <button
-                                                    type="button"
-                                                    class="btn btn-outline-secondary btn-sm js-quantum-dismiss-row"
-                                                    data-dismiss-url="{{ route('vendor-tracking.quantum-lines.dismiss', ['quantumRoLine' => $line->id]) }}"
-                                                    title="Dismiss this unresolved row"
-                                                >
-                                                    <i class="bi bi-check2"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr class="js-quantum-unparsed-empty">
-                                            <td colspan="13" class="text-center text-muted py-4">No unresolved Quantum RO rows.</td>
-                                        </tr>
-                                    @endforelse
+                                    @include('admin.vendor_tracking.partials.quantum_unparsed_rows', ['quantumUnparsedRows' => $quantumUnparsedRows])
                                 </tbody>
                             </table>
                         </div>
@@ -2166,7 +2128,7 @@
                                 </span>
                             </div>
                             <div class="quantum-buffer-recent-tools small text-muted">
-                                <span>All statuses</span>
+                                <span title="Local audit buffer of the latest rows received from Quantum, including their apply result and target">Audit log &middot; all statuses &middot; completed WO excluded</span>
                                 @if(($quantumRecentRows ?? collect())->count() < ($quantumRecentTotal ?? 0))
                                     <span>&middot; scroll to load more</span>
                                 @endif
@@ -2897,7 +2859,7 @@
             const quantumBufferSplitter = document.getElementById('quantumBufferSplitter');
             const quantumRecentVisibleToggle = document.getElementById('quantumRecentVisibleToggle');
             let isLoadingQuantumRecent = false;
-            let activeQuantumSearchRows = [];
+            let activeQuantumFilter = { mode: null, search: '' };
             let quantumSplitRatio = Number(settingValue(quantumSplitRatioKey, 0.42));
 
             const quantumBodyGridGap = function () {
@@ -3206,99 +3168,10 @@
                 return quantumRecentBody.querySelector(`[data-quantum-line-id="${escapedLineId}"]`);
             };
 
-            const quantumUnparsedRowByLineId = function (lineId) {
-                if (!quantumUnparsedBody || !lineId) {
-                    return null;
-                }
-
-                return quantumUnparsedBody.querySelector(`tr[data-quantum-line-id="${cssEscapeValue(lineId)}"]`);
-            };
-
             const cssEscapeValue = function (value) {
                 return window.CSS && typeof window.CSS.escape === 'function'
                     ? window.CSS.escape(String(value))
                     : String(value).replace(/"/g, '\\"');
-            };
-
-            const clearQuantumSearchMatches = function () {
-                activeQuantumSearchRows.forEach(function (row) {
-                    row.classList.remove('is-quantum-search-match');
-                });
-                activeQuantumSearchRows = [];
-            };
-
-            const uniqueQuantumLineIds = function (lineIds) {
-                const seen = new Set();
-                const ids = [];
-
-                (Array.isArray(lineIds) ? lineIds : []).forEach(function (lineId) {
-                    const id = String(lineId || '').trim();
-                    if (!id || seen.has(id)) {
-                        return;
-                    }
-
-                    seen.add(id);
-                    ids.push(id);
-                });
-
-                return ids;
-            };
-
-            const scrollQuantumRowIntoView = function (row) {
-                if (!row) {
-                    return;
-                }
-
-                const wrap = row.closest('.quantum-buffer-table-wrap');
-                if (!wrap) {
-                    return;
-                }
-
-                const scrollRect = wrap.getBoundingClientRect();
-                const rowRect = row.getBoundingClientRect();
-                wrap.scrollTop += rowRect.top - scrollRect.top - 42;
-            };
-
-            const quantumRowsByLineIds = function (lineIds) {
-                const rows = [];
-                const recentRows = [];
-                const unparsedRows = [];
-
-                uniqueQuantumLineIds(lineIds).forEach(function (lineId) {
-                    const recentRow = quantumRowByLineId(lineId);
-                    const unparsedRow = quantumUnparsedRowByLineId(lineId);
-
-                    if (recentRow) {
-                        recentRows.push(recentRow);
-                        rows.push(recentRow);
-                    }
-
-                    if (unparsedRow) {
-                        unparsedRows.push(unparsedRow);
-                        rows.push(unparsedRow);
-                    }
-                });
-
-                return { rows, recentRows, unparsedRows };
-            };
-
-            const highlightQuantumRowsByLineIds = function (lineIds) {
-                clearQuantumSearchMatches();
-
-                const matches = quantumRowsByLineIds(lineIds);
-                activeQuantumSearchRows = matches.rows;
-                activeQuantumSearchRows.forEach(function (row) {
-                    row.classList.add('is-quantum-search-match');
-                });
-
-                scrollQuantumRowIntoView(matches.unparsedRows[0] || null);
-                scrollQuantumRowIntoView(matches.recentRows[0] || null);
-
-                return {
-                    total: matches.rows.length,
-                    recent: matches.recentRows.length,
-                    unparsed: matches.unparsedRows.length,
-                };
             };
 
             const appendQuantumRecentRows = function (html) {
@@ -3313,6 +3186,28 @@
                 Array.from(template.content.children).forEach(function (row) {
                     quantumRecentBody.appendChild(row);
                 });
+            };
+
+            const replaceQuantumBufferRows = function (data) {
+                if (quantumRecentBody) {
+                    const recentHtml = String(data?.html || '').trim();
+                    quantumRecentBody.innerHTML = recentHtml || '<tr class="js-quantum-recent-empty"><td colspan="13" class="text-center text-muted py-4">No matching Quantum Reason rows.</td></tr>';
+                }
+
+                if (quantumUnparsedBody) {
+                    const unparsedHtml = String(data?.unparsed_html || '').trim();
+                    quantumUnparsedBody.innerHTML = unparsedHtml || '<tr class="js-quantum-unparsed-empty"><td colspan="13" class="text-center text-muted py-4">No matching unresolved Quantum rows.</td></tr>';
+                }
+
+                if (quantumRecentScroll) {
+                    quantumRecentScroll.dataset.hasMore = data?.has_more ? '1' : '0';
+                    quantumRecentScroll.dataset.nextPage = data?.next_page ? String(data.next_page) : '';
+                    quantumRecentScroll.scrollTop = 0;
+                }
+
+                setQuantumCountText('quantumRecentTotalCount', data?.total ?? 0);
+                setQuantumCountText('quantumUnparsedTotalCount', data?.unparsed_total ?? 0);
+                document.querySelector('.quantum-buffer-unparsed-wrap')?.scrollTo({ top: 0 });
             };
 
             const setQuantumDismissButtonsDisabled = function (disabled) {
@@ -3373,7 +3268,12 @@
 
                 ensureQuantumUnparsedEmptyRow();
                 setQuantumToolbarCount(data?.unparsed_total);
-                setQuantumCountText('quantumUnparsedTotalCount', data?.unparsed_total);
+                setQuantumCountText(
+                    'quantumUnparsedTotalCount',
+                    activeQuantumFilter.search !== ''
+                        ? quantumUnparsedBody?.querySelectorAll('tr[data-quantum-line-id]').length ?? 0
+                        : data?.unparsed_total
+                );
                 setQuantumStatusCounts(data?.status_counts);
             };
 
@@ -3444,7 +3344,12 @@
                 }
 
                 setQuantumToolbarCount(data?.unparsed_total);
-                setQuantumCountText('quantumUnparsedTotalCount', data?.unparsed_total);
+                setQuantumCountText(
+                    'quantumUnparsedTotalCount',
+                    activeQuantumFilter.search !== ''
+                        ? quantumUnparsedBody?.querySelectorAll('tr[data-quantum-line-id]').length ?? 0
+                        : data?.unparsed_total
+                );
                 setQuantumStatusCounts(data?.status_counts);
             };
 
@@ -3487,7 +3392,13 @@
             };
 
             const loadMoreQuantumRecent = async function () {
-                if (!quantumRecentScroll || !quantumRecentBody || isLoadingQuantumRecent || quantumRecentScroll.dataset.hasMore !== '1') {
+                if (
+                    !quantumRecentScroll
+                    || !quantumRecentBody
+                    || isLoadingQuantumRecent
+                    || activeQuantumFilter.search !== ''
+                    || quantumRecentScroll.dataset.hasMore !== '1'
+                ) {
                     return false;
                 }
 
@@ -3541,36 +3452,7 @@
                 }
             };
 
-            const ensureQuantumRecentPageLoaded = async function (targetPage) {
-                if (!quantumRecentScroll || !quantumRecentBody) {
-                    return false;
-                }
-
-                const page = Math.max(1, Number(targetPage || 1));
-                if (page <= 1) {
-                    return true;
-                }
-
-                while (quantumRecentScroll.dataset.hasMore === '1') {
-                    const nextPage = Number(quantumRecentScroll.dataset.nextPage || 0);
-                    if (!nextPage || nextPage > page) {
-                        return true;
-                    }
-
-                    const loaded = await loadMoreQuantumRecent();
-                    if (!loaded) {
-                        return false;
-                    }
-
-                    if (Number(quantumRecentScroll.dataset.nextPage || 0) > page || quantumRecentScroll.dataset.hasMore !== '1') {
-                        return true;
-                    }
-                }
-
-                return true;
-            };
-
-            const findQuantumLinesInRecent = async function (event, form, input, mode) {
+            const filterQuantumBufferRows = async function (event, form, input, mode) {
                 event?.preventDefault();
                 if (!input || !form) {
                     return;
@@ -3581,19 +3463,22 @@
                 const searchLabel = searchMode === 'ro' ? 'RO' : 'WO';
                 const findUrl = form.dataset.findUrl || '';
 
-                if (!searchTerm) {
-                    clearQuantumSearchMatches();
-                    setQuantumSearchStatus('', 'text-muted');
-                    return;
-                }
-
                 if (!findUrl) {
-                    setQuantumSearchStatus('Search unavailable', 'text-danger');
+                    setQuantumSearchStatus('Filter unavailable', 'text-danger');
                     return;
                 }
 
                 setQuantumRecentVisible(true, false);
-                setQuantumSearchStatus('Searching...', 'text-info');
+                setQuantumSearchStatus(searchTerm ? 'Filtering...' : 'Resetting...', 'text-info');
+
+                if (searchTerm !== '') {
+                    if (searchMode === 'wo' && quantumRepairOrderSearchInput) {
+                        quantumRepairOrderSearchInput.value = '';
+                    }
+                    if (searchMode === 'ro' && quantumWorkorderSearchInput) {
+                        quantumWorkorderSearchInput.value = '';
+                    }
+                }
 
                 const url = new URL(findUrl, window.location.origin);
                 url.searchParams.set('mode', searchMode);
@@ -3613,41 +3498,37 @@
                     const data = await response.json();
 
                     if (!response.ok || data.success === false) {
-                        throw new Error(data.message || 'Search failed');
+                        throw new Error(data.message || 'Filter failed');
                     }
 
-                    const lineIds = uniqueQuantumLineIds(Array.isArray(data.line_ids) ? data.line_ids : [data.line_id]);
+                    replaceQuantumBufferRows(data);
+                    activeQuantumFilter = {
+                        mode: searchTerm ? searchMode : null,
+                        search: searchTerm,
+                    };
 
-                    if (!data.found || lineIds.length === 0) {
-                        clearQuantumSearchMatches();
-                        setQuantumSearchStatus(data.message || `${searchLabel} not found`, 'text-warning');
+                    if (!searchTerm) {
+                        setQuantumSearchStatus('', 'text-muted');
                         return;
                     }
 
-                    const loaded = await ensureQuantumRecentPageLoaded(data.page || 1);
-                    if (!loaded) {
-                        setQuantumSearchStatus('Load failed', 'text-danger');
+                    const matchedCount = Number(data.total || data.matched_count || 0);
+                    if (!data.found || matchedCount <= 0) {
+                        setQuantumSearchStatus(data.message || `${searchLabel} not found in Reason`, 'text-warning');
                         return;
                     }
 
-                    const highlighted = highlightQuantumRowsByLineIds(lineIds);
-                    if (highlighted.total <= 0) {
-                        setQuantumSearchStatus('Row not loaded', 'text-danger');
-                        return;
-                    }
-
-                    const matchedValue = data.matched_value
-                        || (searchMode === 'ro' ? data.matched_ro : data.matched_wo)
-                        || searchTerm;
-                    setQuantumSearchStatus(`${highlighted.total} rows for ${searchLabel} ${matchedValue}`, 'text-success');
+                    const suffix = data.has_more_matches ? ' (first 500 shown)' : '';
+                    const location = searchMode === 'wo' ? 'Reason' : 'RO';
+                    setQuantumSearchStatus(`${matchedCount} rows where ${location} contains ${searchTerm}${suffix}`, 'text-success');
                 } catch (error) {
-                    setQuantumSearchStatus(error.message || 'Search failed', 'text-danger');
+                    setQuantumSearchStatus(error.message || 'Filter failed', 'text-danger');
                 }
             };
 
             const bindQuantumLineSearch = function (form, input, mode) {
                 form?.addEventListener('submit', function (event) {
-                    findQuantumLinesInRecent(event, form, input, mode);
+                    filterQuantumBufferRows(event, form, input, mode);
                 });
                 input?.addEventListener('keydown', function (event) {
                     if (event.key !== 'Enter') {
@@ -3655,7 +3536,12 @@
                     }
 
                     event.preventDefault();
-                    findQuantumLinesInRecent(event, form, input, mode);
+                    filterQuantumBufferRows(event, form, input, mode);
+                });
+                input?.addEventListener('search', function (event) {
+                    if (input.value.trim() === '') {
+                        filterQuantumBufferRows(event, form, input, mode);
+                    }
                 });
             };
 

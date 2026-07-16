@@ -155,6 +155,11 @@ class WorkordersIndexTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('total_count', 1);
         $response->assertSee((string) $draft->number);
+        $response->assertSee('data-workorder-delete-button', false);
+        $this->assertStringContainsString(
+            'data-form-id="deleteForm_' . $draft->id . '"',
+            (string) $response->json('html')
+        );
         $response->assertDontSee((string) $regular->number);
     }
 

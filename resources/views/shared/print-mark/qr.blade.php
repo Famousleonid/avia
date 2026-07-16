@@ -178,7 +178,17 @@
                     }
 
                     function resolveHost() {
-                        return queryFirst(hostSelector) || document.body;
+                        const selectors = String(hostSelector || '')
+                            .split(',')
+                            .map(function (selector) { return selector.trim(); })
+                            .filter(Boolean);
+
+                        for (const selector of selectors) {
+                            const host = queryFirst(selector);
+                            if (host) return host;
+                        }
+
+                        return document.body;
                     }
 
                     function syncHostScale(host) {

@@ -19,7 +19,6 @@ use App\Models\User;
 use App\Models\UserFeatureAccess;
 use App\Mail\MarketingWoEstimateDateMail;
 use App\Mail\MarketingWoFileMail;
-use App\Services\SalesReportQuantumInvoiceProvider;
 use App\Notifications\NewMessageNotification;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -282,9 +281,21 @@ class MarketingTest extends TestCase
             ->assertSee('border-bottom: 0;', false)
             ->assertSee('class="table table-sm table-hover align-middle mb-0 dir-table dir-table--ellipsis marketing-workorders-table"', false)
             ->assertSee('id="marketingMediaModal"', false)
+            ->assertSee('class="text-info" id="marketingMediaWoNumber"', false)
             ->assertSee('id="marketingFileUploadForm"', false)
             ->assertSee('Manager Files', false)
-            ->assertSee('Production Files', false)
+            ->assertSee('WO Production', false)
+            ->assertSee('WO Images', false)
+            ->assertSee('Manager uploads stay on the left.', false)
+            ->assertDontSee('id="marketingProductionPdfs"', false)
+            ->assertSee('data-fancybox="${previewGroup}-images"', false)
+            ->assertSee('data-type="iframe"', false)
+            ->assertSee('class="visually-hidden" for="marketingFileInput">Choose manager files</label>', false)
+            ->assertDontSee('modal-xl modal-dialog-scrollable', false)
+            ->assertSee('class="marketing-file-summary"', false)
+            ->assertDontSee('name="version_of_id"', false)
+            ->assertDontSee('js-marketing-file-version', false)
+            ->assertDontSee('Upload new version', false)
             ->assertSee('Send email notification', false)
             ->assertSee('js-marketing-files', false)
             ->assertDontSee('js-marketing-media', false)
@@ -723,6 +734,7 @@ class MarketingTest extends TestCase
                 ->assertJsonPath('manager_files.0.category_label', 'Customer Approval')
                 ->assertJsonPath('manager_files.0.uploaded_at', '14/Jul/2026 10:30')
                 ->assertJsonPath('manager_files.0.notification_label', 'In-app only')
+                ->assertJsonMissingPath('manager_files.0.version_number')
                 ->assertJsonPath('summary.manager_count', 1);
 
             $marketingFile = MarketingWoFile::query()->firstOrFail();
@@ -945,6 +957,8 @@ class MarketingTest extends TestCase
             'serial_number' => 'DL5263',
             'description' => 'MLG Shock Strut',
             'open_at' => '2026-05-01 08:00:00',
+            'sales_invoice_amount' => '15453.00',
+            'sales_invoice_date' => '2026-06-29',
         ]);
 
         $this->createWorkorder([
@@ -955,14 +969,6 @@ class MarketingTest extends TestCase
             'description' => 'Other Customer Unit',
             'open_at' => '2026-05-01 08:00:00',
         ]);
-
-        $this->mock(SalesReportQuantumInvoiceProvider::class, function ($mock): void {
-            $mock->shouldReceive('fetch')->once()->andReturn([
-                'available' => false,
-                'warning' => 'Quantum unavailable in test.',
-                'items' => [],
-            ]);
-        });
 
         $response = $this->actingAs($admin)->getJson(route('marketing.customers.sales-report', [
             'customer' => $customer,
@@ -977,7 +983,11 @@ class MarketingTest extends TestCase
             ->assertJsonPath('rows.0.wo_number', 'W107548')
             ->assertJsonPath('rows.0.part_number', '2309-2200-153')
             ->assertJsonPath('rows.0.serial_number', 'DL5263')
-            ->assertJsonPath('rows.0.description', 'MLG Shock Strut');
+            ->assertJsonPath('rows.0.description', 'MLG Shock Strut')
+            ->assertJsonPath('rows.0.invoiced_amount', 15453)
+            ->assertJsonPath('rows.0.invoice_date', '2026-06-29')
+            ->assertJsonPath('rows.0.date_label', '29/Jun/2026')
+            ->assertJsonPath('warning', null);
 
         $this->assertStringNotContainsString('W107549', $response->getContent());
     }
@@ -1012,6 +1022,8 @@ class MarketingTest extends TestCase
             'serial_number' => 'DL5264',
             'description' => 'MLG Shock Strut',
             'open_at' => '2026-03-01 08:00:00',
+            'sales_invoice_amount' => '4200.00',
+            'sales_invoice_date' => '2026-03-10',
         ]);
 
         $this->createWorkorder([
@@ -1021,6 +1033,8 @@ class MarketingTest extends TestCase
             'serial_number' => 'DL5265',
             'description' => 'NLG Shock Strut',
             'open_at' => '2026-03-02 08:00:00',
+            'sales_invoice_amount' => '5100.00',
+            'sales_invoice_date' => '2026-03-11',
         ]);
 
         $this->createWorkorder([
@@ -1031,14 +1045,6 @@ class MarketingTest extends TestCase
             'description' => 'Should Not Show',
             'open_at' => '2026-03-03 08:00:00',
         ]);
-
-        $this->mock(SalesReportQuantumInvoiceProvider::class, function ($mock): void {
-            $mock->shouldReceive('fetch')->once()->andReturn([
-                'available' => false,
-                'warning' => 'Quantum unavailable in test.',
-                'items' => [],
-            ]);
-        });
 
         $response = $this->actingAs($admin)->getJson(route('marketing.sales-report.aircraft', [
             'plane_id' => $selectedPlane->id,

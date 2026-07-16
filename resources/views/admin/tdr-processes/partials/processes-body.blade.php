@@ -7,19 +7,11 @@
     $hasTravelerBlock = $tdrScopeProcesses->contains(fn ($p) => (bool) $p->in_traveler);
 
     $travelerVisualRowCount = 0;
-    $travelerPrintableStandardGroups = [];
     foreach ($tdrProcesses as $_tp) {
         if ((int) $_tp->tdrs_id !== (int) $current_tdr->id || ! $_tp->processName) {
             continue;
         }
         $_processData = \App\Models\TdrProcess::normalizeStoredProcessIds($_tp->processes);
-        if ((bool) $_tp->in_traveler
-            && \App\Models\ProcessName::canPrintProcessForm($_tp->processName)
-            && $_processData !== []
-        ) {
-            $_travelerGroup = (int) ($_tp->traveler_group ?: 1);
-            $travelerPrintableStandardGroups[$_travelerGroup] = true;
-        }
         $_processName = $_tp->processName->name;
         $_isEc = ($ecProcessNameId !== null && (int) $_tp->process_names_id === (int) $ecProcessNameId);
         $_isNdtWithPlus = strpos($_processName, 'NDT-') === 0 && ! empty($_tp->plus_process);
@@ -337,7 +329,7 @@
                                 @if(empty($travelerFormRendered[$travelerGroup]))
                                     @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                     <td class="text-center align-middle p-2 traveler-merged-form-cell">
-                                        @include('admin.tdr-processes.partials.processes-body-traveler-form-controls', ['travelerGroupHasStandardForm' => !empty($travelerPrintableStandardGroups[$travelerGroup])])
+                                        @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
                                     </td>
                                 @else
                                     <td class="text-center align-middle text-muted small">—</td>
@@ -352,7 +344,7 @@
                                                 <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                             @endforeach
                                         </select>
-                                        <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" target="_blank">{{ __('Form') }}</a>
+                                        <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link d-inline-flex align-items-center justify-content-center" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" target="_blank">{{ __('Form') }}</a>
                                     </div>
                                 @else
                                     <div class="d-flex gap-2 justify-content-center"></div>
@@ -393,7 +385,7 @@
                                 @if(empty($travelerFormRendered[$travelerGroup]))
                                     @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                     <td class="text-center align-middle p-2 traveler-merged-form-cell">
-                                        @include('admin.tdr-processes.partials.processes-body-traveler-form-controls', ['travelerGroupHasStandardForm' => !empty($travelerPrintableStandardGroups[$travelerGroup])])
+                                        @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
                                     </td>
                                 @else
                                     <td class="text-center align-middle text-muted small">—</td>
@@ -408,7 +400,7 @@
                                                 <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                             @endforeach
                                         </select>
-                                        <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" target="_blank">{{ __('Form') }}</a>
+                                        <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link d-inline-flex align-items-center justify-content-center" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" target="_blank">{{ __('Form') }}</a>
                                     </div>
                                 @else
                                     <div class="d-flex gap-2 justify-content-center"></div>
@@ -443,7 +435,7 @@
                                         @if(empty($travelerFormRendered[$travelerGroup]))
                                             @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                             <td class="text-center align-middle p-2 traveler-merged-form-cell">
-                                                @include('admin.tdr-processes.partials.processes-body-traveler-form-controls', ['travelerGroupHasStandardForm' => !empty($travelerPrintableStandardGroups[$travelerGroup])])
+                                                @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
                                             </td>
                                         @else
                                             <td class="text-center align-middle text-muted small">—</td>
@@ -458,7 +450,7 @@
                                                         <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                                     @endforeach
                                                 </select>
-                                                <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id, 'process_id' => $process], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" data-process="{{ $process }}" target="_blank">{{ __('Form') }}</a>
+                                                <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id, 'process_id' => $process], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link d-inline-flex align-items-center justify-content-center" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" data-process="{{ $process }}" target="_blank">{{ __('Form') }}</a>
                                             </div>
                                         @else
                                             <div class="d-flex gap-2 justify-content-center"></div>
@@ -489,7 +481,7 @@
                                     @if(empty($travelerFormRendered[$travelerGroup]))
                                         @php $travelerFormRendered[$travelerGroup] = true; @endphp
                                         <td class="text-center align-middle p-2 traveler-merged-form-cell">
-                                            @include('admin.tdr-processes.partials.processes-body-traveler-form-controls', ['travelerGroupHasStandardForm' => !empty($travelerPrintableStandardGroups[$travelerGroup])])
+                                            @include('admin.tdr-processes.partials.processes-body-traveler-form-controls')
                                         </td>
                                     @else
                                         <td class="text-center align-middle text-muted small">—</td>
@@ -504,7 +496,7 @@
                                                     <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                                                 @endforeach
                                             </select>
-                                            <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" target="_blank">{{ __('Form') }}</a>
+                                            <a href="{{ route('tdr-processes.show', array_merge(['tdr_process' => $tdrProcessRow->id], $formRouteExtraParams)) }}" class="btn btn-sm btn-outline-primary form-link d-inline-flex align-items-center justify-content-center" style="width: 60px" data-tdr-process-id="{{ $tdrProcessRow->id }}" target="_blank">{{ __('Form') }}</a>
                                         </div>
                                     @else
                                         <div class="d-flex gap-2 justify-content-center"></div>

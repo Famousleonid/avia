@@ -21,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -58,6 +59,8 @@ class VendorTrackingController extends Controller
     private const QUANTUM_SYNC_WARNING_AFTER_MINUTES = 10;
     private const QUANTUM_STATUS_ECO_FEE = 'ECO FEE';
     private const QUANTUM_STATUS_DISMISSED = 'dismissed';
+
+    private ?array $completedQuantumWorkorderLabels = null;
 
     public function index(Request $request)
     {
@@ -230,59 +233,58 @@ class VendorTrackingController extends Controller
 
         $mode = ($data['mode'] ?? null) === 'ro' ? 'ro' : 'wo';
         $search = trim((string) ($mode === 'ro' ? ($data['repair_order'] ?? '') : ($data['workorder'] ?? '')));
+        $filterActive = $search !== '';
 
-        if ($search === '') {
-            return response()->json([
-                'success' => true,
-                'found' => false,
-                'message' => $mode === 'ro' ? 'RO is empty.' : 'WO is empty.',
-            ]);
+        if ($filterActive) {
+            $recentQuery = $this->applyQuantumBufferSearch($this->quantumRecentRowsQuery(), $mode, $search);
+            $filteredTotal = (clone $recentQuery)->count();
+            $matchedLinesWithOverflow = $recentQuery->limit(501)->get();
+            $hasMoreMatches = $matchedLinesWithOverflow->count() > 500;
+            $recentRows = $matchedLinesWithOverflow->take(500)->values();
+
+            $unparsedMatches = $this->applyQuantumBufferSearch($this->quantumUnparsedRowsQuery(), $mode, $search)
+                ->get()
+                ->reject(fn (QuantumRoLine $line): bool => $this->isOldQuantumWorkorderNotFound($line, trim((string) $line->apply_status)))
+                ->values();
+            $unparsedTotal = $unparsedMatches->count();
+            $unparsedRows = $unparsedMatches->take(200)->values();
+        } else {
+            $recentRows = $this->quantumRecentRows();
+            $filteredTotal = $this->quantumRecentTotal();
+            $hasMoreMatches = false;
+            $unparsedRows = $this->quantumUnparsedRows();
+            $unparsedTotal = $this->quantumUnparsedTotal();
         }
 
-        $digits = preg_replace('/\D+/', '', $search);
-        $term = $digits !== '' ? $digits : $search;
-        $like = '%' . $this->escapeLike($term) . '%';
-        $column = $mode === 'ro' ? 'ro_number' : 'wo_number';
-
-        $matchedLines = $this->quantumRecentRowsQuery()
-            ->where($column, 'like', $like)
-            ->limit(501)
-            ->get(['id', 'ro_number', 'wo_number']);
-
-        if ($matchedLines->isEmpty()) {
-            return response()->json([
-                'success' => true,
-                'found' => false,
-                'message' => ($mode === 'ro' ? 'RO' : 'WO') . ' not found in Quantum list.',
-            ]);
-        }
-
-        $hasMoreMatches = $matchedLines->count() > 500;
-        $matchedLines = $matchedLines->take(500)->values();
-        $line = $matchedLines->first();
-        $position = 0;
-        foreach ($this->quantumRecentRowsQuery()->select('id')->cursor() as $orderedLine) {
-            if ((int) $orderedLine->id === (int) $line->id) {
-                break;
-            }
-
-            $position++;
-        }
+        $line = $recentRows->first();
+        $found = $filterActive && $line !== null;
+        $hasMore = ! $filterActive && $recentRows->count() < $filteredTotal;
 
         return response()->json([
             'success' => true,
-            'found' => true,
-            'line_id' => (int) $line->id,
-            'line_ids' => $matchedLines->pluck('id')->map(fn ($id) => (int) $id)->values(),
-            'page' => intdiv($position, self::QUANTUM_RECENT_PAGE_SIZE) + 1,
-            'position' => $position,
+            'found' => $found,
+            'filter_active' => $filterActive,
             'mode' => $mode,
-            'matched_count' => $matchedLines->count(),
+            'message' => $filterActive && ! $found
+                ? ($mode === 'ro' ? 'RO not found in Quantum list.' : 'WO not found in Quantum Reason.')
+                : null,
+            'html' => view('admin.vendor_tracking.partials.quantum_recent_rows', [
+                'quantumRecentRows' => $recentRows,
+            ])->render(),
+            'unparsed_html' => view('admin.vendor_tracking.partials.quantum_unparsed_rows', [
+                'quantumUnparsedRows' => $unparsedRows,
+            ])->render(),
+            'line_id' => $line ? (int) $line->id : null,
+            'line_ids' => $recentRows->pluck('id')->map(fn ($id) => (int) $id)->values(),
+            'matched_count' => $filterActive ? $filteredTotal : 0,
             'has_more_matches' => $hasMoreMatches,
-            'matched_value' => $line->{$column},
-            'matched_ro' => $line->ro_number,
-            'matched_wo' => $line->wo_number,
-            'total' => $this->quantumRecentTotal(),
+            'matched_value' => $search,
+            'matched_ro' => $line?->ro_number,
+            'matched_wo' => $line?->wo_number,
+            'total' => $filteredTotal,
+            'unparsed_total' => $unparsedTotal,
+            'has_more' => $hasMore,
+            'next_page' => $hasMore ? 2 : null,
         ]);
     }
 
@@ -784,14 +786,19 @@ class VendorTrackingController extends Controller
             return collect();
         }
 
-        return QuantumRoLine::query()
-            ->where('apply_status', 'unresolved')
-            ->orderByDesc('source_last_modified')
-            ->orderByDesc('id')
+        return $this->quantumUnparsedRowsQuery()
             ->get()
             ->reject(fn (QuantumRoLine $line): bool => $this->isOldQuantumWorkorderNotFound($line, trim((string) $line->apply_status)))
             ->take(200)
             ->values();
+    }
+
+    private function quantumUnparsedRowsQuery(): Builder
+    {
+        return $this->visibleQuantumRoLinesQuery()
+            ->where('apply_status', 'unresolved')
+            ->orderByDesc('source_last_modified')
+            ->orderByDesc('id');
     }
 
     private function quantumRecentRows(): Collection
@@ -811,7 +818,7 @@ class VendorTrackingController extends Controller
             return 0;
         }
 
-        return QuantumRoLine::query()->count();
+        return $this->visibleQuantumRoLinesQuery()->count();
     }
 
     private function quantumUnparsedTotal(): int
@@ -820,7 +827,7 @@ class VendorTrackingController extends Controller
             return 0;
         }
 
-        return QuantumRoLine::query()
+        return $this->visibleQuantumRoLinesQuery()
             ->where('apply_status', 'unresolved')
             ->get(['apply_status', 'apply_message', 'wo_number'])
             ->reject(fn (QuantumRoLine $line): bool => $this->isOldQuantumWorkorderNotFound($line, trim((string) $line->apply_status)))
@@ -993,7 +1000,7 @@ class VendorTrackingController extends Controller
             return $counts;
         }
 
-        QuantumRoLine::query()
+        $this->visibleQuantumRoLinesQuery()
             ->get(['apply_status', 'apply_message', 'wo_number'])
             ->each(function (QuantumRoLine $line) use (&$counts): void {
                 $counts['total']++;
@@ -1116,11 +1123,67 @@ class VendorTrackingController extends Controller
 
     private function quantumRecentRowsQuery(): Builder
     {
-        return QuantumRoLine::query()
+        return $this->visibleQuantumRoLinesQuery()
             ->orderByRaw('COALESCE(last_seen_at, updated_at, first_seen_at, created_at) DESC')
             ->orderByDesc('updated_at')
             ->orderByDesc('first_seen_at')
             ->orderByDesc('id');
+    }
+
+    private function visibleQuantumRoLinesQuery(): Builder
+    {
+        $query = QuantumRoLine::query();
+        $completedLabels = $this->completedQuantumWorkorderLabels();
+
+        if ($completedLabels === []) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $rows) use ($completedLabels): void {
+            $rows->whereNull('quantum_ro_lines.wo_number')
+                ->orWhereNotIn(
+                    DB::raw('UPPER(TRIM(quantum_ro_lines.wo_number))'),
+                    $completedLabels,
+                );
+        });
+    }
+
+    private function completedQuantumWorkorderLabels(): array
+    {
+        if ($this->completedQuantumWorkorderLabels !== null) {
+            return $this->completedQuantumWorkorderLabels;
+        }
+
+        $this->completedQuantumWorkorderLabels = Workorder::query()
+            ->whereNotNull('done_at')
+            ->pluck('number')
+            ->flatMap(function ($number): array {
+                $digits = trim((string) $number);
+
+                return $digits === '' ? [] : [$digits, 'W' . $digits];
+            })
+            ->map(fn ($label): string => strtoupper((string) $label))
+            ->unique()
+            ->values()
+            ->all();
+
+        return $this->completedQuantumWorkorderLabels;
+    }
+
+    private function applyQuantumBufferSearch(Builder $query, string $mode, string $search): Builder
+    {
+        $digits = preg_replace('/\D+/', '', $search);
+        $term = $digits !== '' ? $digits : trim($search);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        $like = '%' . $this->escapeLike($term) . '%';
+
+        return $mode === 'ro'
+            ? $query->where('ro_number', 'like', $like)
+            : $query->where('apply_message', 'like', $like);
     }
 
     private function escapeLike(string $value): string

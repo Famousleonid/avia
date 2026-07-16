@@ -177,7 +177,9 @@
             'component_id' => null,
             'description' => $mainItemDescription,
             'part_number' => collect($mainPartNumberLines)->filter()->implode("\n"),
+            'part_number_secondary' => '',
             'serial_number' => collect($mainSerialNumberLines)->filter()->implode("\n"),
+            'serial_number_secondary' => '',
             'life_remark_text' => $defaultLifeRemarkText,
         ],
     ]);
@@ -194,27 +196,29 @@
             $assyPartNumber = $firstNonBlank($row['assy_part_number'] ?? null, $component?->assy_part_number);
             $serialNumber = $firstNonBlank($row['qa_serial_number'] ?? null, $row['serial_number'] ?? null);
             $assySerialNumber = $firstNonBlank($row['assy_serial_number'] ?? null);
-            $partNumberLines = [$partNumber];
-            if ($assyPartNumber !== '' && strcasecmp($assyPartNumber, $partNumber) !== 0) {
-                $partNumberLines = [$assyPartNumber, '(' . $partNumber . ')'];
-            }
-            $serialNumberLines = [$serialNumber];
-            if ($assySerialNumber !== '' && strcasecmp($assySerialNumber, $serialNumber) !== 0) {
-                $serialNumberLines = [$assySerialNumber, '(' . $serialNumber . ')'];
-            }
+            $primaryPartNumber = $assyPartNumber !== '' ? $assyPartNumber : $partNumber;
+            $secondaryPartNumber = $assyPartNumber !== '' && strcasecmp($assyPartNumber, $partNumber) !== 0
+                ? $partNumber
+                : '';
+            $primarySerialNumber = $assySerialNumber !== '' ? $assySerialNumber : $serialNumber;
+            $secondarySerialNumber = $assySerialNumber !== '' && strcasecmp($assySerialNumber, $serialNumber) !== 0
+                ? $serialNumber
+                : '';
 
             return [
                 'key' => 'log:' . $index,
                 'label' => $formatDetailOptionLabel(
                     $description,
-                    collect($partNumberLines)->filter()->implode(' / '),
-                    collect($serialNumberLines)->filter()->implode(' / ')
+                    collect([$primaryPartNumber, $secondaryPartNumber])->filter()->implode(' / '),
+                    collect([$primarySerialNumber, $secondarySerialNumber])->filter()->implode(' / ')
                 ),
                 'source' => 'log',
                 'component_id' => (int) ($row['component_id'] ?? 0),
                 'description' => $description,
-                'part_number' => collect($partNumberLines)->filter()->implode("\n"),
-                'serial_number' => collect($serialNumberLines)->filter()->implode("\n"),
+                'part_number' => $primaryPartNumber,
+                'part_number_secondary' => $secondaryPartNumber,
+                'serial_number' => $primarySerialNumber,
+                'serial_number_secondary' => $secondarySerialNumber,
                 'life_remark_text' => $logRowLifeRemarkText($row) ?: $lifeRemarkFallbackText,
             ];
         })
@@ -239,8 +243,10 @@
         $trackingNumber .= '-C';
     }
     $itemDescription = trim((string) ($selectedCertificateItem['description'] ?? $mainItemDescription));
-    $partNumberLines = preg_split('/\r\n|\r|\n/', (string) ($selectedCertificateItem['part_number'] ?? '')) ?: [];
-    $serialNumberLines = preg_split('/\r\n|\r|\n/', (string) ($selectedCertificateItem['serial_number'] ?? '')) ?: [];
+    $partNumber = trim((string) ($selectedCertificateItem['part_number'] ?? ''));
+    $partNumberSecondary = trim((string) ($selectedCertificateItem['part_number_secondary'] ?? ''));
+    $serialNumber = trim((string) ($selectedCertificateItem['serial_number'] ?? ''));
+    $serialNumberSecondary = trim((string) ($selectedCertificateItem['serial_number_secondary'] ?? ''));
     $selectedCertificateItemSettings = $certificateItemSettings[$selectedCertificateStateKey] ?? [];
     $certificateItemStringSetting = static function (string $key, string $default = '') use ($selectedCertificateItemSettings): string {
         if (array_key_exists($key, $selectedCertificateItemSettings)) {
@@ -264,10 +270,18 @@
         $partNumberOverride = $certificateItemStringSetting('certificate_item_part');
         $serialNumberOverride = $certificateItemStringSetting('certificate_item_serial');
         if ($partNumberOverride !== '') {
-            $partNumberLines = preg_split('/\r\n|\r|\n/', $partNumberOverride) ?: [];
+            $legacyPartNumberLines = preg_split('/\r\n|\r|\n/', $partNumberOverride) ?: [];
+            $partNumber = trim((string) array_shift($legacyPartNumberLines));
+            if ($partNumberSecondary === '' && $legacyPartNumberLines !== []) {
+                $partNumberSecondary = trim(implode(' ', $legacyPartNumberLines));
+            }
         }
         if ($serialNumberOverride !== '') {
-            $serialNumberLines = preg_split('/\r\n|\r|\n/', $serialNumberOverride) ?: [];
+            $legacySerialNumberLines = preg_split('/\r\n|\r|\n/', $serialNumberOverride) ?: [];
+            $serialNumber = trim((string) array_shift($legacySerialNumberLines));
+            if ($serialNumberSecondary === '' && $legacySerialNumberLines !== []) {
+                $serialNumberSecondary = trim(implode(' ', $legacySerialNumberLines));
+            }
         }
         $statusOverride = $certificateItemStringSetting('certificate_status_work');
         if ($statusOverride !== '') {
@@ -278,6 +292,10 @@
             $selectedCertificateInstructionId = (int) $statusInstructionOverride;
         }
     }
+    $partNumberSecondary = $certificateItemStringSetting('certificate_item_part_secondary', $partNumberSecondary);
+    $serialNumberSecondary = $certificateItemStringSetting('certificate_item_serial_secondary', $serialNumberSecondary);
+    $includePartNumberSecondary = $certificateRemarkChecked('include_certificate_item_part_secondary', $partNumberSecondary !== '');
+    $includeSerialNumberSecondary = $certificateRemarkChecked('include_certificate_item_serial_secondary', $serialNumberSecondary !== '');
     $normalizeAdNumber = static function ($value): string {
         $text = trim((string) $value);
         if ($text === '' || strcasecmp($text, 'N/A') === 0) {
@@ -350,7 +368,7 @@
     $certificateCmmExtraText = trim((string) ($selectedCertificateItemSettings['certificate_cmm_extra_text'] ?? ''));
     $certificateCmmExtraSuffix = $certificateCmmExtraText !== '' ? ', ' . $certificateCmmExtraText : '';
     $statusRemarkBaseSuffix = ' in accordance with CMM # ' . $certificateManualNumber;
-    $statusRemarkSuffix = $statusRemarkBaseSuffix . $certificateCmmExtraSuffix . $revisionText . '.';
+    $statusRemarkSuffix = $statusRemarkBaseSuffix . $revisionText . $certificateCmmExtraSuffix . '.';
     $replacementPartsRemarkOptions = [
         'tdr' => 'For the replacement parts refer to Teardown Report.',
         'none' => 'Replacement parts: None.',
@@ -360,6 +378,7 @@
     if (! array_key_exists($selectedReplacementPartsRemark, $replacementPartsRemarkOptions)) {
         $selectedReplacementPartsRemark = $defaultReplacementPartsRemark;
     }
+    $lifeRemarkText = $certificateItemStringSetting('certificate_life_remark', $lifeRemarkText);
     $remarks = [
         [
             'text' => trim($status . $statusRemarkSuffix),
@@ -421,6 +440,18 @@
         'text' => $correctionRemarkText,
         'c_correction_remark' => true,
     ];
+    $certificateFreeRemarks = collect([1, 2])->mapWithKeys(function (int $index) use ($certificateItemStringSetting, $certificateRemarkChecked): array {
+        $valueKey = 'certificate_free_remark_' . $index;
+        $includeKey = 'include_certificate_free_remark_' . $index;
+        $text = $certificateItemStringSetting($valueKey);
+
+        return [$index => [
+            'value_key' => $valueKey,
+            'include_key' => $includeKey,
+            'text' => $text,
+            'checked' => $certificateRemarkChecked($includeKey, false),
+        ]];
+    });
     if ($selectedCertificateStateKey === 'main:c' && is_array($selectedCertificateItemSettings['certificate_remarks'] ?? null)) {
         $savedCertificateRemarks = array_values($selectedCertificateItemSettings['certificate_remarks']);
         foreach ($remarks as $remarkIndex => $remark) {
@@ -515,10 +546,25 @@
 
         .arc-sheet {
             width: 10.36in;
-            min-height: 7.74in;
+            height: 7.74in;
+            min-height: 0;
             margin: 0;
             border: 2px solid #000;
             background: #fff;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .arc-sheet > .arc-top,
+        .arc-sheet > .arc-org,
+        .arc-sheet > .arc-items,
+        .arc-sheet > .arc-remarks,
+        .arc-sheet > .arc-cert-row,
+        .arc-sheet > .arc-previous {
+            flex: 0 0 auto;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .arc-form-shell {
@@ -703,7 +749,8 @@
 
         .arc-top {
             grid-template-columns: 27.1% 49% 23.9%;
-            min-height: calc(0.78in - 2mm);
+            height: calc(0.78in - 2mm);
+            min-height: 0;
         }
 
         .arc-top .arc-label {
@@ -792,7 +839,8 @@
 
         .arc-org {
             grid-template-columns: 76.1% 23.9%;
-            min-height: 0.88in;
+            height: 0.88in;
+            min-height: 0;
         }
 
         .arc-org-block {
@@ -879,6 +927,7 @@
 
         .arc-items {
             width: 100%;
+            height: calc(0.22in + 0.56in);
             border-collapse: collapse;
             table-layout: fixed;
         }
@@ -905,8 +954,93 @@
 
         .arc-items td {
             height: 0.56in;
+            max-height: 0.56in;
             font-size: calc(var(--arc-value-size) + 2px);
             line-height: 1.15;
+            overflow: hidden;
+        }
+
+        .arc-item-identifier-cell {
+            padding: 2px 4px;
+        }
+
+        .arc-item-identifier-values {
+            width: 100%;
+            height: calc(0.56in - 4px);
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            overflow: hidden;
+        }
+
+        .arc-item-identifier-primary {
+            width: 100%;
+            min-width: 0;
+            flex: 0 0 auto;
+            overflow: hidden;
+            text-align: center;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .arc-item-secondary-line {
+            width: 100%;
+            min-width: 0;
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .arc-item-secondary-input {
+            width: calc(100% - 18px);
+            min-width: 0;
+            height: 20px;
+            border: 0;
+            border-bottom: 1px dotted #777;
+            border-radius: 0;
+            padding: 0 2px;
+            background: transparent;
+            color: #000;
+            font-family: "Times New Roman", Times, serif;
+            font-size: calc(var(--arc-value-size) + 1px);
+            line-height: 1;
+            text-align: center;
+            outline: 0;
+        }
+
+        .arc-item-secondary-input:focus {
+            background: #eeeeee;
+        }
+
+        .arc-item-secondary-input.is-saving {
+            opacity: 0.65;
+        }
+
+        .arc-item-secondary-input.is-invalid {
+            border-bottom-color: #dc3545;
+        }
+
+        .arc-item-secondary-toggle {
+            display: inline-flex;
+            flex: 0 0 15px;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+
+        .arc-item-secondary-toggle input {
+            width: 13px;
+            height: 13px;
+            margin: 0;
+        }
+
+        .arc-item-secondary-print-value {
+            display: none;
         }
 
         .arc-status-work-cell {
@@ -983,6 +1117,15 @@
             display: none !important;
         }
 
+        .arc-life-remark-line.is-empty,
+        .arc-free-remark-line.is-empty {
+            display: flex !important;
+        }
+
+        .arc-remark-line.is-fit-excluded {
+            display: none !important;
+        }
+
         .arc-remark-line::before {
             content: "* ";
             font-weight: 700;
@@ -1040,6 +1183,7 @@
         .arc-remark-date-input {
             width: 1.22in;
             min-width: 1.22in;
+            height: 20px;
             border: 1px solid #777;
             border-radius: 2px;
             padding: 0 2px;
@@ -1051,6 +1195,7 @@
         .arc-remark-number-input {
             width: 0.36in;
             min-width: 0.36in;
+            height: 20px;
             border: 1px solid #777;
             border-radius: 2px;
             padding: 0 2px;
@@ -1066,9 +1211,51 @@
         }
 
         .arc-manual-cmm-extra-input {
-            width: 0.94in;
-            min-width: 0.94in;
+            width: auto;
+            min-width: 1.2in;
+            flex: 1 1 auto;
+            border: 0;
+            border-radius: 0;
+            padding: 3px 8px;
             text-align: left;
+        }
+
+        .arc-life-remark-input,
+        .arc-free-remark-input {
+            min-width: 0;
+            flex: 1 1 auto;
+            height: 20px;
+            border: 0;
+            border-bottom: 1px dotted #777;
+            border-radius: 0;
+            padding: 0 3px;
+            color: #000;
+            font: inherit;
+            line-height: 1;
+            outline: 0;
+        }
+
+        .arc-life-remark-input {
+            width: 33.333%;
+            max-width: 33.333%;
+            flex: 0 0 33.333%;
+        }
+
+        .arc-life-remark-print-value,
+        .arc-free-remark-print-value {
+            display: none;
+            min-width: 0;
+        }
+
+        .arc-free-remark-line .arc-remark-toggle {
+            flex: 0 0 auto;
+            margin-left: 0;
+        }
+
+        .arc-form-shell input:not([type="checkbox"]):not([type="radio"]),
+        .arc-form-shell select,
+        .arc-form-shell [contenteditable="true"] {
+            background: #eeeeee !important;
         }
 
         .arc-remark-print-date {
@@ -1078,16 +1265,19 @@
         .arc-cert-row {
             display: grid;
             grid-template-columns: 46.7% 53.3%;
-            min-height: 1.9in;
+            height: calc(1.26in + (0.34in + 2mm) + (0.34in + 2mm));
+            min-height: 0;
             border-top: 1.5px solid #000;
             border-bottom: 1.5px solid #000;
+            overflow: hidden;
         }
 
         .arc-cert-left,
         .arc-cert-right {
             position: relative;
             display: grid;
-            grid-template-rows: 1.26in calc(0.34in + 2mm) calc(0.34in + 2mm);
+            min-height: 0;
+            grid-template-rows: minmax(0, 1.26in) minmax(0, calc(0.34in + 2mm)) minmax(0, calc(0.34in + 2mm));
             border-right: 1.5px solid #000;
         }
 
@@ -1116,6 +1306,8 @@
             border-bottom: 1.5px solid #000;
             font-size: var(--arc-label-size);
             line-height: 1.1;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .arc-cert-main p {
@@ -1301,7 +1493,8 @@
         .arc-previous {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            min-height: 0.15in;
+            height: 0.15in;
+            min-height: 0;
             border-bottom: 1.5px solid #000;
             font-size: var(--arc-label-size);
             line-height: 1;
@@ -1319,21 +1512,23 @@
         }
 
         .arc-installer {
-            min-height: calc(1.41in - 11mm);
-            padding: 0.05in 0.04in;
+            flex: 1 1 auto;
+            min-height: 0;
+            padding: 0.05in 0.04in 0.02in;
             font-size: calc(var(--arc-installer-size) + 1px);
-            line-height: 1.16;
+            line-height: 1.08;
+            overflow: hidden;
         }
 
         .arc-installer h2 {
-            margin: 0 0 0.06in;
+            margin: 0 0 0.04in;
             text-align: center;
             font-size: calc(var(--arc-installer-title-size) + 2px);
             font-weight: 700;
         }
 
         .arc-installer p {
-            margin: 0 0 0.08in;
+            margin: 0 0 0.035in;
         }
 
         @media print {
@@ -1393,6 +1588,21 @@
                 display: inline !important;
             }
 
+            .arc-life-remark-input,
+            .arc-free-remark-input {
+                display: none !important;
+            }
+
+            .arc-life-remark-print-value,
+            .arc-free-remark-print-value {
+                display: inline !important;
+            }
+
+            .arc-life-remark-line.is-empty,
+            .arc-free-remark-line.is-empty {
+                display: none !important;
+            }
+
             .arc-remark-line.is-print-disabled {
                 display: none !important;
             }
@@ -1413,12 +1623,37 @@
                 display: none !important;
             }
 
+            .arc-form-shell input,
+            .arc-form-shell select,
+            .arc-form-shell [contenteditable] {
+                background: transparent !important;
+            }
+
             .arc-cert-print-value {
                 display: block !important;
             }
 
             .arc-status-work-print-value {
                 display: block !important;
+            }
+
+            .arc-item-secondary-input,
+            .arc-item-secondary-toggle {
+                display: none !important;
+            }
+
+            .arc-item-secondary-print-value {
+                display: block !important;
+                width: 100%;
+                text-align: center;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .arc-item-secondary-line.is-print-disabled,
+            .arc-item-secondary-line.is-empty {
+                display: none !important;
             }
 
             html,
@@ -1663,30 +1898,80 @@
                     spellcheck="false"
                 >{{ $itemDescription }}</div>
             </td>
-            <td class="arc-item-multiline">
-                <div
-                    class="arc-c-editable"
-                    role="textbox"
-                    contenteditable="{{ $selectedCertificateStateKey === 'main:c' ? 'true' : 'false' }}"
-                    data-certificate-item-part
-                    data-default-value="{{ collect($partNumberLines)->filter()->implode("\n") }}"
-                    data-original-value="{{ collect($partNumberLines)->filter()->implode("\n") }}"
-                    aria-label="Part No."
-                    spellcheck="false"
-                >{{ collect($partNumberLines)->filter()->implode("\n") }}</div>
+            <td class="arc-item-identifier-cell">
+                <div class="arc-item-identifier-values">
+                    <div
+                        class="arc-c-editable arc-item-identifier-primary"
+                        role="textbox"
+                        contenteditable="{{ $selectedCertificateStateKey === 'main:c' ? 'true' : 'false' }}"
+                        data-certificate-item-part
+                        data-default-value="{{ $partNumber }}"
+                        data-original-value="{{ $partNumber }}"
+                        aria-label="ASSY Part No."
+                        spellcheck="false"
+                    >{{ $partNumber }}</div>
+                    <div
+                        class="arc-item-secondary-line {{ ! $includePartNumberSecondary ? 'is-print-disabled' : '' }} {{ $partNumberSecondary === '' ? 'is-empty' : '' }}"
+                        data-certificate-item-part-secondary-line
+                    >
+                        <input
+                            type="text"
+                            class="arc-item-secondary-input"
+                            value="{{ $partNumberSecondary }}"
+                            data-certificate-item-part-secondary
+                            data-original-value="{{ $partNumberSecondary }}"
+                            aria-label="Part No. of component"
+                            spellcheck="false"
+                        >
+                        <span class="arc-item-secondary-print-value" data-certificate-item-part-secondary-output>{{ $partNumberSecondary }}</span>
+                        <label class="arc-item-secondary-toggle" title="Show lower Part No. on print">
+                            <input
+                                type="checkbox"
+                                data-certificate-item-part-secondary-toggle
+                                aria-label="Show lower Part No. on print"
+                                @checked($includePartNumberSecondary)
+                            >
+                        </label>
+                    </div>
+                </div>
             </td>
             <td>1</td>
-            <td class="arc-item-multiline">
-                <div
-                    class="arc-c-editable"
-                    role="textbox"
-                    contenteditable="{{ $selectedCertificateStateKey === 'main:c' ? 'true' : 'false' }}"
-                    data-certificate-item-serial
-                    data-default-value="{{ collect($serialNumberLines)->filter()->implode("\n") }}"
-                    data-original-value="{{ collect($serialNumberLines)->filter()->implode("\n") }}"
-                    aria-label="Serial / Batch No."
-                    spellcheck="false"
-                >{{ collect($serialNumberLines)->filter()->implode("\n") }}</div>
+            <td class="arc-item-identifier-cell">
+                <div class="arc-item-identifier-values">
+                    <div
+                        class="arc-c-editable arc-item-identifier-primary"
+                        role="textbox"
+                        contenteditable="{{ $selectedCertificateStateKey === 'main:c' ? 'true' : 'false' }}"
+                        data-certificate-item-serial
+                        data-default-value="{{ $serialNumber }}"
+                        data-original-value="{{ $serialNumber }}"
+                        aria-label="ASSY Serial / Batch No."
+                        spellcheck="false"
+                    >{{ $serialNumber }}</div>
+                    <div
+                        class="arc-item-secondary-line {{ ! $includeSerialNumberSecondary ? 'is-print-disabled' : '' }} {{ $serialNumberSecondary === '' ? 'is-empty' : '' }}"
+                        data-certificate-item-serial-secondary-line
+                    >
+                        <input
+                            type="text"
+                            class="arc-item-secondary-input"
+                            value="{{ $serialNumberSecondary }}"
+                            data-certificate-item-serial-secondary
+                            data-original-value="{{ $serialNumberSecondary }}"
+                            aria-label="Serial / Batch No. of component"
+                            spellcheck="false"
+                        >
+                        <span class="arc-item-secondary-print-value" data-certificate-item-serial-secondary-output>{{ $serialNumberSecondary }}</span>
+                        <label class="arc-item-secondary-toggle" title="Show lower Serial No. on print">
+                            <input
+                                type="checkbox"
+                                data-certificate-item-serial-secondary-toggle
+                                aria-label="Show lower Serial No. on print"
+                                @checked($includeSerialNumberSecondary)
+                            >
+                        </label>
+                    </div>
+                </div>
             </td>
             <td class="arc-status-work-cell">
                 <select class="arc-status-work-select" data-certificate-status-select aria-label="Status / Work">
@@ -1740,52 +2025,61 @@
                     $remarkDisplayText = $hasStatusRevisionInputs
                         ? $status . $statusRemarkBaseSuffix
                         : $remarkText;
-                    $hideRemarkRow = $remarkText === ''
-                        || ($isLifeRemark && $remarkText === '')
+                    $hideRemarkRow = (! $isLifeRemark && $remarkText === '')
                         || ($isCorrectionRemark && ($selectedCertificateStateKey !== 'main:c' || $remarkText === ''));
                 @endphp
                 @if($remarkText !== '' || $isLifeRemark || $isCorrectionRemark)
                     <div
-                        class="arc-remark-line {{ $hideRemarkRow ? 'is-empty' : '' }} {{ $remarkSettingKey !== '' && ! $remarkChecked ? 'is-print-disabled' : '' }}"
+                        class="arc-remark-line {{ $isLifeRemark ? 'arc-life-remark-line' : '' }} {{ $hideRemarkRow || ($isLifeRemark && $remarkText === '') ? 'is-empty' : '' }} {{ $remarkSettingKey !== '' && ! $remarkChecked ? 'is-print-disabled' : '' }}"
                         @if($hideRemarkRow) hidden @endif
                         @if($isLifeRemark) data-certificate-life-remark-row @endif
                         @if($isCorrectionRemark) data-certificate-c-correction-row @endif
                         @if($isOverhauledOnRemark) data-certificate-overhauled-on-row @endif
                     >
-                        <span
-                            class="arc-remark-text arc-c-editable {{ $isReplacementPartsRemark ? 'arc-replacement-parts-print-value' : '' }}"
-                            role="textbox"
-                            contenteditable="{{ $selectedCertificateStateKey === 'main:c' && ! $isStatusRemark && ! $isLifeRemark && ! $isOverhauledOnRemark && ! $isReplacementPartsRemark ? 'true' : 'false' }}"
-                            data-certificate-remark-text
-                            data-remark-index="{{ $loop->index }}"
-                            data-default-value="{{ $remarkDisplayText }}"
-                            data-original-value="{{ $remarkDisplayText }}"
-                            aria-label="Remark {{ $loop->iteration }}"
-                            spellcheck="false"
-                            @if($isStatusRemark)
-                                data-certificate-status-remark
-                                data-remark-suffix="{{ $hasStatusRevisionInputs ? $statusRemarkBaseSuffix : $remark['status_remark_suffix'] }}"
-                            @endif
-                            @if($isLifeRemark)
+                        @if($isLifeRemark)
+                            <input
+                                type="text"
+                                class="arc-life-remark-input"
+                                value="{{ $remarkDisplayText }}"
                                 data-certificate-life-remark
-                            @endif
-                            @if($isAirworthinessRemark)
-                                data-certificate-airworthiness-remark
-                            @endif
-                            @if($isReplacementPartsRemark)
-                                data-certificate-replacement-parts-remark
-                                data-default-choice="{{ $replacementPartsDefault }}"
-                            @endif
-                            @if($separateRemarkKey !== '')
-                                data-certificate-separate-remark-key="{{ $separateRemarkKey }}"
-                            @endif
-                            @if($isCorrectionRemark)
-                                data-certificate-c-correction-remark
-                            @endif
-                            @if($isOverhauledOnRemark)
-                                data-certificate-overhauled-on-remark
-                            @endif
-                        >{{ $isOverhauledOnRemark ? 'Overhauled on' : $remarkDisplayText }}</span>
+                                data-original-value="{{ $remarkDisplayText }}"
+                                aria-label="CSN / CSO remark"
+                                spellcheck="false"
+                            >
+                            <span class="arc-life-remark-print-value" data-certificate-life-remark-output>{{ $remarkDisplayText }}</span>
+                        @else
+                            <span
+                                class="arc-remark-text arc-c-editable {{ $isReplacementPartsRemark ? 'arc-replacement-parts-print-value' : '' }}"
+                                role="textbox"
+                                contenteditable="{{ $selectedCertificateStateKey === 'main:c' && ! $isStatusRemark && ! $isOverhauledOnRemark && ! $isReplacementPartsRemark ? 'true' : 'false' }}"
+                                data-certificate-remark-text
+                                data-remark-index="{{ $loop->index }}"
+                                data-default-value="{{ $remarkDisplayText }}"
+                                data-original-value="{{ $remarkDisplayText }}"
+                                aria-label="Remark {{ $loop->iteration }}"
+                                spellcheck="false"
+                                @if($isStatusRemark)
+                                    data-certificate-status-remark
+                                    data-remark-suffix="{{ $hasStatusRevisionInputs ? $statusRemarkBaseSuffix : $remark['status_remark_suffix'] }}"
+                                @endif
+                                @if($isAirworthinessRemark)
+                                    data-certificate-airworthiness-remark
+                                @endif
+                                @if($isReplacementPartsRemark)
+                                    data-certificate-replacement-parts-remark
+                                    data-default-choice="{{ $replacementPartsDefault }}"
+                                @endif
+                                @if($separateRemarkKey !== '')
+                                    data-certificate-separate-remark-key="{{ $separateRemarkKey }}"
+                                @endif
+                                @if($isCorrectionRemark)
+                                    data-certificate-c-correction-remark
+                                @endif
+                                @if($isOverhauledOnRemark)
+                                    data-certificate-overhauled-on-remark
+                                @endif
+                            >{{ $isOverhauledOnRemark ? 'Overhauled on' : $remarkDisplayText }}</span>
+                        @endif
                         @if($isReplacementPartsRemark)
                             <span class="arc-replacement-parts-choice" data-certificate-replacement-parts-choice>
                                 @foreach($replacementPartsOptions as $replacementPartsValue => $replacementPartsText)
@@ -1804,22 +2098,6 @@
                             </span>
                         @endif
                         @if($hasStatusRevisionInputs)
-                            <span
-                                class="arc-remark-print-date arc-manual-cmm-extra-print"
-                                data-certificate-cmm-extra-print
-                                data-raw-value="{{ $statusRemarkCmmExtraText }}"
-                                @if($statusRemarkCmmExtraText === '') hidden @endif
-                            >{{ $statusRemarkCmmExtraText !== '' ? ', ' . $statusRemarkCmmExtraText : '' }}</span>
-                            <input
-                                type="text"
-                                class="arc-remark-number-input arc-manual-cmm-extra-input"
-                                data-certificate-cmm-extra-text
-                                data-original-value="{{ $statusRemarkCmmExtraText }}"
-                                value="{{ $statusRemarkCmmExtraText }}"
-                                placeholder="..."
-                                aria-label="Additional CMM text"
-                                spellcheck="false"
-                            >
                             <span class="arc-status-revision-prefix">{{ $statusRemarkRevisionPrefix }}</span>
                             <span
                                 class="arc-remark-print-date"
@@ -1847,6 +2125,22 @@
                                 data-original-iso="{{ $manualRevisionDateIso }}"
                                 value="{{ $manualRevisionDateInputValue }}"
                                 aria-label="Manual revision date"
+                                spellcheck="false"
+                            >
+                            <span
+                                class="arc-remark-print-date arc-manual-cmm-extra-print"
+                                data-certificate-cmm-extra-print
+                                data-raw-value="{{ $statusRemarkCmmExtraText }}"
+                                @if($statusRemarkCmmExtraText === '') hidden @endif
+                            >{{ $statusRemarkCmmExtraText !== '' ? ', ' . $statusRemarkCmmExtraText : '' }}</span>
+                            <input
+                                type="text"
+                                class="arc-remark-number-input arc-manual-cmm-extra-input"
+                                data-certificate-cmm-extra-text
+                                data-original-value="{{ $statusRemarkCmmExtraText }}"
+                                value="{{ $statusRemarkCmmExtraText }}"
+                                placeholder="Additional text"
+                                aria-label="Additional text after CMM revision date"
                                 spellcheck="false"
                             >
                             <span class="arc-status-revision-period">.</span>
@@ -1877,6 +2171,33 @@
                         @endif
                     </div>
                 @endif
+            @endforeach
+            @foreach($certificateFreeRemarks as $freeRemarkIndex => $freeRemark)
+                <div
+                    class="arc-remark-line arc-free-remark-line {{ ! $freeRemark['checked'] ? 'is-print-disabled' : '' }} {{ $freeRemark['text'] === '' ? 'is-empty' : '' }}"
+                    data-certificate-free-remark-row="{{ $freeRemarkIndex }}"
+                >
+                    <input
+                        type="text"
+                        class="arc-free-remark-input"
+                        value="{{ $freeRemark['text'] }}"
+                        data-certificate-free-remark-input
+                        data-setting-key="{{ $freeRemark['value_key'] }}"
+                        data-original-value="{{ $freeRemark['text'] }}"
+                        aria-label="Free remark {{ $freeRemarkIndex }}"
+                        spellcheck="false"
+                    >
+                    <span class="arc-free-remark-print-value" data-certificate-free-remark-output>{{ $freeRemark['text'] }}</span>
+                    <label class="arc-remark-toggle" title="Include free remark in print">
+                        <input
+                            type="checkbox"
+                            class="arc-remark-print-toggle"
+                            data-setting-key="{{ $freeRemark['include_key'] }}"
+                            aria-label="Include free remark {{ $freeRemarkIndex }} in print"
+                            @checked($freeRemark['checked'])
+                        >
+                    </label>
+                </div>
             @endforeach
         </div>
     </section>
@@ -2075,8 +2396,16 @@
         const detailTracking = document.querySelector('[data-certificate-tracking-number]');
         const detailDescription = document.querySelector('[data-certificate-item-description]');
         const detailPart = document.querySelector('[data-certificate-item-part]');
+        const detailPartSecondary = document.querySelector('[data-certificate-item-part-secondary]');
+        const detailPartSecondaryToggle = document.querySelector('[data-certificate-item-part-secondary-toggle]');
+        const detailPartSecondaryOutput = document.querySelector('[data-certificate-item-part-secondary-output]');
         const detailSerial = document.querySelector('[data-certificate-item-serial]');
+        const detailSerialSecondary = document.querySelector('[data-certificate-item-serial-secondary]');
+        const detailSerialSecondaryToggle = document.querySelector('[data-certificate-item-serial-secondary-toggle]');
+        const detailSerialSecondaryOutput = document.querySelector('[data-certificate-item-serial-secondary-output]');
         const detailLifeRemark = document.querySelector('[data-certificate-life-remark]');
+        const detailLifeRemarkOutput = document.querySelector('[data-certificate-life-remark-output]');
+        const freeRemarkInputs = Array.from(document.querySelectorAll('[data-certificate-free-remark-input]'));
         const overhauledOnRemark = document.querySelector('[data-certificate-overhauled-on-remark]');
         const overhauledOnDateInput = document.querySelector('[data-certificate-overhauled-on-date]');
         const overhauledOnPrintDate = document.querySelector('[data-certificate-overhauled-on-print-date]');
@@ -2105,7 +2434,11 @@
         }
 
         function editableValue(element) {
-            return element ? (element.textContent || '').trim() : '';
+            if (!element) {
+                return '';
+            }
+
+            return ('value' in element ? element.value : element.textContent || '').trim();
         }
 
         function setEditableValue(element, value) {
@@ -2113,7 +2446,11 @@
                 return;
             }
 
-            element.textContent = value || '';
+            if ('value' in element) {
+                element.value = value || '';
+            } else {
+                element.textContent = value || '';
+            }
             element.dataset.originalValue = value || '';
         }
 
@@ -2180,8 +2517,39 @@
                 return;
             }
 
-            setEditableValue(detailLifeRemark, value || '');
-            syncRemarkRowVisibility(detailLifeRemark);
+            const text = String(value || '').trim();
+            const row = detailLifeRemark.closest('.arc-life-remark-line');
+            setEditableValue(detailLifeRemark, text);
+            if (detailLifeRemarkOutput) {
+                detailLifeRemarkOutput.textContent = text;
+            }
+            if (row) {
+                row.hidden = false;
+                row.classList.toggle('is-empty', text === '');
+            }
+        }
+
+        function syncLifeRemarkControl(item) {
+            setLifeRemarkText(
+                getCertificateStateValue('certificate_life_remark', lifeRemarkTextForItem(item))
+            );
+        }
+
+        function syncFreeRemarkControls() {
+            freeRemarkInputs.forEach(function (input) {
+                const settingKey = input.getAttribute('data-setting-key');
+                const value = String(getCertificateStateValue(settingKey, '') || '');
+                const row = input.closest('.arc-free-remark-line');
+                const output = row?.querySelector('[data-certificate-free-remark-output]');
+                input.value = value;
+                input.dataset.originalValue = value;
+                if (output) {
+                    output.textContent = value;
+                }
+                if (row) {
+                    row.classList.toggle('is-empty', value === '');
+                }
+            });
         }
 
         function replacementPartsDefaultChoice() {
@@ -2353,10 +2721,18 @@
             }
         }
 
-        function fitRemarksText() {
+        function fitRemarksText(printableOnly = false) {
             if (!remarksBox || !remarksLines) {
                 return;
             }
+
+            const excludedRows = printableOnly
+                ? Array.from(remarksLines.querySelectorAll('.arc-remark-line.is-print-disabled, .arc-remark-line.is-empty'))
+                : [];
+
+            excludedRows.forEach(function (row) {
+                row.classList.add('is-fit-excluded');
+            });
 
             const baseSize = 14;
             const baseLineHeight = 1.22;
@@ -2370,6 +2746,10 @@
                 document.documentElement.style.setProperty('--arc-remarks-size', `${size}px`);
                 document.documentElement.style.setProperty('--arc-remarks-line-height', String(baseLineHeight * scale));
             }
+
+            excludedRows.forEach(function (row) {
+                row.classList.remove('is-fit-excluded');
+            });
         }
 
         function syncDetailSelectVisibility() {
@@ -2425,8 +2805,8 @@
         function detailLabel(item) {
             return [
                 item.description,
-                collapseDetailText(item.part_number).replace(/\s*\(\s*/g, ' / ('),
-                collapseDetailText(item.serial_number).replace(/\s*\(\s*/g, ' / ('),
+                [item.part_number, item.part_number_secondary].map(collapseDetailText).filter(Boolean).join(' / '),
+                [item.serial_number, item.serial_number_secondary].map(collapseDetailText).filter(Boolean).join(' / '),
             ].map(collapseDetailText).filter(Boolean).join(' | ');
         }
 
@@ -2511,6 +2891,80 @@
             certificateItemSettings[currentCertificateStateKey][settingKey] = value;
         }
 
+        function splitIdentifierLines(value) {
+            return String(value || '')
+                .split(/\r\n|\r|\n/)
+                .map((line) => line.trim())
+                .filter(Boolean);
+        }
+
+        function primaryIdentifierStateValue(settingKey, fallback) {
+            const lines = splitIdentifierLines(getCertificateStateValue(settingKey, fallback || ''));
+            return lines[0] || '';
+        }
+
+        function secondaryIdentifierDefault(valueKey, legacyKey, itemDefault) {
+            const itemSettings = certificateItemSettings[currentCertificateStateKey] || {};
+            if (Object.prototype.hasOwnProperty.call(itemSettings, valueKey)) {
+                return itemDefault || '';
+            }
+
+            const legacyLines = splitIdentifierLines(itemSettings[legacyKey] || '');
+            return legacyLines.length > 1 ? legacyLines.slice(1).join(' ') : (itemDefault || '');
+        }
+
+        function syncSecondaryItemControl(input, checkbox, output, valueKey, includeKey, defaultValue) {
+            if (!input || !checkbox) {
+                return;
+            }
+
+            const itemSettings = certificateItemSettings[currentCertificateStateKey] || {};
+            const value = String(getCertificateStateValue(valueKey, defaultValue || '') || '');
+            const includeOnPrint = Object.prototype.hasOwnProperty.call(itemSettings, includeKey)
+                ? Boolean(itemSettings[includeKey])
+                : value !== '';
+            const line = input.closest('.arc-item-secondary-line');
+
+            input.value = value;
+            input.dataset.originalValue = value;
+            checkbox.checked = includeOnPrint;
+            if (output) {
+                output.textContent = value;
+            }
+            if (line) {
+                line.classList.toggle('is-print-disabled', !includeOnPrint);
+                line.classList.toggle('is-empty', value === '');
+            }
+        }
+
+        function syncSecondaryItemControls() {
+            const item = certificateDetailItems[currentCertificateDetailKey] || certificateDetailItems.main || {};
+            syncSecondaryItemControl(
+                detailPartSecondary,
+                detailPartSecondaryToggle,
+                detailPartSecondaryOutput,
+                'certificate_item_part_secondary',
+                'include_certificate_item_part_secondary',
+                secondaryIdentifierDefault(
+                    'certificate_item_part_secondary',
+                    'certificate_item_part',
+                    item.part_number_secondary || ''
+                )
+            );
+            syncSecondaryItemControl(
+                detailSerialSecondary,
+                detailSerialSecondaryToggle,
+                detailSerialSecondaryOutput,
+                'certificate_item_serial_secondary',
+                'include_certificate_item_serial_secondary',
+                secondaryIdentifierDefault(
+                    'certificate_item_serial_secondary',
+                    'certificate_item_serial',
+                    item.serial_number_secondary || ''
+                )
+            );
+        }
+
         function syncCertificateManagerControl() {
             if (!managerSelect) {
                 return;
@@ -2562,18 +3016,17 @@
             setCEditableEnabled(detailPart, cMode);
             setCEditableEnabled(detailSerial, cMode);
             remarkTexts.forEach((remark) => setCEditableEnabled(remark, cMode));
+            syncSecondaryItemControls();
+            syncLifeRemarkControl(item);
+            syncFreeRemarkControls();
 
             if (!cMode) {
                 setEditableValue(detailWorkOrder, detailWorkOrder?.dataset.defaultValue || '');
                 setDescriptionValue(item.description || '');
                 setEditableValue(detailPart, item.part_number || '');
                 setEditableValue(detailSerial, item.serial_number || '');
-                setLifeRemarkText(lifeRemarkTextForItem(item));
                 remarkTexts.forEach(function (remark) {
-                    if (remark.hasAttribute('data-certificate-life-remark')) {
-                        const value = lifeRemarkTextForItem(item);
-                        setEditableValue(remark, value);
-                    } else if (remark.hasAttribute('data-certificate-overhauled-on-remark')) {
+                    if (remark.hasAttribute('data-certificate-overhauled-on-remark')) {
                         setEditableValue(remark, remark.dataset.defaultValue || '');
                     } else if (remark.hasAttribute('data-certificate-c-correction-remark')) {
                         setEditableValue(remark, remark.dataset.defaultValue || '');
@@ -2590,15 +3043,13 @@
 
             setEditableValue(detailWorkOrder, String(getCertificateStateValue('certificate_work_order', detailWorkOrder?.dataset.defaultValue || '') || ''));
             setDescriptionValue(String(getCertificateStateValue('certificate_item_description', item.description || '') || ''));
-            setEditableValue(detailPart, String(getCertificateStateValue('certificate_item_part', item.part_number || '') || ''));
-            setEditableValue(detailSerial, String(getCertificateStateValue('certificate_item_serial', item.serial_number || '') || ''));
+            setEditableValue(detailPart, primaryIdentifierStateValue('certificate_item_part', item.part_number || ''));
+            setEditableValue(detailSerial, primaryIdentifierStateValue('certificate_item_serial', item.serial_number || ''));
 
             const savedRemarks = getCertificateStateValue('certificate_remarks', null);
             remarkTexts.forEach(function (remark) {
                 const index = Number(remark.getAttribute('data-remark-index'));
-                const defaultValue = remark.hasAttribute('data-certificate-life-remark')
-                    ? lifeRemarkTextForItem(item)
-                    : (remark.dataset.defaultValue || '');
+                const defaultValue = remark.dataset.defaultValue || '';
                 let value = defaultValue;
                 if (remark.hasAttribute('data-certificate-airworthiness-remark')) {
                     value = String(getCertificateStateValue('certificate_airworthiness_remark', defaultValue) || '');
@@ -2811,6 +3262,125 @@
             });
         }
 
+        function bindSecondaryItemControl(input, checkbox, output, valueKey, includeKey) {
+            if (!input || !checkbox) {
+                return;
+            }
+
+            const syncVisualState = function () {
+                const value = (input.value || '').trim();
+                const line = input.closest('.arc-item-secondary-line');
+                if (output) {
+                    output.textContent = value;
+                }
+                if (line) {
+                    line.classList.toggle('is-empty', value === '');
+                    line.classList.toggle('is-print-disabled', !checkbox.checked);
+                }
+            };
+
+            const saveValue = async function () {
+                const value = (input.value || '').trim();
+                input.value = value;
+                syncVisualState();
+                if (value === (input.dataset.originalValue || '')) {
+                    return;
+                }
+
+                input.classList.remove('is-invalid');
+                input.classList.add('is-saving');
+                try {
+                    setCertificateStateValue(valueKey, value);
+                    await saveSetting(valueKey, value, {itemSource: currentCertificateStateKey});
+                    input.dataset.originalValue = value;
+                } catch (error) {
+                    console.error('Failed to save secondary certificate item field', error);
+                    input.classList.add('is-invalid');
+                } finally {
+                    input.classList.remove('is-saving');
+                }
+            };
+
+            input.addEventListener('input', syncVisualState);
+            input.addEventListener('change', saveValue);
+            input.addEventListener('blur', saveValue);
+            input.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    input.blur();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    input.value = input.dataset.originalValue || '';
+                    input.classList.remove('is-invalid');
+                    syncVisualState();
+                    input.blur();
+                }
+            });
+
+            checkbox.addEventListener('change', function () {
+                setCertificateStateValue(includeKey, checkbox.checked);
+                syncVisualState();
+                saveSetting(includeKey, checkbox.checked, {itemSource: currentCertificateStateKey});
+            });
+        }
+
+        function bindPersistedRemarkInput(input, output, settingKey) {
+            if (!input) {
+                return;
+            }
+
+            const syncVisualState = function () {
+                const value = (input.value || '').trim();
+                const row = input.closest('.arc-remark-line');
+                if (output) {
+                    output.textContent = value;
+                }
+                if (row) {
+                    row.hidden = false;
+                    row.classList.toggle('is-empty', value === '');
+                }
+                fitRemarksText();
+            };
+
+            const saveValue = async function () {
+                const value = (input.value || '').trim();
+                input.value = value;
+                syncVisualState();
+                if (value === (input.dataset.originalValue || '')) {
+                    return;
+                }
+
+                input.classList.remove('is-invalid');
+                input.classList.add('is-saving');
+                try {
+                    setCertificateStateValue(settingKey, value);
+                    await saveSetting(settingKey, value, {itemSource: currentCertificateStateKey});
+                    input.dataset.originalValue = value;
+                } catch (error) {
+                    console.error('Failed to save certificate remark input', error);
+                    input.classList.add('is-invalid');
+                } finally {
+                    input.classList.remove('is-saving');
+                }
+            };
+
+            input.addEventListener('input', syncVisualState);
+            input.addEventListener('change', saveValue);
+            input.addEventListener('blur', saveValue);
+            input.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    input.blur();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    input.value = input.dataset.originalValue || '';
+                    input.classList.remove('is-invalid');
+                    syncVisualState();
+                    input.blur();
+                }
+            });
+        }
+
         function saveCertificateRemarks() {
             if (!isCertificateCMode()) {
                 return Promise.resolve();
@@ -3002,6 +3572,33 @@
         bindCertificateEditable(detailWorkOrder, 'certificate_work_order');
         bindCertificateEditable(detailPart, 'certificate_item_part');
         bindCertificateEditable(detailSerial, 'certificate_item_serial');
+        bindSecondaryItemControl(
+            detailPartSecondary,
+            detailPartSecondaryToggle,
+            detailPartSecondaryOutput,
+            'certificate_item_part_secondary',
+            'include_certificate_item_part_secondary'
+        );
+        bindSecondaryItemControl(
+            detailSerialSecondary,
+            detailSerialSecondaryToggle,
+            detailSerialSecondaryOutput,
+            'certificate_item_serial_secondary',
+            'include_certificate_item_serial_secondary'
+        );
+        bindPersistedRemarkInput(
+            detailLifeRemark,
+            detailLifeRemarkOutput,
+            'certificate_life_remark'
+        );
+        freeRemarkInputs.forEach(function (input) {
+            const row = input.closest('.arc-free-remark-line');
+            bindPersistedRemarkInput(
+                input,
+                row?.querySelector('[data-certificate-free-remark-output]'),
+                input.getAttribute('data-setting-key')
+            );
+        });
 
         if (detailMainButton) {
             detailMainButton.addEventListener('click', function () {
@@ -3116,7 +3713,7 @@
             const revisionNumber = manualRevisionNumberDisplay();
             const revisionDate = manualRevisionDateDisplay();
 
-            return display + suffix + manualCmmExtraPhrase() + ', Rev # ' + revisionNumber + ' dated ' + revisionDate + '.';
+            return display + suffix + ', Rev # ' + revisionNumber + ' dated ' + revisionDate + manualCmmExtraPhrase() + '.';
         }
 
         function setStatusRemarkDisplay(display) {
@@ -3449,6 +4046,14 @@
 
         applyCertificateDetail(initialCertificateDetailSource, false);
         fitRemarksText();
+
+        window.addEventListener('beforeprint', function () {
+            fitRemarksText(true);
+        });
+
+        window.addEventListener('afterprint', function () {
+            fitRemarksText();
+        });
 
         document.querySelectorAll('.arc-remark-print-toggle').forEach(function (checkbox) {
             const row = checkbox.closest('.arc-remark-line');

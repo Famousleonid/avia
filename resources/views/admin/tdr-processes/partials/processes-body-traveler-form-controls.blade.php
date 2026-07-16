@@ -14,10 +14,4 @@
        class="btn btn-sm btn-outline-primary travel-form-link"
        data-tdr-process-id="{{ $tdrProcessRow->id ?? '' }}"
        target="_blank">{{ __('Form traveler') }}</a>
-    @if($travelerGroupHasStandardForm ?? true)
-        <a href="{{ route('tdr-processes.travelerGroupStandardForm', ['tdrId' => $current_tdr->id, 'traveler_group' => $travelerGroup ?? null]) }}"
-           class="btn btn-sm btn-outline-primary travel-form-link"
-           data-tdr-process-id="{{ $tdrProcessRow->id ?? '' }}"
-           target="_blank">{{ __('Form standart') }}</a>
-    @endif
 </div>

@@ -173,6 +173,17 @@ Nital Etch Inspection is not a STD database/list.
 
 ## Avia Storage Audit
 
+Vendor Tracking presents the staging buffer in two sections:
+
+```text
+Needs attention              = unresolved rows that require action
+Latest received from Quantum = local audit view of staged rows in all apply statuses
+```
+
+Both sections exclude rows whose `wo_number` belongs to a local workorder with
+`workorders.done_at IS NOT NULL`. WO filtering is applied to `apply_message`
+(the UI `Reason` column); RO filtering is applied to `ro_number`.
+
 Existing avia date fields:
 
 ```text
@@ -193,4 +204,3 @@ date_start, date_finish, date_promise
 ```
 
 Need a Quantum/source external key before applying reliably into avia tables.
-

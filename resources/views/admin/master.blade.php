@@ -165,6 +165,32 @@
             min-height: 0;
         }
 
+        @if(!empty($userProjectBackgroundUrl))
+        body.has-user-project-background .content {
+            background-color: transparent !important;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, .38), rgba(255, 255, 255, .38)),
+                url('{{ $userProjectBackgroundUrl }}') !important;
+            background-position: center center !important;
+            background-repeat: no-repeat !important;
+            background-size: cover !important;
+        }
+
+        html[data-bs-theme="dark"] body.has-user-project-background .content {
+            background-image:
+                linear-gradient(rgba(10, 17, 26, .52), rgba(10, 17, 26, .52)),
+                url('{{ $userProjectBackgroundUrl }}') !important;
+        }
+
+        body.has-user-project-background .content-inner,
+        body.has-user-project-background .content-inner > .container,
+        body.has-user-project-background .content-inner > .container-fluid,
+        body.has-user-project-background .content-inner > form > .container,
+        body.has-user-project-background .content-inner > form > .container-fluid {
+            background-color: transparent !important;
+        }
+        @endif
+
 
 
     </style>
@@ -173,7 +199,7 @@
 
 </head>
 
-<body class="p-0 m-0 g-0">
+<body class="p-0 m-0 g-0 {{ !empty($userProjectBackgroundUrl) ? 'has-user-project-background' : '' }}">
 
 <div id="spinner-load" class="spinner-border text-warning spinner-win d-none" role="status">
     <span class="visually-hidden">Loading...</span>

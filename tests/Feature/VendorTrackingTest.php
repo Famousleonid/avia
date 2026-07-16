@@ -101,14 +101,15 @@ class VendorTrackingTest extends TestCase
     {
         $admin = $this->createUserWithRole('Admin');
         $suffix = (string) random_int(100000, 999999);
+        $unresolvedWo = 'W8' . $suffix;
 
         QuantumRoLine::query()->create([
             'source_uid' => 'latest-unresolved-' . $suffix,
             'ro_number' => 'R-OLD-' . $suffix,
-            'wo_number' => 'W107616',
+            'wo_number' => $unresolvedWo,
             'bom_ref' => 'BAD',
             'apply_status' => 'unresolved',
-            'apply_message' => 'No STD process target for WO W107616, PN NDT',
+            'apply_message' => 'No STD process target for WO ' . $unresolvedWo . ', PN NDT',
             'qty_repair' => '1.0000',
             'qty_reserved' => '1.0000',
             'qty_repaired' => '0.0000',
@@ -144,7 +145,9 @@ class VendorTrackingTest extends TestCase
             ->assertSee('Quantum RO Buffer')
             ->assertSee('Latest received:')
             ->assertSee('Latest received from Quantum')
-            ->assertSee('All statuses')
+            ->assertSee('Needs attention')
+            ->assertSee('Unresolved rows only &middot; completed WO excluded', false)
+            ->assertSee('Audit log &middot; all statuses &middot; completed WO excluded', false)
             ->assertSee('unresolved')
             ->assertSee('pending')
             ->assertSee('id="quantumBufferSplitter"', false)
@@ -158,7 +161,9 @@ class VendorTrackingTest extends TestCase
             ->assertSee('data-search-mode="ro"', false)
             ->assertSee('vendor-tracking/quantum-ro-lines/find-workorder')
             ->assertSee("event.key !== 'Enter'", false)
-            ->assertSee('highlightQuantumRowsByLineIds(lineIds)', false)
+            ->assertSee('filterQuantumBufferRows', false)
+            ->assertSee('replaceQuantumBufferRows(data)', false)
+            ->assertDontSee('highlightQuantumRowsByLineIds', false)
             ->assertSee('data-quantum-ro=', false)
             ->assertDontSee('Unresolved / needs attention')
             ->assertDontSee('Dismiss visible')
@@ -171,7 +176,7 @@ class VendorTrackingTest extends TestCase
             ->assertSee('<td class="text-nowrap">', false)
             ->assertSee('qty - 1 / 1 / 0', false)
             ->assertSee('<span class="quantum-message-info">No STD process target</span>', false)
-            ->assertSee('<span class="quantum-message-wo">W107616</span>', false)
+            ->assertSee('<span class="quantum-message-wo">' . $unresolvedWo . '</span>', false)
             ->assertDontSee('To Repair:')
             ->assertDontSee('Reserved:')
             ->assertDontSee('Repaired:')
@@ -257,29 +262,33 @@ class VendorTrackingTest extends TestCase
         $this->assertStringNotContainsString('R-INF-200-' . $suffix, (string) $response->json('html'));
     }
 
-    public function test_quantum_workorder_search_returns_position_in_general_recent_list(): void
+    public function test_quantum_workorder_search_filters_both_tables_by_reason(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $suffix = (string) random_int(100000, 999999);
-        $baseSeenAt = Carbon::parse('2037-01-01 00:00:00');
         $targetWo = 'W987' . $suffix;
-        $targetLine = null;
 
-        for ($i = 0; $i < 201; $i++) {
-            $line = QuantumRoLine::query()->create([
-                'source_uid' => sprintf('recent-find-%s-%03d', $suffix, $i),
-                'ro_number' => sprintf('R-FIND-%03d-%s', $i, $suffix),
-                'wo_number' => $i === 0 ? $targetWo : sprintf('W300%s%03d', $suffix, $i),
-                'bom_ref' => 'CP',
-                'apply_status' => 'applied',
-                'source_hash' => hash('sha256', 'recent-find-' . $suffix . '-' . $i),
-                'last_seen_at' => $baseSeenAt->copy()->addMinutes($i),
-            ]);
+        $targetLine = QuantumRoLine::query()->create([
+            'source_uid' => 'reason-find-target-' . $suffix,
+            'ro_number' => 'R-REASON-TARGET-' . $suffix,
+            'wo_number' => 'W-DIFFERENT-' . $suffix,
+            'bom_ref' => 'BAD',
+            'apply_status' => 'unresolved',
+            'apply_message' => 'No process target exists for WO ' . $targetWo,
+            'source_hash' => hash('sha256', 'reason-find-target-' . $suffix),
+            'last_seen_at' => Carbon::parse('2037-01-01 00:00:00'),
+        ]);
 
-            if ($i === 0) {
-                $targetLine = $line;
-            }
-        }
+        QuantumRoLine::query()->create([
+            'source_uid' => 'reason-find-same-column-' . $suffix,
+            'ro_number' => 'R-SAME-WO-COLUMN-' . $suffix,
+            'wo_number' => $targetWo,
+            'bom_ref' => 'CP',
+            'apply_status' => 'applied',
+            'apply_message' => 'Applied to a different target',
+            'source_hash' => hash('sha256', 'reason-find-same-column-' . $suffix),
+            'last_seen_at' => Carbon::parse('2037-01-01 00:05:00'),
+        ]);
 
         $response = $this->actingAs($admin)->getJson(route('vendor-tracking.quantum-lines.find-workorder', [
             'workorder' => preg_replace('/\D+/', '', $targetWo),
@@ -291,11 +300,14 @@ class VendorTrackingTest extends TestCase
             ->assertJsonPath('found', true)
             ->assertJsonPath('line_id', $targetLine->id)
             ->assertJsonPath('line_ids.0', $targetLine->id)
-            ->assertJsonPath('page', 2)
             ->assertJsonPath('mode', 'wo')
             ->assertJsonPath('matched_count', 1)
-            ->assertJsonPath('matched_value', $targetWo)
-            ->assertJsonPath('matched_wo', $targetWo);
+            ->assertJsonPath('unparsed_total', 1)
+            ->assertJsonPath('matched_value', preg_replace('/\D+/', '', $targetWo));
+
+        $this->assertStringContainsString('R-REASON-TARGET-' . $suffix, (string) $response->json('html'));
+        $this->assertStringContainsString('R-REASON-TARGET-' . $suffix, (string) $response->json('unparsed_html'));
+        $this->assertStringNotContainsString('R-SAME-WO-COLUMN-' . $suffix, (string) $response->json('html'));
     }
 
     public function test_quantum_workorder_search_returns_all_matching_line_ids(): void
@@ -310,6 +322,7 @@ class VendorTrackingTest extends TestCase
             'wo_number' => $targetWo,
             'bom_ref' => 'T2',
             'apply_status' => 'unresolved',
+            'apply_message' => 'No target process for WO ' . $targetWo,
             'source_hash' => hash('sha256', 'recent-find-all-older-' . $suffix),
             'last_seen_at' => Carbon::parse('2038-01-01 10:00:00'),
         ]);
@@ -320,6 +333,7 @@ class VendorTrackingTest extends TestCase
             'wo_number' => $targetWo,
             'bom_ref' => 'CP',
             'apply_status' => 'applied',
+            'apply_message' => 'Applied Quantum line for WO ' . $targetWo,
             'source_hash' => hash('sha256', 'recent-find-all-newer-' . $suffix),
             'last_seen_at' => Carbon::parse('2038-01-01 10:05:00'),
         ]);
@@ -330,6 +344,7 @@ class VendorTrackingTest extends TestCase
             'wo_number' => 'W9' . $suffix,
             'bom_ref' => 'CP',
             'apply_status' => 'applied',
+            'apply_message' => 'Applied to unrelated workorder',
             'source_hash' => hash('sha256', 'recent-find-all-other-' . $suffix),
             'last_seen_at' => Carbon::parse('2038-01-01 10:10:00'),
         ]);
@@ -391,6 +406,71 @@ class VendorTrackingTest extends TestCase
             ->assertJsonPath('matched_count', 2)
             ->assertJsonPath('matched_ro', $targetRo)
             ->assertJsonPath('matched_value', $targetRo);
+    }
+
+    public function test_quantum_tables_and_search_exclude_rows_for_completed_workorders(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $openWorkorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $completedWorkorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $completedWorkorder->forceFill(['done_at' => '2026-07-01'])->save();
+
+        $openLabel = 'W' . $openWorkorder->number;
+        $completedLabel = 'W' . $completedWorkorder->number;
+        $suffix = (string) random_int(100000, 999999);
+
+        foreach ([
+            ['open-unresolved', $openLabel, 'R-OPEN-UNRES-' . $suffix, 'unresolved', 'No process for WO ' . $openLabel],
+            ['open-applied', $openLabel, 'R-OPEN-APPLIED-' . $suffix, 'applied', 'Applied for WO ' . $openLabel],
+            ['closed-unresolved', $completedLabel, 'R-CLOSED-UNRES-' . $suffix, 'unresolved', 'No process for WO ' . $completedLabel],
+            ['closed-applied', $completedLabel, 'R-CLOSED-APPLIED-' . $suffix, 'applied', 'Applied for WO ' . $completedLabel],
+        ] as $offset => [$key, $wo, $ro, $status, $message]) {
+            QuantumRoLine::query()->create([
+                'source_uid' => 'completed-filter-' . $key . '-' . $suffix,
+                'ro_number' => $ro,
+                'wo_number' => $wo,
+                'bom_ref' => $status === 'unresolved' ? 'BAD' : 'CP',
+                'apply_status' => $status,
+                'apply_message' => $message,
+                'source_hash' => hash('sha256', 'completed-filter-' . $key . '-' . $suffix),
+                'last_seen_at' => Carbon::parse('2038-01-10 00:00:00')->addMinutes($offset),
+            ]);
+        }
+
+        $page = $this->actingAs($admin)->get(route('vendor-tracking.index'));
+        $page->assertOk();
+        $pageHtml = (string) $page->getContent();
+
+        $this->assertStringContainsString('R-OPEN-UNRES-' . $suffix, $pageHtml);
+        $this->assertStringContainsString('R-OPEN-APPLIED-' . $suffix, $pageHtml);
+        $this->assertStringNotContainsString('R-CLOSED-UNRES-' . $suffix, $pageHtml);
+        $this->assertStringNotContainsString('R-CLOSED-APPLIED-' . $suffix, $pageHtml);
+
+        $recent = $this->actingAs($admin)->getJson(route('vendor-tracking.quantum-lines.recent'));
+        $recent->assertOk();
+        $recentHtml = (string) $recent->json('html');
+        $this->assertStringContainsString('R-OPEN-UNRES-' . $suffix, $recentHtml);
+        $this->assertStringContainsString('R-OPEN-APPLIED-' . $suffix, $recentHtml);
+        $this->assertStringNotContainsString('R-CLOSED-UNRES-' . $suffix, $recentHtml);
+        $this->assertStringNotContainsString('R-CLOSED-APPLIED-' . $suffix, $recentHtml);
+
+        $closedSearch = $this->actingAs($admin)->getJson(route('vendor-tracking.quantum-lines.find-workorder', [
+            'workorder' => $completedWorkorder->number,
+        ]));
+        $closedSearch
+            ->assertOk()
+            ->assertJsonPath('found', false)
+            ->assertJsonPath('total', 0)
+            ->assertJsonPath('unparsed_total', 0);
+
+        $openSearch = $this->actingAs($admin)->getJson(route('vendor-tracking.quantum-lines.find-workorder', [
+            'workorder' => $openWorkorder->number,
+        ]));
+        $openSearch
+            ->assertOk()
+            ->assertJsonPath('found', true)
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('unparsed_total', 1);
     }
 
     public function test_quantum_not_applicable_rows_do_not_show_in_unparsed_section(): void

@@ -30,7 +30,7 @@ class TdrProcessOverdueStartEvent implements EventDefinition
                 $query->where('in_traveler', false)->orWhereNull('in_traveler');
             })
             ->whereHas('processName', fn ($query) => $query->whereNotNull('std_days'))
-            ->whereHas('tdr.workorder')
+            ->whereHas('tdr.workorder', fn ($query) => $query->notCompleted())
             ->with(['processName.notifyUser', 'tdr.workorder.user', 'tdr.component'])
             ->get()
             ->filter(function (TdrProcess $process): bool {
@@ -76,7 +76,7 @@ class TdrProcessOverdueStartEvent implements EventDefinition
             ->where('in_traveler', true)
             ->whereNotNull('date_start')
             ->whereNull('date_finish')
-            ->whereHas('tdr.workorder')
+            ->whereHas('tdr.workorder', fn ($query) => $query->notCompleted())
             ->with(['tdr.workorder.user', 'tdr.component'])
             ->orderBy('tdrs_id')
             ->orderBy('traveler_group')
@@ -212,6 +212,10 @@ class TdrProcessOverdueStartEvent implements EventDefinition
 
     public function shouldRun($subject): bool
     {
+        if ($subject->tdr?->workorder?->done_at !== null) {
+            return false;
+        }
+
         $std = (int) ($subject->processName?->std_days ?? 0);
 
         if ($std <= 0) {

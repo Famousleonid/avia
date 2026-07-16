@@ -479,30 +479,46 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('data-certificate-detail-toggle', false);
         $response->assertSee('data-certificate-detail-select', false);
         $response->assertSee('Log Card Detail | LOG-PN | LOG-SN');
-        $response->assertSee('Second Log Card Detail | ASSY-PN-2 / (LOG-PN-2) | ASSY-SN-2 / (LOG-SN-2)');
+        $response->assertSee('Second Log Card Detail | ASSY-PN-2 / LOG-PN-2 | ASSY-SN-2 / LOG-SN-2');
         $response->assertSee('<div class="arc-tracking-no" data-certificate-tracking-number>W107736-2</div>', false);
         $response->assertSee('>Second Log Card Detail</div>', false);
         $response->assertSee('data-certificate-item-part', false);
         $this->assertMatchesRegularExpression(
-            '/<div(?=[^>]*data-certificate-item-part)[^>]*>\s*ASSY-PN-2\s*\(LOG-PN-2\)\s*<\/div>/s',
+            '/<div(?=[^>]*data-certificate-item-part)[^>]*>\s*ASSY-PN-2\s*<\/div>/s',
+            $response->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*data-certificate-item-part-secondary)(?=[^>]*value="LOG-PN-2")[^>]*>/s',
+            $response->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*data-certificate-item-part-secondary-toggle)(?=[^>]*checked)[^>]*>/s',
             $response->getContent()
         );
         $response->assertSee('data-certificate-item-serial', false);
         $this->assertMatchesRegularExpression(
-            '/<div(?=[^>]*data-certificate-item-serial)[^>]*>\s*ASSY-SN-2\s*\(LOG-SN-2\)\s*<\/div>/s',
+            '/<div(?=[^>]*data-certificate-item-serial)[^>]*>\s*ASSY-SN-2\s*<\/div>/s',
+            $response->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*data-certificate-item-serial-secondary)(?=[^>]*value="LOG-SN-2")[^>]*>/s',
+            $response->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*data-certificate-item-serial-secondary-toggle)(?=[^>]*checked)[^>]*>/s',
             $response->getContent()
         );
         $response->assertSee('CSN-30228; CSO-3162.');
         $this->assertMatchesRegularExpression(
-            '/<span[^>]*data-certificate-life-remark[^>]*>\s*CSN-30228; CSO-3162\.\s*<\/span>/s',
+            '/<input(?=[^>]*data-certificate-life-remark)(?=[^>]*value="CSN-30228; CSO-3162\.")[^>]*>/s',
             $response->getContent()
         );
         $this->assertMatchesRegularExpression(
-            '/<span(?=[^>]*data-certificate-life-remark)(?=[^>]*contenteditable="false")[^>]*>\s*CSN-30228; CSO-3162\.\s*<\/span>/s',
+            '/<span[^>]*data-certificate-life-remark-output[^>]*>\s*CSN-30228; CSO-3162\.\s*<\/span>/s',
             $response->getContent()
         );
         $this->assertDoesNotMatchRegularExpression(
-            '/<span[^>]*data-certificate-life-remark[^>]*>\s*CSN-11111; CSO-22\.\s*<\/span>/s',
+            '/<input(?=[^>]*data-certificate-life-remark)(?=[^>]*value="CSN-11111; CSO-22\.")[^>]*>/s',
             $response->getContent()
         );
         $response->assertSee('Main Detail');
@@ -553,11 +569,11 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('>1840-0006</div>', false);
         $response->assertSee('>L895</div>', false);
         $this->assertDoesNotMatchRegularExpression(
-            '/<span[^>]*data-certificate-life-remark[^>]*>\s*CSN-30,227; CSO-15\.\s*<\/span>/s',
+            '/<input(?=[^>]*data-certificate-life-remark)(?=[^>]*value="CSN-30,227; CSO-15\.")[^>]*>/s',
             $response->getContent()
         );
         $this->assertMatchesRegularExpression(
-            '/<span[^>]*data-certificate-life-remark[^>]*>\s*CSN:\s*N\/A\s*<\/span>/s',
+            '/<input(?=[^>]*data-certificate-life-remark)(?=[^>]*value="CSN:\s*N\/A")[^>]*>/s',
             $response->getContent()
         );
         $this->assertMatchesRegularExpression(
@@ -640,10 +656,17 @@ class QualityAssuranceTest extends TestCase
             ->get(route('quality.forms.certificate', $workorder));
 
         $response->assertOk();
+        $response->assertSee('height: 7.74in;', false);
+        $response->assertSee('display: flex;', false);
+        $response->assertSee('height: calc(1.26in + (0.34in + 2mm) + (0.34in + 2mm));', false);
+        $response->assertSee('grid-template-rows: minmax(0, 1.26in) minmax(0, calc(0.34in + 2mm)) minmax(0, calc(0.34in + 2mm));', false);
         $response->assertSee('height: calc(1.78in + 4mm);', false);
         $response->assertSee('overflow: hidden;', false);
         $response->assertSee('--arc-remarks-line-height', false);
         $response->assertSee("document.documentElement.style.setProperty('--arc-remarks-line-height'", false);
+        $response->assertSee('padding: 0.05in 0.04in 0.02in;', false);
+        $response->assertSee('margin: 0 0 0.04in;', false);
+        $response->assertSee('margin: 0 0 0.035in;', false);
     }
 
     public function test_certificate_tracking_c_suffix_applies_to_main_detail_only(): void
@@ -741,7 +764,8 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('>C-WO-77</div>', false);
         $response->assertSee('>C Detail</div>', false);
         $response->assertSee('C-PN', false);
-        $response->assertSee('ALT-PN', false);
+        $response->assertSee('value="ALT-PN"', false);
+        $response->assertSee('data-certificate-item-part-secondary-toggle', false);
         $response->assertSee('>C-SN</div>', false);
         $response->assertSee('<div class="arc-status-work-print-value" data-certificate-status-output>Repaired</div>', false);
         $response->assertSee('in accordance with CMM #');
@@ -860,6 +884,12 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('>9</span>', false);
         $response->assertSee('>28/Feb/2025</span>', false);
         $response->assertDontSee('CMM # 32-31-05 02', false);
+        $content = $response->getContent();
+        $revisionDateInputPosition = strpos($content, 'data-certificate-manual-revision-date');
+        $extraTextInputPosition = strpos($content, 'data-certificate-cmm-extra-text');
+        $this->assertNotFalse($revisionDateInputPosition);
+        $this->assertNotFalse($extraTextInputPosition);
+        $this->assertGreaterThan($revisionDateInputPosition, $extraTextInputPosition);
     }
 
     public function test_certificate_status_remark_has_saved_optional_cmm_extra_text(): void
@@ -907,6 +937,69 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('>, Supplement A</span>', false);
         $response->assertSee('>11</span>', false);
         $response->assertSee('>15/Sep/2025</span>', false);
+    }
+
+    public function test_certificate_block_12_has_editable_life_and_free_remarks(): void
+    {
+        $manager = $this->createUserWithRole('Manager', [
+            'qa_access' => true,
+        ]);
+        $workorder = $this->createWorkorder();
+        $workorder->forceFill([
+            'certificate_data' => [
+                'item_settings' => [
+                    'main' => [
+                        'certificate_life_remark' => 'CSN-100; CSO-25.',
+                        'certificate_free_remark_1' => 'First custom line.',
+                        'include_certificate_free_remark_1' => true,
+                        'certificate_free_remark_2' => 'Second custom line.',
+                        'include_certificate_free_remark_2' => false,
+                    ],
+                ],
+            ],
+        ])->save();
+
+        $response = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+
+        $response->assertOk();
+        $content = $response->getContent();
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*data-certificate-life-remark)(?=[^>]*value="CSN-100; CSO-25\.")[^>]*>/s',
+            $content
+        );
+        $this->assertSame(2, preg_match_all('/<input(?=[^>]*data-certificate-free-remark-input)[^>]*>/s', $content));
+        $response->assertSee('value="First custom line."', false);
+        $response->assertSee('value="Second custom line."', false);
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*class="arc-remark-print-toggle")(?=[^>]*data-setting-key="include_certificate_free_remark_1")(?=[^>]*checked)[^>]*>/s',
+            $content
+        );
+        $this->assertMatchesRegularExpression(
+            '/<input(?=[^>]*class="arc-remark-print-toggle")(?=[^>]*data-setting-key="include_certificate_free_remark_2")[^>]*>/s',
+            $content
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/<input(?=[^>]*data-setting-key="include_certificate_free_remark_2")(?=[^>]*checked)[^>]*>/s',
+            $content
+        );
+        $response->assertSee('.arc-form-shell [contenteditable="true"]', false);
+        $response->assertSee('background: #eeeeee !important;', false);
+        $response->assertSee('.arc-form-shell [contenteditable]', false);
+        $response->assertSee('background: transparent !important;', false);
+        $this->assertMatchesRegularExpression('/\.arc-remark-date-input\s*\{[^}]*height:\s*20px;/s', $content);
+        $this->assertMatchesRegularExpression('/\.arc-remark-number-input\s*\{[^}]*height:\s*20px;/s', $content);
+        $this->assertMatchesRegularExpression('/\.arc-manual-cmm-extra-input\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;/s', $content);
+        $response->assertSee('padding: 3px 8px;', false);
+        $response->assertSee('width: 33.333%;', false);
+        $response->assertSee('max-width: 33.333%;', false);
+        $response->assertSee('flex: 0 0 33.333%;', false);
+        $response->assertSee('.arc-remark-line.is-fit-excluded', false);
+        $response->assertSee('function fitRemarksText(printableOnly = false)', false);
+        $response->assertSee("remarksLines.querySelectorAll('.arc-remark-line.is-print-disabled, .arc-remark-line.is-empty')", false);
+        $response->assertSee("window.addEventListener('beforeprint'", false);
+        $response->assertSee('fitRemarksText(true);', false);
+        $response->assertSee("window.addEventListener('afterprint'", false);
     }
 
     public function test_certificate_manager_name_switch_is_limited_to_certificate_signers(): void
@@ -1051,6 +1144,33 @@ class QualityAssuranceTest extends TestCase
         $this->assertSame('Supplement A', $certificateData['item_settings']['main']['certificate_cmm_extra_text']);
         $this->assertArrayNotHasKey('certificate_cmm_extra_text', $certificateData);
 
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_life_remark',
+                'value' => 'CSN-500; CSO-40.',
+                'item_source' => 'main',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_free_remark_1',
+                'value' => 'Saved free remark.',
+                'item_source' => 'main',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'include_certificate_free_remark_1',
+                'value' => true,
+                'item_source' => 'main',
+            ])
+            ->assertOk();
+
+        $certificateData = $workorder->fresh()->certificate_data;
+        $this->assertSame('CSN-500; CSO-40.', $certificateData['item_settings']['main']['certificate_life_remark']);
+        $this->assertSame('Saved free remark.', $certificateData['item_settings']['main']['certificate_free_remark_1']);
+        $this->assertTrue($certificateData['item_settings']['main']['include_certificate_free_remark_1']);
+
         $signer = $this->createUserWithRole('Manager', [
             'can_sign_certificates' => true,
         ]);
@@ -1079,6 +1199,34 @@ class QualityAssuranceTest extends TestCase
                 'key' => 'certificate_item_part',
                 'value' => 'C-PN-STATE',
                 'item_source' => 'main:c',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_item_part_secondary',
+                'value' => 'IRON-PN-STATE',
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'include_certificate_item_part_secondary',
+                'value' => true,
+                'item_source' => 'main:c',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_item_serial_secondary',
+                'value' => 'IRON-SN-STATE',
+                'item_source' => 'log:0',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'include_certificate_item_serial_secondary',
+                'value' => false,
+                'item_source' => 'log:0',
             ])
             ->assertOk();
         $this->actingAs($manager)
@@ -1140,6 +1288,10 @@ class QualityAssuranceTest extends TestCase
 
         $certificateData = $workorder->fresh()->certificate_data;
         $this->assertSame('C-PN-STATE', $certificateData['item_settings']['main:c']['certificate_item_part']);
+        $this->assertSame('IRON-PN-STATE', $certificateData['item_settings']['main:c']['certificate_item_part_secondary']);
+        $this->assertTrue($certificateData['item_settings']['main:c']['include_certificate_item_part_secondary']);
+        $this->assertSame('IRON-SN-STATE', $certificateData['item_settings']['log:0']['certificate_item_serial_secondary']);
+        $this->assertFalse($certificateData['item_settings']['log:0']['include_certificate_item_serial_secondary']);
         $this->assertSame(['C remark 1', 'C remark 2'], $certificateData['item_settings']['main:c']['certificate_remarks']);
         $this->assertTrue($certificateData['item_settings']['main:c']['include_overhauled_on']);
         $this->assertTrue($certificateData['item_settings']['main:c']['include_airworthiness_remark']);

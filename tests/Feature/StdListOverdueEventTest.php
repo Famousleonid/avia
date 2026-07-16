@@ -103,6 +103,103 @@ class StdListOverdueEventTest extends TestCase
         Notification::assertNotSentTo($workorderOwner, \App\Notifications\NewMessageNotification::class);
     }
 
+    public function test_completed_workorders_are_excluded_from_regular_and_traveler_overdue_notifications(): void
+    {
+        Notification::fake();
+
+        $recipient = $this->createUserWithRole('Manager');
+        $completedWorkorder = $this->createWorkorder([
+            'number' => random_int(900000, 949999),
+            'user_id' => $recipient->id,
+        ]);
+        $completedWorkorder->forceFill(['done_at' => now()->subDay()->toDateString()])->save();
+
+        $openWorkorder = $this->createWorkorder([
+            'number' => random_int(950000, 999999),
+            'user_id' => $recipient->id,
+        ]);
+
+        $completedTdr = Tdr::query()->create([
+            'workorder_id' => $completedWorkorder->id,
+            'component_id' => null,
+            'serial_number' => 'COMPLETED-OVERDUE',
+            'qty' => 1,
+        ]);
+        $openTdr = Tdr::query()->create([
+            'workorder_id' => $openWorkorder->id,
+            'component_id' => null,
+            'serial_number' => 'OPEN-OVERDUE',
+            'qty' => 1,
+        ]);
+
+        $regularName = ProcessName::query()->create([
+            'name' => 'Completed WO overdue test ' . uniqid(),
+            'process_sheet_name' => 'OVERDUE',
+            'form_number' => 'OVERDUE',
+            'std_days' => 1,
+            'print_form' => false,
+            'show_in_process_picker' => true,
+        ]);
+        ProcessName::query()->updateOrCreate(
+            ['name' => 'Traveler'],
+            [
+                'process_sheet_name' => 'TRAVELER',
+                'form_number' => 'TRV',
+                'std_days' => 1,
+                'print_form' => false,
+                'show_in_process_picker' => true,
+            ]
+        );
+
+        $completedRegular = TdrProcess::query()->create([
+            'tdrs_id' => $completedTdr->id,
+            'process_names_id' => $regularName->id,
+            'date_start' => now()->subDays(5)->toDateString(),
+            'date_finish' => null,
+            'in_traveler' => false,
+        ]);
+        $completedTraveler = TdrProcess::query()->create([
+            'tdrs_id' => $completedTdr->id,
+            'process_names_id' => $regularName->id,
+            'date_start' => now()->subDays(5)->toDateString(),
+            'date_finish' => null,
+            'in_traveler' => true,
+            'traveler_group' => 1,
+        ]);
+        $openRegular = TdrProcess::query()->create([
+            'tdrs_id' => $openTdr->id,
+            'process_names_id' => $regularName->id,
+            'date_start' => now()->subDays(5)->toDateString(),
+            'date_finish' => null,
+            'in_traveler' => false,
+        ]);
+
+        $this->createRule('tdr_process.overdue_start', [
+            ['type' => 'user', 'value' => $recipient->id],
+        ]);
+
+        $event = new TdrProcessOverdueStartEvent();
+        $subjectIds = $event->dueSubjects()->pluck('id')->map(fn ($id) => (int) $id);
+
+        $this->assertTrue($subjectIds->contains($openRegular->id));
+        $this->assertFalse($subjectIds->contains($completedRegular->id));
+        $this->assertFalse($subjectIds->contains($completedTraveler->id));
+
+        $completedRegular->load(['processName', 'tdr.workorder']);
+        $this->assertFalse($event->shouldRun($completedRegular));
+
+        app(EventRunner::class)->run([$event]);
+
+        Notification::assertSentToTimes($recipient, \App\Notifications\NewMessageNotification::class, 1);
+        Notification::assertSentTo(
+            $recipient,
+            \App\Notifications\NewMessageNotification::class,
+            function ($notification) use ($recipient, $openWorkorder): bool {
+                return (int) data_get($notification->toDatabase($recipient), 'ui.workorder.no') === (int) $openWorkorder->number;
+            }
+        );
+    }
+
     public function test_std_overdue_message_does_not_include_component_part_details(): void
     {
         $assignedUser = $this->createUserWithRole('Technician');

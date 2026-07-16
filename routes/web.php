@@ -271,6 +271,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
   //  Route::patch('/mains/general-task/{workorder}/{generalTask}', [MainController::class, 'updateGeneralTaskDates'])->name('mains.updateGeneralTaskDates');
     Route::get('/main-rows/{main}/activity', [MainController::class, 'activity'])->name('mains.activity');
     Route::get('/workorders/quick-open-search', [WorkorderController::class, 'quickOpenSearch'])->name('workorders.quick-open-search');
+    Route::get('/workorders/draft-matches', [WorkorderController::class, 'draftMatches'])->name('workorders.draft-matches');
     Route::resource('/workorders', WorkorderController::class);
     Route::delete('/workorders/{workorder}/force', [WorkorderController::class, 'forceDestroy'])->name('workorders.forceDestroy');
 
@@ -697,12 +698,17 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
 });
 
 Route::middleware(['auth', 'verified', 'desktop'])->prefix('admin')->group(function () {
+    Route::get('/project-settings/user-background/{user}', [ProjectSettingController::class, 'showUserBackground'])
+        ->name('admin.project-settings.user-background.show');
+
     Route::middleware('systemAdmin')->group(function () {
         Route::get('/access', [AccessController::class, 'index'])->name('admin.access.index');
         Route::post('/access', [AccessController::class, 'store'])->name('admin.access.store');
         Route::delete('/access/{access}', [AccessController::class, 'destroy'])->name('admin.access.destroy');
         Route::get('/project-settings', [ProjectSettingController::class, 'index'])->name('admin.project-settings.index');
         Route::post('/project-settings', [ProjectSettingController::class, 'update'])->name('admin.project-settings.update');
+        Route::post('/project-settings/user-background', [ProjectSettingController::class, 'storeUserBackground'])->name('admin.project-settings.user-background.store');
+        Route::delete('/project-settings/user-background/{user}', [ProjectSettingController::class, 'destroyUserBackground'])->name('admin.project-settings.user-background.destroy');
         Route::get('/std-process-audit', [StdProcessAuditController::class, 'index'])->name('admin.std-process-audit.index');
     });
 

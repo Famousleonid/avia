@@ -1453,26 +1453,6 @@
             object-fit: cover;
         }
 
-        .marketing-media-pdf-layout {
-            display: grid;
-            grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
-            gap: 12px;
-            min-height: 70vh;
-        }
-
-        .marketing-media-pdf-list {
-            min-height: 0;
-            overflow: auto;
-        }
-
-        .marketing-media-pdf-frame {
-            width: 100%;
-            height: 70vh;
-            border: 1px solid rgba(52, 58, 64, .16);
-            border-radius: 8px;
-            background: #fff;
-        }
-
         html[data-bs-theme="dark"] .marketing-media-thumb {
             background: var(--avia-surface-raised);
             border-color: var(--avia-border);
@@ -1482,16 +1462,44 @@
             display: grid;
             grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr);
             gap: 14px;
+            height: 100%;
             min-width: 0;
             min-height: 0;
         }
 
+        #marketingMediaModal .modal-dialog {
+            width: min(96vw, 1380px);
+            max-width: min(96vw, 1380px);
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        #marketingMediaModal .modal-content {
+            height: calc(100vh - 2rem);
+            max-height: calc(100vh - 2rem);
+        }
+
+        #marketingMediaModal .modal-body {
+            min-height: 0;
+            overflow: hidden;
+        }
+
         .marketing-files-panel {
             min-width: 0;
+            min-height: 0;
             padding: 12px;
             border: 1px solid rgba(52, 58, 64, .14);
             border-radius: 8px;
             background: var(--bs-body-bg);
+        }
+
+        .marketing-files-panel:first-child {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .marketing-files-panel:first-child > form {
+            flex: 0 0 auto;
         }
 
         html[data-bs-theme="dark"] .marketing-files-panel {
@@ -1540,34 +1548,21 @@
             gap: 8px;
         }
 
-        .marketing-file-version-state {
-            display: none;
-            padding: 7px 9px;
-            border: 1px solid rgba(13, 110, 253, .28);
-            border-radius: 6px;
-            background: rgba(13, 110, 253, .07);
-            font-size: .78rem;
-        }
-
-        .marketing-file-version-state.is-active {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-        }
-
         .marketing-manager-files-list {
-            max-height: 44vh;
+            flex: 1 1 auto;
             min-height: 0;
             margin-top: 12px;
-            overflow: auto;
+            overflow-x: hidden;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
         }
 
         .marketing-file-item {
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
-            gap: 10px;
-            padding: 10px 0;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
             border-top: 1px solid rgba(52, 58, 64, .12);
         }
 
@@ -1581,18 +1576,24 @@
 
         .marketing-file-name {
             color: var(--bs-body-color);
-            font-size: .86rem;
+            font-size: .78rem;
             font-weight: 850;
-            overflow-wrap: anywhere;
+        }
+
+        .marketing-file-summary {
+            min-width: 0;
+            overflow: hidden;
+            color: var(--bs-secondary-color, #6c757d);
+            font-size: .74rem;
+            line-height: 1.35;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .marketing-file-meta,
         .marketing-file-comment,
         .marketing-file-recipients {
-            margin-top: 3px;
             color: var(--bs-secondary-color, #6c757d);
-            font-size: .74rem;
-            overflow-wrap: anywhere;
         }
 
         .marketing-file-comment {
@@ -1601,29 +1602,37 @@
 
         .marketing-file-actions {
             display: flex;
-            align-items: flex-start;
-            flex-wrap: wrap;
+            align-items: center;
+            flex-wrap: nowrap;
             justify-content: flex-end;
             gap: 4px;
         }
 
         .marketing-files-production-body {
-            max-height: 68vh;
+            flex: 1 1 auto;
             min-height: 0;
-            overflow: auto;
+            overflow-x: hidden;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+        }
+
+        .marketing-files-production {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .marketing-files-production .marketing-media-grid {
+            grid-template-columns: repeat(auto-fill, minmax(78px, 96px));
+            justify-content: start;
+            gap: 6px;
+        }
+
+        .marketing-files-production .marketing-media-thumb {
+            border-radius: 5px;
         }
 
         .marketing-files-production-group + .marketing-files-production-group {
             margin-top: 18px;
-        }
-
-        .marketing-files-production .marketing-media-pdf-layout {
-            grid-template-columns: 1fr;
-            min-height: 0;
-        }
-
-        .marketing-files-production .marketing-media-pdf-frame {
-            height: 420px;
         }
 
         .marketing-files-cell-button {
@@ -1700,13 +1709,19 @@
         }
 
         @media (max-width: 767.98px) {
-            .marketing-media-pdf-layout {
-                grid-template-columns: 1fr;
-            }
-
             .marketing-files-shell,
             .marketing-file-upload-grid {
                 grid-template-columns: 1fr;
+            }
+
+            #marketingMediaModal .modal-dialog {
+                width: auto;
+                max-width: none;
+            }
+
+            #marketingMediaModal .modal-content {
+                height: calc(100vh - 1rem);
+                max-height: calc(100vh - 1rem);
             }
 
             .marketing-file-upload-grid .span-2 {
@@ -2222,7 +2237,7 @@
                                         <th>WO Estimate</th>
                                         <th>WO Estimate Date</th>
                                         <th>Approval Date</th>
-                                        <th>Invoice</th>
+                                        <th>Invoiced Amount</th>
                                         <th>Invoice Date</th>
                                         <th>Ship Date</th>
                                         <th>AWB #</th>
@@ -2240,7 +2255,7 @@
                                         <th><input type="search" data-workorder-filter="estimate" placeholder="Estimate"></th>
                                         <th><input type="text" data-workorder-filter="estimate_date" placeholder="Date" maxlength="11" data-project-date data-project-date-capital autocomplete="off"></th>
                                         <th><input type="text" data-workorder-filter="approval_date" placeholder="Date" maxlength="11" data-project-date data-project-date-capital autocomplete="off"></th>
-                                        <th><input type="search" data-workorder-filter="invoice" placeholder="Invoice"></th>
+                                        <th><input type="search" data-workorder-filter="invoice" placeholder="Amount"></th>
                                         <th><input type="text" data-workorder-filter="invoice_date" placeholder="Date" maxlength="11" data-project-date data-project-date-capital autocomplete="off"></th>
                                         <th><input type="text" data-workorder-filter="ship_date" placeholder="Date" maxlength="11" data-project-date data-project-date-capital autocomplete="off"></th>
                                         <th><input type="search" data-workorder-filter="awb" placeholder="AWB #"></th>
@@ -2442,7 +2457,7 @@
                             <input name="estimate_date" class="form-control form-control-sm" type="text" maxlength="11" placeholder=".... /.... /......" data-project-date data-project-date-capital autocomplete="off">
                         </div>
                         <div class="marketing-field">
-                            <label>Invoice</label>
+                            <label>Invoiced Amount</label>
                             <input name="sales_invoice_amount" class="form-control form-control-sm" type="text" maxlength="60" placeholder="$0.00" inputmode="decimal" autocomplete="off">
                         </div>
                         <div class="marketing-field">
@@ -2471,10 +2486,10 @@
     </div>
 
     <div class="modal fade" id="marketingMediaModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="marketingMediaTitle">Files</h5>
+                    <h5 class="modal-title"><span class="text-info" id="marketingMediaWoNumber"></span> <span id="marketingMediaTitleSuffix">Files</span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" id="marketingMediaBody">
@@ -2485,14 +2500,9 @@
                                 <span class="badge bg-secondary" id="marketingManagerFilesCount">0</span>
                             </h6>
                             <form id="marketingFileUploadForm" data-no-spinner enctype="multipart/form-data" autocomplete="off">
-                                <input type="hidden" name="version_of_id" value="">
-                                <div class="marketing-file-version-state" id="marketingFileVersionState">
-                                    <span id="marketingFileVersionLabel"></span>
-                                    <button class="btn btn-sm btn-outline-secondary py-0" type="button" data-marketing-version-cancel>Cancel</button>
-                                </div>
                                 <div class="marketing-file-upload-grid mt-2">
                                     <div class="span-2">
-                                        <label for="marketingFileInput">Files</label>
+                                        <label class="visually-hidden" for="marketingFileInput">Choose manager files</label>
                                         <input class="form-control form-control-sm" id="marketingFileInput" name="files[]" type="file" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt">
                                         <div class="form-text">Up to 10 files, 10 MB each.</div>
                                     </div>
@@ -2542,17 +2552,13 @@
 
                         <section class="marketing-files-panel marketing-files-production">
                             <h6 class="marketing-files-panel-title">
-                                <span><i class="bi bi-tools me-1"></i>Production Files</span>
+                                <span><i class="bi bi-tools me-1"></i>WO Production</span>
                             </h6>
-                            <div class="small text-muted mb-3">Existing WO photos and generated/uploaded production PDFs are shown separately.</div>
+                            <div class="small text-muted mb-3">Photos already stored in the WO production record. Manager uploads stay on the left.</div>
                             <div class="marketing-files-production-body" id="marketingProductionFilesBody">
                                 <section class="marketing-files-production-group">
-                                    <h6 class="marketing-media-group-title">Images <span class="badge bg-secondary" id="marketingProductionImagesCount">0</span></h6>
-                                    <div id="marketingProductionImages"><div class="marketing-empty">No images</div></div>
-                                </section>
-                                <section class="marketing-files-production-group">
-                                    <h6 class="marketing-media-group-title">PDF <span class="badge bg-secondary" id="marketingProductionPdfsCount">0</span></h6>
-                                    <div id="marketingProductionPdfs"><div class="marketing-empty">No PDF files</div></div>
+                                    <h6 class="marketing-media-group-title">WO Images <span class="badge bg-secondary" id="marketingProductionImagesCount">0</span></h6>
+                                    <div id="marketingProductionImages"><div class="marketing-empty">No WO images</div></div>
                                 </section>
                             </div>
                         </section>
@@ -2662,17 +2668,13 @@
                 : [];
             const workorderSalesTitle = document.getElementById('marketingWorkorderSalesTitle');
             const mediaModalEl = document.getElementById('marketingMediaModal');
-            const mediaTitle = document.getElementById('marketingMediaTitle');
+            const mediaWoNumber = document.getElementById('marketingMediaWoNumber');
             const mediaBody = document.getElementById('marketingMediaBody');
             const marketingFileUploadForm = document.getElementById('marketingFileUploadForm');
             const marketingManagerFilesList = document.getElementById('marketingManagerFilesList');
             const marketingManagerFilesCount = document.getElementById('marketingManagerFilesCount');
-            const marketingFileVersionState = document.getElementById('marketingFileVersionState');
-            const marketingFileVersionLabel = document.getElementById('marketingFileVersionLabel');
             const marketingProductionImages = document.getElementById('marketingProductionImages');
-            const marketingProductionPdfs = document.getElementById('marketingProductionPdfs');
             const marketingProductionImagesCount = document.getElementById('marketingProductionImagesCount');
-            const marketingProductionPdfsCount = document.getElementById('marketingProductionPdfsCount');
             const unsavedModalEl = document.getElementById('marketingUnsavedModal');
             const unsavedConfirmButton = unsavedModalEl?.querySelector('[data-unsaved-confirm]');
             const workordersColumnCount = 16;
@@ -4572,18 +4574,9 @@
                 }).filter((group) => group.items.length);
             }
 
-            function normalizePdfPayload(data) {
-                return (data.pdfs || []).map((item) => ({
-                    name: item.name || item.file_name || 'PDF',
-                    url: item.url || '',
-                    downloadUrl: item.download_url || item.url || '',
-                    kind: item.kind_label || '',
-                })).filter((item) => item.url);
-            }
-
             function renderPhotoModal(groups, groupName = 'marketing-media', target = marketingProductionImages) {
                 if (!groups.length) {
-                    target.innerHTML = '<div class="marketing-empty">No images</div>';
+                    target.innerHTML = '<div class="marketing-empty">No WO images</div>';
                     return;
                 }
 
@@ -4595,27 +4588,6 @@
       <img src="${escapeHtml(item.thumb || item.big)}" alt="${escapeHtml(item.label)}">
     </a>`).join('')}</div>
 </section>`).join('');
-            }
-
-            function renderPdfModal(items, target = marketingProductionPdfs) {
-                if (!items.length) {
-                    target.innerHTML = '<div class="marketing-empty">No PDF files</div>';
-                    return;
-                }
-
-                const first = items[0];
-                target.innerHTML = `
-<div class="marketing-media-pdf-layout">
-  <div class="marketing-media-pdf-list list-group">
-    ${items.map((item, index) => `
-      <button class="list-group-item list-group-item-action js-marketing-pdf-select ${index === 0 ? 'active' : ''}" type="button" data-pdf-url="${escapeHtml(item.url)}">
-        <div class="fw-bold text-truncate">${escapeHtml(item.name)}</div>
-        <div class="small ${index === 0 ? 'text-white-50' : 'text-muted'}">${escapeHtml(item.kind || 'PDF')}</div>
-      </button>
-    `).join('')}
-  </div>
-  <iframe class="marketing-media-pdf-frame" src="${escapeHtml(first.url)}" title="${escapeHtml(first.name)}"></iframe>
-</div>`;
             }
 
             function marketingFileIcon(mime) {
@@ -4635,29 +4607,31 @@
 
                 marketingManagerFilesList.innerHTML = files.map((file) => {
                     const recipients = (file.recipients || []).join(', ');
+                    const comment = file.comment ? ` · ${file.comment}` : '';
+                    const recipientSummary = recipients ? ` · ${recipients}` : '';
+                    const fullSummary = `${file.display_name} · ${file.category_label} · ${file.size_label} · ${file.uploader_name} · ${file.uploaded_at}${comment} · ${file.notification_label}${recipientSummary}`;
+                    const mimeType = String(file.mime_type || '');
+                    const previewGroup = `marketing-manager-${Number(state.activeWorkorderFiles?.workorderId || 0)}`;
+                    let previewButton = '';
+                    if (file.is_previewable && mimeType.startsWith('image/')) {
+                        previewButton = `<a class="btn btn-sm btn-outline-info" href="${escapeHtml(file.urls.preview)}" data-fancybox="${previewGroup}-images" data-type="image" data-caption="${escapeHtml(file.display_name)}" title="Preview image"><i class="bi bi-eye"></i></a>`;
+                    } else if (file.is_previewable && mimeType === 'application/pdf') {
+                        previewButton = `<a class="btn btn-sm btn-outline-info" href="${escapeHtml(file.urls.preview)}" data-fancybox="${previewGroup}-pdfs" data-type="iframe" data-options='{"iframe":{"preload":false,"css":{"width":"90vw","height":"85vh"}}}' data-caption="${escapeHtml(file.display_name)}" title="Preview PDF"><i class="bi bi-eye"></i></a>`;
+                    } else if (file.is_previewable) {
+                        previewButton = `<a class="btn btn-sm btn-outline-info" href="${escapeHtml(file.urls.preview)}" target="_blank" rel="noopener" title="Preview"><i class="bi bi-eye"></i></a>`;
+                    }
                     return `
 <article class="marketing-file-item" data-marketing-file-id="${Number(file.id)}">
-  <div>
-    <div class="marketing-file-name"><i class="bi ${marketingFileIcon(file.mime_type)} me-1"></i>${escapeHtml(file.display_name)}</div>
-    <div class="marketing-file-meta">${escapeHtml(file.category_label)} · v${Number(file.version_number || 1)} · ${escapeHtml(file.size_label)} · ${escapeHtml(file.uploader_name)} · ${escapeHtml(file.uploaded_at)}</div>
-    ${file.comment ? `<div class="marketing-file-comment">${escapeHtml(file.comment)}</div>` : ''}
-    <div class="marketing-file-recipients"><i class="bi bi-bell me-1"></i>${escapeHtml(file.notification_label)}${recipients ? ` · ${escapeHtml(recipients)}` : ''}</div>
+  <div class="marketing-file-summary" title="${escapeHtml(fullSummary)}">
+    <i class="bi ${marketingFileIcon(file.mime_type)} me-1"></i><span class="marketing-file-name">${escapeHtml(file.display_name)}</span><span class="marketing-file-meta"> · ${escapeHtml(file.category_label)} · ${escapeHtml(file.size_label)} · ${escapeHtml(file.uploader_name)} · ${escapeHtml(file.uploaded_at)}</span>${file.comment ? `<span class="marketing-file-comment"> · ${escapeHtml(file.comment)}</span>` : ''}<span class="marketing-file-recipients"> · <i class="bi bi-bell"></i> ${escapeHtml(file.notification_label)}${recipients ? ` · ${escapeHtml(recipients)}` : ''}</span>
   </div>
   <div class="marketing-file-actions">
-    ${file.is_previewable ? `<a class="btn btn-sm btn-outline-info" href="${escapeHtml(file.urls.preview)}" target="_blank" rel="noopener" title="Preview"><i class="bi bi-eye"></i></a>` : ''}
+    ${previewButton}
     <a class="btn btn-sm btn-outline-primary" href="${escapeHtml(file.urls.download)}" title="Download"><i class="bi bi-download"></i></a>
-    <button class="btn btn-sm btn-outline-secondary js-marketing-file-version" type="button" data-file-id="${Number(file.id)}" data-file-name="${escapeHtml(file.display_name)}" data-file-category="${escapeHtml(file.category)}" title="Upload new version"><i class="bi bi-layers"></i></button>
     ${file.can_delete ? `<button class="btn btn-sm btn-outline-danger js-marketing-file-delete" type="button" data-delete-url="${escapeHtml(file.urls.delete)}" data-file-name="${escapeHtml(file.display_name)}" title="Delete"><i class="bi bi-trash"></i></button>` : ''}
   </div>
 </article>`;
                 }).join('');
-            }
-
-            function resetMarketingFileVersion() {
-                if (!marketingFileUploadForm) return;
-                marketingFileUploadForm.elements.version_of_id.value = '';
-                marketingFileVersionLabel.textContent = '';
-                marketingFileVersionState.classList.remove('is-active');
             }
 
             function updateWorkorderFileSummary(summary) {
@@ -4673,28 +4647,18 @@
             async function loadProductionFiles(data) {
                 const summary = data.summary || {};
                 marketingProductionImagesCount.textContent = String(Number(summary.production_image_count || 0));
-                marketingProductionPdfsCount.textContent = String(Number(summary.production_pdf_count || 0));
                 marketingProductionImages.innerHTML = `<div class="text-center text-muted py-3">${loadingHtml('Loading')}</div>`;
-                marketingProductionPdfs.innerHTML = `<div class="text-center text-muted py-3">${loadingHtml('Loading')}</div>`;
 
-                const photosPromise = Number(summary.production_image_count || 0) > 0
-                    ? requestJson(data.production.photos_url, { method: 'GET', headers: { 'Content-Type': 'application/json' } })
-                    : Promise.resolve({ groups: {}, media: {} });
-                const pdfsPromise = Number(summary.production_pdf_count || 0) > 0
-                    ? requestJson(data.production.pdfs_url, { method: 'GET', headers: { 'Content-Type': 'application/json' } })
-                    : Promise.resolve({ pdfs: [] });
-
-                const [photosResult, pdfsResult] = await Promise.allSettled([photosPromise, pdfsPromise]);
-                if (photosResult.status === 'fulfilled') {
-                    renderPhotoModal(normalizePhotoPayload(photosResult.value), `marketing-${data.workorder.number_label}-photos`);
-                } else {
-                    marketingProductionImages.innerHTML = `<div class="text-danger small">${escapeHtml(photosResult.reason?.message || 'Images could not be loaded.')}</div>`;
+                if (Number(summary.production_image_count || 0) < 1) {
+                    renderPhotoModal([], `marketing-${data.workorder.number_label}-photos`);
+                    return;
                 }
 
-                if (pdfsResult.status === 'fulfilled') {
-                    renderPdfModal(normalizePdfPayload(pdfsResult.value));
-                } else {
-                    marketingProductionPdfs.innerHTML = `<div class="text-danger small">${escapeHtml(pdfsResult.reason?.message || 'PDF files could not be loaded.')}</div>`;
+                try {
+                    const photos = await requestJson(data.production.photos_url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+                    renderPhotoModal(normalizePhotoPayload(photos), `marketing-${data.workorder.number_label}-photos`);
+                } catch (error) {
+                    marketingProductionImages.innerHTML = `<div class="text-danger small">${escapeHtml(error.message || 'Images could not be loaded.')}</div>`;
                 }
             }
 
@@ -4725,12 +4689,10 @@
                 if (!url || !workorderId) return;
 
                 state.activeWorkorderFiles = { workorderId, filesUrl: url, uploadUrl: '' };
-                mediaTitle.textContent = `${woLabel} Files`;
+                mediaWoNumber.textContent = woLabel;
                 marketingFileUploadForm.reset();
-                resetMarketingFileVersion();
                 marketingManagerFilesList.innerHTML = `<div class="text-center text-muted py-4">${loadingHtml('Loading')}</div>`;
                 marketingProductionImages.innerHTML = `<div class="text-center text-muted py-3">${loadingHtml('Loading')}</div>`;
-                marketingProductionPdfs.innerHTML = `<div class="text-center text-muted py-3">${loadingHtml('Loading')}</div>`;
                 bootstrap.Modal.getOrCreateInstance(mediaModalEl).show();
 
                 try {
@@ -4754,7 +4716,6 @@
                 try {
                     const data = await requestFormData(uploadUrl, new FormData(marketingFileUploadForm));
                     marketingFileUploadForm.reset();
-                    resetMarketingFileVersion();
                     renderFilesWorkspace(data, false);
                     notify('File uploaded');
                 } catch (error) {
@@ -4909,36 +4870,6 @@
             }
 
             mediaBody.addEventListener('click', async (event) => {
-                const pdfBtn = event.target.closest('.js-marketing-pdf-select');
-                const frame = mediaBody.querySelector('.marketing-media-pdf-frame');
-                if (pdfBtn && frame) {
-                    mediaBody.querySelectorAll('.js-marketing-pdf-select').forEach((btn) => {
-                        btn.classList.toggle('active', btn === pdfBtn);
-                        btn.querySelector('.small')?.classList.toggle('text-white-50', btn === pdfBtn);
-                        btn.querySelector('.small')?.classList.toggle('text-muted', btn !== pdfBtn);
-                    });
-                    frame.src = pdfBtn.dataset.pdfUrl || '';
-                    return;
-                }
-
-                const versionBtn = event.target.closest('.js-marketing-file-version');
-                if (versionBtn) {
-                    marketingFileUploadForm.reset();
-                    marketingFileUploadForm.elements.version_of_id.value = versionBtn.dataset.fileId || '';
-                    marketingFileUploadForm.elements.display_name.value = versionBtn.dataset.fileName || '';
-                    marketingFileUploadForm.elements.category.value = versionBtn.dataset.fileCategory || 'other';
-                    marketingFileVersionLabel.textContent = `New version of ${versionBtn.dataset.fileName || 'file'}`;
-                    marketingFileVersionState.classList.add('is-active');
-                    marketingFileUploadForm.elements.files.focus();
-                    return;
-                }
-
-                if (event.target.closest('[data-marketing-version-cancel]')) {
-                    marketingFileUploadForm.reset();
-                    resetMarketingFileVersion();
-                    return;
-                }
-
                 const deleteBtn = event.target.closest('.js-marketing-file-delete');
                 if (deleteBtn) {
                     if (!window.confirm(`Delete ${deleteBtn.dataset.fileName || 'this file'}?`)) return;
@@ -4982,8 +4913,8 @@
 
             mediaModalEl?.addEventListener('hidden.bs.modal', () => {
                 state.activeWorkorderFiles = null;
+                mediaWoNumber.textContent = '';
                 marketingFileUploadForm?.reset();
-                resetMarketingFileVersion();
             });
 
             profileForm.addEventListener('submit', saveProfile);

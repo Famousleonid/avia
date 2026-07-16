@@ -1524,22 +1524,59 @@
                 technikFilter.dispatchEvent(new Event('change', { bubbles: true }));
             });
 
-            deleteModal.addEventListener('show.bs.modal', event => {
-                const button = event.relatedTarget;
+            function prepareDeleteConfirmation(button) {
                 currentFormId = button?.getAttribute('data-form-id') || null;
 
                 const title = button?.getAttribute('data-title') || 'Delete Confirmation';
                 const message = button?.getAttribute('data-message') || 'Are you sure you want to delete this item?';
-                document.getElementById('confirmDeleteLabel').textContent = title;
-                deleteModal.querySelector('.modal-body').textContent = message;
+                const label = document.getElementById('confirmDeleteLabel');
+                const body = deleteModal?.querySelector('.modal-body');
+
+                if (label) label.textContent = title;
+                if (body) body.textContent = message;
+
+                return message;
+            }
+
+            function submitDeleteForm(formId) {
+                if (!formId) return false;
+
+                const form = document.getElementById(formId);
+                if (!form) return false;
+
+                if (typeof window.showLoadingSpinner === 'function') window.showLoadingSpinner();
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+
+                return true;
+            }
+
+            document.addEventListener('click', event => {
+                const button = event.target.closest('[data-workorder-delete-button]');
+                if (!button) return;
+
+                event.preventDefault();
+                const message = prepareDeleteConfirmation(button);
+
+                if (deleteModal && window.bootstrap?.Modal) {
+                    window.bootstrap.Modal.getOrCreateInstance(deleteModal).show(button);
+                    return;
+                }
+
+                if (window.confirm(message)) {
+                    submitDeleteForm(currentFormId);
+                }
             });
 
-            confirmBtn.addEventListener('click', () => {
-                if (!currentFormId) return;
-                const form = document.getElementById(currentFormId);
-                if (!form) return;
-                if (typeof window.showLoadingSpinner === 'function') window.showLoadingSpinner();
-                form.submit();
+            deleteModal?.addEventListener('show.bs.modal', event => {
+                if (event.relatedTarget) prepareDeleteConfirmation(event.relatedTarget);
+            });
+
+            confirmBtn?.addEventListener('click', () => {
+                submitDeleteForm(currentFormId);
             });
 
             document.addEventListener('click', event => {

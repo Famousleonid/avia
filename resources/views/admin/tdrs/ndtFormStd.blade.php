@@ -189,6 +189,7 @@
     'printMarkQrTop' => '3mm',
     'printMarkQrPrintTop' => '3mm',
     'printMarkQrPrintRight' => '4mm',
+    'printMarkLabel' => 'STD',
 ])
 @include('admin.tdrs.partials.std-sheet-toolbar')
 

@@ -577,7 +577,9 @@ class QualityAssuranceController extends Controller
                     'certificate_work_order',
                     'certificate_item_description',
                     'certificate_item_part',
+                    'certificate_item_part_secondary',
                     'certificate_item_serial',
+                    'certificate_item_serial_secondary',
                     'certificate_status_instruction_id',
                     'certificate_status_work',
                     'certificate_remarks',
@@ -590,10 +592,17 @@ class QualityAssuranceController extends Controller
                     'certificate_overhauled_on_date',
                     'certificate_replacement_parts_remark',
                     'certificate_cmm_extra_text',
+                    'certificate_life_remark',
+                    'certificate_free_remark_1',
+                    'certificate_free_remark_2',
                     'include_airworthiness_remark',
                     'include_landing_gear_log_card',
                     'include_royco_service',
                     'include_overhauled_on',
+                    'include_certificate_item_part_secondary',
+                    'include_certificate_item_serial_secondary',
+                    'include_certificate_free_remark_1',
+                    'include_certificate_free_remark_2',
                 ]),
             ],
             'value' => ['nullable'],
@@ -603,7 +612,7 @@ class QualityAssuranceController extends Controller
         $key = (string) $data['key'];
         $value = $data['value'] ?? null;
 
-        if (in_array($key, ['certificate_detail_open', 'include_airworthiness_remark', 'include_landing_gear_log_card', 'include_royco_service', 'include_overhauled_on'], true)) {
+        if (in_array($key, ['certificate_detail_open', 'include_airworthiness_remark', 'include_landing_gear_log_card', 'include_royco_service', 'include_overhauled_on', 'include_certificate_item_part_secondary', 'include_certificate_item_serial_secondary', 'include_certificate_free_remark_1', 'include_certificate_free_remark_2'], true)) {
             $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
         } elseif ($key === 'certificate_tracking_mode') {
             $value = strtolower(trim((string) $value)) === 'c' ? 'c' : '';
@@ -643,7 +652,7 @@ class QualityAssuranceController extends Controller
         } elseif (in_array($key, ['certificate_airworthiness_remark', 'certificate_landing_gear_log_card_remark', 'certificate_royco_service_remark', 'certificate_c_correction_remark'], true)) {
             $value = trim((string) $value);
             abort_unless(mb_strlen($value) <= 2000, 422, 'Certificate value is too long.');
-        } elseif (in_array($key, ['certificate_cmm_extra_text', 'certificate_work_order', 'certificate_item_description', 'certificate_item_part', 'certificate_item_serial', 'certificate_status_work'], true)) {
+        } elseif (in_array($key, ['certificate_cmm_extra_text', 'certificate_life_remark', 'certificate_free_remark_1', 'certificate_free_remark_2', 'certificate_work_order', 'certificate_item_description', 'certificate_item_part', 'certificate_item_part_secondary', 'certificate_item_serial', 'certificate_item_serial_secondary', 'certificate_status_work'], true)) {
             $value = trim((string) $value);
             abort_unless(mb_strlen($value) <= 1000, 422, 'Certificate value is too long.');
         } else {
@@ -666,7 +675,9 @@ class QualityAssuranceController extends Controller
             'certificate_work_order',
             'certificate_item_description',
             'certificate_item_part',
+            'certificate_item_part_secondary',
             'certificate_item_serial',
+            'certificate_item_serial_secondary',
             'certificate_status_instruction_id',
             'certificate_status_work',
             'certificate_remarks',
@@ -677,10 +688,17 @@ class QualityAssuranceController extends Controller
             'certificate_overhauled_on_date',
             'certificate_replacement_parts_remark',
             'certificate_cmm_extra_text',
+            'certificate_life_remark',
+            'certificate_free_remark_1',
+            'certificate_free_remark_2',
             'include_airworthiness_remark',
             'include_landing_gear_log_card',
             'include_royco_service',
             'include_overhauled_on',
+            'include_certificate_item_part_secondary',
+            'include_certificate_item_serial_secondary',
+            'include_certificate_free_remark_1',
+            'include_certificate_free_remark_2',
         ], true)) {
             $itemSource = trim((string) ($data['item_source'] ?? 'main')) ?: 'main';
             abort_unless($itemSource === 'main' || $itemSource === 'main:c' || str_starts_with($itemSource, 'log:'), 422, 'Invalid certificate detail source.');

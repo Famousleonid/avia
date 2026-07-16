@@ -11,6 +11,7 @@ use App\Models\CustomerInteractionNote;
 use App\Models\CustomerMarketingProfile;
 use App\Models\MarketingCompanyType;
 use App\Models\MarketingSegment;
+use App\Models\MarketingWoFile;
 use App\Models\Plane;
 use App\Models\User;
 use App\Models\Workorder;
@@ -21,6 +22,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -34,14 +36,32 @@ class MarketingController extends Controller
         'purchasing' => 'Purchasing',
     ];
 
+    private const CONTACT_TYPE_OPTIONS = [
+        'WO Estimates',
+        'WO Estimates/ Invoices',
+        'Invoices',
+        'Other',
+    ];
+
     public function index(): View
     {
+        $users = User::query()
+            ->with(['role', 'featureAccesses'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'selection_name_order', 'email', 'role_id']);
+
         return view('admin.marketing.index', [
             'companyTypes' => MarketingCompanyType::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
             'segments' => MarketingSegment::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
             'countries' => Country::query()->where('active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'alpha2', 'name']),
             'planes' => Plane::query()->orderBy('type')->get(['id', 'type']),
-            'users' => User::query()->orderBy('name')->get(['id', 'name']),
+            'users' => $users
+                ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+                ->values(),
+            'marketingFileRecipients' => $users
+                ->filter(fn (User $user): bool => $user->email && Gate::forUser($user)->allows('feature.marketing'))
+                ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
+                ->values(),
             'lifecycleOptions' => $this->lifecycleOptions(),
             'addressCategoryLabels' => $this->addressCategoryLabels(),
         ]);
@@ -103,7 +123,10 @@ class MarketingController extends Controller
                             ->orWhere('last_name', 'like', $like)
                             ->orWhere('position', 'like', $like)
                             ->orWhere('email', 'like', $like)
-                            ->orWhere('phone', 'like', $like);
+                            ->orWhere('email_2', 'like', $like)
+                            ->orWhere('phone', 'like', $like)
+                            ->orWhere('cell_phone', 'like', $like)
+                            ->orWhere('contact_type', 'like', $like);
                     })
                     ->orWhereHas('marketingAircraft.plane', function ($plane) use ($like) {
                         $plane->where('type', 'like', $like);
@@ -500,7 +523,7 @@ class MarketingController extends Controller
 
         $query = Workorder::query()
             ->where('customer_id', $customer->id)
-            ->with(['unit.manual.plane', 'unit.manual.planes', 'instruction', 'main.task', 'media'])
+            ->with(['unit.manual.plane', 'unit.manual.planes', 'instruction', 'main.task', 'media', 'marketingFiles.reads'])
             ->orderByDesc('open_at')
             ->orderByDesc('number');
 
@@ -569,7 +592,7 @@ class MarketingController extends Controller
 
         $customer = $workorder->customer()->firstOrFail();
         $profile = $this->ensureProfile($customer);
-        $workorder->load(['unit.manual.plane', 'unit.manual.planes', 'instruction', 'main.task', 'media']);
+        $workorder->load(['unit.manual.plane', 'unit.manual.planes', 'instruction', 'main.task', 'media', 'marketingFiles.reads']);
 
         return response()->json([
             'ok' => true,
@@ -650,7 +673,10 @@ class MarketingController extends Controller
             'last_name' => ['nullable', 'string', 'max:120'],
             'position' => ['nullable', 'string', 'max:160'],
             'email' => ['nullable', 'email', 'max:190'],
+            'email_2' => ['nullable', 'email', 'max:190'],
             'phone' => ['nullable', 'string', 'max:80'],
+            'cell_phone' => ['nullable', 'string', 'max:80'],
+            'contact_type' => ['nullable', Rule::in(self::CONTACT_TYPE_OPTIONS)],
             'is_primary' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
@@ -661,6 +687,7 @@ class MarketingController extends Controller
     {
         $data = $request->validate([
             'contact_id' => ['nullable', 'integer', 'exists:customer_contacts,id'],
+            'subject' => ['nullable', 'string', 'max:255'],
             'note' => [$creating ? 'required' : 'sometimes', 'string', 'max:8000'],
             'interaction_at' => ['nullable', 'string', 'max:40'],
             'follow_up_at' => ['nullable', 'string', 'max:40'],
@@ -670,6 +697,10 @@ class MarketingController extends Controller
                 CustomerInteractionNote::STATUS_CANCELLED,
             ])],
         ]);
+
+        if (array_key_exists('subject', $data)) {
+            $data['subject'] = $this->nullableString($data['subject']);
+        }
 
         if (! array_key_exists('interaction_at', $data) || blank($data['interaction_at'])) {
             if ($creating) {
@@ -922,7 +953,7 @@ class MarketingController extends Controller
             'segment' => $profile?->segment?->name,
             'terms_label' => (string) ($profile?->terms_label ?? ''),
             'owner_user_id' => $profile?->owner_user_id,
-            'owner_name' => $profile?->owner?->name,
+            'owner_name' => $profile?->owner?->selection_name,
             'last_contact_at' => $this->datePayload($profile?->last_contact_at),
             'next_follow_up_at' => $this->datePayload($profile?->next_follow_up_at),
         ];
@@ -937,7 +968,10 @@ class MarketingController extends Controller
             'full_name' => $contact->full_name,
             'position' => (string) ($contact->position ?? ''),
             'email' => (string) ($contact->email ?? ''),
+            'email_2' => (string) ($contact->email_2 ?? ''),
             'phone' => (string) ($contact->phone ?? ''),
+            'cell_phone' => (string) ($contact->cell_phone ?? ''),
+            'contact_type' => (string) ($contact->contact_type ?? ''),
             'is_primary' => (bool) $contact->is_primary,
             'is_active' => (bool) $contact->is_active,
             'sort_order' => (int) $contact->sort_order,
@@ -950,7 +984,8 @@ class MarketingController extends Controller
             'id' => $note->id,
             'contact_id' => $note->contact_id,
             'contact_name' => $note->contact?->full_name ?? '',
-            'user_name' => $note->user?->name ?? 'System',
+            'user_name' => $note->user?->selection_name ?? 'System',
+            'subject' => (string) ($note->subject ?? ''),
             'note' => (string) $note->note,
             'interaction_at' => $this->datePayload($note->interaction_at),
             'follow_up_at' => $this->datePayload($note->follow_up_at),
@@ -965,8 +1000,18 @@ class MarketingController extends Controller
         $isDone = $workorder->isDone();
         $status = $isDone ? 'Complete' : ($workorder->approve_at ? 'In Process' : 'Waiting Approval');
         $media = $workorder->media ?? collect();
-        $pdfCount = $media->filter(fn ($item) => str_contains((string) $item->mime_type, 'pdf'))->count();
-        $imageCount = $media->filter(fn ($item) => str_starts_with((string) $item->mime_type, 'image/'))->count();
+        $productionMedia = $media->reject(fn ($item) => $item->collection_name === MarketingWoFile::COLLECTION);
+        $pdfCount = $productionMedia->filter(fn ($item) => str_contains((string) $item->mime_type, 'pdf'))->count();
+        $imageCount = $productionMedia->filter(fn ($item) => str_starts_with((string) $item->mime_type, 'image/'))->count();
+        $marketingFiles = $workorder->marketingFiles ?? collect();
+        $currentUserId = (int) auth()->id();
+        $unreadMarketingFiles = $marketingFiles->filter(function (MarketingWoFile $file) use ($currentUserId): bool {
+            if ((int) $file->uploaded_by_user_id === $currentUserId) {
+                return false;
+            }
+
+            return ! $file->reads->contains(fn ($read) => (int) $read->user_id === $currentUserId);
+        })->count();
 
         return [
             'id' => $workorder->id,
@@ -990,10 +1035,13 @@ class MarketingController extends Controller
             'shipping_awb_no' => (string) ($workorder->shipping_awb_no ?? ''),
             'pdf_count' => $pdfCount,
             'image_count' => $imageCount,
+            'marketing_file_count' => $marketingFiles->count(),
+            'marketing_unread_file_count' => $unreadMarketingFiles,
             'urls' => [
                 'open' => route('mains.show', $workorder->id),
                 'photos' => route('workorders.photos', $workorder->id),
                 'pdfs' => route('workorders.pdfs', $workorder->id),
+                'files' => route('marketing.workorders.files.index', $workorder),
             ],
         ];
     }
@@ -1598,7 +1646,7 @@ class MarketingController extends Controller
             'type' => (string) ($profile?->companyType?->name ?? ''),
             'segment' => (string) ($profile?->segment?->name ?? ''),
             'terms' => (string) ($profile?->terms_label ?? ''),
-            'owner' => (string) ($profile?->owner?->name ?? ''),
+            'owner' => (string) ($profile?->owner?->selection_name ?? ''),
             'aircraft' => $this->aircraftAuditLabel($customer),
             'last contact' => $this->dateAuditLabel($profile?->last_contact_at),
             'next follow-up' => $this->dateAuditLabel($profile?->next_follow_up_at),
@@ -1616,7 +1664,10 @@ class MarketingController extends Controller
             'last name' => (string) ($contact->last_name ?? ''),
             'position' => (string) ($contact->position ?? ''),
             'email' => (string) ($contact->email ?? ''),
+            'email 2' => (string) ($contact->email_2 ?? ''),
             'phone' => (string) ($contact->phone ?? ''),
+            'cell phone' => (string) ($contact->cell_phone ?? ''),
+            'contact type' => (string) ($contact->contact_type ?? ''),
             'primary' => $contact->is_primary ? 'yes' : 'no',
             'active' => $contact->is_active ? 'yes' : 'no',
         ];
@@ -1629,7 +1680,8 @@ class MarketingController extends Controller
         return [
             'company' => (string) ($note->customer?->name ?? ''),
             'contact' => $note->contact ? $this->contactAuditLabel($note->contact) : '',
-            'author' => (string) ($note->user?->name ?? 'System'),
+            'author' => (string) ($note->user?->selection_name ?? 'System'),
+            'subject line' => (string) ($note->subject ?? ''),
             'note' => (string) $note->note,
             'interaction date' => $this->dateAuditLabel($note->interaction_at),
             'follow-up date' => $this->dateAuditLabel($note->follow_up_at),

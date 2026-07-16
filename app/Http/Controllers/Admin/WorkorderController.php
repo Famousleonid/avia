@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\UserUiSetting;
 use App\Models\Workorder;
 use App\Models\TdrProcess;
+use App\Services\Workorders\DraftWorkorderMatchService;
 use App\Services\Workorders\WorkorderVisibilityService;
 use App\Services\WorkorderStdListProcessesService;
 use Illuminate\Database\Eloquent\Builder;
@@ -717,7 +718,22 @@ class WorkorderController extends Controller
         return view('admin.workorders.create', compact('customers', 'units', 'instructions', 'users', 'currentUser', 'manuals','draftInstructionId'));
     }
 
-    public function store(Request $request)
+    public function draftMatches(Request $request, DraftWorkorderMatchService $draftWorkorderMatchService): JsonResponse
+    {
+        $validated = $request->validate([
+            'unit_id' => ['nullable', 'integer', 'exists:units,id'],
+            'serial_number' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        return response()->json([
+            'matches' => $draftWorkorderMatchService->find(
+                isset($validated['unit_id']) ? (int) $validated['unit_id'] : null,
+                $validated['serial_number'] ?? null,
+            ),
+        ]);
+    }
+
+    public function store(Request $request, DraftWorkorderMatchService $draftWorkorderMatchService)
     {
         $draftInstructionId = Instruction::where('name', 'Draft')->value('id');
 
@@ -739,6 +755,7 @@ class WorkorderController extends Controller
             'storage_rack'   => ['nullable','integer','min:1','max:999'],
             'storage_level'  => ['nullable','integer','min:1','max:999'],
             'storage_column' => ['nullable','integer','min:1','max:999'],
+            'draft_duplicate_acknowledged' => ['nullable', 'boolean'],
         ];
 
         // ✅ Если НЕ draft — номер обязателен и уникален
@@ -768,7 +785,22 @@ class WorkorderController extends Controller
                     ->withErrors(['unit_id' => 'Select a unit with assigned Manual before creating Workorder.'])
                     ->withInput();
             }
+
+            if (!$request->boolean('draft_duplicate_acknowledged')) {
+                $draftMatches = $draftWorkorderMatchService->find(
+                    (int) $data['unit_id'],
+                    $request->input('serial_number'),
+                );
+
+                if ($draftMatches !== []) {
+                    return back()
+                        ->withInput()
+                        ->with('draft_matches', $draftMatches);
+                }
+            }
         }
+
+        unset($data['draft_duplicate_acknowledged']);
 
         $data = array_merge($data, [
             'part_missing' => $request->has('part_missing') ? 1 : 0,

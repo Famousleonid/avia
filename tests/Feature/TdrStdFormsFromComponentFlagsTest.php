@@ -1445,6 +1445,30 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         }
     }
 
+    public function test_ndt_and_cad_std_qr_have_std_label_and_use_the_sheet_as_screen_host(): void
+    {
+        ProjectSetting::setBoolean(ProjectSetting::PRINT_FORMS_QR_ENABLED, true);
+
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+
+        foreach ([
+            route('tdrs.ndtStd', $workorder->id),
+            route('tdrs.cadStd', $workorder->id),
+        ] as $route) {
+            $response = $this->actingAs($admin)->get($route);
+
+            $response->assertOk();
+            $response->assertSee(
+                'system-print-qr__label">STD</span><span class="system-print-qr__code"',
+                false
+            );
+            $response->assertSee(".split(',')", false);
+            $response->assertSee('for (const selector of selectors)', false);
+            $response->assertSee('if (host) return host;', false);
+        }
+    }
+
     public function test_prl_qr_is_shifted_up_from_workorder_number_box(): void
     {
         ProjectSetting::setBoolean(ProjectSetting::PRINT_FORMS_QR_ENABLED, true);

@@ -5,8 +5,12 @@ namespace Tests\Feature;
 use App\Models\MarketingWoEstimateNotification;
 use App\Models\PrintMark;
 use App\Models\ProjectSetting;
+use App\Models\User;
+use App\Models\UserUiSetting;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
 
@@ -35,8 +39,16 @@ class ProjectSettingsTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.project-settings.index'))
             ->assertOk()
-            ->assertSee('Project Settings')
+            ->assertSee('System Settings')
+            ->assertSee('Printed Forms')
+            ->assertSee('Marketing')
+            ->assertSee('Fon for user')
             ->assertSee('QR code mark')
+            ->assertDontSee('WO Estimate Date email recipients');
+
+        $this->actingAs($admin)
+            ->get(route('admin.project-settings.index', ['section' => 'marketing']))
+            ->assertOk()
             ->assertSee('WO Estimate Date email recipients');
 
         $this->actingAs($admin)
@@ -63,6 +75,109 @@ class ProjectSettingsTest extends TestCase
         $this->actingAs($roleOnlyAdmin)
             ->get(route('admin.project-settings.index'))
             ->assertForbidden();
+    }
+
+    public function test_system_admin_can_upload_apply_and_remove_background_for_one_user(): void
+    {
+        Storage::fake('public');
+
+        $admin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $target = $this->createUserWithRole('Admin', [
+            'is_admin' => true,
+            'name' => 'Background Target',
+        ]);
+        $other = $this->createUserWithRole('Admin', [
+            'is_admin' => true,
+            'name' => 'Background Other',
+        ]);
+
+        $upload = $this->actingAs($admin)->post(
+            route('admin.project-settings.user-background.store'),
+            [
+                'user_id' => $target->id,
+                'background_image' => UploadedFile::fake()->image('hangar-background.jpg', 1600, 900),
+            ]
+        );
+
+        $upload->assertRedirect(route('admin.project-settings.index', [
+            'section' => 'user-background',
+            'user_id' => $target->id,
+        ]));
+
+        $setting = UserUiSetting::query()
+            ->where('user_id', $target->id)
+            ->where('scope', UserUiSetting::PROJECT_APPEARANCE_SCOPE)
+            ->where('key', UserUiSetting::PROJECT_BACKGROUND_KEY)
+            ->firstOrFail();
+        $media = $target->fresh()->getFirstMedia(User::PROJECT_BACKGROUND_COLLECTION);
+
+        $this->assertNotNull($media);
+        $this->assertSame($media->id, data_get($setting->value, 'media_id'));
+        $this->assertSame('hangar-background.jpg', data_get($setting->value, 'original_name'));
+        Storage::disk($media->disk)->assertExists($media->getPathRelativeToRoot());
+
+        $backgroundUrl = route('admin.project-settings.user-background.show', ['user' => $target->id]);
+
+        $this->actingAs($target)
+            ->get(route('admin.project-settings.index'))
+            ->assertOk()
+            ->assertSee('has-user-project-background', false)
+            ->assertSee($backgroundUrl, false);
+
+        $this->actingAs($target)
+            ->get($backgroundUrl)
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg');
+
+        $this->actingAs($other)
+            ->get(route('admin.project-settings.index'))
+            ->assertOk()
+            ->assertDontSee('has-user-project-background', false)
+            ->assertDontSee($backgroundUrl, false);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.project-settings.user-background.destroy', ['user' => $target->id]))
+            ->assertRedirect(route('admin.project-settings.index', [
+                'section' => 'user-background',
+                'user_id' => $target->id,
+            ]));
+
+        Storage::disk($media->disk)->assertMissing($media->getPathRelativeToRoot());
+        $this->assertDatabaseMissing('user_ui_settings', [
+            'user_id' => $target->id,
+            'scope' => UserUiSetting::PROJECT_APPEARANCE_SCOPE,
+            'key' => UserUiSetting::PROJECT_BACKGROUND_KEY,
+        ]);
+    }
+
+    public function test_existing_legacy_background_is_served_without_public_storage_link(): void
+    {
+        Storage::fake('public');
+
+        $user = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $path = "user-backgrounds/{$user->id}/legacy-background.jpg";
+        Storage::disk('public')->put($path, 'legacy image bytes');
+        UserUiSetting::query()->create([
+            'user_id' => $user->id,
+            'scope' => UserUiSetting::PROJECT_APPEARANCE_SCOPE,
+            'key' => UserUiSetting::PROJECT_BACKGROUND_KEY,
+            'value' => ['path' => $path, 'original_name' => 'legacy-background.jpg'],
+        ]);
+
+        $url = route('admin.project-settings.user-background.show', ['user' => $user->id]);
+
+        $this->actingAs($user)
+            ->get(route('admin.project-settings.index'))
+            ->assertOk()
+            ->assertSee($url, false);
+
+        $response = $this->actingAs($user)->get($url);
+
+        $response->assertOk();
+        $this->assertSame(
+            realpath(Storage::disk('public')->path($path)),
+            realpath($response->baseResponse->getFile()->getPathname())
+        );
     }
 
     public function test_qr_partial_does_not_create_print_mark_when_setting_is_disabled(): void

@@ -305,7 +305,7 @@
 
             grid-template-columns:
         40px 160px
-        340px 100px
+        332px 108px
         120px 100px
         60px 100px;
             /*min-height: 42px; !* Опционально: для единой высоты строк *!*/
@@ -413,6 +413,7 @@
                     }
                 }
                 $prevTraveler = null;
+                $receivingInspectionRenderedForBlock = false;
             @endphp
 
             @foreach($processLines as $line)
@@ -430,10 +431,18 @@
                             }
                         }
                     }
+                    $normalizedProcessName = strtoupper(trim((string) $processName));
+                    $isNdt6TravelerLine = $inTraveler && (
+                        str_starts_with($normalizedProcessName, 'NDT-6')
+                        || $normalizedProcessName === 'EDDY CURRENT TEST'
+                    );
                 @endphp
 
                 @if($inTraveler && $prevTraveler !== true)
-                    @php $dateRows++; @endphp
+                    @php
+                        $receivingInspectionRenderedForBlock = false;
+                        $dateRows++;
+                    @endphp
                     <div class="div1 border-l-b-r " style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
                     <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{ __('Outcoming inspection') }}</strong></div>
                     <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{ __('Visual') }}</div>
@@ -444,16 +453,20 @@
                     <div class="div8 border-r-b " style="min-height: 36px; align-content: center"></div>
                 @endif
 
-                @if(!$inTraveler && $prevTraveler === true)
-                    @php $dateRows++; @endphp
-                    <div class="div1 border-l-b-r" style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
-                    <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{ __('Receiving inspection') }}</strong></div>
-                    <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{ __('Visual') }}</div>
-                    <div class="div4 border-r-b" style="min-height: 36px; align-content: center">{{ __('N/A') }}</div>
-                    <div class="div5 border-r-b" style="min-height: 36px; align-content: center">{{ __('AT') }}</div>
-                    <div class="div6 border-r-b" style="min-height: 36px; align-content: center"></div>
-                    <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
-                    <div class="div8 border-r-b" style="min-height: 36px; align-content: center"></div>
+                @if($isNdt6TravelerLine && !$receivingInspectionRenderedForBlock)
+                    @php
+                        $dateRows++;
+                        $receivingInspectionRenderedForBlock = true;
+                    @endphp
+                    @include('admin.tdr-processes.partials.traveler-receiving-inspection-row', ['dateRows' => $dateRows])
+                @endif
+
+                @if(!$inTraveler && $prevTraveler === true && !$receivingInspectionRenderedForBlock)
+                    @php
+                        $dateRows++;
+                        $receivingInspectionRenderedForBlock = true;
+                    @endphp
+                    @include('admin.tdr-processes.partials.traveler-receiving-inspection-row', ['dateRows' => $dateRows])
                 @endif
 
                 @php $dateRows++; @endphp
@@ -505,16 +518,12 @@
                 @php $prevTraveler = $inTraveler; @endphp
             @endforeach
 
-            @if($prevTraveler === true)
-                @php $dateRows++; @endphp
-                <div class="div1 border-l-b-r" style="min-height: 36px; align-content: center">{{ $dateRows }}</div>
-                <div class="div2 border-r-b fs-9" style="min-height: 36px; align-content: center"><strong>{{ __('Receiving inspection') }}</strong></div>
-                <div class="div3 border-r-b fs-9" style="min-height: 36px; align-content: center">{{ __('Visual') }}</div>
-                <div class="div4 border-r-b" style="min-height: 36px; align-content: center">{{ __('N/A') }}</div>
-                <div class="div5 border-r-b" style="min-height: 36px; align-content: center">{{ __('AT') }}</div>
-                <div class="div6 border-r-b" style="min-height: 36px; align-content: center"></div>
-                <div class="div7 border-r-b" style="min-height: 36px; align-content: center"></div>
-                <div class="div8 border-r-b" style="min-height: 36px; align-content: center"></div>
+            @if($prevTraveler === true && !$receivingInspectionRenderedForBlock)
+                @php
+                    $dateRows++;
+                    $receivingInspectionRenderedForBlock = true;
+                @endphp
+                @include('admin.tdr-processes.partials.traveler-receiving-inspection-row', ['dateRows' => $dateRows])
             @endif
             @php
                 $travelerMinTotal = (int) ($formConfig['traveler_table_total_rows'] ?? $formConfig['other_table_rows'] ?? 14);

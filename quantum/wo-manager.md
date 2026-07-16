@@ -1,5 +1,12 @@
 # Quantum WO And Manager Findings
 
+## Application Integration Status
+
+As of 15/Jul/2026, Marketing Sales Report does not read invoice data from Quantum.
+Its **Invoiced Amount** and invoice date come only from the local Workorder fields
+`sales_invoice_amount` and `sales_invoice_date`, entered by accounting in Marketing WO.
+`wo_estimate_amount` remains a separate estimate value and is not treated as invoiced revenue.
+
 ## WO Preview Extraction
 
 Current local files:

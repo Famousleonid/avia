@@ -19,6 +19,8 @@ use App\Models\Manual;
 
 class User extends Authenticatable implements MustVerifyEmail, HasMedia
 {
+    public const PROJECT_BACKGROUND_COLLECTION = 'project_background';
+
     use HasFactory, Notifiable, InteractsWithMedia, HasMediaHelpers, LogsActivity, softDeletes;
 
     // TODO(access): drop legacy access columns after production verifies user_feature_access.
@@ -193,6 +195,13 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
             ->height(100)
             ->nonOptimized();
 
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(self::PROJECT_BACKGROUND_COLLECTION)
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp'])
+            ->singleFile();
     }
 
 }

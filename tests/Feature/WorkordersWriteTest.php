@@ -6,6 +6,9 @@ use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\Workorder;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\File;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
 
@@ -35,6 +38,8 @@ class WorkordersWriteTest extends TestCase
         $response = $this->actingAs($admin)->get(route('workorders.create'));
 
         $response->assertOk();
+        $response->assertSee('data-no-spinner', false);
+        $response->assertSee('window.safeHideSpinner()', false);
         $response->assertSeeInOrder([
             'AAA Sort Customer',
             'MMM Sort Customer',
@@ -151,6 +156,146 @@ class WorkordersWriteTest extends TestCase
         $this->assertNotNull($draftInstruction->id);
     }
 
+    public function test_draft_match_lookup_finds_same_part_number_across_different_units(): void
+    {
+        File::cleanDirectory(base_path('codex-test-runtime/disks/public'));
+        Bus::fake();
+
+        $admin = $this->createUserWithRole('Admin');
+        $draftInstruction = $this->createDraftInstruction();
+        $identifier = strtoupper(uniqid('PN'));
+        $shippingUnit = Unit::query()->create([
+            'part_number' => $identifier . '-32 11',
+            'manual_id' => null,
+            'verified' => true,
+            'name' => 'Shipping pending unit',
+        ]);
+        $selectedUnit = $this->createUnit([
+            'part_number' => $identifier . ' 32-11',
+        ]);
+        $draft = $this->createWorkorder([
+            'number' => 501,
+            'draft_number' => 501,
+            'user_id' => $admin->id,
+            'unit_id' => $shippingUnit->id,
+            'instruction_id' => $draftInstruction->id,
+            'serial_number' => null,
+            'is_draft' => true,
+        ]);
+        $photo = $draft
+            ->addMedia(UploadedFile::fake()->image('shipping-inspection.jpg', 20, 20))
+            ->toMediaCollection('photos');
+
+        $this->actingAs($admin)
+            ->getJson(route('workorders.draft-matches', [
+                'unit_id' => $selectedUnit->id,
+            ]))
+            ->assertOk()
+            ->assertJsonCount(1, 'matches')
+            ->assertJsonPath('matches.0.id', $draft->id)
+            ->assertJsonPath('matches.0.matched_by.0', 'P/N')
+            ->assertJsonPath('matches.0.part_number', $shippingUnit->part_number)
+            ->assertJsonPath('matches.0.photo_count', 1)
+            ->assertJsonPath('matches.0.photos.0.id', $photo->id)
+            ->assertJsonPath('matches.0.photos.0.thumb_url', route('image.show.thumb', [
+                'mediaId' => $photo->id,
+                'modelId' => $draft->id,
+                'mediaName' => 'photos',
+            ]))
+            ->assertJsonPath('matches.0.photos.0.big_url', route('image.show.big', [
+                'mediaId' => $photo->id,
+                'modelId' => $draft->id,
+                'mediaName' => 'photos',
+            ]))
+            ->assertJsonPath('matches.0.edit_url', route('workorders.edit', $draft));
+    }
+
+    public function test_draft_match_lookup_finds_same_serial_number_when_part_number_differs(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $draftInstruction = $this->createDraftInstruction();
+        $serial = strtoupper(uniqid('SERIAL'));
+        $draft = $this->createWorkorder([
+            'number' => 502,
+            'draft_number' => 502,
+            'user_id' => $admin->id,
+            'unit_id' => $this->createUnit(['part_number' => 'DRAFT-' . uniqid()])->id,
+            'instruction_id' => $draftInstruction->id,
+            'serial_number' => $serial . '-77 01',
+            'is_draft' => true,
+        ]);
+        $selectedUnit = $this->createUnit(['part_number' => 'NEW-' . uniqid()]);
+
+        $this->actingAs($admin)
+            ->getJson(route('workorders.draft-matches', [
+                'unit_id' => $selectedUnit->id,
+                'serial_number' => $serial . ' 77-01',
+            ]))
+            ->assertOk()
+            ->assertJsonCount(1, 'matches')
+            ->assertJsonPath('matches.0.id', $draft->id)
+            ->assertJsonPath('matches.0.matched_by.0', 'S/N');
+    }
+
+    public function test_regular_workorder_creation_requires_explicit_confirmation_when_draft_matches(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $draftInstruction = $this->createDraftInstruction();
+        $regularInstruction = $this->createInstruction(['name' => 'Repair ' . uniqid()]);
+        $customer = $this->createCustomer();
+        $partNumber = strtoupper(uniqid('MATCH-PN-'));
+        $shippingUnit = Unit::query()->create([
+            'part_number' => str_replace('-', ' ', $partNumber),
+            'manual_id' => null,
+            'verified' => true,
+            'name' => 'Shipping pending unit',
+        ]);
+        $selectedUnit = $this->createUnit(['part_number' => $partNumber]);
+        $draft = $this->createWorkorder([
+            'number' => 503,
+            'draft_number' => 503,
+            'user_id' => $admin->id,
+            'unit_id' => $shippingUnit->id,
+            'customer_id' => $customer->id,
+            'instruction_id' => $draftInstruction->id,
+            'serial_number' => null,
+            'is_draft' => true,
+        ]);
+        $newWorkorderNumber = 710503;
+        $payload = [
+            'number' => $newWorkorderNumber,
+            'unit_id' => $selectedUnit->id,
+            'customer_id' => $customer->id,
+            'instruction_id' => $regularInstruction->id,
+            'user_id' => $admin->id,
+            'serial_number' => null,
+            'open_at' => now()->toDateString(),
+        ];
+
+        $this->from(route('workorders.create'))
+            ->actingAs($admin)
+            ->post(route('workorders.store'), $payload)
+            ->assertRedirect(route('workorders.create'))
+            ->assertSessionHas('draft_matches', function (array $matches) use ($draft): bool {
+                return count($matches) === 1 && (int) $matches[0]['id'] === (int) $draft->id;
+            });
+
+        $this->assertDatabaseMissing('workorders', [
+            'number' => $newWorkorderNumber,
+            'is_draft' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('workorders.store'), $payload + ['draft_duplicate_acknowledged' => 1])
+            ->assertRedirect(route('workorders.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('workorders', [
+            'number' => $newWorkorderNumber,
+            'is_draft' => false,
+        ]);
+    }
+
     public function test_draft_creation_assigns_generated_number_and_draft_flag(): void
     {
         $admin = $this->createUserWithRole('Admin');
@@ -198,6 +343,36 @@ class WorkordersWriteTest extends TestCase
             'manual_id' => null,
             'verified' => 1,
         ]);
+    }
+
+    public function test_admin_can_soft_delete_draft_workorder(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $draft = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'is_draft' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('workorders.destroy', $draft))
+            ->assertRedirect(route('workorders.index'));
+
+        $this->assertSoftDeleted('workorders', ['id' => $draft->id]);
+    }
+
+    public function test_system_admin_can_permanently_delete_draft_workorder(): void
+    {
+        $systemAdmin = $this->createUserWithRole('Admin', ['is_admin' => true]);
+        $draft = $this->createWorkorder([
+            'user_id' => $systemAdmin->id,
+            'is_draft' => true,
+        ]);
+
+        $this->actingAs($systemAdmin)
+            ->delete(route('workorders.forceDestroy', $draft))
+            ->assertRedirect(route('workorders.index'));
+
+        $this->assertDatabaseMissing('workorders', ['id' => $draft->id]);
     }
 
     public function test_assign_manual_to_pending_unit_fills_empty_name_from_manual_title(): void

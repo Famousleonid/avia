@@ -46,24 +46,11 @@ class MarketingWoFileController extends Controller
             'recipient_ids' => ['nullable', 'array', 'max:50'],
             'recipient_ids.*' => ['integer', 'distinct', 'exists:users,id'],
             'send_email' => ['nullable', 'boolean'],
-            'version_of_id' => ['nullable', 'integer', 'exists:marketing_wo_files,id'],
         ]);
 
         $uploads = $request->file('files', []);
         if (! is_array($uploads)) {
             $uploads = [$uploads];
-        }
-
-        if (! empty($data['version_of_id']) && count($uploads) !== 1) {
-            throw ValidationException::withMessages([
-                'files' => 'Upload one file when adding a new version.',
-            ]);
-        }
-
-        $versionOf = null;
-        if (! empty($data['version_of_id'])) {
-            $versionOf = MarketingWoFile::query()->findOrFail((int) $data['version_of_id']);
-            abort_unless((int) $versionOf->workorder_id === (int) $workorder->id, 422, 'Version file does not belong to this workorder.');
         }
 
         $recipientIds = collect($data['recipient_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
@@ -104,25 +91,20 @@ class MarketingWoFileController extends Controller
                     ->toMediaCollection(MarketingWoFile::COLLECTION, 'private');
 
                 try {
-                    $marketingFile = DB::transaction(function () use ($workorder, $media, $upload, $data, $versionOf, $recipients, $sendEmail, $uploads) {
+                    $marketingFile = DB::transaction(function () use ($workorder, $media, $upload, $data, $recipients, $sendEmail, $uploads) {
                         $isSingleUpload = count($uploads) === 1;
                         $displayName = $isSingleUpload ? trim((string) ($data['display_name'] ?? '')) : '';
                         $displayName = $displayName !== '' ? $displayName : $upload->getClientOriginalName();
-
-                        $versionGroup = $versionOf?->version_group ?: (string) Str::uuid();
-                        $versionNumber = $versionOf
-                            ? ((int) MarketingWoFile::withTrashed()->where('version_group', $versionGroup)->max('version_number') + 1)
-                            : 1;
 
                         $file = MarketingWoFile::query()->create([
                             'workorder_id' => $workorder->id,
                             'media_id' => $media->id,
                             'uploaded_by_user_id' => auth()->id(),
-                            'category' => $versionOf?->category ?: $data['category'],
+                            'category' => $data['category'],
                             'display_name' => $displayName,
                             'comment' => trim((string) ($data['comment'] ?? '')) ?: null,
-                            'version_group' => $versionGroup,
-                            'version_number' => $versionNumber,
+                            'version_group' => (string) Str::uuid(),
+                            'version_number' => 1,
                         ]);
 
                         foreach ($recipients as $recipient) {
@@ -249,7 +231,6 @@ class MarketingWoFileController extends Controller
             'comment' => (string) ($file->comment ?? ''),
             'uploader_name' => $file->uploader?->selection_name ?: 'System',
             'uploaded_at' => trim((string) format_project_date($file->created_at) . ' ' . $file->created_at?->format('H:i')),
-            'version_number' => $file->version_number,
             'size_label' => $this->fileSizeLabel((int) ($media?->size ?? 0)),
             'mime_type' => (string) ($media?->mime_type ?? ''),
             'is_previewable' => $media ? $this->isPreviewable((string) $media->mime_type) : false,
@@ -347,7 +328,6 @@ class MarketingWoFileController extends Controller
                 'workorder' => 'W' . $file->workorder->number,
                 'file' => $file->display_name,
                 'category' => $file->categoryLabel(),
-                'version' => $file->version_number,
             ])
             ->log($description);
     }

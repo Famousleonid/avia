@@ -5,11 +5,14 @@ namespace App\Providers;
 use App\Models\Component;
 use App\Models\Workorder;
 use App\Models\Tdr;
+use App\Models\UserUiSetting;
+use App\Models\User;
 use App\Observers\ComponentObserver;
 use App\Observers\TdrObserver;
 use App\Observers\WorkorderObserver;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
 
@@ -97,6 +100,37 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer($this->mobileViews(), function (): void {
             $this->disableDebugbarForResponse();
+        });
+
+        View::composer('admin.master', function ($view): void {
+            $backgroundUrl = null;
+
+            if (auth()->check()) {
+                $userId = (int) auth()->id();
+                /** @var User $user */
+                $user = auth()->user();
+                $media = $user->getFirstMedia(User::PROJECT_BACKGROUND_COLLECTION);
+                $background = UserUiSetting::projectBackgroundFor($userId);
+                $path = trim((string) data_get($background, 'path', ''));
+
+                if ($media) {
+                    $backgroundUrl = route('admin.project-settings.user-background.show', [
+                        'user' => $userId,
+                        'v' => $media->updated_at?->getTimestamp() ?? $media->id,
+                    ]);
+                } elseif (
+                    $path !== ''
+                    && str_starts_with($path, "user-backgrounds/{$userId}/")
+                    && Storage::disk('public')->exists($path)
+                ) {
+                    $backgroundUrl = route('admin.project-settings.user-background.show', [
+                        'user' => $userId,
+                        'v' => Storage::disk('public')->lastModified($path),
+                    ]);
+                }
+            }
+
+            $view->with('userProjectBackgroundUrl', $backgroundUrl);
         });
     }
 

@@ -94,6 +94,49 @@
             color: #6c757d !important;
         }
 
+        .draft-match-table-wrap {
+            max-height: 48vh;
+            overflow: auto;
+            border: 1px solid var(--avia-border, var(--bs-border-color));
+            border-radius: 0.5rem;
+        }
+
+        .draft-match-table {
+            margin-bottom: 0;
+            min-width: 1080px;
+        }
+
+        .draft-match-table th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: var(--avia-surface-raised, var(--bs-body-bg));
+        }
+
+        .draft-match-value {
+            white-space: nowrap;
+        }
+
+        .draft-match-gallery {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            min-width: 245px;
+        }
+
+        .draft-match-gallery-link {
+            display: inline-flex;
+            flex: 0 0 auto;
+        }
+
+        .draft-match-thumb {
+            width: 44px;
+            height: 44px;
+            object-fit: cover;
+            border: 1px solid var(--avia-border, var(--bs-border-color));
+            border-radius: 0.35rem;
+        }
+
 
     </style>
 
@@ -106,8 +149,9 @@
 
     <div class="container pl-3 pr-3 mt-5">
         <div class="card  p-2 shadow bg-gradient">
-            <form id="createForm" class="createForm" role="form" method="post" action="{{route('workorders.store')}}" enctype="multipart/form-data">
+            <form id="createForm" class="createForm" role="form" method="post" action="{{route('workorders.store')}}" enctype="multipart/form-data" data-no-spinner>
                 @csrf
+                <input type="hidden" id="draftDuplicateAcknowledged" name="draft_duplicate_acknowledged" value="{{ old('draft_duplicate_acknowledged', 0) ? 1 : 0 }}">
                 <input type="text" hidden name="user_id" value="{{auth()->user()->id}}">
                 <div class="tab-content">
                     <div class="active tab-pane" id="create_firms">
@@ -264,6 +308,45 @@
     </div>
 
     <!-- Модальное окно add Unit -->
+    <div class="modal fade" id="draftMatchModal" tabindex="-1" aria-labelledby="draftMatchModalLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="draftMatchModalLabel">Possible Shipping Draft found</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning mb-3">
+                        A Draft with the same P/N or S/N may already contain Shipping inspection photos.
+                        Open the Draft and continue it, or explicitly continue creating a separate Workorder.
+                    </div>
+                    <div class="draft-match-table-wrap">
+                        <table class="table table-sm table-hover align-middle draft-match-table">
+                            <thead>
+                            <tr>
+                                <th>Draft</th>
+                                <th>Match</th>
+                                <th>P/N</th>
+                                <th>S/N</th>
+                                <th>Description</th>
+                                <th>Customer</th>
+                                <th>Open date</th>
+                                <th>Photos</th>
+                                <th></th>
+                            </tr>
+                            </thead>
+                            <tbody id="draftMatchRows"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Review entered data</button>
+                    <button type="button" class="btn btn-warning" id="continueNewWorkorderBtn">Continue creating new WO</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="addUnitModal" tabindex="-1" aria-labelledby="addUnitLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -350,10 +433,19 @@
             const descriptionInput = document.getElementById('description');
             const instructionSelect = document.getElementById('instruction_id');
             const numberInput = document.getElementById('number_id');
+            const serialInput = document.getElementById('serial_number');
+            const draftDuplicateAcknowledged = document.getElementById('draftDuplicateAcknowledged');
+            const draftMatchModalElement = document.getElementById('draftMatchModal');
+            const draftMatchRows = document.getElementById('draftMatchRows');
+            const continueNewWorkorderBtn = document.getElementById('continueNewWorkorderBtn');
             const cmmSelect = document.getElementById('cmmSelect');
             const unitNameInput = document.getElementById('unitNameInput');
 
             const DRAFT_INSTRUCTION_ID = {{ $draftInstructionId ?? 0 }};
+            const DRAFT_MATCHES_URL = @json(route('workorders.draft-matches'));
+            const INITIAL_DRAFT_MATCHES = @json(session('draft_matches', []));
+            let draftCheckPassed = false;
+            let draftCheckInProgress = false;
 
             function isDraftSelected() {
                 return String(instructionSelect.value) === String(DRAFT_INSTRUCTION_ID);
@@ -374,16 +466,29 @@
             }
 
             if (instructionSelect) {
-                instructionSelect.addEventListener('change', toggleNumberField);
+                instructionSelect.addEventListener('change', function () {
+                    toggleNumberField();
+                    resetDraftDuplicateDecision();
+                });
                 toggleNumberField();
             }
 
 
-            unitSelect.onchange = function () {
+            unitSelect.addEventListener('change', function () {
                 const selectedOption = this.options[this.selectedIndex];
                 const unitName = selectedOption.getAttribute('data-name');
                 descriptionInput.value = unitName || '';
-            };
+                resetDraftDuplicateDecision();
+            });
+
+            serialInput?.addEventListener('input', resetDraftDuplicateDecision);
+
+            function resetDraftDuplicateDecision() {
+                draftCheckPassed = false;
+                if (draftDuplicateAcknowledged) {
+                    draftDuplicateAcknowledged.value = '0';
+                }
+            }
 
             function syncUnitNameFromSelectedCmm() {
                 if (!cmmSelect || !unitNameInput) return;
@@ -468,19 +573,187 @@
                 }
             }
 
-            saveBtn.addEventListener("click", function (event) {
+            function validateCreateForm() {
                 const valid1 = check1();
                 const valid2 = check2();
                 const valid3 = check3();
                 const valid4 = check4();
 
                 if (!(valid1 && valid2 && valid3 && valid4)) {
-                    event.preventDefault();
                     scrollToInvalid();
-                } else {
+                    return false;
+                }
+
+                return true;
+            }
+
+            function appendDraftMatchCell(row, value, className = '') {
+                const cell = row.insertCell();
+                cell.textContent = value || '—';
+                if (className) cell.className = className;
+                return cell;
+            }
+
+            function appendDraftPhotosCell(row, match) {
+                const cell = row.insertCell();
+                const photos = Array.isArray(match.photos) ? match.photos : [];
+
+                if (photos.length === 0) {
+                    cell.textContent = 'No photos';
+                    cell.className = 'text-muted text-nowrap';
+                    return;
+                }
+
+                const gallery = document.createElement('div');
+                gallery.className = 'draft-match-gallery';
+                const galleryName = `draft-match-${match.id}`;
+                let firstLink = null;
+
+                photos.forEach((photo, index) => {
+                    const link = document.createElement('a');
+                    link.href = photo.big_url;
+                    link.target = '_blank';
+                    link.rel = 'noopener';
+                    link.dataset.fancybox = galleryName;
+                    link.dataset.caption = `Draft ${match.number} — ${photo.label || 'Photo'}`;
+                    link.className = 'draft-match-gallery-link';
+                    link.setAttribute('aria-label', `Open photo ${index + 1} of Draft ${match.number}`);
+
+                    if (index < 3) {
+                        const image = document.createElement('img');
+                        image.src = photo.thumb_url;
+                        image.alt = `Draft ${match.number} photo ${index + 1}`;
+                        image.className = 'draft-match-thumb';
+                        image.loading = 'lazy';
+                        link.appendChild(image);
+                    } else {
+                        link.classList.add('d-none');
+                    }
+
+                    if (!firstLink) firstLink = link;
+                    gallery.appendChild(link);
+                });
+
+                const viewAllButton = document.createElement('button');
+                viewAllButton.type = 'button';
+                viewAllButton.className = 'btn btn-sm btn-outline-info text-nowrap';
+                viewAllButton.textContent = `View all (${photos.length})`;
+                viewAllButton.addEventListener('click', () => firstLink?.click());
+                gallery.appendChild(viewAllButton);
+                cell.appendChild(gallery);
+            }
+
+            function showDraftMatches(matches) {
+                if (typeof window.safeHideSpinner === 'function') {
+                    window.safeHideSpinner();
+                } else if (typeof window.hideLoadingSpinner === 'function') {
+                    window.hideLoadingSpinner();
+                }
+
+                draftMatchRows.replaceChildren();
+
+                matches.forEach(match => {
+                    const row = draftMatchRows.insertRow();
+                    appendDraftMatchCell(row, `Draft ${match.number}`, 'draft-match-value');
+                    appendDraftMatchCell(row, Array.isArray(match.matched_by) ? match.matched_by.join(' + ') : '');
+                    appendDraftMatchCell(row, match.part_number, 'draft-match-value');
+                    appendDraftMatchCell(row, match.serial_number, 'draft-match-value');
+                    appendDraftMatchCell(row, match.description);
+                    appendDraftMatchCell(row, match.customer);
+                    appendDraftMatchCell(row, match.open_date, 'draft-match-value');
+                    appendDraftPhotosCell(row, match);
+
+                    const actionCell = row.insertCell();
+                    const openLink = document.createElement('a');
+                    openLink.className = 'btn btn-sm btn-primary text-nowrap';
+                    openLink.href = match.edit_url;
+                    openLink.textContent = 'Open Draft';
+                    actionCell.appendChild(openLink);
+                });
+
+                if (window.jQuery?.fn?.fancybox) {
+                    window.jQuery(draftMatchRows).find('[data-fancybox]').fancybox({
+                        loop: false,
+                        buttons: ['zoom', 'slideShow', 'fullScreen', 'close']
+                    });
+                }
+
+                bootstrap.Modal.getOrCreateInstance(draftMatchModalElement).show();
+            }
+
+            continueNewWorkorderBtn?.addEventListener('click', function () {
+                draftDuplicateAcknowledged.value = '1';
+                draftCheckPassed = true;
+                bootstrap.Modal.getOrCreateInstance(draftMatchModalElement).hide();
+                form.requestSubmit();
+            });
+
+            form.addEventListener('submit', async function (event) {
+                if (!validateCreateForm()) {
+                    event.preventDefault();
+                    return;
+                }
+
+                if (
+                    isDraftSelected()
+                    || draftCheckPassed
+                    || draftDuplicateAcknowledged.value === '1'
+                ) {
                     showLoadingSpinner();
+                    return;
+                }
+
+                event.preventDefault();
+                if (draftCheckInProgress) return;
+
+                draftCheckInProgress = true;
+                saveBtn.disabled = true;
+                let submitAfterCheck = false;
+
+                try {
+                    const url = new URL(DRAFT_MATCHES_URL, window.location.origin);
+                    url.searchParams.set('unit_id', unitSelect.value);
+                    if (serialInput.value.trim() !== '') {
+                        url.searchParams.set('serial_number', serialInput.value.trim());
+                    }
+
+                    const response = await fetch(url, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Draft lookup failed (${response.status})`);
+                    }
+
+                    const payload = await response.json();
+                    const matches = Array.isArray(payload.matches) ? payload.matches : [];
+
+                    if (matches.length > 0) {
+                        showDraftMatches(matches);
+                    } else {
+                        draftCheckPassed = true;
+                        submitAfterCheck = true;
+                    }
+                } catch (error) {
+                    // The store action repeats the lookup, so submission remains safe if this pre-check fails.
+                    draftCheckPassed = true;
+                    submitAfterCheck = true;
+                } finally {
+                    draftCheckInProgress = false;
+                    saveBtn.disabled = false;
+                }
+
+                if (submitAfterCheck) {
+                    form.requestSubmit();
                 }
             });
+
+            if (Array.isArray(INITIAL_DRAFT_MATCHES) && INITIAL_DRAFT_MATCHES.length > 0) {
+                showDraftMatches(INITIAL_DRAFT_MATCHES);
+            }
 
             // --------------------------------- Select2 Initialization ---------------------------------
             $(document).ready(function () {

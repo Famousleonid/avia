@@ -174,9 +174,101 @@ class TdrProcessTravelerGroupFormTest extends TestCase
         $response
             ->assertOk()
             ->assertSee($groupTwoProcess->process)
+            ->assertSeeInOrder([$groupTwoProcess->process, 'Receiving inspection'])
             ->assertSee('data-screen-placement="viewport"', false)
             ->assertSee('system-print-qr__label">T2</span><span class="system-print-qr__code"', false)
+            ->assertSee('332px 108px', false)
             ->assertSee('right: 2mm;', false)
             ->assertSee('top: 1mm;', false);
+
+        $this->actingAs($admin)
+            ->get(route('tdr-processes.processesBody', ['tdrId' => $tdr->id]))
+            ->assertOk()
+            ->assertSee('Form traveler')
+            ->assertDontSee('Form standart');
+    }
+
+    public function test_part_traveler_places_receiving_inspection_immediately_before_ndt_6(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $suffix = uniqid();
+
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'TR-NDT6-PN-' . $suffix,
+            'name' => 'Traveler NDT-6 Component',
+            'ipl_num' => '11-240B',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'TR-NDT6-SN-' . $suffix,
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $preNdtName = ProcessName::query()->create([
+            'name' => 'Traveler before NDT-6 ' . $suffix,
+            'process_sheet_name' => 'TRAVELER',
+            'form_number' => 'TRV',
+            'print_form' => false,
+            'show_in_process_picker' => true,
+        ]);
+        $ndt6Name = ProcessName::query()->firstOrCreate(
+            ['name' => 'NDT-6 (Eddy Current)'],
+            [
+                'process_sheet_name' => 'NDT',
+                'form_number' => 'NDT-6',
+                'print_form' => true,
+                'show_in_process_picker' => true,
+            ]
+        );
+        $beforeProcess = Process::query()->create([
+            'process_names_id' => $preNdtName->id,
+            'process' => 'Traveler process before receiving ' . $suffix,
+        ]);
+        $ndt6Process = Process::query()->create([
+            'process_names_id' => $ndt6Name->id,
+            'process' => 'Traveler NDT-6 instruction ' . $suffix,
+        ]);
+
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $preNdtName->id,
+            'processes' => [$beforeProcess->id],
+            'in_traveler' => true,
+            'traveler_group' => 1,
+            'ignore_row' => false,
+            'sort_order' => 1,
+        ]);
+        TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $ndt6Name->id,
+            'processes' => [$ndt6Process->id],
+            'in_traveler' => true,
+            'traveler_group' => 1,
+            'ignore_row' => false,
+            'sort_order' => 2,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdr-processes.travelForm', [
+            'id' => $tdr->id,
+            'traveler_group' => 1,
+        ]));
+
+        $response
+            ->assertOk()
+            ->assertSeeInOrder([
+                $beforeProcess->process,
+                'Receiving inspection',
+                'NDT-6 (Eddy Current)',
+                $ndt6Process->process,
+            ]);
+
+        $this->assertSame(1, substr_count((string) $response->getContent(), 'Receiving inspection'));
     }
 }

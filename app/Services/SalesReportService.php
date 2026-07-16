@@ -9,10 +9,6 @@ use Illuminate\Support\Collection;
 
 class SalesReportService
 {
-    public function __construct(private SalesReportQuantumInvoiceProvider $invoiceProvider)
-    {
-    }
-
     /**
      * @param array<string, mixed> $filters
      * @return array<string, mixed>
@@ -28,35 +24,19 @@ class SalesReportService
         }
 
         $workorders = $this->workorders($reportType, $filters);
-        $woNumbers = $workorders
-            ->map(fn (Workorder $workorder): string => $this->woNumber($workorder))
-            ->values()
-            ->all();
-
-        $invoiceResult = $this->invoiceProvider->fetch($woNumbers, $from, $to);
-        $invoiceMap = $invoiceResult['items'];
-        $quantumAvailable = (bool) $invoiceResult['available'];
-
         $rows = [];
         $total = 0.0;
 
         foreach ($workorders as $workorder) {
             $woNumber = $this->woNumber($workorder);
-            $invoice = $invoiceMap[$woNumber] ?? null;
-            $effectiveDate = $invoice['invoice_date'] ?? $workorder->done_at ?? $workorder->open_at;
+            $invoiceDate = $workorder->sales_invoice_date;
+            $amount = $workorder->sales_invoice_amount;
 
-            if ($quantumAvailable && $invoice === null) {
+            if ($amount === null || ! $this->dateInsideRange($invoiceDate, $from, $to)) {
                 continue;
             }
 
-            if (! $quantumAvailable && ! $this->dateInsideRange($effectiveDate, $from, $to)) {
-                continue;
-            }
-
-            $amount = $invoice['amount'] ?? null;
-            if ($amount !== null) {
-                $total += (float) $amount;
-            }
+            $total += (float) $amount;
 
             $rows[] = [
                 'company' => (string) ($workorder->customer?->name ?? ''),
@@ -66,11 +46,10 @@ class SalesReportService
                 'part_number' => (string) ($workorder->unit?->part_number ?? ''),
                 'serial_number' => (string) ($workorder->serial_number ?? ''),
                 'description' => $this->description($workorder),
-                'invoiced_amount' => $amount,
-                'date_label' => $this->periodLabel($from, $to),
-                'invoice_date' => $invoice['invoice_date'] ?? null,
-                'invoice_numbers' => $invoice['invoice_numbers'] ?? '',
-                'source' => $invoice['source'] ?? '',
+                'invoiced_amount' => (float) $amount,
+                'date_label' => format_project_date($invoiceDate),
+                'invoice_date' => $invoiceDate?->toDateString(),
+                'source' => 'workorders.sales_invoice_amount',
             ];
         }
 
@@ -87,8 +66,7 @@ class SalesReportService
             'period_label' => $this->periodLabel($from, $to),
             'rows' => $rows,
             'total' => $total,
-            'warning' => $invoiceResult['warning'],
-            'quantum_available' => $quantumAvailable,
+            'warning' => null,
         ];
     }
 
@@ -104,7 +82,6 @@ class SalesReportService
             'rows' => [],
             'total' => 0.0,
             'warning' => $warning,
-            'quantum_available' => false,
         ];
     }
 
