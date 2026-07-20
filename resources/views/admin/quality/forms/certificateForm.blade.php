@@ -1,10 +1,5 @@
 @php
     $manual = $current_wo->unit?->manual;
-    $latestRevisionCheck = $manual?->revisionChecks
-        ? $manual->revisionChecks
-            ->sortByDesc(fn ($check) => optional($check->revision_date)->format('Y-m-d') ?? '')
-            ->first()
-        : null;
     $defaultStatusWork = trim((string) ($current_wo->instruction?->name ?? '')) ?: 'Overhaul';
     $selectedCertificateInstructionId = $selectedCertificateInstructionId ?? ($current_wo->instruction_id ? (int) $current_wo->instruction_id : null);
     $certificateStatusOptions = collect($certificateStatusOptions ?? [])
@@ -23,8 +18,8 @@
     );
     $selectedStatusWork = trim((string) ($selectedStatusOption->name ?? $selectedStatusOption['name'] ?? $defaultStatusWork));
     $status = $formatStatusWork($selectedStatusWork);
-    $manualRevisionDateSource = $latestRevisionCheck?->revision_date ?? $manual?->revision_date;
-    $manualRevisionNumber = trim((string) ($latestRevisionCheck?->revision_number ?? ''));
+    $manualRevisionDateSource = $manual?->revision_date;
+    $manualRevisionNumber = trim((string) ($manual?->revision_number ?? ''));
     $formatCertificateManualNumber = static function ($number): string {
         $number = trim((string) $number);
 

@@ -447,6 +447,87 @@ class MobileApiTest extends TestCase
             ->assertJsonPath('message', 'Forbidden.');
     }
 
+    public function test_mobile_api_task_dates_expose_explicit_permissions_and_preserve_dates_when_toggling_ignore_row(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $user->id]);
+        $group = GeneralTask::query()->create(['name' => 'Mobile dates ' . uniqid(), 'sort_order' => 5]);
+        $task = Task::query()->create([
+            'name' => 'Mobile editable task ' . uniqid(),
+            'general_task_id' => $group->id,
+            'task_has_start_date' => true,
+        ]);
+
+        $this->withMobileToken($user)
+            ->putJson(route('api.mobile.workorders.tasks.dates', [$workorder->id, $task->id]), [
+                'date_start' => '2026-07-03',
+                'date_finish' => '2026-07-19',
+            ])
+            ->assertOk();
+
+        $ignoreResponse = $this->withMobileToken($user)
+            ->putJson(route('api.mobile.workorders.tasks.dates', [$workorder->id, $task->id]), ['ignore_row' => true]);
+
+        $ignoreResponse->assertOk()
+            ->assertJsonPath('data.main.ignore_row', true)
+            ->assertJsonPath('data.main.date_start', '2026-07-03')
+            ->assertJsonPath('data.main.date_finish', '2026-07-19');
+
+        $this->withMobileToken($user)
+            ->putJson(route('api.mobile.workorders.tasks.dates', [$workorder->id, $task->id]), [
+                'date_start' => null,
+                'date_finish' => null,
+                'ignore_row' => false,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.main.date_start', null)
+            ->assertJsonPath('data.main.date_finish', null)
+            ->assertJsonPath('data.main.ignore_row', false);
+
+        $tasksResponse = $this->withMobileToken($user)
+            ->getJson(route('api.mobile.workorders.tasks.index', $workorder->id));
+        $taskPayload = collect($tasksResponse->json('data.groups'))
+            ->flatMap(fn (array $item) => $item['tasks'])
+            ->firstWhere('id', $task->id);
+
+        $this->assertTrue($taskPayload['has_start_date']);
+        $this->assertTrue($taskPayload['can_edit_start']);
+        $this->assertTrue($taskPayload['can_edit_finish']);
+        $this->assertFalse($taskPayload['restricted_finish']);
+    }
+
+    public function test_mobile_api_blocks_quote_submission_dates_for_technician_and_team_leader(): void
+    {
+        $group = GeneralTask::query()->create(['name' => 'Quote ' . uniqid(), 'sort_order' => 7]);
+        $task = Task::query()->create([
+            'name' => 'WO Submitted for Quate',
+            'general_task_id' => $group->id,
+            'task_has_start_date' => true,
+        ]);
+
+        foreach (['Technician', 'Team Leader'] as $role) {
+            $user = $this->createUserWithRole($role);
+            $workorder = $this->createWorkorder(['user_id' => $user->id]);
+
+            $this->withMobileToken($user)
+                ->putJson(route('api.mobile.workorders.tasks.dates', [$workorder->id, $task->id]), [
+                    'date_start' => '2026-07-03',
+                    'date_finish' => '2026-07-19',
+                ])
+                ->assertForbidden();
+
+            $response = $this->withMobileToken($user)
+                ->getJson(route('api.mobile.workorders.tasks.index', $workorder->id));
+            $payload = collect($response->json('data.groups'))
+                ->flatMap(fn (array $item) => $item['tasks'])
+                ->firstWhere('id', $task->id);
+
+            $this->assertFalse($payload['can_edit_start']);
+            $this->assertFalse($payload['can_edit_finish']);
+            $this->assertSame('manager_only_quote_submission_dates', $payload['restriction_code']);
+        }
+    }
+
     public function test_mobile_api_components_attach_and_process_dates_flow(): void
     {
         $user = $this->createUserWithRole('Technician');
@@ -477,6 +558,14 @@ class MobileApiTest extends TestCase
             ->assertJsonPath('data.attachment.use_process_forms', false);
 
         $tdr = Tdr::query()->findOrFail((int) $attachResponse->json('data.attachment.id'));
+
+        $componentsResponse = $this->withMobileToken($user)
+            ->getJson(route('api.mobile.workorders.components.index', $workorder->id));
+        $componentsResponse->assertOk()
+            ->assertJsonPath('data.attached_components.0.ipl_num', '10-20')
+            ->assertJsonPath('data.attached_components.0.part_number', 'PN-API')
+            ->assertJsonPath('data.attached_components.0.tdrs.0.id', $tdr->id)
+            ->assertJsonPath('data.attached_components.0.tdrs.0.qty', 4);
         $processName = ProcessName::query()->create([
             'name' => 'API Process ' . uniqid(),
             'process_sheet_name' => 'API',
@@ -504,6 +593,97 @@ class MobileApiTest extends TestCase
         $dateResponse->assertOk()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('data.process.date_start', '2026-05-25');
+    }
+
+    public function test_mobile_api_process_date_permissions_are_explicit_and_enforced(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $user->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'ipl_num' => '12-34',
+            'part_number' => 'PN-PROCESS',
+            'name' => 'Process component',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'qty' => 1,
+        ]);
+        $editableName = ProcessName::query()->create([
+            'name' => 'Machining',
+            'process_sheet_name' => 'MACHINING',
+            'form_number' => 'M-1',
+            'sequence_exempt' => true,
+        ]);
+        $lockedName = ProcessName::query()->create([
+            'name' => 'EC',
+            'process_sheet_name' => 'EC',
+            'form_number' => 'EC-1',
+            'sequence_exempt' => true,
+        ]);
+        $editable = TdrProcess::query()->create(['tdrs_id' => $tdr->id, 'process_names_id' => $editableName->id]);
+        $locked = TdrProcess::query()->create(['tdrs_id' => $tdr->id, 'process_names_id' => $lockedName->id]);
+
+        $index = $this->withMobileToken($user)
+            ->getJson(route('api.mobile.workorders.processes.index', $workorder->id));
+        $processes = collect($index->json('data.components.0.processes'))->keyBy('id');
+
+        $this->assertTrue($processes[$editable->id]['can_edit_start']);
+        $this->assertTrue($processes[$editable->id]['can_edit_finish']);
+        $this->assertTrue($processes[$editable->id]['can_edit_promise']);
+        $this->assertFalse($processes[$locked->id]['can_edit_start']);
+        $this->assertFalse($processes[$locked->id]['can_edit_finish']);
+
+        $this->withMobileToken($user)
+            ->patchJson(route('api.mobile.tdr-processes.dates.update', $editable->id), [
+                'date_start' => '2026-07-03',
+                'date_finish' => '2026-07-19',
+            ])
+            ->assertOk();
+
+        $this->withMobileToken($user)
+            ->patchJson(route('api.mobile.tdr-processes.dates.update', $editable->id), ['date_start' => null])
+            ->assertOk()
+            ->assertJsonPath('data.process.date_start', null);
+
+        $this->withMobileToken($user)
+            ->patchJson(route('api.mobile.tdr-processes.dates.update', $locked->id), ['date_finish' => '2026-07-19'])
+            ->assertForbidden();
+    }
+
+    public function test_mobile_api_review_account_is_limited_to_configured_synthetic_workorders(): void
+    {
+        $reviewUser = $this->createUserWithRole('Team Leader', ['email' => 'review@example.test']);
+        $demo = $this->createWorkorder(['number' => 100500, 'user_id' => $reviewUser->id]);
+        $production = $this->createWorkorder(['number' => 100501]);
+        config()->set('mobile_review.accounts', [
+            'review@example.test' => ['workorder_numbers' => [100500]],
+        ]);
+
+        $bootstrap = $this->withMobileToken($reviewUser)
+            ->getJson(route('api.mobile.bootstrap'));
+        $bootstrap->assertOk()
+            ->assertJsonPath('data.user.capabilities.can_view_all_workorders', false)
+            ->assertJsonPath('data.user.capabilities.can_view_done_workorders', false);
+
+        $list = $this->withMobileToken($reviewUser)
+            ->getJson(route('api.mobile.workorders.index', ['scope' => 'all']));
+        $list->assertOk();
+        $this->assertSame([$demo->id], collect($list->json('data.items'))->pluck('id')->all());
+
+        $this->withMobileToken($reviewUser)
+            ->getJson(route('api.mobile.workorders.show', $production->id))
+            ->assertNotFound();
+        $this->withMobileToken($reviewUser)
+            ->getJson(route('api.mobile.workorders.tasks.index', $production->id))
+            ->assertNotFound();
+    }
+
+    public function test_public_privacy_and_support_pages_do_not_require_login(): void
+    {
+        $this->get('/privacy')->assertOk()->assertSee('Privacy Policy');
+        $this->get('/support')->assertOk()->assertSee('Aviatechnik App Support');
     }
 
     public function test_mobile_api_can_update_component_log_card_flag(): void

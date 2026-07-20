@@ -59,6 +59,34 @@ class WorkorderActionsTest extends TestCase
         ]);
     }
 
+    public function test_mains_hides_approved_and_completed_tasks_for_technician_and_team_leader(): void
+    {
+        $workorder = $this->createWorkorder();
+        $generalTask = GeneralTask::query()->create([
+            'name' => 'Mains task visibility',
+            'sort_order' => 1,
+        ]);
+
+        foreach (['Approved', 'Completed', 'Visible technician task'] as $name) {
+            Task::query()->create([
+                'name' => $name,
+                'general_task_id' => $generalTask->id,
+                'task_has_start_date' => false,
+            ]);
+        }
+
+        foreach (['Technician', 'Team Leader'] as $role) {
+            $user = $this->createUserWithRole($role);
+
+            $this->actingAs($user)
+                ->get(route('mains.show', $workorder))
+                ->assertOk()
+                ->assertDontSee('Approved')
+                ->assertDontSee('Completed')
+                ->assertSee('Visible technician task');
+        }
+    }
+
     public function test_authenticated_user_can_update_notes_and_manager_can_read_logs(): void
     {
         $author = $this->createUserWithRole('Technician');

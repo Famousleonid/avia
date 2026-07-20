@@ -152,6 +152,8 @@ class MainController extends Controller
             ->orderBy('name')
             ->get();
 
+        $tasks = $this->workorderVisibility->filterVisibleMainsTasks($tasks, $request->user());
+
         $tasksByGeneral = $tasks->groupBy('general_task_id');
 
         // mains by task

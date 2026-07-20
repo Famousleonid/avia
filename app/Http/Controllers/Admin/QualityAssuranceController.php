@@ -9,7 +9,6 @@ use App\Models\ExtraProcess;
 use App\Models\Instruction;
 use App\Models\LogCard;
 use App\Models\Manual;
-use App\Models\ManualRevisionCheck;
 use App\Models\Necessary;
 use App\Models\Task;
 use App\Models\Tdr;
@@ -400,7 +399,7 @@ class QualityAssuranceController extends Controller
             'customer',
             'instruction',
             'tdrs',
-            'unit.manual.revisionChecks',
+            'unit.manual',
             'user.role',
             'doneUser.role',
             'serviceBulletinLogs.serviceBulletin',
@@ -895,7 +894,7 @@ class QualityAssuranceController extends Controller
         ?string $revisionNumber = null,
     )
     {
-        $workorder->loadMissing(['unit.manual.revisionChecks']);
+        $workorder->loadMissing(['unit.manual']);
 
         $manual = $workorder->unit?->manual;
         abort_unless($manual, 404, 'Manual not found for workorder.');
@@ -903,40 +902,19 @@ class QualityAssuranceController extends Controller
         $revisionDate = $revisionDate !== null
             ? Carbon::parse($revisionDate)->format('Y-m-d')
             : null;
-        $latestRevisionCheck = $manual->revisionChecks
-            ? $manual->revisionChecks
-                ->sortByDesc(fn ($check) => optional($check->revision_date)->format('Y-m-d') ?? '')
-                ->first()
-            : null;
-
-        if (! $latestRevisionCheck && $revisionNumber !== null) {
-            $latestRevisionCheck = ManualRevisionCheck::query()->create([
-                'manual_id' => $manual->id,
-                'revision_number' => $revisionNumber !== '' ? $revisionNumber : null,
-                'revision_date' => $revisionDate
-                    ?? ($manual->revision_date ? Carbon::parse($manual->revision_date)->format('Y-m-d') : now()->toDateString()),
-                'checked_at' => now()->toDateString(),
-                'checked_by_user_id' => auth()->id(),
-                'checked_by_stamp' => auth()->user()?->stamp,
-                'status' => ManualRevisionCheck::STATUS_UNCHANGED,
-            ]);
-        } elseif ($latestRevisionCheck) {
-            $latestRevisionCheck->forceFill(array_filter([
-                'revision_number' => $revisionNumber,
-                'revision_date' => $revisionDate,
-            ], static fn ($value): bool => $value !== null))->save();
+        $changes = [];
+        if ($revisionNumber !== null) {
+            $changes['revision_number'] = $revisionNumber !== '' ? $revisionNumber : null;
         }
-
         if ($revisionDate !== null) {
-            $manual->forceFill([
-                'revision_date' => $revisionDate,
-            ])->save();
+            $changes['revision_date'] = $revisionDate;
         }
+        $manual->forceFill($changes)->save();
 
-        $manualRevisionDate = $revisionDate
-            ?? ($latestRevisionCheck?->revision_date ? Carbon::parse($latestRevisionCheck->revision_date)->format('Y-m-d') : null)
-            ?? ($manual->revision_date ? Carbon::parse($manual->revision_date)->format('Y-m-d') : null);
-        $manualRevisionNumber = $revisionNumber ?? trim((string) ($latestRevisionCheck?->revision_number ?? ''));
+        $manualRevisionDate = $manual->revision_date
+            ? Carbon::parse($manual->revision_date)->format('Y-m-d')
+            : null;
+        $manualRevisionNumber = trim((string) ($manual->revision_number ?? ''));
 
         return response()->json([
             'ok' => true,

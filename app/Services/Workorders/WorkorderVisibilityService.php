@@ -3,6 +3,7 @@
 namespace App\Services\Workorders;
 
 use App\Models\GeneralTask;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -38,6 +39,23 @@ class WorkorderVisibilityService
 
         return $generalTasks
             ->reject(fn ($generalTask, int $index): bool => $hiddenPositions->contains($index + 1))
+            ->values();
+    }
+
+    public function filterVisibleMainsTasks(Collection $tasks, ?User $user): Collection
+    {
+        if (! $this->userHasConfiguredRole($user, 'roles_hide_task_names_in_mains')) {
+            return $tasks->values();
+        }
+
+        $hiddenTaskNames = $this->taskNames('hidden_task_names_in_mains');
+
+        if ($hiddenTaskNames === []) {
+            return $tasks->values();
+        }
+
+        return $tasks
+            ->reject(fn (Task $task): bool => in_array($task->name, $hiddenTaskNames, true))
             ->values();
     }
 

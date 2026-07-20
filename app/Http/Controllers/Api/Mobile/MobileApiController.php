@@ -30,6 +30,7 @@ use App\Models\WoBushingProcess;
 use App\Models\Workorder;
 use App\Notifications\NewMessageNotification;
 use App\Services\MachiningListingRowsBuilder;
+use App\Services\MobileReviewAccess;
 use App\Services\PaintIndexRowsBuilder;
 use App\Services\WorkorderNotifyService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -231,6 +232,8 @@ class MobileApiController extends Controller
         $query = Workorder::withDrafts()
             ->with(['unit.manual', 'customer', 'instruction', 'user', 'main.task'])
             ->orderByDesc('number');
+
+        $this->reviewAccess()->applyWorkorderScope($query, $user);
 
         if ($scope === 'draft') {
             abort_unless($user->roleIs(['Shipping', 'Manager', 'Admin']), 403);
@@ -516,15 +519,16 @@ class MobileApiController extends Controller
                     'is_done' => (bool) ($gtDoneMap[$group->id] ?? false),
                     'tasks' => ($tasks[$group->id] ?? collect())->map(function (Task $task) use ($mains, $request) {
                         $main = $mains[$task->id] ?? null;
-                        $restricted = in_array($task->name, ['Approved', 'Completed'], true);
-                        $canEditFinish = ! $restricted || $request->user()->hasAnyRole('Admin|Manager');
+                        $permissions = $this->taskDatePermissions($request->user(), $task);
 
                         return [
                             'id' => $task->id,
                             'name' => $task->name,
                             'has_start_date' => (bool) $task->task_has_start_date,
-                            'restricted_finish' => $restricted,
-                            'can_edit_finish' => $canEditFinish,
+                            'restricted_finish' => $permissions['restricted_finish'],
+                            'restriction_code' => $permissions['restriction_code'],
+                            'can_edit_start' => $permissions['can_edit_start'],
+                            'can_edit_finish' => $permissions['can_edit_finish'],
                             'main' => $main ? $this->mainPayload($main) : null,
                         ];
                     })->values(),
@@ -542,9 +546,10 @@ class MobileApiController extends Controller
             'ignore_row' => ['nullable', 'boolean'],
         ]);
 
-        if ($request->has('date_finish')
-            && in_array($task->name, ['Approved', 'Completed'], true)
-            && ! $request->user()->hasAnyRole('Admin|Manager')) {
+        $permissions = $this->taskDatePermissions($request->user(), $task);
+        if (($request->exists('date_start') && ! $permissions['can_edit_start'])
+            || ($request->exists('date_finish') && ! $permissions['can_edit_finish'])
+            || ($request->exists('ignore_row') && ! $permissions['can_edit_dates'])) {
             abort(403);
         }
 
@@ -553,14 +558,16 @@ class MobileApiController extends Controller
             ->where('task_id', $task->id)
             ->first();
 
-        $ignoreRow = $request->boolean('ignore_row', (bool) ($main?->ignore_row ?? false));
+        $ignoreRow = $request->exists('ignore_row')
+            ? $request->boolean('ignore_row')
+            : (bool) ($main?->ignore_row ?? false);
         $resolved = Main::validateAndResolveDates(
             $data,
             $task,
             $main,
             $ignoreRow,
-            $request->has('date_start'),
-            $request->has('date_finish')
+            $request->exists('date_start'),
+            $request->exists('date_finish')
         );
 
         if (! $main) {
@@ -606,6 +613,9 @@ class MobileApiController extends Controller
 
         return $this->ok([
             'workorder' => $this->workorderMiniPayload($workorder),
+            // attached_components is the native contract. Keep components as
+            // a compatibility alias for older Android/iOS builds.
+            'attached_components' => $attachedComponents,
             'components' => $attachedComponents,
             'manual_components' => $manualId
                 ? Component::query()
@@ -665,6 +675,8 @@ class MobileApiController extends Controller
 
     public function updateComponent(Request $request, Component $component): JsonResponse
     {
+        abort_unless($this->reviewAccess()->canAccessComponent($request->user(), $component), 404);
+
         $data = $request->validate([
             'name' => ['nullable', 'string', 'max:255'],
             'ipl_num' => ['nullable', 'string', 'max:255'],
@@ -693,6 +705,8 @@ class MobileApiController extends Controller
 
     public function storeComponentPhoto(Request $request, Component $component): JsonResponse
     {
+        abort_unless($this->reviewAccess()->canAccessComponent($request->user(), $component), 404);
+
         $request->validate([
             'photo' => ['required', 'image', 'max:102400'],
         ]);
@@ -723,6 +737,8 @@ class MobileApiController extends Controller
 
     public function updateComponentAttachment(Request $request, Tdr $tdr): JsonResponse
     {
+        $this->ensureReviewCanAccessTdr($request, $tdr);
+
         $validated = $request->validate([
             'code_id' => ['required', 'exists:codes,id'],
             'necessaries_id' => ['nullable', 'exists:necessaries,id'],
@@ -739,8 +755,10 @@ class MobileApiController extends Controller
         return $this->ok(['attachment' => $this->tdrPayload($tdr)]);
     }
 
-    public function deleteComponentAttachment(Tdr $tdr): JsonResponse
+    public function deleteComponentAttachment(Request $request, Tdr $tdr): JsonResponse
     {
+        $this->ensureReviewCanAccessTdr($request, $tdr);
+
         $id = $tdr->id;
         $tdr->delete();
 
@@ -758,7 +776,7 @@ class MobileApiController extends Controller
         $components = $workorder->tdrs
             ->filter(static fn (Tdr $tdr) => (bool) $tdr->component)
             ->groupBy('component_id')
-            ->map(function ($group) {
+            ->map(function ($group) use ($request) {
                 $component = $group->first()->component;
                 $processes = $group
                     ->flatMap(fn (Tdr $tdr) => $tdr->tdrProcesses ?? collect())
@@ -770,7 +788,7 @@ class MobileApiController extends Controller
 
                 $payload = $this->componentPayload($component);
                 $payload['processes'] = $processes
-                    ->map(fn (TdrProcess $process) => $this->tdrProcessPayload($process))
+                    ->map(fn (TdrProcess $process) => $this->tdrProcessPayload($process, $request->user()))
                     ->values();
 
                 return $payload;
@@ -786,6 +804,17 @@ class MobileApiController extends Controller
 
     public function updateTdrProcessDates(Request $request, TdrProcess $tdrProcess)
     {
+        $tdrProcess->loadMissing(['tdr.workorder', 'processName']);
+        abort_unless($tdrProcess->tdr?->workorder !== null, 404);
+        abort_unless($this->reviewAccess()->canAccessWorkorder($request->user(), $tdrProcess->tdr->workorder), 404);
+
+        $permissions = $this->processDatePermissions($request->user(), $tdrProcess);
+        if (($request->exists('date_start') && ! $permissions['can_edit_start'])
+            || ($request->exists('date_finish') && ! $permissions['can_edit_finish'])
+            || ($request->exists('date_promise') && ! $permissions['can_edit_promise'])) {
+            abort(403);
+        }
+
         $request->headers->set('Accept', 'application/json');
         $request->headers->set('X-Requested-With', 'XMLHttpRequest');
 
@@ -811,7 +840,7 @@ class MobileApiController extends Controller
         $tdrProcess->refresh()->loadMissing(['processName']);
 
         return $this->ok([
-            'process' => $this->tdrProcessPayload($tdrProcess),
+            'process' => $this->tdrProcessPayload($tdrProcess, $request->user()),
             'updated_by' => $payload['user'] ?? null,
             'date_start_user' => $payload['date_start_user'] ?? null,
             'date_finish_user' => $payload['date_finish_user'] ?? null,
@@ -1258,11 +1287,17 @@ class MobileApiController extends Controller
     protected function canAccessMedia(Request $request, Media $media): bool
     {
         if ($media->model_type === (new Workorder())->getMorphClass()) {
-            return true;
+            $workorder = Workorder::withDrafts()->find($media->model_id);
+
+            return $workorder !== null
+                && $this->reviewAccess()->canAccessWorkorder($request->user(), $workorder);
         }
 
         if ($media->model_type === (new Component())->getMorphClass()) {
-            return true;
+            $component = Component::query()->find($media->model_id);
+
+            return $component !== null
+                && $this->reviewAccess()->canAccessComponent($request->user(), $component);
         }
 
         if ($media->model_type === (new User())->getMorphClass()) {
@@ -1324,9 +1359,13 @@ class MobileApiController extends Controller
             $with[] = 'main.task';
         }
 
-        return Workorder::withDrafts()
+        $workorder = Workorder::withDrafts()
             ->with($with)
             ->findOrFail($id);
+
+        abort_unless($this->reviewAccess()->canAccessWorkorder(request()->user(), $workorder), 404);
+
+        return $workorder;
     }
 
     protected function userPayload(User $user): array
@@ -1344,6 +1383,8 @@ class MobileApiController extends Controller
                 'can_use_paint' => $user->roleIs(['Paint', 'Admin', 'Manager']),
                 'can_use_machining' => $user->roleIs(['Machining', 'Admin', 'Manager']),
                 'can_edit_restricted_task_finish' => $user->hasAnyRole('Admin|Manager'),
+                'can_view_all_workorders' => ! $this->reviewAccess()->isReviewUser($user),
+                'can_view_done_workorders' => ! $this->reviewAccess()->isReviewUser($user),
             ],
         ];
     }
@@ -1510,8 +1551,10 @@ class MobileApiController extends Controller
         ];
     }
 
-    protected function tdrProcessPayload(TdrProcess $process): array
+    protected function tdrProcessPayload(TdrProcess $process, ?User $user = null): array
     {
+        $permissions = $this->processDatePermissions($user, $process);
+
         return [
             'id' => $process->id,
             'name' => $process->processName?->name,
@@ -1522,7 +1565,59 @@ class MobileApiController extends Controller
             'date_start' => optional($process->date_start)?->format('Y-m-d'),
             'date_finish' => optional($process->date_finish)?->format('Y-m-d'),
             'date_promise' => optional($process->date_promise)?->format('Y-m-d'),
+            'can_edit_start' => $permissions['can_edit_start'],
+            'can_edit_finish' => $permissions['can_edit_finish'],
+            'can_edit_promise' => $permissions['can_edit_promise'],
         ];
+    }
+
+    /** @return array{can_edit_dates: bool, can_edit_start: bool, can_edit_finish: bool, restricted_finish: bool, restriction_code: ?string} */
+    protected function taskDatePermissions(User $user, Task $task): array
+    {
+        $taskKey = ProcessName::normalizedNameKey($task->name);
+        $managerOnly = in_array($taskKey, [
+            'approved',
+            'completed',
+            'wosubmittedforquote',
+            'wosubmittedforquate',
+        ], true);
+        $canEditDates = ! $managerOnly || $user->hasAnyRole('Admin|Manager');
+
+        return [
+            'can_edit_dates' => $canEditDates,
+            'can_edit_start' => (bool) $task->task_has_start_date && $canEditDates,
+            'can_edit_finish' => $canEditDates,
+            'restricted_finish' => $managerOnly,
+            'restriction_code' => in_array($taskKey, ['wosubmittedforquote', 'wosubmittedforquate'], true)
+                ? 'manager_only_quote_submission_dates'
+                : ($managerOnly ? 'manager_only_task_dates' : null),
+        ];
+    }
+
+    /** @return array{can_edit_start: bool, can_edit_finish: bool, can_edit_promise: bool} */
+    protected function processDatePermissions(?User $user, TdrProcess $process): array
+    {
+        $process->loadMissing('processName');
+        $managerOnly = ProcessName::isExactEcName($process->processName?->name);
+        $canEdit = ! $managerOnly || (bool) ($user?->hasAnyRole('Admin|Manager') ?? false);
+
+        return [
+            'can_edit_start' => $canEdit,
+            'can_edit_finish' => $canEdit,
+            'can_edit_promise' => $canEdit,
+        ];
+    }
+
+    protected function ensureReviewCanAccessTdr(Request $request, Tdr $tdr): void
+    {
+        $tdr->loadMissing('workorder');
+        abort_unless($tdr->workorder !== null, 404);
+        abort_unless($this->reviewAccess()->canAccessWorkorder($request->user(), $tdr->workorder), 404);
+    }
+
+    protected function reviewAccess(): MobileReviewAccess
+    {
+        return app(MobileReviewAccess::class);
     }
 
     protected function mainPayload(Main $main): array

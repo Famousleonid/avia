@@ -215,6 +215,38 @@ class WorkordersIndexTest extends TestCase
         $response->assertDontSee((string) $other->number);
     }
 
+    public function test_number_only_filter_does_not_match_workorder_description(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $matching = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 100677,
+        ]);
+        $containsButDoesNotEndWithSearch = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 106779,
+        ]);
+        $descriptionOnlyMatch = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 654321,
+            'description' => 'Contains 0677 but is not the number',
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('workorders.index', [
+            'fragment' => 1,
+            'per_page' => 50,
+            'only_my' => 0,
+            'number_only' => 1,
+            'q' => '0677',
+        ]));
+
+        $response->assertOk();
+        $response->assertJsonPath('total_count', 1);
+        $response->assertSee((string) $matching->number);
+        $response->assertDontSee((string) $containsButDoesNotEndWithSearch->number);
+        $response->assertDontSee((string) $descriptionOnlyMatch->number);
+    }
+
     public function test_quick_open_search_control_is_visible_for_allowed_email_and_system_admin(): void
     {
         $allowed = $this->createUserWithRole('Admin', [
@@ -311,29 +343,62 @@ class WorkordersIndexTest extends TestCase
         $response->assertJsonPath('workorder.number', '765432');
     }
 
-    public function test_quick_open_search_does_not_return_url_when_multiple_workorders_match(): void
+    public function test_quick_open_search_uses_number_suffix_and_opens_highest_matching_workorder(): void
     {
         $admin = $this->createUserWithRole('Admin', [
             'email' => 'vkyushkevich@yahoo.ca',
         ]);
         $this->createWorkorder([
             'user_id' => $admin->id,
-            'number' => 765431,
+            'number' => 100677,
         ]);
         $this->createWorkorder([
             'user_id' => $admin->id,
-            'number' => 765432,
+            'number' => 110677,
+        ]);
+        $highestMatching = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 120677,
+        ]);
+        $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 106779,
         ]);
 
         $response = $this->actingAs($admin)->getJson(route('workorders.quick-open-search', [
-            'q' => '76543',
+            'q' => '0677',
         ]));
 
         $response->assertOk();
         $response->assertJsonPath('ok', true);
-        $response->assertJsonPath('count', 2);
-        $response->assertJsonPath('message', 'More than one workorder found.');
-        $response->assertJsonMissingPath('url');
+        $response->assertJsonPath('count', 3);
+        $response->assertJsonPath('url', route('mains.show', $highestMatching->id));
+        $response->assertJsonPath('workorder.number', '120677');
+    }
+
+    public function test_quick_open_search_matches_workorder_number_only(): void
+    {
+        $admin = $this->createUserWithRole('Admin', [
+            'email' => 'vkyushkevich@yahoo.ca',
+        ]);
+        $matching = $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 765432,
+        ]);
+        $this->createWorkorder([
+            'user_id' => $admin->id,
+            'number' => 123456,
+            'description' => 'Contains 765432 but is not the number',
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('workorders.quick-open-search', [
+            'q' => '765432',
+        ]));
+
+        $response->assertOk();
+        $response->assertJsonPath('count', 1);
+        $response->assertJsonPath('url', route('mains.show', $matching->id));
+        $response->assertJsonPath('workorder.number', '765432');
     }
 
     public function test_quick_open_search_endpoint_is_forbidden_for_other_emails(): void

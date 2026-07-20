@@ -18,6 +18,7 @@ class Manual extends Model implements HasMedia
         'number',
         'title',
         'img',
+        'revision_number',
         'revision_date',
         'unit_name',
         'unit_name_training',
@@ -39,6 +40,7 @@ class Manual extends Model implements HasMedia
             ->logOnly([
                 'number',
                 'title',
+                'revision_number',
                 'revision_date',
                 'unit_name',
                 'lib',

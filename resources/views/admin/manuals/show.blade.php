@@ -699,6 +699,47 @@
             visibility: hidden;
         }
 
+        .manual-tabs-loading {
+            display: inline-flex;
+            align-items: center;
+            gap: .45rem;
+            color: #fff;
+            font-weight: 500;
+        }
+
+        .manual-tabs-loading-dots {
+            display: inline-flex;
+            gap: .25rem;
+        }
+
+        .manual-tabs-loading-dots span {
+            width: .42rem;
+            height: .42rem;
+            border-radius: 50%;
+            background: currentColor;
+            animation: manual-tabs-loading-pulse 1.05s ease-in-out infinite;
+        }
+
+        .manual-tabs-loading-dots span:nth-child(2) {
+            animation-delay: .15s;
+        }
+
+        .manual-tabs-loading-dots span:nth-child(3) {
+            animation-delay: .3s;
+        }
+
+        @keyframes manual-tabs-loading-pulse {
+            0%, 80%, 100% { opacity: .3; transform: scale(.75); }
+            40% { opacity: 1; transform: scale(1); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .manual-tabs-loading-dots span {
+                animation: none;
+                opacity: 1;
+            }
+        }
+
         .manual-show-card {
             flex: 1 1 auto;
             min-height: 0;
@@ -824,8 +865,11 @@
         </div>
 
         <div class="card-body">
-            <div id="manual-show-tabs-overlay" aria-hidden="true">
-                <div class="text-light">{{ __("Loading...") }}</div>
+            <div id="manual-show-tabs-overlay" role="status" aria-live="polite">
+                <div class="manual-tabs-loading">
+                    <span>{{ __("Loading") }}</span>
+                    <span class="manual-tabs-loading-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                </div>
             </div>
             <script>
                 (function () {
@@ -2148,21 +2192,6 @@
                     var row = form.closest('tr');
                     var container = row ? row.closest('.parts-table-container') : null;
                     var tbody = row ? row.closest('tbody') : null;
-                    var nextFocusRow = null;
-                    if (row) {
-                        var cursor = row.nextElementSibling;
-                        while (cursor && (cursor.hidden || cursor.classList.contains('components-empty-row'))) {
-                            cursor = cursor.nextElementSibling;
-                        }
-                        nextFocusRow = cursor;
-                        cursor = row.previousElementSibling;
-                        while (!nextFocusRow && cursor) {
-                            if (!cursor.hidden && !cursor.classList.contains('components-empty-row')) {
-                                nextFocusRow = cursor;
-                            }
-                            cursor = cursor.previousElementSibling;
-                        }
-                    }
                     var savedScrollTop = container ? container.scrollTop : 0;
                     var submitButton = form.querySelector('button[type="submit"]');
 
@@ -2192,12 +2221,7 @@
                             container.scrollTop = savedScrollTop;
                         }
 
-                        if (nextFocusRow && !nextFocusRow.classList.contains('components-empty-row')) {
-                            nextFocusRow.classList.add('table-warning');
-                            window.setTimeout(function () {
-                                nextFocusRow.classList.remove('table-warning');
-                            }, 1400);
-                        } else if (tbody && tbody.querySelectorAll('tr:not(.components-empty-row)').length === 0) {
+                        if (tbody && tbody.querySelectorAll('tr:not(.components-empty-row)').length === 0) {
                             tbody.innerHTML = '<tr class="components-empty-row"><td colspan="19" class="text-center text-muted py-4">{{ __('PARTS NOT FOUND') }}</td></tr>';
                         }
 

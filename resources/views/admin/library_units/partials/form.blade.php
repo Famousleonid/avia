@@ -15,7 +15,7 @@
 
     <div class="col-12 col-md-6">
         <label for="{{ $prefix }}ManualId" class="form-label">{{ __('CMM') }}</label>
-        <select id="{{ $prefix }}ManualId" class="form-select" name="manual_id">
+        <select id="{{ $prefix }}ManualId" class="form-select unit-manual-select" name="manual_id">
             <option value="">{{ __('Manual pending') }}</option>
             @foreach($manuals as $manual)
                 <option value="{{ $manual->id }}">

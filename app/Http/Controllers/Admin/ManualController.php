@@ -108,6 +108,7 @@ class ManualController extends Controller
         $request->validate([
             'number' => 'required|string|max:255',
             'title' => 'required|string|max:255',
+            'revision_number' => 'nullable|string|max:255',
             'revision_date' => 'required|date',
             'unit_name' => 'nullable',
             'unit_name_training' => 'nullable',
@@ -132,7 +133,7 @@ class ManualController extends Controller
         $manual = DB::transaction(function () use ($request, $planeIds) {
             // Создаем новый CMM
             $manual = Manual::create($request->only([
-                'number', 'title', 'revision_date', 'unit_name','unit_name_training','training_hours','ovh_life','reg_sb',
+                'number', 'title', 'revision_number', 'revision_date', 'unit_name','unit_name_training','training_hours','ovh_life','reg_sb',
                 'builders_id', 'scopes_id', 'lib',
             ]) + ['planes_id' => $planeIds[0]]);
             $manual->planes()->sync($planeIds);
@@ -446,6 +447,7 @@ class ManualController extends Controller
         DB::transaction(function () use ($manual, $validated): void {
             if ($validated['status'] === ManualRevisionCheck::STATUS_CHANGED) {
                 $manual->update([
+                    'revision_number' => $validated['revision_number'] ?? null,
                     'revision_date' => $validated['revision_date'],
                 ]);
             }
@@ -489,6 +491,7 @@ class ManualController extends Controller
                     'id' => $cmm->id,
                     'number' => $cmm->number,
                     'title' => $cmm->title,
+                    'revision_number' => $cmm->revision_number,
                     'revision_date' => $cmm->revision_date,
                     'unit_name' => $cmm->unit_name,
                     'unit_name_training' => $cmm->unit_name_training,
@@ -520,6 +523,7 @@ class ManualController extends Controller
         $validatedData = $request->validate([
             'number' => 'required',
             'title' => 'required',
+            'revision_number' => 'nullable|string|max:255',
             'revision_date' => 'required',
             'unit_name' => 'nullable',
             'unit_name_training' => 'nullable',

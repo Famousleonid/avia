@@ -140,6 +140,10 @@
         .library-units-page #manualFilter + .select2 .select2-selection__arrow {
             height: 29px;
         }
+
+        .unit-manual-select + .select2 {
+            width: 100% !important;
+        }
     </style>
 
     <div class="container-fluid library-units-page">
@@ -275,6 +279,9 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                        <button type="button" class="btn btn-outline-primary" id="copyUnitButton">
+                            <i class="bi bi-copy me-1"></i>{{ __('Add as copy') }}
+                        </button>
                         <button type="submit" class="btn btn-outline-primary">{{ __('Update') }}</button>
                     </div>
                 </form>
@@ -418,9 +425,51 @@
 
             const editModal = document.getElementById('editUnitModal');
             const editForm = document.getElementById('editUnitForm');
+            const createModal = document.getElementById('createUnitModal');
+            const createForm = createModal?.querySelector('form');
+            const copyUnitButton = document.getElementById('copyUnitButton');
             const updateUrlTemplate = @json(route('library.units.update', ['unit' => '__unit__']));
+            let editUnitPayload = null;
+            let copiedUnitPayload = null;
+
+            function initializeModalManualSelect(modal) {
+                const manualSelect = modal?.querySelector('.unit-manual-select');
+                if (!manualSelect || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
+                    return;
+                }
+
+                const $manualSelect = window.jQuery(manualSelect);
+                if (!$manualSelect.hasClass('select2-hidden-accessible')) {
+                    $manualSelect.select2({
+                        width: '100%',
+                        dropdownParent: window.jQuery(modal),
+                        placeholder: 'Manual pending',
+                    });
+                }
+            }
+
+            function fillCreateForm(unit) {
+                if (!createForm) return;
+
+                ['part_number', 'name', 'description', 'eff_code'].forEach(function (field) {
+                    const input = createForm.querySelector('[name="' + field + '"]');
+                    if (input) input.value = unit[field] || '';
+                });
+
+                const manualSelect = createForm.querySelector('[name="manual_id"]');
+                if (manualSelect) {
+                    manualSelect.value = unit.manual_id || '';
+                    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        window.jQuery(manualSelect).trigger('change.select2');
+                    }
+                }
+
+                const verified = createForm.querySelector('[name="verified"]');
+                if (verified) verified.checked = unit.verified !== false;
+            }
 
             function fillEditForm(unit) {
+                editUnitPayload = unit;
                 editForm.action = updateUrlTemplate.replace('__unit__', encodeURIComponent(unit.id || ''));
 
                 ['part_number', 'name', 'description', 'eff_code'].forEach(function (field) {
@@ -434,6 +483,29 @@
                 const verified = editForm.querySelector('[name="verified"]');
                 if (verified) verified.checked = Boolean(unit.verified);
             }
+
+            createModal?.addEventListener('shown.bs.modal', function () {
+                initializeModalManualSelect(createModal);
+            });
+
+            editModal?.addEventListener('shown.bs.modal', function () {
+                initializeModalManualSelect(editModal);
+            });
+
+            copyUnitButton?.addEventListener('click', function () {
+                if (!editUnitPayload || !editModal || !createModal) return;
+
+                copiedUnitPayload = editUnitPayload;
+                bootstrap.Modal.getOrCreateInstance(editModal).hide();
+            });
+
+            editModal?.addEventListener('hidden.bs.modal', function () {
+                if (!copiedUnitPayload || !createModal) return;
+
+                fillCreateForm(copiedUnitPayload);
+                copiedUnitPayload = null;
+                bootstrap.Modal.getOrCreateInstance(createModal).show();
+            });
 
             editModal?.addEventListener('show.bs.modal', function (event) {
                 const trigger = event.relatedTarget;

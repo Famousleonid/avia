@@ -97,6 +97,8 @@ Route::get('/clear', function () {
 
 
 Route::get('/front', [FrontController::class, 'index'])->name('front.index');
+Route::view('/privacy', 'public.privacy')->name('public.privacy');
+Route::view('/support', 'public.support')->name('public.support');
 Route::get('/', function (\Illuminate\Http\Request $request) {
     if (!Auth::check()) {
         return view('front.index');

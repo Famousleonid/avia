@@ -26,6 +26,16 @@ return [
         'Team Leader',
     ],
 
+    'roles_hide_task_names_in_mains' => [
+        'Technician',
+        'Team Leader',
+    ],
+
+    'hidden_task_names_in_mains' => [
+        'Approved',
+        'Completed',
+    ],
+
     'completed_task_names' => [
         'Completed',
     ],

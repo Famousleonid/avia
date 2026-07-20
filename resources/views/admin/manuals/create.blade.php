@@ -250,7 +250,13 @@
                                     <input id="reg_sb" type="text" class="form-control" name="reg_sb" value="{{ old('reg_sb') }}">
                                 </div>
 
-                                <div class="col-12 col-md-6">
+                                <div class="col-12 col-md-3">
+                                    <label for="revision_number" class="form-label">{{ __('Revision Number') }}</label>
+                                    <input id="revision_number" type="text" class="form-control" name="revision_number"
+                                           maxlength="255" value="{{ old('revision_number') }}">
+                                </div>
+
+                                <div class="col-12 col-md-3">
                                     <label for="revision_date">{{ __('Revision Date') }}</label>
                                     <input id="revision_date"
                                            type="text"

@@ -474,15 +474,19 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label" for="create_cmm_ovh_life">{{ __('Overhaul Life') }}</label>
                                 <input id="create_cmm_ovh_life" type="text" class="form-control" name="ovh_life">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label" for="create_cmm_reg_sb">{{ __('Inspection Req.SB') }}</label>
                                 <input id="create_cmm_reg_sb" type="text" class="form-control" name="reg_sb">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label class="form-label" for="create_cmm_revision_number">{{ __('Revision Number') }}</label>
+                                <input id="create_cmm_revision_number" type="text" class="form-control" name="revision_number" maxlength="255">
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label" for="create_cmm_revision_date">{{ __('Revision Date') }}</label>
                                 <input id="create_cmm_revision_date" type="date" class="form-control" name="revision_date" required>
                             </div>
@@ -586,15 +590,19 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label" for="edit_cmm_ovh_life">{{ __('Overhaul Life') }}</label>
                                 <input id="edit_cmm_ovh_life" type="text" class="form-control" name="ovh_life">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label" for="edit_cmm_reg_sb">{{ __('Inspection Req.SB') }}</label>
                                 <input id="edit_cmm_reg_sb" type="text" class="form-control" name="reg_sb">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label class="form-label" for="edit_cmm_revision_number">{{ __('Revision Number') }}</label>
+                                <input id="edit_cmm_revision_number" type="text" class="form-control" name="revision_number" maxlength="255">
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label" for="edit_cmm_revision_date">{{ __('Revision Date') }}</label>
                                 <input id="edit_cmm_revision_date" type="date" class="form-control" name="revision_date" required>
                             </div>
@@ -966,6 +974,7 @@
                 setEditValue('scopes_id', manual.scopes_id);
                 setEditValue('ovh_life', manual.ovh_life);
                 setEditValue('reg_sb', manual.reg_sb);
+                setEditValue('revision_number', manual.revision_number);
                 setEditValue('revision_date', manual.revision_date);
 
                 if (editUnitInputs) {

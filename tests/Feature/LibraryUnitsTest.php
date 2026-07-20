@@ -96,6 +96,25 @@ class LibraryUnitsTest extends TestCase
             ->assertDontSee('bi-pencil-square');
     }
 
+    public function test_library_unit_modals_support_manual_search_and_copying_an_existing_unit(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->createManual([
+            'number' => 'CMM-UNIT-SELECT',
+            'title' => 'Searchable unit manual',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('library.units.index'));
+
+        $response
+            ->assertOk()
+            ->assertSee('createManualId', false)
+            ->assertSee('editManualId', false)
+            ->assertSee('unit-manual-select', false)
+            ->assertSee('copyUnitButton', false)
+            ->assertSee('Add as copy');
+    }
+
     public function test_library_units_are_admin_only(): void
     {
         $manager = $this->createUserWithRole('Manager');

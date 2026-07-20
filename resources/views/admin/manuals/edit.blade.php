@@ -220,6 +220,11 @@
                             </div>
 
                             <div class="mt-2">
+                                <label for="revision_number" class="form-label">{{ __('Revision Number') }}</label>
+                                <input id="revision_number" type="text" class="form-control" name="revision_number"
+                                       maxlength="255" value="{{ old('revision_number', $cmm->revision_number) }}">
+                            </div>
+                            <div class="mt-2">
                                 <label for="revision_date" class="form-label">{{ __('Revision Date') }}</label>
                                 <input id='revision_date' type="date" class="form-control" name="revision_date"
                                        value="{{ old('revision_date', $cmm->revision_date) }}" required>

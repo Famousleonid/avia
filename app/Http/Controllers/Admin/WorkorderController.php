@@ -333,6 +333,7 @@ class WorkorderController extends Controller
 
         $filters = [
             'q' => $term,
+            'number_only' => true,
             'customer_id' => '',
             'technik_id' => '',
             'only_my' => false,
@@ -342,25 +343,22 @@ class WorkorderController extends Controller
             'sort' => 'number',
             'direction' => 'desc',
             'cursor' => null,
-            'per_page' => 2,
         ];
 
         $query = Workorder::query()->withDrafts();
         $this->applyWorkorderRoleVisibility($query);
         $this->applyWorkorderIndexFilters($query, $filters);
 
-        $matches = $query
+        $matchesCount = (clone $query)->count();
+        $workorder = $query
             ->orderByDesc('workorders.number')
             ->orderByDesc('workorders.id')
-            ->limit(2)
-            ->get(['workorders.id', 'workorders.number']);
+            ->first(['workorders.id', 'workorders.number']);
 
-        if ($matches->count() === 1) {
-            $workorder = $matches->first();
-
+        if ($workorder) {
             return response()->json([
                 'ok' => true,
-                'count' => 1,
+                'count' => $matchesCount,
                 'url' => route('mains.show', $workorder->id),
                 'workorder' => [
                     'id' => $workorder->id,
@@ -371,10 +369,8 @@ class WorkorderController extends Controller
 
         return response()->json([
             'ok' => true,
-            'count' => $matches->count(),
-            'message' => $matches->isEmpty()
-                ? 'No workorder found.'
-                : 'More than one workorder found.',
+            'count' => 0,
+            'message' => 'No workorder found.',
         ]);
     }
 
@@ -452,6 +448,7 @@ class WorkorderController extends Controller
 
         return [
             'q' => trim((string) $request->get('q', '')),
+            'number_only' => $request->boolean('number_only', false),
             'customer_id' => (string) $request->get('customer_id', ''),
             'technik_id' => (string) $request->get('technik_id', ''),
             'only_my' => $request->boolean('only_my', false),
@@ -497,34 +494,38 @@ class WorkorderController extends Controller
     private function applyWorkorderIndexFilters(Builder $query, array $filters): void
     {
         if ($filters['q'] !== '') {
-            $like = '%' . $filters['q'] . '%';
+            if ($filters['number_only']) {
+                $query->where('workorders.number', 'like', '%' . $filters['q']);
+            } else {
+                $like = '%' . $filters['q'] . '%';
 
-            $query->where(function (Builder $q) use ($like) {
-                $q->where('workorders.number', 'like', $like)
-                    ->orWhere('workorders.description', 'like', $like)
-                    ->orWhere('workorders.serial_number', 'like', $like)
-                    ->orWhere('workorders.customer_po', 'like', $like)
-                    ->orWhere('workorders.amdt', 'like', $like)
-                    ->orWhereHas('customer', function (Builder $customer) use ($like) {
-                        $customer->where('name', 'like', $like);
-                    })
-                    ->orWhereHas('instruction', function (Builder $instruction) use ($like) {
-                        $instruction->where('name', 'like', $like);
-                    })
-                    ->orWhereHas('user', function (Builder $user) use ($like) {
-                        $user->where('name', 'like', $like);
-                    })
-                    ->orWhereHas('unit', function (Builder $unit) use ($like) {
-                        $unit->where('part_number', 'like', $like)
-                            ->orWhere('name', 'like', $like)
-                            ->orWhere('description', 'like', $like)
-                            ->orWhere('eff_code', 'like', $like)
-                            ->orWhereHas('manual', function (Builder $manual) use ($like) {
-                                $manual->where('number', 'like', $like)
-                                    ->orWhere('lib', 'like', $like);
-                            });
-                    });
-            });
+                $query->where(function (Builder $q) use ($like) {
+                    $q->where('workorders.number', 'like', $like)
+                        ->orWhere('workorders.description', 'like', $like)
+                        ->orWhere('workorders.serial_number', 'like', $like)
+                        ->orWhere('workorders.customer_po', 'like', $like)
+                        ->orWhere('workorders.amdt', 'like', $like)
+                        ->orWhereHas('customer', function (Builder $customer) use ($like) {
+                            $customer->where('name', 'like', $like);
+                        })
+                        ->orWhereHas('instruction', function (Builder $instruction) use ($like) {
+                            $instruction->where('name', 'like', $like);
+                        })
+                        ->orWhereHas('user', function (Builder $user) use ($like) {
+                            $user->where('name', 'like', $like);
+                        })
+                        ->orWhereHas('unit', function (Builder $unit) use ($like) {
+                            $unit->where('part_number', 'like', $like)
+                                ->orWhere('name', 'like', $like)
+                                ->orWhere('description', 'like', $like)
+                                ->orWhere('eff_code', 'like', $like)
+                                ->orWhereHas('manual', function (Builder $manual) use ($like) {
+                                    $manual->where('number', 'like', $like)
+                                        ->orWhere('lib', 'like', $like);
+                                });
+                        });
+                });
+            }
         }
 
         if ($filters['only_my'] && auth()->check()) {

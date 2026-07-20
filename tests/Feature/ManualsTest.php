@@ -38,6 +38,8 @@ class ManualsTest extends TestCase
         $response->assertOk();
         $response->assertSee($manual->number);
         $response->assertSee('Main Manual');
+        $response->assertSee('for="edit_cmm_revision_number"', false);
+        $response->assertSee('name="revision_number" maxlength="255"', false);
     }
 
     public function test_system_admin_sees_and_can_permanently_delete_manual(): void
@@ -170,6 +172,7 @@ class ManualsTest extends TestCase
         $response = $this->actingAs($admin)->post(route('manuals.store'), [
             'number' => 'CMM-200',
             'title' => 'Created Manual',
+            'revision_number' => '7',
             'revision_date' => '2026-01-01',
             'unit_name' => 'Hydraulic Unit',
             'unit_name_training' => 'Training Unit',
@@ -192,6 +195,7 @@ class ManualsTest extends TestCase
         $this->assertDatabaseHas('manuals', [
             'number' => 'CMM-200',
             'title' => 'Created Manual',
+            'revision_number' => '7',
         ]);
         $this->assertDatabaseHas('units', [
             'manual_id' => $manual->id,
@@ -215,6 +219,7 @@ class ManualsTest extends TestCase
         $response = $this->actingAs($admin)->put(route('manuals.update', $manual->id), [
             'number' => 'CMM-300',
             'title' => 'After Update',
+            'revision_number' => '8',
             'revision_date' => '2026-02-01',
             'unit_name' => 'Updated Unit',
             'unit_name_training' => 'Updated Training',
@@ -237,6 +242,7 @@ class ManualsTest extends TestCase
 
         $this->assertSame('After Update', $manual->title);
         $this->assertSame('LIB-UPDATED', $manual->lib);
+        $this->assertSame('8', $manual->revision_number);
         $this->assertTrue($manual->permittedUsers()->where('users.id', $permittedUser->id)->exists());
         $this->assertDatabaseHas('units', [
             'manual_id' => $manual->id,

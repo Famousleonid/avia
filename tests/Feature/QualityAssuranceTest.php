@@ -195,6 +195,7 @@ class QualityAssuranceTest extends TestCase
         ]);
         $manual = $this->createManual([
             'number' => '32-11-08',
+            'revision_number' => '12',
             'revision_date' => '2025-06-15',
         ]);
         ManualRevisionCheck::query()->create([
@@ -859,13 +860,14 @@ class QualityAssuranceTest extends TestCase
         $this->createOverhaulInstruction();
         $manual = $this->createManual([
             'number' => '32-31-05 02',
+            'revision_number' => '9',
             'revision_date' => '2025-02-28',
         ]);
         ManualRevisionCheck::query()->create([
             'manual_id' => $manual->id,
-            'revision_number' => '9',
-            'revision_date' => '2025-02-28',
-            'checked_at' => '2025-02-28',
+            'revision_number' => '99',
+            'revision_date' => '2025-01-15',
+            'checked_at' => '2025-01-15',
             'status' => ManualRevisionCheck::STATUS_UNCHANGED,
         ]);
         $unit = $this->createUnit(['manual_id' => $manual->id]);
@@ -902,6 +904,7 @@ class QualityAssuranceTest extends TestCase
         $this->createOverhaulInstruction();
         $manual = $this->createManual([
             'number' => '32-31-02',
+            'revision_number' => '11',
             'revision_date' => '2025-09-15',
         ]);
         ManualRevisionCheck::query()->create([
@@ -1303,13 +1306,14 @@ class QualityAssuranceTest extends TestCase
         $this->assertArrayNotHasKey('certificate_item_part', $certificateData);
     }
 
-    public function test_certificate_manual_revision_fields_update_manual_and_latest_revision_check(): void
+    public function test_certificate_manual_revision_fields_update_manual_without_rewriting_revision_check_history(): void
     {
         $manager = $this->createUserWithRole('Manager', [
             'qa_access' => true,
         ]);
         $manual = $this->createManual([
             'number' => '32-11-07',
+            'revision_number' => '12',
             'revision_date' => '2025-06-15',
         ]);
         $revisionCheck = ManualRevisionCheck::query()->create([
@@ -1348,12 +1352,13 @@ class QualityAssuranceTest extends TestCase
         $numberResponse->assertJsonPath('manual_revision_number', '13');
         $this->assertDatabaseHas('manuals', [
             'id' => $manual->id,
+            'revision_number' => '13',
             'revision_date' => '2026-06-20',
         ]);
         $this->assertDatabaseHas('manual_revision_checks', [
             'id' => $revisionCheck->id,
-            'revision_number' => '13',
-            'revision_date' => '2026-06-20',
+            'revision_number' => '12',
+            'revision_date' => '2025-06-15',
         ]);
         $this->assertArrayNotHasKey('manual_revision_date', $workorder->fresh()->certificate_data ?? []);
         $this->assertArrayNotHasKey('manual_revision_number', $workorder->fresh()->certificate_data ?? []);

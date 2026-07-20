@@ -529,7 +529,7 @@
                         <input id="quickOpenSearchInput"
                                type="text"
                                class="form-control"
-                               placeholder="Search...">
+                               placeholder="Search number...">
                         <button id="clearQuickOpenSearch" type="button" class="btn-clear">
                             <i class="bi bi-x-circle"></i>
                         </button>
@@ -618,6 +618,7 @@
             data-total-count="{{ $totalCount }}"
             data-overall-total="{{ $overallTotal }}"
             data-initial-q="{{ request('q', '') }}"
+            data-initial-number-only="{{ request()->boolean('number_only', false) ? '1' : '0' }}"
             data-initial-customer="{{ request('customer_id', '') }}"
             data-initial-technik="{{ request('technik_id', '') }}"
             data-initial-only-my="{{ request()->boolean('only_my', false) ? '1' : '0' }}"
@@ -739,6 +740,7 @@
 
             const state = {
                 q: '',
+                numberOnly: false,
                 customerId: '',
                 technikId: '',
                 onlyMy: true,
@@ -758,6 +760,7 @@
 
             const serverState = {
                 q: tableWrapper.dataset.initialQ || '',
+                numberOnly: tableWrapper.dataset.initialNumberOnly === '1',
                 customerId: tableWrapper.dataset.initialCustomer || '',
                 technikId: tableWrapper.dataset.initialTechnik || '',
                 onlyMy: tableWrapper.dataset.initialOnlyMy === '1',
@@ -929,6 +932,7 @@
 
             function handleSearchInputChange(sourceInput) {
                 syncSearchInputs(sourceInput.value);
+                state.numberOnly = sourceInput === quickOpenSearchInput;
                 state.q = sourceInput === quickOpenSearchInput
                     ? normalizeQuickOpenSearchTerm(sourceInput.value)
                     : sourceInput.value.trim();
@@ -972,7 +976,7 @@
                         throw new Error(data.message || 'Search failed');
                     }
 
-                    if (data.count === 1 && data.url) {
+                    if (data.url) {
                         if (typeof window.showLoadingSpinner === 'function') window.showLoadingSpinner();
                         window.location.assign(data.url);
                         return;
@@ -1019,6 +1023,7 @@
                 const params = new URLSearchParams(window.location.search);
 
                 state.q = getUrlValue(params, 'q', getSavedValue('q', serverState.q));
+                state.numberOnly = getUrlBool(params, 'number_only', getSavedBool('numberOnly', serverState.numberOnly));
                 state.customerId = getUrlValue(params, 'customer_id', getSavedValue('customerId', serverState.customerId));
                 state.technikId = getUrlValue(params, 'technik_id', getSavedValue('technikId', serverState.technikId));
                 state.onlyMy = getUrlBool(params, 'only_my', getSavedBool('onlyMy', serverState.onlyMy));
@@ -1068,6 +1073,7 @@
                         key: 'filters',
                         value: {
                             q: state.q,
+                            numberOnly: state.numberOnly,
                             customerId: state.customerId,
                             technikId: state.technikId,
                             onlyMy: state.onlyMy,
@@ -1087,6 +1093,7 @@
                 const params = new URLSearchParams();
 
                 if (state.q) params.set('q', state.q);
+                if (state.numberOnly) params.set('number_only', '1');
                 if (state.customerId) params.set('customer_id', state.customerId);
                 if (state.technikId) params.set('technik_id', state.technikId);
                 params.set('only_my', state.onlyMy ? '1' : '0');
@@ -1107,6 +1114,7 @@
                 params.set('per_page', '50');
 
                 if (state.q) params.set('q', state.q);
+                if (state.numberOnly) params.set('number_only', '1');
                 if (state.customerId) params.set('customer_id', state.customerId);
                 if (state.technikId) params.set('technik_id', state.technikId);
                 params.set('only_my', state.onlyMy ? '1' : '0');
@@ -1161,6 +1169,7 @@
             function shouldReloadInitialData() {
                 if ([
                     'q',
+                    'number_only',
                     'customer_id',
                     'technik_id',
                     'only_my',
@@ -1174,6 +1183,7 @@
                 }
 
                 return state.q !== serverState.q
+                    || state.numberOnly !== serverState.numberOnly
                     || state.customerId !== serverState.customerId
                     || state.technikId !== serverState.technikId
                     || state.onlyMy !== serverState.onlyMy
@@ -1465,6 +1475,7 @@
             clearSearchBtn.addEventListener('click', () => {
                 syncSearchInputs('');
                 state.q = '';
+                state.numberOnly = false;
                 resetAndReload();
             });
 
@@ -1473,6 +1484,7 @@
             clearQuickOpenSearchBtn?.addEventListener('click', () => {
                 syncSearchInputs('');
                 state.q = '';
+                state.numberOnly = false;
                 resetAndReload();
             });
 
