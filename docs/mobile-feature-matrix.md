@@ -18,7 +18,7 @@
 | Login (+Remember me) | `POST auth/login` | ❓ | ✅ | e2e на Samsung A13 21.07.2026; токен с platform='android' |
 | Bootstrap / ролевая навигация | `GET bootstrap` | ❓ | ✅ | Home-заглушка показывает menu_mode; полноценный shell — 🔨 |
 | Logout | `POST auth/logout` | ❓ | ✅ | |
-| Profile (просмотр/правка/пароль) | `GET/PUT profile`, `POST profile/password` | ❓ | — | |
+| Profile (просмотр/правка/пароль) | `GET/PUT profile`, `POST profile/password` | ❓ | ✅ | 21.07 (e5c56f9): поля+Team, аватар (POST+_method=PUT), смена пароля |
 | Workorders: список | `GET workorders` | ❓ | ✅ | 21.07: поиск, Done, My/All; проверено на устройстве с реальным аккаунтом |
 | Workorder: карточка (storage, arrival box) | `GET workorders/{id}`, `PATCH …/storage`, `PATCH …/arrival-box` | ❓ | ✅ | 21.07: просмотр + редактирование storage/arrival (cf05b7c); Android-контур добавил recorded_by_name |
 | Workorder: медиа (фото, thumb) | `GET/POST/DELETE …/media`, `GET media/{id}/thumb|file` | ❓ | ✅ | 21.07: ленты + съёмка с камеры + fullscreen-зум (cf05b7c); удаление фото — нет |
