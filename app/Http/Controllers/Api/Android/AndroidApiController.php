@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Android;
 use App\Http\Controllers\Api\Mobile\MobileApiController;
 use App\Models\MobileApiToken;
 use App\Models\User;
+use App\Models\Workorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -67,5 +68,19 @@ class AndroidApiController extends MobileApiController
             'token' => $plainToken,
             'user' => $this->userPayload($user),
         ]);
+    }
+
+    /**
+     * Additive Android extra: recorded_by is a raw user id — resolve the name
+     * for display. iOS payload shape is unchanged (extra key only).
+     */
+    protected function arrivalBoxPayload(Workorder $workorder, User $user): array
+    {
+        $payload = parent::arrivalBoxPayload($workorder, $user);
+        $payload['recorded_by_name'] = $workorder->arrival_box_recorded_by
+            ? User::find($workorder->arrival_box_recorded_by)?->selection_name
+            : null;
+
+        return $payload;
     }
 }

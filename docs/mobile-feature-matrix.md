@@ -20,8 +20,8 @@
 | Logout | `POST auth/logout` | ❓ | ✅ | |
 | Profile (просмотр/правка/пароль) | `GET/PUT profile`, `POST profile/password` | ❓ | — | |
 | Workorders: список | `GET workorders` | ❓ | ✅ | 21.07: поиск, Done, My/All; проверено на устройстве с реальным аккаунтом |
-| Workorder: карточка (storage, arrival box) | `GET workorders/{id}`, `PATCH …/storage`, `PATCH …/arrival-box` | ❓ | 🔨 | 21.07: просмотр ✅ (24c5320), редактирование storage/arrival — далее |
-| Workorder: медиа (фото, thumb) | `GET/POST/DELETE …/media`, `GET media/{id}/thumb|file` | ❓ | 🔨 | 21.07: просмотр лент ✅ (Coil+Bearer, rebase URL), съёмка/загрузка — далее |
+| Workorder: карточка (storage, arrival box) | `GET workorders/{id}`, `PATCH …/storage`, `PATCH …/arrival-box` | ❓ | ✅ | 21.07: просмотр + редактирование storage/arrival (cf05b7c); Android-контур добавил recorded_by_name |
+| Workorder: медиа (фото, thumb) | `GET/POST/DELETE …/media`, `GET media/{id}/thumb|file` | ❓ | ✅ | 21.07: ленты + съёмка с камеры + fullscreen-зум (cf05b7c); удаление фото — нет |
 | Drafts (create/show) | `GET draft/options`, `POST drafts`, `POST draft-units` | ❓ | — | |
 | Tasks (даты) | `GET …/tasks`, `PUT …/tasks/{task}/dates` | ❓ | — | |
 | Components + фото | `GET/POST …/components`, `PATCH components/{id}`, `POST components/{id}/photo` | ❓ | — | |
