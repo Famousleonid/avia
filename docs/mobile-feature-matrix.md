@@ -25,7 +25,7 @@
 | Drafts (create/show) | `GET draft/options`, `POST drafts`, `POST draft-units` | ❓ | — | |
 | Tasks (даты) | `GET …/tasks`, `PUT …/tasks/{task}/dates` | ❓ | ✅ | 21.07 (975f3a2): даты календарём по can_edit_*; проверено на устройстве |
 | Components + фото | `GET/POST …/components`, `PATCH components/{id}`, `POST components/{id}/photo` | ❓ | ✅ | 21.07 (ac07d35): список+фото детали; создание нового компонента — нет |
-| TDR attachments | `POST …/component-attachments`, `PATCH/DELETE component-attachments/{tdr}` | ❓ | ✅ | 21.07 (ac07d35): attach из каталога, правка, удаление |
+| TDR attachments | `POST …/component-attachments`, `PATCH/DELETE component-attachments/{tdr}` | ❓ | ✅ | 21.07 (995320d): attach/правка/удаление + раздельные страницы Parts/Order New/Missing |
 | Processes (даты) | `GET …/processes`, `PATCH tdr-processes/{id}/dates` | ❓ | ✅ | 21.07 (975f3a2): Start/Finish/Promise по правам; проверено на устройстве |
 | Materials | `GET materials`, `PATCH materials/{id}` | ❓ | ✅ | 21.07 (ba82aad): список+поиск, правка только description; чипы разделов в shell |
 | Paint (lost, owner message) | `GET paint`, `POST paint/lost`, `DELETE paint/lost/{id}`, `POST paint/messages` | ❓ | — | |
