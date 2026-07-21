@@ -19,7 +19,7 @@
 | Bootstrap / ролевая навигация | `GET bootstrap` | ❓ | ✅ | Home-заглушка показывает menu_mode; полноценный shell — 🔨 |
 | Logout | `POST auth/logout` | ❓ | ✅ | |
 | Profile (просмотр/правка/пароль) | `GET/PUT profile`, `POST profile/password` | ❓ | — | |
-| Workorders: список | `GET workorders` | ❓ | — | следующий экран Android |
+| Workorders: список | `GET workorders` | ❓ | ✅ | 21.07: поиск, Done, My/All; проверено на устройстве с реальным аккаунтом |
 | Workorder: карточка (storage, arrival box) | `GET workorders/{id}`, `PATCH …/storage`, `PATCH …/arrival-box` | ❓ | — | |
 | Workorder: медиа (фото, thumb) | `GET/POST/DELETE …/media`, `GET media/{id}/thumb|file` | ❓ | — | Bearer-заголовок для картинок |
 | Drafts (create/show) | `GET draft/options`, `POST drafts`, `POST draft-units` | ❓ | — | |
