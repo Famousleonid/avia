@@ -928,3 +928,16 @@ Critical statuses:
 15. Machining supports `My WO`
 16. Machining step editing allowed only for assigned machinist
 17. Machining photos/PDFs support list and delete
+
+## Feature Matrix Reporting (обязательно)
+
+Паритет iOS/Android отслеживается в `docs/mobile-feature-matrix.md` (avia repo).
+
+В КОНЦЕ КАЖДОЙ рабочей сессии выведи блок:
+
+```
+Matrix update:
+- <Фича/Экран>: <✅ готово | 🔨 в работе | ⚠️ отличается: причина>
+```
+
+Перечисли только строки, чей статус изменился за сессию. Владелец перенесёт блок в матрицу. Если поведение экрана пришлось сделать иначе, чем в ТЗ/у Android — статус ⚠️ с одной строкой причины.
