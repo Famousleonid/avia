@@ -177,6 +177,7 @@
     let msViewMode        = 'all';
     let msSingleIc        = null;
     let msPendingSingleIc = null;
+    let msFcUserOff       = false; // user explicitly left the default F&C view
 
     function partTdrFlags(part) {
         const lbl = icsTdrLabel.get(part.id) || null;
@@ -1850,7 +1851,14 @@ ${sections}
             icsSyncedMeas=new Map(Object.entries(data.ics_synced_meas||{}).map(([k,v])=>[parseInt(k),parseInt(v)||0]));
             partsTree=buildPartsTree();
             if(loadingEl) loadingEl.style.display='none';
-            renderPartsList();
+            // F&C view is ALWAYS the default: parts filtered/sorted by F&C point
+            // code, first F&C part auto-selected (empty-state hint when none yet).
+            // A pending single-part Inspect jump wins.
+            if (msPendingSingleIc == null && !msFcUserOff) {
+                msSetViewMode('fc');
+            } else {
+                renderPartsList();
+            }
             applyPendingSingleIc(); // Inspect (single part) requested from the TDR tab
         } catch(e) {
             if(loadingEl){ loadingEl.style.display=''; loadingEl.textContent='Failed to load: '+e.message; }
@@ -2159,6 +2167,12 @@ ${sections}
             } catch(e) { /* silent — stale data is better than a crash */ }
         }
         if (mode === 'single') { msViewMode = 'single'; applyPendingSingleIc(); renderPartsList(); }
+        else if (mode === 'all') {
+            // F&C is ALWAYS the default Measurements view (even when the WO has
+            // no F&C points yet — they will appear as manuals get marked up).
+            // Only an explicit toggle-off (F&C button) is respected.
+            msSetViewMode(msFcUserOff ? 'all' : 'fc');
+        }
         else msSetViewMode(mode);
         const part = partsTree.find(p => p.id === activePartId);
         if (part) updateRepairActionState(part);
@@ -2183,9 +2197,12 @@ ${sections}
         li.classList.remove('d-none');
         bootstrap.Tab.getOrCreateInstance(btn).show();
     });
-    // F&C button (PARTS header) — toggle: only F&C parts, ordered by point code
+    // F&C button (PARTS header) — toggle: only F&C parts, ordered by point code.
+    // Turning it OFF is remembered for the session (F&C is otherwise the default).
     document.getElementById('ms-fc-parts-btn')?.addEventListener('click', function () {
-        msSetViewMode(msViewMode === 'fc' ? 'all' : 'fc');
+        const to = msViewMode === 'fc' ? 'all' : 'fc';
+        msFcUserOff = (to === 'all');
+        msSetViewMode(to);
     });
     if(document.getElementById('content-measurements')?.classList.contains('active')){
         loaded=true; loadData();
