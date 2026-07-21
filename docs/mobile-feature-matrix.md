@@ -23,10 +23,10 @@
 | Workorder: карточка (storage, arrival box) | `GET workorders/{id}`, `PATCH …/storage`, `PATCH …/arrival-box` | ❓ | ✅ | 21.07: просмотр + редактирование storage/arrival (cf05b7c); Android-контур добавил recorded_by_name |
 | Workorder: медиа (фото, thumb) | `GET/POST/DELETE …/media`, `GET media/{id}/thumb|file` | ❓ | ✅ | 21.07: ленты + съёмка с камеры + fullscreen-зум (cf05b7c); удаление фото — нет |
 | Drafts (create/show) | `GET draft/options`, `POST drafts`, `POST draft-units` | ❓ | — | |
-| Tasks (даты) | `GET …/tasks`, `PUT …/tasks/{task}/dates` | ❓ | — | |
+| Tasks (даты) | `GET …/tasks`, `PUT …/tasks/{task}/dates` | ❓ | ✅ | 21.07 (975f3a2): даты календарём по can_edit_*; проверено на устройстве |
 | Components + фото | `GET/POST …/components`, `PATCH components/{id}`, `POST components/{id}/photo` | ❓ | — | |
 | TDR attachments | `POST …/component-attachments`, `PATCH/DELETE component-attachments/{tdr}` | ❓ | — | |
-| Processes (даты) | `GET …/processes`, `PATCH tdr-processes/{id}/dates` | ❓ | — | |
+| Processes (даты) | `GET …/processes`, `PATCH tdr-processes/{id}/dates` | ❓ | ✅ | 21.07 (975f3a2): Start/Finish/Promise по правам; проверено на устройстве |
 | Materials | `GET materials`, `PATCH materials/{id}` | ❓ | — | |
 | Paint (lost, owner message) | `GET paint`, `POST paint/lost`, `DELETE paint/lost/{id}`, `POST paint/messages` | ❓ | — | |
 | Machining: список/WO/шаги | `GET machining`, `GET machining/workorders/{id}`, `PATCH machining/steps/{id}` | ❓ | — | |
