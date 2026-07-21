@@ -22,7 +22,7 @@
 | Workorders: список | `GET workorders` | ❓ | ✅ | 21.07: поиск, Done, My/All; проверено на устройстве с реальным аккаунтом |
 | Workorder: карточка (storage, arrival box) | `GET workorders/{id}`, `PATCH …/storage`, `PATCH …/arrival-box` | ❓ | ✅ | 21.07: просмотр + редактирование storage/arrival (cf05b7c); Android-контур добавил recorded_by_name |
 | Workorder: медиа (фото, thumb) | `GET/POST/DELETE …/media`, `GET media/{id}/thumb|file` | ❓ | ✅ | 21.07: ленты + съёмка с камеры + fullscreen-зум (cf05b7c); удаление фото — нет |
-| Drafts (create/show) | `GET draft/options`, `POST drafts`, `POST draft-units` | ❓ | — | |
+| Drafts (create/show) | `GET draft/options`, `POST drafts`, `POST draft-units` | ❓ | ✅ | 21.07: создание с новым unit, ролевой чип по can_create_draft |
 | Tasks (даты) | `GET …/tasks`, `PUT …/tasks/{task}/dates` | ❓ | ✅ | 21.07 (975f3a2): даты календарём по can_edit_*; проверено на устройстве |
 | Components + фото | `GET/POST …/components`, `PATCH components/{id}`, `POST components/{id}/photo` | ❓ | ✅ | 21.07 (ac07d35): список+фото детали; создание нового компонента — нет |
 | TDR attachments | `POST …/component-attachments`, `PATCH/DELETE component-attachments/{tdr}` | ❓ | ✅ | 21.07 (995320d): attach/правка/удаление + раздельные страницы Parts/Order New/Missing |
