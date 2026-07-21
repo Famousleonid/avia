@@ -27,7 +27,7 @@
 | Components + фото | `GET/POST …/components`, `PATCH components/{id}`, `POST components/{id}/photo` | ❓ | — | |
 | TDR attachments | `POST …/component-attachments`, `PATCH/DELETE component-attachments/{tdr}` | ❓ | — | |
 | Processes (даты) | `GET …/processes`, `PATCH tdr-processes/{id}/dates` | ❓ | ✅ | 21.07 (975f3a2): Start/Finish/Promise по правам; проверено на устройстве |
-| Materials | `GET materials`, `PATCH materials/{id}` | ❓ | — | |
+| Materials | `GET materials`, `PATCH materials/{id}` | ❓ | ✅ | 21.07 (ba82aad): список+поиск, правка только description; чипы разделов в shell |
 | Paint (lost, owner message) | `GET paint`, `POST paint/lost`, `DELETE paint/lost/{id}`, `POST paint/messages` | ❓ | — | |
 | Machining: список/WO/шаги | `GET machining`, `GET machining/workorders/{id}`, `PATCH machining/steps/{id}` | ❓ | — | |
 | Machining: фото/PDF | `…/photos`, `…/doc-pdfs`, `…/pdfs`, `DELETE …/media/{id}` | ❓ | — | |
