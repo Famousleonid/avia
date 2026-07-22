@@ -28,9 +28,9 @@
 | TDR attachments | `POST …/component-attachments`, `PATCH/DELETE component-attachments/{tdr}` | ❓ | ✅ | 21.07 (995320d): attach/правка/удаление + раздельные страницы Parts/Order New/Missing |
 | Processes (даты) | `GET …/processes`, `PATCH tdr-processes/{id}/dates` | ❓ | ✅ | 21.07 (975f3a2): Start/Finish/Promise по правам; проверено на устройстве |
 | Materials | `GET materials`, `PATCH materials/{id}` | ❓ | ✅ | 21.07 (ba82aad): список+поиск, правка только description; чипы разделов в shell |
-| Paint (lost, owner message) | `GET paint`, `POST paint/lost`, `DELETE paint/lost/{id}`, `POST paint/messages` | ❓ | — | |
-| Machining: список/WO/шаги | `GET machining`, `GET machining/workorders/{id}`, `PATCH machining/steps/{id}` | ❓ | — | |
-| Machining: фото/PDF | `…/photos`, `…/doc-pdfs`, `…/pdfs`, `DELETE …/media/{id}` | ❓ | — | |
+| Paint (lost, owner message) | `GET paint`, `POST paint/lost`, `DELETE paint/lost/{id}`, `POST paint/messages` | ❓ | ✅ | 22.07 (5bd1c0a): вкладки WO/Lost, правка дат (source=paint), lost с камеры, сообщение владельцу |
+| Machining: список/WO/шаги | `GET machining`, `GET machining/workorders/{id}`, `PATCH machining/steps/{id}` | ❓ | ✅ | 22.07 (5bd1c0a): My WO, шаги деталей, правка дат своих шагов, Hide closed |
+| Machining: фото/PDF | `…/photos`, `…/doc-pdfs`, `…/pdfs`, `DELETE …/media/{id}` | ❓ | — | сознательно пропущено в этом заходе |
 | Push-уведомления | нет в API | — | — | этап 7, FCM сразу для обеих платформ |
 | Measurements / Dimensions | нет в mobile API | — | — | сознательно вне v1 (см. mobile_measurements_plan) |
 
