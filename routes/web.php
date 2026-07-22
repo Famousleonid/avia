@@ -512,6 +512,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
     Route::patch('/process-names/{processName}/scope', [ProcessController::class, 'updateScope'])->name('process-names.update-scope');
     Route::resource('/tdr-processes',TdrProcessController::class);
     Route::get('/manual_processes/{manual_process}/edit', [ManualProcessController::class, 'edit'])->name('manual_processes.edit');
+    Route::patch('/manual_processes/{manual_process}/requirements', [ManualProcessController::class, 'updateRequirements'])->name('manual_processes.update-requirements');
     Route::put('/manual_processes/{manual_process}', [ManualProcessController::class, 'update'])->name('manual_processes.update');
     Route::patch('/manual_processes/{manual_process}', [ManualProcessController::class, 'update']);
     Route::delete('/manual_processes/{manual_process}', [ManualProcessController::class, 'destroy'])->name('manual_processes.destroy');

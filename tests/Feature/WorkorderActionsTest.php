@@ -33,6 +33,21 @@ class WorkorderActionsTest extends TestCase
             'task_has_start_date' => 0,
         ]);
 
+        $this->actingAs($manager)
+            ->postJson(route('mains.store'), [
+                'workorder_id' => $workorder->id,
+                'task_id' => $approvedTask->id,
+                'date_finish' => '2026-04-09',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('date_finish');
+
+        $this->assertNull($workorder->fresh()->approve_at);
+        $this->assertDatabaseMissing('mains', [
+            'workorder_id' => $workorder->id,
+            'task_id' => $approvedTask->id,
+        ]);
+
         $response = $this->actingAs($manager)->postJson(route('workorders.approve.ajax', $workorder), [
             'approve_date' => '2026-04-10',
         ]);
@@ -85,6 +100,62 @@ class WorkorderActionsTest extends TestCase
                 ->assertDontSee('Completed')
                 ->assertSee('Visible technician task');
         }
+    }
+
+    public function test_technician_approval_stage_color_still_requires_hidden_approved_task(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $manager = $this->createUserWithRole('Manager');
+        $workorder = $this->createWorkorder();
+        $generalTask = GeneralTask::query()->create([
+            'name' => 'Approval color '.uniqid(),
+            'sort_order' => 0,
+        ]);
+        $approvedTask = Task::query()->create([
+            'name' => 'Approved',
+            'general_task_id' => $generalTask->id,
+            'task_has_start_date' => false,
+        ]);
+        $quoteTask = Task::query()->create([
+            'name' => 'Quote Sent to Customer',
+            'general_task_id' => $generalTask->id,
+            'task_has_start_date' => false,
+        ]);
+
+        \App\Models\Main::query()->create([
+            'workorder_id' => $workorder->id,
+            'general_task_id' => $generalTask->id,
+            'task_id' => $quoteTask->id,
+            'user_id' => $manager->id,
+            'date_finish' => '2026-07-08',
+        ]);
+
+        $notApprovedResponse = $this->actingAs($technician)->get(route('mains.show', $workorder));
+
+        $notApprovedResponse->assertOk()->assertSee('Quote Sent to Customer');
+        $this->assertMatchesRegularExpression(
+            '/class="[^"]*js-gt-btn btn-outline-danger[^"]*"\s+data-gt-id="'.$generalTask->id.'"/',
+            $notApprovedResponse->getContent()
+        );
+
+        $this->actingAs($manager)
+            ->postJson(route('workorders.approve.ajax', $workorder), ['approve_date' => '2026-07-09'])
+            ->assertOk()
+            ->assertJsonPath('approved', true);
+
+        $approvedResponse = $this->actingAs($technician)->get(route('mains.show', $workorder));
+
+        $approvedResponse->assertOk();
+        $this->assertMatchesRegularExpression(
+            '/class="[^"]*js-gt-btn btn-outline-success[^"]*"\s+data-gt-id="'.$generalTask->id.'"/',
+            $approvedResponse->getContent()
+        );
+
+        $this->assertDatabaseHas('mains', [
+            'workorder_id' => $workorder->id,
+            'task_id' => $approvedTask->id,
+            'date_finish' => '2026-07-09',
+        ]);
     }
 
     public function test_authenticated_user_can_update_notes_and_manager_can_read_logs(): void
@@ -576,6 +647,58 @@ class WorkorderActionsTest extends TestCase
         $this->assertSame($technician->id, $quarantine->date_start_user_id);
         $this->assertSame($technician->id, $quarantine->date_finish_user_id);
         $this->assertSame('AT', $quarantine->repair_order);
+    }
+
+    public function test_anodizing_at_process_dates_can_be_edited_by_technician_while_plain_anodizing_remains_quantum_managed(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder();
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $plainAnodizingName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Anodizing'],
+            [
+                'process_sheet_name' => 'ANODIZING',
+                'form_number' => '021',
+                'show_in_process_picker' => true,
+            ]
+        );
+        $anodizingAtName = ProcessName::query()->firstOrCreate(
+            ['name' => 'Anodizing AT'],
+            [
+                'process_sheet_name' => 'ANODIZING',
+                'form_number' => '021',
+                'show_in_process_picker' => true,
+            ]
+        );
+        $anodizingAt = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $anodizingAtName->id,
+            'sort_order' => 1,
+        ]);
+
+        $this->assertFalse($plainAnodizingName->allowsManualDateEditing());
+        $this->assertTrue($anodizingAtName->allowsManualDateEditing());
+
+        $this->actingAs($technician)
+            ->patchJson(route('tdrprocesses.updateDate', $anodizingAt), [
+                'date_start' => '2026-05-09',
+                'date_finish' => '2026-05-08',
+            ])
+            ->assertOk()
+            ->assertJsonPath('date_start', '2026-05-09')
+            ->assertJsonPath('date_finish', '2026-05-08')
+            ->assertJsonPath('repair_order', 'AT')
+            ->assertJsonPath('date_start_user', $technician->name)
+            ->assertJsonPath('date_finish_user', $technician->name);
+
+        $anodizingAt->refresh();
+
+        $this->assertSame($technician->id, $anodizingAt->date_start_user_id);
+        $this->assertSame($technician->id, $anodizingAt->date_finish_user_id);
+        $this->assertSame('AT', $anodizingAt->repair_order);
     }
 
     public function test_exact_ec_process_dates_can_only_be_edited_by_manager_or_admin(): void

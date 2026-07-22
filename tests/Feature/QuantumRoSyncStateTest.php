@@ -53,4 +53,36 @@ class QuantumRoSyncStateTest extends TestCase
         $this->assertNotContains($emptyRo, $tracked);
         $this->assertNotContains($blankRo, $tracked);
     }
+
+    public function test_store_stages_quantum_serial_number(): void
+    {
+        config()->set('services.quantum_sync.token', 'test-quantum-token');
+
+        $suffix = (string) random_int(100000, 999999);
+        $sourceUid = 'rod:serial-sync-' . $suffix;
+
+        $response = $this
+            ->withToken('test-quantum-token')
+            ->postJson('/api/quantum/ro-sync', [
+                'rows' => [[
+                    'source_uid' => $sourceUid,
+                    'rod_auto_key' => (int) $suffix,
+                    'ro_number' => 'R-SERIAL-' . $suffix,
+                    'wo_number' => 'W106874',
+                    'pn' => 'D63820',
+                    'serial_number' => ' A528 ',
+                    'class' => 'DETAIL_PART',
+                    'bom_ref' => 'CR',
+                ]],
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('stats.rows_inserted', 1);
+
+        $this->assertDatabaseHas('quantum_ro_lines', [
+            'source_uid' => $sourceUid,
+            'serial_number' => 'A528',
+        ]);
+    }
 }

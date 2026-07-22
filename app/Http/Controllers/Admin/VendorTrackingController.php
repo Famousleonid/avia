@@ -266,7 +266,7 @@ class VendorTrackingController extends Controller
             'filter_active' => $filterActive,
             'mode' => $mode,
             'message' => $filterActive && ! $found
-                ? ($mode === 'ro' ? 'RO not found in Quantum list.' : 'WO not found in Quantum Reason.')
+                ? ($mode === 'ro' ? 'RO not found in Quantum list.' : 'WO not found in Quantum list.')
                 : null,
             'html' => view('admin.vendor_tracking.partials.quantum_recent_rows', [
                 'quantumRecentRows' => $recentRows,
@@ -1072,11 +1072,18 @@ class VendorTrackingController extends Controller
 
     private function restoreQuantumLine(QuantumRoLine $line): ?array
     {
-        if (trim((string) $line->apply_status) !== self::QUANTUM_STATUS_DISMISSED) {
+        $previousStatus = trim((string) $line->apply_status);
+        if (! in_array($previousStatus, [self::QUANTUM_STATUS_DISMISSED, 'applied'], true)) {
             return null;
         }
 
-        $message = 'Restored by user: waiting for quantum-ro:apply';
+        $isReapply = $previousStatus === 'applied';
+        $actor = auth()->user()?->selection_name
+            ?: auth()->user()?->name
+            ?: 'unknown user';
+        $message = $isReapply
+            ? "Reapply requested by {$actor}: waiting for quantum-ro:apply"
+            : "Restored by {$actor}: waiting for quantum-ro:apply";
 
         $line->forceFill([
             'apply_status' => 'pending',
@@ -1087,11 +1094,26 @@ class VendorTrackingController extends Controller
             'applied_at' => null,
         ])->save();
 
+        activity('quantum_ro_line')
+            ->causedBy(auth()->user())
+            ->performedOn($line)
+            ->event($isReapply ? 'reapply_requested' : 'restored')
+            ->withProperties([
+                'previous_status' => $previousStatus,
+                'source_uid' => $line->source_uid,
+                'ro_number' => $line->ro_number,
+                'wo_number' => $line->wo_number,
+                'pn' => $line->pn,
+                'bom_ref' => $line->bom_ref,
+            ])
+            ->log($isReapply ? 'Quantum row queued for reapply' : 'Quantum row restored to pending');
+
         return [
             'id' => (int) $line->id,
             'status' => 'pending',
             'message' => $message,
             'restore_url' => null,
+            'action' => $isReapply ? 'reapply' : 'restore',
         ];
     }
 
@@ -1179,11 +1201,18 @@ class VendorTrackingController extends Controller
             return $query;
         }
 
-        $like = '%' . $this->escapeLike($term) . '%';
+        if ($mode === 'ro') {
+            return $query->where('ro_number', 'like', '%' . $this->escapeLike($term) . '%');
+        }
 
-        return $mode === 'ro'
-            ? $query->where('ro_number', 'like', $like)
-            : $query->where('apply_message', 'like', $like);
+        $normalizedWorkorders = $digits !== ''
+            ? [$digits, 'W' . $digits]
+            : [strtoupper($term)];
+
+        return $query->whereIn(
+            DB::raw('UPPER(TRIM(quantum_ro_lines.wo_number))'),
+            $normalizedWorkorders,
+        );
     }
 
     private function escapeLike(string $value): string

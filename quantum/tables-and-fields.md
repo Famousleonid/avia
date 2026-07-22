@@ -32,7 +32,7 @@ RO_HEADER.OPEN_FLAG = F means closed
 | `WOB_AUTO_KEY` | confirmed | Link to WO_BOM |
 | `WOO_AUTO_KEY` | exists | Direct WO link if populated |
 | `PNM_AUTO_KEY` | confirmed | Link to PARTS_MASTER |
-| `SERIAL_NUMBER` | exists | Detail serial candidate |
+| `SERIAL_NUMBER` | exists | Direct detail serial; can be empty even for serialized WO BOM rows |
 | `QTY_REPAIR` | confirmed candidate | To Repair |
 | `QTY_RESERVED` | confirmed candidate | Reserved |
 | `QTY_REPAIRED` | confirmed candidate | Repaired |
@@ -201,6 +201,7 @@ Empty PN -> UNKNOWN
 | `VIEW_SPB_WO_MAINCOMPONENT` | confirmed | PN/SN for manager screenshot sample |
 | `VIEW_SPS_WO_SERIAL_NUMS` | confirmed | Serial number also matches sample |
 | `VIEW_SPR_WO_BOM` | confirmed | BOM price component, `UNIT_PRICE * QTY_NEEDED` |
+| `VIEW_RPT_KIT_MATERIAL` | confirmed | Serialized WO BOM mapping: `WOB_AUTO_KEY -> SERIAL_NUMBER` |
 | `VIEW_SPS_WO_OPERATION` | confirmed | `TOTAL_PARTS` matches `VIEW_WO_UNBILLED_PARTS.EXTENDED_PRICE`; `LABOR_FLAT_PRICE` matches WO header labor |
 | `VIEW_WO_UNBILLED_PARTS` | confirmed | Best current parts estimate source: `EXTENDED_PRICE`; matches BOM extended formula |
 | `VIEW_WO_UNBILLED_MISC` | partial | Misc/OSV lines visible, but not direct screenshot estimate formula |

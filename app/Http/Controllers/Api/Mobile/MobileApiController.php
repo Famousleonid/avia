@@ -529,7 +529,9 @@ class MobileApiController extends Controller
                             'restriction_code' => $permissions['restriction_code'],
                             'can_edit_start' => $permissions['can_edit_start'],
                             'can_edit_finish' => $permissions['can_edit_finish'],
-                            'main' => $main ? $this->mainPayload($main) : null,
+                            // Keep a stable object even before the first edit:
+                            // iOS must receive main.ignore_row as an explicit boolean.
+                            'main' => $main ? $this->mainPayload($main) : $this->emptyMainPayload($task),
                         ];
                     })->values(),
                 ];
@@ -1598,8 +1600,10 @@ class MobileApiController extends Controller
     protected function processDatePermissions(?User $user, TdrProcess $process): array
     {
         $process->loadMissing('processName');
-        $managerOnly = ProcessName::isExactEcName($process->processName?->name);
-        $canEdit = ! $managerOnly || (bool) ($user?->hasAnyRole('Admin|Manager') ?? false);
+        // The process-name catalogue is the ownership boundary: these names
+        // are entered by shop staff, while every other process is supplied by
+        // Quantum and must remain read-only even before Quantum has dates.
+        $canEdit = (bool) ($process->processName?->allowsManualDateEditing() ?? false);
 
         return [
             'can_edit_start' => $canEdit,
@@ -1630,6 +1634,19 @@ class MobileApiController extends Controller
             'date_finish' => optional($main->date_finish)?->format('Y-m-d'),
             'ignore_row' => (bool) $main->ignore_row,
             'user' => $main->user ? ['id' => $main->user->id, 'name' => $main->user->selection_name] : null,
+        ];
+    }
+
+    protected function emptyMainPayload(Task $task): array
+    {
+        return [
+            'id' => null,
+            'task_id' => $task->id,
+            'general_task_id' => $task->general_task_id,
+            'date_start' => null,
+            'date_finish' => null,
+            'ignore_row' => false,
+            'user' => null,
         ];
     }
 

@@ -230,14 +230,18 @@ class ProcessController extends Controller
                 ->get();
         }
 
-        $processComments = DB::table('manual_processes')
+        $manualProcessSettings = ManualProcess::query()
             ->where('manual_id', $manualId)
             ->whereIn('processes_id', $existingProcesses->pluck('id')->all())
-            ->pluck('process_comment', 'processes_id');
+            ->get(['processes_id', 'process_comment', 'requires_fig', 'requires_zone'])
+            ->keyBy('processes_id');
 
-        $existingProcesses = $existingProcesses->map(function (Process $process) use ($processComments) {
-            $comment = trim((string) ($processComments[$process->id] ?? ''));
+        $existingProcesses = $existingProcesses->map(function (Process $process) use ($manualProcessSettings) {
+            $settings = $manualProcessSettings->get($process->id);
+            $comment = trim((string) ($settings?->process_comment ?? ''));
             $process->process_comment = $comment !== '' ? $comment : null;
+            $process->requires_fig = (bool) ($settings?->requires_fig ?? false);
+            $process->requires_zone = (bool) ($settings?->requires_zone ?? false);
 
             return $process;
         });

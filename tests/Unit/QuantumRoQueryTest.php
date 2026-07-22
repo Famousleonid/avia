@@ -68,4 +68,17 @@ class QuantumRoQueryTest extends TestCase
         $this->assertStringContainsString("'CADPLATEB'", $query['sql']);
         $this->assertStringContainsString("THEN 'BUSHING_'", $query['sql']);
     }
+
+    public function test_query_uses_unique_kit_material_serial_as_ro_detail_fallback(): void
+    {
+        $query = buildQuantumRoQuery([
+            'wob_change_column' => '',
+        ]);
+
+        $this->assertStringContainsString('TRIM(rd.SERIAL_NUMBER)', $query['sql']);
+        $this->assertStringContainsString('FROM QCTL.VIEW_RPT_KIT_MATERIAL km', $query['sql']);
+        $this->assertStringContainsString('km.WOB_AUTO_KEY = rd.WOB_AUTO_KEY', $query['sql']);
+        $this->assertStringContainsString('COUNT(DISTINCT TRIM(km.SERIAL_NUMBER)) = 1', $query['sql']);
+        $this->assertStringContainsString('AS SERIAL_NUMBER', $query['sql']);
+    }
 }

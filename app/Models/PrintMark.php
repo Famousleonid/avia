@@ -12,6 +12,7 @@ class PrintMark extends Model
         'workorder_id',
         'workorder_number',
         'form_name',
+        'requirement_warnings',
         'printed_by_user_id',
         'printed_by_name',
         'printed_at',
@@ -19,6 +20,7 @@ class PrintMark extends Model
 
     protected $casts = [
         'printed_at' => 'datetime',
+        'requirement_warnings' => 'array',
     ];
 
     public function workorder(): BelongsTo

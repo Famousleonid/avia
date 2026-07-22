@@ -668,6 +668,147 @@ class TdrStdFormsFromComponentFlagsTest extends TestCase
         $response->assertSeeInOrder(['Cat #1', '7', 'RO', '3'], false);
     }
 
+    public function test_spec_process_form_uses_one_cat_one_qty_when_unit_part_is_not_in_cat_two(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'part_number' => 'PN-UNIT-AS-PART',
+        ]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'instruction_id' => 1,
+        ]);
+
+        $unitPart = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-10',
+            'part_number' => 'PN UNIT AS PART',
+            'name' => 'Unit represented by its part',
+            'units_assy' => 1,
+            'ndt_list' => true,
+            'cad_list' => true,
+        ]);
+        $catTwoDetail = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '3-20',
+            'part_number' => 'PN-CAT-TWO-DETAIL',
+            'name' => 'Separate Cat two detail',
+            'units_assy' => 1,
+            'ndt_list' => false,
+            'cad_list' => false,
+        ]);
+
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $unitPart->id,
+            'std' => StdProcess::STD_NDT,
+        ], [
+            'process' => '1',
+            'qty' => 1,
+        ]);
+        StdProcess::query()->updateOrCreate([
+            'manual_id' => $manual->id,
+            'component_id' => $unitPart->id,
+            'std' => StdProcess::STD_CAD,
+        ], [
+            'process' => 'CAD',
+            'qty' => 1,
+        ]);
+
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $catTwoDetail->id,
+            'qty' => 1,
+            'serial_number' => 'SN-CAT-TWO-DETAIL',
+            'assy_serial_number' => ' ',
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.specProcessForm', $workorder->id));
+
+        $response->assertOk();
+        $response->assertViewHas('ndtSums', ['total' => 1, 'mpi' => 1, 'fpi' => null]);
+        $response->assertViewHas('cadSum', ['total_qty' => 1, 'total_components' => 1]);
+        $response->assertViewHas('cadSum_ex', 0);
+        $response->assertSeeInOrder(['Cat #1', '1', 'RO', 'RO No.', '1'], false);
+    }
+
+    public function test_spec_process_form_leaves_cat_one_blank_when_unit_part_is_already_in_cat_two(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $manual = $this->createManual();
+        $unit = $this->createUnit([
+            'manual_id' => $manual->id,
+            'part_number' => 'PN-CAT-TWO-ONLY',
+        ]);
+        $workorder = $this->createWorkorder([
+            'unit_id' => $unit->id,
+            'user_id' => $admin->id,
+            'instruction_id' => 1,
+        ]);
+
+        $unitPart = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '12-500A',
+            'part_number' => 'PN-CAT-TWO-ONLY',
+            'name' => 'Cat two only part',
+            'units_assy' => 1,
+            'ndt_list' => true,
+            'cad_list' => true,
+        ]);
+        $manualCatOnePart = Component::query()->create([
+            'manual_id' => $manual->id,
+            'ipl_num' => '12-510',
+            'part_number' => 'PN-MANUAL-CAT-ONE',
+            'name' => 'Unrelated manual Cat one part',
+            'units_assy' => 7,
+            'ndt_list' => true,
+            'cad_list' => true,
+        ]);
+
+        foreach ([$unitPart, $manualCatOnePart] as $component) {
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_NDT,
+            ], [
+                'process' => '1',
+                'qty' => $component->units_assy,
+            ]);
+            StdProcess::query()->updateOrCreate([
+                'manual_id' => $manual->id,
+                'component_id' => $component->id,
+                'std' => StdProcess::STD_CAD,
+            ], [
+                'process' => 'CAD',
+                'qty' => $component->units_assy,
+            ]);
+        }
+
+        Tdr::query()->create([
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+            'workorder_id' => $workorder->id,
+            'component_id' => $unitPart->id,
+            'qty' => 1,
+            'serial_number' => 'SN-CAT-TWO-ONLY',
+            'assy_serial_number' => ' ',
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tdrs.specProcessForm', $workorder->id));
+
+        $response->assertOk();
+        $response->assertViewHas('ndtSums', ['total' => 0, 'mpi' => null, 'fpi' => null]);
+        $response->assertViewHas('cadSum', ['total_qty' => 0, 'total_components' => 0]);
+        $response->assertViewHas('cadSum_ex', 0);
+    }
+
     public function test_empty_spec_process_form_uses_std_ndt_and_cad_totals_for_overhaul(): void
     {
         $admin = $this->createUserWithRole('Admin');

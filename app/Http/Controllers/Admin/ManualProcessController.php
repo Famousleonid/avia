@@ -97,6 +97,31 @@ class ManualProcessController extends Controller
             ->with('success', 'Process updated successfully');
     }
 
+    public function updateRequirements(Request $request, ManualProcess $manualProcess)
+    {
+        $manualProcess->load('process');
+        $decision = $this->guard()->canUpdateManualProcess($request->user(), $manualProcess);
+        if (! $decision->allowed) {
+            return $this->denyDecision($request, $decision, route('manuals.show', ['manual' => $manualProcess->manual_id, 'tab' => 'processes']));
+        }
+
+        $validated = $request->validate([
+            'requires_fig' => ['required', 'boolean'],
+            'requires_zone' => ['required', 'boolean'],
+        ]);
+
+        $manualProcess->update([
+            'requires_fig' => (bool) $validated['requires_fig'],
+            'requires_zone' => (bool) $validated['requires_zone'],
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'requires_fig' => $manualProcess->requires_fig,
+            'requires_zone' => $manualProcess->requires_zone,
+        ]);
+    }
+
     /**
      * Remove the specified resource from storage.
      *

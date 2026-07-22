@@ -114,6 +114,24 @@ class TdrProcessController extends Controller
         return $validCount === count($processIds);
     }
 
+    private function descriptionRequirementsForTdrProcess(Tdr $tdr, array $catalogProcessIds): array
+    {
+        $manualId = (int) ($tdr->component?->manual_id ?? 0);
+        if ($manualId < 1 || $catalogProcessIds === []) {
+            return ['requires_fig' => false, 'requires_zone' => false];
+        }
+
+        $manualProcesses = ManualProcess::query()
+            ->where('manual_id', $manualId)
+            ->whereIn('processes_id', $catalogProcessIds)
+            ->get(['requires_fig', 'requires_zone']);
+
+        return [
+            'requires_fig' => $manualProcesses->contains(fn (ManualProcess $process): bool => $process->requires_fig),
+            'requires_zone' => $manualProcesses->contains(fn (ManualProcess $process): bool => $process->requires_zone),
+        ];
+    }
+
     /**
      * Получает manual_id для TDR записи
      * Сначала пытается получить из компонента, затем из workorder
@@ -346,6 +364,46 @@ class TdrProcessController extends Controller
         }
 
         // Получаем максимальный sort_order для данного tdr_id
+        $tdr->loadMissing('component');
+
+        $missingDescriptionRequirements = [];
+        foreach ($processesData as $index => $data) {
+            if (! ProcessName::query()->whereKey((int) ($data['process_names_id'] ?? 0))->exists()) {
+                return response()->json(['error' => 'Invalid process name selected.'], 422);
+            }
+
+            $selectedProcessIds = TdrProcess::normalizeStoredProcessIds($data['processes'] ?? []);
+            if (! $this->allCatalogProcessesHaveProcessNames($selectedProcessIds)) {
+                return response()->json(['error' => 'Selected process specification is missing a process name.'], 422);
+            }
+
+            $requirements = $this->descriptionRequirementsForTdrProcess($tdr, $selectedProcessIds);
+            $description = (string) ($data['description'] ?? '');
+            $missing = [];
+
+            if ($requirements['requires_fig'] && stripos($description, 'FIG') === false) {
+                $missing[] = 'FIG';
+            }
+            if ($requirements['requires_zone'] && stripos($description, 'ZONE') === false) {
+                $missing[] = 'ZONE';
+            }
+
+            if ($missing !== []) {
+                $missingDescriptionRequirements[] = [
+                    'row' => $index + 1,
+                    'missing' => $missing,
+                ];
+            }
+        }
+
+        if ($missingDescriptionRequirements !== []
+            && ! filter_var($request->input('confirm_incomplete_requirements', false), FILTER_VALIDATE_BOOLEAN)) {
+            return response()->json([
+                'error' => 'Description is missing required FIG or ZONE.',
+                'incomplete_requirements' => $missingDescriptionRequirements,
+            ], 422);
+        }
+
         $maxSortOrder = TdrProcess::where('tdrs_id', $tdrId)->max('sort_order') ?? 0;
 
         // Счетчик для правильного расчета sort_order (учитывает дополнительные записи EC)
@@ -357,14 +415,8 @@ class TdrProcessController extends Controller
 
         // Сохраняем каждый процесс
         foreach ($processesData as $index => $data) {
-            if (! ProcessName::query()->whereKey((int) ($data['process_names_id'] ?? 0))->exists()) {
-                return response()->json(['error' => 'Invalid process name selected.'], 422);
-            }
-
             $selectedProcessIds = TdrProcess::normalizeStoredProcessIds($data['processes'] ?? []);
-            if (! $this->allCatalogProcessesHaveProcessNames($selectedProcessIds)) {
-                return response()->json(['error' => 'Selected process specification is missing a process name.'], 422);
-            }
+            $descriptionRequirements = $this->descriptionRequirementsForTdrProcess($tdr, $selectedProcessIds);
 
             $isEcEligible = in_array((int)$data['process_names_id'], $ecEligibleIds);
             $rawStandalone = $data['standalone_ec_only'] ?? false;
@@ -423,6 +475,8 @@ class TdrProcessController extends Controller
                 'ec' => $ecValue, // Добавляем поле EC
                 'standalone_ec_only' => $isStandaloneEcRow,
                 'description' => $data['description'] ?? null, // Добавляем поле description (необязательное)
+                'requires_fig' => $descriptionRequirements['requires_fig'],
+                'requires_zone' => $descriptionRequirements['requires_zone'],
                 'notes' => $data['notes'] ?? null, // Добавляем поле notes (необязательное)
             ]);
 
@@ -1261,7 +1315,26 @@ class TdrProcessController extends Controller
             $travelerGroup++;
         }
 
-        DB::transaction(function () use ($ids, $travelerGroup, $needsCleanup, $hasAnyDate, $hasDateConflict, $hasRepairOrderConflict, $sharedVendorId, $sharedRepairOrder): void {
+        $current_tdr->loadMissing(['workorder:id,number', 'component:id,part_number']);
+        $processes->loadMissing('processName:id,name');
+        $beforeRows = $processes->map(static fn (TdrProcess $process): array => [
+            'id' => (int) $process->id,
+            'process_name' => (string) ($process->processName?->name ?? ''),
+            'repair_order' => $process->repair_order,
+            'vendor_id' => $process->vendor_id ? (int) $process->vendor_id : null,
+            'date_start' => $process->date_start?->format('Y-m-d'),
+            'date_finish' => $process->date_finish?->format('Y-m-d'),
+            'date_promise' => $process->date_promise?->format('Y-m-d'),
+        ])->values()->all();
+        $clearedFields = array_values(array_filter([
+            $hasVendorConflict ? 'vendor_id' : null,
+            $hasRepairOrderConflict ? 'repair_order' : null,
+            ($needsCleanup && $hasAnyDate && $hasDateConflict) ? 'date_start' : null,
+            ($needsCleanup && $hasAnyDate && $hasDateConflict) ? 'date_finish' : null,
+            ($needsCleanup && $hasAnyDate && $hasDateConflict) ? 'date_promise' : null,
+        ]));
+
+        DB::transaction(function () use ($ids, $travelerGroup, $needsCleanup, $hasAnyDate, $hasDateConflict, $hasRepairOrderConflict, $sharedVendorId, $sharedRepairOrder, $current_tdr, $beforeRows, $clearedFields): void {
             $updates = [
                 'in_traveler' => true,
                 'traveler_group' => $travelerGroup,
@@ -1278,6 +1351,23 @@ class TdrProcessController extends Controller
             }
 
             TdrProcess::whereIn('id', $ids)->update($updates);
+
+            activity('tdr_traveler')
+                ->causedBy(auth()->user())
+                ->performedOn($current_tdr)
+                ->event('traveler_created')
+                ->withProperties([
+                    'workorder_id' => (int) $current_tdr->workorder_id,
+                    'workorder_number' => $current_tdr->workorder?->number,
+                    'tdr_id' => (int) $current_tdr->id,
+                    'component_id' => $current_tdr->component_id ? (int) $current_tdr->component_id : null,
+                    'part_number' => $current_tdr->component?->part_number,
+                    'traveler_group' => $travelerGroup,
+                    'process_ids' => $ids,
+                    'cleared_fields' => $clearedFields,
+                    'before' => $beforeRows,
+                ])
+                ->log("Traveler {$travelerGroup} created");
         });
 
         return response()->json(['success' => true]);
@@ -1317,12 +1407,57 @@ class TdrProcessController extends Controller
             $query->where('traveler_group', (int) $validated['traveler_group']);
         }
 
-        $query->update([
-            'in_traveler' => false,
-            'traveler_group' => null,
-            'date_start' => null,
-            'date_start_user_id' => null,
-        ]);
+        $current_tdr->loadMissing(['workorder:id,number', 'component:id,part_number']);
+        $processes = (clone $query)
+            ->with('processName:id,name')
+            ->orderBy('id')
+            ->get();
+
+        if ($processes->isNotEmpty()) {
+            $processIds = $processes->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+            $travelerGroups = $processes
+                ->map(fn (TdrProcess $process) => (int) ($process->traveler_group ?: 1))
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+            $beforeRows = $processes->map(static fn (TdrProcess $process): array => [
+                'id' => (int) $process->id,
+                'process_name' => (string) ($process->processName?->name ?? ''),
+                'traveler_group' => (int) ($process->traveler_group ?: 1),
+                'repair_order' => $process->repair_order,
+                'vendor_id' => $process->vendor_id ? (int) $process->vendor_id : null,
+                'date_start' => $process->date_start?->format('Y-m-d'),
+                'date_finish' => $process->date_finish?->format('Y-m-d'),
+                'date_promise' => $process->date_promise?->format('Y-m-d'),
+            ])->values()->all();
+
+            DB::transaction(function () use ($processIds, $travelerGroups, $beforeRows, $current_tdr): void {
+                TdrProcess::whereIn('id', $processIds)->update([
+                    'in_traveler' => false,
+                    'traveler_group' => null,
+                    'date_start' => null,
+                    'date_start_user_id' => null,
+                ]);
+
+                activity('tdr_traveler')
+                    ->causedBy(auth()->user())
+                    ->performedOn($current_tdr)
+                    ->event('traveler_ungrouped')
+                    ->withProperties([
+                        'workorder_id' => (int) $current_tdr->workorder_id,
+                        'workorder_number' => $current_tdr->workorder?->number,
+                        'tdr_id' => (int) $current_tdr->id,
+                        'component_id' => $current_tdr->component_id ? (int) $current_tdr->component_id : null,
+                        'part_number' => $current_tdr->component?->part_number,
+                        'traveler_groups' => $travelerGroups,
+                        'process_ids' => $processIds,
+                        'cleared_fields' => ['date_start', 'date_start_user_id'],
+                        'before' => $beforeRows,
+                    ])
+                    ->log('Traveler ' . implode(', ', $travelerGroups) . ' ungrouped');
+            });
+        }
 
         return response()->json(['success' => true]);
     }

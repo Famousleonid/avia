@@ -86,6 +86,18 @@ QCTL.VIEW_SPS_WO_SERIAL_NUMS.SERIAL_NUMBER
 
 `WO_OPERATION` сам по себе не всегда дает serial.
 
+For RO detail-part routing, the confirmed serialized BOM link is:
+
+```text
+RO_DETAIL.WOB_AUTO_KEY
+  -> VIEW_RPT_KIT_MATERIAL.WOB_AUTO_KEY
+  -> VIEW_RPT_KIT_MATERIAL.SERIAL_NUMBER
+```
+
+Use `RO_DETAIL.SERIAL_NUMBER` first when populated. Otherwise use the kit
+material serial only when the WOB has exactly one distinct non-empty serial.
+Do not guess when a WOB exposes multiple serials.
+
 ## WO -> BOM Price Component
 
 Подтвержденная часть WO estimate amount:
@@ -110,4 +122,3 @@ SUM(UNIT_PRICE * QTY_NEEDED)
 ```
 
 Эта сумма совпадает с `VIEW_WO_UNBILLED_PARTS.EXTENDED_PRICE`.
-

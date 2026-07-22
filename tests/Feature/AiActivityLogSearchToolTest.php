@@ -229,6 +229,54 @@ class AiActivityLogSearchToolTest extends TestCase
         $this->assertStringContainsString('System Admin', $result['message']);
     }
 
+    public function test_activity_log_search_scans_past_more_than_the_old_candidate_limit_for_an_exact_part_number(): void
+    {
+        $systemAdmin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['number' => 845678]);
+        $target = $this->createComponentForWorkorder($workorder, 'PN-THOROUGH-100', '8-100');
+        $other = $this->createComponentForWorkorder($workorder, 'PN-THOROUGH-OTHER', '8-101');
+
+        Activity::query()->create([
+            'log_name' => 'component',
+            'description' => 'Target historical change',
+            'event' => 'updated',
+            'subject_type' => Component::class,
+            'subject_id' => $target->id,
+            'causer_type' => User::class,
+            'causer_id' => $systemAdmin->id,
+            'properties' => ['attributes' => ['part_number' => 'PN-THOROUGH-100']],
+            'created_at' => now()->subHour(),
+            'updated_at' => now()->subHour(),
+        ]);
+
+        $noise = [];
+        for ($i = 0; $i < 601; $i++) {
+            $noise[] = [
+                'log_name' => 'component',
+                'description' => 'Similar but non-exact part number',
+                'event' => 'updated',
+                'subject_type' => Component::class,
+                'subject_id' => $other->id,
+                'causer_type' => User::class,
+                'causer_id' => $systemAdmin->id,
+                'properties' => json_encode(['attributes' => ['part_number' => 'PN-THOROUGH-100-X']], JSON_THROW_ON_ERROR),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+        Activity::query()->insert($noise);
+
+        $result = app(SearchActivityLogsTool::class)->run($systemAdmin, [
+            'part_number' => 'PN-THOROUGH-100',
+            'exact_part_number' => true,
+            'limit' => 20,
+        ]);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame(1, $result['count']);
+        $this->assertContains('PN-THOROUGH-100', $result['matches'][0]['part_numbers']);
+    }
+
     public function test_ai_agent_registers_and_executes_activity_log_search_tool(): void
     {
         $systemAdmin = $this->createUserWithRole('Admin');
@@ -264,8 +312,43 @@ class AiActivityLogSearchToolTest extends TestCase
         $this->assertSame('Audit search completed.', $result['reply']);
         Http::assertSent(function ($request): bool {
             $tools = collect($request->data()['tools'] ?? []);
+            $systemPrompt = (string) data_get($request->data(), 'input.0.content', '');
 
-            return $tools->contains(fn (array $tool): bool => ($tool['name'] ?? null) === 'searchActivityLogs');
+            return $tools->contains(fn (array $tool): bool => ($tool['name'] ?? null) === 'searchActivityLogs')
+                && str_contains($systemPrompt, 'full matching log history');
+        });
+    }
+
+    public function test_ai_agent_does_not_expose_admin_only_tools_to_a_technician(): void
+    {
+        $technician = $this->createUserWithRole('Technician');
+
+        Http::fake([
+            'https://api.openai.com/v1/responses' => Http::response([
+                'id' => 'technician-response',
+                'output_text' => 'I can help with your visible workorders.',
+            ], 200),
+        ]);
+
+        $result = app(AiAgentService::class)->handle(
+            user: $technician,
+            sessionKey: 'technician-role-tools',
+            userMessage: 'What can you do?',
+            pageContext: [],
+            confirmAction: []
+        );
+
+        $this->assertTrue($result['ok']);
+        Http::assertSent(function ($request): bool {
+            $toolNames = collect($request->data()['tools'] ?? [])->pluck('name');
+            $systemPrompt = (string) data_get($request->data(), 'input.0.content', '');
+
+            return $toolNames->contains('findWorkorder')
+                && ! $toolNames->contains('searchActivityLogs')
+                && ! $toolNames->contains('searchWorkorders')
+                && ! $toolNames->contains('lookupManualEditPermissions')
+                && ! $toolNames->contains('listManualRevisionChecksDue')
+                && ! str_contains($systemPrompt, 'searchActivityLogs');
         });
     }
 

@@ -110,6 +110,19 @@
             padding: 16px 22px;
         }
 
+        .print-mark-warning {
+            background: #fff1f2;
+            border-bottom: 1px solid #fecdd3;
+            border-top: 1px solid #fecdd3;
+            color: #dc2626;
+            font-size: 20px;
+            font-weight: 800;
+            line-height: 1.3;
+            padding: 16px 22px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
         @media (min-width: 560px) {
             body {
                 align-items: center;
@@ -148,8 +161,14 @@
             </div>
         </section>
 
+        @if(!empty($requirementWarnings))
+            <section class="print-mark-warning" role="alert">
+                Missing required {{ implode(' and ', $requirementWarnings) }}
+            </section>
+        @endif
+
         <section class="print-mark-note">
-            This public page only displays the data encoded in the printed QR mark.
+            This public page displays the data registered for the printed QR mark.
         </section>
     </main>
 </body>

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\PrintMark;
+use App\Models\TdrProcess;
 use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -19,6 +20,7 @@ class PrintMarkService
             'workorder_id' => $data['workorder_id'] ?? null,
             'workorder_number' => $this->normalizeWorkorderNumber((string) ($data['workorder_number'] ?? '')),
             'form_name' => trim((string) ($data['form_name'] ?? 'Printed Form')),
+            'requirement_warnings' => $this->normalizeRequirementWarnings($data['requirement_warnings'] ?? []),
             'printed_by_user_id' => $data['printed_by_user_id'] ?? null,
             'printed_by_name' => trim((string) ($data['printed_by_name'] ?? 'system')),
             'printed_at' => $this->normalizePrintedAt($data['printed_at'] ?? now()),
@@ -44,6 +46,39 @@ class PrintMarkService
         return self::PUBLIC_BASE_URL . $printMark->token;
     }
 
+    /**
+     * Return both the warning snapshot stored with the QR mark and any currently
+     * missing FIG/ZONE requirements elsewhere in the same work order.
+     *
+     * The live lookup keeps older QR marks useful: those rows were created before
+     * requirement_warnings was stored in print_marks, while the process sheet can
+     * already show its print-only asterisk from tdr_processes.
+     */
+    public function requirementWarnings(PrintMark $printMark): array
+    {
+        $warnings = $this->normalizeRequirementWarnings($printMark->requirement_warnings ?? []);
+
+        if ($printMark->workorder_id === null) {
+            return $warnings;
+        }
+
+        $liveWarnings = TdrProcess::query()
+            ->whereHas('tdr', fn ($query) => $query->where('workorder_id', $printMark->workorder_id))
+            ->where(function ($query): void {
+                $query->where('requires_fig', true)
+                    ->orWhere('requires_zone', true);
+            })
+            ->where(function ($query): void {
+                $query->whereNull('ignore_row')
+                    ->orWhere('ignore_row', false);
+            })
+            ->get(['description', 'requires_fig', 'requires_zone'])
+            ->flatMap(fn (TdrProcess $tdrProcess) => $tdrProcess->missingDescriptionRequirements())
+            ->all();
+
+        return $this->normalizeRequirementWarnings(array_merge($warnings, $liveWarnings));
+    }
+
     private function newToken(): string
     {
         $token = '';
@@ -61,6 +96,17 @@ class PrintMarkService
         $digits = preg_replace('/\D+/', '', $workorderNumber);
 
         return $digits !== '' ? 'W' . $digits : strtoupper($workorderNumber);
+    }
+
+    private function normalizeRequirementWarnings(mixed $warnings): array
+    {
+        $allowed = ['FIG', 'ZONE'];
+        $normalized = array_map(
+            static fn ($warning) => strtoupper(trim((string) $warning)),
+            is_array($warnings) ? $warnings : []
+        );
+
+        return array_values(array_intersect($allowed, array_unique($normalized)));
     }
 
     private function normalizePrintedAt(mixed $printedAt): CarbonInterface

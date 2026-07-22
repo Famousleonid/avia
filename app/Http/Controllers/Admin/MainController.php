@@ -61,6 +61,21 @@ class MainController extends Controller
 
         $task = Task::with('generalTask')->findOrFail($data['task_id']);
 
+        if ($task->name === 'Approved') {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Edit the approval date in the Workorder section.',
+                    'errors' => [
+                        'date_finish' => ['Edit the approval date in the Workorder section.'],
+                    ],
+                ], 422);
+            }
+
+            return back()->withErrors([
+                'date_finish' => 'Edit the approval date in the Workorder section.',
+            ]);
+        }
+
         $ignoreRow = $request->boolean('ignore_row');
         $hasStart  = $request->has('date_start');
         $hasFinish = $request->has('date_finish');
@@ -147,14 +162,15 @@ class MainController extends Controller
 
         $general_tasks = $this->workorderVisibility->visibleGeneralTasksFor($request->user());
 
-        $tasks = Task::whereIn('general_task_id', $general_tasks->pluck('id'))
+        $allTasks = Task::whereIn('general_task_id', $general_tasks->pluck('id'))
             ->orderBy('general_task_id')
             ->orderBy('name')
             ->get();
 
-        $tasks = $this->workorderVisibility->filterVisibleMainsTasks($tasks, $request->user());
+        $tasks = $this->workorderVisibility->filterVisibleMainsTasks($allTasks, $request->user());
 
         $tasksByGeneral = $tasks->groupBy('general_task_id');
+        $allTasksByGeneral = $allTasks->groupBy('general_task_id');
 
         // mains by task
         $mains = Main::with(['user', 'task'])
@@ -290,7 +306,9 @@ class MainController extends Controller
         $gtAllFinished = [];
 
         foreach ($general_tasks as $gt) {
-            $taskIds = ($tasksByGeneral[$gt->id] ?? collect())->pluck('id');
+            // Visibility changes which rows the user sees, not which rows are
+            // required to complete the stage.
+            $taskIds = ($allTasksByGeneral[$gt->id] ?? collect())->pluck('id');
 
             if ($taskIds->isEmpty()) {
                 $gtAllFinished[$gt->id] = false;

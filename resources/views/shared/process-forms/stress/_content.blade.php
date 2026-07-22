@@ -89,7 +89,7 @@
                     @foreach($process_components ?? [] as $component_process)
                         @if($component_process->id == $process)
                             <span @if(strlen($component_process->process) > 25) class="process-text-long" @endif>
-                                {{ $component_process->process }}
+                                {{ $component_process->process }}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif
                                 @if($component->description)<br><span>{{ $component->description }}</span>@endif
                             </span>
                         @endif

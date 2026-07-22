@@ -28,8 +28,12 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
+        cursor: grab;
         transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .ai-widget.is-dragging .ai-widget-toggle {
+        cursor: grabbing;
     }
 
     .ai-widget-toggle:hover {
@@ -316,6 +320,7 @@
         let historyLoaded = false;
         let loadingHistory = false;
         let pendingAction = null;
+        let suppressToggleClick = false;
 
         function escapeHtml(str) {
             const div = document.createElement('div');
@@ -513,6 +518,63 @@
             });
         }
 
+        function initToggleDrag() {
+            if (window.matchMedia('(max-width: 768px)').matches) return;
+
+            const MAX_HORIZONTAL_DISTANCE = 400;
+            let pointerId = null;
+            let startX = 0;
+            let startOffset = 0;
+            let horizontalOffset = 0;
+            let moved = false;
+
+            const minOffset = function () {
+                const availableLeftSpace = Math.max(0, window.innerWidth - toggleBtn.offsetWidth - 24);
+                return -Math.min(MAX_HORIZONTAL_DISTANCE, availableLeftSpace);
+            };
+
+            const applyOffset = function () {
+                widget.style.transform = `translateX(${Math.round(horizontalOffset)}px)`;
+            };
+
+            toggleBtn.addEventListener('pointerdown', function (event) {
+                if (event.button !== 0 || (event.pointerType && event.pointerType !== 'mouse')) return;
+
+                pointerId = event.pointerId;
+                startX = event.clientX;
+                startOffset = horizontalOffset;
+                moved = false;
+                toggleBtn.setPointerCapture?.(pointerId);
+            });
+
+            toggleBtn.addEventListener('pointermove', function (event) {
+                if (pointerId === null || event.pointerId !== pointerId) return;
+
+                const delta = event.clientX - startX;
+                if (!moved && Math.abs(delta) < 4) return;
+
+                moved = true;
+                event.preventDefault();
+                horizontalOffset = clamp(startOffset + delta, minOffset(), 0);
+                widget.classList.add('is-dragging');
+                document.body.style.userSelect = 'none';
+                applyOffset();
+            });
+
+            const finishDrag = function (event) {
+                if (pointerId === null || (event && event.pointerId !== pointerId)) return;
+
+                toggleBtn.releasePointerCapture?.(pointerId);
+                pointerId = null;
+                widget.classList.remove('is-dragging');
+                document.body.style.userSelect = '';
+                suppressToggleClick = moved;
+            };
+
+            toggleBtn.addEventListener('pointerup', finishDrag);
+            toggleBtn.addEventListener('pointercancel', finishDrag);
+        }
+
         async function loadHistory(force = false) {
             if ((historyLoaded && !force) || loadingHistory) {
                 return;
@@ -585,6 +647,10 @@
         }
 
         toggleBtn.addEventListener('click', function () {
+            if (suppressToggleClick) {
+                suppressToggleClick = false;
+                return;
+            }
             toggleWidget();
         });
 
@@ -745,6 +811,7 @@
 
         applySavedWidgetSize();
         initResizer();
+        initToggleDrag();
     })();
 </script>
 @endauth

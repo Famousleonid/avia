@@ -19,7 +19,6 @@ use Spatie\Activitylog\Models\Activity;
 
 class SearchActivityLogsTool
 {
-    private const MAX_CANDIDATES = 1000;
 
     public function run(User $user, array $args): array
     {
@@ -122,55 +121,54 @@ class SearchActivityLogsTool
             );
         }
 
-        $candidateLimit = min(
-            self::MAX_CANDIDATES,
-            max(250, $filters['limit'] * 30)
-        );
-        $candidates = $query->limit($candidateLimit)->get();
-        $candidateCount = $candidates->count();
+        // Some relations (e.g. historical P/N and bushing snapshots) require
+        // an exact PHP-level check. Cursor through the matching SQL scope until
+        // we have the requested rows plus one, rather than cutting the search
+        // off after an arbitrary candidate count.
+        $activities = collect();
+        $hasMore = false;
+        foreach ($query->cursor() as $activity) {
+            if ($workorder && ! $this->activityMatchesWorkorder(
+                $activity,
+                (int) $workorder->id,
+                $workorderSubjectIds
+            )) {
+                continue;
+            }
 
-        if ($workorder) {
-            $candidates = $candidates->filter(
-                fn (Activity $activity): bool => $this->activityMatchesWorkorder(
-                    $activity,
-                    (int) $workorder->id,
-                    $workorderSubjectIds
-                )
-            );
+            if ($manual && ! $this->activityMatchesManual(
+                $activity,
+                (int) $manual->id,
+                $manualSubjectIds
+            )) {
+                continue;
+            }
+
+            if ($filters['part_number'] !== '' && ! $this->activityMatchesPartNumber(
+                $activity,
+                $filters['part_number'],
+                $filters['exact_part_number'],
+                $componentIds,
+                $tdrIdsForPart
+            )) {
+                continue;
+            }
+
+            if ($activities->count() >= $filters['limit']) {
+                $hasMore = true;
+                break;
+            }
+
+            $activities->push($activity);
         }
 
-
-        if ($manual) {
-            $candidates = $candidates->filter(
-                fn (Activity $activity): bool => $this->activityMatchesManual(
-                    $activity,
-                    (int) $manual->id,
-                    $manualSubjectIds
-                )
-            );
-        }
-
-        if ($filters['part_number'] !== '') {
-            $candidates = $candidates->filter(
-                fn (Activity $activity): bool => $this->activityMatchesPartNumber(
-                    $activity,
-                    $filters['part_number'],
-                    $filters['exact_part_number'],
-                    $componentIds,
-                    $tdrIdsForPart
-                )
-            );
-        }
-
-        $matchedCount = $candidates->count();
-        $activities = $candidates->take($filters['limit'])->values();
         $context = $this->buildResultContext($activities, $manual);
 
         return [
             'ok' => true,
             'filters' => $this->publicFilters($filters, $workorder, $manual),
             'count' => $activities->count(),
-            'has_more' => $matchedCount > $filters['limit'] || $candidateCount >= $candidateLimit,
+            'has_more' => $hasMore,
             'matches' => $activities
                 ->map(fn (Activity $activity): array => $this->formatActivity($activity, $context))
                 ->all(),
@@ -185,7 +183,7 @@ class SearchActivityLogsTool
         return [
             'type' => 'function',
             'name' => 'searchActivityLogs',
-            'description' => 'Read-only audit search for who created, changed, or deleted data and when. Supports WO, CMM manual number, exact/partial P/N (including TDR Add Part entries, TDR component ids, and bushing snapshots), actor name/email, event, log name, area, free text, and date range. Every supplied filter is combined with AND. System Admin only. Never expose internal ids.',
+            'description' => 'Thorough read-only audit search for who created, changed, or deleted data and when. Searches the full matching log history, supports WO, CMM manual number, exact/partial P/N (including TDR Add Part entries, TDR component ids, and bushing snapshots), actor name/email, event, log name, area, free text, and date range. Every supplied filter is combined with AND. System Admin only. Never expose internal ids.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -240,7 +238,7 @@ class SearchActivityLogsTool
                     ],
                     'limit' => [
                         'type' => 'integer',
-                        'description' => 'Maximum results, 1 to 50.',
+                        'description' => 'Maximum results, 1 to 100.',
                     ],
                 ],
                 'additionalProperties' => false,
@@ -280,7 +278,7 @@ class SearchActivityLogsTool
             'text' => trim((string) ($args['text'] ?? '')),
             'date_from' => $dateFrom === false ? null : $dateFrom,
             'date_to' => $dateTo === false ? null : $dateTo,
-            'limit' => max(1, min(50, (int) ($args['limit'] ?? 20))),
+            'limit' => max(1, min(100, (int) ($args['limit'] ?? 20))),
             'error' => $error,
         ];
     }

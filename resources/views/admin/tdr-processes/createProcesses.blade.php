@@ -269,6 +269,26 @@
                     </div>
                 </form>
 
+                <div class="modal fade" id="descriptionRequirementModal" tabindex="-1" aria-labelledby="descriptionRequirementModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="descriptionRequirementModalLabel">FIG / ZONE required</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-2">The Description field is missing required information:</p>
+                                <p class="mb-0 text-danger" id="descriptionRequirementModalMessage"></p>
+                                <p class="mt-3 mb-0">Slava S will not accept the printed form without it.</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" id="descriptionRequirementReturn">Return and fill</button>
+                                <button type="button" class="btn btn-outline-danger" id="descriptionRequirementSaveIncomplete">Save without FIG / ZONE</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
             <!-- Модальное окно для добавления процесса -->
             <div class="modal fade" id="addProcessModal" tabindex="-1" aria-labelledby="addProcessModalLabel" aria-hidden="true">
@@ -610,12 +630,52 @@
 
 
         // Обработка отправки формы
-        document.getElementById('createCPForm').addEventListener('submit', function (event) {
+        function confirmIncompleteDescriptionRequirements(message) {
+            const modalElement = document.getElementById('descriptionRequirementModal');
+            const messageElement = document.getElementById('descriptionRequirementModalMessage');
+            const returnButton = document.getElementById('descriptionRequirementReturn');
+            const saveIncompleteButton = document.getElementById('descriptionRequirementSaveIncomplete');
+
+            if (!modalElement || !messageElement || !returnButton || !saveIncompleteButton || !window.bootstrap?.Modal) {
+                return Promise.resolve(window.confirm(
+                    'Description is missing required ' + message + '.\n\n' +
+                    'Slava S will not accept the printed form without this information. Save anyway?'
+                ));
+            }
+
+            messageElement.textContent = message;
+
+            return new Promise(function (resolve) {
+                const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
+                let settled = false;
+
+                const finish = function (saveIncomplete) {
+                    if (settled) return;
+                    settled = true;
+                    returnButton.removeEventListener('click', returnToDescription);
+                    saveIncompleteButton.removeEventListener('click', saveWithoutDescription);
+                    modalElement.removeEventListener('hidden.bs.modal', cancelOnClose);
+                    modal.hide();
+                    resolve(saveIncomplete);
+                };
+                const returnToDescription = function () { finish(false); };
+                const saveWithoutDescription = function () { finish(true); };
+                const cancelOnClose = function () { finish(false); };
+
+                returnButton.addEventListener('click', returnToDescription);
+                saveIncompleteButton.addEventListener('click', saveWithoutDescription);
+                modalElement.addEventListener('hidden.bs.modal', cancelOnClose);
+                modal.show();
+            });
+        }
+
+        document.getElementById('createCPForm').addEventListener('submit', async function (event) {
             event.preventDefault();
 
             const tdrId = document.querySelector('input[name="tdrs_id"]').value;
             const processRows = document.querySelectorAll('.process-row');
             const processesData = [];
+            const incompleteDescriptions = [];
             let hasCheckedCheckbox = false;
 
             processRows.forEach(row => {
@@ -690,6 +750,20 @@
                 const notesInput = row.querySelector('input[name*="[notes]"]');
                 const notesValue = notesInput ? notesInput.value.trim() : null;
 
+                const selectedSpecificationInputs = Array.from(row.querySelectorAll(
+                    '.process-options input[type="radio"]:checked, .ndt-plus-process-checkbox:checked'
+                ));
+                const missing = [];
+                if (selectedSpecificationInputs.some(input => input.dataset.requiresFig === '1') && !/FIG/i.test(descriptionValue || '')) {
+                    missing.push('FIG');
+                }
+                if (selectedSpecificationInputs.some(input => input.dataset.requiresZone === '1') && !/ZONE/i.test(descriptionValue || '')) {
+                    missing.push('ZONE');
+                }
+                if (missing.length > 0) {
+                    incompleteDescriptions.push(`${processName || 'Process'}: ${missing.join(', ')}`);
+                }
+
                 if (selectedProcessIds.length > 0) {
                     // Объединяем все процессы (основные + дополнительные NDT)
                     const allProcessIds = [...selectedProcessIds, ...ndtPlusProcessIds];
@@ -719,32 +793,64 @@
                 return; // Прерываем выполнение
             }
 
+            if (incompleteDescriptions.length > 0
+                && !await confirmIncompleteDescriptionRequirements(incompleteDescriptions.join('; '))) {
+                return;
+            }
+
             const formData = new FormData();
             formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
             formData.append('tdrs_id', tdrId);
             formData.append('processes', JSON.stringify(processesData));
 
-            fetch(`{{ route('tdr-processes.store') }}`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    tdrs_id: tdrId,
-                    processes: processesData
-                })
-            })
+            const saveProcesses = function (confirmIncompleteRequirements) {
+                return fetch(`{{ route('tdr-processes.store') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tdrs_id: tdrId,
+                        processes: processesData,
+                        confirm_incomplete_requirements: confirmIncompleteRequirements
+                    })
+                });
+            };
+
+            saveProcesses(incompleteDescriptions.length > 0)
                 .then(response => {
                     if (!response.ok) {
                         return response.json().then(err => {
+                            if (response.status === 422 && Array.isArray(err.incomplete_requirements)) {
+                                const missing = err.incomplete_requirements
+                                    .map(item => `Process row ${item.row}: ${item.missing.join(', ')}`)
+                                    .join('; ');
+
+                                return confirmIncompleteDescriptionRequirements(missing)
+                                    .then(function (saveIncomplete) {
+                                        if (!saveIncomplete) return null;
+
+                                        return saveProcesses(true).then(function (retryResponse) {
+                                            if (!retryResponse.ok) {
+                                                return retryResponse.json().then(function (retryError) {
+                                                    throw new Error(retryError.error || retryError.message || 'Network response was not ok');
+                                                });
+                                            }
+
+                                            return retryResponse.json();
+                                        });
+                                    });
+                            }
+
                             throw new Error(err.error || err.message || 'Network response was not ok');
                         });
                     }
                     return response.json();
                 })
                 .then(data => {
+                    if (!data) return;
                     if (data.message) {
                         showNotification(data.message, 'success');
                     }
@@ -809,7 +915,9 @@
                             const radio = document.createElement('div');
                             radio.classList.add('form-check');
                             radio.innerHTML = `
-                                <input type="radio" name="processes[${rowIndex}][process]" value="${process.id}" class="form-check-input" id="process_${rowIndex}_${process.id}">
+                                <input type="radio" name="processes[${rowIndex}][process]" value="${process.id}" class="form-check-input" id="process_${rowIndex}_${process.id}"
+                                       data-requires-fig="${process.requires_fig ? '1' : '0'}"
+                                       data-requires-zone="${process.requires_zone ? '1' : '0'}">
                                 <label class="form-check-label" for="process_${rowIndex}_${process.id}">${process.process}</label>
                             `;
                             processOptionsContainer.appendChild(radio);
@@ -960,8 +1068,10 @@
                                 checkbox.innerHTML = `
                                     <input type="checkbox" name="processes[${rowIndex}][ndt_plus_processes][]"
                                            value="${process.id}"
-                                           class="form-check-input ndt-plus-process-checkbox"
-                                           data-ndt-process-name-id="${processNameId}">
+                                            class="form-check-input ndt-plus-process-checkbox"
+                                            data-ndt-process-name-id="${processNameId}"
+                                            data-requires-fig="${process.requires_fig ? '1' : '0'}"
+                                            data-requires-zone="${process.requires_zone ? '1' : '0'}">
                                     <label class="form-check-label">${process.process}</label>
                                 `;
                                 ndtPlusOptionsContainer.appendChild(checkbox);

@@ -140,7 +140,7 @@ body { margin: 0; padding: 0; font-family: "Times New Roman", serif; }
 .data-page .data-row > div:first-child,
 .table-header .row > div:first-child { line-height: 1.1; }
 .details-cell { display: flex; justify-content: center; align-items: center; }
-.parent { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; width: 100%; font-size: var(--ndt-process-font-size, 10px); }
+.parent { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; width: 100%; font-size: var(--ndt-process-font-size, 16px); }
 .parent > div { padding: 0 5px; }
 .ndt-process-row { min-height: 26px; line-height: 1; }
 .ndt-process-row-tall { height: 30px; }

@@ -81,6 +81,44 @@ Keep apply_status / apply_message / applied target fields for parser.
 Do not delete staged rows.
 ```
 
+### Meaning of `applied`
+
+`apply_status = applied` is an audit result for the moment when the staged
+Quantum row was processed. It does not guarantee that the target row still
+contains the applied values later. A subsequent manual or bulk update of the
+target can replace or clear `repair_order`, vendor, or dates while the staging
+row remains `applied`.
+
+The parser normally will not revisit such a row while
+`applied_source_hash = source_hash`. Therefore an unchanged Quantum source row
+does not automatically repair later target-side drift.
+
+Confirmed example (production snapshot, WO 107789 / PN 2821-0222 / RO R9101 /
+REF T1): Quantum successfully applied RO, vendor, and sent date to all 10 rows
+of Traveler 1 at 15/Jul/2026 18:55. The same 10 `tdr_processes` rows were bulk
+updated later at 22:03 and currently have null RO and sent date, while the
+staging row remains `applied`. Bulk query updates can bypass the model activity
+log, so target-side audit must not rely on `quantum_ro_lines.apply_status`
+alone.
+
+Traveler create/recreate and ungroup operations now write explicit
+`tdr_traveler` activity events (`traveler_created` and `traveler_ungrouped`)
+with the authenticated user, WO/TDR/PN, affected process IDs, previous values,
+and cleared fields. This explicit audit is required because those operations
+still use efficient bulk target updates.
+
+To recover a confirmed target-side drift without changing Quantum, requeue only
+the exact staging row by setting `apply_status = pending`, clearing
+`applied_source_hash`, `applied_at`, and the applied target fields, and then run
+`php artisan quantum-ro:apply`. Verify the natural identifiers (`source_uid`,
+RO, WO, PN, serial number, and REF) before requeueing. Do not change `source_hash` or the source
+payload: those belong to the read-only Quantum import.
+
+The Vendor Tracking recent Quantum table exposes this operation as `Reapply`
+for rows with status `applied`. It requires confirmation, requeues only the
+selected row, and records the requesting user in `activity_log`. The normal
+server-side `quantum-ro:apply` schedule then applies the staged source values.
+
 Natural source row:
 
 ```text
@@ -97,6 +135,14 @@ date_start  = RO_HEADER.OUT_DATE
 date_finish = RO_DETAIL.LAST_DELIVERY_DATE
 ```
 
+Apply rule (confirmed):
+
+```text
+Use returned_date only from the exact staged RO_DETAIL row being matched
+(ROD_AUTO_KEY / WO / PN / serial / REF). Never aggregate or copy a return
+date from another P/N merely because RO_NUMBER is the same.
+```
+
 Project convention:
 
 ```text
@@ -104,6 +150,17 @@ date_start = sent / process started outside
 date_finish = returned / process finished
 date_promise = ECD / expected completion or promise date
 ```
+
+Mobile process-date ownership, confirmed by the production review audit:
+
+```text
+ProcessName::allowsManualDateEditing() = true  -> shop/Technician-entered; mobile may edit dates.
+All other TDR process names                     -> Quantum-owned; mobile must return all can_edit_* flags as false.
+```
+
+This rule intentionally does not depend on whether Quantum has already sent a
+date or populated `date_*_user`: blank dates are normal before the external
+process is completed.
 
 Partial return rule from user:
 
@@ -135,6 +192,35 @@ Observed values support this:
 Closed/returned rows: TO_REPAIR=n, RESERVED=0, REPAIRED=n
 Open/new rows:        TO_REPAIR=n, RESERVED=n, REPAIRED=0
 ```
+
+## Serial Mapping
+
+Confirmed for detail-part RO rows:
+
+```text
+serial_number = RO_DETAIL.SERIAL_NUMBER when populated
+serial_number = the single distinct VIEW_RPT_KIT_MATERIAL.SERIAL_NUMBER
+                linked by WOB_AUTO_KEY otherwise
+```
+
+If the linked WOB exposes more than one distinct serial, sync leaves
+`serial_number` empty instead of choosing an arbitrary unit.
+
+Confirmed production example for WO W106874 / PN D63820:
+
+```text
+WOB 714543 -> A529
+WOB 714545 -> A528
+WOB 714551 -> A529
+WOB 714552 -> A528
+```
+
+The apply service uses this serial together with WO, PN, and REF/process code
+to select the correct TDR when several TDR units share the same part number.
+It tries the exact serial first. If Quantum's serial does not match but WO + PN
++ REF identifies exactly one TDR process (or exactly one Traveler group), that
+single target is used as a safe fallback. If more than one target remains, the
+row stays unresolved; the service must not guess between units.
 
 ## Classification Mapping
 
@@ -181,8 +267,9 @@ Latest received from Quantum = local audit view of staged rows in all apply stat
 ```
 
 Both sections exclude rows whose `wo_number` belongs to a local workorder with
-`workorders.done_at IS NOT NULL`. WO filtering is applied to `apply_message`
-(the UI `Reason` column); RO filtering is applied to `ro_number`.
+`workorders.done_at IS NOT NULL`. WO filtering is an exact normalized match on
+`quantum_ro_lines.wo_number`; input with or without the `W` prefix is equivalent
+(for example, `107789` and `W107789`). RO filtering is applied to `ro_number`.
 
 Existing avia date fields:
 

@@ -20,6 +20,8 @@ class TdrProcess extends Model
         'rule_process_ids', // ManualParameterRuleProcess ids that fed this group (for document generation)
         'phase_rule_process_ids', // MasterRulePhaseRuleProcess ids (Start/Finish) — kept separate from Main
         'description',
+        'requires_fig',
+        'requires_zone',
         'notes',
         'repair_order',
         'vendor_id',
@@ -54,6 +56,8 @@ class TdrProcess extends Model
         'in_traveler' => 'boolean',
         'traveler_group' => 'integer',
         'standalone_ec_only' => 'boolean',
+        'requires_fig' => 'boolean',
+        'requires_zone' => 'boolean',
     ];
 
 
@@ -153,6 +157,22 @@ class TdrProcess extends Model
         return ($pn->process_sheet_name ?? '') === 'NDT'
             && str_starts_with((string) ($pn->name ?? ''), 'NDT-')
             && trim((string) ($this->plus_process ?? '')) !== '';
+    }
+
+    public function missingDescriptionRequirements(): array
+    {
+        $description = (string) ($this->description ?? '');
+        $missing = [];
+
+        if ($this->requires_fig && stripos($description, 'FIG') === false) {
+            $missing[] = 'FIG';
+        }
+
+        if ($this->requires_zone && stripos($description, 'ZONE') === false) {
+            $missing[] = 'ZONE';
+        }
+
+        return $missing;
     }
 
     public function getActivitylogOptions(): LogOptions

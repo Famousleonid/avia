@@ -10,10 +10,10 @@ Service alias: MAXQPROD
 Service name: CCTL
 Schema: QCTL
 Current user: CRYSTAL
-TNS_ADMIN: C:\oracle\ora92\network\admin
+TNS_ADMIN: C:\oracle\network\admin
 ```
 
-`C:\oracle\ora92\network\admin\tnsnames.ora` уже содержит Oracle/TNS
+`C:\oracle\network\admin\tnsnames.ora` уже содержит Oracle/TNS
 настройки. Для кода и sync-скриптов пароль не хранить в репозитории.
 
 ## Переменные окружения
@@ -24,7 +24,7 @@ TNS_ADMIN: C:\oracle\ora92\network\admin
 ORACLE_USER=CRYSTAL
 ORACLE_DSN=MAXQPROD
 ORACLE_PASS=<из окружения>
-TNS_ADMIN=C:\oracle\ora92\network\admin
+TNS_ADMIN=C:\oracle\network\admin
 ```
 
 Manager-specific переменные, если нужен отдельный namespace:
@@ -71,4 +71,3 @@ DBMS_ / UTL_
 
 Не обходить `assertReadOnlySql()` в bridge/runner скриптах.
 Не добавлять credentials в код, README, CSV или логи.
-

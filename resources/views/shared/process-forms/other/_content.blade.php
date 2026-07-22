@@ -107,7 +107,7 @@
                     @endphp
                     @if($procText)
                         <span @if(strlen($procText) > 25) class="process-text-long" @endif>
-                            {{ $procText }}
+                            {{ $procText }}@if(method_exists($component, 'missingDescriptionRequirements') && $component->missingDescriptionRequirements() !== [])<span class="process-requirement-print-star">*</span>@endif
                             @if($component->description)<br><span>{{ $component->description }}</span>@endif
                         </span>
                     @endif

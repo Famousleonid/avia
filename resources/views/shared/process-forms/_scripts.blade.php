@@ -8,6 +8,7 @@
     $defaultStress = $formConfig['stress_table_rows'] ?? 21;
     $defaultOther = $formConfig['other_table_rows'] ?? 21;
     $defaultContainerWidth = $formConfig['container_max_width'] ?? 1200;
+    $defaultNdtProcessFontSize = $formConfig['ndt_process_font_size'] ?? 16;
     $isTravelForm = ($module ?? '') === 'travel-form';
 @endphp
 <script>
@@ -37,7 +38,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
         otherTableRows: '{{ $defaultOther }}',
         tableDataFontSize: '13',
         componentNameFontSize: '16',
-        ndtProcessFontSize: '10',
+        ndtProcessFontSize: '{{ $defaultNdtProcessFontSize }}',
         ndtTableDataFontSize: '13',
         stressTableDataFontSize: '13',
         otherTableDataFontSize: '13'
@@ -68,7 +69,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
             footerPadding: '0',
             footerBottom: '0px',
             componentNameFontSize: '16',
-            ndtProcessFontSize: '10',
+            ndtProcessFontSize: defaultSettings.ndtProcessFontSize,
             tableDataFontSize: tableDataFontSize,
             ndtTableDataFontSize: tableDataFontSize,
             stressTableDataFontSize: tableDataFontSize,
@@ -288,7 +289,7 @@ if (typeof window.processesFormScriptInitialized === 'undefined') {
         if (el('otherTableRows')) el('otherTableRows').value = settings.otherTableRows || defaultSettings.otherTableRows;
         if (el('tableDataFontSize')) el('tableDataFontSize').value = parseNum(settings.tableDataFontSize || settings.otherTableDataFontSize) || 13;
         if (el('componentNameFontSize')) el('componentNameFontSize').value = parseNum(settings.componentNameFontSize) || 16;
-        if (el('ndtProcessFontSize')) el('ndtProcessFontSize').value = parseNum(settings.ndtProcessFontSize) || 10;
+        if (el('ndtProcessFontSize')) el('ndtProcessFontSize').value = parseNum(settings.ndtProcessFontSize) || defaultSettings.ndtProcessFontSize;
         if (el('ndtTableDataFontSize')) el('ndtTableDataFontSize').value = parseNum(settings.ndtTableDataFontSize) || 13;
         if (el('stressTableDataFontSize')) el('stressTableDataFontSize').value = parseNum(settings.stressTableDataFontSize) || 13;
         if (el('otherTableDataFontSize')) el('otherTableDataFontSize').value = parseNum(settings.otherTableDataFontSize) || 13;

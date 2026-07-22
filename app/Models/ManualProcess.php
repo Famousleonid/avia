@@ -13,6 +13,8 @@ class ManualProcess extends Model
         'manual_id',
         'processes_id',
         'process_comment',
+        'requires_fig',
+        'requires_zone',
         'is_locked',
         'locked_by_user_id',
         'locked_at',
@@ -20,6 +22,8 @@ class ManualProcess extends Model
 
     protected $casts = [
         'is_locked' => 'boolean',
+        'requires_fig' => 'boolean',
+        'requires_zone' => 'boolean',
         'locked_at' => 'datetime',
     ];
 

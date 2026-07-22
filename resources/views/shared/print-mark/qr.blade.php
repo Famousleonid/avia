@@ -19,6 +19,7 @@
     $printMarkQrScreenPlacement = $printMarkQrScreenPlacement ?? 'page';
     $printMarkQrHostSelector = $printMarkQrHostSelector ?? '.tdr-primary-sheet, .form-page-block, .std-sheet-container, .page, .std-page, .cert-wrap, .page-wrap, .container-fluid, main.content, body';
     $printMarkLabel = trim((string) ($printMarkLabel ?? ''));
+    $printMarkWarnings = array_values(array_unique(array_filter((array) ($printMarkWarnings ?? []))));
 @endphp
 
 @if($printMarkWoNumber !== '' && $printMarkQrEnabled)
@@ -63,6 +64,7 @@
                 'workorder_id' => is_object($printMarkCandidate) ? ($printMarkCandidate->id ?? null) : null,
                 'workorder_number' => 'W' . $printMarkWoNumber,
                 'form_name' => $printMarkFormName,
+                'requirement_warnings' => $printMarkWarnings,
                 'printed_by_user_id' => auth()->id(),
                 'printed_by_name' => $printMarkPrintedBy,
                 'printed_at' => $printMarkPrintedAt,
@@ -90,7 +92,7 @@
                 gap: 4px;
                 height: {{ $printMarkQrSize }}px;
                 min-width: {{ $printMarkQrSize }}px;
-                pointer-events: none;
+                pointer-events: auto;
                 position: fixed;
                 right: {{ $printMarkQrRight }};
                 top: {{ $printMarkQrTop }};
@@ -113,6 +115,23 @@
                 height: {{ $printMarkQrSize }}px;
                 width: {{ $printMarkQrSize }}px;
             }
+
+            .system-print-qr__warning {
+                display: none;
+                position: absolute;
+                right: 0;
+                top: calc(100% + 4px);
+                width: max-content;
+                max-width: 260px;
+                padding: 5px 7px;
+                background: #fff;
+                border: 1px solid #dc3545;
+                color: #dc3545;
+                font: 700 12px/1.2 Arial, sans-serif;
+                z-index: 1;
+            }
+            .system-print-qr:hover .system-print-qr__warning,
+            .system-print-qr:focus-within .system-print-qr__warning { display: block; }
 
             @media screen {
                 .system-print-qr {
@@ -151,6 +170,7 @@
                     right: {{ $printMarkQrPrintRight }};
                     top: {{ $printMarkQrPrintTop }};
                 }
+                .system-print-qr__warning { display: none !important; }
             }
         </style>
         @endonce
@@ -159,8 +179,8 @@
             id="{{ $printMarkQrId }}"
             class="system-print-qr"
             data-screen-placement="{{ $printMarkQrScreenPlacement }}"
-            aria-hidden="true"
-        >@if($printMarkLabel !== '')<span class="system-print-qr__label">{{ $printMarkLabel }}</span>@endif<span class="system-print-qr__code">{!! \App\Support\SimpleQrSvg::svg($printMarkPayload, $printMarkQrSize) !!}</span></div>
+            aria-label="{{ $printMarkWarnings ? 'Missing required ' . implode(' and ', $printMarkWarnings) : 'Print verification QR code' }}"
+        >@if($printMarkLabel !== '')<span class="system-print-qr__label">{{ $printMarkLabel }}</span>@endif<span class="system-print-qr__code">{!! \App\Support\SimpleQrSvg::svg($printMarkPayload, $printMarkQrSize) !!}</span>@if($printMarkWarnings)<span class="system-print-qr__warning">Missing required {{ implode(' and ', $printMarkWarnings) }}</span>@endif</div>
 
         @if($printMarkQrScreenPlacement === 'page')
             <script>

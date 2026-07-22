@@ -41,7 +41,17 @@
     </style>
 </head>
 <body>
-@include('shared.print-mark.qr', ['printMarkWorkorder' => $formsData[0]['current_wo'] ?? null])
+@php
+    $packageRequirementWarnings = collect($formsData)
+        ->flatMap(fn (array $formData) => collect($formData['process_tdr_components'] ?? ($formData['ndt_components'] ?? [])))
+        ->flatMap(fn ($tdrProcess) => method_exists($tdrProcess, 'missingDescriptionRequirements')
+            ? $tdrProcess->missingDescriptionRequirements()
+            : [])
+        ->unique()
+        ->values()
+        ->all();
+@endphp
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $formsData[0]['current_wo'] ?? null, 'printMarkWarnings' => $packageRequirementWarnings])
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" onclick="window.print()">Print All Forms</button>
     <button class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#printSettingsModal">

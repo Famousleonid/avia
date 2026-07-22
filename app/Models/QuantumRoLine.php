@@ -19,6 +19,7 @@ class QuantumRoLine extends Model
         'wo_number',
         'vendor_name',
         'pn',
+        'serial_number',
         'description',
         'class',
         'bom_ref',

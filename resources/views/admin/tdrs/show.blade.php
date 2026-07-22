@@ -805,14 +805,14 @@
                              style="margin-right: 100px;">
                             <button type="button"
                                     id="logCardEnterDataBtn"
-                                    class="btn {{ $log_card ? 'btn-danger' : 'btn-success' }} btn-sm"
+                                    class="btn {{ $log_card ? 'btn-primary' : 'btn-success' }} btn-sm"
                                     data-has-log="{{ $log_card ? '1' : '0' }}"
                                     data-log-card-id="{{ $log_card->id ?? '' }}"
                                     data-readonly="{{ ($logCardTdrAccess['read_only'] ?? false) ? '1' : '0' }}"
                                     data-readonly-message="{{ $logCardTdrAccess['message'] ?? '' }}"
                                     @disabled($logCardTdrAccess['read_only'] ?? false)
                                     title="{{ $logCardTdrAccess['message'] ?? '' }}">
-                                <i class="fas fa-{{ $log_card ? 'undo' : 'keyboard' }}"></i> {{ $log_card ? __('Reset Log Card') : __('Create Log Card') }}
+                                <i class="fas fa-{{ $log_card ? 'sync-alt' : 'keyboard' }}"></i> {{ $log_card ? __('Update Log Card') : __('Create Log Card') }}
                             </button>
                             <button type="button" id="logCardSaveBtn" class="btn btn-primary btn-sm d-none">
                                 <i class="fas fa-save"></i> {{ __('Save') }}

@@ -178,6 +178,198 @@ class QuantumRoBufferApplyServiceTest extends TestCase
         $this->assertSame('Quantum', $target->date_finish_user);
     }
 
+    public function test_detail_part_same_ro_and_pn_targets_separate_tdrs_by_quantum_serial_number(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Serial Vendor']);
+        $processName = ProcessName::query()->create([
+            'name' => 'Cad stripping serial match',
+            'code' => 'CR',
+            'process_sheet_name' => 'CAD REMOVAL',
+            'form_number' => 'CR',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'D63820',
+            'name' => 'Pin',
+            'ipl_num' => '2-250A',
+            'eff_code' => 'ALL',
+        ]);
+
+        $firstTdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'A529',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $secondTdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'A528',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $firstTarget = TdrProcess::query()->create([
+            'tdrs_id' => $firstTdr->id,
+            'process_names_id' => $processName->id,
+            'sort_order' => 2,
+        ]);
+        $secondTarget = TdrProcess::query()->create([
+            'tdrs_id' => $secondTdr->id,
+            'process_names_id' => $processName->id,
+            'sort_order' => 2,
+        ]);
+
+        $roNumber = 'R'.random_int(1000, 8999);
+        $firstLine = $this->createQuantumLine([
+            'ro_number' => $roNumber,
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => $component->part_number,
+            'serial_number' => 'A529',
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'CR',
+        ]);
+        $secondLine = $this->createQuantumLine([
+            'ro_number' => $roNumber,
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => $component->part_number,
+            'serial_number' => 'A528',
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'CR',
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(2);
+
+        $this->assertSame(2, $stats['applied']);
+
+        $firstLine->refresh();
+        $secondLine->refresh();
+        $firstTarget->refresh();
+        $secondTarget->refresh();
+
+        $this->assertSame($firstTarget->id, $firstLine->applied_target_id);
+        $this->assertSame($secondTarget->id, $secondLine->applied_target_id);
+        $this->assertSame($roNumber, $firstTarget->repair_order);
+        $this->assertSame($roNumber, $secondTarget->repair_order);
+        $this->assertSame($vendor->id, $firstTarget->vendor_id);
+        $this->assertSame($vendor->id, $secondTarget->vendor_id);
+    }
+
+    public function test_detail_part_falls_back_to_single_wo_pn_ref_target_when_quantum_serial_does_not_match(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Serial Fallback Vendor']);
+        $processName = ProcessName::query()->create([
+            'name' => 'Cad plate serial fallback',
+            'code' => 'CP',
+            'process_sheet_name' => 'CADMIUM PLATING',
+            'form_number' => '014',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => '8846-1',
+            'name' => 'Pin Trailing Arm',
+            'ipl_num' => '2-1',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'EXC286506',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $target = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+        ]);
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => $component->part_number,
+            'serial_number' => 'NN',
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'CP',
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['applied']);
+        $this->assertSame(0, $stats['unresolved']);
+        $line->refresh();
+        $target->refresh();
+        $this->assertSame('applied', $line->apply_status);
+        $this->assertSame($target->id, $line->applied_target_id);
+        $this->assertSame($line->ro_number, $target->repair_order);
+    }
+
+    public function test_detail_part_does_not_fall_back_when_quantum_serial_matches_none_of_multiple_wo_pn_ref_targets(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Ambiguous Serial Vendor']);
+        $processName = ProcessName::query()->create([
+            'name' => 'Cad plate ambiguous serial',
+            'code' => 'CP',
+            'process_sheet_name' => 'CADMIUM PLATING',
+            'form_number' => '014',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'D63820',
+            'name' => 'Pin',
+            'ipl_num' => '2-250A',
+            'eff_code' => 'ALL',
+        ]);
+
+        $targets = collect(['A528', 'A529'])->map(function (string $serial) use ($workorder, $component, $processName): TdrProcess {
+            $tdr = Tdr::query()->create([
+                'workorder_id' => $workorder->id,
+                'component_id' => $component->id,
+                'serial_number' => $serial,
+                'assy_serial_number' => '',
+                'qty' => 1,
+                'use_tdr' => true,
+                'use_process_forms' => true,
+            ]);
+
+            return TdrProcess::query()->create([
+                'tdrs_id' => $tdr->id,
+                'process_names_id' => $processName->id,
+            ]);
+        });
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => $component->part_number,
+            'serial_number' => 'NSN',
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'CP',
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(0, $stats['applied']);
+        $this->assertSame(1, $stats['unresolved']);
+        $line->refresh();
+        $this->assertSame('unresolved', $line->apply_status);
+        $this->assertStringContainsString('Multiple TDR process targets', (string) $line->apply_message);
+        $targets->each(function (TdrProcess $target): void {
+            $target->refresh();
+            $this->assertNull($target->repair_order);
+        });
+    }
+
     public function test_detail_part_ref_code_is_case_insensitive_and_next_empty_duplicate_target_is_selected_then_return_updates_same_ro(): void
     {
         $workorder = $this->createWorkorder();
@@ -419,6 +611,142 @@ class QuantumRoBufferApplyServiceTest extends TestCase
             $this->assertSame('Quantum', $target->date_start_user);
             $this->assertSame('Quantum', $target->date_finish_user);
         }
+    }
+
+    public function test_traveler_falls_back_to_single_group_when_quantum_serial_does_not_match(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Traveler Serial Fallback Vendor']);
+        $firstProcessName = ProcessName::query()->create([
+            'name' => 'Quantum Traveler Serial Fallback A',
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $secondProcessName = ProcessName::query()->create([
+            'name' => 'Quantum Traveler Serial Fallback B',
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => '1840-0222',
+            'name' => 'Sliding Tube',
+            'ipl_num' => '10-110A',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'L0394',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $targets = collect([$firstProcessName, $secondProcessName])->map(fn (ProcessName $name, int $index): TdrProcess => TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $name->id,
+            'in_traveler' => true,
+            'traveler_group' => 1,
+            'sort_order' => ($index + 1) * 10,
+        ]));
+        $line = $this->createQuantumLine([
+            'ro_number' => 'R'.random_int(1000, 8999),
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => $component->part_number,
+            'serial_number' => 'NSN',
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'T1',
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['applied']);
+        $this->assertSame(0, $stats['unresolved']);
+        $line->refresh();
+        $this->assertSame($targets->first()->id, $line->applied_target_id);
+        $targets->each(function (TdrProcess $target) use ($line): void {
+            $target->refresh();
+            $this->assertSame($line->ro_number, $target->repair_order);
+        });
+    }
+
+    public function test_traveler_does_not_use_returned_date_from_another_part_on_the_same_ro(): void
+    {
+        $workorder = $this->createWorkorder();
+        $vendor = Vendor::query()->create(['name' => 'Quantum Traveler Isolated Return Vendor']);
+        $processName = ProcessName::query()->create([
+            'name' => 'Quantum Traveler Isolated Return',
+            'process_sheet_name' => 'QA',
+            'form_number' => 'QA',
+        ]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => '2801-0301',
+            'name' => 'Upper Torque Link',
+            'ipl_num' => '1-6',
+            'eff_code' => 'ALL',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'serial_number' => 'Q-TR-RETURN-SN',
+            'assy_serial_number' => '',
+            'qty' => 1,
+            'use_tdr' => true,
+            'use_process_forms' => true,
+        ]);
+        $target = TdrProcess::query()->create([
+            'tdrs_id' => $tdr->id,
+            'process_names_id' => $processName->id,
+            'in_traveler' => true,
+            'traveler_group' => 1,
+            'date_start' => '2026-05-01',
+            'date_finish' => '2026-06-12',
+            'date_finish_user' => 'Quantum',
+        ]);
+
+        $roNumber = 'R'.random_int(1000, 8999);
+        $otherSourceUid = 'rod:returned-other-part:'.uniqid('', true);
+        $otherSourceHash = hash('sha256', $otherSourceUid);
+        $returnedOtherPart = $this->createQuantumLine([
+            'source_uid' => $otherSourceUid,
+            'ro_number' => $roNumber,
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => '1840-0002',
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'T1',
+            'returned_date' => '2026-06-12',
+            'apply_status' => 'applied',
+            'source_hash' => $otherSourceHash,
+            'applied_source_hash' => $otherSourceHash,
+        ]);
+        $openLinkLine = $this->createQuantumLine([
+            'ro_number' => $roNumber,
+            'wo_number' => 'W'.$workorder->number,
+            'vendor_name' => $vendor->name,
+            'pn' => $component->part_number,
+            'class' => 'DETAIL_PART',
+            'bom_ref' => 'T1',
+            'out_date' => '2026-05-04',
+            'returned_date' => null,
+        ]);
+
+        $stats = app(QuantumRoBufferApplyService::class)->apply(1);
+
+        $this->assertSame(1, $stats['applied']);
+        $returnedOtherPart->refresh();
+        $openLinkLine->refresh();
+        $target->refresh();
+
+        $this->assertSame('applied', $returnedOtherPart->apply_status);
+        $this->assertSame('applied', $openLinkLine->apply_status);
+        $this->assertSame($target->id, $openLinkLine->applied_target_id);
+        $this->assertSame('2026-05-04', $target->date_start?->format('Y-m-d'));
+        $this->assertNull($target->date_finish);
+        $this->assertNull($target->date_finish_user);
     }
 
     public function test_detail_part_ref_t2_writes_to_traveler_group_two_only(): void

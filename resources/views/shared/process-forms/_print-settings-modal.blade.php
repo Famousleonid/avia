@@ -144,7 +144,7 @@
                                 </label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="ndtProcessFontSize" name="ndtProcessFontSize"
-                                        min="6" max="24" step="0.5" value="{{ $formConfig['ndt_process_font_size'] ?? 10 }}">
+                                        min="6" max="24" step="0.5" value="{{ $formConfig['ndt_process_font_size'] ?? 16 }}">
                                 </div>
                             </div>
                             @endif

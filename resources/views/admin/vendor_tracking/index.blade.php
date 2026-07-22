@@ -2026,11 +2026,11 @@
                                     type="search"
                                     id="quantumWorkorderSearch"
                                     class="form-control form-control-sm quantum-buffer-wo-search"
-                                    placeholder="WO in Reason"
+                                    placeholder="WO number"
                                     inputmode="numeric"
                                     autocomplete="off"
                                 >
-                                <button type="submit" class="btn btn-outline-primary btn-sm" title="Filter Reason by WO">
+                                <button type="submit" class="btn btn-outline-primary btn-sm" title="Filter Quantum rows by WO">
                                     <i class="bi bi-search"></i>
                                 </button>
                             </form>
@@ -3191,7 +3191,7 @@
             const replaceQuantumBufferRows = function (data) {
                 if (quantumRecentBody) {
                     const recentHtml = String(data?.html || '').trim();
-                    quantumRecentBody.innerHTML = recentHtml || '<tr class="js-quantum-recent-empty"><td colspan="13" class="text-center text-muted py-4">No matching Quantum Reason rows.</td></tr>';
+                    quantumRecentBody.innerHTML = recentHtml || '<tr class="js-quantum-recent-empty"><td colspan="13" class="text-center text-muted py-4">No matching Quantum rows.</td></tr>';
                 }
 
                 if (quantumUnparsedBody) {
@@ -3353,7 +3353,7 @@
                 setQuantumStatusCounts(data?.status_counts);
             };
 
-            const restoreQuantumRow = async function (url) {
+            const restoreQuantumRow = async function (url, action = 'restore') {
                 if (!url) {
                     return;
                 }
@@ -3385,9 +3385,10 @@
                     }
 
                     applyQuantumRestoreResult(data);
-                    setQuantumSearchStatus(data.restored ? 'Restored to pending' : 'Nothing restored', data.restored ? 'text-success' : 'text-muted');
+                    const queuedMessage = action === 'reapply' ? 'Queued for reapply' : 'Restored to pending';
+                    setQuantumSearchStatus(data.restored ? queuedMessage : 'Nothing restored', data.restored ? 'text-success' : 'text-muted');
                 } catch (error) {
-                    setQuantumSearchStatus(error.message || 'Restore failed', 'text-danger');
+                    setQuantumSearchStatus(error.message || (action === 'reapply' ? 'Reapply failed' : 'Restore failed'), 'text-danger');
                 }
             };
 
@@ -3514,13 +3515,15 @@
 
                     const matchedCount = Number(data.total || data.matched_count || 0);
                     if (!data.found || matchedCount <= 0) {
-                        setQuantumSearchStatus(data.message || `${searchLabel} not found in Reason`, 'text-warning');
+                        setQuantumSearchStatus(data.message || `${searchLabel} not found in Quantum list`, 'text-warning');
                         return;
                     }
 
                     const suffix = data.has_more_matches ? ' (first 500 shown)' : '';
-                    const location = searchMode === 'wo' ? 'Reason' : 'RO';
-                    setQuantumSearchStatus(`${matchedCount} rows where ${location} contains ${searchTerm}${suffix}`, 'text-success');
+                    const matchDescription = searchMode === 'wo'
+                        ? `WO is ${searchTerm}`
+                        : `RO contains ${searchTerm}`;
+                    setQuantumSearchStatus(`${matchedCount} rows where ${matchDescription}${suffix}`, 'text-success');
                 } catch (error) {
                     setQuantumSearchStatus(error.message || 'Filter failed', 'text-danger');
                 }
@@ -3557,13 +3560,34 @@
                 dismissQuantumRows(button.dataset.dismissUrl || '');
             });
 
-            quantumRecentBody?.addEventListener('click', function (event) {
+            quantumRecentBody?.addEventListener('click', async function (event) {
                 const button = event.target.closest('.js-quantum-restore-row');
                 if (!button) {
                     return;
                 }
 
-                restoreQuantumRow(button.dataset.restoreUrl || '');
+                const action = button.dataset.quantumAction || 'restore';
+                if (action === 'reapply') {
+                    const ro = button.dataset.quantumRo || '--';
+                    const wo = button.dataset.quantumWo || '--';
+                    if (typeof window.confirmDialog !== 'function') {
+                        setQuantumSearchStatus('Confirmation dialog is unavailable', 'text-danger');
+                        return;
+                    }
+
+                    const confirmed = await window.confirmDialog({
+                        title: 'Reapply Quantum row?',
+                        message: `Queue ${ro} / ${wo} for reapply from Quantum?`,
+                        okText: 'Reapply',
+                        cancelText: 'Cancel',
+                        danger: false,
+                    });
+                    if (!confirmed) {
+                        return;
+                    }
+                }
+
+                restoreQuantumRow(button.dataset.restoreUrl || '', action);
             });
 
             quantumRecentScroll?.addEventListener('scroll', function () {

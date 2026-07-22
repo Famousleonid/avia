@@ -22,6 +22,7 @@ class ProcessName extends Model
         'quarantine',
         'stressrelief',
         'paint',
+        'anodizingat',
         'stdstressrelieflist',
         'stdpaintlist',
     ];

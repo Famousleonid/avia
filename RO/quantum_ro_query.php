@@ -62,6 +62,19 @@ SELECT
     ) AS SOURCE_LAST_MODIFIED,
     wo.SI_NUMBER AS WO_NUMBER,
     pm_rd.PN,
+    COALESCE(
+        TRIM(rd.SERIAL_NUMBER),
+        (
+            SELECT CASE
+                WHEN COUNT(DISTINCT TRIM(km.SERIAL_NUMBER)) = 1
+                    THEN MIN(TRIM(km.SERIAL_NUMBER))
+                ELSE NULL
+            END
+            FROM QCTL.VIEW_RPT_KIT_MATERIAL km
+            WHERE km.WOB_AUTO_KEY = rd.WOB_AUTO_KEY
+              AND TRIM(km.SERIAL_NUMBER) IS NOT NULL
+        )
+    ) AS SERIAL_NUMBER,
     pm_rd.DESCRIPTION AS \"DESC\",
     CASE
         WHEN REPLACE(REPLACE(REPLACE(UPPER(TRIM(pm_rd.PN)), ' ', ''), '-', ''), '_', '') = 'NDT'

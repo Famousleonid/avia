@@ -400,8 +400,9 @@ class QuantumRoBufferApplyService
 
         /** @var ProcessName $processName */
         $processName = $processNames->first();
+        $serialNumber = $this->normalizeSerialNumber($line->serial_number);
 
-        $tdrMatches = TdrProcess::query()
+        $tdrQuery = TdrProcess::query()
             ->select('tdr_processes.*')
             ->join('tdrs', 'tdrs.id', '=', 'tdr_processes.tdrs_id')
             ->join('components', 'components.id', '=', 'tdrs.component_id')
@@ -410,10 +411,32 @@ class QuantumRoBufferApplyService
             ->whereRaw(
                 "REPLACE(UPPER(TRIM(components.part_number)), ' ', '') = ?",
                 [$this->normalizePartNumber($line->pn)]
-            )
+            );
+
+        $tdrMatches = (clone $tdrQuery)
+            ->when($serialNumber !== '', fn ($query) => $query->whereRaw(
+                "REPLACE(UPPER(TRIM(tdrs.serial_number)), ' ', '') = ?",
+                [$serialNumber]
+            ))
             ->orderBy('tdr_processes.sort_order')
             ->orderBy('tdr_processes.id')
             ->get();
+
+        if ($serialNumber !== '' && $tdrMatches->isEmpty()) {
+            $fallbackMatches = (clone $tdrQuery)
+                ->orderBy('tdr_processes.sort_order')
+                ->orderBy('tdr_processes.id')
+                ->get();
+
+            if ($fallbackMatches->count() === 1) {
+                $tdrMatches = $fallbackMatches;
+            } elseif ($fallbackMatches->count() > 1) {
+                return [
+                    'status' => 'unresolved',
+                    'message' => "Multiple TDR process targets for WO {$line->wo_number}, REF {$line->bom_ref}; Quantum SN {$line->serial_number} matched none",
+                ];
+            }
+        }
 
         if ($tdrMatches->count() === 1) {
             return ['status' => 'ok', 'model' => $tdrMatches->first()];
@@ -432,15 +455,19 @@ class QuantumRoBufferApplyService
             ];
         }
 
+        $serialContext = $serialNumber !== '' ? ", SN {$line->serial_number}" : '';
+
         return [
             'status' => 'unresolved',
-            'message' => "No TDR process target for WO {$line->wo_number}, REF {$line->bom_ref}, PN {$line->pn}, process {$processName->name}",
+            'message' => "No TDR process target for WO {$line->wo_number}, REF {$line->bom_ref}, PN {$line->pn}{$serialContext}, process {$processName->name}",
         ];
     }
 
     private function findTdrTravelerTarget(QuantumRoLine $line, Workorder $workorder, int $travelerGroup): array
     {
-        $matches = TdrProcess::query()
+        $serialNumber = $this->normalizeSerialNumber($line->serial_number);
+
+        $travelerQuery = TdrProcess::query()
             ->select('tdr_processes.*')
             ->join('tdrs', 'tdrs.id', '=', 'tdr_processes.tdrs_id')
             ->join('components', 'components.id', '=', 'tdrs.component_id')
@@ -456,22 +483,44 @@ class QuantumRoBufferApplyService
             ->whereRaw(
                 "REPLACE(UPPER(TRIM(components.part_number)), ' ', '') = ?",
                 [$this->normalizePartNumber($line->pn)]
-            )
+            );
+
+        $matches = (clone $travelerQuery)
+            ->when($serialNumber !== '', fn ($query) => $query->whereRaw(
+                "REPLACE(UPPER(TRIM(tdrs.serial_number)), ' ', '') = ?",
+                [$serialNumber]
+            ))
             ->orderBy('tdr_processes.sort_order')
             ->orderBy('tdr_processes.id')
             ->get();
 
+        if ($serialNumber !== '' && $matches->isEmpty()) {
+            $fallbackMatches = (clone $travelerQuery)
+                ->orderBy('tdr_processes.sort_order')
+                ->orderBy('tdr_processes.id')
+                ->get();
+            $fallbackGroups = $this->groupTravelerMatches($fallbackMatches);
+
+            if ($fallbackGroups->count() === 1) {
+                $matches = $fallbackMatches;
+            } elseif ($fallbackGroups->count() > 1) {
+                return [
+                    'status' => 'unresolved',
+                    'message' => "Multiple Traveler {$travelerGroup} targets for WO {$line->wo_number}, REF {$line->bom_ref}, PN {$line->pn}; Quantum SN {$line->serial_number} matched none",
+                ];
+            }
+        }
+
         if ($matches->isEmpty()) {
+            $serialContext = $serialNumber !== '' ? ", SN {$line->serial_number}" : '';
+
             return [
                 'status' => 'unresolved',
-                'message' => "No Traveler {$travelerGroup} target for WO {$line->wo_number}, REF {$line->bom_ref}, PN {$line->pn}",
+                'message' => "No Traveler {$travelerGroup} target for WO {$line->wo_number}, REF {$line->bom_ref}, PN {$line->pn}{$serialContext}",
             ];
         }
 
-        $groups = $matches->groupBy(fn (TdrProcess $match): string => implode(':', [
-            (int) $match->tdrs_id,
-            (int) ($match->traveler_group ?: 1),
-        ]));
+        $groups = $this->groupTravelerMatches($matches);
 
         if ($groups->count() === 1) {
             $models = $groups->first()->values();
@@ -490,6 +539,14 @@ class QuantumRoBufferApplyService
             'status' => 'unresolved',
             'message' => "Multiple Traveler {$travelerGroup} targets for WO {$line->wo_number}, REF {$line->bom_ref}, PN {$line->pn}",
         ];
+    }
+
+    private function groupTravelerMatches(Collection $matches): Collection
+    {
+        return $matches->groupBy(fn (TdrProcess $match): string => implode(':', [
+            (int) $match->tdrs_id,
+            (int) ($match->traveler_group ?: 1),
+        ]));
     }
 
     /**
@@ -635,11 +692,19 @@ class QuantumRoBufferApplyService
             $this->setColumnIfExists($model, 'date_start_user', self::DATE_USER_NAME);
         }
 
-        $firstReturnedDate = $this->firstReturnedDate($line);
-        if ($firstReturnedDate) {
-            $model->date_finish = Carbon::parse($firstReturnedDate)->toDateString();
+        // Quantum return belongs to this RO_DETAIL row only. An RO may contain
+        // several part numbers which return on different dates, so never infer
+        // a return date from another line with the same repair order.
+        if ($line->returned_date) {
+            $model->date_finish = Carbon::parse($line->returned_date)->toDateString();
             $this->setColumnIfExists($model, 'date_finish_user_id', null);
             $this->setColumnIfExists($model, 'date_finish_user', self::DATE_USER_NAME);
+        } elseif ($this->isQuantumManagedFinish($model)) {
+            // A reapply must also repair a previously imported date when the
+            // current source row has no returned date. Never clear a manual date.
+            $model->date_finish = null;
+            $this->setColumnIfExists($model, 'date_finish_user_id', null);
+            $this->setColumnIfExists($model, 'date_finish_user', null);
         }
     }
 
@@ -666,16 +731,10 @@ class QuantumRoBufferApplyService
         return $this->columnExistsCache[$cacheKey];
     }
 
-    private function firstReturnedDate(QuantumRoLine $line): mixed
+    private function isQuantumManagedFinish(Model $model): bool
     {
-        if (! $line->ro_number) {
-            return $line->returned_date;
-        }
-
-        return QuantumRoLine::query()
-            ->where('ro_number', $line->ro_number)
-            ->whereNotNull('returned_date')
-            ->min('returned_date') ?: $line->returned_date;
+        return $this->hasColumn($model, 'date_finish_user')
+            && trim((string) $model->getAttribute('date_finish_user')) === self::DATE_USER_NAME;
     }
 
     private function markLine(
@@ -722,6 +781,11 @@ class QuantumRoBufferApplyService
     }
 
     private function normalizeCode(?string $value): string
+    {
+        return (string) preg_replace('/\s+/', '', strtoupper(trim((string) $value)));
+    }
+
+    private function normalizeSerialNumber(?string $value): string
     {
         return (string) preg_replace('/\s+/', '', strtoupper(trim((string) $value)));
     }

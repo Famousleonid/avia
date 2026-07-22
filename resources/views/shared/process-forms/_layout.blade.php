@@ -14,6 +14,13 @@
         isset($process_name) && $process_name->process_sheet_name == 'NDT' ? ['ndt'] :
         (isset($process_name) && $process_name->process_sheet_name == 'STRESS RELIEF' ? ['stress'] : ['other'])
     );
+    $processRequirementWarnings = collect($process_tdr_components ?? ($ndt_components ?? []))
+        ->flatMap(fn ($tdrProcess) => method_exists($tdrProcess, 'missingDescriptionRequirements')
+            ? $tdrProcess->missingDescriptionRequirements()
+            : [])
+        ->unique()
+        ->values()
+        ->all();
 @endphp
 @if(!$embedded)
 <!DOCTYPE html>
@@ -27,7 +34,7 @@
     @include('shared.process-forms._styles')
 </head>
 <body>
-@include('shared.print-mark.qr', ['printMarkWorkorder' => $current_wo ?? null])
+@include('shared.print-mark.qr', ['printMarkWorkorder' => $current_wo ?? null, 'printMarkWarnings' => $processRequirementWarnings])
 @if(!isset($hidePrintButton) || !$hidePrintButton)
 <div class="text-start m-3 no-print">
     <button class="btn btn-outline-primary" onclick="window.print()">Print Form</button>

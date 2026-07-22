@@ -525,6 +525,7 @@ class MobileApiTest extends TestCase
             $this->assertFalse($payload['can_edit_start']);
             $this->assertFalse($payload['can_edit_finish']);
             $this->assertSame('manager_only_quote_submission_dates', $payload['restriction_code']);
+            $this->assertFalse($payload['main']['ignore_row']);
         }
     }
 
@@ -617,9 +618,9 @@ class MobileApiTest extends TestCase
             'sequence_exempt' => true,
         ]);
         $lockedName = ProcessName::query()->create([
-            'name' => 'EC',
-            'process_sheet_name' => 'EC',
-            'form_number' => 'EC-1',
+            'name' => 'NDT-1',
+            'process_sheet_name' => 'NDT',
+            'form_number' => 'NDT-1',
             'sequence_exempt' => true,
         ]);
         $editable = TdrProcess::query()->create(['tdrs_id' => $tdr->id, 'process_names_id' => $editableName->id]);

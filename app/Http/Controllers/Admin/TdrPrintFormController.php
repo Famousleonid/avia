@@ -1181,11 +1181,19 @@ class TdrPrintFormController extends Controller
             ->where('use_process_forms', true)
             ->with('component')
             ->get();
+
         // Извлекаем компоненты, связанные с manual_id
         $components = $this->filterComponentsForUnit(
             Component::where('manual_id', $manual_id)->get(),
             $current_wo
         );
+
+        $unitPartCatOneTotals = $this->resolveUnitPartCatOneTotals($current_wo, $tdr_ws, $components);
+        if ($unitPartCatOneTotals !== null) {
+            $ndtSums = $unitPartCatOneTotals['ndt'];
+            $cadSum = $unitPartCatOneTotals['cad'];
+            $cadSum_ex = 0;
+        }
 
         // EC в шапке: есть «только EC» (standalone_ec_only) ИЛИ старое правило (один EC на TDR без Machining/RIL)
         // Companion EC (Machining+RIL+EC) — в шапке EC не дублируем
@@ -1926,6 +1934,77 @@ class TdrPrintFormController extends Controller
         }
 
         return ['total' => $total, 'mpi' => $mpi, 'fpi' => $fpi];
+    }
+
+    /**
+     * A workorder unit may itself be one of the manual's component parts.
+     * It belongs to Cat #1 only while that same part is not already listed in a Cat #2 TDR column.
+     *
+     * @return array{ndt: array{total:int, mpi:int|null, fpi:int|null}, cad: array{total_qty:int, total_components:int}}|null
+     */
+    private function resolveUnitPartCatOneTotals(Workorder $workorder, $tdrs, $manualComponents): ?array
+    {
+        $unitPartNumber = $this->normalizePartNumberForComparison($workorder->unit?->part_number);
+        if ($unitPartNumber === '') {
+            return null;
+        }
+
+        /** @var Component|null $component */
+        $component = $manualComponents->first(function (Component $component) use ($unitPartNumber, $workorder): bool {
+            return $this->normalizePartNumberForComparison($component->part_number) === $unitPartNumber
+                && StdProcess::stdRowEffMatchesUnit(
+                    $component->eff_code,
+                    (string) ($workorder->unit?->eff_code ?? '')
+                );
+        });
+
+        if (! $component) {
+            return null;
+        }
+
+        $isAlreadyInCatTwo = $tdrs->contains(function (Tdr $tdr) use ($unitPartNumber): bool {
+            return $tdr->component
+                && $this->normalizePartNumberForComparison($tdr->component->part_number) === $unitPartNumber;
+        });
+
+        if ($isAlreadyInCatTwo) {
+            return [
+                'ndt' => ['total' => 0, 'mpi' => null, 'fpi' => null],
+                'cad' => ['total_qty' => 0, 'total_components' => 0],
+            ];
+        }
+
+        $ndt = ['total' => 0, 'mpi' => null, 'fpi' => null];
+
+        if ((bool) $component->ndt_list) {
+            $ndtProcess = StdProcess::query()
+                ->where('component_id', $component->id)
+                ->where('std', StdProcess::STD_NDT)
+                ->value('process');
+            $bucket = $this->resolvePrimaryNdtBucket((string) ($ndtProcess ?: '1'));
+
+            $ndt['total'] = 1;
+            if ($bucket === 4) {
+                $ndt['fpi'] = 1;
+            } else {
+                $ndt['mpi'] = 1;
+            }
+        }
+
+        $hasCad = (bool) $component->cad_list;
+
+        return [
+            'ndt' => $ndt,
+            'cad' => [
+                'total_qty' => $hasCad ? 1 : 0,
+                'total_components' => $hasCad ? 1 : 0,
+            ],
+        ];
+    }
+
+    private function normalizePartNumberForComparison(?string $partNumber): string
+    {
+        return preg_replace('/[^\pL\pN]+/u', '', mb_strtoupper(trim((string) $partNumber))) ?? '';
     }
 
     private function resolvePrimaryNdtBucket(string $process): ?int

@@ -196,6 +196,7 @@ class QuantumRoSyncController extends Controller
             'wo_number' => $this->cleanString($row['wo_number'] ?? $row['wo'] ?? null),
             'vendor_name' => $this->cleanString($row['vendor_name'] ?? $row['vendor'] ?? null),
             'pn' => $this->cleanString($row['pn'] ?? null),
+            'serial_number' => $this->cleanString($row['serial_number'] ?? $row['serial'] ?? null),
             'description' => $this->cleanString($row['description'] ?? $row['desc'] ?? null),
             'class' => $this->cleanString($row['class'] ?? null),
             'bom_ref' => $this->cleanString($row['bom_ref'] ?? $row['ref'] ?? null),
@@ -240,6 +241,11 @@ class QuantumRoSyncController extends Controller
     private function hashPayload(array $line): array
     {
         unset($line['last_sync_run_id'], $line['raw_payload'], $line['first_seen_at'], $line['last_seen_at']);
+
+        // Keep hashes stable for legacy rows where Quantum still has no serial.
+        if (($line['serial_number'] ?? null) === null) {
+            unset($line['serial_number']);
+        }
 
         return $line;
     }

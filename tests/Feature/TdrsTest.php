@@ -12,6 +12,7 @@ use App\Models\ManualIplBranchRule;
 use App\Models\Necessary;
 use App\Models\Process;
 use App\Models\ProcessName;
+use App\Models\PrintMark;
 use App\Models\Tdr;
 use App\Models\TdrProcess;
 use App\Models\UserUiSetting;
@@ -105,6 +106,61 @@ class TdrsTest extends TestCase
             'tdrs_id' => $tdr->id,
             'process_names_id' => $processName->id,
         ]);
+    }
+
+    public function test_tdr_process_store_copies_fig_and_zone_requirements_from_manual_process(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'part_number' => 'REQ-CMP-' . uniqid(),
+            'name' => 'Requirement Component',
+            'ipl_num' => '1-10',
+        ]);
+        $tdr = Tdr::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $processName = ProcessName::query()->create([
+            'name' => 'Requirement Process ' . uniqid(),
+            'process_sheet_name' => 'TEST',
+            'form_number' => '000',
+        ]);
+        $catalogProcess = Process::query()->create([
+            'process_names_id' => $processName->id,
+            'process' => 'Requirement specification',
+        ]);
+        ManualProcess::query()->create([
+            'manual_id' => $component->manual_id,
+            'processes_id' => $catalogProcess->id,
+            'requires_fig' => true,
+            'requires_zone' => true,
+        ]);
+
+        $payload = [
+            'tdrs_id' => $tdr->id,
+            'processes' => [[
+                'process_names_id' => $processName->id,
+                'processes' => [$catalogProcess->id],
+                'description' => 'FIG. 6010',
+            ]],
+        ];
+
+        $this->actingAs($admin)->postJson(route('tdr-processes.store'), $payload)
+            ->assertStatus(422)
+            ->assertJsonPath('incomplete_requirements.0.missing.0', 'ZONE');
+
+        $response = $this->actingAs($admin)->postJson(route('tdr-processes.store'), $payload + [
+            'confirm_incomplete_requirements' => true,
+        ]);
+
+        $response->assertOk();
+        $tdrProcess = TdrProcess::query()->where('tdrs_id', $tdr->id)->firstOrFail();
+        $this->assertTrue($tdrProcess->requires_fig);
+        $this->assertTrue($tdrProcess->requires_zone);
+        $this->assertSame(['ZONE'], $tdrProcess->missingDescriptionRequirements());
     }
 
     public function test_tdr_process_update_rejects_catalog_process_without_process_name(): void
@@ -725,6 +781,13 @@ class TdrsTest extends TestCase
         $saved->assertOk();
         $saved->assertDontSee('name="included"', false);
         $saved->assertDontSee('lc-include-toggle-all', false);
+
+        $savedShow = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
+        $savedShow->assertOk();
+        $savedShow->assertSee('Update Log Card', false);
+        $savedShow->assertSee('Updating...', false);
+        $savedShow->assertDontSee('Reset Log Card', false);
+        $savedShow->assertDontSee('function logCardTabReset', false);
     }
 
     public function test_tdr_show_persists_measurements_tab_id(): void
@@ -906,6 +969,45 @@ class TdrsTest extends TestCase
         $print->assertSee('window.UserScopedStorage', false);
         $print->assertDontSee('MANUAL:', false);
         $print->assertDontSee('Extra Log Manual', false);
+    }
+
+    public function test_single_manual_log_card_print_hides_manual_separator_number(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $workorder = $this->createWorkorder(['user_id' => $admin->id]);
+        $manual = $workorder->unit->manuals;
+        $manual->update(['number' => 'LC-SINGLE-ONLY']);
+        $component = Component::query()->create([
+            'manual_id' => $manual->id,
+            'part_number' => 'LC-SINGLE-100',
+            'name' => 'Single Manual Log Part',
+            'ipl_num' => '1-10',
+            'log_card' => true,
+        ]);
+
+        LogCard::query()->create([
+            'workorder_id' => $workorder->id,
+            'component_data' => json_encode([
+                [
+                    'row_type' => 'manual',
+                    'manual_id' => (string) $manual->id,
+                    'manual_label' => 'LC-SINGLE-ONLY Single Manual',
+                ],
+                [
+                    'component_id' => (string) $component->id,
+                    'manual_id' => (string) $manual->id,
+                    'included' => '1',
+                    'serial_number' => 'SN-SINGLE',
+                ],
+            ]),
+        ]);
+
+        $print = $this->actingAs($admin)->get(route('log_card.logCardForm', $workorder->id));
+
+        $print->assertOk();
+        $print->assertSee('Single Manual Log Part', false);
+        $print->assertSee('SN-SINGLE', false);
+        $print->assertDontSee('LC-SINGLE-ONLY', false);
     }
 
     public function test_log_card_print_keeps_record_rows_together_for_page_breaks(): void
@@ -2256,6 +2358,7 @@ class TdrsTest extends TestCase
             'tdrs_id' => $tdr->id,
             'process_names_id' => $processName->id,
             'processes' => [$process->id],
+            'requires_fig' => true,
             'sort_order' => 1,
         ]);
 
@@ -2272,6 +2375,23 @@ class TdrsTest extends TestCase
         $response->assertSee('padding-right: var(--process-header-qr-clearance, calc(var(--print-mark-qr-size, 40px) + 8mm));', false);
         $response->assertSee('--print-mark-qr-size: 40px;', false);
         $response->assertSee('system-print-qr', false);
+        $response->assertSee('margin-left: 1ch;', false);
+        $response->assertSee('top: .12em;', false);
+
+        $legacyPrintMark = PrintMark::query()->create([
+            'token' => 'LEGACYFIG234',
+            'workorder_id' => $workorder->id,
+            'workorder_number' => 'W' . $workorder->number,
+            'form_name' => 'CADMIUM PLATING',
+            'requirement_warnings' => [],
+            'printed_by_name' => 'Admin User',
+            'printed_at' => now(),
+        ]);
+
+        $this->get(route('print-mark.show', $legacyPrintMark->token))
+            ->assertOk()
+            ->assertSee('Missing required FIG')
+            ->assertSee('print-mark-warning', false);
     }
 
     private function htmlBetween(string $html, string $startNeedle, string $endNeedle): string

@@ -66,3 +66,17 @@
         </div>
     </div>
 </div>
+@once
+    <style>
+        .process-requirement-print-star { display: none; color: #000; }
+        @media print {
+            .process-requirement-print-star:not([aria-hidden="true"]) {
+                display: inline-block;
+                line-height: 1;
+                margin-left: 1ch;
+                position: relative;
+                top: .12em;
+            }
+        }
+    </style>
+@endonce

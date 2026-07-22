@@ -63,14 +63,20 @@
         <td>{{ $target }}</td>
         <td class="quantum-buffer-message js-quantum-message-cell">@include('admin.vendor_tracking.partials.quantum_message', ['line' => $line])</td>
         <td class="quantum-buffer-action-col js-quantum-action-cell">
-            @if($statusLabel === 'dismissed')
+            @if(in_array($statusLabel, ['dismissed', 'applied'], true))
                 <button
                     type="button"
-                    class="btn btn-outline-secondary btn-sm js-quantum-restore-row"
+                    class="btn {{ $statusLabel === 'applied' ? 'btn-outline-info' : 'btn-outline-secondary' }} btn-sm js-quantum-restore-row"
                     data-restore-url="{{ route('vendor-tracking.quantum-lines.restore', ['quantumRoLine' => $line->id]) }}"
-                    title="Restore this row to pending"
+                    data-quantum-action="{{ $statusLabel === 'applied' ? 'reapply' : 'restore' }}"
+                    data-quantum-ro="{{ trim((string) $line->ro_number) }}"
+                    data-quantum-wo="{{ trim((string) $line->wo_number) }}"
+                    title="{{ $statusLabel === 'applied' ? 'Reapply this row from Quantum' : 'Restore this row to pending' }}"
                 >
                     <i class="bi bi-arrow-counterclockwise"></i>
+                    @if($statusLabel === 'applied')
+                        <span>Reapply</span>
+                    @endif
                 </button>
             @endif
         </td>

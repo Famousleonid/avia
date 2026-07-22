@@ -19,6 +19,7 @@ use App\Models\WoBushingProcess;
 use App\Models\WorkorderStdProcess;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\BuildsDomainData;
 use Tests\TestCase;
 
@@ -262,31 +263,31 @@ class VendorTrackingTest extends TestCase
         $this->assertStringNotContainsString('R-INF-200-' . $suffix, (string) $response->json('html'));
     }
 
-    public function test_quantum_workorder_search_filters_both_tables_by_reason(): void
+    public function test_quantum_workorder_search_filters_both_tables_by_workorder_number(): void
     {
         $admin = $this->createUserWithRole('Admin');
         $suffix = (string) random_int(100000, 999999);
         $targetWo = 'W987' . $suffix;
 
-        $targetLine = QuantumRoLine::query()->create([
-            'source_uid' => 'reason-find-target-' . $suffix,
-            'ro_number' => 'R-REASON-TARGET-' . $suffix,
+        QuantumRoLine::query()->create([
+            'source_uid' => 'reason-only-find-target-' . $suffix,
+            'ro_number' => 'R-REASON-ONLY-' . $suffix,
             'wo_number' => 'W-DIFFERENT-' . $suffix,
-            'bom_ref' => 'BAD',
-            'apply_status' => 'unresolved',
+            'bom_ref' => 'CP',
+            'apply_status' => 'applied',
             'apply_message' => 'No process target exists for WO ' . $targetWo,
-            'source_hash' => hash('sha256', 'reason-find-target-' . $suffix),
+            'source_hash' => hash('sha256', 'reason-only-find-target-' . $suffix),
             'last_seen_at' => Carbon::parse('2037-01-01 00:00:00'),
         ]);
 
-        QuantumRoLine::query()->create([
-            'source_uid' => 'reason-find-same-column-' . $suffix,
-            'ro_number' => 'R-SAME-WO-COLUMN-' . $suffix,
+        $targetLine = QuantumRoLine::query()->create([
+            'source_uid' => 'workorder-column-find-target-' . $suffix,
+            'ro_number' => 'R-WO-COLUMN-' . $suffix,
             'wo_number' => $targetWo,
-            'bom_ref' => 'CP',
-            'apply_status' => 'applied',
+            'bom_ref' => 'BAD',
+            'apply_status' => 'unresolved',
             'apply_message' => 'Applied to a different target',
-            'source_hash' => hash('sha256', 'reason-find-same-column-' . $suffix),
+            'source_hash' => hash('sha256', 'workorder-column-find-target-' . $suffix),
             'last_seen_at' => Carbon::parse('2037-01-01 00:05:00'),
         ]);
 
@@ -305,9 +306,19 @@ class VendorTrackingTest extends TestCase
             ->assertJsonPath('unparsed_total', 1)
             ->assertJsonPath('matched_value', preg_replace('/\D+/', '', $targetWo));
 
-        $this->assertStringContainsString('R-REASON-TARGET-' . $suffix, (string) $response->json('html'));
-        $this->assertStringContainsString('R-REASON-TARGET-' . $suffix, (string) $response->json('unparsed_html'));
-        $this->assertStringNotContainsString('R-SAME-WO-COLUMN-' . $suffix, (string) $response->json('html'));
+        $this->assertStringContainsString('R-WO-COLUMN-' . $suffix, (string) $response->json('html'));
+        $this->assertStringContainsString('R-WO-COLUMN-' . $suffix, (string) $response->json('unparsed_html'));
+        $this->assertStringNotContainsString('R-REASON-ONLY-' . $suffix, (string) $response->json('html'));
+
+        $prefixedResponse = $this->actingAs($admin)->getJson(route('vendor-tracking.quantum-lines.find-workorder', [
+            'workorder' => $targetWo,
+        ]));
+
+        $prefixedResponse
+            ->assertOk()
+            ->assertJsonPath('found', true)
+            ->assertJsonPath('line_id', $targetLine->id)
+            ->assertJsonPath('matched_count', 1);
     }
 
     public function test_quantum_workorder_search_returns_all_matching_line_ids(): void
@@ -623,6 +634,63 @@ class VendorTrackingTest extends TestCase
         $this->assertSame('pending', $line->apply_status);
         $this->assertNull($line->applied_source_hash);
         $this->assertNull($line->applied_at);
+    }
+
+    public function test_applied_quantum_row_can_be_queued_for_reapply_from_recent_table(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $suffix = (string) random_int(100000, 999999);
+        $sourceHash = hash('sha256', 'reapply-' . $suffix);
+
+        $line = QuantumRoLine::query()->create([
+            'source_uid' => 'reapply-target-' . $suffix,
+            'ro_number' => 'R-REAPPLY-' . $suffix,
+            'wo_number' => 'W107789',
+            'pn' => '2821-0222',
+            'bom_ref' => 'T1',
+            'apply_status' => 'applied',
+            'apply_message' => 'Applied to tdr_processes:2773 (10 traveler rows)',
+            'source_hash' => $sourceHash,
+            'applied_source_hash' => $sourceHash,
+            'applied_target_table' => 'tdr_processes',
+            'applied_target_id' => 2773,
+            'applied_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+
+        $page = $this->actingAs($admin)->get(route('vendor-tracking.index'));
+        $page
+            ->assertOk()
+            ->assertSee('R-REAPPLY-' . $suffix)
+            ->assertSee('data-quantum-action="reapply"', false)
+            ->assertSee('Reapply');
+
+        $response = $this->actingAs($admin)->patchJson(route('vendor-tracking.quantum-lines.restore', [
+            'quantumRoLine' => $line->id,
+        ]));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('restored', 1)
+            ->assertJsonPath('line.status', 'pending')
+            ->assertJsonPath('line.action', 'reapply');
+
+        $line->refresh();
+
+        $this->assertSame('pending', $line->apply_status);
+        $this->assertNull($line->applied_source_hash);
+        $this->assertNull($line->applied_target_table);
+        $this->assertNull($line->applied_target_id);
+        $this->assertNull($line->applied_at);
+        $this->assertStringContainsString('Reapply requested by', (string) $line->apply_message);
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'quantum_ro_line',
+            'event' => 'reapply_requested',
+            'subject_type' => QuantumRoLine::class,
+            'subject_id' => $line->id,
+            'causer_id' => $admin->id,
+        ]);
     }
 
     private function createVendorTrackingTdrProcess($workorder, Vendor $vendor, string $repairOrder): TdrProcess
@@ -1605,6 +1673,25 @@ class VendorTrackingTest extends TestCase
                 'date_promise' => null,
             ]);
         }
+
+        $createdActivity = DB::table('activity_log')
+            ->where('log_name', 'tdr_traveler')
+            ->where('event', 'traveler_created')
+            ->where('subject_type', Tdr::class)
+            ->where('subject_id', $tdr->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($createdActivity);
+        $this->assertSame($admin->id, (int) $createdActivity->causer_id);
+        $createdProperties = json_decode((string) $createdActivity->properties, true);
+        $this->assertSame($workorder->number, $createdProperties['workorder_number']);
+        $this->assertSame(1, $createdProperties['traveler_group']);
+        $this->assertEqualsCanonicalizing([$first->id, $second->id], $createdProperties['process_ids']);
+        $this->assertEqualsCanonicalizing(
+            ['vendor_id', 'repair_order', 'date_start', 'date_finish', 'date_promise'],
+            $createdProperties['cleared_fields']
+        );
     }
 
     public function test_traveler_ungroup_clears_group_sent_dates(): void
@@ -1667,6 +1754,21 @@ class VendorTrackingTest extends TestCase
                 'date_start' => null,
             ]);
         }
+
+        $ungroupedActivity = DB::table('activity_log')
+            ->where('log_name', 'tdr_traveler')
+            ->where('event', 'traveler_ungrouped')
+            ->where('subject_type', Tdr::class)
+            ->where('subject_id', $tdr->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($ungroupedActivity);
+        $this->assertSame($admin->id, (int) $ungroupedActivity->causer_id);
+        $ungroupedProperties = json_decode((string) $ungroupedActivity->properties, true);
+        $this->assertSame($workorder->number, $ungroupedProperties['workorder_number']);
+        $this->assertSame([2], $ungroupedProperties['traveler_groups']);
+        $this->assertEqualsCanonicalizing([$first->id, $second->id], $ungroupedProperties['process_ids']);
     }
 
     public function test_individual_traveler_process_updates_apply_to_whole_group(): void

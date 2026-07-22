@@ -399,8 +399,9 @@
 
                                                         $isRestrictedByConfig = in_array($task->id, $restrictedDateTaskIds, true);
                                                         $canEditRestrictedDates = auth()->check() && auth()->user()->hasAnyRole('Admin|Manager');
+                                                        $isApprovedTask = $task->name === 'Approved';
 
-                                                        $lockDates = $isRestrictedByConfig && !$canEditRestrictedDates;
+                                                        $lockDates = $isApprovedTask || ($isRestrictedByConfig && !$canEditRestrictedDates);
 
                                                         $main   = $mainsByTask[$task->id] ?? null;
                                                         $action = $main ? route('mains.update', $main->id) : route('mains.store');
@@ -527,7 +528,7 @@
                                                                       class="js-main-inline-ajax js-ajax"
                                                                       data-gt-id="{{ $gt->id }}"
                                                                       data-success="Finish date saved"
-                                                                      @if($task->id === 10) data-tippy-content="Edit in the Workrorder section"@endif
+                                                                      @if($isApprovedTask) data-tippy-content="Edit in the Workorder section"@endif
                                                                 >
                                                                     @csrf
                                                                     @if($main)
@@ -551,11 +552,11 @@
                                                                            data-fp
 
                                                                            @if($isIgnored || $lockDates) disabled @endif
-                                                                           @if($task->id === 10) data-fp-locked @endif>
+                                                                           @if($isApprovedTask) data-fp-locked @endif>
 
                                                                     @if($isIgnored || $lockDates)
                                                                         <span class="lock-icon text-warning"
-                                                                              data-tippy-content="Only the manager can edit">
+                                                                              data-tippy-content="{{ $isApprovedTask ? 'Edit in the Workorder section' : 'Only the manager can edit' }}">
                                                                               <i class="bi bi-lock-fill"></i>
                                                                         </span>
                                                                     @endif

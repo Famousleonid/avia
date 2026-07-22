@@ -433,9 +433,23 @@
             height: 70vh;
             overflow: auto;
             font-size: 12px;
+        }
+        #nav-processes .process-table-container .table {
+            width: 100%;
+            min-width: 0;
+            table-layout: fixed;
+        }
 
-
-
+        #nav-processes .process-table-container .table thead th {
+            font-size: clamp(10.5px, 0.8vw, 12px) !important;
+            font-weight: 400 !important;
+            line-height: 1.15;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+        #nav-processes .manual-process-table-header {
+            display: block;
+            overflow: hidden;
         }
 
         #nav-processes table:not(.dir-table) thead th {
@@ -466,6 +480,8 @@
         .manual-process-lock-cell {
             text-align: center;
             white-space: nowrap;
+            width: clamp(52px, 5vw, 70px);
+            min-width: 0;
         }
         .manual-process-lock-button {
             display: inline-block;
@@ -492,9 +508,9 @@
             min-height: 16px;
         }
         .manual-process-actions {
-            width: 82px;
-            min-width: 82px;
-            max-width: 82px;
+            width: clamp(64px, 6vw, 82px);
+            min-width: 0;
+            max-width: none;
             white-space: nowrap;
             text-align: center;
         }
@@ -512,6 +528,8 @@
         .manual-process-comment-head {
             text-align: left !important;
         }
+        .manual-process-requirement-cell { width: clamp(58px, 6vw, 78px); min-width: 0; text-align: center; }
+        .manual-process-requirement-cell .form-check-input { cursor: pointer; }
         .manual-process-lock-button .btn-sm {
             padding: 2px 8px;
             font-size: 12px;
@@ -1122,7 +1140,49 @@
                                 @endif
                             </tbody>
                         </table>
-                        </div>
+                    </div>
+                    <script>
+                        document.addEventListener('change', function (event) {
+                            const input = event.target.closest('.manual-process-requirement');
+                            if (!input || input.disabled) return;
+
+                            const row = input.closest('.manual-process-child-row');
+                            const fig = row?.querySelector('[data-requirement="fig"]');
+                            const zone = row?.querySelector('[data-requirement="zone"]');
+                            if (!row || !fig || !zone) return;
+
+                            const previous = !input.checked;
+                            fig.disabled = true;
+                            zone.disabled = true;
+
+                            fetch(input.dataset.url, {
+                                method: 'PATCH',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                },
+                                body: JSON.stringify({ requires_fig: fig.checked, requires_zone: zone.checked }),
+                            })
+                                .then(async function (response) {
+                                    const data = await response.json().catch(function () { return {}; });
+                                    if (!response.ok || !data.ok) throw new Error(data.message || 'Could not save requirements.');
+                                    fig.checked = Boolean(data.requires_fig);
+                                    zone.checked = Boolean(data.requires_zone);
+                                })
+                                .catch(function (error) {
+                                    input.checked = previous;
+                                    if (typeof window.showNotification === 'function') {
+                                        window.showNotification(error.message || 'Could not save requirements.', 'error');
+                                    }
+                                })
+                                .finally(function () {
+                                    fig.disabled = false;
+                                    zone.disabled = false;
+                                });
+                        });
+                    </script>
 
                 </div>
                 <div class="tab-pane fade @if($manualShowTab === 'processes') show active @endif" id="nav-processes" role="tabpanel" aria-labelledby="nav-processes-tab" tabindex="0">
@@ -1130,11 +1190,13 @@
                         <table class="table table-hover table-bordered dir-table">
                             <thead class="bg-gradient">
                             <tr>
-                                <th class="text-center bg-gradient" scope="col">Lock</th>
-                                <th class="text-center bg-gradient" scope="col">Process Name</th>
-                                <th class="text-center bg-gradient" scope="col">Process / Specification</th>
-                                <th class="text-center bg-gradient manual-process-comment-head" scope="col">Comment</th>
-                                <th class="text-center bg-gradient" scope="col">Action</th>
+                                <th class="text-center bg-gradient manual-process-lock-cell" scope="col"><span class="manual-process-table-header">Lock</span></th>
+                                <th class="text-center bg-gradient" scope="col"><span class="manual-process-table-header">Process Name</span></th>
+                                <th class="text-center bg-gradient" scope="col"><span class="manual-process-table-header">Process / Specification</span></th>
+                                <th class="text-center bg-gradient manual-process-comment-head" scope="col"><span class="manual-process-table-header">Comment</span></th>
+                                <th class="text-center bg-gradient manual-process-requirement-cell" scope="col"><span class="manual-process-table-header">Required FIG</span></th>
+                                <th class="text-center bg-gradient manual-process-requirement-cell" scope="col"><span class="manual-process-table-header">Required ZONE</span></th>
+                                <th class="text-center bg-gradient manual-process-actions" scope="col"><span class="manual-process-table-header">Action</span></th>
                             </tr>
                             </thead>
                             <tbody class="text-center">
@@ -1179,6 +1241,8 @@
                                     <td class="align-content-center text-start">
                                         &nbsp;
                                     </td>
+                                    <td class="manual-process-requirement-cell">&nbsp;</td>
+                                    <td class="manual-process-requirement-cell">&nbsp;</td>
                                     <td class="align-content-center manual-process-actions">
                                         &nbsp;
                                     </td>
@@ -1219,6 +1283,22 @@
                                             </span>
                                         </td>
                                         <td class="align-content-center text-start ps-3 manual-process-comment">{{ $mp->process_comment ?: '-' }}</td>
+                                        <td class="manual-process-requirement-cell">
+                                            <input type="checkbox" class="form-check-input manual-process-requirement"
+                                                   data-requirement="fig"
+                                                   data-url="{{ route('manual_processes.update-requirements', $mp) }}"
+                                                   aria-label="{{ __('Require FIG in Description') }}"
+                                                   @checked($mp->requires_fig)
+                                                   @disabled($rowLocked && ! $userCanManageLockedManualProcesses)>
+                                        </td>
+                                        <td class="manual-process-requirement-cell">
+                                            <input type="checkbox" class="form-check-input manual-process-requirement"
+                                                   data-requirement="zone"
+                                                   data-url="{{ route('manual_processes.update-requirements', $mp) }}"
+                                                   aria-label="{{ __('Require ZONE in Description') }}"
+                                                   @checked($mp->requires_zone)
+                                                   @disabled($rowLocked && ! $userCanManageLockedManualProcesses)>
+                                        </td>
                                         <td class="align-content-center manual-process-actions">
                                             <a href="{{ route('manual_processes.edit', $mp) }}?return_to={{ urlencode($manualUrlProcesses) }}"
                                                class="btn btn-outline-primary btn-sm @if($rowLocked && ! $userCanManageLockedManualProcesses) disabled @endif"

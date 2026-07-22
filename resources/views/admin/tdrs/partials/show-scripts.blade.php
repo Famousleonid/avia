@@ -26,7 +26,7 @@
         console[level === 'error' ? 'error' : 'log'](message);
     };
 
-    window.tdrShowConfirm = window.tdrShowConfirm || function(message, title, confirmLabel) {
+    window.tdrShowConfirm = window.tdrShowConfirm || function(message, title, confirmLabel, cancelLabel) {
         return new Promise(function(resolve) {
             let modal = document.getElementById('tdrShowConfirmModal');
             if (!modal) {
@@ -43,7 +43,7 @@
                             '</div>' +
                             '<div class="modal-body"></div>' +
                             '<div class="modal-footer">' +
-                                '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __("Cancel") }}</button>' +
+                                '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-confirm-cancel>{{ __("Cancel") }}</button>' +
                                 '<button type="button" class="btn btn-danger" data-confirm-action>{{ __("Delete") }}</button>' +
                             '</div>' +
                         '</div>' +
@@ -60,7 +60,9 @@
             modal.querySelector('.modal-title').textContent = title || '{{ __("Delete Confirmation") }}';
             modal.querySelector('.modal-body').textContent = message;
             const confirmBtn = modal.querySelector('[data-confirm-action]');
+            const cancelBtn = modal.querySelector('[data-confirm-cancel]');
             confirmBtn.textContent = confirmLabel || '{{ __("Delete") }}';
+            if (cancelBtn) cancelBtn.textContent = cancelLabel || '{{ __("Cancel") }}';
             let confirmed = false;
             const instance = bootstrap.Modal.getOrCreateInstance(modal);
 
@@ -205,7 +207,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var logCardStoreUrl = '{{ route("log_card.store") }}';
     var logCardUpdateUrlTemplate = '{{ route('log_card.update', ['log_card' => 9999991]) }}'.replace('9999991', '__LC__');
     var logCardInlineFieldUpdateUrlTemplate = '{{ route('log_card.inline_field.update', ['log_card' => 9999991]) }}'.replace('9999991', '__LC__');
-    var logCardDeleteUrlTemplate = '{{ route('log_card.destroy', ['log_card' => 9999991]) }}'.replace('9999991', '__LC__');
     var editBushingUrl = '{{ route("wo_bushings.edit", ["wo_bushing" => "__ID__"]) }}';
     var getProcessesBaseUrl = '{{ url("/get-processes") }}';
 
@@ -489,13 +490,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (lid) {
                 btn.setAttribute('data-log-card-id', lid);
                 btn.setAttribute('data-has-log', '1');
-                btn.classList.remove('btn-success');
-                btn.classList.add('btn-danger');
-                btn.innerHTML = '<i class="fas fa-undo"></i> {{ __("Reset Log Card") }}';
+                btn.classList.remove('btn-success', 'btn-danger');
+                btn.classList.add('btn-primary');
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i> {{ __("Update Log Card") }}';
             } else {
                 btn.setAttribute('data-log-card-id', '');
                 btn.setAttribute('data-has-log', '0');
-                btn.classList.remove('btn-danger');
+                btn.classList.remove('btn-primary', 'btn-danger');
                 btn.classList.add('btn-success');
                 btn.innerHTML = '<i class="fas fa-keyboard"></i> {{ __("Create Log Card") }}';
             }
@@ -1363,6 +1364,7 @@ document.addEventListener('DOMContentLoaded', function() {
             window.clearTimeout(closeInlineProcessTimer);
             closeInlineProcessTimer = window.setTimeout(function() {
                 if (createRow.classList.contains('d-none')) return;
+                if (createRow.dataset.saving === '1') return;
                 if (document.getElementById('inlineProcessDefinitionModal')?.classList.contains('show')) return;
                 if (createRow.matches(':hover')) return;
                 if (createRow.contains(document.activeElement)) return;
@@ -1416,9 +1418,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     createProcessBtn.disabled = false;
                     createProcessBtn.removeAttribute('title');
                 }
-                selectedProcessCanCreate = false;
-                selectedProcessCreateMessage = '';
-                saveBtn.disabled = false;
+            selectedProcessCanCreate = false;
+            selectedProcessCreateMessage = '';
+            delete createRow.dataset.saving;
+            saveBtn.disabled = false;
                 return;
             }
 
@@ -1590,17 +1593,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        saveBtn.addEventListener('click', function() {
-            var processNameId = nameSelect.value;
-            if (!processNameId || !selectedProcessId) {
-                window.tdrShowNotify('{{ __("Select process and process name.") }}', 'warning');
-                return;
-            }
-
-            saveBtn.disabled = true;
-            saveBtn.textContent = '{{ __("Saving...") }}';
-
-            fetch(storeProcessUrl, {
+        function submitInlineProcess(payload, confirmIncompleteRequirements) {
+            return fetch(storeProcessUrl, {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
@@ -1610,21 +1604,68 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify({
-                    tdrs_id: wrapper.dataset.tdrId,
-                    processes: [{
-                        process_names_id: processNameId,
-                        processes: [selectedProcessId],
-                        description: descriptionInput ? descriptionInput.value : '',
-                        in_traveler: 0
-                    }]
+                    tdrs_id: payload.tdrs_id,
+                    confirm_incomplete_requirements: confirmIncompleteRequirements,
+                    processes: payload.processes
                 })
             })
                 .then(function(response) {
                     return response.json().catch(function() { return {}; }).then(function(data) {
-                        return { ok: response.ok, data: data };
+                        return { ok: response.ok, status: response.status, data: data };
                     });
+                });
+        }
+
+        saveBtn.addEventListener('click', function() {
+            var processNameId = nameSelect.value;
+            if (!processNameId || !selectedProcessId) {
+                window.tdrShowNotify('{{ __("Select process and process name.") }}', 'warning');
+                return;
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = '{{ __("Saving...") }}';
+            createRow.dataset.saving = '1';
+
+            var inlineProcessPayload = {
+                tdrs_id: wrapper.dataset.tdrId,
+                processes: [{
+                    process_names_id: processNameId,
+                    processes: [selectedProcessId],
+                    description: descriptionInput ? descriptionInput.value : '',
+                    in_traveler: 0
+                }]
+            };
+
+            submitInlineProcess(inlineProcessPayload, false)
+                .then(function(result) {
+                    if (!result.ok) {
+                        if (result.status === 422 && Array.isArray(result.data.incomplete_requirements)) {
+                            var missing = result.data.incomplete_requirements
+                                .map(function(item) { return 'Process row ' + item.row + ': ' + item.missing.join(', '); })
+                                .join('; ');
+
+                            return window.tdrShowConfirm(
+                                'Description is missing required ' + missing + '. Slava S will not accept the printed form without this information.',
+                                'FIG / ZONE required',
+                                'Save without FIG / ZONE',
+                                'Return and fill'
+                            ).then(function(saveIncomplete) {
+                                return saveIncomplete ? submitInlineProcess(inlineProcessPayload, true) : null;
+                            });
+                        }
+
+                        throw new Error(result.data.error || result.data.message || '{{ __("Save failed.") }}');
+                    }
+                    return result;
                 })
                 .then(function(result) {
+                    if (!result) {
+                        delete createRow.dataset.saving;
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = '{{ __("Save") }}';
+                        return;
+                    }
                     if (!result.ok) {
                         throw new Error(result.data.error || result.data.message || '{{ __("Save failed.") }}');
                     }
@@ -1632,6 +1673,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadProcessesAndBind(wrapper.dataset.tdrId, container);
                 })
                 .catch(function(error) {
+                    delete createRow.dataset.saving;
                     window.tdrShowNotify(error.message || '{{ __("Save failed.") }}', 'error');
                     saveBtn.disabled = false;
                     saveBtn.textContent = '{{ __("Save") }}';
@@ -2356,40 +2398,6 @@ document.addEventListener('DOMContentLoaded', function() {
         logCardScheduleNextInlineSave();
     }
 
-    function logCardTabReset(logCardId) {
-        var fd = new FormData();
-        fd.append('_token', logCardTabCsrfToken());
-        fd.append('_method', 'DELETE');
-
-        return fetch(logCardDeleteUrlTemplate.replace('__LC__', String(logCardId)), {
-            method: 'POST',
-            body: fd,
-            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-            credentials: 'same-origin'
-        })
-            .then(function(r) {
-                return r.json().then(function(data) {
-                    return { ok: r.ok, data: data };
-                }).catch(function() {
-                    return { ok: r.ok, data: {} };
-                });
-            })
-            .then(function(res) {
-                if (res.ok && res.data && res.data.success) {
-                    loadLogCardPartial();
-                    if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(res.data.message || '{{ __("Reset.") }}', 'success');
-                    return true;
-                }
-                var msg = (res.data && res.data.message) ? res.data.message : '{{ __("Could not reset Log Card.") }}';
-                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(msg, 'error');
-                return false;
-            })
-            .catch(function() {
-                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify('{{ __("Request failed.") }}', 'error');
-                return false;
-            });
-    }
-
     if (logCardEnterBtn) {
         logCardEnterBtn.addEventListener('click', function() {
             if (logCardTabIsReadOnly()) {
@@ -2400,18 +2408,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             var logCardId = logCardEnterBtn.getAttribute('data-log-card-id') || '';
             if (logCardId) {
-                window.tdrShowConfirm(
-                    '{{ __("Reset Log Card for this workorder? This will delete the saved row and return to component selection.") }}',
-                    '{{ __("Reset Log Card") }}',
-                    '{{ __("Reset") }}'
-                ).then(function(confirmed) {
-                    if (!confirmed) return;
-                    logCardEnterBtn.disabled = true;
-                    logCardEnterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Resetting...") }}';
-                    logCardTabReset(logCardId).finally(function() {
-                        logCardEnterBtn.disabled = false;
+                var savedPayload = logCardTabBuildPayload();
+                logCardEnterBtn.disabled = true;
+                logCardEnterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Updating...") }}';
+                logCardTabPersistPayload(savedPayload, { reload: true, notify: true })
+                    .then(function(saved) {
+                        if (!saved) syncLogCardToolbarFromPartial();
+                    })
+                    .finally(function() {
+                        logCardEnterBtn.disabled = logCardTabIsReadOnly();
                     });
-                });
                 return;
             }
 

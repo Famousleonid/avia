@@ -345,6 +345,33 @@ class LogCardController extends Controller
 
         $components = Component::whereIn('id', $componentIds)->get();
 
+        // A manual separator is useful only when the printed Log Card combines
+        // components from more than one manual. Infer missing legacy manual_id
+        // values from the component itself before deciding what to print.
+        $componentsById = $components->keyBy(fn (Component $component) => (int) $component->id);
+        $representedManualIds = collect($componentData)
+            ->filter(fn ($row) => is_array($row)
+                && ($row['row_type'] ?? '') !== 'manual'
+                && ! empty($row['component_id']))
+            ->map(function ($row) use ($componentsById) {
+                $manualId = (int) ($row['manual_id'] ?? 0);
+                if ($manualId > 0) {
+                    return $manualId;
+                }
+
+                return (int) ($componentsById->get((int) $row['component_id'])?->manual_id ?? 0);
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($representedManualIds->count() <= 1) {
+            $componentData = collect($componentData)
+                ->reject(fn ($row) => is_array($row) && ($row['row_type'] ?? '') === 'manual')
+                ->values()
+                ->all();
+        }
+
         $log_count= count($componentData);
         $firstPrintPageRows = 9;
         $continuationPrintPageRows = 20;

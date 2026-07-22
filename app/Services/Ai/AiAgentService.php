@@ -69,20 +69,7 @@ class AiAgentService
 
         $history = $this->buildConversationHistory($user->id, $sessionKey);
 
-        $tools = [
-            $this->findWorkorderTool->schema(),
-            $this->searchWorkordersTool->schema(),
-            $this->analyzeWorkorderTool->schema(),
-            $this->searchMyWorkordersByOpenProcessTool->schema(),
-            $this->searchWorkordersByOpenProcessTool->schema(),
-            $this->searchActivityLogsTool->schema(),
-            $this->createWorkorderNoteTool->schema(),
-            $this->lookupWorkorderPartsTool->schema(),
-            $this->lookupManualEditPermissionsTool->schema(),
-            $this->listManualRevisionChecksDueTool->schema(),
-            $this->countWorkorderImagesTool->schema(),
-            $this->lookupSerialNumberTool->schema(),
-        ];
+        $tools = $this->toolsForUser($user);
 
         $systemPrompt = $this->systemPrompt($user, $pageContext, $userMessage);
 
@@ -114,6 +101,89 @@ class AiAgentService
             'requires_confirmation' => (bool)($resolved['requires_confirmation'] ?? false),
             'action' => $resolved['action'] ?? null,
         ];
+    }
+
+    /**
+     * Tools that are safe for every signed-in role. Each tool still applies its
+     * own workorder policy, so users only see records they may view or update.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function toolsForUser(User $user): array
+    {
+        $tools = [
+            $this->findWorkorderTool->schema(),
+            $this->analyzeWorkorderTool->schema(),
+            $this->searchMyWorkordersByOpenProcessTool->schema(),
+            $this->createWorkorderNoteTool->schema(),
+            $this->lookupWorkorderPartsTool->schema(),
+            $this->countWorkorderImagesTool->schema(),
+            $this->lookupSerialNumberTool->schema(),
+        ];
+
+        if ($user->isSystemAdmin()) {
+            $tools = array_merge($tools, [
+                $this->searchWorkordersTool->schema(),
+                $this->searchWorkordersByOpenProcessTool->schema(),
+                $this->searchActivityLogsTool->schema(),
+                $this->lookupManualEditPermissionsTool->schema(),
+                $this->listManualRevisionChecksDueTool->schema(),
+            ]);
+        }
+
+        return $tools;
+    }
+
+    /** @return array<int, string> */
+    protected function allowedToolNames(User $user): array
+    {
+        return collect($this->toolsForUser($user))
+            ->pluck('name')
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    protected function capabilityPromptBlock(User $user): string
+    {
+        $capabilities = [
+            '- findWorkorder: find one workorder by WO number (read-only). Never tell the user internal row ids.',
+            '- analyzeWorkorder: task progress, closed = isDone(); status/step = first unfinished general task stage by sort_order; photos do not affect status or closed state.',
+            '- searchMyWorkordersByOpenProcess: find only current user\'s workorders with a started but unfinished process; optional process-name filter; return links to open the main page.',
+            '- createWorkorderNote: propose appending a note to a workorder — only after explicit user intent and UI confirmation (not instant).',
+            '- lookupWorkorderParts: look up manual/parts lines for a workorder (read-only).',
+            '- countWorkorderImages: count images/photos for one visible workorder, list top visible workorders with the most images/photos, or return the total across visible workorders (read-only).',
+            '- lookupSerialNumber: find a serial number / S/N across visible workorders and related records, and tell which WO it belongs to.',
+        ];
+
+        if ($user->isSystemAdmin()) {
+            $capabilities = array_merge($capabilities, [
+                '- searchWorkorders: partial search on all workorder columns (except internal id) plus related customer, unit (+ manual), instruction, assigned user; return links to open the main page.',
+                '- searchWorkordersByOpenProcess: find all visible workorders with open process rows; optional customer and process filters; return links to open the main page.',
+                '- searchActivityLogs: System Admin-only thorough read-only audit search. Find who created, changed, or deleted records and when; combine WO, CMM manual number, P/N, actor, event, log category, area, free text, and date range. It searches the full matching log history, including TDR Add Part, manual Parts, ordinary Parts/TDR references, and Bushing before/after snapshots.',
+                '- lookupManualEditPermissions: which CMM manuals a user may edit, who may edit a manual, manuals with responsible users, and manual number ↔ LIB mapping; read-only.',
+                '- listManualRevisionChecksDue: show CMM manuals whose revision check is overdue or due within X days; read-only.',
+            ]);
+        }
+
+        return implode("\n", array_merge($capabilities, [
+            '- UI navigation help: explain where to click in the admin interface using ONLY the «UI NAVIGATION MAP» block below (no tools; no invented menus).',
+            '- Plus: plain-language conversation without accessing the database when no tool is needed.',
+        ]));
+    }
+
+    protected function roleSpecificBehaviorPrompt(User $user): string
+    {
+        if (! $user->isSystemAdmin()) {
+            return '- Use only the functions listed above for this role. Do not offer, describe, or attempt restricted administrative or audit capabilities.';
+        }
+
+        return <<<'PROMPT'
+- If the user wants a list of workorders matching text, use searchWorkorders (all WO fields + related customer/unit/instruction/user). Format each line as: `[WO <number>](open_url) — description…` (link text = WO number only). Optionally add a second markdown link to open the Workorder table with search pre-filled if origin is in context (`…/workorders?q=…`). Missing photos does not affect workorder status or whether it is closed.
+- If the user asks who/when created, added, changed, removed, or deleted something, asks for an audit trail/history/logs, or combines audit criteria such as WO + CMM + P/N + person + date, use searchActivityLogs. Pass every supplied criterion because filters are combined with AND; search the full matching history before answering. For a TDR Add Part search, use `workorder_number`, `area: components`, and `event: created`; add P/N when supplied. For manual/CMM Parts, use `manual_number`, `area: components`, and normally `event: created`. Use exact P/N matching unless a partial search is explicitly requested. For current WO/CMM, use its human number from context. Report actor, date/time, event, WO/CMM number, P/N, and changed fields when present; never expose internal ids. If no match exists, say so plainly and do not guess.
+- If the user asks which manuals/CMMs need revision checks soon, are due, overdue, or asks for top 10/15/20 manuals with less than X days before revision check, use listManualRevisionChecksDue. Format each result as `[<manual_number>](manual_url) — <title>, rev <last_revision_number if present>, last check <last_checked_at or never>, due <next_due_at>, <days_until_due> days`.
+- For `lookupManualEditPermissions` about the manual on screen: use the **CMM number** from context (e.g. 32-21-09) as `manual_number`; in the answer, speak only in terms of that CMM number — never `manual_id`.
+PROMPT;
     }
 
     protected function resolveResponseWithTools(
@@ -188,6 +258,13 @@ class AiAgentService
 
     protected function runTool(User $user, string $toolName, array $arguments, array $pageContext = []): array
     {
+        if (! in_array($toolName, $this->allowedToolNames($user), true)) {
+            return [
+                'ok' => false,
+                'message' => 'This assistant function is not available for your role.',
+            ];
+        }
+
         $ctxWo = (array)($pageContext['current_workorder'] ?? []);
         $ctxWorkorderId = (int)($ctxWo['id'] ?? 0);
 
@@ -619,6 +696,8 @@ class AiAgentService
         $agentName = $this->assistantDisplayName((string) config('services.openai.agent_name', 'Assistant'));
 
         $languageInstruction = $this->buildReplyLanguageInstruction($latestUserMessage);
+        $roleCapabilities = $this->capabilityPromptBlock($user);
+        $roleSpecificBehavior = $this->roleSpecificBehaviorPrompt($user);
 
         return <<<PROMPT
 You are «{$agentName}», the AI assistant for an aviation maintenance workshop (workorders, tasks, manuals, photos, damage notes). Do not mention Laravel, PHP, frameworks, or programming stack to the user unless they explicitly ask about IT internals.
@@ -644,20 +723,7 @@ Your goals:
 7. Keep answers concise and practical.
 
 What you can actually do in THIS app (strict — if the user asks «what can you do» / «что ты умеешь», list ONLY this; do not add features from imagination or generic chatbot abilities):
-- findWorkorder: find one workorder by WO number (read-only). Never tell the user internal row ids.
-- searchWorkorders: partial search on all workorder columns (except internal id) plus related customer, unit (+ manual), instruction, assigned user; return links to open the main page.
-- analyzeWorkorder: task progress, closed = isDone(); status/step = first unfinished general task stage by sort_order; photos do not affect status or closed state.
-- searchMyWorkordersByOpenProcess: find only current user's workorders (workorders.user_id = current user) where in tdr_process date_start is set and date_finish is empty; optional process-name filter (e.g. machining); return links to open the main page.
-- searchWorkordersByOpenProcess: find all visible workorders (not only mine) with open process rows (date_start set, date_finish empty, ignore_row=0); optional customer and process filters; return links to open the main page.
-- searchActivityLogs: System Admin-only read-only audit search. Find who created, changed, or deleted records and when; combine WO, CMM manual number, P/N, actor, event, log category, area, free text, and date range. It understands Parts created from the TDR Add Part modal, manual Parts, ordinary Parts/TDR references, and Bushing before/after snapshots.
-- createWorkorderNote: propose appending a note to a workorder — only after explicit user intent and UI confirmation (not instant).
-- lookupWorkorderParts: look up manual/parts lines for a workorder (read-only).
-- lookupManualEditPermissions: from manual_user_permissions — which CMM manuals a user may edit, who may edit a manual, list all manuals with responsible users, and map manual number ↔ LIB (by manual number or LIB fragments); read-only.
-- listManualRevisionChecksDue: show top CMM manuals whose revision check is overdue or due within X days; read-only.
-- countWorkorderImages: count images/photos for one workorder, list top workorders with the most images/photos, or return the total/sum of all workorder photos across workorders; return links to open the main page when listing workorders (read-only).
-- lookupSerialNumber: find a serial number / S/N across the app and tell which WO it belongs to. Search workorders, TDR rows, unit inspections, Log Card received/dispatched rows, extra process parts, and paint/lost-part records. If a match has no direct WO link, say so plainly.
-- UI navigation help: explain where to click in the admin interface using ONLY the «UI NAVIGATION MAP» block below (no tools; no invented menus).
-- Plus: plain-language conversation without accessing the database when no tool is needed.
+{$roleCapabilities}
 
 Do NOT claim you can: upload or delete files or photos, send email or notifications, edit workorders/tasks in bulk, change statuses or approve by yourself, export PDF/Excel, run reports, replace procedures, access data you cannot fetch with tools, or any other feature not listed above.
 
@@ -672,15 +738,12 @@ Communication style (strict):
 Important behavior:
 - If the question is general, answer directly without tools.
 - If the question needs real data from the system, use tools.
-- If the user wants a list of workorders matching text, use searchWorkorders (all WO fields + related customer/unit/instruction/user). Format each line as: `[WO <number>](open_url) — description…` (link text = WO number only). Optionally add a second markdown link to open the Workorder table with search pre-filled if origin is in context (`…/workorders?q=…`). Missing photos does not affect workorder status or whether it is closed.
+{$roleSpecificBehavior}
 - If the user asks about number of pictures/photos/images on workorders, use countWorkorderImages. For "sum/total across all workorders", call it with `mode: "total"` and answer with the total image count plus how many workorders have images. For "top 10 with most pictures", call it with limit 10 and format each result as `[WO <number>](url) — <N> images`.
 - If the user asks to find a part/unit by serial number, S/N, SN, or asks which workorder a serial belongs to, use lookupSerialNumber. Format matches as `[WO <number>](url) — <source>, <part name>, P/N <part_number>, IPL <ipl_num>, S/N <serial>` when fields exist. If there are multiple matches, list them briefly. If no match is found, say no matching serial number was found.
-- If the user asks who/when created, added, changed, removed, or deleted something, asks for an audit trail/history/logs, or combines audit criteria such as WO + CMM + P/N + person + date, use searchActivityLogs. Pass every criterion the user supplied because the tool combines them with AND. For "who entered/created a Part through Add Part in a WO", pass `workorder_number`, `area: components`, and `event: created`; add P/N when supplied, and identify matches whose area is `TDR Add Part`. For "who added Parts to manual/CMM", pass `manual_number`, `area: components`, and normally `event: created`; add P/N only when the user supplied one. Use exact P/N matching unless the user explicitly asks for partial matching. For "this/current WO", pass the human WO number shown in context; for "this/current CMM", pass the human CMM number shown in context. For global searches, do not silently add a WO or CMM restriction. Report actor, date/time, event, WO/CMM number, P/N, and changed fields when present. Never expose activity ids, subject ids, component ids, manual ids, or other internal ids. If access is denied, say Activity Log search is limited to System Admin. If nothing matches, state that no matching saved log was found; do not guess who performed the action.
-- If the user asks which manuals/CMMs need revision checks soon, are due, overdue, or asks for top 10/15/20 manuals with less than X days before revision check, use listManualRevisionChecksDue. Format each result as `[<manual_number>](manual_url) — <title>, rev <last_revision_number if present>, last check <last_checked_at or never>, due <next_due_at>, <days_until_due> days`.
 - If the user asks to create or modify something, first confirm details.
 - If a tool returns an error, explain it plainly in human language.
 - For write actions, request explicit UI confirmation first. Never execute write action immediately after tool proposal.
-- For `lookupManualEditPermissions` about the manual on screen: use the **CMM number** from context (e.g. 32-21-09) as `manual_number` when calling the tool; in the answer, speak only in terms of that CMM number — never `manual_id`.
 
 System context:
 - «Status / step» of a workorder for the user = on which unfinished **general task** stage it sits; order of stages is `general_tasks.sort_order`. Closed workorder = `isDone()` (Completed task finished). Photos do not change status or closed state.
