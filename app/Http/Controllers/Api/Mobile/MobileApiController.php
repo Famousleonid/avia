@@ -494,13 +494,14 @@ class MobileApiController extends Controller
     public function tasks(Request $request, int $workorderId): JsonResponse
     {
         $workorder = $this->findWorkorder($workorderId, ['generalTaskStatuses']);
-        $generalTasks = GeneralTask::query()->orderBy('sort_order')->orderBy('id')->get();
+        $generalTasks = $this->mobileVisibleGeneralTasks($request->user());
         $tasks = Task::query()
             ->whereIn('general_task_id', $generalTasks->pluck('id'))
             ->orderBy('general_task_id')
             ->orderBy('name')
             ->get()
-            ->groupBy('general_task_id');
+            ->groupBy('general_task_id')
+            ->map(fn ($group) => $this->mobileVisibleTasks($group, $request->user()));
         $mains = Main::query()
             ->with(['user:id,name,selection_name_order', 'task'])
             ->where('workorder_id', $workorder->id)
@@ -1573,6 +1574,20 @@ class MobileApiController extends Controller
         ];
     }
 
+    /** Hook: which general-task groups the mobile tasks screen returns.
+     *  The shared (iOS) contour keeps the historical behaviour — all groups;
+     *  the Android contour overrides this with the desktop visibility rules. */
+    protected function mobileVisibleGeneralTasks(?User $user): \Illuminate\Support\Collection
+    {
+        return GeneralTask::query()->orderBy('sort_order')->orderBy('id')->get();
+    }
+
+    /** Hook: which tasks of a group the mobile tasks screen returns. */
+    protected function mobileVisibleTasks(\Illuminate\Support\Collection $tasks, ?User $user): \Illuminate\Support\Collection
+    {
+        return $tasks->values();
+    }
+
     /** @return array{can_edit_dates: bool, can_edit_start: bool, can_edit_finish: bool, restricted_finish: bool, restriction_code: ?string} */
     protected function taskDatePermissions(User $user, Task $task): array
     {
@@ -1582,7 +1597,11 @@ class MobileApiController extends Controller
             'completed',
             'wosubmittedforquote',
             'wosubmittedforquate',
-        ], true);
+        ], true)
+            // Desktop parity (config/mains.php): the full locked-task list —
+            // Post Disassembly inspection, Quote Sent to Customer,
+            // Final inspection, WO invoiced/paid, etc.
+            || in_array($task->id, array_map('intval', config('mains.restricted_date_task_ids', [])), true);
         $canEditDates = ! $managerOnly || $user->hasAnyRole('Admin|Manager');
 
         return [

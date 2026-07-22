@@ -71,6 +71,24 @@ class AndroidApiController extends MobileApiController
     }
 
     /**
+     * Desktop-parity visibility for the Tasks screen: Technician/Team Leader
+     * don't see the configured group position (Complete) nor the
+     * Approved/Completed tasks (config/workorders.php). iOS keeps the
+     * unfiltered historical payload.
+     */
+    protected function mobileVisibleGeneralTasks(?User $user): \Illuminate\Support\Collection
+    {
+        return app(\App\Services\Workorders\WorkorderVisibilityService::class)
+            ->visibleGeneralTasksFor($user);
+    }
+
+    protected function mobileVisibleTasks(\Illuminate\Support\Collection $tasks, ?User $user): \Illuminate\Support\Collection
+    {
+        return app(\App\Services\Workorders\WorkorderVisibilityService::class)
+            ->filterVisibleMainsTasks($tasks, $user);
+    }
+
+    /**
      * Additive Android extra: recorded_by is a raw user id — resolve the name
      * for display. iOS payload shape is unchanged (extra key only).
      */
