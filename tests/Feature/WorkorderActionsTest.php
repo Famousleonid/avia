@@ -102,6 +102,58 @@ class WorkorderActionsTest extends TestCase
         }
     }
 
+    public function test_restricted_task_dates_are_enforced_server_side_not_only_in_ui(): void
+    {
+        $workorder = $this->createWorkorder();
+        $generalTask = GeneralTask::query()->create([
+            'name' => 'Restricted dates '.uniqid(),
+            'sort_order' => 1,
+        ]);
+        $task = Task::query()->create([
+            'name' => 'Final inspection',
+            'general_task_id' => $generalTask->id,
+            'task_has_start_date' => false,
+        ]);
+        config(['mains.restricted_date_task_ids' => [$task->id]]);
+
+        // A direct POST (bypassing the disabled UI input) must be rejected.
+        $technician = $this->createUserWithRole('Technician');
+        $this->actingAs($technician)
+            ->postJson(route('mains.store'), [
+                'workorder_id' => $workorder->id,
+                'task_id' => $task->id,
+                'date_finish' => '2026-07-22',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('date_finish');
+        $this->assertDatabaseMissing('mains', [
+            'workorder_id' => $workorder->id,
+            'task_id' => $task->id,
+        ]);
+
+        // Managers keep the desktop behaviour.
+        $manager = $this->createUserWithRole('Manager');
+        $this->actingAs($manager)
+            ->postJson(route('mains.store'), [
+                'workorder_id' => $workorder->id,
+                'task_id' => $task->id,
+                'date_finish' => '2026-07-22',
+            ])
+            ->assertOk();
+        $main = \App\Models\Main::query()
+            ->where('workorder_id', $workorder->id)
+            ->where('task_id', $task->id)
+            ->firstOrFail();
+
+        // The update route is guarded the same way.
+        $this->actingAs($technician)
+            ->patchJson(route('mains.update', $main->id), [
+                'date_finish' => '2026-07-23',
+            ])
+            ->assertStatus(422);
+        $this->assertSame('2026-07-22', $main->fresh()->date_finish?->format('Y-m-d'));
+    }
+
     public function test_technician_approval_stage_color_still_requires_hidden_approved_task(): void
     {
         $technician = $this->createUserWithRole('Technician');

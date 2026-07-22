@@ -76,6 +76,10 @@ class MainController extends Controller
             ]);
         }
 
+        if ($denied = $this->denyRestrictedTaskEdit($request, $task)) {
+            return $denied;
+        }
+
         $ignoreRow = $request->boolean('ignore_row');
         $hasStart  = $request->has('date_start');
         $hasFinish = $request->has('date_finish');
@@ -746,6 +750,34 @@ class MainController extends Controller
         return 1;
     }
 
+    /**
+     * Server-side twin of the UI locks (config/mains.php
+     * restricted_date_task_ids): the blade only disables the inputs, so
+     * without this check a direct POST could edit manager-only task dates.
+     * Returns a response to short-circuit with, or null when allowed.
+     */
+    private function denyRestrictedTaskEdit(Request $request, Task $task)
+    {
+        $restricted = in_array(
+            (int) $task->id,
+            array_map('intval', config('mains.restricted_date_task_ids', [])),
+            true
+        );
+        if (! $restricted || (auth()->check() && auth()->user()->hasAnyRole('Admin|Manager'))) {
+            return null;
+        }
+
+        $message = 'Only Admin/Manager can edit this task.';
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'errors' => ['date_finish' => [$message]],
+            ], 422);
+        }
+
+        return back()->withErrors(['date_finish' => $message]);
+    }
+
     public function update(Request $request, Main $main)
     {
         $oldIgnore = (int) $main->ignore_row;
@@ -774,6 +806,10 @@ class MainController extends Controller
             return back()->withErrors([
                 'date_finish' => 'This task is locked and cannot be edited.',
             ]);
+        }
+
+        if ($task && ($denied = $this->denyRestrictedTaskEdit($request, $task))) {
+            return $denied;
         }
 
         $isRestrictedFinish = in_array($taskName, ['Approved', 'Completed'], true);
