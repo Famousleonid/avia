@@ -47,6 +47,41 @@ class WorkordersWriteTest extends TestCase
         ]);
     }
 
+    public function test_only_manager_and_admin_can_see_and_create_workorders(): void
+    {
+        foreach (['Technician', 'Team Leader'] as $role) {
+            $user = $this->createUserWithRole($role);
+
+            $this->actingAs($user)
+                ->get(route('workorders.index'))
+                ->assertOk()
+                ->assertDontSee('id="admin_new_firm_create"', false)
+                ->assertDontSee('title="Add new workorder"', false);
+
+            $this->actingAs($user)
+                ->get(route('workorders.create'))
+                ->assertForbidden();
+
+            $this->actingAs($user)
+                ->post(route('workorders.store'), [])
+                ->assertForbidden();
+        }
+
+        foreach (['Manager', 'Admin'] as $role) {
+            $user = $this->createUserWithRole($role);
+
+            $this->actingAs($user)
+                ->get(route('workorders.index'))
+                ->assertOk()
+                ->assertSee('id="admin_new_firm_create"', false)
+                ->assertSee('title="Add new workorder"', false);
+
+            $this->actingAs($user)
+                ->get(route('workorders.create'))
+                ->assertOk();
+        }
+    }
+
     public function test_open_date_placeholder_uses_neutral_mask_on_workorder_forms(): void
     {
         $admin = $this->createUserWithRole('Admin');

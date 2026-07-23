@@ -2,6 +2,8 @@
     $hasRows = $groupedComponents->isNotEmpty() || $separateComponents->isNotEmpty();
     $componentData = isset($componentData) && is_array($componentData) ? $componentData : [];
     $hasSavedLogCard = $log_card && !empty($componentData);
+    $logCardEditMode = (bool) ($editMode ?? false);
+    $renderDraft = !$hasSavedLogCard || $logCardEditMode;
     $logCardTdrReadOnly = (bool) ($logCardTdrAccess['read_only'] ?? false);
     $logCardTdrReadOnlyMessage = $logCardTdrAccess['message'] ?? '';
 @endphp
@@ -11,7 +13,8 @@
      data-log-card-id="{{ $log_card->id ?? '' }}"
      data-readonly="{{ $logCardTdrReadOnly ? '1' : '0' }}"
      data-readonly-message="{{ $logCardTdrReadOnlyMessage }}"
-     data-state="{{ $hasSavedLogCard ? 'saved' : 'draft' }}">
+     data-state="{{ $renderDraft ? 'draft' : 'saved' }}"
+     data-edit-mode="{{ $logCardEditMode ? '1' : '0' }}">
     <script type="application/json" id="log-card-tab-meta">@json($tabMeta)</script>
 
     <style>
@@ -65,7 +68,7 @@
 
     @if(!$hasRows && !$hasSavedLogCard && $availableLogCardManuals->isEmpty())
         <p class="text-center text-muted mt-3">{{ __('No components with log_card=1 for this manual.') }}</p>
-    @elseif(!$hasSavedLogCard)
+    @elseif($renderDraft)
         <div class="table-responsive table-scroll-container">
             <table class="table table-bordered table-hover dir-table align-middle bg-gradient">
                 <thead class="table-dark">
@@ -87,8 +90,18 @@
                         @include('admin.log_card.partials.draft-manual-rows', [
                             'manual' => $manual,
                             'sectionKey' => '',
+                            'componentData' => $componentData,
                         ])
                     @endif
+                    @foreach($savedExtraManualSections as $savedManualSection)
+                        @include('admin.log_card.partials.draft-manual-rows', [
+                            'groupedComponents' => $savedManualSection['groupedComponents'],
+                            'separateComponents' => $savedManualSection['separateComponents'],
+                            'manual' => $savedManualSection['manual'],
+                            'sectionKey' => $savedManualSection['sectionKey'],
+                            'componentData' => $componentData,
+                        ])
+                    @endforeach
                 </tbody>
             </table>
         </div>

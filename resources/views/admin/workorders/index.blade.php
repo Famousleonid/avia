@@ -490,10 +490,12 @@
                     <span class="text-info" id="woTotal">{{ $totalCount }}</span>
                 </h5>
 
-                <a id="admin_new_firm_create" href="{{ route('workorders.create') }}">
-                    <img src="{{ asset('img/plus.png') }}" width="30" alt="Add" data-bs-toggle="tooltip"
-                         title="Add new workorder">
-                </a>
+                @can('create', \App\Models\Workorder::class)
+                    <a id="admin_new_firm_create" href="{{ route('workorders.create') }}">
+                        <img src="{{ asset('img/plus.png') }}" width="30" alt="Add" data-bs-toggle="tooltip"
+                             title="Add new workorder">
+                    </a>
+                @endcan
                 @role('Admin')
                 <form method="POST" action="{{ route('workorders.recalcStages') }}" class="ms-2"
                       onsubmit="return confirm('Recalculate stages for ALL workorders?');">

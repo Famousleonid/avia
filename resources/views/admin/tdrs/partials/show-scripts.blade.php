@@ -484,6 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var shell = document.getElementById('log-card-partial-shell');
         var btn = document.getElementById('logCardEnterDataBtn');
         var lid = shell && shell.getAttribute('data-log-card-id');
+        var editMode = shell && shell.getAttribute('data-edit-mode') === '1';
         var readOnly = shell && shell.getAttribute('data-readonly') === '1';
         var readOnlyMessage = shell ? (shell.getAttribute('data-readonly-message') || '') : '';
         if (btn) {
@@ -508,8 +509,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         var sv = document.getElementById('logCardSaveBtn');
         var cx = document.getElementById('logCardCancelBtn');
-        if (sv) sv.classList.add('d-none');
-        if (cx) cx.classList.add('d-none');
+        if (editMode) {
+            if (btn) btn.classList.add('d-none');
+            if (sv) {
+                sv.classList.remove('d-none');
+                sv.disabled = !!readOnly;
+            }
+            if (cx) cx.classList.remove('d-none');
+        } else {
+            if (btn) btn.classList.remove('d-none');
+            if (sv) sv.classList.add('d-none');
+            if (cx) cx.classList.add('d-none');
+        }
         var paperWrap = document.getElementById('logCardFormPaperWrap');
         if (paperWrap && shell) {
             if (lid) {
@@ -635,6 +646,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         var meta;
         try { meta = JSON.parse(metaEl.textContent); } catch (e) { return null; }
+        var originalRows = Array.isArray(logCardEditOriginalRows)
+            ? logCardEditOriginalRows
+            : (Array.isArray(meta.original_component_data) ? meta.original_component_data : []);
         var data = [];
         var emittedManuals = new Set();
         root.querySelectorAll('tr').forEach(function(rowEl) {
@@ -656,17 +670,25 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             var groupKey = (include && include.dataset.groupKey) || '';
-            var isSeparate = groupKey.indexOf('separate_') === 0;
+            var isSeparate = groupKey.indexOf('separate_') !== -1 || !!componentInput.dataset.unitIndex;
+            var originalRow = originalRows.find(function(candidate) {
+                if (!candidate || candidate.row_type === 'manual') return false;
+                if (String(candidate.component_id || '') !== String(componentInput.value)) return false;
+
+                var candidateUnit = String(candidate.unit_index || '');
+                var selectedUnit = String(componentInput.dataset.unitIndex || '');
+                return candidateUnit === selectedUnit;
+            }) || {};
             var snEl = groupKey ? logCardTabFindByName(root, 'lc_serial_numbers[' + groupKey + ']') : null;
             var asEl = groupKey ? logCardTabFindByName(root, 'lc_assy_serial_numbers[' + groupKey + ']') : null;
             var rsEl = groupKey ? logCardTabFindByName(root, 'lc_reasons[' + groupKey + ']') : null;
             var row = {
                 component_id: componentInput.value,
                 included: '1',
-                serial_number: snEl ? snEl.value : '',
-                assy_serial_number: asEl ? asEl.value : '',
-                reason: rsEl && rsEl.value ? rsEl.value : '',
-                new_serial_number: ''
+                serial_number: snEl ? snEl.value : (originalRow.serial_number || ''),
+                assy_serial_number: asEl ? asEl.value : (originalRow.assy_serial_number || ''),
+                reason: rsEl && rsEl.value ? rsEl.value : (originalRow.reason || ''),
+                new_serial_number: originalRow.new_serial_number || ''
             };
             if (manualId) row.manual_id = manualId;
             if (!isSeparate && componentInput.dataset.iplGroup) row.ipl_group = componentInput.dataset.iplGroup;
@@ -742,10 +764,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    function loadLogCardPartial() {
-        if (!logCardTabBody) return;
+    function loadLogCardPartial(options) {
+        options = options || {};
+        if (!logCardTabBody) return Promise.resolve(false);
         logCardTabBody.innerHTML = '<div class="text-center py-5 text-muted">{{ __("Loading...") }}</div>';
-        fetch(logCardPartialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
+        var partialUrl = logCardPartialUrl + (options.edit ? (logCardPartialUrl.indexOf('?') === -1 ? '?' : '&') + 'edit=1' : '');
+        return fetch(partialUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, credentials: 'same-origin' })
             .then(function(r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
                 return r.text();
@@ -755,9 +779,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 syncLogCardToolbarFromPartial();
                 syncLogCardDraftAssyChoices(document.getElementById('log-card-partial-shell'));
                 syncLogCardExtraManualControls();
+                return true;
             })
             .catch(function(err) {
                 logCardTabBody.innerHTML = '<div class="alert alert-danger">{{ __("Failed to load.") }} (' + (err && err.message ? err.message : '') + ')</div>';
+                return false;
             });
     }
 
@@ -2249,6 +2275,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var logCardInlineSaveTimer = null;
     var logCardInlineSaveInFlight = false;
     var logCardInlineQueuedUpdates = [];
+    var logCardEditOriginalRows = null;
 
     function logCardTabPersistPayload(payload, options) {
         options = options || {};
@@ -2408,16 +2435,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             var logCardId = logCardEnterBtn.getAttribute('data-log-card-id') || '';
             if (logCardId) {
-                var savedPayload = logCardTabBuildPayload();
+                var root = document.getElementById('log-card-partial-shell');
+                logCardEditOriginalRows = logCardTabSavedPayload(root) || [];
                 logCardEnterBtn.disabled = true;
-                logCardEnterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Updating...") }}';
-                logCardTabPersistPayload(savedPayload, { reload: true, notify: true })
-                    .then(function(saved) {
-                        if (!saved) syncLogCardToolbarFromPartial();
-                    })
-                    .finally(function() {
-                        logCardEnterBtn.disabled = logCardTabIsReadOnly();
-                    });
+                logCardEnterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Opening...") }}';
+                loadLogCardPartial({ edit: true }).then(function(opened) {
+                    if (!opened) logCardEditOriginalRows = null;
+                });
                 return;
             }
 
@@ -2437,6 +2461,59 @@ document.addEventListener('DOMContentLoaded', function() {
                 .finally(function() {
                     logCardEnterBtn.disabled = logCardTabIsReadOnly();
                 });
+        });
+    }
+
+    if (logCardSaveBtn) {
+        logCardSaveBtn.addEventListener('click', function() {
+            if (logCardTabIsReadOnly()) {
+                var readOnlyMessage = logCardTabReadOnlyMessage() || '{{ __("Log Card editing is locked. Please contact Quality Manager.") }}';
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(readOnlyMessage, 'warning');
+                return;
+            }
+
+            var payload = logCardTabBuildPayload();
+            if (!payload || payload.length < 1) {
+                logCardTabPersistPayload(payload, { reload: false, notify: false });
+                return;
+            }
+
+            if (typeof window.confirmDialog !== 'function') {
+                var unavailableMessage = '{{ __("Confirmation dialog is unavailable. Log Card was not changed.") }}';
+                if (typeof window.tdrShowNotify === 'function') window.tdrShowNotify(unavailableMessage, 'error');
+                else if (window.notifyError) window.notifyError(unavailableMessage);
+                return;
+            }
+
+            window.confirmDialog({
+                title: '{{ __("Update Log Card") }}',
+                message: '{{ __("Save the selected components in this Log Card?") }}',
+                okText: '{{ __("Update") }}',
+                cancelText: '{{ __("Continue editing") }}'
+            }).then(function(confirmed) {
+                if (!confirmed) return;
+
+                logCardSaveBtn.disabled = true;
+                logCardSaveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Saving...") }}';
+                logCardTabPersistPayload(payload, { reload: true, notify: true })
+                    .then(function(saved) {
+                        if (saved) logCardEditOriginalRows = null;
+                    })
+                    .finally(function() {
+                        logCardSaveBtn.disabled = false;
+                        logCardSaveBtn.innerHTML = '<i class="fas fa-save"></i> {{ __("Save") }}';
+                    });
+            });
+        });
+    }
+
+    if (logCardCancelBtn) {
+        logCardCancelBtn.addEventListener('click', function() {
+            logCardEditOriginalRows = null;
+            logCardCancelBtn.disabled = true;
+            loadLogCardPartial().finally(function() {
+                logCardCancelBtn.disabled = false;
+            });
         });
     }
 

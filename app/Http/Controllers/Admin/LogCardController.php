@@ -39,7 +39,7 @@ class LogCardController extends Controller
     /**
      * Return partial HTML for Log Card tab: grouped rows with variant selection like Create Log Card form.
      */
-    public function partial($workorder_id)
+    public function partial(Request $request, $workorder_id)
     {
         $current_wo = Workorder::findOrFail($workorder_id);
         $codes = Code::all();
@@ -51,10 +51,70 @@ class LogCardController extends Controller
                 ? $log_card->component_data
                 : json_decode($log_card->component_data, true);
         }
+        $componentData = is_array($componentData) ? $componentData : [];
+        $editMode = $request->boolean('edit') && $log_card && ! empty($componentData);
 
+        $savedComponentRows = collect($componentData)
+            ->filter(fn ($row) => is_array($row)
+                && ($row['row_type'] ?? '') !== 'manual'
+                && ! empty($row['component_id']));
+        $savedComponentIds = $savedComponentRows
+            ->pluck('component_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+        $savedComponentsById = Component::with(['manual', 'assemblies'])
+            ->whereIn('id', $savedComponentIds)
+            ->get()
+            ->keyBy('id');
 
-        $ctx = $this->prepareGroupedLogCardComponents($current_wo);
-        $ctx['components'] = $this->componentsForSavedLogCardRows($ctx['components'], is_array($componentData) ? $componentData : []);
+        $primaryManualId = (int) ($current_wo->unit->manual_id ?? 0);
+        $primarySavedIds = $savedComponentIds
+            ->filter(fn ($id) => (int) ($savedComponentsById->get($id)->manual_id ?? 0) === $primaryManualId)
+            ->values()
+            ->all();
+        $ctx = $this->prepareGroupedLogCardComponents($current_wo, null, true, $primarySavedIds);
+        $ctx['components'] = $this->componentsForSavedLogCardRows($ctx['components'], $componentData);
+
+        $savedExtraManualSections = collect();
+        if ($editMode) {
+            $savedExtraManualIds = $savedComponentIds
+                ->map(fn ($id) => (int) ($savedComponentsById->get($id)->manual_id ?? 0))
+                ->filter(fn ($manualId) => $manualId > 0 && $manualId !== $primaryManualId)
+                ->unique()
+                ->values();
+
+            $savedExtraManualSections = $savedExtraManualIds
+                ->map(function (int $manualId) use ($current_wo, $savedComponentRows, $savedComponentsById) {
+                    $manual = Manual::find($manualId);
+                    if (! $manual) {
+                        return null;
+                    }
+
+                    $manualSavedIds = $savedComponentRows
+                        ->filter(function ($row) use ($manualId, $savedComponentsById) {
+                            $componentId = (int) ($row['component_id'] ?? 0);
+
+                            return (int) ($savedComponentsById->get($componentId)->manual_id ?? 0) === $manualId;
+                        })
+                        ->pluck('component_id')
+                        ->map(fn ($id) => (int) $id)
+                        ->unique()
+                        ->values()
+                        ->all();
+
+                    return array_merge(
+                        $this->prepareGroupedLogCardComponents($current_wo, $manualId, false, $manualSavedIds),
+                        [
+                            'manual' => $manual,
+                            'sectionKey' => 'manual_'.$manualId,
+                        ]
+                    );
+                })
+                ->filter()
+                ->values();
+        }
         $availableLogCardManuals = Manual::query()
             ->whereKeyNot((int) ($current_wo->unit->manual_id ?? 0))
             ->get(['id', 'number', 'title'])
@@ -65,7 +125,7 @@ class LogCardController extends Controller
             ->values();
 
 
-        [$presetByIplGroup, $separateQueue] = $this->splitLogCardComponentPresets(is_array($componentData) ? $componentData : []);
+        [$presetByIplGroup, $separateQueue] = $this->splitLogCardComponentPresets($componentData);
 
         $tabMetaGroupMap = [];
         $groupKeysOrdered = [];
@@ -79,6 +139,8 @@ class LogCardController extends Controller
             'workorder_id' => (int) $current_wo->id,
             'log_card_id' => $log_card ? (int) $log_card->id : null,
             'has_saved_log_card' => (bool) ($log_card && ! empty($componentData)),
+            'editing_saved_log_card' => (bool) $editMode,
+            'original_component_data' => $editMode ? array_values($componentData) : [],
             'group_map' => $tabMetaGroupMap,
             'group_keys_ordered' => $groupKeysOrdered,
             'read_only' => (bool) ($logCardTdrAccess['read_only'] ?? false),
@@ -96,7 +158,9 @@ class LogCardController extends Controller
                 'separateQueue',
                 'tabMeta',
                 'logCardTdrAccess',
-                'availableLogCardManuals'
+                'availableLogCardManuals',
+                'editMode',
+                'savedExtraManualSections'
             ), $ctx)
         );
     }
@@ -152,7 +216,12 @@ class LogCardController extends Controller
         ]));
     }
 
-    private function prepareGroupedLogCardComponents(Workorder $current_wo, ?int $manualId = null, bool $filterForWorkorderUnit = true): array
+    private function prepareGroupedLogCardComponents(
+        Workorder $current_wo,
+        ?int $manualId = null,
+        bool $filterForWorkorderUnit = true,
+        array $alwaysIncludeComponentIds = []
+    ): array
     {
         $manual_id = $manualId ?: (int) $current_wo->unit->manual_id;
         $manual = Manual::find($manual_id);
@@ -160,13 +229,35 @@ class LogCardController extends Controller
         $necessary = Necessary::where('name', 'Order New')->first();
         $code = Code::missing();
 
+        $alwaysIncludeComponentIds = collect($alwaysIncludeComponentIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
         $components = Component::with(['assemblies'])
             ->where('manual_id', $manual_id)
-            ->where('log_card', 1)
+            ->where(function ($query) use ($alwaysIncludeComponentIds) {
+                $query->where('log_card', 1);
+                if ($alwaysIncludeComponentIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $alwaysIncludeComponentIds);
+                }
+            })
             ->orderBy('ipl_num', 'asc')
             ->get();
         if ($filterForWorkorderUnit) {
             $components = $this->filterLogCardComponentsForUnit($components, $current_wo);
+            if ($alwaysIncludeComponentIds->isNotEmpty()) {
+                $savedComponents = Component::with(['assemblies'])
+                    ->where('manual_id', $manual_id)
+                    ->whereIn('id', $alwaysIncludeComponentIds)
+                    ->get();
+                $components = $components
+                    ->merge($savedComponents)
+                    ->unique('id')
+                    ->sortBy('ipl_num', SORT_NATURAL | SORT_FLAG_CASE)
+                    ->values();
+            }
         } else {
             $components = $components->values();
         }

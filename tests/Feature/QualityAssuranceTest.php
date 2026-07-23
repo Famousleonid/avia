@@ -937,9 +937,12 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee('data-certificate-cmm-extra-text', false);
         $response->assertSee('value="Supplement A"', false);
         $response->assertSee('data-raw-value="Supplement A"', false);
-        $response->assertSee('>, Supplement A</span>', false);
+        $response->assertSee('>Supplement A</span>', false);
         $response->assertSee('>11</span>', false);
         $response->assertSee('>15/Sep/2025</span>', false);
+        $response->assertSee('.arc-status-revision-prefix,', false);
+        $response->assertSee('.arc-status-revision-period {', false);
+        $response->assertSee('margin-left: -0.05in;', false);
     }
 
     public function test_certificate_block_12_has_editable_life_and_free_remarks(): void
@@ -971,9 +974,18 @@ class QualityAssuranceTest extends TestCase
             '/<input(?=[^>]*data-certificate-life-remark)(?=[^>]*value="CSN-100; CSO-25\.")[^>]*>/s',
             $content
         );
-        $this->assertSame(2, preg_match_all('/<input(?=[^>]*data-certificate-free-remark-input)[^>]*>/s', $content));
+        $this->assertSame(3, preg_match_all('/<input(?=[^>]*data-certificate-free-remark-input)[^>]*>/s', $content));
         $response->assertSee('value="First custom line."', false);
         $response->assertSee('value="Second custom line."', false);
+        $response->assertSee('value="Removed from:"', false);
+        $response->assertSee('data-setting-key="certificate_free_remark_3"', false);
+        $response->assertSee('data-setting-key="include_certificate_free_remark_3"', false);
+        $response->assertSee('arc-free-remark-line is-small', false);
+        $response->assertSee('font-size: calc(1em - 2px);', false);
+        $this->assertMatchesRegularExpression(
+            '/\.arc-free-remark-line\.is-print-disabled \.arc-free-remark-input,[\s\S]*?color:\s*#777;/s',
+            $content
+        );
         $this->assertMatchesRegularExpression(
             '/<input(?=[^>]*class="arc-remark-print-toggle")(?=[^>]*data-setting-key="include_certificate_free_remark_1")(?=[^>]*checked)[^>]*>/s',
             $content
@@ -1003,6 +1015,17 @@ class QualityAssuranceTest extends TestCase
         $response->assertSee("window.addEventListener('beforeprint'", false);
         $response->assertSee('fitRemarksText(true);', false);
         $response->assertSee("window.addEventListener('afterprint'", false);
+        $response->assertSee('data-certificate-print', false);
+        $response->assertDontSee('onclick="window.print()"', false);
+        $response->assertSee('function waitForCertificateSaves(timeoutMs = 15000)', false);
+        $response->assertSee('await waitForCertificateSaves();', false);
+        $response->assertSee('window.print();', false);
+        $response->assertSee('min-height: calc(1.78in + 12mm);', false);
+        $this->assertMatchesRegularExpression(
+            '/<span(?=[^>]*class="[^"]*arc-airworthiness-remark[^"]*")(?=[^>]*data-certificate-airworthiness-remark)(?=[^>]*contenteditable="true")[^>]*>/s',
+            $content
+        );
+        $response->assertSee('flex: 1 1 auto;', false);
     }
 
     public function test_certificate_manager_name_switch_is_limited_to_certificate_signers(): void
@@ -1168,11 +1191,43 @@ class QualityAssuranceTest extends TestCase
                 'item_source' => 'main',
             ])
             ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_free_remark_3',
+                'value' => 'Removed from aircraft C-FABC.',
+                'item_source' => 'main',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'include_certificate_free_remark_3',
+                'value' => true,
+                'item_source' => 'main',
+            ])
+            ->assertOk();
+        $this->actingAs($manager)
+            ->patchJson(route('quality.forms.certificate.state.update', $workorder), [
+                'key' => 'certificate_airworthiness_remark',
+                'value' => 'Editable AD and SB line.',
+                'item_source' => 'main',
+            ])
+            ->assertOk();
 
         $certificateData = $workorder->fresh()->certificate_data;
         $this->assertSame('CSN-500; CSO-40.', $certificateData['item_settings']['main']['certificate_life_remark']);
         $this->assertSame('Saved free remark.', $certificateData['item_settings']['main']['certificate_free_remark_1']);
         $this->assertTrue($certificateData['item_settings']['main']['include_certificate_free_remark_1']);
+        $this->assertSame('Removed from aircraft C-FABC.', $certificateData['item_settings']['main']['certificate_free_remark_3']);
+        $this->assertTrue($certificateData['item_settings']['main']['include_certificate_free_remark_3']);
+        $this->assertSame('Editable AD and SB line.', $certificateData['item_settings']['main']['certificate_airworthiness_remark']);
+
+        $certificateResponse = $this->actingAs($manager)
+            ->get(route('quality.forms.certificate', $workorder));
+        $certificateResponse->assertOk();
+        $this->assertMatchesRegularExpression(
+            '/<span(?=[^>]*data-certificate-airworthiness-remark)(?=[^>]*contenteditable="true")[^>]*>\s*Editable AD and SB line\.\s*<\/span>/s',
+            $certificateResponse->getContent()
+        );
 
         $signer = $this->createUserWithRole('Manager', [
             'can_sign_certificates' => true,

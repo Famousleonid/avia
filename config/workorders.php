@@ -21,6 +21,10 @@ return [
         5,
     ],
 
+    'hidden_general_task_names' => [
+        'Approved',
+    ],
+
     'roles_hide_submitted_final_inspection_from_active' => [
         'Technician',
         'Team Leader',
@@ -34,6 +38,7 @@ return [
     'hidden_task_names_in_mains' => [
         'Approved',
         'Completed',
+        'WO Submitted for Quote',
     ],
 
     'completed_task_names' => [

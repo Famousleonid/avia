@@ -127,6 +127,8 @@
                 margin: 8mm;
             }
 
+            html[data-bs-theme],
+            html[data-bs-theme] body,
             body,
             html,
             .container-fluid,
@@ -197,6 +199,7 @@
                     <label class="form-label" for="reportType">Report</label>
                     <select id="reportType" name="report_type" class="form-select form-select-sm">
                         <option value="customer" @selected($reportType === 'customer')>Customer</option>
+                        <option value="aircraft" @selected($reportType === 'aircraft')>A/C Type</option>
                         <option value="component" @selected($reportType === 'component')>Components</option>
                     </select>
                 </div>
@@ -213,13 +216,25 @@
                     </select>
                 </div>
 
-                <div class="col-12 col-md-3 sales-report-filter sales-report-filter-component">
+                <div class="col-12 col-md-3 sales-report-filter sales-report-filter-aircraft">
                     <label class="form-label" for="planeId">A/C Type</label>
                     <select id="planeId" name="plane_id" class="form-select form-select-sm">
                         <option value="">Select A/C type</option>
                         @foreach($planes as $plane)
                             <option value="{{ $plane->id }}" @selected((int) ($filters['plane_id'] ?? 0) === (int) $plane->id)>
                                 {{ $plane->type }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-3 sales-report-filter sales-report-filter-component">
+                    <label class="form-label" for="manualId">Component</label>
+                    <select id="manualId" name="manual_id" class="form-select form-select-sm">
+                        <option value="">Select component</option>
+                        @foreach($componentManuals as $manual)
+                            <option value="{{ $manual->id }}" @selected((int) ($filters['manual_id'] ?? 0) === (int) $manual->id)>
+                                {{ trim((string) $manual->title) !== '' ? $manual->title . ' — ' : '' }}{{ $manual->number }}
                             </option>
                         @endforeach
                     </select>
@@ -267,28 +282,22 @@
                 @if(count($rows))
                     <table class="sales-report-table dir-table">
                         <thead>
-                        @if($report['report_type'] === 'component')
-                            <tr>
+                        <tr>
+                            @if($report['report_type'] === 'component')
                                 <th>AC Type</th>
                                 <th>Customer</th>
-                                <th>WO#</th>
-                                <th>P/N</th>
-                                <th>S/N</th>
-                                <th>Description</th>
-                                <th>Invoiced Amount</th>
-                                <th>Date</th>
-                            </tr>
-                        @else
-                            <tr>
+                            @elseif($report['report_type'] === 'aircraft')
+                                <th>Customer</th>
+                            @else
                                 <th>Company Name</th>
-                                <th>WO#</th>
-                                <th>P/N</th>
-                                <th>S/N</th>
-                                <th>Description</th>
-                                <th>Invoiced Amount</th>
-                                <th>Date</th>
-                            </tr>
-                        @endif
+                            @endif
+                            <th>WO#</th>
+                            <th>P/N</th>
+                            <th>S/N</th>
+                            <th>Description</th>
+                            <th>Invoiced Amount</th>
+                            <th>Date</th>
+                        </tr>
                         </thead>
                         <tbody>
                         @php $lastGroup = null; @endphp
@@ -300,28 +309,22 @@
                                 $showGroup = $group !== $lastGroup;
                                 $lastGroup = $group;
                             @endphp
-                            @if($report['report_type'] === 'component')
-                                <tr>
+                            <tr>
+                                @if($report['report_type'] === 'component')
                                     <td class="sales-report-group">{{ $showGroup ? $group : '' }}</td>
                                     <td>{{ $row['company'] }}</td>
-                                    <td>{{ $row['wo_number'] }}</td>
-                                    <td>{{ $row['part_number'] }}</td>
-                                    <td>{{ $row['serial_number'] }}</td>
-                                    <td>{{ $row['description'] }}</td>
-                                    <td class="sales-report-money">{{ $money($row['invoiced_amount']) }}</td>
-                                    <td>{{ $row['date_label'] }}</td>
-                                </tr>
-                            @else
-                                <tr>
+                                @elseif($report['report_type'] === 'aircraft')
                                     <td class="sales-report-group">{{ $showGroup ? $group : '' }}</td>
-                                    <td>{{ $row['wo_number'] }}</td>
-                                    <td>{{ $row['part_number'] }}</td>
-                                    <td>{{ $row['serial_number'] }}</td>
-                                    <td>{{ $row['description'] }}</td>
-                                    <td class="sales-report-money">{{ $money($row['invoiced_amount']) }}</td>
-                                    <td>{{ $row['date_label'] }}</td>
-                                </tr>
-                            @endif
+                                @else
+                                    <td class="sales-report-group">{{ $showGroup ? $group : '' }}</td>
+                                @endif
+                                <td>{{ $row['wo_number'] }}</td>
+                                <td>{{ $row['part_number'] }}</td>
+                                <td>{{ $row['serial_number'] }}</td>
+                                <td>{{ $row['description'] }}</td>
+                                <td class="sales-report-money">{{ $money($row['invoiced_amount']) }}</td>
+                                <td>{{ $row['date_label'] }}</td>
+                            </tr>
                         @endforeach
                         <tr>
                             <td colspan="{{ $report['report_type'] === 'component' ? 6 : 5 }}" class="sales-report-total-label">TOTAL</td>
@@ -351,12 +354,14 @@
         (function () {
             const typeSelect = document.getElementById('reportType');
             const customerFilter = document.querySelector('.sales-report-filter-customer');
+            const aircraftFilter = document.querySelector('.sales-report-filter-aircraft');
             const componentFilter = document.querySelector('.sales-report-filter-component');
 
             function syncReportType() {
-                const isComponent = typeSelect && typeSelect.value === 'component';
-                if (customerFilter) customerFilter.classList.toggle('d-none', isComponent);
-                if (componentFilter) componentFilter.classList.toggle('d-none', !isComponent);
+                const type = typeSelect?.value || 'customer';
+                if (customerFilter) customerFilter.classList.toggle('d-none', type !== 'customer');
+                if (aircraftFilter) aircraftFilter.classList.toggle('d-none', type !== 'aircraft');
+                if (componentFilter) componentFilter.classList.toggle('d-none', type !== 'component');
             }
 
             if (typeSelect) {

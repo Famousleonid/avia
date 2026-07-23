@@ -3,6 +3,10 @@
     $sectionKey = $sectionKey ?? '';
     $manualLabel = trim((string) (($manual->number ?? '').' '.($manual->title ?? '')));
     $manualLabel = $manualLabel !== '' ? $manualLabel : __('Manual').' #'.($manual->id ?? '');
+    $savedComponentRows = collect(isset($componentData) && is_array($componentData) ? $componentData : [])
+        ->filter(fn ($row) => is_array($row)
+            && ($row['row_type'] ?? '') !== 'manual'
+            && !empty($row['component_id']));
 @endphp
 
 <tr class="table-secondary lc-manual-heading"
@@ -27,7 +31,14 @@
                         || filled($assembly->assy_ipl_num ?? null);
                 })
                 ->values();
-            $defaultAssemblyId = $assemblyRows->first()->id ?? null;
+            $savedRow = $savedComponentRows->first(function ($row) use ($component) {
+                return (int) ($row['component_id'] ?? 0) === (int) $component->id
+                    && empty($row['unit_index']);
+            });
+            $savedAssemblyId = (int) ($savedRow['component_assembly_id'] ?? 0);
+            $defaultAssemblyId = $assemblyRows->contains('id', $savedAssemblyId)
+                ? $savedAssemblyId
+                : ($assemblyRows->first()->id ?? null);
             $componentInputName = 'lc_selected_component['.$rowGroupKey.']';
             $assemblyInputName = 'lc_selected_assembly['.$rowGroupKey.'_'.$component->id.']';
         @endphp
@@ -40,6 +51,7 @@
                        data-component-id="{{ $component->id }}"
                        data-group-key="{{ $rowGroupKey }}"
                        data-ipl-group="{{ $group['ipl_group'] }}"
+                       @checked((bool) $savedRow)
                        @disabled($logCardTdrReadOnly)>
             </td>
             <td>
@@ -99,6 +111,11 @@
             })
             ->values();
         $assemblyInputName = 'lc_selected_assembly['.$rowGroupKey.']';
+        $savedRow = $savedComponentRows->first(function ($saved) use ($component, $row) {
+            return (int) ($saved['component_id'] ?? 0) === (int) $component->id
+                && (int) ($saved['unit_index'] ?? 0) === (int) $row['unit_index'];
+        });
+        $savedAssemblyId = (int) ($savedRow['component_assembly_id'] ?? 0);
     @endphp
     <tr data-manual-id="{{ $manual->id ?? '' }}" data-manual-label="{{ $manualLabel }}">
         <td class="text-center">
@@ -108,6 +125,7 @@
                    value="1"
                    data-component-id="{{ $component->id }}"
                    data-group-key="{{ $rowGroupKey }}"
+                   @checked((bool) $savedRow)
                    @disabled($logCardTdrReadOnly)>
         </td>
         <td>
@@ -133,7 +151,7 @@
                                         data-assy-part-number="{{ $assembly->assy_part_number }}"
                                         data-assy-ipl-num="{{ $assembly->assy_ipl_num }}"
                                         data-units-assy="{{ $assembly->units_assy }}"
-                                        @selected($loop->first)>
+                                        @selected($savedAssemblyId > 0 ? (int) $assembly->id === $savedAssemblyId : $loop->first)>
                                     {{ $assembly->assy_ipl_num ?: '-' }} / {{ $assembly->assy_part_number ?: '-' }}
                                 </option>
                             @endforeach

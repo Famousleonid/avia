@@ -23,6 +23,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\Workorder;
 use App\Services\MachiningListingRowsBuilder;
+use App\Services\Media\ImageOrientationNormalizer;
 use App\Services\PaintIndexRowsBuilder;
 use App\Services\WorkorderNotifyService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -38,6 +39,10 @@ use Illuminate\Validation\ValidationException;
 
 class MobileController extends Controller
 {
+    public function __construct(private ImageOrientationNormalizer $imageOrientationNormalizer)
+    {
+    }
+
     public function index()
     {
         if (Auth::user()?->roleIs('Paint')) {
@@ -125,7 +130,8 @@ class MobileController extends Controller
                 : null,
         ]);
 
-        $paint->addMediaFromRequest('photo')->toMediaCollection('lost');
+        $paint->addMedia($this->imageOrientationNormalizer->normalize($request->file('photo')))
+            ->toMediaCollection('lost');
 
         return redirect()->route('mobile.paint', ['tab' => 'lost'])->with('success', 'Lost part added');
     }
@@ -364,6 +370,7 @@ class MobileController extends Controller
 
         $category = 'Machining';
         foreach ($request->file('photos', []) as $photo) {
+            $photo = $this->imageOrientationNormalizer->normalize($photo);
             $filename = 'wo_' . $wo->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.' . $photo->getClientOriginalExtension();
             $wo->addMedia($photo)
                 ->usingFileName($filename)

@@ -33,12 +33,18 @@ class WorkorderVisibilityService
             ->filter(fn (int $position): bool => $position > 0)
             ->values();
 
-        if ($hiddenPositions->isEmpty()) {
+        $hiddenNames = collect(config('workorders.hidden_general_task_names', []))
+            ->map(fn ($name): string => trim((string) $name))
+            ->filter()
+            ->values();
+
+        if ($hiddenPositions->isEmpty() && $hiddenNames->isEmpty()) {
             return $generalTasks;
         }
 
         return $generalTasks
-            ->reject(fn ($generalTask, int $index): bool => $hiddenPositions->contains($index + 1))
+            ->reject(fn ($generalTask, int $index): bool => $hiddenPositions->contains($index + 1)
+                || $hiddenNames->contains(trim((string) $generalTask->name)))
             ->values();
     }
 

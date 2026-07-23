@@ -264,12 +264,16 @@ class MarketingTest extends TestCase
             ->assertSee("const allowedTabs = ['overview', 'contacts', 'notes', 'workorders', 'sales_report'];", false)
             ->assertSee('salesReport: ', false)
             ->assertSee('aircraftSalesReport: ', false)
+            ->assertSee('componentSalesReport: ', false)
             ->assertSee('id="marketingSalesReportRows"', false)
             ->assertSee('id="marketingSalesReportCompany"', false)
             ->assertSee('id="marketingSalesReportWarning" class="marketing-sales-report-warning"', false)
             ->assertSee('id="marketingSalesReportModeCustomer"', false)
             ->assertSee('id="marketingSalesReportModeAircraft"', false)
+            ->assertSee('id="marketingSalesReportModeComponent"', false)
             ->assertSee('id="marketingSalesReportAircraft"', false)
+            ->assertSee('id="marketingSalesReportComponent"', false)
+            ->assertSee('data-sales-report-aircraft-col', false)
             ->assertSee('data-sales-report-customer-col', false)
             ->assertSee('class="marketing-sales-report-date"', false)
             ->assertDontSee('<th>Company Name</th>', false)
@@ -1053,7 +1057,7 @@ class MarketingTest extends TestCase
         ]));
 
         $response->assertOk()
-            ->assertJsonPath('report_type', 'component')
+            ->assertJsonPath('report_type', 'aircraft')
             ->assertJsonPath('rows.0.aircraft_type', 'E170')
             ->assertJsonPath('rows.0.company', 'Jazz Aviation')
             ->assertJsonPath('rows.0.wo_number', 'W107560')
@@ -1062,6 +1066,80 @@ class MarketingTest extends TestCase
 
         $this->assertStringNotContainsString('W107562', $response->getContent());
         $this->assertStringNotContainsString('Should Not Show', $response->getContent());
+    }
+
+    public function test_marketing_component_sales_report_endpoint_returns_all_part_numbers_for_selected_manual(): void
+    {
+        $admin = $this->createUserWithRole('Admin');
+        $this->grantMarketingAccess($admin);
+
+        $plane = $this->createPlane(['type' => 'E170']);
+        $selectedManual = $this->createManual([
+            'planes_id' => $plane->id,
+            'number' => '32-21-15',
+            'title' => 'MLG Shock Strut',
+        ]);
+        $otherManual = $this->createManual([
+            'planes_id' => $plane->id,
+            'number' => '32-21-16',
+            'title' => 'NLG Shock Strut',
+        ]);
+        $firstUnit = $this->createUnit([
+            'manual_id' => $selectedManual->id,
+            'part_number' => '2309-2200-153',
+        ]);
+        $secondUnit = $this->createUnit([
+            'manual_id' => $selectedManual->id,
+            'part_number' => '2309-2200-154',
+        ]);
+        $otherUnit = $this->createUnit([
+            'manual_id' => $otherManual->id,
+            'part_number' => '999-OTHER',
+        ]);
+        $firstCustomer = $this->createCustomer(['name' => 'Jazz Aviation']);
+        $secondCustomer = $this->createCustomer(['name' => 'Regional One']);
+
+        $this->createWorkorder([
+            'customer_id' => $firstCustomer->id,
+            'unit_id' => $firstUnit->id,
+            'number' => 107563,
+            'description' => 'MLG Shock Strut',
+            'sales_invoice_amount' => '4200.00',
+            'sales_invoice_date' => '2026-03-12',
+        ]);
+        $this->createWorkorder([
+            'customer_id' => $secondCustomer->id,
+            'unit_id' => $secondUnit->id,
+            'number' => 107564,
+            'description' => 'MLG Shock Strut',
+            'sales_invoice_amount' => '5100.00',
+            'sales_invoice_date' => '2026-03-13',
+        ]);
+        $this->createWorkorder([
+            'customer_id' => $firstCustomer->id,
+            'unit_id' => $otherUnit->id,
+            'number' => 107565,
+            'description' => 'Should Not Show',
+            'sales_invoice_amount' => '9900.00',
+            'sales_invoice_date' => '2026-03-14',
+        ]);
+
+        $response = $this->actingAs($admin)->getJson(route('marketing.sales-report.component', [
+            'manual_id' => $selectedManual->id,
+            'date_from' => '2026-01-01',
+            'date_to' => '2026-12-31',
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('report_type', 'component')
+            ->assertJsonPath('title', 'Sales Report - Components')
+            ->assertJsonPath('note', 'Report based on one component')
+            ->assertJsonPath('rows.0.aircraft_type', 'E170')
+            ->assertJsonPath('rows.0.part_number', '2309-2200-153')
+            ->assertJsonPath('rows.1.part_number', '2309-2200-154')
+            ->assertJsonCount(2, 'rows');
+
+        $this->assertStringNotContainsString('W107565', $response->getContent());
     }
 
     public function test_marketing_changes_are_logged_with_human_readable_values(): void

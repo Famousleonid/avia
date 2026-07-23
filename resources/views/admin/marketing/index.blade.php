@@ -1277,6 +1277,33 @@
             width: 180px !important;
         }
 
+        .marketing-sales-report-component-control {
+            display: inline-grid;
+            min-width: 260px;
+        }
+
+        .marketing-sales-report-component-control > .marketing-sales-report-component-sizer,
+        .marketing-sales-report-component-control > .form-select-sm,
+        .marketing-sales-report-component-control > .select2-container {
+            grid-area: 1 / 1;
+        }
+
+        .marketing-sales-report-component-sizer {
+            box-sizing: content-box;
+            min-width: 210px;
+            padding: 0 42px 0 .5rem;
+            visibility: hidden;
+            font-size: .875rem;
+            line-height: var(--marketing-control-sm-inner-height);
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .marketing-sales-report-component .form-select-sm,
+        .marketing-sales-report-component .select2-container {
+            width: 100% !important;
+        }
+
         .marketing-sales-report-aircraft .select2-container--default .select2-selection--single {
             height: var(--marketing-control-sm-height) !important;
             min-height: var(--marketing-control-sm-height) !important;
@@ -1293,6 +1320,15 @@
             color: var(--bs-body-color);
             font-size: .875rem;
             line-height: var(--marketing-control-sm-inner-height) !important;
+        }
+
+        .marketing-sales-report-component .select2-selection__rendered,
+        .marketing-report-component-dropdown .select2-results__option {
+            white-space: nowrap !important;
+        }
+
+        .marketing-report-component-dropdown .select2-results__option {
+            font-size: .875rem;
         }
 
         .marketing-sales-report-aircraft .select2-container--default .select2-selection--single .select2-selection__arrow {
@@ -1326,7 +1362,7 @@
         }
 
         .marketing-sales-report-table {
-            min-width: 920px;
+            min-width: 1080px;
             margin: 0;
         }
 
@@ -1814,7 +1850,8 @@
                 margin: 8mm;
             }
 
-            html,
+            html.is-marketing-sales-report-print,
+            html.is-marketing-sales-report-print body,
             body.is-marketing-sales-report-print,
             body.is-marketing-sales-report-print .container-fluid,
             body.is-marketing-sales-report-print .page-layout,
@@ -1863,6 +1900,7 @@
             body.is-marketing-sales-report-print #marketingPaneSalesReport {
                 display: block !important;
                 color: #000 !important;
+                background: #fff !important;
             }
 
             body.is-marketing-sales-report-print .marketing-sales-report-wrap {
@@ -1890,6 +1928,30 @@
             body.is-marketing-sales-report-print .marketing-sales-report-table td,
             body.is-marketing-sales-report-print .marketing-sales-report-table a {
                 color: #000 !important;
+            }
+
+            body.is-marketing-sales-report-print .marketing-sales-report-table {
+                --bs-table-bg: #fff;
+                --bs-table-color: #000;
+                --bs-table-hover-bg: #fff;
+                --bs-table-hover-color: #000;
+                background: #fff !important;
+            }
+
+            body.is-marketing-sales-report-print #marketingPaneSalesReport .marketing-sales-report-table.dir-table thead th {
+                border-color: #222 !important;
+                background: #e9ecef !important;
+                color: #000 !important;
+                box-shadow: none !important;
+                transition: none !important;
+            }
+
+            body.is-marketing-sales-report-print #marketingPaneSalesReport .marketing-sales-report-table.dir-table tbody > tr > td {
+                border-color: #222 !important;
+                background: #fff !important;
+                color: #000 !important;
+                box-shadow: none !important;
+                transition: none !important;
             }
         }
     </style>
@@ -2287,6 +2349,8 @@
                                         <label class="btn btn-outline-info" for="marketingSalesReportModeCustomer">Customer</label>
                                         <input class="btn-check" type="radio" name="marketingSalesReportMode" id="marketingSalesReportModeAircraft" value="aircraft" autocomplete="off">
                                         <label class="btn btn-outline-info" for="marketingSalesReportModeAircraft">A/C Type</label>
+                                        <input class="btn-check" type="radio" name="marketingSalesReportMode" id="marketingSalesReportModeComponent" value="component" autocomplete="off">
+                                        <label class="btn btn-outline-info" for="marketingSalesReportModeComponent">Component</label>
                                     </div>
                                     <div id="marketingSalesReportAircraftWrap" class="marketing-sales-report-aircraft" hidden>
                                         <label for="marketingSalesReportAircraft">A/C Type</label>
@@ -2296,6 +2360,29 @@
                                                 <option value="{{ $plane->id }}">{{ $plane->type }}</option>
                                             @endforeach
                                         </select>
+                                    </div>
+                                    <div id="marketingSalesReportComponentWrap" class="marketing-sales-report-aircraft marketing-sales-report-component" hidden>
+                                        <label for="marketingSalesReportComponent">Component</label>
+                                        @php
+                                            $componentManualLabels = $componentManuals->map(static function ($manual): string {
+                                                $title = trim((string) $manual->title);
+                                                return ($title !== '' ? $title . ' — ' : '') . $manual->number;
+                                            });
+                                            $longestComponentManualLabel = $componentManualLabels
+                                                ->sortByDesc(static fn (string $label): int => mb_strlen($label))
+                                                ->first() ?? 'Select Component';
+                                        @endphp
+                                        <span class="marketing-sales-report-component-control">
+                                            <span class="marketing-sales-report-component-sizer" aria-hidden="true">{{ $longestComponentManualLabel }}</span>
+                                            <select id="marketingSalesReportComponent" class="form-select form-select-sm marketing-report-component-select" autocomplete="off">
+                                                <option value=""></option>
+                                                @foreach($componentManuals as $manual)
+                                                    <option value="{{ $manual->id }}">
+                                                        {{ trim((string) $manual->title) !== '' ? $manual->title . ' — ' : '' }}{{ $manual->number }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </span>
                                     </div>
                                     <div class="marketing-sales-report-date">
                                         <label for="marketingSalesDateFrom">From</label>
@@ -2320,6 +2407,7 @@
                                 <table class="table table-sm table-hover align-middle mb-0 dir-table dir-table--ellipsis marketing-sales-report-table">
                                     <thead>
                                     <tr>
+                                        <th data-sales-report-aircraft-col hidden>AC Type</th>
                                         <th data-sales-report-customer-col hidden>Customer</th>
                                         <th>WO#</th>
                                         <th>P/N</th>
@@ -2600,6 +2688,7 @@
                 updateWorkorderSalesFields: @json(route('marketing.workorders.sales-fields.update', ['workorder' => '__ID__'])),
                 salesReport: @json(route('marketing.customers.sales-report', ['customer' => '__ID__'])),
                 aircraftSalesReport: @json(route('marketing.sales-report.aircraft')),
+                componentSalesReport: @json(route('marketing.sales-report.component')),
                 storeContact: @json(route('marketing.contacts.store', ['customer' => '__ID__'])),
                 updateContact: @json(route('marketing.contacts.update', ['contact' => '__ID__'])),
                 destroyContact: @json(route('marketing.contacts.destroy', ['contact' => '__ID__'])),
@@ -2657,6 +2746,8 @@
             const salesReportModeInputs = document.querySelectorAll('input[name="marketingSalesReportMode"]');
             const salesReportAircraftWrap = document.getElementById('marketingSalesReportAircraftWrap');
             const salesReportAircraft = document.getElementById('marketingSalesReportAircraft');
+            const salesReportComponentWrap = document.getElementById('marketingSalesReportComponentWrap');
+            const salesReportComponent = document.getElementById('marketingSalesReportComponent');
             const salesReportDateFrom = document.getElementById('marketingSalesDateFrom');
             const salesReportDateTo = document.getElementById('marketingSalesDateTo');
             const salesReportRefresh = document.getElementById('marketingSalesReportRefresh');
@@ -3430,7 +3521,9 @@
                     salesReportWarning.textContent = '';
                 }
                 if (salesReportCompany) {
-                    salesReportCompany.textContent = state.salesReportMode === 'customer' ? '' : selectedSalesReportAircraftLabel();
+                    salesReportCompany.textContent = state.salesReportMode === 'customer'
+                        ? ''
+                        : selectedSalesReportTargetLabel(state.salesReportMode);
                 }
                 if (salesReportRows && state.salesReportMode === 'customer') {
                     salesReportRows.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Select company</td></tr>';
@@ -4375,7 +4468,9 @@
 
             function salesReportMode() {
                 const checked = Array.from(salesReportModeInputs || []).find((input) => input.checked);
-                return checked?.value === 'aircraft' ? 'aircraft' : 'customer';
+                return ['customer', 'aircraft', 'component'].includes(checked?.value)
+                    ? checked.value
+                    : 'customer';
             }
 
             function selectedSalesReportAircraftLabel() {
@@ -4383,41 +4478,84 @@
                 return option?.value ? option.textContent.trim() : '';
             }
 
+            function selectedSalesReportComponentLabel() {
+                const option = salesReportComponent?.selectedOptions?.[0];
+                return option?.value ? option.textContent.trim() : '';
+            }
+
+            function selectedSalesReportTargetLabel(mode = salesReportMode()) {
+                if (mode === 'aircraft') return selectedSalesReportAircraftLabel();
+                if (mode === 'component') return selectedSalesReportComponentLabel();
+
+                return state.selectedCustomer?.name || '';
+            }
+
+            function salesReportColumnCount(mode = salesReportMode()) {
+                if (mode === 'component') return 8;
+                if (mode === 'aircraft') return 7;
+
+                return 6;
+            }
+
             function setSalesReportMessage(message) {
-                const mode = salesReportMode();
-                const colspan = mode === 'aircraft' ? 7 : 6;
-                salesReportRows.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted py-4">${message}</td></tr>`;
+                salesReportRows.innerHTML = `<tr><td colspan="${salesReportColumnCount()}" class="text-center text-muted py-4">${message}</td></tr>`;
             }
 
             function updateSalesReportModeUi() {
                 state.salesReportMode = salesReportMode();
                 const isAircraft = state.salesReportMode === 'aircraft';
+                const isComponent = state.salesReportMode === 'component';
                 if (salesReportAircraftWrap) {
                     salesReportAircraftWrap.hidden = !isAircraft;
                     salesReportAircraftWrap.classList.toggle('has-clear', isAircraft && !!salesReportAircraft?.value);
                 }
+                if (salesReportComponentWrap) {
+                    salesReportComponentWrap.hidden = !isComponent;
+                    salesReportComponentWrap.classList.toggle('has-clear', isComponent && !!salesReportComponent?.value);
+                }
+                document.querySelectorAll('[data-sales-report-aircraft-col]').forEach((el) => {
+                    el.hidden = !isComponent;
+                });
                 document.querySelectorAll('[data-sales-report-customer-col]').forEach((el) => {
-                    el.hidden = !isAircraft;
+                    el.hidden = !(isAircraft || isComponent);
                 });
 
                 if (salesReportCompany) {
-                    salesReportCompany.textContent = isAircraft ? selectedSalesReportAircraftLabel() : (state.selectedCustomer?.name || '');
+                    salesReportCompany.textContent = selectedSalesReportTargetLabel(state.salesReportMode);
+                }
+                if (salesReportNote) {
+                    const noteByMode = {
+                        customer: 'Report based on one customer',
+                        aircraft: 'Report based on one A/C type',
+                        component: 'Report based on one component',
+                    };
+                    salesReportNote.textContent = `*NOTE: ${noteByMode[state.salesReportMode]}`;
                 }
             }
 
             function initMarketingReportAircraftSelects(root = document) {
                 if (!window.jQuery?.fn?.select2) return;
 
-                window.jQuery(root).find('.marketing-report-aircraft-select').each(function () {
+                window.jQuery(root).find('.marketing-report-aircraft-select, .marketing-report-component-select').each(function () {
                     const $select = window.jQuery(this);
                     if ($select.data('select2')) return;
+                    const isComponent = $select.hasClass('marketing-report-component-select');
 
                     $select.select2({
                         width: '100%',
-                        placeholder: 'Select A/C Type',
+                        placeholder: isComponent ? 'Select Component' : 'Select A/C Type',
                         allowClear: true,
                         dropdownParent: window.jQuery(document.body),
                     });
+
+                    if (isComponent) {
+                        $select
+                            .off('select2:open.marketingReportComponentWidth')
+                            .on('select2:open.marketingReportComponentWidth', () => {
+                                const dropdowns = document.querySelectorAll('.select2-container--open .select2-dropdown');
+                                dropdowns[dropdowns.length - 1]?.classList.add('marketing-report-component-dropdown');
+                            });
+                    }
                 });
             }
 
@@ -4425,18 +4563,26 @@
                 if (!salesReportRows) return;
 
                 const rows = report?.rows || [];
-                const isAircraft = report?.report_type === 'component' || salesReportMode() === 'aircraft';
-                const colspan = isAircraft ? 7 : 6;
-                const totalColspan = isAircraft ? 5 : 4;
+                const mode = ['customer', 'aircraft', 'component'].includes(report?.report_type)
+                    ? report.report_type
+                    : salesReportMode();
+                const isAircraft = mode === 'aircraft';
+                const isComponent = mode === 'component';
+                const showsCustomer = isAircraft || isComponent;
+                const colspan = salesReportColumnCount(mode);
+                const totalColspan = colspan - 2;
 
+                document.querySelectorAll('[data-sales-report-aircraft-col]').forEach((el) => {
+                    el.hidden = !isComponent;
+                });
                 document.querySelectorAll('[data-sales-report-customer-col]').forEach((el) => {
-                    el.hidden = !isAircraft;
+                    el.hidden = !showsCustomer;
                 });
 
                 if (salesReportCompany) {
-                    salesReportCompany.textContent = isAircraft
-                        ? (rows[0]?.aircraft_type || selectedSalesReportAircraftLabel())
-                        : (state.selectedCustomer?.name || rows[0]?.company || '');
+                    salesReportCompany.textContent = selectedSalesReportTargetLabel(mode)
+                        || (isAircraft ? rows[0]?.aircraft_type : rows[0]?.company)
+                        || '';
                 }
 
                 if (salesReportWarning) {
@@ -4456,7 +4602,8 @@
                 const html = rows.map((row) => {
                     return `
 <tr>
-  ${isAircraft ? `<td title="${escapeHtml(row.company || '')}">${escapeHtml(row.company || '-')}</td>` : ''}
+  ${isComponent ? `<td title="${escapeHtml(row.aircraft_type || '')}">${escapeHtml(row.aircraft_type || '-')}</td>` : ''}
+  ${showsCustomer ? `<td title="${escapeHtml(row.company || '')}">${escapeHtml(row.company || '-')}</td>` : ''}
   <td>${escapeHtml(row.wo_number || '-')}</td>
   <td title="${escapeHtml(row.part_number || '')}">${escapeHtml(row.part_number || '-')}</td>
   <td title="${escapeHtml(row.serial_number || '')}">${escapeHtml(row.serial_number || '-')}</td>
@@ -4498,15 +4645,19 @@
                     return;
                 }
 
+                if (mode === 'component' && !salesReportComponent?.value) {
+                    if (salesReportCompany) salesReportCompany.textContent = '';
+                    setSalesReportMessage('Select Component');
+                    return;
+                }
+
                 if (state.salesReportLoading) return;
                 state.salesReportLoading = true;
 
                 if (reset) {
                     state.salesReportLoaded = false;
                     if (salesReportCompany) {
-                        salesReportCompany.textContent = mode === 'aircraft'
-                            ? selectedSalesReportAircraftLabel()
-                            : (state.selectedCustomer?.name || '');
+                        salesReportCompany.textContent = selectedSalesReportTargetLabel(mode);
                     }
                     setSalesReportMessage(loadingHtml('Loading'));
                 }
@@ -4519,14 +4670,19 @@
                         date_from: salesReportDateFrom?.value || '',
                         date_to: salesReportDateTo?.value || '',
                     };
-                    const url = mode === 'aircraft'
-                        ? `${routes.aircraftSalesReport}?${queryString({ ...params, plane_id: salesReportAircraft?.value || '' })}`
-                        : `${urlFor(routes.salesReport, state.selectedCustomer.id)}?${queryString(params)}`;
+                    let url;
+                    if (mode === 'aircraft') {
+                        url = `${routes.aircraftSalesReport}?${queryString({ ...params, plane_id: salesReportAircraft?.value || '' })}`;
+                    } else if (mode === 'component') {
+                        url = `${routes.componentSalesReport}?${queryString({ ...params, manual_id: salesReportComponent?.value || '' })}`;
+                    } else {
+                        url = `${urlFor(routes.salesReport, state.selectedCustomer.id)}?${queryString(params)}`;
+                    }
                     const report = await requestJson(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
                     renderSalesReport(report);
                     state.salesReportLoaded = true;
                 } catch (error) {
-                    const colspan = mode === 'aircraft' ? 7 : 6;
+                    const colspan = salesReportColumnCount(mode);
                     salesReportRows.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-danger py-4">${escapeHtml(error.message)}</td></tr>`;
                 } finally {
                     state.salesReportLoading = false;
@@ -4543,12 +4699,17 @@
                 if (!state.salesReportLoaded) return;
 
                 document.body.classList.add('is-marketing-sales-report-print');
+                document.documentElement.classList.add('is-marketing-sales-report-print');
                 window.print();
-                window.setTimeout(() => document.body.classList.remove('is-marketing-sales-report-print'), 800);
+                window.setTimeout(() => {
+                    document.body.classList.remove('is-marketing-sales-report-print');
+                    document.documentElement.classList.remove('is-marketing-sales-report-print');
+                }, 800);
             }
 
             window.addEventListener('afterprint', () => {
                 document.body.classList.remove('is-marketing-sales-report-print');
+                document.documentElement.classList.remove('is-marketing-sales-report-print');
             });
 
             function normalizePhotoPayload(data) {
@@ -4857,6 +5018,14 @@
                 }
             });
 
+            salesReportComponent?.addEventListener('change', () => {
+                state.salesReportLoaded = false;
+                updateSalesReportModeUi();
+                if (state.activeTab === 'sales_report' && salesReportMode() === 'component') {
+                    loadSalesReport(true);
+                }
+            });
+
             if (window.jQuery && salesReportAircraft) {
                 window.jQuery(salesReportAircraft)
                     .off('change.marketingSalesReport select2:select.marketingSalesReport select2:clear.marketingSalesReport')
@@ -4864,6 +5033,18 @@
                         state.salesReportLoaded = false;
                         updateSalesReportModeUi();
                         if (state.activeTab === 'sales_report' && salesReportMode() === 'aircraft') {
+                            loadSalesReport(true);
+                        }
+                    });
+            }
+
+            if (window.jQuery && salesReportComponent) {
+                window.jQuery(salesReportComponent)
+                    .off('change.marketingSalesReport select2:select.marketingSalesReport select2:clear.marketingSalesReport')
+                    .on('change.marketingSalesReport select2:select.marketingSalesReport select2:clear.marketingSalesReport', () => {
+                        state.salesReportLoaded = false;
+                        updateSalesReportModeUi();
+                        if (state.activeTab === 'sales_report' && salesReportMode() === 'component') {
                             loadSalesReport(true);
                         }
                     });

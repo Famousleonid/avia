@@ -15,12 +15,12 @@ class SalesReportService
      */
     public function build(array $filters): array
     {
-        $reportType = $this->reportType($filters['report_type'] ?? null);
+        $reportType = $this->reportType($filters['report_type'] ?? null, $filters);
         $from = $this->parseDate($filters['date_from'] ?? null);
         $to = $this->parseDate($filters['date_to'] ?? null);
 
         if (! $this->hasRequiredTarget($reportType, $filters)) {
-            return $this->emptyReport($reportType, $from, $to, 'Select a customer or A/C type to build the report.');
+            return $this->emptyReport($reportType, $from, $to, $this->missingTargetWarning($reportType));
         }
 
         $workorders = $this->workorders($reportType, $filters);
@@ -53,16 +53,21 @@ class SalesReportService
             ];
         }
 
-        usort($rows, function (array $a, array $b) use ($reportType): int {
-            $groupKey = $reportType === 'component' ? 'aircraft_type' : 'company';
+        usort($rows, static function (array $a, array $b) use ($reportType): int {
+            if ($reportType === 'component') {
+                return [$a['aircraft_type'], $a['company'], $a['wo_number']]
+                    <=> [$b['aircraft_type'], $b['company'], $b['wo_number']];
+            }
 
-            return [$a[$groupKey], $a['wo_number']] <=> [$b[$groupKey], $b['wo_number']];
+            return [$a['company'], $a['wo_number']] <=> [$b['company'], $b['wo_number']];
         });
+
+        $meta = $this->reportMeta($reportType);
 
         return [
             'report_type' => $reportType,
-            'title' => $reportType === 'component' ? 'Sales Report - Components' : 'Sales Report - Customer',
-            'note' => $reportType === 'component' ? 'Report based on one component / A/C type' : 'Report based on one customer',
+            'title' => $meta['title'],
+            'note' => $meta['note'],
             'period_label' => $this->periodLabel($from, $to),
             'rows' => $rows,
             'total' => $total,
@@ -73,11 +78,12 @@ class SalesReportService
     public function emptyReport(string $reportType = 'customer', ?CarbonInterface $from = null, ?CarbonInterface $to = null, ?string $warning = null): array
     {
         $reportType = $this->reportType($reportType);
+        $meta = $this->reportMeta($reportType);
 
         return [
             'report_type' => $reportType,
-            'title' => $reportType === 'component' ? 'Sales Report - Components' : 'Sales Report - Customer',
-            'note' => $reportType === 'component' ? 'Report based on one component / A/C type' : 'Report based on one customer',
+            'title' => $meta['title'],
+            'note' => $meta['note'],
             'period_label' => $this->periodLabel($from, $to),
             'rows' => [],
             'total' => 0.0,
@@ -96,7 +102,7 @@ class SalesReportService
             ->when($reportType === 'customer', function ($query) use ($filters): void {
                 $query->where('customer_id', (int) $filters['customer_id']);
             })
-            ->when($reportType === 'component', function ($query) use ($filters): void {
+            ->when($reportType === 'aircraft', function ($query) use ($filters): void {
                 // multi-plane CMM: match by ANY of the manual's planes
                 $query->whereHas('unit.manual', function ($manual) use ($filters): void {
                     $planeId = (int) $filters['plane_id'];
@@ -106,6 +112,13 @@ class SalesReportService
                     });
                 });
             })
+            ->when($reportType === 'component', function ($query) use ($filters): void {
+                // One component family is represented by one CMM/manual and may
+                // contain several approved P/N variants.
+                $query->whereHas('unit', function ($unit) use ($filters): void {
+                    $unit->where('manual_id', (int) $filters['manual_id']);
+                });
+            })
             ->orderBy('number')
             ->limit(2000)
             ->get();
@@ -113,16 +126,67 @@ class SalesReportService
 
     private function hasRequiredTarget(string $reportType, array $filters): bool
     {
-        if ($reportType === 'component') {
+        if ($reportType === 'aircraft') {
             return (int) ($filters['plane_id'] ?? 0) > 0;
+        }
+
+        if ($reportType === 'component') {
+            return (int) ($filters['manual_id'] ?? 0) > 0;
         }
 
         return (int) ($filters['customer_id'] ?? 0) > 0;
     }
 
-    private function reportType(mixed $value): string
+    /**
+     * @param array<string, mixed> $filters
+     */
+    private function reportType(mixed $value, array $filters = []): string
     {
-        return $value === 'component' ? 'component' : 'customer';
+        if ($value === 'aircraft') {
+            return 'aircraft';
+        }
+
+        if ($value === 'component') {
+            // Backward compatibility for old links where "component" meant
+            // A/C Type and the selected target was stored in plane_id.
+            if ((int) ($filters['manual_id'] ?? 0) === 0 && (int) ($filters['plane_id'] ?? 0) > 0) {
+                return 'aircraft';
+            }
+
+            return 'component';
+        }
+
+        return 'customer';
+    }
+
+    /**
+     * @return array{title: string, note: string}
+     */
+    private function reportMeta(string $reportType): array
+    {
+        return match ($reportType) {
+            'aircraft' => [
+                'title' => 'Sales Report - A/C Type',
+                'note' => 'Report based on one A/C type',
+            ],
+            'component' => [
+                'title' => 'Sales Report - Components',
+                'note' => 'Report based on one component',
+            ],
+            default => [
+                'title' => 'Sales Report - Customer',
+                'note' => 'Report based on one customer',
+            ],
+        };
+    }
+
+    private function missingTargetWarning(string $reportType): string
+    {
+        return match ($reportType) {
+            'aircraft' => 'Select an A/C type to build the report.',
+            'component' => 'Select a component to build the report.',
+            default => 'Select a customer to build the report.',
+        };
     }
 
     private function parseDate(mixed $value): ?CarbonImmutable

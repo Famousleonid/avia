@@ -785,7 +785,10 @@ class TdrsTest extends TestCase
         $savedShow = $this->actingAs($admin)->get(route('tdrs.show', $workorder->id));
         $savedShow->assertOk();
         $savedShow->assertSee('Update Log Card', false);
-        $savedShow->assertSee('Updating...', false);
+        $savedShow->assertSee('Opening...', false);
+        $savedShow->assertSee('loadLogCardPartial({ edit: true })', false);
+        $savedShow->assertSee('window.confirmDialog({', false);
+        $savedShow->assertSee('Continue editing', false);
         $savedShow->assertDontSee('Reset Log Card', false);
         $savedShow->assertDontSee('function logCardTabReset', false);
     }
@@ -958,6 +961,21 @@ class TdrsTest extends TestCase
         $saved->assertOk();
         $saved->assertSee('Manual: LC-EXTRA Extra Log Manual', false);
         $saved->assertSee('Extra Manual Log Part', false);
+
+        $edit = $this->actingAs($admin)->get(route('log_card.partial', $workorder->id).'?edit=1');
+        $edit->assertOk();
+        $edit->assertSee('data-state="draft"', false);
+        $edit->assertSee('data-edit-mode="1"', false);
+        $edit->assertSee('Manual: LC-EXTRA Extra Log Manual', false);
+        $editContent = $edit->getContent();
+        $this->assertMatchesRegularExpression(
+            '/class="form-check-input lc-include-checkbox"[^>]*data-component-id="'.$primaryComponent->id.'"[^>]*\bchecked\b/s',
+            $editContent
+        );
+        $this->assertMatchesRegularExpression(
+            '/class="form-check-input lc-include-checkbox"[^>]*data-component-id="'.$extraComponent->id.'"[^>]*\bchecked\b/s',
+            $editContent
+        );
 
         $print = $this->actingAs($admin)->get(route('log_card.logCardForm', $workorder->id));
         $print->assertOk();

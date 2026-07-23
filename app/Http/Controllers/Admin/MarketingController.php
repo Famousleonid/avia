@@ -12,6 +12,7 @@ use App\Models\CustomerMarketingProfile;
 use App\Models\MarketingCompanyType;
 use App\Models\MarketingSegment;
 use App\Models\MarketingWoFile;
+use App\Models\Manual;
 use App\Models\Plane;
 use App\Models\User;
 use App\Models\Workorder;
@@ -55,6 +56,11 @@ class MarketingController extends Controller
             'segments' => MarketingSegment::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
             'countries' => Country::query()->where('active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'alpha2', 'name']),
             'planes' => Plane::query()->orderBy('type')->get(['id', 'type']),
+            'componentManuals' => Manual::query()
+                ->whereHas('units')
+                ->orderBy('title')
+                ->orderBy('number')
+                ->get(['id', 'number', 'title']),
             'users' => $users
                 ->sortBy(fn (User $user) => mb_strtolower($user->selection_name))
                 ->values(),
@@ -626,8 +632,26 @@ class MarketingController extends Controller
         ]);
 
         $report = $reports->build([
-            'report_type' => 'component',
+            'report_type' => 'aircraft',
             'plane_id' => (int) $data['plane_id'],
+            'date_from' => $data['date_from'] ?? now()->startOfYear()->format('Y-m-d'),
+            'date_to' => $data['date_to'] ?? now()->endOfYear()->format('Y-m-d'),
+        ]);
+
+        return response()->json($report);
+    }
+
+    public function componentSalesReport(Request $request, SalesReportService $reports): JsonResponse
+    {
+        $data = $request->validate([
+            'manual_id' => ['required', 'integer', 'exists:manuals,id'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
+
+        $report = $reports->build([
+            'report_type' => 'component',
+            'manual_id' => (int) $data['manual_id'],
             'date_from' => $data['date_from'] ?? now()->startOfYear()->format('Y-m-d'),
             'date_to' => $data['date_to'] ?? now()->endOfYear()->format('Y-m-d'),
         ]);

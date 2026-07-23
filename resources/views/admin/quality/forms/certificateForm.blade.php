@@ -333,7 +333,7 @@
         . ' and Service Bulletins: '
         . ($serviceBulletins->isNotEmpty() ? $serviceBulletins->implode(', ') : 'none')
         . ' incorporated.';
-    if ($selectedCertificateStateKey === 'main:c' && array_key_exists('certificate_airworthiness_remark', $selectedCertificateItemSettings)) {
+    if (array_key_exists('certificate_airworthiness_remark', $selectedCertificateItemSettings)) {
         $savedAirworthinessRemark = $selectedCertificateItemSettings['certificate_airworthiness_remark'];
         $airworthinessText = is_scalar($savedAirworthinessRemark)
             ? trim((string) $savedAirworthinessRemark)
@@ -361,7 +361,7 @@
         $revisionText = $revisionControlPrefix . $manualRevisionNumber . ' dated ' . $manualDate;
     }
     $certificateCmmExtraText = trim((string) ($selectedCertificateItemSettings['certificate_cmm_extra_text'] ?? ''));
-    $certificateCmmExtraSuffix = $certificateCmmExtraText !== '' ? ', ' . $certificateCmmExtraText : '';
+    $certificateCmmExtraSuffix = $certificateCmmExtraText !== '' ? ' ' . $certificateCmmExtraText : '';
     $statusRemarkBaseSuffix = ' in accordance with CMM # ' . $certificateManualNumber;
     $statusRemarkSuffix = $statusRemarkBaseSuffix . $revisionText . $certificateCmmExtraSuffix . '.';
     $replacementPartsRemarkOptions = [
@@ -435,16 +435,23 @@
         'text' => $correctionRemarkText,
         'c_correction_remark' => true,
     ];
-    $certificateFreeRemarks = collect([1, 2])->mapWithKeys(function (int $index) use ($certificateItemStringSetting, $certificateRemarkChecked): array {
+    $certificateFreeRemarkDefaults = [
+        1 => 'Recieved / Dispatched less:',
+        2 => '',
+        3 => 'Removed from:',
+    ];
+    $certificateFreeRemarks = collect([1, 2, 3])->mapWithKeys(function (int $index) use ($certificateItemStringSetting, $certificateRemarkChecked, $certificateFreeRemarkDefaults): array {
         $valueKey = 'certificate_free_remark_' . $index;
         $includeKey = 'include_certificate_free_remark_' . $index;
-        $text = $certificateItemStringSetting($valueKey);
+        $text = $certificateItemStringSetting($valueKey, $certificateFreeRemarkDefaults[$index]);
 
         return [$index => [
             'value_key' => $valueKey,
             'include_key' => $includeKey,
             'text' => $text,
+            'default' => $certificateFreeRemarkDefaults[$index],
             'checked' => $certificateRemarkChecked($includeKey, false),
+            'small' => $index === 3,
         ]];
     });
     if ($selectedCertificateStateKey === 'main:c' && is_array($selectedCertificateItemSettings['certificate_remarks'] ?? null)) {
@@ -1130,7 +1137,17 @@
             min-width: 0;
         }
 
+        .arc-airworthiness-remark {
+            flex: 1 1 auto;
+            width: 100%;
+        }
+
         .arc-remark-line.is-print-disabled .arc-remark-text {
+            color: #777;
+        }
+
+        .arc-free-remark-line.is-print-disabled .arc-free-remark-input,
+        .arc-free-remark-line.is-print-disabled .arc-free-remark-print-value {
             color: #777;
         }
 
@@ -1245,6 +1262,29 @@
         .arc-free-remark-line .arc-remark-toggle {
             flex: 0 0 auto;
             margin-left: 0;
+        }
+
+        .arc-free-remark-line.is-small {
+            font-size: calc(1em - 2px);
+        }
+
+        .arc-status-revision-prefix,
+        .arc-status-revision-period {
+            margin-left: -0.05in;
+        }
+
+        @media screen {
+            .arc-sheet {
+                height: auto;
+                min-height: 7.74in;
+                overflow: visible;
+            }
+
+            .arc-sheet > .arc-remarks {
+                height: auto;
+                min-height: calc(1.78in + 12mm);
+                overflow: visible;
+            }
         }
 
         .arc-form-shell input:not([type="checkbox"]):not([type="radio"]),
@@ -1808,7 +1848,7 @@
 </head>
 <body>
 <div class="arc-toolbar">
-    <button type="button" class="arc-print-button" onclick="window.print()">Print Form</button>
+    <button type="button" class="arc-print-button" data-certificate-print>Print Form</button>
 </div>
 <div class="arc-form-shell">
 <main class="arc-sheet">
@@ -2044,9 +2084,9 @@
                             <span class="arc-life-remark-print-value" data-certificate-life-remark-output>{{ $remarkDisplayText }}</span>
                         @else
                             <span
-                                class="arc-remark-text arc-c-editable {{ $isReplacementPartsRemark ? 'arc-replacement-parts-print-value' : '' }}"
+                                class="arc-remark-text arc-c-editable {{ $isReplacementPartsRemark ? 'arc-replacement-parts-print-value' : '' }} {{ $isAirworthinessRemark ? 'arc-airworthiness-remark' : '' }}"
                                 role="textbox"
-                                contenteditable="{{ $selectedCertificateStateKey === 'main:c' && ! $isStatusRemark && ! $isOverhauledOnRemark && ! $isReplacementPartsRemark ? 'true' : 'false' }}"
+                                contenteditable="{{ ($isAirworthinessRemark || $selectedCertificateStateKey === 'main:c') && ! $isStatusRemark && ! $isOverhauledOnRemark && ! $isReplacementPartsRemark ? 'true' : 'false' }}"
                                 data-certificate-remark-text
                                 data-remark-index="{{ $loop->index }}"
                                 data-default-value="{{ $remarkDisplayText }}"
@@ -2127,7 +2167,7 @@
                                 data-certificate-cmm-extra-print
                                 data-raw-value="{{ $statusRemarkCmmExtraText }}"
                                 @if($statusRemarkCmmExtraText === '') hidden @endif
-                            >{{ $statusRemarkCmmExtraText !== '' ? ', ' . $statusRemarkCmmExtraText : '' }}</span>
+                            >{{ $statusRemarkCmmExtraText }}</span>
                             <input
                                 type="text"
                                 class="arc-remark-number-input arc-manual-cmm-extra-input"
@@ -2169,7 +2209,7 @@
             @endforeach
             @foreach($certificateFreeRemarks as $freeRemarkIndex => $freeRemark)
                 <div
-                    class="arc-remark-line arc-free-remark-line {{ ! $freeRemark['checked'] ? 'is-print-disabled' : '' }} {{ $freeRemark['text'] === '' ? 'is-empty' : '' }}"
+                    class="arc-remark-line arc-free-remark-line {{ $freeRemark['small'] ? 'is-small' : '' }} {{ ! $freeRemark['checked'] ? 'is-print-disabled' : '' }} {{ $freeRemark['text'] === '' ? 'is-empty' : '' }}"
                     data-certificate-free-remark-row="{{ $freeRemarkIndex }}"
                 >
                     <input
@@ -2178,6 +2218,7 @@
                         value="{{ $freeRemark['text'] }}"
                         data-certificate-free-remark-input
                         data-setting-key="{{ $freeRemark['value_key'] }}"
+                        data-default-value="{{ $freeRemark['default'] }}"
                         data-original-value="{{ $freeRemark['text'] }}"
                         aria-label="Free remark {{ $freeRemarkIndex }}"
                         spellcheck="false"
@@ -2348,9 +2389,21 @@
         const certificateStateUrl = @json(route('quality.forms.certificate.state.update', ['workorder' => $current_wo->id]));
         const workorderTopFieldsUrl = @json(route('quality.workorder.top_fields.update', ['workorder' => $current_wo->id]));
         const csrfToken = @json(csrf_token());
+        const pendingCertificateSaves = new Set();
+
+        function trackCertificateSave(promise) {
+            const trackedPromise = Promise.resolve(promise);
+            pendingCertificateSaves.add(trackedPromise);
+            const removeTrackedPromise = function () {
+                pendingCertificateSaves.delete(trackedPromise);
+            };
+            trackedPromise.then(removeTrackedPromise, removeTrackedPromise);
+
+            return trackedPromise;
+        }
 
         function saveSetting(key, value, options = {}) {
-            return fetch(certificateStateUrl, {
+            return trackCertificateSave(fetch(certificateStateUrl, {
                 method: 'PATCH',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
@@ -2363,7 +2416,7 @@
                     value: value,
                     item_source: options.itemSource || null,
                 }),
-            }).catch(function (error) {
+            })).catch(function (error) {
                 console.error('Failed to save certificate setting', error);
             });
         }
@@ -2493,7 +2546,8 @@
                 return;
             }
 
-            const isEnabled = enabled && !isSourceControlledRemark(element);
+            const isAirworthinessRemark = element.hasAttribute('data-certificate-airworthiness-remark');
+            const isEnabled = isAirworthinessRemark || (enabled && !isSourceControlledRemark(element));
 
             element.setAttribute('contenteditable', isEnabled ? 'true' : 'false');
             element.setAttribute('aria-disabled', isEnabled ? 'false' : 'true');
@@ -2533,7 +2587,8 @@
         function syncFreeRemarkControls() {
             freeRemarkInputs.forEach(function (input) {
                 const settingKey = input.getAttribute('data-setting-key');
-                const value = String(getCertificateStateValue(settingKey, '') || '');
+                const defaultValue = input.getAttribute('data-default-value') || '';
+                const value = String(getCertificateStateValue(settingKey, defaultValue) || '');
                 const row = input.closest('.arc-free-remark-line');
                 const output = row?.querySelector('[data-certificate-free-remark-output]');
                 input.value = value;
@@ -2597,7 +2652,7 @@
         function manualCmmExtraPhrase() {
             const text = manualCmmExtraText();
 
-            return text ? ', ' + text : '';
+            return text ? ' ' + text : '';
         }
 
         function updateManualCmmExtraPrint(value) {
@@ -2607,7 +2662,7 @@
 
             const text = String(value || '').trim();
             manualCmmExtraPrint.dataset.rawValue = text;
-            manualCmmExtraPrint.textContent = text ? ', ' + text : '';
+            manualCmmExtraPrint.textContent = text;
             manualCmmExtraPrint.hidden = text === '';
         }
 
@@ -3021,7 +3076,12 @@
                 setEditableValue(detailPart, item.part_number || '');
                 setEditableValue(detailSerial, item.serial_number || '');
                 remarkTexts.forEach(function (remark) {
-                    if (remark.hasAttribute('data-certificate-overhauled-on-remark')) {
+                    if (remark.hasAttribute('data-certificate-airworthiness-remark')) {
+                        setEditableValue(
+                            remark,
+                            String(getCertificateStateValue('certificate_airworthiness_remark', remark.dataset.defaultValue || '') || '')
+                        );
+                    } else if (remark.hasAttribute('data-certificate-overhauled-on-remark')) {
                         setEditableValue(remark, remark.dataset.defaultValue || '');
                     } else if (remark.hasAttribute('data-certificate-c-correction-remark')) {
                         setEditableValue(remark, remark.dataset.defaultValue || '');
@@ -3422,12 +3482,6 @@
             });
 
             remark.addEventListener('blur', async function () {
-                if (!isCertificateCMode()) {
-                    remark.dataset.originalValue = editableValue(remark);
-                    fitRemarksText();
-                    return;
-                }
-
                 const value = editableValue(remark);
                 const originalValue = remark.dataset.originalValue || '';
                 const separateRemarkKey = remark.hasAttribute('data-certificate-airworthiness-remark')
@@ -3454,6 +3508,12 @@
                     } finally {
                         remark.classList.remove('is-saving');
                     }
+                    return;
+                }
+
+                if (!isCertificateCMode()) {
+                    remark.dataset.originalValue = value;
+                    fitRemarksText();
                     return;
                 }
 
@@ -4041,6 +4101,59 @@
 
         applyCertificateDetail(initialCertificateDetailSource, false);
         fitRemarksText();
+
+        const printButton = document.querySelector('[data-certificate-print]');
+
+        function certificateSaveIsActive() {
+            return pendingCertificateSaves.size > 0 || Boolean(document.querySelector('.is-saving'));
+        }
+
+        function waitForCertificateSaves(timeoutMs = 15000) {
+            const startedAt = Date.now();
+
+            return new Promise(function (resolve, reject) {
+                function check() {
+                    if (!certificateSaveIsActive()) {
+                        resolve();
+                        return;
+                    }
+
+                    if (Date.now() - startedAt >= timeoutMs) {
+                        reject(new Error('Certificate save timed out.'));
+                        return;
+                    }
+
+                    window.setTimeout(check, 25);
+                }
+
+                window.setTimeout(check, 0);
+            });
+        }
+
+        if (printButton) {
+            printButton.addEventListener('click', async function () {
+                const activeElement = document.activeElement;
+                if (activeElement instanceof HTMLElement && activeElement !== document.body) {
+                    activeElement.blur();
+                }
+
+                printButton.disabled = true;
+                printButton.setAttribute('aria-busy', 'true');
+
+                try {
+                    await waitForCertificateSaves();
+                    window.print();
+                } catch (error) {
+                    console.error('Could not finish saving certificate before print', error);
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('Could not finish saving before print. Please try again.', 'error');
+                    }
+                } finally {
+                    printButton.disabled = false;
+                    printButton.removeAttribute('aria-busy');
+                }
+            });
+        }
 
         window.addEventListener('beforeprint', function () {
             fitRemarksText(true);

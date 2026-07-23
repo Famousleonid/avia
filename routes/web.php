@@ -256,6 +256,7 @@ Route::group(['middleware' => ['auth', 'verified', 'desktop']], function () {
         Route::delete('/marketing/workorders/{workorder}/files/{marketingWoFile}', [MarketingWoFileController::class, 'destroy'])->name('marketing.workorders.files.destroy');
         Route::get('/marketing/customers/{customer}/sales-report', [MarketingController::class, 'customerSalesReport'])->name('marketing.customers.sales-report');
         Route::get('/marketing/sales-report/aircraft', [MarketingController::class, 'aircraftSalesReport'])->name('marketing.sales-report.aircraft');
+        Route::get('/marketing/sales-report/component', [MarketingController::class, 'componentSalesReport'])->name('marketing.sales-report.component');
         Route::post('/marketing/customers/{customer}/contacts', [MarketingController::class, 'storeContact'])->name('marketing.contacts.store');
         Route::patch('/marketing/contacts/{contact}', [MarketingController::class, 'updateContact'])->name('marketing.contacts.update');
         Route::delete('/marketing/contacts/{contact}', [MarketingController::class, 'destroyContact'])->name('marketing.contacts.destroy');

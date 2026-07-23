@@ -5,12 +5,16 @@ namespace App\Http\Controllers\General;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Workorder;
+use App\Services\Media\ImageOrientationNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MediaController extends Controller
 {
+    public function __construct(private ImageOrientationNormalizer $imageOrientationNormalizer)
+    {
+    }
 
     public function store_avatar(Request $request, $id)
     {
@@ -34,6 +38,7 @@ class MediaController extends Controller
 
         if ($request->hasFile('photos')) {
             foreach ($request->file('photos') as $photo) {
+                $photo = $this->imageOrientationNormalizer->normalize($photo);
                 // Формируем уникальное читаемое имя файла
                 $filename = 'wo_' . $workorder->number . '_' . now()->format('Ymd_Hi') . '_' . Str::random(3) . '.' . $photo->getClientOriginalExtension();
 

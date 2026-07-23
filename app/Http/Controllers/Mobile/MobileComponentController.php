@@ -10,10 +10,15 @@ use App\Models\Manual;
 use App\Models\Necessary;
 use App\Models\Tdr;
 use App\Models\Workorder;
+use App\Services\Media\ImageOrientationNormalizer;
 use Illuminate\Http\Request;
 
 class MobileComponentController extends Controller
 {
+    public function __construct(private ImageOrientationNormalizer $imageOrientationNormalizer)
+    {
+    }
+
     public function components(Workorder $workorder)
     {
         $workorder->load(['unit', 'media', 'tdrs.codes',  'tdrs.component.media',]);
@@ -106,7 +111,8 @@ class MobileComponentController extends Controller
         $component->save();
 
         if ($request->hasFile('photo')) {
-            $component->addMediaFromRequest('photo')->toMediaCollection('components');
+            $component->addMedia($this->imageOrientationNormalizer->normalize($request->file('photo')))
+                ->toMediaCollection('components');
         }
 
         return redirect()->back()->with('success', 'Component added successfully.');
@@ -150,7 +156,8 @@ class MobileComponentController extends Controller
         ]);
 
         if ($request->hasFile('photo')) {
-            $component->addMediaFromRequest('photo')->toMediaCollection('components');
+            $component->addMedia($this->imageOrientationNormalizer->normalize($request->file('photo')))
+                ->toMediaCollection('components');
         }
 
         return response()->json([
@@ -258,7 +265,8 @@ class MobileComponentController extends Controller
             // Удаляем старое фото (как аватар - одно фото)
             $component->clearMediaCollection('components');
             // Добавляем новое
-            $component->addMediaFromRequest('photo')->toMediaCollection('components');
+            $component->addMedia($this->imageOrientationNormalizer->normalize($request->file('photo')))
+                ->toMediaCollection('components');
         }
 
         return response()->json([

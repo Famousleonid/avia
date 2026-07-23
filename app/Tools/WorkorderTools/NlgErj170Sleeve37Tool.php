@@ -16,7 +16,7 @@ class NlgErj170Sleeve37Tool implements WorkorderToolDefinition
 
     public function manualNumbers(): array
     {
-        return ['32-21-01'];
+        return ['32-21-01', '32-21-01 ERJ'];
     }
 
     public function toArray(): array

@@ -702,6 +702,8 @@ class WorkorderController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Workorder::class);
+
         $customers = Customer::query()->orderBy('name')->get();
         $units = Unit::with('manuals')->get();
         $instructions = Instruction::all();
@@ -736,6 +738,8 @@ class WorkorderController extends Controller
 
     public function store(Request $request, DraftWorkorderMatchService $draftWorkorderMatchService)
     {
+        $this->authorize('create', Workorder::class);
+
         $draftInstructionId = Instruction::where('name', 'Draft')->value('id');
 
         if (!$draftInstructionId) {

@@ -154,6 +154,56 @@ class WorkorderActionsTest extends TestCase
         $this->assertSame('2026-07-22', $main->fresh()->date_finish?->format('Y-m-d'));
     }
 
+    public function test_shop_roles_do_not_see_quote_submission_or_entire_approved_stage_in_mains(): void
+    {
+        $workorder = $this->createWorkorder();
+        $disassembly = GeneralTask::query()->create([
+            'name' => 'Disassembly',
+            'sort_order' => 1,
+        ]);
+        $approved = GeneralTask::query()->create([
+            'name' => 'Approved',
+            'sort_order' => 2,
+        ]);
+
+        Task::query()->create([
+            'name' => 'WO Submitted for Quote',
+            'general_task_id' => $disassembly->id,
+            'task_has_start_date' => false,
+        ]);
+        Task::query()->create([
+            'name' => 'Visible Disassembly Task',
+            'general_task_id' => $disassembly->id,
+            'task_has_start_date' => false,
+        ]);
+        Task::query()->create([
+            'name' => 'Approved Stage Internal Task',
+            'general_task_id' => $approved->id,
+            'task_has_start_date' => false,
+        ]);
+
+        foreach (['Technician', 'Team Leader'] as $role) {
+            $response = $this->actingAs($this->createUserWithRole($role))
+                ->get(route('mains.show', $workorder));
+
+            $response->assertOk();
+            $response->assertSee('Visible Disassembly Task');
+            $response->assertDontSee('WO Submitted for Quote');
+            $response->assertDontSee('Approved Stage Internal Task');
+            $response->assertDontSee('data-gt-id="'.$approved->id.'"', false);
+        }
+
+        foreach (['Manager', 'Admin'] as $role) {
+            $response = $this->actingAs($this->createUserWithRole($role))
+                ->get(route('mains.show', $workorder));
+
+            $response->assertOk();
+            $response->assertSee('WO Submitted for Quote');
+            $response->assertSee('Approved Stage Internal Task');
+            $response->assertSee('data-gt-id="'.$approved->id.'"', false);
+        }
+    }
+
     public function test_technician_approval_stage_color_still_requires_hidden_approved_task(): void
     {
         $technician = $this->createUserWithRole('Technician');

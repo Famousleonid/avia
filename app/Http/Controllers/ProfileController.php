@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Team;
+use App\Services\Media\ImageOrientationNormalizer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -10,6 +11,10 @@ use Illuminate\Validation\ValidationException;
 
 class ProfileController extends Controller
 {
+    public function __construct(private ImageOrientationNormalizer $imageOrientationNormalizer)
+    {
+    }
+
     public function edit(Request $request)
     {
         $user = $request->user();
@@ -46,7 +51,8 @@ class ProfileController extends Controller
 
         if ($request->hasFile('file')) {
             $user->clearMediaCollection('avatar');
-            $user->addMedia($request->file('file'))->toMediaCollection('avatar');
+            $user->addMedia($this->imageOrientationNormalizer->normalize($request->file('file')))
+                ->toMediaCollection('avatar');
         }
 
         return redirect()
