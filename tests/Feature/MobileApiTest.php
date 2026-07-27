@@ -596,6 +596,152 @@ class MobileApiTest extends TestCase
             ->assertJsonPath('data.process.date_start', '2026-05-25');
     }
 
+    public function test_mobile_api_can_create_and_edit_workorder_tdrs(): void
+    {
+        $user = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $user->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'ipl_num' => '32-10',
+            'part_number' => 'PN-MOBILE-TDR',
+            'name' => 'Mobile TDR Component',
+        ]);
+        $repairCode = Code::query()->create(['name' => 'Repair', 'code' => 'RPR']);
+        $repairNecessary = Necessary::query()->create(['name' => 'Repair']);
+        $orderNewNecessary = Necessary::query()->create(['name' => 'Order New']);
+
+        $components = $this->withMobileToken($user)
+            ->getJson(route('api.mobile.workorders.components.index', $workorder->id));
+        $components->assertOk()
+            ->assertJsonPath('data.can_create_tdr', true)
+            ->assertJsonPath('data.can_update_tdr', true)
+            ->assertJsonPath('data.can_delete_tdr', false)
+            ->assertJsonFragment(['id' => $component->id, 'name' => 'Mobile TDR Component'])
+            ->assertJsonFragment(['id' => $repairCode->id, 'name' => 'Repair'])
+            ->assertJsonFragment(['id' => $orderNewNecessary->id, 'name' => 'Order New']);
+
+        $create = $this->withMobileToken($user)
+            ->putJson(route('api.mobile.workorders.tdrs.upsert', $workorder->id), [
+                'component_id' => $component->id,
+                'code_id' => $repairCode->id,
+                'necessaries_id' => $repairNecessary->id,
+                'qty' => 2,
+                'serial_number' => 'MOBILE-001',
+            ]);
+        $create->assertCreated()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.tdr.component_id', $component->id)
+            ->assertJsonPath('data.tdr.code_id', $repairCode->id)
+            ->assertJsonPath('data.tdr.code_name', 'Repair')
+            ->assertJsonPath('data.tdr.necessaries_id', $repairNecessary->id)
+            ->assertJsonPath('data.tdr.necessaries_name', 'Repair')
+            ->assertJsonPath('data.tdr.qty', 2)
+            ->assertJsonPath('data.tdr.serial_number', 'MOBILE-001');
+
+        $tdrId = (int) $create->json('data.tdr.id');
+        $reload = $this->withMobileToken($user)
+            ->getJson(route('api.mobile.workorders.components.index', $workorder->id));
+        $reload->assertOk()
+            ->assertJsonPath('data.attached_components.0.id', $component->id)
+            ->assertJsonPath('data.attached_components.0.name', 'Mobile TDR Component')
+            ->assertJsonPath('data.attached_components.0.ipl_num', '32-10')
+            ->assertJsonPath('data.attached_components.0.part_number', 'PN-MOBILE-TDR')
+            ->assertJsonPath('data.attached_components.0.tdrs.0.id', $tdrId)
+            ->assertJsonPath('data.attached_components.0.tdrs.0.code_name', 'Repair');
+
+        $edit = $this->withMobileToken($user)
+            ->putJson(route('api.mobile.workorders.tdrs.upsert', $workorder->id), [
+                'tdr_id' => $tdrId,
+                'component_id' => $component->id,
+                'code_id' => $repairCode->id,
+                'necessaries_id' => $orderNewNecessary->id,
+                'qty' => 3,
+                'serial_number' => null,
+            ]);
+        $edit->assertOk()
+            ->assertJsonPath('data.tdr.id', $tdrId)
+            ->assertJsonPath('data.tdr.necessaries_id', $orderNewNecessary->id)
+            ->assertJsonPath('data.tdr.necessaries_name', 'Order New')
+            ->assertJsonPath('data.tdr.qty', 3)
+            ->assertJsonPath('data.tdr.serial_number', null);
+
+        $this->assertDatabaseHas('tdrs', [
+            'id' => $tdrId,
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'codes_id' => $repairCode->id,
+            'necessaries_id' => $orderNewNecessary->id,
+            'order_component_id' => $component->id,
+            'qty' => 3,
+            'serial_number' => null,
+            'tdr_type' => Tdr::TYPE_ORDER_NEW,
+        ]);
+        $this->assertTrue((bool) $workorder->fresh()->new_parts);
+    }
+
+    public function test_mobile_api_tdr_write_permissions_and_workorder_scope_are_enforced(): void
+    {
+        $writer = $this->createUserWithRole('Technician');
+        $workorder = $this->createWorkorder(['user_id' => $writer->id]);
+        $component = Component::query()->create([
+            'manual_id' => $workorder->unit->manual_id,
+            'ipl_num' => '32-11',
+            'part_number' => 'PN-TDR-SCOPE',
+            'name' => 'Scoped Component',
+        ]);
+        $code = Code::query()->create(['name' => 'Repair', 'code' => 'RPR-SCOPE']);
+        $necessary = Necessary::query()->create(['name' => 'Repair']);
+        $shipping = $this->createUserWithRole('Shipping');
+
+        $this->withMobileToken($shipping)
+            ->getJson(route('api.mobile.workorders.components.index', $workorder->id))
+            ->assertOk()
+            ->assertJsonPath('data.can_create_tdr', false)
+            ->assertJsonPath('data.can_update_tdr', false)
+            ->assertJsonPath('data.can_delete_tdr', false);
+
+        $payload = [
+            'component_id' => $component->id,
+            'code_id' => $code->id,
+            'necessaries_id' => $necessary->id,
+            'qty' => 1,
+            'serial_number' => 'NO-WRITE',
+        ];
+        $this->withMobileToken($shipping)
+            ->putJson(route('api.mobile.workorders.tdrs.upsert', $workorder->id), $payload)
+            ->assertForbidden();
+        $this->assertDatabaseMissing('tdrs', ['workorder_id' => $workorder->id, 'serial_number' => 'NO-WRITE']);
+
+        $this->withMobileToken($writer)
+            ->putJson(route('api.mobile.workorders.tdrs.upsert', $workorder->id), array_merge($payload, ['qty' => 0]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('qty');
+
+        $foreignComponent = Component::query()->create([
+            'manual_id' => $this->createManual()->id,
+            'ipl_num' => '99-99',
+            'part_number' => 'PN-FOREIGN',
+            'name' => 'Foreign Component',
+        ]);
+        $this->withMobileToken($writer)
+            ->putJson(route('api.mobile.workorders.tdrs.upsert', $workorder->id), array_merge($payload, ['component_id' => $foreignComponent->id]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('component_id');
+
+        $otherWorkorder = $this->createWorkorder(['user_id' => $writer->id]);
+        $otherTdr = Tdr::query()->create([
+            'workorder_id' => $otherWorkorder->id,
+            'component_id' => $component->id,
+            'codes_id' => $code->id,
+            'necessaries_id' => $necessary->id,
+            'qty' => 1,
+            'tdr_type' => Tdr::TYPE_COMPONENT_TDR,
+        ]);
+        $this->withMobileToken($writer)
+            ->putJson(route('api.mobile.workorders.tdrs.upsert', $workorder->id), array_merge($payload, ['tdr_id' => $otherTdr->id]))
+            ->assertNotFound();
+    }
+
     public function test_mobile_api_process_date_permissions_are_explicit_and_enforced(): void
     {
         $user = $this->createUserWithRole('Technician');

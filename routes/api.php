@@ -68,6 +68,7 @@ $registerMobileClientRoutes = function (string $controller) {
         Route::put('/workorders/{workorderId}/tasks/{task}/dates', [$controller, 'updateTaskDates'])->name('workorders.tasks.dates');
 
         Route::get('/workorders/{workorderId}/components', [$controller, 'components'])->name('workorders.components.index');
+        Route::put('/workorders/{workorderId}/tdrs', [$controller, 'upsertTdr'])->name('workorders.tdrs.upsert');
         Route::post('/workorders/{workorderId}/components', [$controller, 'storeComponent'])->name('workorders.components.store');
         Route::patch('/components/{component}', [$controller, 'updateComponent'])->name('components.update');
         Route::post('/components/{component}/photo', [$controller, 'storeComponentPhoto'])->name('components.photo.store');

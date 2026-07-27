@@ -634,7 +634,61 @@ class MobileApiController extends Controller
             'codes' => Code::query()->orderBy('name')->get(['id', 'name'])->values(),
             'necessaries' => Necessary::query()->orderBy('name')->get(['id', 'name'])->values(),
             'conditions' => Condition::query()->where('unit', false)->orderBy('name')->get(['id', 'name'])->values(),
+            'can_create_tdr' => $this->canWriteTdrs($workorder, request()->user()),
+            'can_update_tdr' => $this->canWriteTdrs($workorder, request()->user()),
+            'can_delete_tdr' => false,
         ]);
+    }
+
+    public function upsertTdr(Request $request, int $workorderId): JsonResponse
+    {
+        $workorder = $this->findWorkorder($workorderId, ['unit']);
+        abort_unless($this->canWriteTdrs($workorder, $request->user()), 403);
+
+        $validated = $request->validate([
+            'tdr_id' => ['nullable', 'integer'],
+            'component_id' => ['required', 'integer', 'exists:components,id'],
+            'code_id' => ['required', 'integer', 'exists:codes,id'],
+            'necessaries_id' => ['nullable', 'integer', 'exists:necessaries,id'],
+            'qty' => ['required', 'integer', 'min:1'],
+            'serial_number' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $component = Component::query()->findOrFail((int) $validated['component_id']);
+        $this->ensureComponentAvailableForWorkorder($workorder, $component);
+
+        $tdrId = $validated['tdr_id'] ?? null;
+        $tdr = $tdrId === null
+            ? new Tdr()
+            : Tdr::query()
+                ->where('workorder_id', $workorder->id)
+                ->findOrFail((int) $tdrId);
+        $isNew = ! $tdr->exists;
+        $data = $this->mobileTdrData($validated, $workorder, $component);
+
+        $tdr->fill($data);
+        $tdr->tdr_type = Tdr::query()->make($data)->inferType(
+            null,
+            (string) (Necessary::query()->where('name', 'Order New')->value('id') ?? ''),
+            (string) (Necessary::query()->where('name', 'Repair')->value('id') ?? '')
+        );
+        $tdr->save();
+
+        if ($this->isMissingCode((int) $validated['code_id'])) {
+            $workorder->update(['part_missing' => true]);
+        }
+        if ($this->isOrderNewNecessary($validated['necessaries_id'] ?? null)) {
+            $workorder->update(['new_parts' => true]);
+        }
+
+        $tdr->load(['codes', 'necessaries', 'component.media']);
+
+        return $this->ok(
+            ['tdr' => $this->tdrPayload($tdr)],
+            [],
+            $isNew ? 'TDR created.' : 'TDR updated.',
+            $isNew ? 201 : 200
+        );
     }
 
     public function storeComponent(Request $request, int $workorderId): JsonResponse
@@ -1354,6 +1408,72 @@ class MobileApiController extends Controller
         }
 
         return $data;
+    }
+
+    protected function canWriteTdrs(Workorder $workorder, ?User $user): bool
+    {
+        return $user?->roleIs(['Admin', 'Manager', 'Team Leader', 'Technician']) ?? false;
+    }
+
+    protected function ensureComponentAvailableForWorkorder(Workorder $workorder, Component $component): void
+    {
+        $isFromWorkorderManual = (int) ($workorder->unit?->manual_id ?? 0) === (int) $component->manual_id;
+        $isAlreadyAttached = $workorder->tdrs()
+            ->where('component_id', $component->id)
+            ->exists();
+
+        if (! $isFromWorkorderManual && ! $isAlreadyAttached) {
+            throw ValidationException::withMessages([
+                'component_id' => ['The selected component is not available for this workorder.'],
+            ]);
+        }
+    }
+
+    protected function mobileTdrData(array $validated, Workorder $workorder, Component $component): array
+    {
+        $code = Code::query()->findOrFail((int) $validated['code_id']);
+        $necessary = isset($validated['necessaries_id'])
+            ? Necessary::query()->find((int) $validated['necessaries_id'])
+            : null;
+        $codeName = mb_strtolower(trim((string) $code->name));
+        $necessaryName = mb_strtolower(trim((string) ($necessary?->name ?? '')));
+
+        if ($codeName === 'manufacture') {
+            throw ValidationException::withMessages([
+                'code_id' => ['Manufacture TDRs must be created from the desktop form because they create paired records.'],
+            ]);
+        }
+
+        $isMissing = $this->isMissingCode((int) $code->id);
+        $isOrderNew = $necessaryName === 'order new';
+
+        return [
+            'workorder_id' => $workorder->id,
+            'component_id' => $component->id,
+            'codes_id' => $code->id,
+            'necessaries_id' => $necessary?->id,
+            'qty' => (int) $validated['qty'],
+            'serial_number' => $validated['serial_number'] ?? null,
+            'order_component_id' => $isOrderNew ? $component->id : null,
+            'use_tdr' => ! $isMissing,
+            'use_process_forms' => ! $isMissing && ! $isOrderNew,
+        ];
+    }
+
+    protected function isMissingCode(int $codeId): bool
+    {
+        $name = Code::query()->whereKey($codeId)->value('name');
+
+        return str_contains(mb_strtolower(trim((string) $name)), 'missing');
+    }
+
+    protected function isOrderNewNecessary(?int $necessaryId): bool
+    {
+        if (! $necessaryId) {
+            return false;
+        }
+
+        return mb_strtolower(trim((string) Necessary::query()->whereKey($necessaryId)->value('name'))) === 'order new';
     }
 
     protected function findWorkorder(int $id, array $with = []): Workorder
